@@ -1,0 +1,314 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>RYLÉ · Terminal</title>
+<style>
+  :root{
+    --bg:#04060c; --panel:rgba(0,0,0,.55); --panel2:rgba(4,8,16,.72);
+    --line:rgba(120,150,210,.18); --ink:#e8eefc; --muted:#78839d;
+    --up:#1fd18a; --down:#ff4d64; --accent:#4da3ff; --warn:#f5b642; --gold:#d9b25a;
+    --mono:"SFMono-Regular",Consolas,"Liberation Mono",Menlo,monospace;
+    box-sizing:border-box; padding-top:env(safe-area-inset-top,0); padding-bottom:env(safe-area-inset-bottom,0);
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;height:100%}
+  body{
+    background:
+      radial-gradient(70vw 50vh at 80% -10%, rgba(77,163,255,.08), transparent 60%),
+      radial-gradient(60vw 45vh at 0% 110%, rgba(31,209,138,.06), transparent 60%),
+      var(--bg);
+    color:var(--ink); font-family:"Segoe UI",system-ui,-apple-system,sans-serif; min-height:100%;
+    font-variant-numeric:tabular-nums;
+  }
+  header{
+    display:flex;align-items:center;gap:14px;flex-wrap:wrap;
+    padding:12px 18px; position:sticky;top:0;z-index:30;
+    background:rgba(2,4,9,.75);backdrop-filter:blur(16px);
+    border-bottom:1px solid var(--line);
+  }
+  header::before{content:"";position:absolute;top:0;left:0;right:0;height:2px;
+    background:linear-gradient(90deg,var(--accent),var(--up),var(--gold));opacity:.8}
+  .logo{font-weight:300;letter-spacing:.4em;font-size:14px;color:var(--muted)}
+  .logo b{color:var(--ink);font-weight:700}
+  .sym-switch{display:flex;gap:6px;margin-left:12px}
+  .sym-switch button{border:1px solid var(--line);background:var(--panel);color:var(--muted);
+    padding:7px 16px;font-size:13px;letter-spacing:.05em;cursor:pointer;transition:.15s;text-transform:uppercase}
+  .sym-switch button.active{background:var(--accent);color:#02060e;border-color:transparent;font-weight:700}
+  .tools{margin-left:auto;display:flex;align-items:center;gap:14px}
+  .refresh{border:1px solid var(--line);background:var(--panel);color:var(--muted);padding:7px 12px;font-size:12px;cursor:pointer}
+  .refresh:hover{color:var(--ink);border-color:var(--accent)}
+  .status{color:var(--muted);font-size:11.5px;font-family:var(--mono)}
+  .clock{color:var(--ink);font-size:13px;font-family:var(--mono)}
+
+  main{display:grid;gap:10px;padding:12px;
+    grid-template-columns:repeat(3,1fr);
+    grid-template-areas:"d1 d2 d3" "chart chart book" "rsi rsi book" "cal cal cal";}
+  @media(max-width:1200px){main{grid-template-columns:1fr 1fr;
+    grid-template-areas:"d1 d2" "d3 book" "chart chart" "rsi rsi" "cal cal";}}
+  @media(max-width:720px){main{grid-template-columns:1fr;
+    grid-template-areas:"d1" "d2" "d3" "chart" "book" "rsi" "cal";}}
+
+  .panel{background:var(--panel);backdrop-filter:blur(14px);border:1px solid var(--line);
+    overflow:hidden;display:flex;flex-direction:column;box-shadow:0 8px 30px rgba(0,0,0,.4)}
+  .panel>h2{margin:0;padding:9px 13px;font-size:11px;font-weight:600;letter-spacing:.09em;
+    text-transform:uppercase;color:var(--muted);border-bottom:1px solid var(--line);
+    display:flex;align-items:center;justify-content:space-between;background:rgba(0,0,0,.3)}
+  .panel>h2 .px{color:var(--ink);font-family:var(--mono);font-size:12px;letter-spacing:0}
+  .tvbox{flex:1}.tvbox>*{height:100%!important}
+
+  .d1{grid-area:d1}.d2{grid-area:d2}.d3{grid-area:d3}
+  .dash{min-height:230px}
+  table.grid{width:100%;border-collapse:collapse;font-size:11.5px;font-family:var(--mono)}
+  table.grid th,table.grid td{padding:6px 6px;text-align:center;border-bottom:1px solid rgba(120,150,210,.08)}
+  table.grid th{color:var(--muted);font-weight:600;font-family:"Segoe UI",sans-serif;font-size:10.5px;letter-spacing:.04em}
+  table.grid td:first-child,table.grid th:first-child{text-align:left;color:var(--muted);font-family:"Segoe UI",sans-serif;font-size:10.5px}
+  .cell-bull{background:rgba(31,209,138,.12);color:var(--up);font-weight:700}
+  .cell-bear{background:rgba(255,77,100,.12);color:var(--down);font-weight:700}
+  .rsi-hot{color:var(--down);font-weight:700}.rsi-cold{color:var(--up);font-weight:700}
+  .bull{color:var(--up)}.bear{color:var(--down)}
+  .loading,.needkey{padding:22px 14px;text-align:center;color:var(--muted);font-size:12px;line-height:1.55}
+  .needkey{color:var(--warn)}
+
+  .chart{grid-area:chart;min-height:430px}
+  .rsiwrap{grid-area:rsi}
+  .rsi-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+  @media(max-width:900px){.rsi-grid{grid-template-columns:1fr}}
+  .rsi-grid .panel{min-height:200px}.rsi-grid .tvbox{min-height:165px}
+
+  .book{grid-area:book;min-height:430px}
+  .book .book-body{flex:1;overflow:hidden;display:flex;flex-direction:column;font-family:var(--mono);font-size:11.5px}
+  .book .side{flex:1;overflow:hidden}
+  .book .row{display:grid;grid-template-columns:1fr 1fr 1.3fr;gap:4px;padding:2px 10px;position:relative}
+  .book .row .bar{position:absolute;top:0;bottom:0;right:0;opacity:.14}
+  .book .ask .bar{background:var(--down)} .book .bid .bar{background:var(--up)}
+  .book .ask .p{color:var(--down)} .book .bid .p{color:var(--up)}
+  .book .p,.book .a,.book .t{position:relative;z-index:1;text-align:right}
+  .book .spread{text-align:center;padding:6px;color:var(--muted);border-top:1px solid var(--line);border-bottom:1px solid var(--line);font-size:11px;background:rgba(0,0,0,.3)}
+  .book-head{display:grid;grid-template-columns:1fr 1fr 1.3fr;gap:4px;padding:4px 10px;color:var(--muted);font-size:10px;border-bottom:1px solid var(--line)}
+  .book-head span{text-align:right}
+
+  .cal{grid-area:cal;min-height:420px}
+  .foot{padding:10px;text-align:center;color:var(--muted);font-size:10.5px}
+</style>
+</head>
+<body>
+  <header>
+    <div class="logo"><b>RYLÉ</b>&nbsp;&nbsp;TERMINAL</div>
+    <div class="sym-switch" id="symSwitch"></div>
+    <div class="tools">
+      <button class="refresh" id="btnRefresh">↻ Rafraîchir</button>
+      <span class="status" id="status">—</span>
+      <span class="clock" id="clock"></span>
+    </div>
+  </header>
+
+  <main>
+    <section class="panel dash d1"><h2>NASDAQ 100 <span class="px" id="px-NDX">—</span></h2><div id="dash-NDX" class="loading">En attente de la clé…</div></section>
+    <section class="panel dash d2"><h2>BTC / USD <span class="px" id="px-BTC">—</span></h2><div id="dash-BTC" class="loading">En attente de la clé…</div></section>
+    <section class="panel dash d3"><h2>SOLANA / USD <span class="px" id="px-SOL">—</span></h2><div id="dash-SOL" class="loading">En attente de la clé…</div></section>
+
+    <section class="panel chart">
+      <h2>Graphique · MA 200 · H1 <span class="px" id="chartSym">NASDAQ</span></h2>
+      <div class="tvbox" id="tv-chart"></div>
+    </section>
+
+    <section class="panel book">
+      <h2>Carnet d'ordres <span class="px" id="bookSym">BTC</span></h2>
+      <div class="book-body" id="bookBody"><div class="loading">Chargement du carnet…</div></div>
+    </section>
+
+    <div class="rsiwrap">
+      <div class="rsi-grid">
+        <section class="panel"><h2>RSI · NASDAQ · H1</h2><div class="tvbox" id="rsi-NDX"></div></section>
+        <section class="panel"><h2>RSI · BTC · H1</h2><div class="tvbox" id="rsi-BTC"></div></section>
+        <section class="panel"><h2>RSI · SOLANA · H1</h2><div class="tvbox" id="rsi-SOL"></div></section>
+      </div>
+    </div>
+
+    <section class="panel cal"><h2>Calendrier économique · Macro (impacte NASDAQ · BTC · SOL)</h2><div class="tvbox" id="tv-cal"></div></section>
+  </main>
+
+  <div class="foot">Données marché via Twelve Data · Carnet via Bitstamp · Graphiques TradingView — outil personnel, aucune de ces informations n'est un conseil financier.</div>
+
+<script>
+(function(){
+  "use strict";
+
+  // ═══════════════════ CLÉ TWELVE DATA (gratuite) ═══════════════════
+  // Colle ta clé entre les guillemets, puis réuploade le fichier.
+  const TWELVEDATA_KEY = '';
+
+  const $=id=>document.getElementById(id);
+  setInterval(()=>$('clock').textContent=new Date().toLocaleTimeString('fr-FR'),1000);
+
+  const SYMS={
+    NDX:{label:'NASDAQ', tv:'FOREXCOM:NSXUSD', td:'QQQ',     book:null,     dec:0},
+    BTC:{label:'BTC',    tv:'BINANCE:BTCUSDT', td:'BTC/USD', book:'btcusd', dec:0},
+    SOL:{label:'SOLANA', tv:'BINANCE:SOLUSDT', td:'SOL/USD', book:'solusd', dec:2},
+  };
+  const TFS=[['5min','M5'],['15min','M15'],['1h','H1'],['1day','DAILY']];
+  let current='NDX';
+
+  // ─────────── widgets TradingView ───────────
+  function tvWidget(id,url,cfg){
+    const el=$(id); el.innerHTML='';
+    const wrap=document.createElement('div'); wrap.className='tradingview-widget-container'; wrap.style.height='100%';
+    const inner=document.createElement('div'); inner.className='tradingview-widget-container__widget'; inner.style.height='100%';
+    wrap.appendChild(inner);
+    const s=document.createElement('script'); s.src=url; s.async=true; s.type='text/javascript';
+    s.innerHTML=JSON.stringify(cfg); wrap.appendChild(s); el.appendChild(wrap);
+  }
+  function loadChart(k){
+    const s=SYMS[k]; $('chartSym').textContent=s.label;
+    tvWidget('tv-chart','https://s3.tradingview.com/external-embedding/embed-widget-advanced-chart.js',{
+      symbol:s.tv, interval:'60', theme:'dark', style:'1', locale:'fr', timezone:'Europe/Paris',
+      autosize:true, allow_symbol_change:false,
+      studies:['STD;SMA'], studies_overrides:{'moving average.length':200,'moving average.plot.color':'#d9b25a'},
+      backgroundColor:'rgba(0,0,0,0)', gridColor:'rgba(120,150,210,0.06)'
+    });
+  }
+  function loadRSI(id,s){
+    tvWidget(id,'https://s3.tradingview.com/external-embedding/embed-widget-advanced-chart.js',{
+      symbol:s.tv, interval:'60', theme:'dark', style:'1', locale:'fr', timezone:'Europe/Paris',
+      autosize:true, hide_top_toolbar:true, hide_side_toolbar:true, hide_legend:true, allow_symbol_change:false,
+      studies:['STD;RSI'], backgroundColor:'rgba(0,0,0,0)', gridColor:'rgba(120,150,210,0.06)'
+    });
+  }
+  function loadCal(){
+    tvWidget('tv-cal','https://s3.tradingview.com/external-embedding/embed-widget-events.js',{
+      colorTheme:'dark', isTransparent:true, locale:'fr', countryFilter:'us,eu,fr,gb,jp,de',
+      importanceFilter:'0,1', width:'100%', height:'100%'
+    });
+  }
+
+  // ─────────── sélecteur symbole ───────────
+  const sw=$('symSwitch');
+  Object.keys(SYMS).forEach((k,i)=>{
+    const b=document.createElement('button'); b.textContent=SYMS[k].label; if(i===0)b.classList.add('active');
+    b.onclick=()=>{ current=k; [...sw.children].forEach(c=>c.classList.remove('active')); b.classList.add('active'); loadChart(k); startBook(k); };
+    sw.appendChild(b);
+  });
+
+  // ─────────── file d'attente Twelve Data (respecte 8 req/min) ───────────
+  const GAP=8000; let q=[], busy=false;
+  const sleep=ms=>new Promise(r=>setTimeout(r,ms));
+  function enqueue(fn){ return new Promise((res,rej)=>{ q.push({fn,res,rej}); pump(); }); }
+  async function pump(){ if(busy)return; busy=true; while(q.length){ const j=q.shift(); try{j.res(await j.fn());}catch(e){j.rej(e);} await sleep(GAP);} busy=false; }
+
+  async function td(symbol,interval){
+    return enqueue(async()=>{
+      const r=await fetch(`https://api.twelvedata.com/time_series?symbol=${encodeURIComponent(symbol)}&interval=${interval}&outputsize=250&apikey=${TWELVEDATA_KEY}`);
+      const d=await r.json();
+      if(d.status==='error'||!d.values) throw new Error(d.message||'erreur');
+      return d.values.map(v=>({c:+v.close,h:+v.high,l:+v.low,v:+(v.volume||0)})).reverse();
+    });
+  }
+
+  // ─────────── calculs ───────────
+  function sma(a,p){ if(a.length<p) return null; return a.slice(-p).reduce((x,y)=>x+y,0)/p; }
+  function rsi(c,p){ if(c.length<p+1) return null; let g=0,l=0; for(let i=c.length-p;i<c.length;i++){const d=c[i]-c[i-1]; d>=0?g+=d:l-=d;} const ag=g/p,al=l/p; if(al===0)return 100; return 100-100/(1+ag/al); }
+
+  async function buildDash(key){
+    const s=SYMS[key]; const t=$('dash-'+key);
+    if(!TWELVEDATA_KEY){ t.className='needkey'; t.innerHTML='Ajoute ta clé Twelve Data dans le code (ligne TWELVEDATA_KEY), puis réuploade le fichier.'; return; }
+    t.className='loading'; t.innerHTML='Chargement…';
+    try{
+      const cols=[];
+      for(const [iv,lab] of TFS){
+        const d=await td(s.td,iv);
+        const closes=d.map(x=>x.c), highs=d.map(x=>x.h), lows=d.map(x=>x.l), vols=d.map(x=>x.v);
+        const price=closes.at(-1), ma=sma(closes,200), r=rsi(closes,14);
+        const vol=vols.at(-1), volAvg=sma(vols,20);
+        const supC=lows.slice(-60).filter(x=>x<price); const resC=highs.slice(-60).filter(x=>x>price);
+        const support=supC.length?Math.max(...supC):null;
+        const resist =resC.length?Math.min(...resC):null;
+        const bull = ma!=null?price>ma:null;
+        const sc=Math.max(0,Math.min(100,Math.round((bull?60:40)+((r!=null?(r-50):0)*0.3)+((volAvg&&vol>volAvg)?5:-5))));
+        cols.push({lab,price,bull,rsi:r,vol,volAvg,support,resist,score:sc});
+      }
+      const price=cols.find(c=>c.lab==='H1').price;
+      $('px-'+key).textContent = price!=null ? price.toLocaleString('fr-FR',{maximumFractionDigits:s.dec}) : '—';
+      const bulls=cols.filter(c=>c.bull).length;
+      const scoreG=Math.round(cols.reduce((a,c)=>a+c.score,0)/cols.length);
+      const fmt=v=>v==null?'—':v.toLocaleString('fr-FR',{maximumFractionDigits:s.dec});
+
+      let h='<table class="grid"><tr><th>INDIC.</th>';
+      cols.forEach(c=>h+=`<th>${c.lab}</th>`); h+='<th>GLOBAL</th></tr>';
+      h+='<tr><td>Tendance</td>';
+      cols.forEach(c=>h+=`<td class="${c.bull?'cell-bull':'cell-bear'}">${c.bull?'▲':'▼'}</td>`);
+      h+=`<td class="${bulls>=2?'cell-bull':'cell-bear'}">${bulls>=2?'▲':'▼'}</td></tr>`;
+      h+='<tr><td>RSI 14</td>';
+      cols.forEach(c=>{const v=c.rsi;const cl=v>70?'rsi-hot':v<30?'rsi-cold':'';h+=`<td class="${cl}">${v!=null?v.toFixed(1):'—'}</td>`;});
+      h+='<td>—</td></tr>';
+      h+='<tr><td>Volume</td>';
+      cols.forEach(c=>{const strong=c.volAvg&&c.vol>c.volAvg;h+=`<td class="${strong?'bull':'bear'}">${c.volAvg?(strong?'▲ fort':'calme'):'—'}</td>`;});
+      h+='<td>—</td></tr>';
+      h+='<tr><td>Support</td>';
+      cols.forEach(c=>h+=`<td class="bull">${fmt(c.support)}</td>`); h+='<td>—</td></tr>';
+      h+='<tr><td>Résist.</td>';
+      cols.forEach(c=>h+=`<td class="bear">${fmt(c.resist)}</td>`); h+='<td>—</td></tr>';
+      h+='<tr><td>Score</td>';
+      cols.forEach(c=>h+=`<td class="${c.score>=50?'bull':'bear'}">${c.score}/100</td>`);
+      h+=`<td class="${scoreG>=50?'bull':'bear'}">${scoreG}/100</td></tr>`;
+      h+='</table>';
+      t.className=''; t.innerHTML=h;
+    }catch(e){
+      t.className='needkey'; t.innerHTML='Indisponible : '+e.message+'. (Limite gratuite = 8 appels/min, 800/jour — patiente puis rafraîchis.)';
+    }
+  }
+
+  async function refreshAll(){
+    $('status').textContent='mise à jour…';
+    for(const k of Object.keys(SYMS)){ await buildDash(k); }
+    $('status').textContent='MAJ '+new Date().toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'});
+  }
+  $('btnRefresh').onclick=refreshAll;
+
+  // ─────────── carnet d'ordres (Bitstamp, crypto) ───────────
+  let bookTimer=null;
+  async function drawBook(k){
+    const s=SYMS[k]; const body=$('bookBody'); $('bookSym').textContent=s.label;
+    if(!s.book){ body.innerHTML='<div class="loading">Carnet d\'ordres disponible pour les cryptos (BTC, Solana).</div>'; return; }
+    try{
+      const r=await fetch(`https://www.bitstamp.net/api/v2/order_book/${s.book}/`);
+      const d=await r.json();
+      const asks=d.asks.slice(0,12).map(x=>({p:+x[0],a:+x[1]}));
+      const bids=d.bids.slice(0,12).map(x=>({p:+x[0],a:+x[1]}));
+      const maxA=Math.max(...asks.map(x=>x.a),...bids.map(x=>x.a));
+      const spread=asks[0].p-bids[0].p;
+      const fp=p=>p.toLocaleString('fr-FR',{maximumFractionDigits:s.dec});
+      const fa=a=>a.toLocaleString('fr-FR',{maximumFractionDigits:3});
+      let h='<div class="book-head"><span>Prix</span><span>Volume</span><span>Total</span></div><div class="side">';
+      let cum=0;
+      asks.slice().reverse().forEach(x=>{cum+=x.a;});
+      let run=0;
+      asks.slice().reverse().forEach(x=>{run+=x.a; h+=`<div class="row ask"><span class="bar" style="width:${(x.a/maxA*100).toFixed(0)}%"></span><span class="p">${fp(x.p)}</span><span class="a">${fa(x.a)}</span><span class="t">${fa(run)}</span></div>`;});
+      h+='</div>';
+      h+=`<div class="spread">Spread ${fp(spread)} · mid ${fp((asks[0].p+bids[0].p)/2)}</div>`;
+      h+='<div class="side">'; run=0;
+      bids.forEach(x=>{run+=x.a; h+=`<div class="row bid"><span class="bar" style="width:${(x.a/maxA*100).toFixed(0)}%"></span><span class="p">${fp(x.p)}</span><span class="a">${fa(x.a)}</span><span class="t">${fa(run)}</span></div>`;});
+      h+='</div>';
+      body.innerHTML=h;
+    }catch(e){
+      body.innerHTML='<div class="needkey">Carnet indisponible sur ce réseau ('+e.message+').</div>';
+    }
+  }
+  function startBook(k){
+    if(bookTimer) clearInterval(bookTimer);
+    drawBook(k);
+    if(SYMS[k].book) bookTimer=setInterval(()=>drawBook(k),4000);
+  }
+
+  // ─────────── init ───────────
+  loadChart('NDX');
+  loadRSI('rsi-NDX',SYMS.NDX); loadRSI('rsi-BTC',SYMS.BTC); loadRSI('rsi-SOL',SYMS.SOL);
+  loadCal();
+  startBook('NDX');
+  refreshAll();
+  setInterval(refreshAll, 600000);   // rafraîchissement auto toutes les 10 min (limite gratuite)
+})();
+</script>
+</body>
+</html>
