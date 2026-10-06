@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>J.A.R.V.I.S. - Holographic Gold Core</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            background-color: #050301;
+            color: #ffb700;
+            font-family: 'Courier New', Courier, monospace;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            align-items: center;
+            overflow: hidden;
+            padding: 20px;
+            background-image: radial-gradient(circle at center, #261400 0%, #050301 100%);
+        }
+        header { text-align: center; letter-spacing: 4px; text-shadow: 0 0 12px rgba(255, 183, 0, 0.8); }
+        header h1 { font-size: 1.8rem; margin-bottom: 5px; color: #ffcc00; }
+        header p { font-size: 0.75rem; color: #ff9900; text-transform: uppercase; letter-spacing: 2px; }
+
+        /* SPHÈRE HOLOGRAPHIQUE DORÉE (STYLE IMAGE) */
+        .holo-container {
+            position: relative;
+            width: 300px;
+            height: 300px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            filter: drop-shadow(0 0 25px rgba(255, 140, 0, 0.6));
+        }
+        
+        .holo-ring {
+            position: absolute;
+            border-radius: 50%;
+            border: 2px dashed rgba(255, 165, 0, 0.3);
+            animation: spin 20s linear infinite;
+        }
+        .ring-gold-1 { width: 100%; height: 100%; border: 3px solid rgba(255, 140, 0, 0.4); border-top: 3px solid #ffaa00; border-bottom: 3px solid #ff6600; animation-duration: 12s; }
+        .ring-gold-2 { width: 84%; height: 84%; border: 2px dotted #ffcc00; animation-direction: reverse; animation-duration: 18s; box-shadow: inset 0 0 15px rgba(255, 165, 0, 0.2); }
+        .ring-gold-3 { width: 68%; height: 68%; border: 4px solid rgba(255, 100, 0, 0.25); border-left: 4px solid #ffbb00; border-right: 4px solid #ff8800; animation-duration: 7s; }
+        .ring-gold-4 { width: 50%; height: 50%; border: 1px solid rgba(255, 220, 100, 0.5); animation-direction: reverse; animation-duration: 9s; }
+
+        .holo-core {
+            width: 75px;
+            height: 75px;
+            background: radial-gradient(circle, #ffffff 0%, #ffaa00 40%, #883300 80%, #050301 100%);
+            border-radius: 50%;
+            box-shadow: 0 0 40px #ff8800, inset 0 0 20px #ffffff;
+            animation: pulse-gold 2s ease-in-out infinite;
+        }
+
+        @keyframes spin { 0% { transform: rotate(0deg) rotateX(0deg); } 100% { transform: rotate(360deg) rotateX(360deg); } }
+        @keyframes pulse-gold {
+            0%, 100% { transform: scale(0.92); opacity: 0.85; box-shadow: 0 0 25px #ff8800; }
+            50% { transform: scale(1.08); opacity: 1; box-shadow: 0 0 55px #ffaa00; }
+        }
+
+        /* TERMINAL DE DISCUSSION ORANGE/OR */
+        .terminal {
+            width: 100%;
+            max-width: 650px;
+            height: 180px;
+            background: rgba(15, 8, 2, 0.85);
+            border: 1px solid rgba(255, 165, 0, 0.4);
+            border-radius: 6px;
+            padding: 12px;
+            overflow-y: auto;
+            font-size: 0.85rem;
+            box-shadow: inset 0 0 15px rgba(255, 140, 0, 0.15);
+        }
+        .log-line { margin-bottom: 6px; line-height: 1.4; }
+        .user-text { color: #fff3b0; }
+        .jarvis-text { color: #ffcc66; }
+
+        /* BOUTON DE CONTRÔLE */
+        .controls { margin-bottom: 10px; }
+        button {
+            background: transparent;
+            color: #ffb700;
+            border: 2px solid #ffb700;
+            padding: 12px 30px;
+            font-family: inherit;
+            font-weight: bold;
+            font-size: 0.9rem;
+            cursor: pointer;
+            border-radius: 4px;
+            box-shadow: 0 0 15px rgba(255, 165, 0, 0.3);
+            transition: all 0.3s ease;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+        }
+        button:hover { background: #ffb700; color: #050301; box-shadow: 0 0 30px #ffb700; }
+    </style>
+</head>
+<body>
+
+    <header>
+        <h1>J.A.R.V.I.S.</h1>
+        <p>Holographic Gold Matrix</p>
+    </header>
+
+    <div class="holo-container">
+        <div class="holo-ring ring-gold-1"></div>
+        <div class="holo-ring ring-gold-2"></div>
+        <div class="holo-ring ring-gold-3"></div>
+        <div class="holo-ring ring-gold-4"></div>
+        <div class="holo-core" id="coreCenter"></div>
+    </div>
+
+    <div class="terminal" id="terminal">
+        <div class="log-line jarvis-text">> Matrice holographique dorée en ligne. Bonjour Monsieur, systèmes prêts.</div>
+    </div>
+
+    <div class="controls">
+        <button id="toggleBtn" onclick="toggleJarvis()">Activer l'écoute</button>
+    </div>
+
+    <script>
+        const terminal = document.getElementById('terminal');
+        const coreCenter = document.getElementById('coreCenter');
+        const toggleBtn = document.getElementById('toggleBtn');
+
+        let isListening = false;
+        let recognition = null;
+
+        function addLog(text, type = 'jarvis') {
+            const div = document.createElement('div');
+            div.className = `log-line ${type === 'user' ? 'user-text' : 'jarvis-text'}`;
+            div.innerText = text;
+            terminal.appendChild(div);
+            terminal.scrollTop = terminal.scrollHeight;
+        }
+
+        function speak(text) {
+            window.speechSynthesis.cancel();
+            const utterance = new SpeechSynthesisUtterance(text);
+            utterance.lang = 'fr-FR';
+            utterance.pitch = 0.85; 
+            utterance.rate = 1.05;
+            window.speechSynthesis.speak(utterance);
+        }
+
+        // Configuration Vocale
+        if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
+            const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+            recognition = new SpeechRecognition();
+            recognition.lang = 'fr-FR';
+            recognition.continuous = true;
+            recognition.interimResults = false;
+
+            recognition.onstart = () => {
+                isListening = true;
+                toggleBtn.innerText = "Désactiver l'écoute";
+                coreCenter.style.background = "radial-gradient(circle, #ffffff 0%, #ff5500 40%, #551100 80%, #050301 100%)";
+                addLog("> [Système] Audio actif. Je vous écoute, Monsieur.");
+            };
+
+            recognition.onresult = (event) => {
+                const speechResult = event.results[event.results.length - 1][0].transcript.trim();
+                addLog(`> Vous : ${speechResult}`, 'user');
+                processGoldBrain(speechResult);
+            };
+
+            recognition.onend = () => {
+                if (isListening) {
+                    try { recognition.start(); } catch(e) {}
+                } else {
+                    toggleBtn.innerText = "Activer l'écoute";
+                    coreCenter.style.background = "radial-gradient(circle, #ffffff 0%, #ffaa00 40%, #883300 80%, #050301 100%)";
+                    addLog("> [Système] Veille activée.");
+                }
+            };
+        } else {
+            alert("Veuillez utiliser Google Chrome ou Microsoft Edge.");
+        }
+
+        function toggleJarvis() {
+            if (!recognition) return;
+            if (isListening) {
+                isListening = false;
+                recognition.stop();
+            } else {
+                recognition.start();
+            }
+        }
+
+        // Cerveau analytique orienté trading et technique
+        function processGoldBrain(input) {
+            const text = input.toLowerCase();
+            let reply = "";
+
+            if (text.includes("nasdaq") || text.includes("cours du nasdaq")) {
+                reply = "Analyse du Nasdaq projetée sur l'hologramme : les zones de liquidité et les moyennes mobiles signalent une configuration technique majeure, Monsieur.";
+            } else if (text.includes("or") || text.includes("gold")) {
+                reply = "Données sur l'or synchronisées : la volatilité teste les résistances graphiques avec précision, Monsieur.";
+            } else if (text.includes("pétrole") || text.includes("oil")) {
+                reply = "Affichage du pétrole sur TradingView : le contrat continu valide les indicateurs ATR configurés.";
+            } else if (text.includes("solana") || text.includes("crypto") || text.includes("kraken")) {
+                reply = "Le protocole de staking Solana sur Kraken est intégré aux matrices. Objectif de reconquête des sommets en cours.";
+            } else if (text.includes("pea") || text.includes("bourse")) {
+                reply = "Analyse du PEA : les flux boursiers respectent les seuils de risque établis, Monsieur.";
+            } else if (text.includes("bonjour") || text.includes("salut")) {
+                reply = "Bonjour Monsieur. Interface holographique active à cent pour cent.";
+            } else if (text.includes("heure")) {
+                const d = new Date();
+                reply = `Il est exactement ${d.getHours()} heures et ${d.getMinutes()} minutes, Monsieur.`;
+            } else {
+                reply = `Requête "${input}" intégrée aux matrices holographiques. Traitement des graphiques en cours, Monsieur.`;
+            }
+
+            addLog(`> Jarvis : ${reply}`);
+            speak(reply);
+        }
+    </script>
+</body>
+</html>
