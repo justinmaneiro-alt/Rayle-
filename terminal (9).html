@@ -1,0 +1,487 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>RAYLÉ // TERMINAL</title>
+<style>
+  :root{
+    --bg:#05050a; --panel:rgba(10,8,16,.62); --panel2:rgba(16,10,22,.8);
+    --line:rgba(255,0,127,.22); --ink:#f2e9f4; --muted:#9a8fa6;
+    --neon:#ff007f; --neon2:#ff3399; --up:#17d98a; --down:#ff3b5e; --warn:#f5b642;
+    --mono:"Courier New",Courier,monospace;
+    box-sizing:border-box; padding-top:env(safe-area-inset-top,0); padding-bottom:env(safe-area-inset-bottom,0);
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;height:100%}
+  body{
+    background:
+      radial-gradient(70vw 50vh at 85% -10%, rgba(255,0,127,.10), transparent 60%),
+      radial-gradient(55vw 45vh at 0% 110%, rgba(255,51,153,.07), transparent 60%),
+      var(--bg);
+    color:var(--ink); font-family:var(--mono); min-height:100%;
+  }
+  header{
+    display:flex;align-items:center;gap:14px;flex-wrap:wrap;
+    padding:12px 18px; position:sticky;top:0;z-index:30;
+    background:rgba(5,3,9,.78);backdrop-filter:blur(16px);border-bottom:1px solid var(--line);
+  }
+  header::before{content:"";position:absolute;top:0;left:0;right:0;height:2px;
+    background:linear-gradient(90deg,transparent,var(--neon),var(--neon2),transparent)}
+  .brand{font-weight:700;letter-spacing:.22em;font-size:15px;color:var(--ink);
+    text-shadow:0 0 12px rgba(255,0,127,.7)}
+  .brand span{color:var(--neon)}
+  .tabs{display:flex;gap:6px;flex-wrap:wrap}
+  .tabs button{font-family:var(--mono);border:1px solid var(--line);background:var(--panel);
+    color:var(--muted);padding:7px 14px;font-size:12px;letter-spacing:.06em;cursor:pointer;transition:.15s;text-transform:uppercase}
+  .tabs button:hover{color:var(--ink);border-color:var(--neon)}
+  .tabs button.active{background:var(--neon);color:#0a0008;border-color:transparent;font-weight:700;
+    box-shadow:0 0 16px rgba(255,0,127,.6)}
+  .tools{margin-left:auto;display:flex;align-items:center;gap:12px}
+  .ivs{display:flex;gap:4px}
+  .ivs button{font-family:var(--mono);border:1px solid var(--line);background:var(--panel);color:var(--muted);padding:6px 11px;font-size:12px;cursor:pointer}
+  .ivs button.active{background:var(--neon2);color:#0a0008;border-color:transparent;font-weight:700}
+  .refresh{font-family:var(--mono);border:1px solid var(--line);background:var(--panel);color:var(--muted);padding:6px 11px;font-size:12px;cursor:pointer}
+  .refresh:hover{color:var(--ink);border-color:var(--neon)}
+  .clock{color:var(--neon2);font-size:13px;text-shadow:0 0 8px rgba(255,51,153,.6)}
+
+  main{display:grid;gap:10px;padding:12px;
+    grid-template-columns:minmax(300px,360px) 1fr;
+    grid-template-areas:"dash right";align-items:start;}
+  .right{display:flex;flex-direction:column;gap:10px}
+  @media(max-width:1000px){main{grid-template-columns:1fr;grid-template-areas:"dash" "right";}}
+
+  .panel{background:var(--panel);backdrop-filter:blur(14px);border:1px solid var(--line);
+    overflow:hidden;display:flex;flex-direction:column;
+    box-shadow:0 0 0 1px rgba(255,0,127,.04),0 8px 30px rgba(0,0,0,.5)}
+  .panel>h2{margin:0;padding:9px 13px;font-size:11px;font-weight:700;letter-spacing:.12em;
+    text-transform:uppercase;color:var(--neon2);border-bottom:1px solid var(--line);
+    display:flex;align-items:center;justify-content:space-between;background:rgba(255,0,127,.05)}
+  .panel>h2 .px{color:var(--ink);font-size:12px;letter-spacing:0;text-shadow:0 0 8px rgba(255,0,127,.4)}
+  .tvbox{flex:1}.tvbox>*{height:100%!important}
+  .tvbox iframe{height:100%!important;width:100%!important}
+
+  .dash{grid-area:dash;min-height:400px;position:sticky;top:76px}
+  .right{grid-area:right}
+  .chart{height:680px}
+  .chart .tvbox{height:640px;min-height:640px}
+  .rsiPanel{min-height:230px}
+  .rsiPanel .rsibox{flex:1;position:relative;min-height:190px}
+  .book{min-height:360px}
+  .notes{min-height:220px}
+  .cal{height:540px}
+  .cal .tvbox{height:500px;min-height:500px}
+  @media(max-width:1000px){.dash{position:static}}
+
+  table.grid{width:100%;border-collapse:collapse;font-size:12px}
+  table.grid th,table.grid td{padding:7px 7px;text-align:center;border-bottom:1px solid rgba(255,0,127,.08)}
+  table.grid th{color:var(--muted);font-weight:700;font-size:10.5px;letter-spacing:.05em}
+  table.grid td:first-child,table.grid th:first-child{text-align:left;color:var(--muted);font-size:10.5px}
+  .cell-bull{background:rgba(23,217,138,.12);color:var(--up);font-weight:700}
+  .cell-bear{background:rgba(255,59,94,.12);color:var(--down);font-weight:700}
+  .rsi-hot{color:var(--down);font-weight:700}.rsi-cold{color:var(--up);font-weight:700}
+  .bull{color:var(--up)}.bear{color:var(--down)}
+  .loading,.needkey{padding:26px 14px;text-align:center;color:var(--muted);font-size:12px;line-height:1.6}
+  .needkey{color:var(--warn)}
+
+  .book-body{flex:1;overflow:hidden;display:flex;flex-direction:column;font-size:11.5px}
+  .book-head{display:grid;grid-template-columns:1fr 1fr 1.2fr;gap:4px;padding:4px 10px;color:var(--muted);font-size:10px;border-bottom:1px solid var(--line)}
+  .book-head span{text-align:right}
+  .side{flex:1;overflow:hidden}
+  .brow{display:grid;grid-template-columns:1fr 1fr 1.2fr;gap:4px;padding:2px 10px;position:relative}
+  .brow .bar{position:absolute;top:0;bottom:0;right:0;opacity:.13}
+  .ask .bar{background:var(--down)} .bid .bar{background:var(--up)}
+  .ask .p{color:var(--down)} .bid .p{color:var(--up)}
+  .brow span{position:relative;z-index:1;text-align:right}
+  .spread{text-align:center;padding:6px;color:var(--neon2);border-top:1px solid var(--line);border-bottom:1px solid var(--line);font-size:11px;background:rgba(255,0,127,.05)}
+
+  .notes textarea{flex:1;width:100%;resize:none;border:none;outline:none;
+    background:transparent;color:var(--ink);font-family:var(--mono);font-size:13px;line-height:1.6;padding:12px 14px}
+  .notes textarea::placeholder{color:var(--muted)}
+  .savehint{padding:6px 14px;font-size:10px;color:var(--muted);border-top:1px solid var(--line)}
+
+  .foot{padding:10px;text-align:center;color:var(--muted);font-size:10.5px}
+</style>
+</head>
+<body>
+  <header>
+    <div class="brand">RAYLÉ<span>//</span>TERMINAL</div>
+    <div class="tabs" id="tabs"></div>
+    <div class="tools">
+      <div class="ivs" id="ivs">
+        <button data-iv="15">M15</button>
+        <button data-iv="60" class="active">H1</button>
+      </div>
+      <button class="refresh" id="btnRefresh">↻</button>
+      <span class="clock" id="clock"></span>
+    </div>
+  </header>
+
+  <main>
+    <section class="panel dash"><h2>Dashboard analytique <span class="px" id="dashSym">—</span></h2><div id="dashBody" class="loading">En attente de la clé Twelve Data…</div></section>
+
+    <div class="right">
+      <section class="panel chart"><h2>Graphique · MA200 <span class="px" id="chartSym">—</span></h2><div class="tvbox" id="tv-chart"></div></section>
+      <section class="panel rsiPanel"><h2>RSI 14 <span class="px" id="rsiSym">—</span></h2><div class="rsibox" id="rsi-box"><div class="loading">RSI…</div></div></section>
+      <section class="panel book" id="bookPanel"><h2>Carnet d'ordres <span class="px" id="bookSym">—</span></h2><div class="book-body" id="bookBody"><div class="loading">—</div></div></section>
+      <section class="panel notes">
+        <h2>Notes stratégiques <span class="px">cibles · zones</span></h2>
+        <textarea id="notes" placeholder="Ex : BTC — achat si rebond 85 100, TP 86 700, invalidation sous 84 900..."></textarea>
+        <div class="savehint" id="saveHint">Sauvegarde auto · lisible par Raylé</div>
+      </section>
+      <section class="panel cal"><h2>Calendrier économique · Macro</h2><div class="tvbox" id="tv-cal"></div></section>
+    </div>
+  </main>
+
+  <div class="foot">Pont de données actif → clé localStorage « rayle_terminal_bridge » · Données Twelve Data · Carnet Bitstamp · Graphiques TradingView — outil personnel, aucune information n'est un conseil financier.</div>
+
+<script>
+(function(){
+  "use strict";
+  const TWELVEDATA_KEY_FILE = '';   // facultatif : sinon la clé se colle dans le terminal et reste dans ton navigateur
+  function tdKey(){ return TWELVEDATA_KEY_FILE || (function(){ try{ return (localStorage.getItem('rayle_key_twelvedata')||'').trim(); }catch(e){ return ''; } })(); }
+
+  const $=id=>document.getElementById(id);
+  setInterval(()=>$('clock').textContent=new Date().toLocaleTimeString('fr-FR'),1000);
+
+  const ASSETS={
+    NDX:{label:'NASDAQ', tv:'CAPITALCOM:US100', td:'QQQ',     book:null,     dec:2},
+    BTC:{label:'BITCOIN',tv:'BINANCE:BTCUSDT', td:'BTC/USD', book:'btcusd', dec:0},
+    SOL:{label:'SOLANA', tv:'BINANCE:SOLUSDT', td:'SOL/USD', book:'solusd', dec:2},
+    XAU:{label:'OR',     tv:'OANDA:XAUUSD',    td:'XAU/USD', book:null,     dec:2},
+    EUR:{label:'EUR/USD',tv:'FX:EURUSD',       td:'EUR/USD', book:null,     dec:4},
+  };
+  const TFS=[['15min','M15'],['1h','H1'],['4h','H4'],['1day','DAILY']];
+  let current='NDX', interval='60';
+
+  function tvWidget(id,url,cfg){
+    const el=$(id); el.innerHTML='';
+    const wrap=document.createElement('div'); wrap.className='tradingview-widget-container'; wrap.style.height='100%';
+    const inner=document.createElement('div'); inner.className='tradingview-widget-container__widget'; inner.style.height='100%';
+    wrap.appendChild(inner);
+    const s=document.createElement('script'); s.src=url; s.async=true; s.type='text/javascript';
+    s.innerHTML=JSON.stringify(cfg); wrap.appendChild(s); el.appendChild(wrap);
+  }
+  // Graphique : widget classique tv.js (il accepte le réglage de la MA 200 et affiche la barre d'outils de dessin)
+  let tvJsPromise=null, chartTok=0;
+  function loadTvJs(){
+    if(window.TradingView && window.TradingView.widget) return Promise.resolve();
+    if(tvJsPromise) return tvJsPromise;
+    tvJsPromise=new Promise((res,rej)=>{
+      const sc=document.createElement('script');
+      sc.src='https://s3.tradingview.com/tv.js'; sc.async=true;
+      sc.onload=res;
+      sc.onerror=()=>{ tvJsPromise=null; rej(new Error('tv.js bloqué')); };
+      document.head.appendChild(sc);
+    });
+    return tvJsPromise;
+  }
+  async function loadChart(){
+    const s=ASSETS[current]; $('chartSym').textContent=s.label;
+    const tok=++chartTok;
+    const box=$('tv-chart');
+    box.innerHTML='<div id="tv-chart-inner" style="width:100%;height:100%"></div>';
+    try{ await loadTvJs(); }
+    catch(e){ box.innerHTML='<div class="needkey">Graphique indisponible : le script TradingView est bloqué sur ce réseau.</div>'; return; }
+    if(tok!==chartTok) return;   // un autre actif a été demandé entre-temps
+    new TradingView.widget({
+      container_id:'tv-chart-inner', autosize:true,
+      symbol:s.tv, interval:interval, timezone:'Europe/Paris', locale:'fr',
+      theme:'dark', style:'1', toolbar_bg:'#0a0710',
+      hide_top_toolbar:false,
+      hide_side_toolbar:false,            // barre d'outils de dessin TradingView, à gauche
+      allow_symbol_change:false, enable_publishing:false, save_image:true, withdateranges:true,
+      studies:['MAExp@tv-basicstudies','RSI@tv-basicstudies'],
+      studies_overrides:{
+        'moving average exponential.length':200,
+        'moving average exponential.plot.color':'#ff3399',
+        'moving average exponential.plot.linewidth':2
+      },
+      overrides:{
+        'paneProperties.background':'#06040b','paneProperties.backgroundType':'solid',
+        'paneProperties.vertGridProperties.color':'rgba(255,0,127,0.06)',
+        'paneProperties.horzGridProperties.color':'rgba(255,0,127,0.06)'
+      }
+    });
+  }
+  function loadCal(){
+    tvWidget('tv-cal','https://s3.tradingview.com/external-embedding/embed-widget-events.js',{
+      colorTheme:'dark', isTransparent:true, locale:'fr', countryFilter:'us,eu,fr,gb,jp,de',
+      importanceFilter:'0,1', width:'100%', height:'100%'
+    });
+  }
+
+  const tabs=$('tabs');
+  const keys=Object.keys(ASSETS);
+  // champs d'analyse remis à zéro quand on change d'actif (évite de mélanger deux actifs)
+  const EMPTY={tendance_globale:null,score_global:null,tendances:null,rsi:null,volume_net:null,support:null,resistance:null,prix:null,
+    ma200:null,distance_ma200_pct:null,derniere_bougie:null,extremes_recents:null,rsi_recent:null,structure:null,instrument_donnees:null};
+
+  function selectAsset(k){
+    if(!ASSETS[k]) return;
+    current=k;
+    [...tabs.children].forEach((c,i)=>c.classList.toggle('active',keys[i]===k));
+    loadChart(); startBook();
+    writeBridge(Object.assign({},EMPTY,{actif:ASSETS[k].label,symbole:ASSETS[k].tv,unite_graphique:interval==='60'?'H1':'M15',analyse_en_cours:true}));
+    buildDash();
+  }
+  function selectInterval(iv){
+    if(iv!=='15'&&iv!=='60') return;
+    interval=iv;
+    $('ivs').querySelectorAll('button').forEach(x=>x.classList.toggle('active',x.dataset.iv===iv));
+    loadChart(); drawRSI();
+    writeBridge({unite_graphique:iv==='60'?'H1':'M15'});
+    enrichBridge();
+  }
+  keys.forEach((k,i)=>{
+    const bt=document.createElement('button'); bt.textContent=ASSETS[k].label; if(i===0)bt.classList.add('active');
+    bt.onclick=()=>selectAsset(k);
+    tabs.appendChild(bt);
+  });
+  $('ivs').querySelectorAll('button').forEach(bt=>{ bt.onclick=()=>selectInterval(bt.dataset.iv); });
+
+  const GAP=8000; let q=[], busy=false;
+  const sleep=ms=>new Promise(r=>setTimeout(r,ms));
+  function enqueue(fn){ return new Promise((res,rej)=>{ q.push({fn,res,rej}); pump(); }); }
+  async function pump(){ if(busy)return; busy=true; while(q.length){ const j=q.shift(); try{j.res(await j.fn());}catch(e){j.rej(e);} await sleep(GAP);} busy=false; }
+  async function td(symbol,iv){
+    return enqueue(async()=>{
+      const r=await fetch(`https://api.twelvedata.com/time_series?symbol=${encodeURIComponent(symbol)}&interval=${iv}&outputsize=250&apikey=${tdKey()}`);
+      const d=await r.json();
+      if(d.status==='error'||!d.values) throw new Error(d.message||'erreur');
+      return d.values.map(v=>({c:+v.close,o:+v.open,h:+v.high,l:+v.low,v:+(v.volume||0)})).reverse();
+    });
+  }
+
+  function ema(a,p){ if(a.length<p) return null; const k=2/(p+1); let e=a.slice(0,p).reduce((x,y)=>x+y,0)/p; for(let i=p;i<a.length;i++) e=a[i]*k+e*(1-k); return e; }
+  function rsi(c,p){ if(c.length<p+1) return null; let g=0,l=0; for(let i=c.length-p;i<c.length;i++){const d=c[i]-c[i-1]; d>=0?g+=d:l-=d;} const ag=g/p,al=l/p; if(al===0)return 100; return 100-100/(1+ag/al); }
+  function rsiSeries(c,p){
+    if(c.length<p+1) return [];
+    const out=[]; let g=0,l=0;
+    for(let i=1;i<=p;i++){const d=c[i]-c[i-1]; d>=0?g+=d:l-=d;}
+    let ag=g/p,al=l/p; out.push(al===0?100:100-100/(1+ag/al));
+    for(let i=p+1;i<c.length;i++){const d=c[i]-c[i-1];const up=d>0?d:0,dn=d<0?-d:0;ag=(ag*(p-1)+up)/p;al=(al*(p-1)+dn)/p;out.push(al===0?100:100-100/(1+ag/al));}
+    return out;
+  }
+  // cache des séries de clôtures par TF (pour tracer le RSI sans rappel API)
+  const seriesCache={};
+  function drawRSI(){
+    const box=$('rsi-box'); const s=ASSETS[current];
+    const iv = interval==='60'?'1h':'15min';
+    $('rsiSym').textContent=s.label+' · '+(interval==='60'?'H1':'M15');
+    const closes=seriesCache[iv];
+    if(!closes||!closes.length){ box.innerHTML='<div class="loading">RSI en attente des données…</div>'; return; }
+    const r=rsiSeries(closes,14).slice(-100);
+    if(!r.length){ box.innerHTML='<div class="loading">Pas assez de données</div>'; return; }
+    const W=600,H=190,pad=6;
+    const x=i=>pad+i*(W-2*pad)/(r.length-1);
+    const y=v=>pad+(100-v)*(H-2*pad)/100;
+    let path=''; r.forEach((v,i)=>path+=(i?'L':'M')+x(i).toFixed(1)+' '+y(v).toFixed(1)+' ');
+    const last=r.at(-1);
+    const col=last>70?'var(--down)':last<30?'var(--up)':'var(--neon2)';
+    box.innerHTML=
+      '<svg viewBox="0 0 '+W+' '+H+'" preserveAspectRatio="none" style="width:100%;height:100%;display:block">'
+      +'<rect x="0" y="'+y(70)+'" width="'+W+'" height="'+(y(100)-y(70))+'" fill="rgba(255,59,94,.07)"/>'
+      +'<rect x="0" y="'+y(30)+'" width="'+W+'" height="'+(y(0)-y(30))+'" fill="rgba(23,217,138,.07)"/>'
+      +'<line x1="0" y1="'+y(70)+'" x2="'+W+'" y2="'+y(70)+'" stroke="rgba(255,59,94,.4)" stroke-dasharray="4 4"/>'
+      +'<line x1="0" y1="'+y(50)+'" x2="'+W+'" y2="'+y(50)+'" stroke="rgba(255,0,127,.2)"/>'
+      +'<line x1="0" y1="'+y(30)+'" x2="'+W+'" y2="'+y(30)+'" stroke="rgba(23,217,138,.4)" stroke-dasharray="4 4"/>'
+      +'<path d="'+path+'" fill="none" stroke="'+col+'" stroke-width="1.6"/>'
+      +'<circle cx="'+x(r.length-1)+'" cy="'+y(last)+'" r="3" fill="'+col+'"/>'
+      +'<text x="8" y="'+(y(70)-4)+'" fill="var(--muted)" font-size="10" font-family="monospace">70</text>'
+      +'<text x="8" y="'+(y(30)+12)+'" fill="var(--muted)" font-size="10" font-family="monospace">30</text>'
+      +'</svg>'
+      +'<div style="position:absolute;top:8px;right:14px;font-family:var(--mono);font-size:17px;font-weight:700;color:'+col+'">'+last.toFixed(1)+'</div>';
+  }
+  function netVol(d,n){ let net=0; for(const b of d.slice(-n)) net+=(b.c>=b.o?1:-1)*b.v*b.c; return net; }
+  function fUsd(v){ const a=Math.abs(v),sg=v>=0?'+':'-'; return sg+(a>=1e9?(a/1e9).toFixed(2)+'B':a>=1e6?(a/1e6).toFixed(2)+'M':a>=1e3?(a/1e3).toFixed(1)+'K':a.toFixed(0))+' $'; }
+
+  // Le widget TradingView est une fenêtre externe : aucune page ne peut lire ce qu'il affiche.
+  // On calcule donc nous-mêmes, avec les mêmes données, ce que Raylé a besoin de « voir ».
+  const candleCache={};
+  function pivots(d,n){
+    const hi=[],lo=[];
+    for(let i=n;i<d.length-n;i++){
+      let isH=true,isL=true;
+      for(let j=1;j<=n;j++){
+        if(d[i].h<=d[i-j].h||d[i].h<=d[i+j].h) isH=false;
+        if(d[i].l>=d[i-j].l||d[i].l>=d[i+j].l) isL=false;
+      }
+      if(isH) hi.push({i,p:d[i].h});
+      if(isL) lo.push({i,p:d[i].l});
+    }
+    return {hi,lo};
+  }
+  function structureOf(d,rd){
+    const seg=d.slice(-160); const pv=pivots(seg,3);
+    if(pv.hi.length<2||pv.lo.length<2) return null;
+    const h1=pv.hi.at(-1),h0=pv.hi.at(-2),l1=pv.lo.at(-1),l0=pv.lo.at(-2);
+    const price=seg.at(-1).c, hh=h1.p>h0.p, hl=l1.p>l0.p;
+    let lecture, alerte=null;
+    if(hh&&hl){ lecture='sommets et creux plus hauts (structure haussière)'; if(price<l1.p) alerte='le dernier creux est cassé, un changement de caractère baissier est possible'; }
+    else if(!hh&&!hl){ lecture='sommets et creux plus bas (structure baissière)'; if(price>h1.p) alerte='le dernier sommet est cassé, un changement de caractère haussier est possible'; }
+    else lecture='structure mixte, marché en range ou en transition';
+    return {lecture,dernier_sommet:rd(h1.p),dernier_creux:rd(l1.p),alerte};
+  }
+  function enrichBridge(){
+    const iv=interval==='60'?'1h':'15min', lab=interval==='60'?'H1':'M15';
+    const d=candleCache[iv]; if(!d||!d.length) return;
+    const dec=ASSETS[current].dec, rd=v=>+Number(v).toFixed(dec);
+    const last=d.at(-1), seg=d.slice(-50);
+    const st=structureOf(d,rd);
+    writeBridge({
+      unite_graphique:lab,
+      derniere_bougie:{unite:lab,ouverture:rd(last.o),haut:rd(last.h),bas:rd(last.l),cloture:rd(last.c),sens:last.c>=last.o?'haussière':'baissière'},
+      extremes_recents:{sur:'50 dernières bougies '+lab,plus_haut:rd(Math.max(...seg.map(x=>x.h))),plus_bas:rd(Math.min(...seg.map(x=>x.l)))},
+      rsi_recent:rsiSeries(d.map(x=>x.c),14).slice(-6).map(v=>+v.toFixed(1)),
+      structure:st?Object.assign({unite:lab},st):null
+    });
+  }
+
+  async function buildDash(){
+    const s=ASSETS[current]; const t=$('dashBody'); $('dashSym').textContent=s.label;
+    if(!tdKey()){
+      t.className='needkey';
+      t.innerHTML='Clé Twelve Data requise (gratuite).<br><br><input id="tdk" type="password" placeholder="colle ta clé ici" autocomplete="off" style="width:90%;background:rgba(0,0,0,.4);border:1px solid rgba(255,0,127,.4);color:#f2e9f4;font:13px Courier New,monospace;padding:7px 9px;outline:none"><br><br><button id="tdkSave" style="background:#ff007f;border:none;color:#1a000d;font:700 12px Courier New,monospace;letter-spacing:.1em;padding:8px 14px;cursor:pointer">ENREGISTRER</button><div style="margin-top:10px;font-size:11px;color:#9a8fa6">La clé reste dans ce navigateur, pas dans le fichier.</div>';
+      $('tdkSave').onclick=()=>{ const v=$('tdk').value.trim(); if(v){ try{ localStorage.setItem('rayle_key_twelvedata',v); }catch(e){} buildDash(); } };
+      return;
+    }
+    t.className='loading'; t.innerHTML='Calcul en cours…';
+    try{
+      const cols=[];
+      for(const k in seriesCache) delete seriesCache[k];
+      for(const k in candleCache) delete candleCache[k];
+      for(const [iv,lab] of TFS){
+        const d=await td(s.td,iv);
+        const closes=d.map(x=>x.c), highs=d.map(x=>x.h), lows=d.map(x=>x.l);
+        seriesCache[iv]=closes; candleCache[iv]=d;
+        if(iv==='15min'||iv==='1h') drawRSI();
+        const price=closes.at(-1), e200=ema(closes,200), r=rsi(closes,14);
+        const supC=lows.slice(-60).filter(x=>x<price), resC=highs.slice(-60).filter(x=>x>price);
+        const support=supC.length?Math.max(...supC):null, resist=resC.length?Math.min(...resC):null;
+        const bull=e200!=null?price>e200:null, nv=netVol(d,20);
+        const sc=Math.max(0,Math.min(100,Math.round((bull?60:40)+((r!=null?(r-50):0)*0.3)+(nv>=0?5:-5))));
+        cols.push({lab,price,bull,rsi:r,support,resist,net:nv,score:sc,e200,dist:(e200?((price-e200)/e200*100):null)});
+      }
+      const h1=cols.find(c=>c.lab==='H1')||cols[0];
+      const bulls=cols.filter(c=>c.bull).length, globalTrend=bulls>=2?'Haussier':'Baissier';
+      const scoreG=Math.round(cols.reduce((a,c)=>a+c.score,0)/cols.length);
+      const fmt=v=>v==null?'—':v.toLocaleString('fr-FR',{maximumFractionDigits:s.dec});
+
+      let html='<table class="grid"><tr><th>INDIC.</th>';
+      cols.forEach(c=>html+=`<th>${c.lab}</th>`); html+='<th>GLOBAL</th></tr>';
+      html+='<tr><td>Tendance</td>';
+      cols.forEach(c=>html+=`<td class="${c.bull?'cell-bull':'cell-bear'}">${c.bull?'▲ Haus.':'▼ Bais.'}</td>`);
+      html+=`<td class="${globalTrend==='Haussier'?'cell-bull':'cell-bear'}">${globalTrend==='Haussier'?'▲':'▼'}</td></tr>`;
+      html+='<tr><td>RSI 14</td>';
+      cols.forEach(c=>{const v=c.rsi;const cl=v>70?'rsi-hot':v<30?'rsi-cold':'';html+=`<td class="${cl}">${v!=null?v.toFixed(1):'—'}</td>`;});
+      html+='<td>—</td></tr>';
+      html+='<tr><td>Vol net $</td>';
+      cols.forEach(c=>html+=`<td class="${c.net>=0?'bull':'bear'}">${fUsd(c.net)}</td>`);
+      html+=`<td class="${h1.net>=0?'bull':'bear'}">${h1.net>=0?'ACHAT':'VENTE'}</td></tr>`;
+      html+='<tr><td>Support</td>';
+      cols.forEach(c=>html+=`<td class="bull">${fmt(c.support)}</td>`); html+='<td>—</td></tr>';
+      html+='<tr><td>Résist.</td>';
+      cols.forEach(c=>html+=`<td class="bear">${fmt(c.resist)}</td>`); html+='<td>—</td></tr>';
+      html+='<tr><td>Score</td>';
+      cols.forEach(c=>html+=`<td class="${c.score>=50?'bull':'bear'}">${c.score}</td>`);
+      html+=`<td class="${scoreG>=50?'bull':'bear'}">${scoreG}/100</td></tr>`;
+      html+='</table>';
+      t.className=''; t.innerHTML=html;
+
+      writeBridge({
+        actif:s.label, symbole:s.tv, unite_graphique:interval==='60'?'H1':'M15',
+        tendance_globale:globalTrend, score_global:scoreG,
+        tendances:Object.fromEntries(cols.map(c=>[c.lab, c.bull?'Haussier':'Baissier'])),
+        rsi:Object.fromEntries(cols.map(c=>[c.lab, c.rsi!=null?+c.rsi.toFixed(1):null])),
+        volume_net:Object.fromEntries(cols.map(c=>[c.lab, Math.round(c.net)])),
+        ma200:Object.fromEntries(cols.map(c=>[c.lab, c.e200!=null?+c.e200.toFixed(s.dec):null])),
+        distance_ma200_pct:Object.fromEntries(cols.map(c=>[c.lab, c.dist!=null?+c.dist.toFixed(2):null])),
+        support:h1.support, resistance:h1.resist, prix:h1.price,
+        instrument_donnees: current==='NDX'
+          ? "QQQ (ETF qui suit le Nasdaq 100) : ses prix et niveaux ne sont PAS à l'échelle du graphique US100"
+          : s.td,
+        analyse_en_cours:false,
+        maj:new Date().toISOString()
+      });
+      enrichBridge();
+    }catch(e){
+      t.className='needkey'; t.innerHTML='Indisponible : '+e.message+'. (Limite gratuite 8/min · 800/jour — patiente puis ↻.)';
+    }
+  }
+  $('btnRefresh').onclick=buildDash;
+
+  let bookTimer=null;
+  async function drawBook(){
+    const s=ASSETS[current]; const body=$('bookBody'); $('bookSym').textContent=s.label;
+    if(!s.book){ body.innerHTML='<div class="loading">Carnet disponible pour les cryptos (BTC, SOL).</div>'; return; }
+    try{
+      const r=await fetch(`https://www.bitstamp.net/api/v2/order_book/${s.book}/`);
+      const d=await r.json();
+      const asks=d.asks.slice(0,11).map(x=>({p:+x[0],a:+x[1]}));
+      const bids=d.bids.slice(0,11).map(x=>({p:+x[0],a:+x[1]}));
+      const mx=Math.max(...asks.map(x=>x.a),...bids.map(x=>x.a));
+      const spread=asks[0].p-bids[0].p;
+      const fp=p=>p.toLocaleString('fr-FR',{maximumFractionDigits:s.dec});
+      const fa=a=>a.toLocaleString('fr-FR',{maximumFractionDigits:3});
+      let h='<div class="book-head"><span>Prix</span><span>Volume</span><span>Cumul</span></div><div class="side">';
+      let run=0;
+      asks.slice().reverse().forEach(x=>{run+=x.a; h+=`<div class="brow ask"><span class="bar" style="width:${(x.a/mx*100).toFixed(0)}%"></span><span class="p">${fp(x.p)}</span><span>${fa(x.a)}</span><span>${fa(run)}</span></div>`;});
+      h+='</div>';
+      h+=`<div class="spread">Spread ${fp(spread)} · mid ${fp((asks[0].p+bids[0].p)/2)}</div>`;
+      h+='<div class="side">'; run=0;
+      bids.forEach(x=>{run+=x.a; h+=`<div class="brow bid"><span class="bar" style="width:${(x.a/mx*100).toFixed(0)}%"></span><span class="p">${fp(x.p)}</span><span>${fa(x.a)}</span><span>${fa(run)}</span></div>`;});
+      h+='</div>';
+      body.innerHTML=h;
+    }catch(e){ body.innerHTML='<div class="needkey">Carnet indisponible sur ce réseau.</div>'; }
+  }
+  function startBook(){
+    if(bookTimer) clearInterval(bookTimer);
+    const has=!!ASSETS[current].book;
+    $('bookPanel').style.display = has ? 'flex' : 'none';   // masque la fenêtre si pas de carnet
+    if(has){ drawBook(); bookTimer=setInterval(drawBook,4000); }
+  }
+
+  // ── PONT LOCALSTORAGE lu par Raylé ──
+  function readBridge(){ try{ return JSON.parse(localStorage.getItem('rayle_terminal_bridge'))||{}; }catch(e){ return {}; } }
+  function writeBridge(data){
+    const cur=readBridge();
+    const merged=Object.assign({}, cur, data, { notes:$('notes').value });
+    try{ localStorage.setItem('rayle_terminal_bridge', JSON.stringify(merged)); }catch(e){}
+  }
+  const notes=$('notes');
+  notes.value=readBridge().notes||'';
+  let noteTimer=null;
+  notes.addEventListener('input',()=>{
+    $('saveHint').textContent='Sauvegarde…';
+    clearTimeout(noteTimer);
+    noteTimer=setTimeout(()=>{ writeBridge({}); $('saveHint').textContent='Sauvegardé · lisible par Raylé'; },500);
+  });
+
+  // Raylé écrit une commande dans « rayle_terminal_cmd » ; l'événement « storage » arrive dans cet onglet
+  function applyCmd(c){
+    if(!c||typeof c!=='object') return;
+    let changed=false;
+    if(c.asset&&ASSETS[c.asset]&&c.asset!==current){ selectAsset(c.asset); changed=true; }
+    if(c.interval) selectInterval(String(c.interval));
+    if(c.refresh&&!changed) buildDash();
+    if(c.note){
+      const n=$('notes');
+      n.value=(n.value?n.value.replace(/\s+$/,'')+'\n':'')+String(c.note).slice(0,500);
+      writeBridge({}); $('saveHint').textContent='Note ajoutée par Raylé';
+    }
+  }
+  window.addEventListener('storage',e=>{
+    if(e.key!=='rayle_terminal_cmd'||!e.newValue) return;
+    try{ applyCmd(JSON.parse(e.newValue)); }catch(_){}
+  });
+  // présence : permet à Raylé de savoir si le terminal est ouvert
+  writeBridge({vu:new Date().toISOString()});
+  setInterval(()=>writeBridge({vu:new Date().toISOString()}),15000);
+
+  loadChart(); loadCal(); startBook(); buildDash();
+  setInterval(buildDash, 600000);
+})();
+</script>
+</body>
+</html>
