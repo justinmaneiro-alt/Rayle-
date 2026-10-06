@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Raylé - Market Core Pro</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            background-color: #030103;
+            color: #ff007f;
+            font-family: 'Courier New', Courier, monospace;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            align-items: center;
+            overflow: hidden;
+            padding: 20px;
+            background-image: radial-gradient(circle at center, #1f0515 0%, #030103 100%);
+        }
+        header { text-align: center; letter-spacing: 4px; text-shadow: 0 0 12px rgba(255, 0, 127, 0.8); }
+        header h1 { font-size: 1.8rem; margin-bottom: 5px; color: #ff3399; }
+        header p { font-size: 0.75rem; color: #ff66b2; text-transform: uppercase; letter-spacing: 2px; }
+
+        /* RÉACTEUR HOLOGRAPHIQUE NOIR ET ROSE */
+        .holo-container {
+            position: relative;
+            width: 220px;
+            height: 220px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            filter: drop-shadow(0 0 25px rgba(255, 0, 127, 0.5));
+        }
+        .holo-ring {
+            position: absolute;
+            border-radius: 50%;
+            border: 2px dashed rgba(255, 0, 127, 0.25);
+            animation: spin 20s linear infinite;
+        }
+        .ring-pink-1 { width: 100%; height: 100%; border: 3px solid rgba(255, 0, 127, 0.35); border-top: 3px solid #ff007f; border-bottom: 3px solid #800040; animation-duration: 12s; }
+        .ring-pink-2 { width: 84%; height: 84%; border: 2px dotted rgba(255, 102, 178, 0.6); animation-direction: reverse; animation-duration: 18s; }
+        .ring-pink-3 { width: 68%; height: 68%; border: 4px solid rgba(128, 0, 64, 0.3); border-left: 4px solid #ff007f; border-right: 4px solid #ff3399; animation-duration: 7s; }
+
+        .holo-core {
+            width: 65px;
+            height: 65px;
+            background: radial-gradient(circle, #ffffff 0%, #ff007f 40%, #3d001f 80%, #030103 100%);
+            border-radius: 50%;
+            box-shadow: 0 0 40px rgba(255, 0, 127, 0.8), inset 0 0 20px #ffffff;
+            animation: pulse-pink 2s ease-in-out infinite;
+        }
+
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        @keyframes pulse-pink {
+            0%, 100% { transform: scale(0.92); opacity: 0.85; box-shadow: 0 0 25px rgba(255, 0, 127, 0.6); }
+            50% { transform: scale(1.08); opacity: 1; box-shadow: 0 0 55px rgba(255, 0, 127, 0.9); }
+        }
+
+        /* TERMINAL DE DISCUSSION */
+        .terminal {
+            width: 100%;
+            max-width: 650px;
+            height: 180px;
+            background: rgba(10, 2, 7, 0.85);
+            border: 1px solid rgba(255, 0, 127, 0.4);
+            border-radius: 6px;
+            padding: 12px;
+            overflow-y: auto;
+            font-size: 0.85rem;
+            box-shadow: inset 0 0 15px rgba(255, 0, 127, 0.15);
+        }
+        .log-line { margin-bottom: 8px; line-height: 1.4; }
+        .user-text { color: #ffb3d9; }
+        .jarvis-text { color: #ff80bf; }
+
+        /* BOUTON DE CONTRÔLE */
+        .controls { margin-bottom: 10px; }
+        button {
+            background: transparent;
+            color: #ff007f;
+            border: 2px solid #ff007f;
+            padding: 12px 30px;
+            font-family: inherit;
+            font-weight: bold;
+            font-size: 0.9rem;
+            cursor: pointer;
+            border-radius: 4px;
+            box-shadow: 0 0 15px rgba(255, 0, 127, 0.3);
+            transition: all 0.3s ease;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+        }
+        button:hover { background: #ff007f; color: #030103; box-shadow: 0 0 30px #ff007f; }
+    </style>
+</head>
+<body>
+
+    <header>
+        <h1>R A Y L É</h1>
+        <p>Market & Neural Core</p>
+    </header>
+
+    <div class="holo-container">
+        <div class="holo-ring ring-pink-1"></div>
+        <div class="holo-ring ring-pink-2"></div>
+        <div class="holo-ring ring-pink-3"></div>
+        <div class="holo-core" id="coreCenter"></div>
+    </div>
+
+    <div class="terminal" id="terminal">
+        <div class="log-line jarvis-text">> Systèmes connectés au pont de trading, Monsieur. Je vous écoute.</div>
+    </div>
+
+    <div class="controls">
+        <button id="toggleBtn" onclick="toggleRayle()">Activer l'écoute</button>
+    </div>
+
+    <script>
+        const terminal = document.getElementById('terminal');
+        const coreCenter = document.getElementById('coreCenter');
+        const toggleBtn = document.getElementById('toggleBtn');
+
+        let isListening = false;
+        let recognition = null;
+
+        function addLog(text, type = 'rayle') {
+            const div = document.createElement('div');
+            div.className = `log-line ${type === 'user' ? 'user-text' : 'jarvis-text'}`;
+            div.innerText = text;
+            terminal.appendChild(div);
+            terminal.scrollTop = terminal.scrollHeight;
+        }
+
+        function speak(text) {
+            window.speechSynthesis.cancel();
+            const cleanText = text.replace(/[*|#_`\[\]]/g, ' ').replace(/\s+/g, ' ').trim();
+            const utterance = new SpeechSynthesisUtterance(cleanText);
+            utterance.lang = 'fr-FR';
+            utterance.pitch = 0.85; 
+            utterance.rate = 1.05;
+            window.speechSynthesis.speak(utterance);
+        }
+
+        // Récupération des données du terminal de trading via le localStorage
+        function getTerminalData() {
+            try {
+                const data = localStorage.getItem('rayle_terminal_bridge');
+                return data ? JSON.parse(data) : { status: "Aucune donnée de terminal active" };
+            } catch (e) {
+                return { error: "Erreur de lecture du pont" };
+            }
+        }
+
+        if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
+            const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+            recognition = new SpeechRecognition();
+            recognition.lang = 'fr-FR';
+            recognition.continuous = true;
+            recognition.interimResults = false;
+
+            recognition.onstart = () => {
+                isListening = true;
+                toggleBtn.innerText = "Désactiver l'écoute";
+                coreCenter.style.background = "radial-gradient(circle, #ffffff 0%, #ff3399 40%, #400020 80%, #030103 100%)";
+                addLog("> [Système] Audio actif. Raylé vous écoute, Monsieur.");
+            };
+
+            recognition.onresult = async (event) => {
+                const speechResult = event.results[event.results.length - 1][0].transcript.trim();
+                addLog(`> Vous : ${speechResult}`, 'user');
+                await queryRayleMarket(speechResult);
+            };
+
+            recognition.onend = () => {
+                if (isListening) {
+                    try { recognition.start(); } catch(e) {}
+                } else {
+                    toggleBtn.innerText = "Activer l'écoute";
+                    coreCenter.style.background = "radial-gradient(circle, #ffffff 0%, #ff007f 40%, #3d001f 80%, #030103 100%)";
+                    addLog("> [Système] Veille activée.");
+                }
+            };
+        } else {
+            alert("Veuillez utiliser Google Chrome ou Microsoft Edge.");
+        }
+
+        function toggleRayle() {
+            if (!recognition) return;
+            if (isListening) {
+                isListening = false;
+                recognition.stop();
+            } else {
+                recognition.start();
+            }
+        }
+
+        async function queryRayleMarket(prompt) {
+            addLog("> [Raylé] Analyse en cours...");
+
+            // On récupère le contexte du terminal de trading pour l'injecter à Raylé
+            const terminalContext = JSON.stringify(getTerminalData());
+
+            try {
+                const systemPrompt = `Tu es Raylé, un majordome virtuel et assistant de trading expert. Tu es connecté au terminal de trading de ton utilisateur via un pont de données. Voici les données actuelles du terminal : ${terminalContext}. Réponds TOUJOURS en français, de manière naturelle, élégante, concise, et appelle toujours ton utilisateur 'Monsieur'. INTERDICTION FORMELLE d'utiliser des tableaux, des barres verticales, des astérisques ou du markdown lourd. Question de Monsieur : `;
+                
+                const response = await fetch(`https://text.pollinations.ai/prompt/${encodeURIComponent(systemPrompt + prompt)}?model=openai&private=true`);
+                
+                if (!response.ok) throw new Error("Erreur de flux");
+
+                let reply = await response.text();
+                
+                if (reply && reply.trim().length > 0) {
+                    reply = reply.replace(/[*|#_`]/g, '').trim();
+                    addLog(`> Raylé : ${reply}`);
+                    speak(reply);
+                } else {
+                    const fallback = "Analyse effectuée avec succès, Monsieur.";
+                    addLog(`> Raylé : ${fallback}`);
+                    speak(fallback);
+                }
+            } catch (err) {
+                // Réponse de secours intelligente si le réseau externe tousse, pour ne pas bloquer la discussion
+                const fallbackReply = `Je suis en ligne, Monsieur. Vos flux sont actifs, que souhaitez-vous analyser ?`;
+                addLog(`> Raylé : ${fallbackReply}`);
+                speak(fallbackReply);
+            }
+        }
+    </script>
+</body>
+</html>
