@@ -1,0 +1,2778 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>RAYLÉ // Market &amp; Neural Core</title>
+<style>
+  :root{
+    --bg:#030103; --pink:#ff007f; --pink2:#ff3399; --light:#ffb3d9; --dim:#8a5a73;
+    --mono:"Courier New",Courier,monospace;
+  }
+  *{box-sizing:border-box}
+  html,body{height:100%;margin:0}
+  body{
+    background:
+      radial-gradient(ellipse 85% 60% at 50% 22%, rgba(255,0,127,.30), rgba(255,0,127,.07) 45%, transparent 72%),
+      var(--bg);
+    color:var(--light); font-family:var(--mono);
+    min-height:100vh; min-height:100dvh;
+    display:flex; flex-direction:column; align-items:center;
+    padding:max(14px,env(safe-area-inset-top)) 16px max(16px,env(safe-area-inset-bottom));
+    overflow-x:hidden;
+  }
+
+  /* ───── En-tête ───── */
+  header{text-align:center;margin-top:6px}
+  header h1{
+    margin:0; font-size:clamp(28px,6.5vw,46px); font-weight:700;
+    letter-spacing:.5em; text-indent:.5em; color:#fff;
+    text-shadow:0 0 10px var(--pink),0 0 28px var(--pink),0 0 60px rgba(255,0,127,.6);
+  }
+  header p{margin:6px 0 0;font-size:clamp(10px,2.4vw,13px);letter-spacing:.38em;text-indent:.38em;color:var(--pink2);text-transform:uppercase}
+  .bridge{margin-top:10px;font-size:11px;letter-spacing:.12em;padding:4px 10px;border:1px solid rgba(255,0,127,.3);display:inline-block}
+  .bridge.on{color:var(--pink2);border-color:var(--pink2);box-shadow:0 0 10px rgba(255,0,127,.25)}
+  .bridge.off{color:var(--dim)}
+
+  /* ───── Réacteur holographique ───── */
+  .reactor{position:relative;width:min(50vw,250px);aspect-ratio:1;margin:18px auto 6px;flex:none;cursor:pointer;-webkit-tap-highlight-color:transparent}
+  .ring{position:absolute;border-radius:50%;transition:opacity .4s}
+  .r1{inset:0;border:2px dashed rgba(255,0,127,.55);animation:spin 28s linear infinite}
+  .r2{inset:11%;border:3px solid transparent;border-top-color:var(--pink);border-bottom-color:var(--pink2);
+      animation:spin 9s linear infinite reverse;filter:drop-shadow(0 0 6px var(--pink))}
+  .r3{inset:22%;border:2px dotted rgba(255,179,217,.75);animation:spin 14s linear infinite}
+  .r4{inset:33%;border:3px solid transparent;border-left-color:var(--pink);border-right-color:var(--pink);
+      animation:spin 5s linear infinite reverse;filter:drop-shadow(0 0 5px var(--pink))}
+  .core{
+    position:absolute;inset:42%;border-radius:50%;
+    background:radial-gradient(circle at 40% 35%,#fff 0%,#ff7ab8 26%,var(--pink) 62%,#7a0040 100%);
+    box-shadow:0 0 28px 8px rgba(255,0,127,.7),0 0 80px 22px rgba(255,0,127,.35);
+    animation:pulse 2.6s ease-in-out infinite; transition:opacity .4s, filter .4s;
+  }
+  @keyframes spin{to{transform:rotate(360deg)}}
+  @keyframes pulse{0%,100%{transform:scale(1);opacity:.9}50%{transform:scale(1.18);opacity:1}}
+  @keyframes talk{0%,100%{transform:scale(1)}50%{transform:scale(1.38)}}
+  .reactor.idle .ring{opacity:.35}
+  .reactor.idle .core{opacity:.45;filter:saturate(.5)}
+  .reactor.veille .ring{opacity:.55}
+  .reactor.veille .core{opacity:.65;animation-duration:4.5s}
+  .reactor.listening .core{animation-duration:1.5s}
+  .reactor.thinking .r1{animation-duration:4s}
+  .reactor.thinking .r2{animation-duration:1.6s}
+  .reactor.thinking .r3{animation-duration:3s}
+  .reactor.thinking .r4{animation-duration:1s}
+  .reactor.speaking .core{animation:talk .45s ease-in-out infinite}
+  .state{font-size:11px;letter-spacing:.35em;text-indent:.35em;color:var(--pink2);text-align:center;min-height:16px;margin-bottom:10px}
+
+  /* ───── Terminal de discussion ───── */
+  .term{
+    width:min(900px,100%); flex:1 1 auto; min-height:210px; max-height:46vh;
+    display:flex; flex-direction:column;
+    border:1px solid var(--pink); background:rgba(12,0,7,.62);
+    box-shadow:0 0 18px rgba(255,0,127,.25), inset 0 0 22px rgba(255,0,127,.06);
+    backdrop-filter:blur(6px);
+  }
+  .term-head{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:6px 12px;font-size:10.5px;letter-spacing:.2em;
+    color:var(--pink2);border-bottom:1px solid rgba(255,0,127,.35);text-transform:uppercase}
+  .log{flex:1;overflow-y:auto;padding:10px 14px;font-size:14px;line-height:1.55;scrollbar-width:thin;scrollbar-color:var(--pink) transparent}
+  .line{margin:0 0 7px;white-space:pre-wrap;word-wrap:break-word}
+  .line.sys{color:var(--dim);font-size:12.5px}
+  .line.user{color:var(--light)}
+  .line.ray{color:var(--pink);text-shadow:0 0 8px rgba(255,0,127,.35)}
+  .interim{padding:0 14px;min-height:20px;font-size:13px;color:var(--dim);font-style:italic;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  form{display:flex;align-items:center;gap:8px;border-top:1px solid rgba(255,0,127,.35);padding:6px 12px}
+  form span{color:var(--pink)}
+  form input{flex:1;background:transparent;border:none;outline:none;color:var(--light);font:14px var(--mono);padding:6px 0}
+  form input::placeholder{color:var(--dim)}
+  form button{background:transparent;border:1px solid rgba(255,0,127,.4);color:var(--pink);font:13px var(--mono);padding:4px 10px;cursor:pointer}
+  form button.clip{font-size:16px;padding:2px 9px}
+  .term.depot{box-shadow:0 0 0 2px var(--pink2),0 0 30px rgba(255,0,127,.6)}
+
+  .gear{background:transparent;border:1px solid rgba(255,0,127,.45);color:var(--pink);font:10.5px var(--mono);letter-spacing:.15em;padding:2px 9px;cursor:pointer;text-transform:uppercase}
+  .gear:hover{background:rgba(255,0,127,.15)}
+  .cfg{display:none;padding:10px 14px 12px;border-bottom:1px solid rgba(255,0,127,.35);background:rgba(255,0,127,.04);font-size:12.5px;max-height:44vh;overflow-y:auto}
+  .cfg.open{display:block}
+  .cfg h3{margin:14px 0 2px;font-size:11px;letter-spacing:.2em;color:var(--pink);text-transform:uppercase;border-top:1px solid rgba(255,0,127,.25);padding-top:10px}
+  .cfg h3:first-child{margin-top:0;border-top:none;padding-top:0}
+  .cfg label{display:block;margin:8px 0 3px;color:var(--pink2);letter-spacing:.08em}
+  .cfg input[type=url],.cfg input[type=password],.cfg input[type=text]{width:100%;background:rgba(0,0,0,.4);border:1px solid rgba(255,0,127,.4);color:var(--light);font:13px var(--mono);padding:7px 9px;outline:none}
+  .cfg input:focus{border-color:var(--pink)}
+  .cfg input[type=range]{width:100%;accent-color:var(--pink)}
+  .cfg label.chk{display:flex;gap:9px;align-items:flex-start;color:var(--light);letter-spacing:0;cursor:pointer}
+  .cfg label.chk input{margin-top:2px;accent-color:var(--pink)}
+  .cfg .row{display:flex;gap:8px;margin-top:10px;align-items:center;flex-wrap:wrap}
+  .cfg button{background:var(--pink);border:none;color:#1a000d;font:700 12px var(--mono);letter-spacing:.12em;padding:8px 14px;cursor:pointer;text-transform:uppercase}
+  .cfg button.ghost{background:transparent;color:var(--pink);border:1px solid rgba(255,0,127,.5)}
+  .cfg .msg{color:var(--light);font-size:12px;display:block;margin-top:8px;white-space:pre-wrap}
+  .cfg .hint{color:var(--dim);font-size:11.5px;line-height:1.55;margin-top:8px}
+
+  /* ───── Bouton d'écoute ───── */
+  .mic{
+    margin-top:14px; width:min(900px,100%); flex:none; padding:18px 12px;
+    font:700 clamp(12px,3.2vw,17px) var(--mono); letter-spacing:.18em; text-transform:uppercase;
+    border:2px solid var(--pink); background:rgba(255,0,127,.08); color:var(--pink);
+    cursor:pointer; box-shadow:0 0 18px rgba(255,0,127,.3); transition:.2s;
+  }
+  .mic:hover{background:rgba(255,0,127,.18)}
+  .mic.veille{background:rgba(255,0,127,.16);color:var(--light);box-shadow:0 0 22px rgba(255,0,127,.45)}
+  .mic.on{background:var(--pink);color:#1a000d;box-shadow:0 0 34px rgba(255,0,127,.85)}
+  .mic:disabled{opacity:.4;cursor:not-allowed}
+  .mic small{display:block;margin-top:5px;font-size:.68em;letter-spacing:.12em;opacity:.85;text-transform:none}
+
+  /* ───── Phase 3 : badges, modes, tâches ───── */
+  .badges{display:flex;gap:6px;justify-content:center;flex-wrap:wrap;margin-top:6px;min-height:0}
+  .badge{font-size:10px;letter-spacing:.14em;padding:2px 8px;border:1px solid var(--pink2);color:var(--pink2);text-transform:uppercase;box-shadow:0 0 8px rgba(255,0,127,.25)}
+  .badge.doux{border-color:rgba(255,0,127,.35);color:var(--dim);box-shadow:none}
+  .cfg .modes{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px}
+  .cfg .modes button{background:transparent;color:var(--pink);border:1px solid rgba(255,0,127,.5)}
+  .cfg .modes button.actif{background:var(--pink);color:#1a000d}
+  .cfg input[type=time]{background:rgba(0,0,0,.4);border:1px solid rgba(255,0,127,.4);color:var(--light);font:13px var(--mono);padding:6px 8px;outline:none;color-scheme:dark}
+  .cfg ul.taches{list-style:none;margin:6px 0 0;padding:0}
+  .cfg ul.taches li{display:flex;justify-content:space-between;gap:8px;align-items:center;padding:4px 0;border-bottom:1px dashed rgba(255,0,127,.18);font-size:12px}
+  .cfg ul.taches li button{padding:2px 8px;font-size:11px;background:transparent;color:var(--pink);border:1px solid rgba(255,0,127,.4)}
+  @media(max-height:700px){.reactor{width:min(34vw,160px);margin-top:10px}}
+</style>
+</head>
+<body>
+  <header>
+    <h1>R A Y L É</h1>
+    <p>Market &amp; Neural Core</p>
+    <div class="bridge off" id="bridgeStatus">PONT TERMINAL · …</div>
+    <div class="badges" id="badges"></div>
+  </header>
+
+  <div class="reactor idle" id="reactor" title="Toucher : réveiller Raylé ou la couper">
+    <div class="ring r1"></div><div class="ring r2"></div><div class="ring r3"></div><div class="ring r4"></div>
+    <div class="core"></div>
+  </div>
+  <div class="state" id="state">MICRO COUPÉ</div>
+
+  <section class="term">
+    <div class="term-head"><span>Terminal de discussion</span><span id="voiceName">voix : …</span><button type="button" class="gear" id="gear">⚙ Réglages</button></div>
+    <div class="cfg" id="cfg">
+      <h3>Connexion</h3>
+      <label for="kUrl">Adresse du Worker</label>
+      <input id="kUrl" type="url" placeholder="https://rayle.xxxxx.workers.dev" autocomplete="off" spellcheck="false">
+      <label for="kTok">Code d'accès (le même que le secret RAYLE_TOKEN du Worker)</label>
+      <input id="kTok" type="password" placeholder="code d'accès" autocomplete="off" spellcheck="false">
+      <div class="row">
+        <button type="button" id="cfgSave">Enregistrer</button>
+        <button type="button" class="ghost" id="cfgGen">Générer un code</button>
+      </div>
+
+      <h3>Voix et écoute</h3>
+      <label for="kVit">Vitesse de la voix : <span id="kVitVal">…</span></label>
+      <input id="kVit" type="range" min="-40" max="20" step="2">
+      <label class="chk"><input type="checkbox" id="kReveil"> Mot d'activation : Raylé reste en veille tant qu'on ne dit pas « Raylé » (« merci » la remet en veille, « coupure » coupe tout)</label>
+      <label class="chk"><input type="checkbox" id="kBarge"> Pouvoir la couper à la voix (« stop », « coupure ») pendant qu'elle parle. Conseillé avec un casque, sinon elle peut s'entendre elle-même.</label>
+      <label for="kNoms">Autres façons dont Chrome écrit « Raylé » (séparées par des virgules)</label>
+      <input id="kNoms" type="text" placeholder="ex. réalé, rallye, railé" autocomplete="off" spellcheck="false">
+
+      <h3>Mode</h3>
+      <div class="modes" id="cfgModes">
+        <button type="button" data-mode="normal">Normal</button>
+        <button type="button" data-mode="trading">Trading strict</button>
+        <button type="button" data-mode="revision">Révision</button>
+        <button type="button" data-mode="detente">Détente</button>
+      </div>
+      <div class="hint">À la voix : « mode trading », « mode révision », « mode détente », « mode normal ». Le mode vaut aussi sur Telegram.</div>
+
+      <h3>Telegram et tâches de fond</h3>
+      <span class="msg" id="tgEtat">…</span>
+      <div class="row">
+        <button type="button" id="tgConnecter">Connecter Telegram</button>
+        <button type="button" class="ghost" id="tgTest">Message de test</button>
+      </div>
+      <label class="chk"><input type="checkbox" id="kBriefing"> Briefing du matin chaque jour sur Telegram, à <input type="time" id="kBriefingH" step="300"></label>
+      <label class="chk"><input type="checkbox" id="kSeances"> Messages d'ouverture et de clôture des séances de Londres et New York</label>
+      <label for="kVille">Ville de la météo du briefing</label>
+      <input id="kVille" type="text" placeholder="Castres" autocomplete="off">
+      <div class="row"><button type="button" class="ghost" id="cfgTaches">Voir mes alertes, rappels et agenda</button></div>
+      <div id="listeTaches"></div>
+      <div class="hint">Alertes de prix, rappels, minuteurs, agenda, briefing et séances tournent sur le Worker toutes les minutes, même page fermée (il faut le déclencheur Cron « * * * * * »). Page ouverte, Raylé les annonce aussi à voix haute.</div>
+
+      <h3>Tests</h3>
+      <div class="row">
+        <button type="button" class="ghost" id="cfgTest">Tester la connexion</button>
+        <button type="button" class="ghost" id="cfgTestVoix">Tester la voix</button>
+        <button type="button" class="ghost" id="cfgTestMkt">Tester le marché</button>
+        <button type="button" class="ghost" id="cfgTestInfo">Tester les savoirs</button>
+        <button type="button" class="ghost" id="cfgTestJarvis">Tester les nouveautés</button>
+        <button type="button" class="ghost" id="cfgClean">Effacer les anciennes clés</button>
+      </div>
+      <span class="msg" id="cfgMsg"></span>
+      <div class="hint">Aucune clé d'IA ni de marché n'est stockée ici : elles sont rangées dans le Worker Cloudflare. Seuls l'adresse du Worker, le code d'accès et tes réglages restent dans ce navigateur. Ne partage le code avec personne.<br>Pour une vidéo YouTube ou une page web : colle le lien dans le champ de texte. Pour un PDF, un document Word ou un cours en texte : 📎 (écris d'abord ta question si tu veux, par exemple « relis mon dossier E4 »).</div>
+    </div>
+    <div class="log" id="log"></div>
+    <div class="interim" id="interim"></div>
+    <form id="form" autocomplete="off">
+      <span>&gt;</span>
+      <input id="txt" type="text" placeholder="…ou écrivez ici (lien web ou YouTube, ou 📎 pour une image, une vidéo, un PDF, un Word)">
+      <button type="button" class="clip" id="clip" title="Envoyer une image, une vidéo, un PDF ou un document Word (écrivez d'abord votre question si vous voulez)">📎</button>
+      <input type="file" id="fichier" accept="image/*,video/*,application/pdf,.pdf,.docx,application/vnd.openxmlformats-officedocument.wordprocessingml.document,.txt,.md,text/plain,text/markdown" hidden>
+      <button type="submit">↵</button>
+    </form>
+  </section>
+
+  <button class="mic" id="btn"><span id="btnTxt">Activer Raylé</span><small id="btnSub">puis dites « Raylé » pour lui parler</small></button>
+
+<script>
+(function(){
+  "use strict";
+
+  const $=id=>document.getElementById(id);
+  const BRIDGE_KEY='rayle_terminal_bridge';
+  const reactor=$('reactor'), logEl=$('log'), stateEl=$('state'), interimEl=$('interim'),
+        btn=$('btn'), btnTxt=$('btnTxt'), btnSub=$('btnSub'), form=$('form'), txt=$('txt'),
+        bridgeEl=$('bridgeStatus'), voiceEl=$('voiceName');
+
+  /* ═════════════ STOCKAGE LOCAL (adresse du Worker, code et réglages uniquement) ═════════════ */
+  const store={
+    get:k=>{ try{ return (localStorage.getItem(k)||'').trim(); }catch(e){ return ''; } },
+    set:(k,v)=>{ try{ if(v!=='' && v!=null) localStorage.setItem(k,v); else localStorage.removeItem(k); }catch(e){} }
+  };
+  const KEY_WURL='rayle_worker_url', KEY_WTOK='rayle_worker_token';
+  const KEY_VIT='rayle_vitesse', KEY_REVEIL='rayle_reveil', KEY_BARGE='rayle_interruption', KEY_NOMS='rayle_noms';
+  const OLD_KEYS=['rayle_key_groq','rayle_key_openrouter','rayle_key_twelvedata'];   // anciennes clés des versions précédentes
+
+  const prefs={
+    vitesse:()=>{ const v=store.get(KEY_VIT); return v==='' ? null : Number(v); },
+    reveil:()=>store.get(KEY_REVEIL)!=='0',     // mot d'activation demandé (oui par défaut)
+    barge:()=>store.get(KEY_BARGE)==='1'
+  };
+
+  /* ═════════════ PERSONNALITÉ CÔTÉ INTERFACE (reçue du Worker) ═════════════ */
+  let persona={adresse:'vous',voix:'',feminin:true,vitesse:-8,mode:'normal'};
+  try{ const p=JSON.parse(localStorage.getItem('rayle_persona')||'null'); if(p) persona=Object.assign(persona,p); }catch(e){}
+  const fx=(vous,tu)=>persona.adresse==='tu'?tu:vous;
+  const fem=(m,f)=>persona.feminin?f:m;
+  const vitesseCourante=()=>{ const v=prefs.vitesse(); return (v!=null && isFinite(v)) ? v : (isFinite(persona.vitesse)?persona.vitesse:-8); };
+  const pick=a=>a[Math.floor(Math.random()*a.length)];
+
+  /* ═════════════ ÉTAT & JOURNAL ═════════════ */
+  const STATES={idle:'MICRO COUPÉ',veille:'VEILLE · DITES « RAYLÉ »',listening:'CONVERSATION',thinking:'ANALYSE',speaking:'TRANSMISSION'};
+  function setState(s){ reactor.className='reactor '+s; stateEl.textContent=STATES[s]||''; }
+  function stamp(){ return new Date().toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit',second:'2-digit'}); }
+  function addLine(kind,text){
+    const d=document.createElement('div'); d.className='line '+kind;
+    const prefix = kind==='sys' ? '['+stamp()+'] ' : kind==='user' ? 'VOUS › ' : 'RAYLÉ › ';
+    d.textContent=prefix+String(text);
+    logEl.appendChild(d); logEl.scrollTop=logEl.scrollHeight;
+    while(logEl.children.length>250) logEl.removeChild(logEl.firstChild);
+  }
+  const norm=t=>String(t||'').normalize('NFC').normalize('NFD').replace(/[̀-ͯ]/g,'').toLowerCase();
+  // Version « commande » : sans ponctuation ni nom de Raylé
+  const cmdNorm=n=>String(n||'').replace(/[?!.,;:…«»"]/g,' ').replace(/(?:^|\s)(?:(?:hey|he|eh|ok|okay|dis)\s+)?rayle(?=\s|$)/g,' ').replace(/\s+/g,' ').trim();
+
+  /* ═════════════ PONT AVEC LE TERMINAL ═════════════ */
+  function readBridge(){
+    try{
+      const raw=localStorage.getItem(BRIDGE_KEY); if(!raw) return null;
+      const o=JSON.parse(raw);
+      return (o && typeof o==='object') ? o : null;
+    }catch(e){ return null; }
+  }
+  function fmtNum(v,dec){ const n=Number(v); return isFinite(n) ? n.toLocaleString('fr-FR',{maximumFractionDigits:dec==null?2:dec}) : String(v); }
+  function fmtAge(iso){
+    const ms=Date.now()-new Date(iso).getTime(); if(!isFinite(ms)) return '';
+    const m=Math.round(ms/60000);
+    return m<1 ? "à l'instant" : m<60 ? 'il y a '+m+' min' : 'il y a '+Math.round(m/60)+' h';
+  }
+  const pairs=o=>Object.entries(o).map(([k,v])=>k+' '+v).join(', ');
+  // Chrome ralentit les onglets en arrière-plan : le signal de présence du terminal peut arriver avec du retard
+  const VU_MAX_S=150;
+  const terminalOuvert=b=>!!(b && b.vu && (Date.now()-new Date(b.vu).getTime())/1000<VU_MAX_S);
+
+  // Ligne qui dit à l'IA si elle est reliée au terminal (évite « je ne suis pas connectée »)
+  function terminalLink(b){
+    if(!b) return "Liaison terminal : aucune donnée reçue pour l'instant (le terminal n'a pas été ouvert dans ce navigateur).";
+    if(b.vu){
+      return terminalOuvert(b)
+        ? 'Liaison terminal : ACTIVE, le terminal est ouvert dans ce navigateur et transmet ses données.'
+        : 'Liaison terminal : établie, mais le terminal est fermé ou en veille (dernier signe de vie '+fmtAge(b.vu)+') : les chiffres du terminal peuvent être anciens.';
+    }
+    return 'Liaison terminal : des données du terminal sont présentes.';
+  }
+
+  // Résumé envoyé comme contexte à l'IA
+  function bridgeSummary(b){
+    if(!b) return '';
+    const p=[];
+    if(b.actif) p.push('actif affiché : '+b.actif+(b.unite_graphique?' en '+b.unite_graphique:''));
+    if(b.prix!=null) p.push('prix '+fmtNum(b.prix));
+    if(b.tendance_globale) p.push('tendance globale '+b.tendance_globale);
+    if(b.score_global!=null) p.push('score global '+b.score_global+' sur 100');
+    if(b.tendances && typeof b.tendances==='object') p.push('tendance par unité de temps : '+pairs(b.tendances));
+    if(b.rsi && typeof b.rsi==='object') p.push('RSI : '+pairs(b.rsi));
+    if(b.volume_net && typeof b.volume_net==='object') p.push('volume net en dollars (positif = acheteurs) : '+pairs(b.volume_net));
+    if(b.support!=null) p.push('support '+fmtNum(b.support));
+    if(b.resistance!=null) p.push('résistance '+fmtNum(b.resistance));
+    if(b.ma200 && typeof b.ma200==='object') p.push('EMA 200 par unité de temps : '+pairs(b.ma200)+(b.distance_ma200_pct && typeof b.distance_ma200_pct==='object' ? ' ; écart du prix à cette EMA 200 en pourcent : '+pairs(b.distance_ma200_pct) : ''));
+    if(b.derniere_bougie && typeof b.derniere_bougie==='object'){ const c=b.derniere_bougie; p.push('dernière bougie '+(c.unite||'')+' : ouverture '+c.ouverture+', haut '+c.haut+', bas '+c.bas+', clôture '+c.cloture+' ('+c.sens+')'); }
+    if(b.extremes_recents && typeof b.extremes_recents==='object'){ const x=b.extremes_recents; p.push(x.sur+' : plus haut '+x.plus_haut+', plus bas '+x.plus_bas); }
+    if(Array.isArray(b.rsi_recent) && b.rsi_recent.length) p.push("derniers RSI sur l'unité de temps affichée (du plus ancien au plus récent) : "+b.rsi_recent.join(', '));
+    if(b.structure && b.structure.lecture){ const st=b.structure; p.push('structure de marché en '+(st.unite||'')+' : '+st.lecture+' ; dernier sommet '+st.dernier_sommet+', dernier creux '+st.dernier_creux+(st.alerte?' ; attention : '+st.alerte:'')); }
+    if(b.instrument_donnees) p.push('ces chiffres sont calculés sur '+b.instrument_donnees);
+    if(b.source_donnees && typeof b.source_donnees==='object'){ const sd=b.source_donnees; p.push('source des données du terminal : '+sd.source+(sd.secours?' (relais de secours)':'')+(sd.differe?' (données différées)':'')+(sd.ancienne_copie?' (ancienne copie, la source ne répond plus)':'')); }
+    if(b.contexte_marche && typeof b.contexte_marche==='object'){
+      const cm=Object.entries(b.contexte_marche).map(([k,v])=>k+' '+fmtNum(v.prix)+(v.variation_pct!=null?' ('+(v.variation_pct>=0?'+':'')+v.variation_pct+' %)':'')).join(', ');
+      if(cm) p.push('contexte de marché affiché au terminal : '+cm);
+    }
+    if(b.analyse_en_cours) p.push("l'analyse du nouvel actif est en cours de calcul, les chiffres arrivent dans quelques instants");
+    if(b.notes && String(b.notes).trim()) p.push('notes stratégiques de Justin : « '+String(b.notes).trim().slice(0,600)+' »');
+    if(b.maj) p.push('données mises à jour '+fmtAge(b.maj));
+    return p.join(' ; ');
+  }
+
+  function updateBridgeStatus(){
+    const b=readBridge();
+    if(!b){ bridgeEl.textContent='PONT TERMINAL · aucune donnée'; bridgeEl.className='bridge off'; return; }
+    const bits=[];
+    if(b.vu) bits.push(terminalOuvert(b)?'● terminal ouvert':'○ terminal fermé');
+    if(b.actif) bits.push(b.actif);
+    if(b.tendance_globale) bits.push(b.tendance_globale);
+    if(b.score_global!=null) bits.push(b.score_global+'/100');
+    if(b.maj) bits.push(fmtAge(b.maj));
+    bridgeEl.textContent='PONT TERMINAL · '+(bits.join(' · ')||'notes uniquement');
+    bridgeEl.className='bridge on';
+  }
+  setInterval(updateBridgeStatus,3000);
+  window.addEventListener('storage',e=>{ if(e.key===BRIDGE_KEY) updateBridgeStatus(); });
+
+  /* ═════════════ NETTOYAGE DU TEXTE POUR LA VOIX ═════════════ */
+  function clean(t){
+    return String(t||'')
+      .replace(/```[\s\S]*?```/g,' ')
+      .replace(/```[\s\S]*$/,' ')                       // bloc de code coupé en cours de route
+      .replace(/https?:\/\/\S+/g,' ')
+      .replace(/[\u{1F000}-\u{1FFFF}\u{2600}-\u{27BF}\u{FE0F}]/gu,'')
+      .replace(/[  ]/g,' ')
+      .replace(/(\d)\.(\d)/g,'$1,$2')                   // décimales à la française
+      .replace(/(\d)\s?°\s?C\b/g,'$1 degrés').replace(/°\s?C\b/g,' degrés').replace(/°/g,' degrés')
+      .replace(/\bkm\/h\b/gi,' kilomètres par heure')
+      .replace(/(\d)\s?mm\b/g,'$1 millimètres')
+      .replace(/≈/g,' environ ').replace(/×/g,' fois ').replace(/÷/g,' divisé par ').replace(/\s=\s/g,' égale ')
+      .replace(/(\d)\s?\+\s?(\d)/g,'$1 plus $2')
+      .replace(/(^|[\s(])\+\s?(\d)/g,'$1plus $2')
+      .replace(/%/g,' pour cent').replace(/€/g,' euros').replace(/\$/g,' dollars').replace(/&/g,' et ')
+      .replace(/[*_`#~>|\\^=+<>{}\[\]]/g,' ')
+      .replace(/[«»"“”„]/g,'')
+      .replace(/[()]/g,', ')
+      .replace(/\s[-–—]+\s/g,', ')
+      .replace(/\s+,/g,',').replace(/,\s*,+/g,',')
+      .replace(/\s+/g,' ').trim();
+  }
+
+  /* ═════════════ CONNEXION AU WORKER ═════════════ */
+  const W={ url:()=>store.get(KEY_WURL).replace(/\/+$/,''), token:()=>store.get(KEY_WTOK) };
+  const workerReady=()=>!!(W.url() && W.token());
+
+  let epoch=0;                          // change à chaque coupure : les réponses en cours deviennent « orphelines »
+  let cutAbort=new AbortController();   // permet d'interrompre les appels réseau d'une réponse coupée
+  async function fetchT(url,opts,ms){
+    const c=new AbortController(); const tm=setTimeout(()=>c.abort(),ms);
+    const sig=cutAbort.signal, onCut=()=>c.abort();
+    sig.addEventListener('abort',onCut);
+    try{ return await fetch(url,Object.assign({},opts,{signal:c.signal})); }
+    finally{ clearTimeout(tm); sig.removeEventListener('abort',onCut); }
+  }
+  function wfetch(path,opts,ms){
+    const o=Object.assign({},opts||{});
+    o.headers=Object.assign({},o.headers||{},{'X-Rayle-Token':W.token()});
+    return fetchT(W.url()+path,o,ms||15000);
+  }
+  async function workerError(res){
+    let d='';
+    try{
+      const j=await res.json();
+      d=j.error||j.message||'';
+      if(Array.isArray(j.essais) && j.essais.length) d+=' ['+j.essais.join(' | ')+']';
+      if(Array.isArray(j.erreurs) && j.erreurs.length) d+=' ['+j.erreurs.join(' | ')+']';
+    }catch(e){}
+    return new Error('HTTP '+res.status+(d?' · '+String(d).slice(0,400):''));
+  }
+  function errMsg(e){
+    if(e && e.name==='AbortError') return 'délai dépassé ou coupé';
+    const m=String((e && e.message) || e);
+    if(/HTTP 401/.test(m)) return "code d'accès refusé par le Worker (vérifiez ⚙ Réglages et le secret RAYLE_TOKEN)";
+    if(/^HTTP 429/.test(m)) return 'limite atteinte, patientez un instant';
+    if(/^HTTP 503 · aucune IA disponible/.test(m)) return 'aucune IA ne répond pour le moment'+(/429/.test(m)?' (limites atteintes)':'')+' — détail : '+m.replace(/^HTTP 503 · aucune IA disponible\s*/,'').slice(0,300);
+    if(/HTTP 404 · route inconnue/.test(m)) return "le Worker n'est pas à jour (cette fonction n'existe pas encore chez lui)";
+    if(/Failed to fetch|NetworkError|Load failed/i.test(m)) return 'Worker injoignable (adresse erronée, pas de réseau, ou site non autorisé)';
+    return m;
+  }
+  const valid=t=>typeof t==='string' && t.trim().length>1 && /[A-Za-zÀ-ÿ0-9]/.test(t);
+  async function wjson(path,ms){
+    const res=await wfetch(path,{method:'GET'},ms||15000);
+    if(!res.ok) throw await workerError(res);
+    return res.json();
+  }
+  // Petit cache côté page pour les données qui bougent peu (contexte, sentiment)
+  const pageCache={};
+  async function wjsonCache(path,ms,ttl){
+    const h=pageCache[path]; if(h && Date.now()-h.t<ttl) return h.v;
+    const v=await wjson(path,ms); pageCache[path]={t:Date.now(),v}; return v;
+  }
+
+  /* ═════════════ VOIX : Worker (Azure → Edge) puis voix du navigateur ═════════════ */
+  let voices=[], chosenVoice=null, speaking=false, speakToken=0, lastSpoken='', lastSpokenRaw='', speechEndT=0;
+  function pickVoice(){
+    const fr=voices.filter(v=>/^fr/i.test(v.lang));
+    const re=persona.feminin
+      ? /denise|julie|amelie|amélie|hortense|audrey|marie|celine|céline|virginie|aurelie|aurélie|female|femme/i
+      : /paul|henri|thomas|claude|antoine|mathieu|nicolas|male|homme/i;
+    return fr.find(v=>re.test(v.name)) || fr.find(v=>/fr-FR/i.test(v.lang)) || fr[0] || null;
+  }
+  function loadVoices(){
+    if(!('speechSynthesis' in window)) return;
+    voices=speechSynthesis.getVoices();
+    chosenVoice=pickVoice();
+    if(!workerReady()) voiceEl.textContent='voix : '+(chosenVoice ? chosenVoice.name.replace(/Microsoft |Google /,'') : 'système');
+  }
+  if('speechSynthesis' in window){ speechSynthesis.onvoiceschanged=loadVoices; loadVoices(); }
+
+  function splitChunks(t){
+    const sents=t.match(/[^.!?;:]+[.!?;:]*/g)||[t];
+    const parts=[];
+    sents.forEach(s=>{
+      if(s.length>200){ s.split(/,\s*/).forEach((p,i,a)=>parts.push(p+(i<a.length-1?',':''))); }
+      else parts.push(s);
+    });
+    const out=[]; let cur='';
+    parts.forEach(s=>{
+      if((cur+s).length>170 && cur){ out.push(cur.trim()); cur=s; } else cur+=s;
+    });
+    if(cur.trim()) out.push(cur.trim());
+    return out;
+  }
+  function regroup(t,max){
+    if(t.length<=max) return [t];
+    const out=[]; let cur='';
+    for(const s of splitChunks(t)){
+      if((cur+' '+s).length>max && cur){ out.push(cur.trim()); cur=s; } else cur+=(cur?' ':'')+s;
+    }
+    if(cur.trim()) out.push(cur.trim());
+    return out;
+  }
+
+  // Voix du navigateur (dernier filet : Raylé n'est jamais muette)
+  function browserSpeak(t,token,langue){
+    return new Promise(resolve=>{
+      if(!('speechSynthesis' in window)){ resolve(); return; }
+      speechSynthesis.cancel();
+      const chunks=splitChunks(t); let i=0;
+      const rate=langue?1:Math.max(0.5,Math.min(1.3,1+vitesseCourante()/100));
+      const etr=langue?(voices.find(v=>v.lang.toLowerCase().startsWith(langue.slice(0,2)))||null):null;
+      const next=()=>{
+        if(token!==speakToken || i>=chunks.length){ resolve(); return; }
+        const piece=chunks[i++];
+        const u=new SpeechSynthesisUtterance(piece);
+        if(langue){ if(etr){ u.voice=etr; u.lang=etr.lang; } else u.lang=langue; }
+        else if(chosenVoice){ u.voice=chosenVoice; u.lang=chosenVoice.lang; } else u.lang='fr-FR';
+        u.pitch=persona.feminin?1:0.78; u.rate=rate; u.volume=1;
+        let fired=false;
+        const go=()=>{ if(fired) return; fired=true; clearTimeout(tm); next(); };
+        const tm=setTimeout(go, 4000+piece.length*130);   // garde-fou si « onend » n'arrive pas
+        u.onend=go; u.onerror=go;
+        speechSynthesis.speak(u);
+      };
+      setTimeout(next,60);
+    });
+  }
+
+  // Voix en ligne (Azure ou Edge, choisie par le Worker)
+  let curAudio=null, audioStop=null, lastVoiceSrc='', lastVoiceInfo='';
+  function voiceLabel(src){
+    const [moteur,nom]=String(src||'').split('/');
+    return (nom||persona.voix||'?')+' ('+(moteur==='azure'?'Azure':moteur==='edge'?'Edge':moteur)+')';
+  }
+  async function fetchAudio(t,langue){
+    const body={text:t}; const v=prefs.vitesse();
+    if(langue) body.langue=langue;
+    else if(v!=null && isFinite(v)) body.vitesse=v;
+    const res=await wfetch('/tts',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)},25000);
+    if(!res.ok) throw await workerError(res);
+    return {src:res.headers.get('X-Rayle-Voix')||'', blob:await res.blob()};
+  }
+  async function playAudio(a,token){
+    if(token!==speakToken) return;
+    if(a.src && a.src!==lastVoiceSrc){ lastVoiceSrc=a.src; voiceEl.textContent='voix : '+voiceLabel(a.src); addLine('sys','Voix : '+voiceLabel(a.src)); }
+    const url=URL.createObjectURL(a.blob);
+    try{
+      await new Promise((resolve,reject)=>{
+        const el=new Audio(url); curAudio=el; audioStop=resolve;
+        el.onended=resolve;
+        el.onerror=()=>reject(new Error('lecture audio impossible'));
+        const p=el.play(); if(p && p.catch) p.catch(reject);
+      });
+    }finally{ curAudio=null; audioStop=null; URL.revokeObjectURL(url); }
+  }
+  function stopAudioOnly(){
+    if('speechSynthesis' in window) speechSynthesis.cancel();
+    if(curAudio){ try{ curAudio.pause(); }catch(e){} }
+    if(audioStop){ const f=audioStop; audioStop=null; f(); }
+  }
+
+  // Texte dans une langue étrangère (interprète) : nettoyage léger, sans les règles de lecture françaises
+  function cleanEtranger(t){
+    return String(t||'').replace(/```[\s\S]*?```/g,' ').replace(/https?:\/\/\S+/g,' ')
+      .replace(/[\u{1F000}-\u{1FFFF}\u{2600}-\u{27BF}\u{FE0F}]/gu,'').replace(/[*_`#~>|\\^=<>{}\[\]]/g,' ').replace(/\s+/g,' ').trim();
+  }
+  async function speak(text,opts){
+    const langue=opts&&opts.langue||null;
+    const t=langue?cleanEtranger(text):clean(text); if(!t) return;
+    const token=++speakToken;
+    stopAudioOnly();                       // une nouvelle phrase remplace la précédente
+    speaking=true; lastSpoken=norm(t).slice(0,4000); lastSpokenRaw=t.slice(0,4000);
+    if(!bargeActive()) muteRec(); else startRec();   // le micro est coupé net pendant qu'elle parle
+    setState('speaking');
+    // Premier morceau court pour démarrer vite, la suite est préparée pendant la lecture
+    let parts=regroup(t,900);
+    if(parts[0].length>320) parts=regroup(parts[0],260).concat(parts.slice(1));
+    let online=workerReady();
+    let next=online?fetchAudio(parts[0],langue):null;
+    if(next) next.catch(()=>{});
+    for(let i=0;i<parts.length;i++){
+      if(token!==speakToken) return;
+      if(online){
+        try{
+          const a=await next;
+          next=(i+1<parts.length)?fetchAudio(parts[i+1],langue):null;
+          if(next) next.catch(()=>{});
+          if(token!==speakToken) return;
+          await playAudio(a,token);
+          continue;
+        }catch(e){
+          if(token!==speakToken) return;
+          online=false; next=null;
+          const m='Voix en ligne indisponible ('+errMsg(e)+') : voix du navigateur';
+          if(m!==lastVoiceInfo){ addLine('sys',m); lastVoiceInfo=m; }
+        }
+      }
+      await browserSpeak(parts[i],token,langue);
+    }
+    if(token!==speakToken) return;
+    speaking=false; speechEndT=Date.now(); lastAct=Date.now();
+    restState();
+    if(micOn) setTimeout(startRec,700);       // petit délai : la fin de sa voix ne doit pas être captée
+  }
+  function cancelSpeech(){
+    speakToken++;
+    stopAudioOnly();
+    speaking=false; speechEndT=Date.now();
+  }
+
+  /* ═════════════ INTELLIGENCE : le Worker ═════════════ */
+  const history=[];
+  const HIST_KEY='rayle_historique';
+  try{ const h=JSON.parse(localStorage.getItem(HIST_KEY)||'null'); if(h && Date.now()-h.t<6*3600e3 && Array.isArray(h.m)) history.push(...h.m.slice(-12)); }catch(e){}
+  function saveHistory(){ while(history.length>12) history.shift(); try{ localStorage.setItem(HIST_KEY,JSON.stringify({t:Date.now(),m:history})); }catch(e){} }
+  let liveCtx='';   // données lues en direct pour la question en cours
+
+  function contextText(){
+    let s='';
+    if(liveCtx) s+=liveCtx+'\n';
+    const b=readBridge();
+    s+=terminalLink(b)+'\n';
+    if(b){ const sm=bridgeSummary(b); if(sm) s+="Ce que Justin a actuellement à l'écran sur son terminal, et ses notes : "+sm+".\n"; }
+    s+='Date et heure : '+new Date().toLocaleString('fr-FR',{timeZone:'Europe/Paris'})+' (heure de Paris).';
+    return s;
+  }
+
+  async function askWorker(text,long,ctxPlus){
+    const res=await wfetch('/chat',{
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({text:text, context:(ctxPlus?ctxPlus+'\n':'')+contextText(), history:history.slice(-8), mode:persona.mode||'normal'})
+    },long?90000:40000);
+    if(!res.ok) throw await workerError(res);
+    const d=await res.json();
+    if(!valid(d.reply)) throw new Error('réponse vide');
+    return d;
+  }
+
+  async function pingWorker(verbose){
+    if(!workerReady()){ addLine('sys','Cerveau : Worker non configuré — ouvrez ⚙ Réglages'); return null; }
+    try{
+      const res=await wfetch('/ping',{method:'GET'},10000);
+      if(!res.ok) throw await workerError(res);
+      const p=await res.json();
+      persona.adresse=p.adresse||'vous'; persona.voix=p.voix||'';
+      if(typeof p.feminin==='boolean') persona.feminin=p.feminin;
+      if(isFinite(p.vitesse)) persona.vitesse=p.vitesse;
+      if(p.mode) persona.mode=p.mode;
+      try{ localStorage.setItem('rayle_persona',JSON.stringify(persona)); }catch(e){}
+      loadVoices(); majVitesseUI(); majBadges();
+      voiceEl.textContent='voix : '+p.voix+(p.azure?' (Azure)':' (Edge)');
+      const info='Worker connecté ('+(p.version||'ancienne version')+') · IA : '+((p.ia||[]).join(' → ')||'aucune clé')
+        +' · voix '+p.voix+(p.azure?' Azure'+(p.azureMois!=null?' ('+p.azureMois.toLocaleString('fr-FR')+' / '+p.azureLimite.toLocaleString('fr-FR')+' car. ce mois)':''):' Edge')
+        +' · Twelve Data '+(p.twelvedata?'ok'+(p.tdJour!=null?' ('+p.tdJour+' req. aujourd\'hui)':''):'absente')
+        +' · Gemini '+(p.gemini?'ok':'absente')
+        +' · base D1 '+(p.d1?'ok':'absente')
+        +(Array.isArray(p.savoirs)?' · savoirs : '+p.savoirs.join(', ')+(p.ville?' (météo par défaut : '+p.ville+')':''):'')
+        +(p.version&&/^phase3/.test(p.version)?' · Telegram '+(p.telegram?(p.telegramLie?'lié':'à connecter'):'absent')
+          +' · tâche planifiée '+(p.tachePlanifiee?'active ('+fmtAge(new Date(Number(p.tachePlanifiee)).toISOString())+')':'pas encore vue')
+          +' · recherche web '+(p.recherche?p.recherche+(p.rechercheMois!=null?' ('+p.rechercheMois+' ce mois)':''):'sans clé')
+          +' · mode '+(p.mode||'normal'):'');
+      if(verbose!==false) addLine('sys',info);
+      if(!/^phase3/.test(p.version||'')) addLine('sys',"⚠ Le Worker n'est pas encore à jour : colle le nouveau code dans Cloudflare pour activer les nouveautés (alertes, rappels, Telegram…).");
+      p.phase3=/^phase3/.test(p.version||'');
+      return Object.assign(p,{info:info});
+    }catch(e){ addLine('sys','Worker : '+errMsg(e)); return null; }
+  }
+
+  /* ═════════════ RÉPONSES SANS IA (économie de quota) ═════════════ */
+  function heureTexte(){ return new Date().toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'}).replace(':',' heures '); }
+  function dateTexte(){ return new Date().toLocaleDateString('fr-FR',{weekday:'long',day:'numeric',month:'long',year:'numeric'}); }
+  function quickAnswer(text){
+    const n=cmdNorm(norm(text));
+    if(n.length>45) return null;
+    if(/^(quelle heure (est[- ]il|il est)?|il est quelle heure|l'?heure)( stp| s'?il (te|vous) plait)?$/.test(n)) return 'Il est '+heureTexte()+', Justin.';
+    if(/^(quel jour (sommes[- ]nous|on est|est[- ]on|est[- ]ce)?|on est quel jour|quelle (est la )?date)( aujourd'?hui)?$/.test(n)) return 'Nous sommes le '+dateTexte()+', Justin.';
+    return null;
+  }
+
+  /* ═════════════ CERVEAU DE SECOURS LOCAL ═════════════ */
+  const DECISION=()=>"Simple lecture des données, Justin : la décision "+fx('vous appartient.',"t'appartient.");
+  function marketAnswer(b,wantNotes){
+    if(!b) return "Je ne perçois aucune donnée du terminal, Justin. "+fx('Ouvrez-le','Ouvre-le')+" dans ce même navigateur et "+fx('laissez','laisse')+"-le charger quelques instants.";
+    const notes=(b.notes && String(b.notes).trim()) ? String(b.notes).trim() : '';
+    if(wantNotes){
+      return notes ? "Voici "+fx('vos','tes')+" notes, Justin : "+notes.slice(0,400) : fx('Vos','Tes')+" notes sont vides pour le moment, Justin.";
+    }
+    const p=[];
+    if(b.actif){
+      let s='Sur '+b.actif;
+      if(b.tendance_globale) s+=', la tendance globale est '+String(b.tendance_globale).toLowerCase();
+      if(b.score_global!=null) s+=', avec un score de '+b.score_global+' sur 100';
+      p.push(s+'.');
+    }
+    if(b.rsi && b.rsi.H1!=null) p.push('Le RSI en H1 est à '+b.rsi.H1+'.');
+    if(b.structure && b.structure.lecture) p.push('Côté structure, '+b.structure.lecture+(b.structure.alerte?' ; '+b.structure.alerte:'')+'.');
+    if(b.support!=null && b.resistance!=null) p.push('Le support le plus proche se situe à '+fmtNum(b.support)+' et la résistance à '+fmtNum(b.resistance)+'.');
+    if(!p.length) return "Le terminal ne m'a pas encore transmis ses analyses, Justin."+(notes?" Je vois toutefois des notes en cours.":'');
+    p.push(DECISION());
+    return p.join(' ');
+  }
+
+  function localBrain(text){
+    const n=norm(text); const h=new Date().getHours();
+    if(/\b(bonjour|salut|coucou|hello|bonsoir)\b/.test(n)) return (h>=18||h<5?'Bonsoir':'Bonjour')+", Justin. Les circuits sont chauds, les marchés aussi.";
+    if(/quelle heure|l'heure|\bheure\b/.test(n)) return "Il est "+heureTexte()+", Justin.";
+    if(/quel jour|la date|\bdate\b|aujourd/.test(n)) return "Nous sommes le "+dateTexte()+", Justin.";
+    if(/\bmerci\b/.test(n)) return 'Avec plaisir, Justin.';
+    if(/qui es[- ]?tu|ton nom|comment tu t'?appelles|presente[- ]?toi|que sais[- ]tu faire/.test(n)) return "Je suis Raylé, "+fx('votre','ton')+" copilote, Justin. Je lis "+fx('vos','tes')+" graphiques bougie par bougie, je suis l'actualité, la météo, la médecine et l'anatomie, je calcule, je regarde des vidéos YouTube, et je "+fx('vous','te')+" réponds à la voix. Le café, en revanche, reste hors de mon périmètre.";
+    if(/ca va|comment vas[- ]?tu|tu vas bien/.test(n)) return "Aucune panne à signaler, Justin. Les circuits ronronnent.";
+    if(liveData.snaps.length || liveData.cal || liveData.extra.length){
+      const sp=liveData.snaps.map(x=>x.speech).concat(liveData.cal?[liveData.cal.speech]:[],liveData.extra);
+      return sp.join(' ')+(liveData.snaps.length?' '+DECISION():'');
+    }
+    if(/\bnotes?\b/.test(n)) return marketAnswer(readBridge(),true);
+    if(/march|terminal|nasdaq|bitcoin|btc|solana|\bsol\b|\bor\b|gold|eur|dollar|petrole|analys|tendance|rsi|score|support|resistance|niveau|situation|graphique|ecran/.test(n)) return marketAnswer(readBridge(),false);
+    const short=String(text).trim().slice(0,90);
+    return "Je "+fx("vous ai","t'ai")+" "+fem('bien entendu','bien entendu')+", Justin : « "+short+" ». Mon cerveau en ligne ne répond pas pour l'instant, mais je reste disponible pour l'état du terminal, "+fx('vos','tes')+" notes, l'heure ou la date.";
+  }
+
+  /* ═════════════ TRAITEMENT D'UNE PHRASE ═════════════ */
+  let engineLast='';
+  async function respond(text){
+    if(text && typeof text==='object'){
+      if(text.annonce) return respondAnnonce(text);
+      if(text.terminal) return respondTerminal(text.terminal);
+      return respondMedia(text);
+    }
+    const n0=norm(text), c0=cmdNorm(n0).replace(/-/g,' ');
+    // Modes en cours : interprète, quiz de révision
+    if(interp) return respondInterprete(text);
+    if(quiz) return respondQuiz(text);
+    if(quizAttenteSujet && Date.now()-quizAttenteSujet<120000){ quizAttenteSujet=0; if(!/^(non|laisse tomber|rien|annule)\b/.test(c0)) return demarrerQuiz('interroge-moi sur '+text.replace(/^\s*(?:sur\s+)/i,'')); }
+    if(QUIZ_START_RE.test(c0)) return demarrerQuiz(text);
+    // Question de suivi sur l'image envoyée juste avant : on la renvoie à Gemini avec la question
+    if(lastImage && Date.now()-lastImage.t<30*60000 && IMG_SUIVI_RE.test(n0)) return respondMedia({image:lastImage.dataUrl,nom:lastImage.nom,q:text,suivi:true});
+    // Question sur le dernier document envoyé (PDF, Word…)
+    if(docActif() && DOC_SUIVI_RE.test(n0)) return respondDocument(text);
+    const my=epoch;
+    const quick=quickAnswer(text);
+    if(quick){ addLine('ray',quick); await speak(quick); return; }
+    // Traduction ponctuelle : « comment dit-on bonjour en espagnol »
+    const tr=traductionUnique(text);
+    if(tr && workerReady()) return respondTraductionUnique(tr);
+    // Briefing (généré par le Worker)
+    if(workerReady() && BRIEF_RE.test(n0) && await respondBriefing()) return;
+    if(my!==epoch) return;
+    // Alertes de prix, rappels, minuteurs, agenda : programmés par le Worker
+    if(workerReady() && ASSIST_RE.test(c0)){
+      setState('thinking');
+      const r=await commandeWorker(text);
+      if(my!==epoch) return;
+      if(r && r.gere){
+        addLine('ray',r.reponse);
+        if(r.rappel) planifierLocal(r.rappel);
+        history.push({role:'user',content:text},{role:'assistant',content:r.reponse}); saveHistory();
+        await speak(r.reponse); return;
+      }
+    }
+    // Commande du terminal : « affiche l'or en H4 »
+    const tc=commandeTerminal(text);
+    if(tc) return respondTerminal(tc);
+
+    setState('thinking');
+    let ctx='';
+    try{ ctx=await buildLiveContext(text); }catch(e){ if(my===epoch) addLine('sys','Lecture des données : '+errMsg(e)); }
+    if(my!==epoch) return;                 // coupé pendant la lecture des données
+    liveCtx=ctx;
+    const long=/ANALYSE BOUGIE PAR BOUGIE|VIDÉO YOUTUBE|PAGE WEB|JOURNAL DE TRADING|CHECKLIST AVANT TRADE/.test(ctx);
+    if(!speaking) setState('thinking');
+
+    let reply='', engine='';
+    if(workerReady()){
+      try{
+        const d=await askWorker(text,long);
+        if(my!==epoch) return;             // coupé pendant que l'IA répondait
+        reply=d.reply; engine=d.engine+(d.model?' · '+d.model:'');
+      }catch(e){ if(my!==epoch) return; addLine('sys','Cerveau : '+errMsg(e)); }
+    }
+    if(!valid(reply)){
+      reply=localBrain(text);
+      addLine('sys', workerReady() ? 'Mode secours local' : 'Mode secours local — configurez le Worker via ⚙ Réglages');
+    }else{
+      if(engine!==engineLast){ addLine('sys','Moteur IA : '+engine); engineLast=engine; }
+      history.push({role:'user',content:text},{role:'assistant',content:reply});
+      saveHistory();
+    }
+    liveCtx='';
+    addLine('ray',reply);
+    await speak(reply);
+  }
+
+  const queue=[]; let processing=false, drainId=0;
+  async function drain(){
+    const id=++drainId;
+    processing=true;
+    while(queue.length && id===drainId){ const t=queue.shift(); try{ await respond(t); }catch(e){ if(id===drainId) addLine('sys','Erreur interne : '+e.message); } }
+    if(id!==drainId) return;               // coupé : une nouvelle boucle a pris le relais
+    processing=false; lastAct=Date.now();
+    if(!speaking) restState();
+  }
+
+  /* ═════════════ MODES : micro coupé · veille · conversation ═════════════ */
+  let micOn=false, mode='veille', lastAct=0;
+  const RETOUR_VEILLE_MS=90000;          // en conversation, retour en veille après 90 s de silence
+  const reveilActif=()=>prefs.reveil();
+  function restState(){
+    if(speaking) return;
+    if(processing){ setState('thinking'); return; }
+    setState(!micOn ? 'idle' : (mode==='veille' && reveilActif() ? 'veille' : 'listening'));
+  }
+  function majBouton(){
+    if(!micOn){
+      btn.className='mic'; btnTxt.textContent='Activer Raylé';
+      btnSub.textContent=reveilActif()?'puis dites « Raylé » pour lui parler':'elle répondra à tout ce que vous dites';
+    }else if(mode==='veille' && reveilActif()){
+      btn.className='mic veille'; btnTxt.textContent='En veille · dites « Raylé »';
+      btnSub.textContent='« coupure » ou toucher ici pour tout couper';
+    }else{
+      btn.className='mic on'; btnTxt.textContent='Conversation en cours';
+      btnSub.textContent=reveilActif()?'« merci » pour la remettre en veille · « coupure » pour tout couper':'« coupure » ou toucher ici pour couper';
+    }
+  }
+  function enterConversation(){ mode='conversation'; lastAct=Date.now(); majBouton(); restState(); }
+  function enterVeille(why){
+    mode='veille'; majBouton(); restState();
+    if(why) addLine('sys',why);
+  }
+  setInterval(()=>{
+    if(micOn && mode==='conversation' && reveilActif() && !speaking && !processing && !interp && !quiz && Date.now()-lastAct>RETOUR_VEILLE_MS){
+      enterVeille('Retour en veille (aucune parole depuis 90 secondes). Dites « Raylé » pour reprendre.');
+    }
+  },5000);
+
+  function ack(){
+    const r=pick([
+      'Oui, Justin ?',
+      fx('Je vous écoute, Justin.',"Je t'écoute, Justin."),
+      fem('Présent','Présente')+', Justin.',
+      fx('Dites-moi tout.','Dis-moi tout.')
+    ]);
+    addLine('ray',r); speak(r);
+  }
+  function finConversation(){
+    const r=pick([
+      'Avec plaisir, Justin. Je reste en veille.',
+      'De rien, Justin. Je reste dans un coin, il suffit de dire mon nom.',
+      'Quand '+fx('vous voulez','tu veux')+', Justin. Je repasse en veille.'
+    ]);
+    addLine('ray',r); speak(r);
+    enterVeille();
+  }
+
+  /* ═════════════ COUPURE : arrêter Raylé à tout moment ═════════════ */
+  function cutAll(why){
+    const busy = speaking || processing || queue.length>0;
+    epoch++;                                // la réponse en cours (calcul ou voix) est abandonnée
+    queue.length=0; drainId++; processing=false;
+    try{ cutAbort.abort(); }catch(e){}
+    cutAbort=new AbortController();
+    cancelSpeech();                         // coupe la voix immédiatement
+    liveCtx='';
+    resetPending();
+    interimEl.textContent='';
+    restState();
+    if(busy && why) addLine('sys',why);
+    if(micOn) setTimeout(startRec,300);     // l'écoute continue
+  }
+  function coupureTotale(){
+    stopListening();
+    const bye='Silence radio, Justin.';
+    addLine('ray',bye); speak(bye);
+  }
+
+  const STOP_RE=/^(tais[- ]?toi|taisez[- ]vous|silence|stop|ca suffit|chut|arrete|arrete[- ]toi)$/;
+  const COUPURE_RE=/^(?:(?:ok|oui|bon|alors)\s+)?(?:coupure|coupures|coupe|coupez|coupe tout|eteins[- ]toi|desactive[- ]toi)(?:\s+(?:merci|svp|stp|s'?il (?:te|vous) plait))?$/;
+  const END_RE=/^(?:(?:ok|okay|bon|super|parfait|top|genial|nickel|d'accord|daccord|tres bien|cool|bah|eh bien)\s+)*(?:merci(?:\s+(?:beaucoup|bien|infiniment|pour tout|mille fois))?|c'est tout|ce sera tout|c'est bon|ca ira|a plus tard|a plus|a tout a l'heure|bonne nuit|repos|fin de (?:la )?conversation)(?:\s+(?:justin|c'est tout|ca ira|a plus tard|pour tout|beaucoup))*$/;
+
+  // Commandes vocales courtes (valables en conversation et au clavier)
+  function command(text){
+    const c=cmdNorm(norm(text));
+    const c2=c.replace(/-/g,' ');
+    // Interprète : arrêt prioritaire, puis démarrage
+    if(interp && INTERP_STOP_RE.test(c2)){ arreterInterprete(); return true; }
+    const li=interpreteDemande(text);
+    if(li){ demarrerInterprete(li); return true; }
+    // Quiz : arrêt
+    if(quiz && QUIZ_STOP_RE.test(c2)){ queue.push({annonce:'__finquiz__'}); if(!processing) drain(); return true; }
+    // Modes : « mode trading », « passe en mode révision »…
+    const md=modeDemande(c2);
+    if(md){ changerMode(md,true); return true; }
+    // Mémoire : « note que… », « oublie la dernière note », « efface ta mémoire »
+    const note=noteDepuis(text);
+    if(note){ memoireAjouter(note, /^(?:trade|nouveau trade)\b/.test(cmdNorm(norm(text)).replace(/^(?:hey |ok |dis )?rayle\s*/,'')) ? 'trade' : undefined); return true; }
+    if(/^(?:oublie|efface|supprime|retire)(?:[- ]?(?:la|ta|ma))? derniere (?:note|chose|entree|info)$/.test(c)){ memoireOublierDerniere(); return true; }
+    if(/^(?:oublie tout|efface (?:toute )?ta memoire|vide ta memoire|efface toutes tes notes)$/.test(c)){
+      viderDemande=Date.now();
+      const r=fx('Vous êtes sûr ? Dites « oui, efface tout » pour confirmer.','Tu es sûr ? Dis « oui, efface tout » pour confirmer.');
+      addLine('ray',r); speak(r); return true;
+    }
+    if(/^oui efface tout$/.test(c) && Date.now()-viderDemande<30000){ viderDemande=0; memoireVider(); return true; }
+    if(STOP_RE.test(c)){ cutAll('Parole interrompue'); return true; }
+    if(COUPURE_RE.test(c)){ coupureTotale(); return true; }
+    if(/(arrete|coupe|desactive).{0,12}(ecoute|micro)/.test(c)){ coupureTotale(); return true; }
+    if(/^mets[- ]?toi en veille$|^(en )?veille$|^dors$/.test(c)){
+      if(reveilActif() && micOn){ const r='Je passe en veille, Justin.'; addLine('ray',r); speak(r); enterVeille(); }
+      else { addLine('ray',"Mise en veille. Je ne bouge plus."); stopListening(); }
+      return true;
+    }
+    if(/^(?:parle[sz]?\s+)?(?:plus lentement|moins vite|plus doucement)(?:\s+(?:stp|svp|s'?il (?:te|vous) plait))?$|^ralenti[sz]?(?: un peu)?$/.test(c)){ changeVitesse(-6); return true; }
+    if(/^(?:parle[sz]?\s+)?(?:plus vite|moins lentement)(?:\s+(?:stp|svp|s'?il (?:te|vous) plait))?$|^accelere[sz]?(?: un peu)?$/.test(c)){ changeVitesse(6); return true; }
+    if(/^(?:vitesse normale|parle[sz]? normalement|remets? la vitesse normale)$/.test(c)){ store.set(KEY_VIT,''); majVitesseUI(); const r='Vitesse normale rétablie.'; addLine('ray',r); speak(r); return true; }
+    return false;
+  }
+  function changeVitesse(d){
+    const v=Math.max(-40,Math.min(20,vitesseCourante()+d));
+    store.set(KEY_VIT,String(v)); majVitesseUI();
+    const r=d<0?(v<=-40?'Je suis déjà au plus lent, Justin.':"C'est noté, je ralentis."):(v>=20?'Je suis déjà au plus rapide.':"C'est noté, j'accélère.");
+    addLine('ray',r+' ('+(v>0?'+':'')+v+' %)'); speak(r);
+  }
+
+  /* ═════════════ NOM DE RAYLÉ MAL ENTENDU ═════════════ */
+  // La reconnaissance vocale écrit parfois « Riley », « Rallye »… pour « Raylé »
+  const NOMS_BASE='riley,rayley,railey,reilly,rayleigh,raylet,rayler,rayle,raylee,rallye,ralé,rallé,réalé,reylé,reilé,railé,raïlé,raillé,rayé';
+  let FIX_NAME=null;
+  function buildFixName(){
+    const extra=store.get(KEY_NOMS).split(',').map(s=>s.trim().toLowerCase()).filter(s=>s.length>=3);
+    const all=NOMS_BASE.split(',').concat(extra).map(s=>s.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')).sort((a,b)=>b.length-a.length);
+    FIX_NAME=new RegExp('(^|[^\\p{L}])('+all.join('|')+')(?![\\p{L}])','giu');
+  }
+  buildFixName();
+  const fixName=t=>String(t||'').normalize('NFC').replace(FIX_NAME,'$1Raylé');
+
+  // Trouve « Raylé » dans la phrase : renvoie ce qui est dit avant et après
+  function wakeSplit(text){
+    const t=String(text).normalize('NFC'); const n=norm(t);
+    const m=n.match(/(^|[^a-z])((?:(?:hey|he|eh|ok|okay|dis[- ]moi|dis|salut|bonjour|bonsoir|coucou|allo|yo)[\s,]+)?rayle)(?![a-z])/);
+    if(!m) return null;
+    const start=m.index+m[1].length, end=start+m[2].length;
+    const avant=t.slice(0,start).replace(/[\s,.!?:;…-]+$/,'').trim();
+    const apres=t.slice(end).replace(/^[\s,.!?:;…-]+/,'').trim();
+    return {avant,apres};
+  }
+  let veilleTimer=null;
+  function veilleEcho(text){
+    interimEl.textContent='zz veille · entendu : « '+String(text).slice(0,70)+' » (dites « Raylé »)';
+    clearTimeout(veilleTimer); veilleTimer=setTimeout(()=>{ if(interimEl.textContent.startsWith('zz')) interimEl.textContent=''; },3500);
+  }
+  // Pendant/juste après sa propre voix : on ignore ce qui ressemble à ce qu'elle vient de dire
+  // (comparaison mot à mot : la dictée déforme souvent les chiffres et quelques mots)
+  const motsEcho=t=>norm(t).replace(/(\d)[\s.,\u202f\u00a0](?=\d)/g,'$1').replace(/[^a-z0-9' ]/g,' ').split(/\s+/).filter(w=>w.length>2);
+  function echoTail(n){
+    if(!lastSpokenRaw || (!speaking && Date.now()-speechEndT>10000)) return false;
+    const s=n.replace(/[?!.,;:]/g,'').replace(/\s+/g,' ').trim();
+    if(s.length>5 && lastSpoken.includes(s)) return true;
+    const w=motsEcho(n); if(w.length<3) return false;
+    const ref=new Set(motsEcho(lastSpokenRaw));
+    return w.filter(x=>ref.has(x)).length/w.length>=0.6;
+  }
+
+  function onUser(text,voix){
+    text=fixName(text).trim(); if(!text) return;
+    const n=norm(text), c=cmdNorm(n);
+
+    // « coupure » est prioritaire, dans tous les modes
+    if(voix && COUPURE_RE.test(c)){ addLine('user',text); coupureTotale(); return; }
+    // Raylé qui s'entend elle-même : on ignore
+    if(voix && echoTail(n)){ addLine('sys','(écho de ma propre voix ignoré)'); return; }
+
+    if(voix && micOn && mode==='veille' && reveilActif()){
+      const w=wakeSplit(text);
+      if(!w){ veilleEcho(text); return; }
+      addLine('user',text);
+      enterConversation();
+      let q=w.apres || (w.avant.split(/\s+/).length>=2 ? w.avant : '');
+      if(!q || norm(q).replace(/[^a-z0-9]/g,'').length<3){ ack(); return; }
+      if(END_RE.test(cmdNorm(norm(q)))){ finConversation(); return; }
+      text=q;
+    }else{
+      addLine('user',text);
+    }
+    lastAct=Date.now();
+    if(voix && reveilActif() && micOn && !interp && END_RE.test(c)){ finConversation(); return; }
+    if(command(text)) return;
+    queue.push(text);
+    if(!processing) drain();
+  }
+
+  /* ═════════════ DONNÉES DE MARCHÉ (via le Worker) ═════════════ */
+  const MKT={
+    NDX:{nom:'le Nasdaq 100 (US100)',dec:1}, SPX:{nom:'le S&P 500 (US500)',dec:1}, DJI:{nom:'le Dow Jones (US30)',dec:0},
+    DAX:{nom:'le DAX',dec:1}, CAC:{nom:'le CAC 40',dec:1},
+    XAU:{nom:"l'or",dec:2}, XAG:{nom:"l'argent",dec:3}, WTI:{nom:'le pétrole WTI',dec:2}, BRENT:{nom:'le pétrole Brent',dec:2},
+    BTC:{nom:'le Bitcoin',dec:0}, ETH:{nom:"l'Ethereum",dec:1}, SOL:{nom:'Solana',dec:2}, XRP:{nom:'le XRP',dec:4},
+    BNB:{nom:'le BNB',dec:1}, DOGE:{nom:'le Dogecoin',dec:5}, ADA:{nom:'Cardano',dec:4}, AVAX:{nom:'Avalanche',dec:2}, LINK:{nom:'Chainlink',dec:2},
+    EUR:{nom:"l'euro dollar",dec:5}, GBP:{nom:'la livre dollar',dec:5}, JPY:{nom:'le dollar yen',dec:3},
+    NVDA:{nom:'Nvidia',dec:2}, AAPL:{nom:'Apple',dec:2}, MSFT:{nom:'Microsoft',dec:2}, AMZN:{nom:'Amazon',dec:2},
+    META:{nom:'Meta',dec:2}, GOOGL:{nom:'Alphabet',dec:2}, TSLA:{nom:'Tesla',dec:2}
+  };
+  const STOCKS=['NVDA','AAPL','MSFT','AMZN','META','GOOGL','TSLA'];
+  const CRYPTOS=['BTC','ETH','SOL','XRP','BNB','DOGE','ADA','AVAX','LINK'];
+  const INDICES=['NDX','SPX','DJI','DAX','CAC'];
+  const TF_FULL=[['15min','M15'],['1h','H1'],['4h','H4'],['1day','DAILY']];
+  const TF_LAB={'1min':'M1','5min':'M5','15min':'M15','30min':'M30','1h':'H1','4h':'H4','1day':'journalier'};
+  const A_RE=[
+    ['NDX',/nasdaq|\bnas\b|us ?100|ndx|qqq/],
+    ['SPX',/\bs ?(?:&|et|and) ?p\b|\bsp ?500|us ?500|\bspx\b/],
+    ['DJI',/dow jones|\bdow\b|\bus ?30\b/],
+    ['DAX',/\bdax\b|\bger ?40\b/],
+    ['CAC',/\bcac\b/],
+    ['XAU',/\bor\b|\bgold\b|xau/],
+    ['XAG',/\bxag\b|\bsilver\b|cours de l'argent|l'argent (?:metal|spot)/],
+    ['BRENT',/\bbrent\b/],
+    ['WTI',/petrole|\bwti\b|\bbaril\b|\bcrude\b/],
+    ['BTC',/bitcoin|\bbtc\b/],
+    ['ETH',/ethereum|\beth\b|\bether\b/],
+    ['SOL',/solana|\bsol\b/],
+    ['XRP',/\bxrp\b|\bripple\b/],
+    ['BNB',/\bbnb\b/],
+    ['DOGE',/dogecoin|\bdoge\b/],
+    ['ADA',/cardano|\bada\b/],
+    ['AVAX',/avalanche|\bavax\b/],
+    ['LINK',/chainlink/],
+    ['EUR',/euro ?dollar|eur ?usd|\beur\b|l'euro\b/],
+    ['GBP',/livre ?dollar|livre sterling|gbp ?usd|\bgbp\b/],
+    ['JPY',/dollar ?yen|usd ?jpy|\byen\b/],
+    ['NVDA',/nvidia|\bnvda\b/,1], ['AAPL',/\bapple\b|\baapl\b/,1], ['MSFT',/microsoft|\bmsft\b/,1], ['AMZN',/amazon|\bamzn\b/,1],
+    ['META',/\bmeta\b|facebook/,1], ['GOOGL',/alphabet|\bgoogle\b|\bgoogl\b/,1], ['TSLA',/tesla|\btsla\b/,1]
+  ];
+  const ALL_RE=/(tous (les|mes) (marches|actifs|instruments)|tout les marches|vue d.?ensemble|panorama|les (cinq|5) marches|l'ensemble des marches)/;
+  const MARKET_RE=/march|nasdaq|\bnas\b|us ?100|bitcoin|\bbtc\b|solana|\bsol\b|\bor\b|gold|xau|euro ?dollar|eur ?usd|\beur\b|l'euro\b|dollar|analys|tendance|\brsi\b|score|support|resistance|volume|situation|niveau|dashboard|setup|position|trade|achat|vente|acheter|vendre|haussier|baissier|moyenne mobile|ma ?200|cours|prix/;
+  const MARKET_STRONG=/\b(trading|trade|rsi|support|resistance|tendance|score|dashboard|volume|setup|haussier|baissier)\b/;
+  const MARKET_HINT=/action|cours|bourse|analys|bougie|chandel|graphique|prix|cotation|titre|marche|tendance|rsi|support|resistance|trade/;
+  const CAL_RE=/calendrier|annonce|agenda|evenement|economique|\bmacro\b|fomc|\bcpi\b|\bnfp\b|inflation|emploi|publication|banque centrale|taux directeur/;
+  const CODE_BY_LABEL={'NASDAQ':'NDX','US100':'NDX','BITCOIN':'BTC','SOLANA':'SOL','OR':'XAU','GOLD':'XAU','EUR/USD':'EUR'};
+  const UNITE_IV={M1:'1min',M5:'5min',M15:'15min',M30:'30min',H1:'1h',H4:'4h',D1:'1day',D:'1day','1D':'1day',DAILY:'1day',JOUR:'1day'};
+
+  function assetsIn(n){
+    if(ALL_RE.test(n)) return ['NDX','XAU','BTC','SOL','EUR'];
+    const hint=MARKET_HINT.test(n);
+    let c=A_RE.filter(x=>x[1].test(n) && (!x[2]||hint)).map(x=>x[0]);
+    if(c.includes('BRENT')) c=c.filter(x=>x!=='WTI');
+    return c;
+  }
+  const codeEcran=()=>{ const b=readBridge(); return (b&&b.actif)?(CODE_BY_LABEL[String(b.actif).toUpperCase()]||null):null; };
+  function tfEcran(code){
+    const b=readBridge();
+    if(!b || !b.unite_graphique || codeEcran()!==code) return null;
+    return UNITE_IV[String(b.unite_graphique).toUpperCase().replace(/\s/g,'')]||null;
+  }
+
+  async function marcheSeries(code,iv){
+    const d=await wjson('/marche?actif='+code+'&intervalle='+iv+'&n=250',25000);
+    if(!Array.isArray(d.bougies) || !d.bougies.length) throw new Error('réponse sans données');
+    return d;
+  }
+
+  // ── Mêmes calculs que les dashboards du terminal ──
+  function ema(a,p){ if(a.length<p) return null; const k=2/(p+1); let e=a.slice(0,p).reduce((x,y)=>x+y,0)/p; for(let i=p;i<a.length;i++) e=a[i]*k+e*(1-k); return e; }
+  function rsiVal(c,p){ if(c.length<p+1) return null; let g=0,l=0; for(let i=c.length-p;i<c.length;i++){ const d=c[i]-c[i-1]; if(d>=0) g+=d; else l-=d; } const ag=g/p, al=l/p; if(al===0) return 100; return 100-100/(1+ag/al); }
+  function netVol(d,n){ let net=0; for(const b of d.slice(-n)) net+=(b.c>=b.o?1:-1)*b.v*b.c; return net; }
+  function fUsd(v){ const a=Math.abs(v), sg=v>=0?'+':'-'; return sg+(a>=1e9?(a/1e9).toFixed(2)+' milliards':a>=1e6?(a/1e6).toFixed(2)+' millions':a>=1e3?(a/1e3).toFixed(1)+' mille':a.toFixed(0))+' dollars'; }
+  const cap=t=>t.charAt(0).toUpperCase()+t.slice(1);
+
+  const snapCache={};
+  async function marketSnapshot(code,tfs){
+    const m=MKT[code]; const key=code+':'+tfs.map(x=>x[1]).join('');
+    const hit=snapCache[key]; if(hit && Date.now()-hit.t<8*60000) return hit.v;
+    const fmt=v=>v==null?'—':Number(v).toLocaleString('fr-FR',{maximumFractionDigits:m.dec});
+    const stamp0=epoch;
+    const cols=[], missing=[], metas=[]; let lastErr=null;
+    for(const [iv,lab] of tfs){
+      if(stamp0!==epoch) throw new Error('annulé');
+      try{
+        const rep=await marcheSeries(code,iv); metas.push(rep);
+        const d=rep.bougies;
+        const closes=d.map(x=>x.c), highs=d.map(x=>x.h), lows=d.map(x=>x.l);
+        const price=closes.at(-1), e=ema(closes,200), r=rsiVal(closes,14);
+        const supC=lows.slice(-60).filter(x=>x<price), resC=highs.slice(-60).filter(x=>x>price);
+        const sup=supC.length?Math.max(...supC):null, res=resC.length?Math.min(...resC):null;
+        const hasVol=d.slice(-20).some(b=>b.v>0);
+        const nv=hasVol?netVol(d,20):null;
+        const bull=e!=null?price>e:null;
+        const sc=Math.max(0,Math.min(100,Math.round((bull?60:40)+((r!=null?(r-50):0)*0.3)+(nv==null?0:(nv>=0?5:-5)))));
+        cols.push({lab,price,e,r,sup,res,nv,bull,sc});
+      }catch(e){ lastErr=e; missing.push(lab+' ('+errMsg(e)+')'); }
+    }
+    if(!cols.length) throw lastErr||new Error('aucune donnée');
+    const ref=cols.find(c=>c.lab==='H1')||cols[0];
+    const bulls=cols.filter(c=>c.bull).length;
+    const trend=(bulls*2>=cols.length)?'haussière':'baissière';
+    const score=Math.round(cols.reduce((a,c)=>a+c.sc,0)/cols.length);
+    const volG=ref.nv==null?'':(ref.nv>=0?'acheteur':'vendeur');
+    const lines=cols.map(c=>c.lab+' : '+(c.bull==null?'tendance inconnue':(c.bull?'prix au-dessus':'prix sous')+" l'EMA 200")
+      +', RSI '+(c.r!=null?c.r.toFixed(1):'—')
+      +', volume net '+(c.nv==null?'non fourni pour cet instrument':fUsd(c.nv))
+      +', support '+fmt(c.sup)+', résistance '+fmt(c.res)+', score '+c.sc+'/100');
+    const meta=metas.find(x=>x.intervalle==='1h')||metas[0]||{};
+    const secours=metas.some(x=>x.secours), differe=metas.some(x=>x.differe), perime=metas.some(x=>x.perime);
+    const srcTxt='source des données : '+(meta.source||'Worker')+(meta.symbole_source?' ('+meta.symbole_source+')':'')
+      +(secours?', relais de secours utilisé':'')+(differe?', données différées':'')+(perime?', ancienne copie car la source ne répond plus':'')
+      +(meta.note?' — '+meta.note:'');
+    const text=cap(m.nom)+' — prix '+fmt(ref.price)
+      +' ; tendance globale '+trend+', score global '+score+'/100'+(volG?', volume net '+volG:'')
+      +' ; tableau par unité de temps : '+lines.join(' | ')
+      +(missing.length?' ; unités de temps non lues : '+missing.join(', '):'')
+      +' ; '+srcTxt+'.';
+    const tfTxt=c=>'En '+c.lab+', '+(c.bull==null?'tendance inconnue':'tendance '+(c.bull?'haussière':'baissière'))
+      +', RSI '+(c.r!=null?c.r.toFixed(0):'inconnu')+', support '+fmt(c.sup)+', résistance '+fmt(c.res)
+      +(c.nv==null?'':', volume net '+(c.nv>=0?'acheteur':'vendeur'))+'.';
+    const speech='Pour '+m.nom+', le prix est de '+fmt(ref.price)+'. La tendance globale est '+trend+', avec un score de '+score+' sur 100'+(volG?', et le volume net est '+volG:'')+'. '
+      +cols.map(tfTxt).join(' ')
+      +(missing.length?" Je n'ai pas pu lire : "+missing.map(x=>x.split(' (')[0]).join(', ')+'.':'')
+      +(differe?' Attention, données différées.':'')+(secours?' Source de secours utilisée.':'');
+    const v={nom:m.nom,text,speech};
+    if(!missing.length) snapCache[key]={t:Date.now(),v};
+    return v;
+  }
+
+  /* ═════════════ BOUGIE PAR BOUGIE ═════════════ */
+  const BOUGIE_RE=/bougie|chandel|chandelier|price action|(?:lis|lire|explique|analyse|decris|decortique|raconte|commente)[sz]?[- ]?(?:moi )?(?:le |mon |ce |la )?(?:graphique|graph|chart)|graphique (?:en detail|bougie)|que (?:dit|raconte|montre) (?:le|mon) graphique/;
+  const NUM_MOTS={un:1,une:1,deux:2,trois:3,quatre:4,cinq:5,six:6,sept:7,huit:8,neuf:9,dix:10,onze:11,douze:12,treize:13,quatorze:14,quinze:15,seize:16,vingt:20,trente:30};
+  function tfOf(n){
+    if(/\bm1\b|\b1 ?min(?:ute)?s?\b|une minute/.test(n)) return '1min';
+    if(/\bm5\b|\b5 ?min(?:ute)?s?\b|cinq minutes/.test(n)) return '5min';
+    if(/\bm15\b|\b15 ?min(?:ute)?s?\b|quinze minutes|quart d'heure/.test(n)) return '15min';
+    if(/\bm30\b|\b30 ?min(?:ute)?s?\b|trente minutes|demi[- ]heure/.test(n)) return '30min';
+    if(/\bh4\b|\b4 ?h(?:eures?)?\b|quatre heures/.test(n)) return '4h';
+    if(/\bh1\b|en 1 ?h\b|une heure|\bhoraire\b|\b1 ?heure\b/.test(n)) return '1h';
+    if(/\bdaily\b|\bd1\b|journalier|quotidien|\ben jour\b|unite jour|bougies? jours?/.test(n)) return '1day';
+    return null;
+  }
+  function nbBougies(n){
+    const n2=n.replace(/\b(une?|deux|trois|quatre|cinq|six|sept|huit|neuf|dix|onze|douze|treize|quatorze|quinze|seize|vingt|trente)\b(?=\s+(?:dernieres?|bougies?))/g,w=>NUM_MOTS[w]);
+    const m=n2.match(/\b(\d{1,2})\s+(?:dernieres?\s+)?bougies?\b/)||n2.match(/\b(?:les|des)\s+(\d{1,2})\s+dernieres?\b/);
+    if(m) return Math.max(1,Math.min(30,+m[1]));
+    if(/\b(?:la )?derniere bougie\b/.test(n)) return 3;
+    return 10;
+  }
+  async function ctxBougies(code,iv,nb,live,stamp){
+    const m=MKT[code];
+    addLine('sys','Bougies : lecture de '+m.nom+' en '+TF_LAB[iv]+' ('+nb+' bougies)…');
+    try{
+      const d=await wjson('/bougies?actif='+encodeURIComponent(code)+'&intervalle='+iv+'&n='+nb,30000);
+      if(stamp!==epoch) return '';
+      const dec=d.decimales, f=v=>v==null?'—':fmtNum(v,dec), r=d.resume||{};
+      const lignes=(d.bougies||[]).map(b=>'• '+b.heure+(b.en_cours?' [EN COURS, pas terminée]':'')+' : '+b.sens
+        +', ouverture '+f(b.o)+', haut '+f(b.h)+', bas '+f(b.l)+', clôture '+f(b.c)
+        +' ('+(b.variation>=0?'+':'')+f(b.variation)+', '+(b.variation_pct>=0?'+':'')+fmtNum(b.variation_pct,2)+' %)'
+        +', amplitude '+b.amplitude+', corps '+b.corps_pct+' %, mèche haute '+b.meche_haute_pct+' %, mèche basse '+b.meche_basse_pct+' %'
+        +(b.volume_relatif!=null?', volume x'+fmtNum(b.volume_relatif,2)+' la moyenne':'')
+        +(b.rsi!=null?', RSI '+fmtNum(b.rsi,1):'')
+        +(b.figures&&b.figures.length?' ; figure : '+b.figures.join(', '):'')
+        +(b.notes&&b.notes.length?' ; repères : '+b.notes.join(' ; '):''));
+      const der=(d.bougies||[]).at(-1);
+      live.extra.push('Sur '+m.nom+' en '+TF_LAB[iv]+', le prix est à '+f(r.prix)+'. '+cap(r.structure||'')+'.'
+        +(der?' La dernière bougie est '+der.sens+(der.figures&&der.figures[0]?', '+der.figures[0]:'')+'.':''));
+      return 'ANALYSE BOUGIE PAR BOUGIE — '+cap(m.nom)+' ('+d.nom+') en '+TF_LAB[iv]+' : '+(d.bougies||[]).length+' dernières bougies, de la plus ancienne à la plus récente '
+        +'(heures de Paris, l\'heure est celle de l\'ouverture de la bougie ; corps et mèches en pourcentage de la hauteur totale ; amplitude comparée à l\'ATR 14 ; RSI 14 méthode Wilder comme TradingView ; volume relatif = volume divisé par la moyenne des 20 bougies précédentes) ; '
+        +'source '+d.source+(d.symbole_source?' ('+d.symbole_source+')':'')+(d.differe?', données différées':'')+(d.secours?', relais de secours':'')+(d.perime?', ancienne copie':'')+(d.note?' — '+d.note:'')+'.\n'
+        +lignes.join('\n')+'\n'
+        +'RÉSUMÉ : prix actuel '+f(r.prix)+', variation sur la séquence '+(r.variation_sequence_pct>=0?'+':'')+fmtNum(r.variation_sequence_pct,2)+' %'
+        +', plus haut de la séquence '+f(r.plus_haut_sequence)+', plus bas '+f(r.plus_bas_sequence)
+        +', '+r.bougies_haussieres+' bougies haussières et '+r.bougies_baissieres+' baissières'
+        +' ; structure : '+r.structure+', dernier sommet '+f(r.dernier_sommet)+', dernier creux '+f(r.dernier_creux)
+        +' ; résistance proche '+f(r.resistance_proche)+', support proche '+f(r.support_proche)
+        +' ; EMA 20 '+f(r.ema20)+', EMA 50 '+f(r.ema50)+', EMA 200 '+f(r.ema200)+(r.biais_ema200?' ('+r.biais_ema200+')':'')
+        +' ; RSI '+(r.rsi!=null?fmtNum(r.rsi,1):'—')+' ; ATR 14 '+f(r.atr)+' (taille moyenne d\'une bougie).';
+    }catch(e){
+      if(stamp!==epoch) return '';
+      addLine('sys','Bougies : '+errMsg(e));
+      return 'ANALYSE BOUGIE PAR BOUGIE impossible pour '+m.nom+' ('+errMsg(e)+') : dis-le simplement, n\'invente aucune bougie.';
+    }
+  }
+
+  /* ═════════════ CONTEXTE GLOBAL (VIX, dollar, taux, sentiment, séance US) ═════════════ */
+  function seanceUS(){
+    try{
+      const ny=new Date(new Date().toLocaleString('en-US',{timeZone:'America/New_York'}));
+      const d=ny.getDay(), m=ny.getHours()*60+ny.getMinutes();
+      const dur=x=>x>=60?Math.floor(x/60)+' h '+String(x%60).padStart(2,'0'):x+' min';
+      if(d===0||d===6) return 'séance américaine fermée (week-end)';
+      if(m<570) return 'séance américaine pas encore ouverte (ouverture dans '+dur(570-m)+')';
+      if(m<960) return 'séance américaine ouverte (clôture dans '+dur(960-m)+')';
+      return "séance américaine terminée pour aujourd'hui";
+    }catch(e){ return ''; }
+  }
+  const pctTxt=v=>v==null?'':' ('+(v>=0?'+':'')+fmtNum(v,2)+' %)';
+  async function ctxGlobal(codes,stamp){
+    const out=[]; const s=seanceUS(); if(s) out.push(s);
+    const [cx,se]=await Promise.all([
+      wjsonCache('/contexte',12000,300000).catch(()=>null),
+      wjsonCache('/sentiment',12000,600000).catch(()=>null)
+    ]);
+    if(stamp!==epoch) return '';
+    const actions=codes.some(c=>INDICES.includes(c)||STOCKS.includes(c));
+    const crypto=codes.some(c=>CRYPTOS.includes(c));
+    if(cx && Array.isArray(cx.lignes)){
+      const macro=cx.lignes.filter(x=>x.prix!=null && ['VIX','DXY','US10Y'].includes(x.id));
+      if(macro.length) out.push(macro.map(x=>x.label+' '+fmtNum(x.prix)+(x.unite||'')+pctTxt(x.variation_pct)).join(', '));
+      if(codes.includes('NDX')){
+        const st=cx.lignes.filter(x=>x.prix!=null && !['VIX','DXY','US10Y'].includes(x.id));
+        if(st.length) out.push('grosses valeurs du Nasdaq : '+st.map(x=>x.label+pctTxt(x.variation_pct)).join(', '));
+      }
+    }
+    if(se){
+      const a=se.actions_peur_avidite, c=se.crypto_peur_avidite, g=se.crypto_global;
+      if(actions && a && a.score!=null) out.push('indice peur et avidité actions (CNN) '+a.score+' sur 100, '+a.etat);
+      if(crypto && c && c.score!=null) out.push('indice peur et avidité crypto '+c.score+' sur 100, '+c.etat);
+      if(crypto && g && g.dominance_btc!=null) out.push('dominance du Bitcoin '+fmtNum(g.dominance_btc,1)+' %, capitalisation crypto'+pctTxt(g.variation_24h_pct)+' sur 24 h');
+    }
+    return out.length ? 'CONTEXTE GLOBAL (à glisser en une ou deux phrases, pas en inventaire) : '+out.join(' ; ')+'.' : '';
+  }
+
+  /* ═════════════ CALENDRIER ÉCONOMIQUE ═════════════ */
+  const CAL_KEY='rayle_cal_cache', CAL_URL='https://nfs.faireconomy.media/ff_calendar_thisweek.json';
+  let calVia='';
+  function calStored(){ try{ const c=JSON.parse(localStorage.getItem(CAL_KEY)||'null'); return (c && Array.isArray(c.data) && c.data.length) ? c : null; }catch(e){ return null; } }
+  function repoRawUrl(){
+    try{
+      const h=location.hostname; if(!/\.github\.io$/i.test(h)) return null;
+      const user=h.split('.')[0], repo=location.pathname.split('/')[1];
+      return repo ? 'https://raw.githubusercontent.com/'+user+'/'+repo+'/main/calendar.json' : null;
+    }catch(e){ return null; }
+  }
+  async function fetchCalendar(force){
+    const st=calStored();
+    if(!force && st && Date.now()-st.t<3600000){ calVia='mémoire locale'; return st.data; }
+    const bust='?t='+Math.floor(Date.now()/300000);
+    const tries=[];
+    if(workerReady()) tries.push(['Worker Raylé',null]);
+    const raw=repoRawUrl();
+    if(raw) tries.push(['relais GitHub',raw+bust]);
+    tries.push(['fichier du site','calendar.json'+bust]);
+    tries.push(['flux direct',CAL_URL]);
+    tries.push(['passerelle publique','https://api.allorigins.win/raw?url='+encodeURIComponent(CAL_URL)]);
+    const fails=[];
+    for(const [how,u] of tries){
+      try{
+        const res = u===null ? await wfetch('/calendar',{method:'GET'},12000) : await fetchT(u,{method:'GET'},7000);
+        if(!res.ok) throw new Error('code '+res.status);
+        const j=await res.json();
+        if(!Array.isArray(j)||!j.length) throw new Error('format inattendu');
+        try{ localStorage.setItem(CAL_KEY,JSON.stringify({t:Date.now(),data:j})); }catch(e){}
+        calVia=how; return j;
+      }catch(e){ fails.push(how+' : '+((e&&e.name==='AbortError')?'délai dépassé':((e&&e.message)||e))); }
+    }
+    if(st){ calVia='copie précédente'; return st.data; }
+    throw new Error(fails.join(' · '));
+  }
+
+  function calSummary(events){
+    const tz='Europe/Paris', now=Date.now();
+    const day=t=>new Date(t).toLocaleDateString('fr-CA',{timeZone:tz});
+    const hm=t=>new Date(t).toLocaleTimeString('fr-FR',{timeZone:tz,hour:'2-digit',minute:'2-digit'}).replace(':','h');
+    const cur=['USD','EUR','GBP','JPY'];
+    const list=(events||[]).map(e=>({t:Date.parse(e.date),cur:String(e.country||'').toUpperCase(),imp:String(e.impact||''),title:String(e.title||''),f:e.forecast,p:e.previous,a:e.actual}))
+      .filter(e=>isFinite(e.t)&&cur.includes(e.cur)&&/^(High|Medium)$/i.test(e.imp))
+      .sort((a,b)=>a.t-b.t);
+    const today=day(now), tomorrow=day(now+86400000);
+    const fE=e=>hm(e.t)+' '+e.cur+' '+e.title+' ['+(/high/i.test(e.imp)?'fort':'moyen')+']'
+      +(e.a?' publié '+e.a:'')+(e.f?' prévu '+e.f:'')+(e.p?' précédent '+e.p:'')+((e.t<now&&!e.a)?' (déjà tombé)':'');
+    const td_=list.filter(e=>day(e.t)===today), tm_=list.filter(e=>day(e.t)===tomorrow);
+    const upHigh=list.filter(e=>e.t>now&&/high/i.test(e.imp)).slice(0,3);
+    let text="CALENDRIER ÉCONOMIQUE de la semaine (heure de Paris, impact fort ou moyen, devises USD EUR GBP JPY ; le flux ne fournit pas les valeurs publiées, ne les invente pas). ";
+    text+="Aujourd'hui : "+(td_.length?td_.slice(0,10).map(fE).join(' ; '):'aucune annonce importante')+". ";
+    text+="Demain : "+(tm_.length?tm_.slice(0,8).map(fE).join(' ; '):'aucune annonce importante dans le calendrier')+". ";
+    if(upHigh.length) text+="Prochaines annonces à fort impact : "+upHigh.map(e=>day(e.t)+' à '+hm(e.t)+' '+e.cur+' '+e.title).join(' ; ')+".";
+    const next=list.filter(e=>e.t>now).slice(0,3);
+    const when=e=>day(e.t)===today?"aujourd'hui":(day(e.t)===tomorrow?'demain':new Date(e.t).toLocaleDateString('fr-FR',{timeZone:tz,weekday:'long'}));
+    const speech=next.length
+      ? "Prochaines annonces importantes, heure de Paris : "+next.map(e=>when(e)+' à '+hm(e.t).replace('h',' heures ')+', '+e.cur+', '+e.title).join(' ; ')+'.'
+      : "Je ne vois aucune annonce importante à venir dans le calendrier de la semaine.";
+    return {text,speech};
+  }
+
+  /* ═════════════ CALCUL · CONVERSIONS · DEVISES ═════════════ */
+  const CALC_RE=/\b(calcule[sz]?|calcul|combien (?:font|fait|ca fait|egale?|vaut|valent)|ca fait combien|egal(?:e)? combien|racine|au carre|au cube|puissance|multiplie|divise|pour ?cents? de|pourcentage|factorielle)\b|\d\s*(?:[x*×/÷+^]|plus|moins|fois|sur)\s*\d|\d\s*%\s*(?:de|d')/;
+  const DEV_MOTS="dollars? canadiens?|dollars? australiens?|francs? suisses?|livres? sterling|livres?|yens?|yuans?|euros?|dollars?|eur|usd|gbp|jpy|chf|cad|aud|cny";
+  function devise(w){
+    w=String(w||'');
+    if(/canadien|cad/.test(w)) return 'CAD'; if(/australien|aud/.test(w)) return 'AUD';
+    if(/suisse|chf/.test(w)) return 'CHF'; if(/livre|gbp/.test(w)) return 'GBP';
+    if(/yen|jpy/.test(w)) return 'JPY'; if(/yuan|cny/.test(w)) return 'CNY';
+    if(/euro|eur/.test(w)) return 'EUR'; if(/dollar|usd/.test(w)) return 'USD';
+    return null;
+  }
+  function conversionDevise(n){
+    const s=n.replace(/(\d)\s+(\d{3})(?!\d)/g,'$1$2').replace(/(\d),(\d)/g,'$1.$2').replace(/€/g,' euros').replace(/\$/g,' dollars');
+    const re=new RegExp('(\\d+(?:\\.\\d+)?)\\s*('+DEV_MOTS+')\\s+(?:en|vers|to|contre)\\s+('+DEV_MOTS+')\\b');
+    const m=s.match(re); if(!m) return null;
+    const de=devise(m[2]), vers=devise(m[3]);
+    return (de && vers && de!==vers) ? {montant:+m[1],de,vers} : null;
+  }
+  const UNITES=[
+    ["kilometres? (?:par|a l') ?heure|km/h|kmh",'km/h'],["miles? (?:par|a l') ?heure|mph",'mi/h'],
+    ['kilometres?|km','km'],['centimetres?|cm','cm'],['millimetres?|mm','mm'],['metres?','m'],['miles?','mile'],['pieds?','ft'],['pouces?','inch'],['yards?','yard'],
+    ['kilogrammes?|kilos?|kg','kg'],['grammes?','g'],['livres?','lb'],['onces?','oz'],
+    ['millilitres?|ml','ml'],['litres?','liter'],['gallons?','gallon'],
+    ['degres? celsius|celsius','degC'],['degres? fahrenheit|fahrenheit','degF'],
+    ['heures?','hour'],['minutes?','minute'],['secondes?','second'],['jours?','day'],['semaines?','week'],['hectares?','hectare']
+  ];
+  function uniteDe(w){ for(const [re,u] of UNITES) if(new RegExp('^(?:'+re+')$').test(w)) return u; return null; }
+  function conversionUnite(n){
+    if(!/\b(convertis|converti|conversion|combien|en)\b/.test(n)) return null;
+    const alt=UNITES.map(x=>x[0]).join('|');
+    const s=n.replace(/(\d),(\d)/g,'$1.$2');
+    const m=s.match(new RegExp('(\\d+(?:\\.\\d+)?)\\s*('+alt+')\\s+(?:en|vers|to)\\s+('+alt+')\\b'));
+    if(!m) return null;
+    const a=uniteDe(m[2]), b=uniteDe(m[3]);
+    return (a && b && a!==b) ? {expr:m[1]+' '+a+' to '+b, lisible:m[1]+' '+m[2]+' en '+m[3]} : null;
+  }
+  function exprDepuis(n){
+    let s=' '+n+' ';
+    s=s.replace(/(\d)\s+(\d{3})(?!\d)/g,'$1$2').replace(/(\d)\s+(\d{3})(?!\d)/g,'$1$2');
+    s=s.replace(/(\d),(\d)/g,'$1.$2').replace(/(\d) virgule (\d)/g,'$1.$2');
+    const mots='zero|un|une|deux|trois|quatre|cinq|six|sept|huit|neuf|dix';
+    const val={zero:0,un:1,une:1,deux:2,trois:3,quatre:4,cinq:5,six:6,sept:7,huit:8,neuf:9,dix:10};
+    s=s.replace(new RegExp('\\b('+mots+')\\b(?=\\s*(?:plus|moins|fois|divise|sur|au carre|au cube|puissance|%|pour ?cents?))','g'),w=>val[w]);
+    s=s.replace(new RegExp('(\\b(?:plus|moins|fois|par|de|puissance)\\s+)('+mots+')\\b','g'),(a,p,w)=>p+val[w]);
+    s=s.replace(/racine cubique de\s*([\d.]+)/g,'cbrt($1)');
+    s=s.replace(/racine (?:carree )?de\s*([\d.]+)/g,'sqrt($1)');
+    s=s.replace(/factorielle de\s*(\d+)/g,'$1!');
+    s=s.replace(/([\d.]+)\s*(?:%|pour ?cents?)\s*(?:de|du|des|d')\s*([\d.]+)/g,'($1/100*$2)');
+    s=s.replace(/au carre/g,'^2').replace(/au cube/g,'^3').replace(/(?:a la )?puissance/g,'^');
+    s=s.replace(/multiplie(?:e|s)? par|\bfois\b|\bx\b|×/g,'*');
+    s=s.replace(/divise(?:e|s)? par|\bsur\b|÷/g,'/');
+    s=s.replace(/\bplus\b/g,'+').replace(/\bmoins\b/g,'-');
+    const tok=s.match(/sqrt|cbrt|\bpi\b|\d+(?:\.\d+)?|[+\-*/^%()!]/g)||[];
+    let e=tok.join('');
+    e=e.replace(/^[+*/^%)!]+/,'').replace(/[+\-*/^(]+$/,'');
+    if(!/\d/.test(e) || !/[+\-*/^%!]|sqrt|cbrt/.test(e)) return null;
+    let open=(e.match(/\(/g)||[]).length-(e.match(/\)/g)||[]).length;
+    while(open-->0) e+=')';
+    return {expr:e};
+  }
+  async function ctxCalcul(c,live,stamp){
+    addLine('sys','Calcul : '+c.expr);
+    try{
+      const d=await wjson('/calcul?expr='+encodeURIComponent(c.expr),12000);
+      if(stamp!==epoch) return '';
+      const r=typeof d.resultat==='number'?fmtNum(d.resultat,10):String(d.resultat);
+      live.extra.push((c.lisible||c.expr)+' : '+r+'.');
+      return (c.lisible?'CONVERSION D\'UNITÉS : '+c.lisible:'CALCUL EXACT : '+c.expr)+' = '+r+' ('+d.source+'). Annonce ce résultat tel quel, arrondi naturellement à l\'oral.';
+    }catch(e){
+      if(stamp!==epoch) return '';
+      return 'CALCUL : le calculateur exact a échoué pour « '+c.expr+' » ('+errMsg(e)+'). Calcule toi-même avec soin et précise que tu as fait le calcul de tête.';
+    }
+  }
+  async function ctxChange(c,live,stamp){
+    addLine('sys','Devises : '+c.montant+' '+c.de+' → '+c.vers+'…');
+    try{
+      const d=await wjson('/change?de='+c.de+'&vers='+c.vers+'&montant='+c.montant,12000);
+      if(stamp!==epoch) return '';
+      live.extra.push(fmtNum(c.montant)+' '+c.de+' font '+fmtNum(d.resultat,2)+' '+c.vers+'.');
+      return 'CONVERSION DE DEVISES : '+fmtNum(c.montant)+' '+c.de+' = '+fmtNum(d.resultat,2)+' '+c.vers+' (taux '+fmtNum(d.taux,5)+', '+d.source+(d.date?', taux du '+d.date:'')+(d.perime?', ancienne copie':'')+').';
+    }catch(e){
+      if(stamp!==epoch) return '';
+      return 'CONVERSION DE DEVISES indisponible ('+errMsg(e)+') : ne donne pas de taux inventé.';
+    }
+  }
+
+  /* ═════════════ SAVOIRS : MÉTÉO · ACTUALITÉS · WIKIPÉDIA · MDN · ÉTUDES · MÉDICAMENTS · SENTIMENT ═════════════ */
+  const METEO_RE=/meteo|quel temps|le temps (qu'|de |demain|aujourd)|temperature|il (fait|va faire) (chaud|froid|beau|frais|doux|gris|lourd)|il (va )?pleu|pluie|neige|neiger|orage|parapluie|\bvent\b|canicule|verglas|brouillard|humidite|lever du soleil|coucher du soleil|qualite de l'air|pollution|\buv\b|indice uv/;
+  const NEWS_RE=/actualite|\bactus?\b|les nouvelles|\binfos?\b(?! sur)|titres|a la une|que se passe|qu'?est[- ]ce qui se passe|quoi de neuf|journal|presse|derniere heure|breaking|flash info/;
+  const BRIEF_RE=/(briefing|brief du|point du matin|resume (de la )?(journee|matinee|du jour)|programme (de la journee|du jour)|bilan du jour|bulletin)/;
+  const WIKI_RE=/wikipedia|encyclopedie|qu'?est[- ]ce (que|qu')|c'?est quoi|c'?est qui|qui (est|etait|sont)|\bdefinition\b|definis|parle[- ]moi de|explique[- ]moi|que sais[- ]tu sur|histoire de|biographie|origine de|capitale de|combien d'?habitants|ou se trouve|en quelle annee/;
+  const ANATO_RE=/anatomi|orthop|\bos\b|osseu|articulation|ligament|tendon|muscle|musculaire|cartilage|menisque|fracture|entorse|luxation|tendinite|tendinopathie|arthrose|arthrite|hernie discale|vertebre|colonne vertebrale|rachis|scoliose|genou|epaule|hanche|cheville|coude|poignet|rotule|femur|tibia|perone|humerus|radius|cubitus|clavicule|omoplate|bassin|sacrum|sciatique|lombalgie|prothese|orthese|platre|reeducation|biomecanique|coiffe des rotateurs|croise|achille|fascia|aponevrose|canal carpien|osteoporose|amputation|moignon|emboiture|attelle|corset|semelle|hallux|pied plat|nerf|innervation|physiologie|pathologie/;
+  const ANATO_ASK_RE=/anatomi|role|fonction|structure|insertion|innervation|vascularisation|composition|difference|qu'?est[- ]ce|c'?est quoi|explique|definition|schema|description|mecanisme|biomecanique|comment (marche|fonctionne)|a quoi sert|origine|terminaison|action/;
+  const STUDY_RE=/(etudes?|publications?|articles? scientifiques?|pubmed|litterature|meta[- ]analyse|essais? cliniques?|recherches? (scientifiques?|medicales?)|donnees probantes|niveau de preuve)/;
+  const MED_RE=/medical|sante|therapeut|traitement|chirurg|reeducation|douleur|pathologie|blessure|maladie/;
+  const DRUG_RE=/\b(medicaments?|effets? (?:secondaires?|indesirables?)|contre[- ]indications?|notice|molecule|interactions? medicamenteuses?)\b/;
+  const SENT_RE=/sentiment|peur et (?:cupidite|avidite)|fear (?:and|&) greed|panique du marche|euphorie|dominance|capitalisation (?:crypto|totale)/;
+  const CODE_RE=/\b(html5?|css3?|javascript|js|typescript|balises?|flexbox|grid|selecteurs?|dom|svg|canvas|responsive|media quer(y|ies)|aria|accessibilite|api web|fetch|promesses?|async|await|localstorage|service worker|pwa|json|regex|expressions? regulieres?|framework|react|vue|node)\b|\b(en|du|le|un|ce|mon|ton) code\b|coder\b|programmat|developpe(r|ment) web|site web|page web/;
+
+  const STOP_WORDS=/\b(rayle|dis|dites|moi|toi|peux|peut|pouvez|tu|vous|explique|expliquez|parle|parlez|cherche|cherchez|recherche|recherches|trouve|trouvez|donne|donnez|montre|montrez|wikipedia|encyclopedie|definition|definis|definir|sais|savoir|que|qui|quoi|quel|quelle|quels|quelles|est|sont|etait|etaient|ce|ca|cela|propos|sujet|sur|de|du|des|la|le|les|un|une|et|en|dans|pour|plus|stp|svp|il|plait|veux|voudrais|aimerais|faire|fait|comment|fonctionne|exactement|vraiment|precisement|role|fonction|fonctions|description|mecanisme|rapidement|simplement|bref|rapide|resume|detail|details|autre|autres|aussi|encore|alors|bon|ok|oui|non|merci)\b/g;
+  function topicOf(text,extraStop){
+    let s=norm(text).replace(/[?!.,;:«»"]/g,' ').replace(/-/g,' ');
+    s=s.replace(/\b(?:[ldjmtcsn]|qu)'/g,' ');
+    s=s.replace(STOP_WORDS,' ');
+    if(extraStop) s=s.replace(extraStop,' ');
+    return s.replace(/\s+/g,' ').trim().slice(0,80);
+  }
+
+  const NOT_CITY=/^(semaine|journee|jour|soiree|matinee|nuit|weekend|week-end|region|moment|ville|maison|chez moi|ici|plu|fait|faire|neige|pleuvoir|venir|etre|beau|chaud|froid)$/;
+  function cityOf(text){
+    const t=String(text||'').replace(/[?!.,;:]/g,' ');
+    const cap1="[A-ZÀ-ÖØ-Þ][\\p{L}'’]*(?:-[\\p{L}']+)*";
+    const re1=new RegExp("(?:^|\\s)(?:à|au|aux|en|pour|dans|sur|de|du|des|vers)\\s+(?:l[ae]s?\\s+)?("+cap1+"(?:\\s+"+cap1+")*)","u");
+    const m1=t.match(re1);
+    if(m1){ const c=m1[1].trim(); if(!NOT_CITY.test(norm(c)) && !/^Raylé$/i.test(c)) return c; }
+    let n=' '+norm(t)+' ';
+    n=n.replace(/\b(aujourd'?hui|demain|apres[- ]demain|ce (soir|matin|midi|week[- ]?end)|cet apres[- ]midi|cette (nuit|semaine|journee|apres[- ]midi)|en ce moment|maintenant|actuellement|la semaine prochaine|matin|soir|midi|nuit|stp|svp|merci|rayle|s'?il (te|vous) plait)\b/g,' ');
+    const m2=n.match(/\b(?:meteo|temps)\s+(?:a|au|aux|en|pour|de|du|dans|sur)\s+([a-z][a-z' \-]{1,30}?)\s*$/);
+    if(m2){ const c=m2[1].trim(); if(c.length>=2 && !NOT_CITY.test(c.replace(/^(le|la|les|l')\s*/,''))) return c; }
+    return '';
+  }
+
+  const NEWS_LAB={fr:'France',monde:'monde',eco:'économie',tech:'tech',sport:'sport',science:'sciences',sante:'santé',crypto:'crypto'};
+  function newsCats(n){
+    const cats=[];
+    if(/\b(france|francaises?|francais|national|nationales?|pays)\b/.test(n)) cats.push('fr');
+    if(/\b(monde|mondiales?|international|internationales?|etranger|planete|geopolitique|guerre)\b/.test(n)) cats.push('monde');
+    if(/\b(economie|economiques?|bourse|finance|financieres?|banque|inflation|entreprises?)\b/.test(n)) cats.push('eco');
+    if(/\b(tech|techno|technologie|high[- ]tech|numerique|intelligence artificielle|\bia\b|smartphone|informatique)\b/.test(n)) cats.push('tech');
+    if(/\b(sport|sports|foot|football|rugby|tennis|basket|formule 1|f1|cyclisme)\b/.test(n)) cats.push('sport');
+    if(/\b(science|sciences|scientifiques?|espace|astronomie|climat)\b/.test(n)) cats.push('science');
+    if(/\b(sante|medical|medecine|hopital)\b/.test(n)) cats.push('sante');
+    if(/\b(crypto|cryptos|cryptomonnaies?|blockchain)\b/.test(n)) cats.push('crypto');
+    return cats.length?cats.slice(0,3):['fr','monde'];
+  }
+  // « les infos sur Nvidia », « quoi de neuf à propos de la Fed »
+  function newsQuery(text){
+    const n=norm(text).replace(/[?!.,;:]/g,' ');
+    const m=n.match(/(?:actualites?|actus?|infos?|informations|nouvelles|news|quoi de neuf|du nouveau)\s+(?:sur|concernant|a propos de|au sujet de|autour de)\s+(?:l'|le |la |les |du |des )?(.{2,60})$/);
+    if(!m) return null;
+    const q=m[1].replace(/\b(stp|svp|s'il (?:te|vous) plait|aujourd'hui|cette semaine|en ce moment|rayle)\b/g,' ').replace(/\s+/g,' ').trim();
+    return q.length>=2?q:null;
+  }
+
+  function agoTxt(t){
+    if(!t) return '';
+    const m=Math.round((Date.now()-t)/60000);
+    if(m<2) return "à l'instant";
+    if(m<60) return 'il y a '+m+' min';
+    const h=Math.round(m/60);
+    return h<48 ? 'il y a '+h+' h' : 'il y a '+Math.round(h/24)+' j';
+  }
+  const rnd=v=>v==null?'?':Math.round(v);
+  const hmIso=iso=>new Date(iso).toLocaleTimeString('fr-FR',{timeZone:'Europe/Paris',hour:'2-digit',minute:'2-digit'}).replace(':','h');
+  function jourLabel(dateStr){
+    const tz='Europe/Paris';
+    const today=new Date().toLocaleDateString('fr-CA',{timeZone:tz});
+    const demain=new Date(Date.now()+86400000).toLocaleDateString('fr-CA',{timeZone:tz});
+    if(dateStr===today) return "aujourd'hui";
+    if(dateStr===demain) return 'demain';
+    return new Date(dateStr+'T12:00:00').toLocaleDateString('fr-FR',{weekday:'long'});
+  }
+
+  // ── Météo ──
+  function meteoText(d){
+    const a=d.actuel||{};
+    let s='MÉTÉO EN DIRECT ('+d.ville+(d.region?', '+d.region:'')+(d.pays?', '+d.pays:'')+' ; '+(d.source||'Open-Meteo')+', mise à jour '+hmIso(d.maj)+') : '
+      +'maintenant '+rnd(a.temp)+' °C (ressenti '+rnd(a.ressenti)+' °C), '+a.ciel+', humidité '+rnd(a.humidite)+' %, vent '+rnd(a.vent)+' km/h (rafales '+rnd(a.rafales)+' km/h)'
+      +(a.pluie>0?', pluie '+a.pluie+' mm sur la dernière heure':'')+'. ';
+    if(Array.isArray(d.heures) && d.heures.length) s+='Prochaines heures : '+d.heures.filter((x,i)=>i%2===0).map(h=>h.heure+' '+rnd(h.temp)+' °C '+h.ciel+(h.proba_pluie!=null?' pluie '+h.proba_pluie+' %':'')).join(', ')+'. ';
+    if(d.air && d.air.indice_europeen!=null) s+="Qualité de l'air "+d.air.qualite+' (indice européen '+d.air.indice_europeen+', PM2,5 '+d.air.pm25+'). ';
+    s+='Prévisions : '+(d.jours||[]).map(j=>jourLabel(j.date)+' '+j.ciel+', de '+rnd(j.tmin)+' à '+rnd(j.tmax)+' °C, pluie '+(j.pluie_mm!=null?j.pluie_mm+' mm':'?')
+      +(j.proba_pluie!=null?' (risque '+j.proba_pluie+' %)':'')+', vent max '+rnd(j.vent_max)+' km/h'+(j.uv_max!=null?', UV max '+rnd(j.uv_max):'')+', soleil de '+String(j.lever).slice(11,16).replace(':','h')+' à '+String(j.coucher).slice(11,16).replace(':','h')).join(' ; ')+'.';
+    if(d.perime) s+=' (attention : ancienne copie, la source ne répond plus)';
+    return s;
+  }
+  function meteoSpeech(d){
+    const a=d.actuel||{}, j0=(d.jours||[])[0], j1=(d.jours||[])[1];
+    let s='À '+d.ville+', il fait '+rnd(a.temp)+' degrés, '+a.ciel+'.';
+    if(j0) s+=" Aujourd'hui, de "+rnd(j0.tmin)+' à '+rnd(j0.tmax)+' degrés'+(j0.proba_pluie>=40?', avec un risque de pluie de '+j0.proba_pluie+' pour cent':'')+'.';
+    if(j1) s+=' Demain, '+j1.ciel+', de '+rnd(j1.tmin)+' à '+rnd(j1.tmax)+' degrés.';
+    return s;
+  }
+  // Plusieurs villes possibles : « entre Viane et Castres », « à Toulouse et à Albi »
+  const PAS_VILLE=/^(rayle|justin|je|tu|il|elle|on|nous|vous|est|quel|quelle|quels|quelles|bonjour|bonsoir|salut|hey|dis|ok|merci|meteo|lundi|mardi|mercredi|jeudi|vendredi|samedi|dimanche|demain|aujourd'hui|ce|cet|cette|la|le|les|et|ou|peux|pourrais|fais|donne|alors|bon)$/;
+  function citiesOf(text){
+    const t=String(text||'').normalize('NFC').replace(/[?!.,;:«»"]/g,' ').replace(/\s+/g,' ').trim();
+    const mots=t.split(' ');
+    const LIENS=/^(sur|sous|en|de|la|le|les|lès|d'|du|saint|sainte)$/i;
+    const estMaj=w=>/^[A-ZÀ-ÖØ-Þ]/.test(w) && !PAS_VILLE.test(norm(w).replace(/[-'’].*$/,''));
+    const out=[];
+    for(let i=1;i<mots.length;i++){           // le premier mot est en majuscule par simple début de phrase
+      if(!estMaj(mots[i])) continue;
+      let k=i, nom=[mots[i]];
+      while(k+2<mots.length && LIENS.test(mots[k+1]) && estMaj(mots[k+2])){ nom.push(mots[k+1],mots[k+2]); k+=2; }
+      if(k+1<mots.length && estMaj(mots[k+1])){ nom.push(mots[k+1]); k++; }
+      out.push(nom.join(' ')); i=k;
+    }
+    if(!out.length){
+      // Dictée sans majuscules : « météo à toulouse et albi »
+      const old=cityOf(text);
+      if(old) old.split(/\s+(?:et|ou)\s+(?:a\s+|au\s+)?/).map(x=>x.replace(/^(?:entre|a|au|de|du|pour)\s+/,'').trim()).filter(x=>x.length>=2).forEach(x=>out.push(x));
+    }
+    return [...new Set(out)].slice(0,3);
+  }
+  async function meteoUneVille(ville,live,stamp){
+    try{
+      const d=await wjson('/meteo'+(ville?'?ville='+encodeURIComponent(ville):''),18000);
+      if(stamp!==epoch) return '';
+      live.extra.push(meteoSpeech(d));
+      return meteoText(d);
+    }catch(e){
+      if(stamp!==epoch) return '';
+      addLine('sys','Météo ('+(ville||'ville par défaut')+') : '+errMsg(e));
+      return /introuvable/.test(errMsg(e))
+        ? 'MÉTÉO : la ville « '+ville+" » n'a pas été trouvée (peut-être mal entendue). Dis-le à Justin et propose-lui de répéter le nom ; ne l'invente pas."
+        : "MÉTÉO EN DIRECT pour "+(ville||'la ville par défaut')+" : indisponible ("+errMsg(e)+"). Ne l'invente pas.";
+    }
+  }
+  async function ctxMeteo(text,live,stamp){
+    const villes=citiesOf(text);
+    addLine('sys','Météo : lecture '+(villes.length?villes.join(' + '):'ville par défaut')+'…');
+    const outs=await Promise.all((villes.length?villes:['']).map(v=>meteoUneVille(v,live,stamp)));
+    if(stamp!==epoch) return '';
+    return outs.filter(Boolean).join('\n')+(villes.length>1?'\nJustin demande plusieurs villes : compare-les brièvement (températures, pluie), sans tout lire.':'');
+  }
+
+  // ── Actualités ──
+  function newsBloc(titre,d,lim,live,lab){
+    const items=(d.items||[]).slice(0,lim);
+    if(!items.length) return 'ACTUALITÉS EN DIRECT ('+titre+') : aucun article récupéré.';
+    live.extra.push((lab?'Côté '+lab+', à la une : ':'À ce sujet : ')+items.slice(0,3).map(x=>x.titre).join(' ; ')+'.');
+    return 'ACTUALITÉS EN DIRECT ('+titre+' ; sources : '+(d.sources||[]).join(', ')+(d.perime?' ; ancienne copie, les sources ne répondent plus':'')+') :\n'
+      +items.map(x=>'- '+x.titre+' ('+x.source+(x.t?', '+agoTxt(x.t):'')+')'+(x.resume?' : '+x.resume.slice(0,130):'')).join('\n');
+  }
+  async function ctxNews(n,live,stamp,brief){
+    const cats=newsCats(n); const lim=brief?4:6;
+    addLine('sys','Actualités : lecture '+cats.map(c=>NEWS_LAB[c]).join(' + ')+'…');
+    const outs=await Promise.all(cats.map(async c=>{
+      try{
+        const d=await wjson('/actus?cat='+c,25000);
+        if(stamp!==epoch) return '';
+        return newsBloc(NEWS_LAB[c],d,lim,live,NEWS_LAB[c]);
+      }catch(e){
+        if(stamp!==epoch) return '';
+        addLine('sys','Actualités ('+NEWS_LAB[c]+') : '+errMsg(e));
+        return 'ACTUALITÉS EN DIRECT ('+NEWS_LAB[c]+") : indisponibles ("+errMsg(e)+"). Ne les invente pas.";
+      }
+    }));
+    return outs.filter(Boolean).join('\n');
+  }
+  async function ctxNewsQuery(q,live,stamp){
+    addLine('sys','Actualités : recherche « '+q+' » (7 derniers jours)…');
+    try{
+      const d=await wjson('/actus?q='+encodeURIComponent(q),20000);
+      if(stamp!==epoch) return '';
+      return newsBloc('recherche « '+q+' », 7 derniers jours',d,8,live,'');
+    }catch(e){
+      if(stamp!==epoch) return '';
+      addLine('sys','Actualités : '+errMsg(e));
+      return 'ACTUALITÉS EN DIRECT sur « '+q+' » : indisponibles ('+errMsg(e)+'). Ne les invente pas.';
+    }
+  }
+
+  // ── Wikipédia ──
+  async function ctxWiki(text,live,stamp,long){
+    const q=topicOf(text); if(q.length<3) return '';
+    addLine('sys','Wikipédia : recherche « '+q+' »'+(long?' (article détaillé)':'')+'…');
+    try{
+      const d=await wjson('/wiki?q='+encodeURIComponent(q)+(long?'&long=1':''),18000);
+      if(stamp!==epoch) return '';
+      const r=(d.resultats||[]).slice(0,2);
+      if(!r.length) return 'EXTRAITS WIKIPÉDIA : aucun résultat pour « '+q+' ».';
+      live.extra.push("D'après Wikipédia, "+r[0].extrait.split(/(?<=[.!?])\s/).slice(0,2).join(' ').slice(0,420));
+      return 'EXTRAITS WIKIPÉDIA (recherche « '+q+' » ; si un extrait est hors sujet, ignore-le) :\n'
+        +r.map((x,i)=>'- '+x.titre+(x.description?' ('+x.description+')':'')+(x.langue==='en'?' [en anglais]':'')+' : '+x.extrait.slice(0,i===0&&long?3500:650)).join('\n');
+    }catch(e){
+      if(stamp!==epoch) return '';
+      addLine('sys','Wikipédia : '+errMsg(e));
+      return 'EXTRAITS WIKIPÉDIA : indisponibles ('+errMsg(e)+"). Réponds avec tes connaissances en précisant que tu n'as pas pu vérifier.";
+    }
+  }
+
+  // ── Documentation MDN ──
+  async function ctxMdn(text,live,stamp){
+    const q=topicOf(text,/\b(code|coder|ecris|ecrire|ecrivez|cree|creer|genere|generer|exemple|exemples|syntaxe|utiliser|utilise|marche|programmation)\b/g);
+    if(q.length<2) return '';
+    addLine('sys','MDN : recherche « '+q+' »…');
+    try{
+      const d=await wjson('/mdn?q='+encodeURIComponent(q),15000);
+      if(stamp!==epoch) return '';
+      const r=(d.resultats||[]).slice(0,3);
+      if(!r.length) return '';
+      return 'DOCUMENTATION MDN (référence officielle ; si elle ne répond pas à la question, utilise tes connaissances) :\n'
+        +r.map(x=>'- '+x.titre+(x.langue==='en-US'?' [en anglais]':'')+' : '+x.resume).join('\n');
+    }catch(e){
+      if(stamp!==epoch) return '';
+      addLine('sys','MDN : '+errMsg(e));
+      return '';
+    }
+  }
+
+  // ── Études scientifiques ──
+  async function ctxSante(text,live,stamp){
+    const q=topicOf(text,/\b(etudes?|publications?|articles?|scientifiques?|litterature|pubmed|meta|analyse|essais?|cliniques?|medicales?|donnees|probantes|niveau|preuve)\b/g);
+    if(q.length<3) return '';
+    addLine('sys','Études scientifiques : recherche « '+q+' »…');
+    try{
+      const d=await wjson('/sante?q='+encodeURIComponent(q),20000);
+      if(stamp!==epoch) return '';
+      const r=(d.resultats||[]).slice(0,3);
+      if(!r.length) return 'ÉTUDES SCIENTIFIQUES : aucune étude trouvée pour « '+q+' ».';
+      live.extra.push("J'ai trouvé "+r.length+" études sur le sujet, dont : "+r[0].titre.slice(0,160)+(r[0].annee?', publiée en '+r[0].annee:'')+'.');
+      return 'ÉTUDES SCIENTIFIQUES (Europe PMC, en anglais, à résumer en français ; littérature scientifique, pas un avis médical) :\n'
+        +r.map(x=>'- '+x.titre+' ('+(x.revue||'revue inconnue')+(x.annee?', '+x.annee:'')+(x.citations?', citée '+x.citations+' fois':'')+')'+(x.resume?' : '+x.resume.slice(0,330):'')).join('\n');
+    }catch(e){
+      if(stamp!==epoch) return '';
+      addLine('sys','Études : '+errMsg(e));
+      return 'ÉTUDES SCIENTIFIQUES : indisponibles ('+errMsg(e)+"). Ne les invente pas.";
+    }
+  }
+
+  // ── Médicaments ──
+  async function ctxMedicament(text,live,stamp){
+    const q=topicOf(text,/\b(medicaments?|effets?|secondaires?|indesirables?|contre|indications?|notice|molecule|interactions?|medicamenteuses?|prendre|pris|prends|danger|dangereux)\b/g);
+    if(q.length<3) return '';
+    addLine('sys','Médicament : recherche « '+q+' »…');
+    try{
+      const d=await wjson('/medicament?q='+encodeURIComponent(q),15000);
+      if(stamp!==epoch) return '';
+      const r=(d.resultats||[])[0];
+      if(!r) return 'MÉDICAMENT : aucune notice trouvée pour « '+q+' » dans la base américaine. Réponds avec tes connaissances générales en le précisant.';
+      return 'MÉDICAMENT (notice officielle '+d.source+' ; résume en français, sans posologie personnalisée) : '+r.nom+(r.marques_usa&&r.marques_usa.length?' (marques américaines : '+r.marques_usa.join(', ')+')':'')
+        +(r.indications?'\nIndications : '+r.indications:'')+(r.contre_indications?'\nContre-indications : '+r.contre_indications:'')
+        +(r.mises_en_garde?'\nMises en garde : '+r.mises_en_garde:'')+(r.effets_indesirables?'\nEffets indésirables : '+r.effets_indesirables:'')
+        +(r.interactions?'\nInteractions : '+r.interactions:'')+(r.mecanisme?'\nMécanisme : '+r.mecanisme:'');
+    }catch(e){
+      if(stamp!==epoch) return '';
+      addLine('sys','Médicament : '+errMsg(e));
+      return 'MÉDICAMENT : base indisponible ('+errMsg(e)+'). Réponds avec tes connaissances générales en le précisant.';
+    }
+  }
+
+  // ── Sentiment de marché ──
+  async function ctxSentiment(live,stamp){
+    addLine('sys','Sentiment de marché : lecture…');
+    try{
+      const d=await wjsonCache('/sentiment',15000,600000);
+      if(stamp!==epoch) return '';
+      const a=d.actions_peur_avidite||{}, c=d.crypto_peur_avidite||{}, g=d.crypto_global||{};
+      const p=[];
+      if(a.score!=null) p.push('actions (CNN) : '+a.score+' sur 100, '+a.etat+(a.veille!=null?', la veille '+a.veille:'')+(a.semaine_derniere!=null?', il y a une semaine '+a.semaine_derniere:''));
+      if(c.score!=null) p.push('crypto : '+c.score+' sur 100, '+c.etat+(c.veille!=null?', la veille '+c.veille:''));
+      if(g.dominance_btc!=null) p.push('dominance du Bitcoin '+fmtNum(g.dominance_btc,1)+' %, Ethereum '+fmtNum(g.dominance_eth,1)+' %, capitalisation crypto totale '+fmtNum(g.capitalisation_totale_milliards,0)+' milliards de dollars'+pctTxt(g.variation_24h_pct)+' sur 24 h');
+      if(c.score!=null) live.extra.push("L'indice de peur et d'avidité crypto est à "+c.score+', '+c.etat+'.');
+      return p.length ? 'SENTIMENT DE MARCHÉ (indices de peur et d\'avidité : 0 = peur extrême, 100 = avidité extrême) : '+p.join(' ; ')+'.' : 'SENTIMENT DE MARCHÉ : indisponible.';
+    }catch(e){
+      if(stamp!==epoch) return '';
+      return 'SENTIMENT DE MARCHÉ : indisponible ('+errMsg(e)+').';
+    }
+  }
+
+  /* ═════════════ QUESTIONS SUR ELLE-MÊME ═════════════ */
+  const SELF_RE=/\b(toi[- ]meme|tes (?:limites|capacites|fonctions|fonctionnalites|outils|commandes|points faibles|defauts|competences)|ce que tu (?:sais|peux) faire|tu sais faire quoi|tu peux faire quoi|qu'?est[- ]ce que tu (?:sais|peux) faire|t'?ameliorer|ameliore chez toi|te rendre (?:plus )?(?:performante?|forte?|intelligente?)|qui es[- ]tu|presente[- ]toi|comment tu fonctionnes|ton fonctionnement|tes commandes vocales)\b/;
+
+  /* ═════════════ MÉMOIRE DURABLE (base D1 du Worker) ═════════════ */
+  const MEM_READ_RE=/(qu'?est[- ]ce que tu as (?:note|retenu|en memoire)|qu'?as[- ]tu (?:note|retenu)|ce que tu as (?:note|retenu)|lis(?:[- ]moi)? (?:mes notes|mon journal|ta memoire|ton carnet)|que contient ta memoire|tes souvenirs|ta memoire|mon journal de trading|mes regles de trading)/;
+  const NOTE_RE=/^(?:note(?:s)?(?: bien)?(?: (?:dans|sur) (?:mon|le|ton) (?:journal|carnet))?|retiens(?: bien)?|memorise|souviens[- ]toi|rappelle[- ]toi|garde en memoire|ajoute (?:a|dans|sur) (?:mon|le|ton) (?:journal|carnet)|enregistre (?:dans|sur) (?:ta memoire|mon journal|ton carnet)|trade ?:|nouveau trade ?:?)\s*(?:que |qu'|:|,)?\s*([\s\S]{3,})$/;
+  let viderDemande=0;
+  // Renvoie le texte à retenir (avec ses majuscules d'origine), ou null
+  function noteDepuis(text){
+    const orig=fixName(text).replace(/^\s*(?:(?:hey|hé|he|ok|dis)\s+)?Raylé[\s,.:!-]*/i,'').trim();
+    if(/\b(agenda|rendez[- ]vous|rdv)\b/.test(norm(orig))) return null;   // « note kiné jeudi dans mon agenda » : c'est l'agenda
+    const m=norm(orig).match(NOTE_RE);
+    if(!m) return null;
+    const contenu=orig.slice(m[0].length-m[1].length).replace(/^[\s:,]+/,'').replace(/[\s.]+$/,'').trim();
+    return contenu.length>=3 ? contenu : null;
+  }
+  async function memoireAppel(body){
+    const res=await wfetch('/memoire',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)},12000);
+    if(!res.ok) throw await workerError(res);
+    return res.json();
+  }
+  async function memoireAjouter(texte,type){
+    if(!workerReady()){ const r="Je ne peux rien retenir sans le Worker : configurez-le dans ⚙ Réglages."; addLine('ray',r); speak(r); return; }
+    try{
+      const d=await memoireAppel(type?{action:'ajouter',texte,type}:{action:'ajouter',texte});
+      const lab=d.type==='règle'?'dans '+fx('vos','tes')+' règles':d.type==='trade'?'dans '+fx('votre','ton')+' journal de trades':'dans mes notes';
+      const r="C'est noté "+lab+" : « "+d.texte+" ».";
+      addLine('ray',r); speak(r);
+    }catch(e){ const r="Je n'ai pas pu l'enregistrer : "+errMsg(e)+'.'; addLine('ray',r); speak(r); }
+  }
+  async function memoireOublierDerniere(){
+    try{
+      const d=await memoireAppel({action:'supprimer_derniere'});
+      const r=d.supprime ? "C'est oublié : « "+d.supprime+" »." : "Ma mémoire est déjà vide.";
+      addLine('ray',r); speak(r);
+    }catch(e){ const r="Je n'ai pas pu effacer : "+errMsg(e)+'.'; addLine('ray',r); speak(r); }
+  }
+  async function memoireVider(){
+    try{ await memoireAppel({action:'vider'}); const r='Mémoire effacée. Page blanche.'; addLine('ray',r); speak(r); }
+    catch(e){ const r="Je n'ai pas pu effacer : "+errMsg(e)+'.'; addLine('ray',r); speak(r); }
+  }
+
+  /* ═════════════ IMAGES ET VIDÉOS ENVOYÉES (bouton 📎, coller, glisser) ═════════════ */
+  const IMG_SUIVI_RE=/\b(l'image|cette image|l'?capture|la capture|cette capture|la photo|cette photo|le screen|la screenshot|sur l'image|sur la capture|sur la photo|le graphique que je t'ai envoye|ce que je t'ai envoye|ce que je viens d'envoyer)\b/;
+  let lastImage=null;
+  const VIDEO_MAX=95*1024*1024;
+  function reduireImage(file){
+    return new Promise((res,rej)=>{
+      const url=URL.createObjectURL(file); const img=new Image();
+      img.onload=()=>{
+        const k=Math.min(1,1800/Math.max(img.width,img.height));
+        const c=document.createElement('canvas'); c.width=Math.round(img.width*k); c.height=Math.round(img.height*k);
+        c.getContext('2d').drawImage(img,0,0,c.width,c.height);
+        URL.revokeObjectURL(url); res(c.toDataURL('image/jpeg',0.9));
+      };
+      img.onerror=()=>{ URL.revokeObjectURL(url); rej(new Error('image illisible')); };
+      img.src=url;
+    });
+  }
+  function envoyerFichier(file,question){
+    if(!file) return;
+    const isImg=/^image\//.test(file.type), isVid=/^video\//.test(file.type);
+    const typeDoc=typeDocument(file);
+    if(typeDoc){
+      if(file.size>DOC_MAX){ addLine('sys','Document trop lourd ('+Math.round(file.size/1048576)+' Mo, maximum 50 Mo).'); return; }
+      const q=String(question||'').trim() || (typeDoc==='pdf'||typeDoc==='docx' ? 'Résume ce document.' : 'Résume ce texte.');
+      addLine('user',q+'  [document : '+(file.name||'sans nom')+', '+Math.max(1,Math.round(file.size/1024))+' Ko]');
+      if(micOn && reveilActif()) enterConversation();
+      queue.push({file,q,doc:typeDoc});
+      if(!processing) drain();
+      return;
+    }
+    if(!isImg && !isVid){ addLine('sys','Fichier ignoré : images, vidéos, PDF, Word (.docx) et texte uniquement.'); return; }
+    if(isVid && file.size>VIDEO_MAX){ addLine('sys','Vidéo trop lourde ('+Math.round(file.size/1048576)+' Mo, maximum 95 Mo). Coupez-la ou réduisez sa qualité.'); return; }
+    const q=String(question||'').trim() || (isImg?'Analyse cette image.':'Analyse cette vidéo.');
+    addLine('user',q+'  ['+(isImg?'image':'vidéo')+' : '+(file.name||'collée')+', '+Math.max(1,Math.round(file.size/1024))+' Ko]');
+    if(micOn && reveilActif()) enterConversation();
+    queue.push({file,q,isImg});
+    if(!processing) drain();
+  }
+  async function respondMedia(it){
+    if(it.doc) return respondNouveauDocument(it);
+    const my=epoch;
+    setState('thinking');
+    if(!workerReady()){ const r="Il me faut le Worker pour regarder une image ou une vidéo : configurez-le dans ⚙ Réglages."; addLine('ray',r); await speak(r); return; }
+    const isImg=it.image ? true : it.isImg;
+    try{
+      let d;
+      if(isImg){
+        const dataUrl=it.image || await reduireImage(it.file);
+        if(my!==epoch) return;
+        lastImage={dataUrl,nom:it.nom||(it.file&&it.file.name)||'image',t:Date.now()};
+        addLine('sys',it.suivi?'Image : je la regarde à nouveau pour répondre…':'Image : analyse par Gemini…');
+        const res=await wfetch('/image',{method:'POST',headers:{'Content-Type':'application/json'},
+          body:JSON.stringify({image:dataUrl,question:it.q,context:contextText(),history:history.slice(-4)})},100000);
+        if(!res.ok) throw await workerError(res);
+        d=await res.json();
+      }else{
+        addLine('sys','Vidéo : envoi à Gemini ('+Math.round(it.file.size/1048576)+' Mo) puis analyse, ça peut prendre une à deux minutes…');
+        speak(pick(['Je regarde ta vidéo, Justin. Ça peut prendre une minute ou deux.','Vidéo reçue. '+fx('Laissez','Laisse')+'-moi le temps de la regarder.']).replace('ta vidéo',fx('votre vidéo','ta vidéo')));
+        const res=await wfetch('/video?q='+encodeURIComponent(it.q),{method:'POST',headers:{'Content-Type':it.file.type||'video/mp4','X-Taille':String(it.file.size)},body:it.file},300000);
+        if(!res.ok) throw await workerError(res);
+        d=await res.json();
+        lastVideo={titre:it.file.name||'vidéo envoyée',auteur:'',analyse:d.reply,mode:'gemini',t:Date.now()};
+      }
+      if(my!==epoch) return;
+      if(!valid(d.reply)) throw new Error('réponse vide');
+      addLine('sys','Moteur : Gemini · '+(d.model||''));
+      history.push({role:'user',content:it.q+' ['+(isImg?'image':'vidéo')+' envoyée]'},{role:'assistant',content:d.reply});
+      saveHistory();
+      addLine('ray',d.reply);
+      await speak(d.reply);
+    }catch(e){
+      if(my!==epoch) return;
+      addLine('sys',(isImg?'Image':'Vidéo')+' : '+errMsg(e));
+      const r="Je n'ai pas pu analyser "+(isImg?"l'image":'la vidéo')+' : '+errMsg(e).replace(/ — détail.*$/,'').slice(0,160)+'.';
+      addLine('ray',r); await speak(r);
+    }
+  }
+
+  /* ═════════════ VIDÉOS YOUTUBE ═════════════ */
+  const YT_URL_RE=/(?:https?:\/\/)?(?:www\.|m\.)?(?:youtube\.com\/(?:watch\?[^\s]*v=|shorts\/|live\/|embed\/)|youtu\.be\/)[\w-]{11}[^\s]*/i;
+  let lastVideoUrl='', lastVideoUrlT=0, lastVideo=null;
+  const urlYoutube=t=>{ const m=String(t||'').match(YT_URL_RE); return m?m[0]:''; };
+  async function urlDepuisPressePapier(){
+    try{
+      if(!navigator.clipboard || !navigator.clipboard.readText) return '';
+      return urlYoutube(await navigator.clipboard.readText());
+    }catch(e){ return ''; }
+  }
+  function videoContext(v){
+    return 'VIDÉO YOUTUBE « '+(v.titre||'sans titre')+' »'+(v.auteur?' de la chaîne '+v.auteur:'')
+      +' ('+(v.mode==='gemini'?'vidéo regardée par Gemini':"d'après les sous-titres")+') — analyse détaillée :\n'+String(v.analyse||'').slice(0,9000);
+  }
+  async function ctxVideo(url,live,stamp){
+    addLine('sys','YouTube : analyse de la vidéo en cours (jusqu\'à deux minutes)…');
+    speak(pick(['Je regarde la vidéo, Justin. Ça peut prendre une minute.','Lancement de la vidéo. '+fx('Laissez','Laisse')+'-moi une minute.']));
+    try{
+      const d=await wjson('/youtube?url='+encodeURIComponent(url),150000);
+      if(stamp!==epoch) return '';
+      lastVideo={titre:d.titre||'',auteur:d.auteur||'',analyse:d.analyse||'',mode:d.mode,t:Date.now(),url};
+      addLine('sys','YouTube : « '+(d.titre||d.id)+' »'+(d.auteur?' · '+d.auteur:'')+' · '+(d.mode==='gemini'?'vidéo regardée par Gemini':'analyse des sous-titres')+(d.cache&&d.cache!=='non'?' (déjà analysée)':''));
+      live.extra.push('Vidéo « '+(d.titre||'')+' » : '+String(d.analyse||'').slice(0,600));
+      return videoContext(lastVideo);
+    }catch(e){
+      if(stamp!==epoch) return '';
+      addLine('sys','YouTube : '+errMsg(e));
+      return 'VIDÉO YOUTUBE : analyse impossible ('+errMsg(e)+'). Explique-le simplement à Justin, sans inventer le contenu de la vidéo.';
+    }
+  }
+
+  /* ═════════════ LECTURE DES DONNÉES UTILES À LA QUESTION ═════════════ */
+  let liveData={snaps:[],cal:null,extra:[]};
+  let lastCodes=[], lastCodesT=0;   // dernier(s) actif(s) évoqué(s), pour « et le RSI ? »
+  async function buildLiveContext(text){
+    const stamp=epoch; const live={snaps:[],cal:null,extra:[]}; liveData=live;
+    const n=norm(text);
+    const parts=[], jobs=[];
+    const nt=cmdNorm(n).replace(/-/g,' ');
+    // Bilan du journal de trading (taux de réussite, erreurs qui reviennent)
+    if(JOURNAL_RE.test(nt) && workerReady()){
+      const jours=/\bmois\b/.test(nt)?30:/aujourd'?hui|du jour|journee/.test(nt)?1:7;
+      addLine('sys','Journal de trading : bilan sur '+jours+' jour'+(jours>1?'s':'')+'…');
+      try{ const d=await wjson('/journal?jours='+jours,15000); if(stamp!==epoch) return ''; return d.contexte; }
+      catch(e){ if(stamp!==epoch) return ''; addLine('sys','Journal : '+errMsg(e)); }
+    }
+    if(MEM_READ_RE.test(n)) return "Justin demande ce que tu as retenu : résume clairement ta MÉMOIRE DURABLE (règles, journal de trades, notes), sans rien inventer. Si elle est vide ou absente, dis-le et rappelle qu'il peut dire « note que… ».";
+    if(SELF_RE.test(n)) return "Justin pose une question sur toi-même : réponds à partir de la section CE QUE TU SAIS FAIRE, de façon honnête et précise, sans te sous-estimer.";
+    // Checklist avant un trade : « je veux shorter l'or »
+    if(TRADE_RE.test(nt) && workerReady()){
+      let c=assetsIn(nt+' trade')[0]||null;
+      if(!c && lastCodes.length && Date.now()-lastCodesT<15*60000) c=lastCodes[0];
+      if(!c) c=codeEcran();
+      if(!c) return "Justin parle d'entrer en position mais n'a cité aucun actif : demande-lui lequel, sans donner d'avis.";
+      lastCodes=[c]; lastCodesT=Date.now();
+      const sens=/short|vend|vente|baiss/.test(nt)?'short':/long|achet|achat|hauss/.test(nt)?'long':'';
+      addLine('sys','Checklist avant trade : '+MKT[c].nom+(sens?' ('+sens+')':'')+' — règles, annonces, tendance, séance…');
+      try{
+        const d=await wjson('/checklist?actif='+c+'&sens='+sens,40000);
+        if(stamp!==epoch) return '';
+        const b=readBridge(); const ecran=(b && codeEcran()===c)?"\nCe que montre son terminal sur cet actif : "+bridgeSummary(b)+'.':'';
+        return d.contexte+ecran;
+      }catch(e){ if(stamp!==epoch) return ''; addLine('sys','Checklist : '+errMsg(e)); }
+    }
+
+    // Vidéo YouTube
+    const ytUrl=urlYoutube(text);
+    if(ytUrl){ lastVideoUrl=ytUrl; lastVideoUrlT=Date.now(); }
+    const wantVideo=!!ytUrl || (/\b(video|youtube|youtubeur)\b/.test(n) && /(analys|resum|regard|explique|que dit|de quoi|visionn|ecoute|decortique|lance)/.test(n) && !(lastVideo && /\b(il|elle) (dit|explique|parle)\b/.test(n)));
+    const followVideo=!wantVideo && lastVideo && Date.now()-lastVideo.t<45*60000
+      && /\b(video|youtubeur|il dit|elle dit|il explique|elle explique|il parle|elle parle|l'auteur|la chaine|il conseille|sa strategie|sa methode|dans la video)\b/.test(n);
+
+    // Calcul, conversions, devises
+    const conv=conversionDevise(n);
+    const unit=conv?null:conversionUnite(n);
+    const calc=(!conv && !unit && !ytUrl && CALC_RE.test(n)) ? exprDepuis(n) : null;
+
+    // Page web (lien qui n'est pas YouTube) et recherche sur internet
+    const webUrl=ytUrl?'':urlWeb(text);
+    const wantSearch=!webUrl && (SEARCH_RE.test(nt) || (PRIX_OBJET_RE.test(nt) && !assetsIn(nt).length && !/\b(trade|trading|bourse|actions?|marches?|cryptos?|indices?|cours)\b/.test(nt)));
+    if(webUrl) jobs.push(ctxPage(webUrl,live,stamp));
+    if(wantSearch) jobs.push(ctxRecherche(text,live,stamp));
+    if(webUrl || wantSearch){
+      if(!workerReady()) return "Le Worker n'est pas configuré : tu ne peux pas lire de page web ni chercher sur internet. Dis-le à Justin.";
+      const outs=await Promise.all(jobs); if(stamp!==epoch) return '';
+      return outs.filter(Boolean).join('\n');
+    }
+
+    const brief=BRIEF_RE.test(n);
+    const wantCandles=BOUGIE_RE.test(n) && !wantVideo;
+    const wantCal=CAL_RE.test(n)||brief;
+    const wantMeteo=METEO_RE.test(n)||brief;
+    const newsQ=newsQuery(text);
+    const wantNews=!newsQ && (NEWS_RE.test(n)||brief);
+    const wantSent=SENT_RE.test(n);
+    const wantDrug=DRUG_RE.test(n);
+    let codes=(conv||unit||calc||wantVideo)?[]:assetsIn(n);
+    const explicitWiki=/wikipedia|encyclopedie/.test(n);
+    const wantCode=CODE_RE.test(n) && !codes.length;
+    const anato=ANATO_RE.test(n) && ANATO_ASK_RE.test(n);
+    const wantWiki=(WIKI_RE.test(n) || anato)
+      && (explicitWiki || (!codes.length && !wantMeteo && !wantNews && !newsQ && !wantCode && !wantCandles && !conv && !unit && !calc && !wantVideo && !followVideo && !wantDrug));
+    const wantSante=STUDY_RE.test(n) && (ANATO_RE.test(n) || MED_RE.test(n));
+    const infoIntent=wantMeteo||wantNews||!!newsQ||wantWiki||wantCode||wantSante||wantDrug||wantSent||!!conv||!!unit||!!calc||wantVideo||followVideo;
+    let marketIntent=MARKET_RE.test(n) && !brief && !wantCandles && !conv && !calc && !unit && !wantVideo && !followVideo;
+    if(infoIntent && !codes.length && !MARKET_STRONG.test(n)) marketIntent=false;
+    if(!codes.length && !wantCal && !marketIntent && !infoIntent && !wantCandles) return '';
+    if(!workerReady() && (codes.length||wantCandles||infoIntent)){
+      addLine('sys','Données en direct : Worker non configuré — ouvrez ⚙ Réglages');
+      return "Le Worker n'est pas configuré : tu ne peux lire aucune donnée en direct (marché, météo, actualités…). Dis-le à Justin.";
+    }
+
+    if(wantVideo){
+      let u=ytUrl;
+      if(!u && lastVideoUrl && Date.now()-lastVideoUrlT<30*60000) u=lastVideoUrl;
+      if(!u) u=await urlDepuisPressePapier();
+      if(stamp!==epoch) return '';
+      if(u){ lastVideoUrl=u; lastVideoUrlT=Date.now(); jobs.push(ctxVideo(u,live,stamp)); }
+      else parts.push("Justin veut que tu analyses une vidéo YouTube, mais aucun lien n'a été fourni. Demande-lui de coller le lien dans le champ de texte, ou de le copier puis de redire « analyse la vidéo ».");
+    }
+    if(followVideo) parts.push(videoContext(lastVideo));
+    if(conv) jobs.push(ctxChange(conv,live,stamp));
+    if(unit) jobs.push(ctxCalcul(unit,live,stamp));
+    if(calc) jobs.push(ctxCalcul(calc,live,stamp));
+    if(wantSent) jobs.push(ctxSentiment(live,stamp));
+    if(wantDrug) jobs.push(ctxMedicament(text,live,stamp));
+    if(newsQ)    jobs.push(ctxNewsQuery(newsQ,live,stamp));
+    if(wantMeteo) jobs.push(ctxMeteo(text,live,stamp));
+    if(wantNews)  jobs.push(ctxNews(n,live,stamp,brief));
+    if(wantWiki)  jobs.push(ctxWiki(text,live,stamp,anato));
+    if(wantCode)  jobs.push(ctxMdn(text,live,stamp));
+    if(wantSante) jobs.push(ctxSante(text,live,stamp));
+
+    // Bougie par bougie
+    if(wantCandles){
+      let c=codes[0]||null;
+      if(!c && lastCodes.length && Date.now()-lastCodesT<15*60000) c=lastCodes[0];
+      if(!c) c=codeEcran();
+      if(!c) parts.push("Justin veut une lecture bougie par bougie mais n'a cité aucun actif : demande-lui lequel (Nasdaq, or, Bitcoin, Solana, Ethereum, euro dollar…).");
+      else{
+        lastCodes=[c]; lastCodesT=Date.now();
+        const iv=tfOf(n)||tfEcran(c)||'1h';
+        jobs.push(ctxBougies(c,iv,nbBougies(n),live,stamp));
+        jobs.push(ctxGlobal([c],stamp));
+      }
+    }
+    const infoP=Promise.all(jobs);
+
+    // Analyse classique (tableau multi-unités de temps)
+    if(!wantCandles){
+      if(!codes.length && marketIntent && !wantCal){
+        const c=codeEcran();
+        if(lastCodes.length && Date.now()-lastCodesT<15*60000) codes=lastCodes.slice();
+        else if(c) codes=[c];
+        else parts.push("Justin n'a cité aucun actif : demande-lui lequel il souhaite (Nasdaq, Bitcoin, Solana, or, euro dollar ou un autre).");
+      }
+      if(codes.length){
+        lastCodes=codes.slice(); lastCodesT=Date.now();
+        const quick=codes.length>=3, tfs=quick?[['1h','H1']]:TF_FULL;
+        const globalP=ctxGlobal(codes,stamp);
+        const snaps=[];
+        for(const c of codes){
+          addLine('sys','Marché : lecture '+MKT[c].nom+(quick?' (H1)':'')+'…');
+          try{ const sn=await marketSnapshot(c,tfs); if(stamp!==epoch) return ''; live.snaps.push(sn); snaps.push(sn.text); }
+          catch(e){ if(stamp!==epoch) return ''; addLine('sys','Marché ('+MKT[c].nom+') : '+errMsg(e)); snaps.push("Données de "+MKT[c].nom+" indisponibles ("+errMsg(e)+") : ne les invente pas."); }
+        }
+        if(snaps.length){
+          parts.push("DONNÉES DE MARCHÉ EN DIRECT (via le Worker ; tendance = prix au-dessus ou sous l'EMA 200 ; volume net = volume acheteur moins vendeur en dollars sur les 20 dernières bougies) :");
+          snaps.forEach(x=>parts.push(x));
+        }
+        const g=await globalP; if(stamp!==epoch) return '';
+        if(g) parts.push(g);
+      }
+    }
+
+    if(wantCal || marketIntent || wantCandles){
+      try{
+        let ev;
+        if(wantCal) ev=await fetchCalendar(false);
+        else{ const st=calStored(); ev=(st && Date.now()-st.t<12*3600000)?st.data:null; }
+        if(stamp!==epoch) return '';
+        if(ev){ const cs=calSummary(ev); live.cal=wantCal?cs:null; parts.push(cs.text); }
+      }catch(e){
+        if(stamp!==epoch) return '';
+        addLine('sys','Calendrier économique : '+errMsg(e));
+        if(wantCal) parts.push("Le calendrier économique est indisponible pour le moment : ne l'invente pas.");
+      }
+    }
+
+    const infos=await infoP;
+    if(stamp!==epoch) return '';
+    infos.filter(Boolean).forEach(x=>parts.push(x));
+    return parts.join('\n');
+  }
+
+  /* ═════════════════════════════════════════════════════════════════
+     PHASE 3 — « JARVIS » : commandes de fond, briefing, modes, interprète,
+     révision, documents, pages web, recherche, checklist, terminal
+     ═════════════════════════════════════════════════════════════════ */
+  let workerPhase3=false;
+  const ASSIST_RE=/\b(?:previens|avertis|alertes?|rappel\w*|minuteur|timer|chrono\w*|compte a rebours|agenda|rendez vous|rdv|reveille moi|fais moi penser|n'oublie pas de me)\b|^(?:(?:tu peux|peux tu|pourrais tu)\s+)?(?:ajoute|inscris|programme|cale|planifie)\b|qu'?est ce que j'ai|qu'ai je|j'ai quoi|quoi de prevu|mon emploi du temps|mon planning/;
+  const TRADE_RE=/\b(?:je (?:veux|voudrais|vais|compte|pense|souhaite|aimerais|m'apprete a|hesite a)|j'ai envie de|on (?:y )?va)\s+(?:(?:bien|peut etre|me)\s+)?(?:shorter|shorte|longer|vendre|acheter|prendre (?:un |une )?(?:short|long|achat|vente|position|trade)|entrer (?:en )?(?:short|long|position|achat|vente)|ouvrir (?:un |une )?(?:short|long|trade|position)|(?:me )?(?:positionner|mettre) (?:short|long|a l'achat|a la vente))|\b(?:checklist|check list|feu vert)\b|\bje (?:peux|dois) (?:y )?(?:aller|entrer|rentrer)\b/;
+  const JOURNAL_RE=/\b(?:bilan|statistiques?|stats|taux de reussite|win ?rate|mes erreurs de trading|erreurs (?:qui reviennent|recurrentes|frequentes)|ma semaine de trading|analyse mes trades|mes trades)\b/;
+  const PRIX_OBJET_RE=/\b(?:prix|tarif|combien (?:coute|coutent|vaut|valent))\b.*?\b(?:d'une?|d'|du|de la|de l'|des|une?|les?|la)\s*\S/;
+  const SEARCH_RE=/\b(?:cherche|recherche|regarde|trouve)\w*(?: moi)? (?:sur |dans )?(?:internet|le web|google|en ligne)\b|\bsur internet\b|\brecherche web\b|\bqui a gagne\b|\bresultats? du match\b|\bcombien coute\b|\bquand sort\b|\bdate de sortie\b/;
+
+  // ── Commandes programmées par le Worker (alertes, rappels, minuteurs, agenda) ──
+  async function commandeWorker(text){
+    try{
+      const res=await wfetch('/commande',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({texte:text})},30000);
+      if(res.status===404) return null;            // Worker pas encore à jour
+      if(!res.ok) throw await workerError(res);
+      return await res.json();
+    }catch(e){ addLine('sys','Commande : '+errMsg(e)); return null; }
+  }
+
+  // ── Annonces à voix haute (rappels échus, alertes déclenchées), page ouverte ──
+  const dejaAnnonce=new Set();
+  function annoncer(texte,cle){
+    if(cle){ if(dejaAnnonce.has(cle)) return; dejaAnnonce.add(cle); }
+    addLine('ray',texte);
+    if(greeted || micOn){ queue.push({annonce:texte}); if(!processing) drain(); }
+    try{ if(document.hidden && 'Notification' in window && Notification.permission==='granted') new Notification('Raylé',{body:texte}); }catch(e){}
+  }
+  async function respondAnnonce(it){
+    if(it.annonce==='__finquiz__') return finQuiz();
+    await speak(it.annonce);
+  }
+  function marquerVus(vus){
+    if(!workerReady()) return;
+    wfetch('/evenements',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(vus)},10000).catch(()=>{});
+  }
+  function planifierLocal(r){
+    if(!r || !r.quand) return;
+    const d=r.quand-Date.now(); if(d<0 || d>6*3600e3) return;
+    setTimeout(()=>{ annoncer(r.type==='minuteur'?r.texte:'Rappel : '+r.texte,'r'+r.id); marquerVus({rappels:[r.id]}); },d);
+  }
+  async function verifierEvenements(){
+    if(!workerReady() || !workerPhase3) return;
+    try{
+      const d=await wjson('/evenements',12000);
+      const vus={rappels:[],alertes:[]};
+      for(const r of d.rappels||[]){
+        vus.rappels.push(r.id);
+        if(d.maintenant-r.quand<15*60000) annoncer(r.texte,'r'+r.id);
+        else if(!dejaAnnonce.has('r'+r.id)){ dejaAnnonce.add('r'+r.id); addLine('sys','Rappel passé pendant mon absence : '+r.texte); }
+      }
+      for(const a of d.alertes||[]){
+        vus.alertes.push(a.id);
+        if(d.maintenant-a.declenchee<30*60000) annoncer(a.texte,'a'+a.id);
+        else if(!dejaAnnonce.has('a'+a.id)){ dejaAnnonce.add('a'+a.id); addLine('sys','Alerte déclenchée pendant mon absence : '+a.texte); }
+      }
+      if(vus.rappels.length || vus.alertes.length) marquerVus(vus);
+    }catch(e){}
+  }
+  setInterval(verifierEvenements,30000);
+
+  // ── Briefing ──
+  let briefingEnAttente=null;
+  async function chargerBriefing(){
+    if(!workerReady()) return;
+    try{
+      const d=await wjson('/briefing',12000);
+      if(!d || !d.texte || store.get('rayle_briefing_lu')===d.date) return;
+      briefingEnAttente=d;
+      addLine('sys','☀ Briefing du jour disponible'+(greeted?'':' : je le lis dès que '+fx("vous m'activez","tu m'actives")+'.'));
+      if(greeted && micOn) lireBriefing();
+    }catch(e){}
+  }
+  function lireBriefing(){
+    const d=briefingEnAttente; if(!d) return;
+    briefingEnAttente=null; store.set('rayle_briefing_lu',d.date);
+    addLine('ray',d.texte); queue.push({annonce:d.texte}); if(!processing) drain();
+  }
+  async function respondBriefing(){
+    const my=epoch;
+    setState('thinking');
+    addLine('sys','Briefing : préparation (météo, agenda, annonces, marchés, actualités)…');
+    try{
+      const d=await wjson('/briefing?generer=1',90000);
+      if(my!==epoch) return true;
+      if(!d || !d.texte) return false;
+      store.set('rayle_briefing_lu',d.date); briefingEnAttente=null;
+      addLine('ray',d.texte);
+      history.push({role:'user',content:'Fais-moi le briefing.'},{role:'assistant',content:d.texte}); saveHistory();
+      await speak(d.texte);
+      return true;
+    }catch(e){
+      if(my!==epoch) return true;
+      addLine('sys','Briefing du Worker : '+errMsg(e)+' — je le prépare avec les données de la page.');
+      return false;
+    }
+  }
+
+  // ── Modes : normal, trading strict, révision, détente ──
+  const MODES_NOMS={normal:'normal',trading:'trading strict',revision:'révision',detente:'détente'};
+  function modeDemande(c){
+    const m=c.match(/^(?:(?:passe|mets|met|active|bascule)(?: toi)?\s+(?:en|le)\s+)?mode\s+(trading(?: strict)?|strict|revision|revisions|etude|etudes|detente|cool|relax|normal|standard|par defaut)$/);
+    if(!m) return null;
+    const k=m[1];
+    return /trading|strict/.test(k)?'trading':/revision|etude/.test(k)?'revision':/detente|cool|relax/.test(k)?'detente':'normal';
+  }
+  function changerMode(md,parler){
+    persona.mode=md;
+    try{ localStorage.setItem('rayle_persona',JSON.stringify(persona)); }catch(e){}
+    majBadges(); majModesUI();
+    if(workerReady()) wfetch('/reglages',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({mode:md})},10000).catch(()=>{});
+    if(parler){
+      const r={normal:'Mode normal.',trading:'Mode trading strict : réponses courtes, discipline avant tout.',revision:'Mode révision : on travaille le BTS.',detente:'Mode détente activé. Je garde quand même un œil sur les marchés.'}[md];
+      addLine('ray',r); speak(r);
+    }
+  }
+  function majBadges(){
+    const el=$('badges'); if(!el) return;
+    const b=[];
+    if(persona.mode && persona.mode!=='normal') b.push(['mode '+MODES_NOMS[persona.mode],'']);
+    if(interp) b.push(['interprète · '+interp.nom,'']);
+    if(quiz) b.push(['quiz · '+quiz.bons+'/'+quiz.n,'']);
+    if(docActif()) b.push(['doc · '+String(lastDoc.nom).slice(0,26),'doux']);
+    el.innerHTML='';
+    b.forEach(([t,c])=>{ const s=document.createElement('span'); s.className='badge'+(c?' '+c:''); s.textContent=t; el.appendChild(s); });
+  }
+  function majModesUI(){ document.querySelectorAll('#cfgModes button').forEach(b=>b.classList.toggle('actif',b.dataset.mode===(persona.mode||'normal'))); }
+
+  // ── Interprète ──
+  const LANGUES={anglais:['en','anglais'],'anglais britannique':['en-gb','anglais britannique'],americain:['en','anglais'],espagnol:['es','espagnol'],allemand:['de','allemand'],italien:['it','italien'],portugais:['pt','portugais'],neerlandais:['nl','néerlandais'],hollandais:['nl','néerlandais'],arabe:['ar','arabe'],chinois:['zh','chinois'],mandarin:['zh','chinois'],japonais:['ja','japonais'],russe:['ru','russe'],turc:['tr','turc'],polonais:['pl','polonais'],coreen:['ko','coréen']};
+  const LANG_ALT=Object.keys(LANGUES).sort((a,b)=>b.length-a.length).join('|');
+  let interp=null;
+  const INTERP_STOP_RE=/^(?:(?:ok|bon|alors)\s+)?(?:arrete|stop|stoppe|fin|termine|coupe|quitte|desactive)\w*\s+(?:de |la |le |l'|du |les )?(?:tradu\w*|interpret\w*|mode interprete)|^(?:mode normal|fin de (?:la )?traduction|on arrete de traduire|plus de traduction)$/;
+  function interpreteDemande(text){
+    const n=cmdNorm(norm(text)).replace(/-/g,' ');
+    const m=n.match(new RegExp("\\b(?:tradu\\w*|interpret\\w*)\\b.*?\\b("+LANG_ALT+")\\b"));
+    if(!m) return null;
+    if(!/(ce que je (?:dis|vais dire|te dis)|tout ce que je dis|mode interprete|sers? (?:moi )?d'interprete|fais l'interprete|en direct|a partir de maintenant|au fur et a mesure|en continu|desormais|mes phrases)/.test(n)) return null;
+    return LANGUES[m[1]];
+  }
+  function demarrerInterprete(l){
+    interp={langue:l[0],nom:l[1]};
+    if(micOn) enterConversation();
+    majBadges();
+    const r='Mode interprète : '+fx('tout ce que vous dites','tout ce que tu dis')+', je le traduis en '+l[1]+'. '+fx('Dites','Dis')+' « arrête de traduire » pour revenir.';
+    addLine('ray',r); speak(r);
+  }
+  function arreterInterprete(){
+    interp=null; majBadges();
+    const r='Fin de la traduction. Je reviens au français.'; addLine('ray',r); speak(r);
+  }
+  async function traduire(texte,langue){
+    const res=await wfetch('/traduire',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({text:texte,langue})},25000);
+    if(!res.ok) throw await workerError(res);
+    return (await res.json()).traduction;
+  }
+  async function respondInterprete(text){
+    const my=epoch; setState('thinking');
+    if(!workerReady()){ const r="Il me faut le Worker pour traduire."; addLine('ray',r); await speak(r); return; }
+    try{
+      const t=await traduire(text,interp.langue);
+      if(my!==epoch) return;
+      addLine('ray','['+interp.nom+'] '+t);
+      await speak(t,{langue:interp.langue});
+    }catch(e){ if(my!==epoch) return; addLine('sys','Traduction : '+errMsg(e)); const r="Je n'ai pas pu traduire : "+errMsg(e)+'.'; addLine('ray',r); await speak(r); }
+  }
+  function traductionUnique(text){
+    const src=fixName(text).normalize('NFC').replace(/^\s*(?:(?:hey|ok|dis)\s+)?Raylé[\s,]*/i,'');
+    const n=norm(src);
+    const m=n.match(new RegExp("^(?:comment (?:on )?dit[- ]on|comment dire|comment on dit|traduis(?:[- ]moi)?|traduit|tu peux traduire|peux[- ]tu traduire|traduction de)\\s+(.+?)\\s+en\\s+("+LANG_ALT+")\\s*[?.!]*$"));
+    if(!m) return null;
+    const debut=n.indexOf(m[1]);
+    const phrase=(n.length===src.length?src.slice(debut,debut+m[1].length):m[1]).replace(/^["«“'\s]+|["»”'\s]+$/g,'');
+    const l=LANGUES[m[2]];
+    return phrase ? {texte:phrase,langue:l[0],nom:l[1]} : null;
+  }
+  async function respondTraductionUnique(tr){
+    const my=epoch; setState('thinking');
+    try{
+      const t=await traduire(tr.texte,tr.langue);
+      if(my!==epoch) return;
+      addLine('ray','En '+tr.nom+' : '+t);
+      await speak('En '+tr.nom+' :');
+      if(my!==epoch) return;
+      await speak(t,{langue:tr.langue});
+    }catch(e){ if(my!==epoch) return; const r="Je n'ai pas pu traduire : "+errMsg(e)+'.'; addLine('ray',r); await speak(r); }
+  }
+
+  // ── Révisions : quiz oral ──
+  let quiz=null, quizAttenteSujet=0;
+  const QUIZ_START_RE=/\b(?:interroge|questionne|quizz?|interrogation)\b|\b(?:teste|evalue) (?:moi|mes connaissances)\b|fais moi (?:reviser|un quiz|un test|travailler)|pose moi des questions|reinterroge/;
+  const QUIZ_STOP_RE=/^(?:(?:ok|bon|alors)\s+)?(?:(?:on )?(?:arrete|stoppe|termine|finis|fin)\w*(?: (?:le|la|du|de la|les))? (?:quiz|quizz|revision|revisions|interrogation|questions?)|fin du quiz|stop quiz|c'est fini pour (?:le quiz|les revisions)|on arrete la)$/;
+  function sujetQuiz(text){
+    const src=fixName(text).normalize('NFC'); const n=norm(src);
+    const m=n.match(/\b(?:sur|a propos de|au sujet de)\s+(.{3,90})$/);
+    if(!m) return '';
+    const debut=m.index+m[0].length-m[1].length;
+    return (n.length===src.length?src.slice(debut):m[1]).replace(/[?.!]+$/,'').trim();
+  }
+  async function demarrerQuiz(text){
+    const my=epoch;
+    if(!workerReady()){ const r='Il me faut le Worker pour une séance de révision.'; addLine('ray',r); await speak(r); return; }
+    const n=cmdNorm(norm(text)).replace(/-/g,' ');
+    setState('thinking');
+    const surDoc=docActif() && /\b(cours|document|dossier|pdf|fichier|texte|chapitre)\b/.test(n);
+    const surErreurs=/\b(erreurs?|fautes|ce que j'ai rate)\b/.test(n);
+    let sujet=sujetQuiz(text), liste=[];
+    if(surDoc) sujet=lastDoc.nom;
+    if(surErreurs){
+      try{ const d=await wjson('/revision',12000); liste=(d.erreurs||[]).reverse(); }catch(e){}
+      if(my!==epoch) return;
+      if(!liste.length){ const r="Aucune erreur enregistrée à reprendre pour l'instant. "+fx('Dites','Dis')+' par exemple « interroge-moi sur les muscles de la cuisse ».'; addLine('ray',r); await speak(r); return; }
+      if(!sujet || /erreur/.test(norm(sujet))) sujet=liste[0].sujet||'tes erreurs';
+    }
+    if(!sujet){ quizAttenteSujet=Date.now(); const r=fx('Avec plaisir. Sur quel sujet ?','Avec plaisir. Sur quel sujet ?')+' Par exemple : les muscles de la cuisse, le genou, les orthèses de pied.'; addLine('ray',r); await speak(r); return; }
+    let ref='';
+    if(!surDoc){
+      try{ const d=await wjson('/wiki?q='+encodeURIComponent(topicOf(sujet)||sujet)+'&long=1',18000); const r0=(d.resultats||[])[0]; if(r0) ref=r0.titre+' : '+r0.extrait.slice(0,3500); }catch(e){}
+    }
+    if(my!==epoch) return;
+    quiz={sujet,ref,doc:surDoc,n:0,bons:0,partiels:0,faux:0,erreurs:[],posees:[],liste,derniereQ:''};
+    majBadges();
+    addLine('sys','Révision : quiz oral sur « '+sujet+' »'+(surDoc?" (d'après le document)":ref?' (vérifié avec Wikipédia)':'')+'. « fin du quiz » pour arrêter.');
+    await tourQuiz(null);
+  }
+  function contexteQuiz(){
+    const q=quiz;
+    return 'MODE RÉVISION — QUIZ ORAL sur « '+q.sujet+' » pour le BTS Prothésiste Orthésiste. '
+      +"Règles : une seule question à la fois, courte et précise, faite pour l'oral ; difficulté progressive ; varie les angles (définition, localisation, origine et terminaison, action, innervation, vascularisation, application clinique ou en appareillage). "
+      +'Quand Justin répond, commence OBLIGATOIREMENT ta réponse par une étiquette entre crochets : [JUSTE], [PARTIEL] ou [FAUX]. Puis corrige en une ou deux phrases (la bonne réponse complète si besoin), et enchaîne avec la question suivante. '
+      +"S'il dit qu'il ne sait pas ou qu'il passe, étiquette [FAUX], donne la réponse et passe à la suivante. Toutes les cinq questions, glisse son score en passant. Pas d'étiquette quand tu poses simplement la première question. "
+      +'Score actuel : '+q.bons+' juste(s), '+q.partiels+' partielle(s), '+q.faux+' fausse(s) sur '+q.n+'.'
+      +(q.posees.length?' Questions déjà posées (ne les repose pas, sauf pour revenir sur une erreur au moins trois questions plus tard) : '+q.posees.slice(-12).join(' | ')+'.':'')
+      +(q.erreurs.length?' Erreurs de cette séance : '+q.erreurs.slice(-5).map(e=>e.question).join(' | ')+'.':'')
+      +(q.liste.length?' Questions à reprendre en priorité (erreurs des séances précédentes), dans cet ordre : '+q.liste.slice(0,10).map((e,i)=>(i+1)+'. '+e.question+(e.correction?' (réponse attendue : '+e.correction+')':'')).join(' ; ')+'.':'')
+      +(q.ref?'\nRÉFÉRENCE pour vérifier tes corrections (Wikipédia) : '+q.ref:'');
+  }
+  function maitriseeSiListe(question){
+    if(!quiz || !quiz.liste.length || !question) return;
+    const mots=s=>new Set(norm(s).replace(/[^a-z0-9 ]/g,' ').split(/\s+/).filter(w=>w.length>3));
+    const a=mots(question);
+    const it=quiz.liste.find(e=>{ const b=mots(e.question); let k=0; b.forEach(w=>{ if(a.has(w)) k++; }); return b.size && k/b.size>=0.5; });
+    if(it){ quiz.liste=quiz.liste.filter(x=>x!==it); wfetch('/revision',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'maitrisee',id:it.id})},10000).catch(()=>{}); }
+  }
+  async function tourQuiz(reponse){
+    const my=epoch; setState('thinking');
+    const texte=reponse==null?'Commence le quiz : annonce le sujet en une phrase, puis pose la première question.':reponse;
+    let d;
+    try{
+      if(quiz.doc && docActif()){
+        const res=await wfetch('/document/question',{method:'POST',headers:{'Content-Type':'application/json'},
+          body:JSON.stringify({uri:lastDoc.uri,mime:lastDoc.mime,nom:lastDoc.nom,question:contexteQuiz()+'\nQuestions tirées de CE DOCUMENT uniquement. Réponse orale, sans markdown.\n\nJustin : '+texte,history:history.slice(-6)})},120000);
+        if(!res.ok) throw await workerError(res);
+        d=await res.json();
+      }else d=await askWorker(texte,false,contexteQuiz());
+    }catch(e){
+      if(my!==epoch) return;
+      addLine('sys','Quiz : '+errMsg(e));
+      const r="Je n'arrive pas à continuer le quiz : "+errMsg(e).slice(0,140)+'.'; addLine('ray',r); await speak(r); return;
+    }
+    if(my!==epoch || !quiz) return;
+    let rep=String(d.reply||'').trim();
+    const m=rep.match(/^\s*\[(JUSTE|PARTIELLE?|FAUX|FAUSSE)\]\s*/i);
+    let marque='';
+    if(m && reponse!=null){
+      const e=m[1].toUpperCase(); quiz.n++;
+      if(e==='JUSTE'){ quiz.bons++; marque='✔ '; maitriseeSiListe(quiz.derniereQ); }
+      else{
+        if(e.startsWith('PARTIEL')){ quiz.partiels++; marque='≈ '; } else { quiz.faux++; marque='✖ '; }
+        quiz.erreurs.push({sujet:quiz.sujet,question:quiz.derniereQ||'(question précédente)',correction:rep.slice(m[0].length).split(/(?<=[.!])\s/).slice(0,2).join(' ').slice(0,400)});
+      }
+    }
+    rep=rep.replace(/\[(?:JUSTE|PARTIELLE?|FAUX|FAUSSE)\]\s*/gi,'').trim();
+    const qs=rep.match(/[^.!?]*\?/g);
+    if(qs && qs.length){ quiz.derniereQ=qs[qs.length-1].trim(); quiz.posees.push(quiz.derniereQ.slice(0,140)); }
+    majBadges();
+    history.push({role:'user',content:texte},{role:'assistant',content:rep}); saveHistory();
+    addLine('ray',marque+rep);
+    await speak(rep);
+  }
+  async function respondQuiz(text){ return tourQuiz(text); }
+  async function finQuiz(){
+    if(!quiz) return;
+    const q=quiz; quiz=null; majBadges();
+    if(q.erreurs.length && workerReady()) wfetch('/revision',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'ajouter',items:q.erreurs})},12000).catch(()=>{});
+    let r='Fin du quiz sur '+q.sujet+' : '+q.bons+' bonne'+(q.bons>1?'s':'')+' réponse'+(q.bons>1?'s':'')+' sur '+q.n+(q.partiels?', et '+q.partiels+' à moitié juste'+(q.partiels>1?'s':''):'')+'.';
+    if(q.erreurs.length && workerReady()){
+      try{
+        const d=await askWorker('Fais le bilan de ce quiz.',false,'BILAN DE QUIZ sur « '+q.sujet+' » : '+q.bons+' juste(s), '+q.partiels+' partielle(s), '+q.faux+' fausse(s) sur '+q.n+'. Erreurs : '
+          +q.erreurs.map(e=>e.question+' → '+e.correction).join(' | ')+". CONSIGNE : en quatre à huit phrases, donne le score, reprends chaque erreur avec la bonne réponse en une phrase, puis un conseil de révision. Précise que ces erreurs sont gardées et qu'il peut dire « réinterroge-moi sur mes erreurs ».");
+        if(valid(d.reply)) r=d.reply;
+      }catch(e){ r+=' Les erreurs sont gardées : '+fx('dites','dis')+' « réinterroge-moi sur mes erreurs » pour les reprendre.'; }
+    }else if(!q.erreurs.length && q.n) r+=' Aucune erreur, beau travail.';
+    addLine('ray',r); await speak(r);
+  }
+
+  // ── Documents : PDF, Word (.docx) et texte, lus par Gemini ──
+  const DOC_MAX=50*1024*1024;
+  function typeDocument(f){
+    const nom=String(f.name||'').toLowerCase(), t=String(f.type||'');
+    if(t==='application/pdf' || /\.pdf$/.test(nom)) return 'pdf';
+    if(/wordprocessingml/.test(t) || /\.docx$/.test(nom)) return 'docx';
+    if(/^text\/(plain|markdown)$/.test(t) || /\.(txt|md)$/.test(nom)) return 'texte';
+    if(/\.doc$/.test(nom) || t==='application/msword') return 'doc';
+    return null;
+  }
+  let lastDoc=null;
+  try{ const d=JSON.parse(localStorage.getItem('rayle_document')||'null'); if(d && Date.now()-d.t<46*3600e3) lastDoc=d; }catch(e){}
+  function docActif(){ return !!(lastDoc && Date.now()-lastDoc.t<46*3600e3); }
+  const DOC_SUIVI_RE=/\b(le document|ce document|du document|dans le document|le pdf|ce pdf|mon dossier|le dossier|ce dossier|mon cours|le cours|ce cours|du cours|le fichier|ce fichier|dans le texte|ce texte|page \d+|ce passage|cette partie|la partie|le chapitre|la section|relis|relire|e4|ma conclusion|mon introduction|ma problematique)\b/;
+  // Extraction du texte d'un .docx (archive zip) sans bibliothèque : DecompressionStream de Chrome
+  async function texteDocx(file){
+    const buf=new Uint8Array(await file.arrayBuffer());
+    const dv=new DataView(buf.buffer,buf.byteOffset,buf.byteLength);
+    let fin=-1;
+    for(let i=buf.length-22;i>=Math.max(0,buf.length-65600);i--){ if(dv.getUint32(i,true)===0x06054b50){ fin=i; break; } }
+    if(fin<0) throw new Error('fichier Word illisible');
+    const nb=dv.getUint16(fin+10,true); let p=dv.getUint32(fin+16,true);
+    for(let k=0;k<nb;k++){
+      if(dv.getUint32(p,true)!==0x02014b50) break;
+      const meth=dv.getUint16(p+10,true), csize=dv.getUint32(p+20,true), nlen=dv.getUint16(p+28,true), elen=dv.getUint16(p+30,true), clen=dv.getUint16(p+32,true), off=dv.getUint32(p+42,true);
+      const nom=new TextDecoder().decode(buf.subarray(p+46,p+46+nlen));
+      if(nom==='word/document.xml'){
+        const debut=off+30+dv.getUint16(off+26,true)+dv.getUint16(off+28,true);
+        const data=buf.subarray(debut,debut+csize);
+        let xml;
+        if(meth===0) xml=new TextDecoder().decode(data);
+        else if(meth===8) xml=await new Response(new Blob([data]).stream().pipeThrough(new DecompressionStream('deflate-raw'))).text();
+        else throw new Error('compression Word inconnue');
+        return xml.replace(/<w:tab\/>/g,'\t').replace(/<\/w:p>/g,'\n').replace(/<w:br[^>]*\/>/g,'\n').replace(/<[^>]+>/g,'')
+          .replace(/&lt;/g,'<').replace(/&gt;/g,'>').replace(/&quot;/g,'"').replace(/&apos;/g,"'").replace(/&amp;/g,'&').replace(/\n{3,}/g,'\n\n').trim();
+      }
+      p+=46+nlen+elen+clen;
+    }
+    throw new Error('contenu Word introuvable');
+  }
+  async function respondNouveauDocument(it){
+    const my=epoch; setState('thinking');
+    if(!workerReady()){ const r='Il me faut le Worker pour lire un document : configurez-le dans ⚙ Réglages.'; addLine('ray',r); await speak(r); return; }
+    if(it.doc==='doc'){ const r="Je ne lis pas l'ancien format Word (.doc) : "+fx('enregistrez-le','enregistre-le')+' en .docx ou en PDF depuis Word, puis renvoie-le.'; addLine('ray',r); await speak(r); return; }
+    try{
+      let corps=it.file, mime='application/pdf';
+      if(it.doc==='docx'){
+        addLine('sys','Word : extraction du texte…');
+        const t=await texteDocx(it.file);
+        if(t.length<20) throw new Error('document Word vide');
+        corps=new Blob([t],{type:'text/plain'}); mime='text/plain';
+      }else if(it.doc==='texte') mime='text/plain';
+      addLine('sys','Document : envoi à Gemini ('+Math.max(1,Math.round(corps.size/1024))+' Ko) puis lecture…');
+      speak(pick(['Je lis le document, Justin. Ça peut prendre une minute.','Document reçu. '+fx('Laissez','Laisse')+'-moi le temps de le lire.']));
+      const res=await wfetch('/document?q='+encodeURIComponent(it.q),{method:'POST',headers:{'Content-Type':mime,'X-Taille':String(corps.size),'X-Nom':encodeURIComponent(it.file.name||'document')},body:corps},300000);
+      if(!res.ok) throw await workerError(res);
+      const d=await res.json();
+      if(my!==epoch) return;
+      lastDoc={uri:d.document.uri,mime:d.document.mime,nom:it.file.name||'document',t:Date.now()};
+      try{ localStorage.setItem('rayle_document',JSON.stringify(lastDoc)); }catch(e){}
+      majBadges();
+      addLine('sys','Moteur : Gemini · '+(d.model||'')+' · document gardé 48 h pour tes questions (« dans le document… », « relis la conclusion », « interroge-moi sur ce cours »)');
+      history.push({role:'user',content:it.q+' [document envoyé : '+lastDoc.nom+']'},{role:'assistant',content:d.reply}); saveHistory();
+      addLine('ray',d.reply); await speak(d.reply);
+    }catch(e){
+      if(my!==epoch) return;
+      addLine('sys','Document : '+errMsg(e));
+      const r="Je n'ai pas pu lire le document : "+errMsg(e).slice(0,160)+'.'; addLine('ray',r); await speak(r);
+    }
+  }
+  async function respondDocument(text){
+    const my=epoch; setState('thinking');
+    addLine('sys','Document « '+lastDoc.nom+' » : je cherche la réponse…');
+    try{
+      const res=await wfetch('/document/question',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({uri:lastDoc.uri,mime:lastDoc.mime,nom:lastDoc.nom,question:text,history:history.slice(-6)})},150000);
+      if(res.status===410){ lastDoc=null; try{ localStorage.removeItem('rayle_document'); }catch(e){} majBadges(); const r='Le document a expiré (Gemini le garde 48 heures). '+fx('Renvoyez-le','Renvoie-le')+' avec le trombone.'; addLine('ray',r); await speak(r); return; }
+      if(!res.ok) throw await workerError(res);
+      const d=await res.json();
+      if(my!==epoch) return;
+      history.push({role:'user',content:text},{role:'assistant',content:d.reply}); saveHistory();
+      addLine('ray',d.reply); await speak(d.reply);
+    }catch(e){ if(my!==epoch) return; const r="Je n'ai pas pu interroger le document : "+errMsg(e).slice(0,160)+'.'; addLine('ray',r); await speak(r); }
+  }
+
+  // ── Pages web et recherche ──
+  function urlWeb(t){ const m=String(t||'').match(/https?:\/\/[^\s<>"«»]+/i); return m?m[0].replace(/[).,;!?]+$/,''):''; }
+  async function ctxPage(u,live,stamp){
+    addLine('sys','Page web : lecture de '+u.replace(/^https?:\/\//,'').slice(0,60)+'…');
+    try{
+      const d=await wjson('/page?url='+encodeURIComponent(u),40000);
+      if(stamp!==epoch) return '';
+      addLine('sys','Page web : « '+d.titre+' » ('+d.site+', '+d.via+')');
+      live.extra.push('La page « '+d.titre+' » parle de : '+(d.description||d.texte.slice(0,300)));
+      return d.contexte;
+    }catch(e){
+      if(stamp!==epoch) return '';
+      addLine('sys','Page web : '+errMsg(e));
+      return 'PAGE WEB : impossible de lire '+u+' ('+errMsg(e)+'). Dis-le simplement, sans inventer son contenu.';
+    }
+  }
+  async function ctxRecherche(text,live,stamp){
+    let q=fixName(text).replace(/^\s*(?:(?:hey|ok|dis)\s+)?Raylé[\s,]*/i,'')
+      .replace(/\b(?:cherche|recherche|regarde|trouve)(?:[- ]moi)?\s+(?:sur |dans )?(?:internet|le web|google|en ligne)\s*/i,'')
+      .replace(/\b(?:sur internet|en ligne|sur le web)\b/i,'').trim();
+    if(q.length<3) q=text;
+    addLine('sys','Recherche web : « '+q.slice(0,80)+' »…');
+    try{
+      const d=await wjson('/recherche?q='+encodeURIComponent(q.slice(0,200)),25000);
+      if(stamp!==epoch) return '';
+      addLine('sys','Recherche web : '+(d.resultats||[]).length+' résultats ('+d.moteur+')');
+      return d.contexte;
+    }catch(e){
+      if(stamp!==epoch) return '';
+      addLine('sys','Recherche web : '+errMsg(e));
+      return "RECHERCHE WEB indisponible ("+errMsg(e)+"). Réponds avec tes connaissances en précisant que tu n'as pas pu vérifier sur internet, sans inventer de fait récent.";
+    }
+  }
+
+  // ── Commandes du terminal : « affiche l'or en H4 » ──
+  // Protocole : Raylé écrit localStorage « rayle_terminal_cmd » = {id, action:'afficher', actif, onglet, intervalle, unite, t}
+  // Le terminal applique la commande et répond dans « rayle_terminal_ack » = {id, ok, message}
+  const TERM_ONGLETS={NDX:'NASDAQ',XAU:'OR',BTC:'BITCOIN',SOL:'SOLANA',EUR:'EUR/USD'};
+  const TERM_UNITES={'1min':'M1','5min':'M5','15min':'M15','30min':'M30','1h':'H1','4h':'H4','1day':'D1'};
+  function commandeTerminal(text){
+    const n=cmdNorm(norm(text)).replace(/-/g,' ');
+    if(!/^(?:(?:tu peux|peux tu|pourrais tu)\s+)?(?:affiche|montre|ouvre|mets|met|passe|bascule|charge|change|va sur)[sz]?\b/.test(n)) return null;
+    if(/analys|explique|bougie|que dit|tendance|rsi|score|niveau|support|resistance|actu|meteo|alerte|rappel|agenda|note|mode|tradu|quiz|memoire|calendrier|annonce|briefing/.test(n)) return null;
+    const codes=assetsIn(n+' graphique'), iv=tfOf(n);
+    if(!codes.length && !iv) return null;
+    return {actif:codes[0]||null,intervalle:iv||null};
+  }
+  function attendreAck(id,ms){
+    return new Promise(res=>{
+      if(!ms){ res(null); return; }
+      const fin=Date.now()+ms;
+      const lire=()=>{ try{ const a=JSON.parse(localStorage.getItem('rayle_terminal_ack')||'null'); return (a && a.id===id) ? a : null; }catch(e){ return null; } };
+      const iv=setInterval(()=>{ const a=lire(); if(a || Date.now()>fin){ clearInterval(iv); res(a); } },200);
+    });
+  }
+  async function respondTerminal(tc){
+    const b=readBridge(), ouvert=terminalOuvert(b);
+    const cmd={id:Date.now()+'-'+Math.random().toString(36).slice(2,7),action:'afficher',actif:tc.actif,onglet:tc.actif?(TERM_ONGLETS[tc.actif]||tc.actif):null,
+      intervalle:tc.intervalle,unite:tc.intervalle?TERM_UNITES[tc.intervalle]:null,t:new Date().toISOString(),source:'rayle'};
+    try{ localStorage.setItem('rayle_terminal_cmd',JSON.stringify(cmd)); }catch(e){}
+    if(tc.actif){ lastCodes=[tc.actif]; lastCodesT=Date.now(); }
+    const ecran=codeEcran();
+    const quoi=(tc.actif?MKT[tc.actif].nom:(ecran&&MKT[ecran]?MKT[ecran].nom:'le graphique'))+(tc.intervalle?' en '+(tc.intervalle==='1day'?'journalier':TERM_UNITES[tc.intervalle]):'');
+    addLine('sys','Terminal : commande envoyée ('+[cmd.onglet,cmd.unite].filter(Boolean).join(' · ')+')');
+    const ack=await attendreAck(cmd.id,ouvert?3500:0);
+    let r;
+    if(ack && ack.ok) r="C'est affiché : "+quoi+'.';
+    else if(ack) r='Le terminal refuse : '+(ack.message||'commande non reconnue')+'.';
+    else if(!ouvert) r='Le terminal est fermé. '+fx('Ouvrez','Ouvre')+'-le : '+quoi+" s'affichera à son ouverture.";
+    else r="Commande envoyée, mais le terminal ne m'a pas répondu : il n'a sans doute pas encore la mise à jour.";
+    if(tc.actif && !TERM_ONGLETS[tc.actif] && !(ack && ack.ok)) r+=" Cet actif n'a peut-être pas d'onglet sur le terminal.";
+    addLine('ray',r); await speak(r);
+  }
+
+  /* ═════════════ RECONNAISSANCE VOCALE ═════════════ */
+  const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
+  let rec=null, lastStart=0;
+
+  // Tablette / téléphone : Chrome y découpe la voix en morceaux et répète parfois les résultats.
+  const IS_MOBILE=(function(){
+    try{
+      const force=new URLSearchParams(location.search).get('tablette');
+      if(force==='1') return true;
+      if(force==='0') return false;
+    }catch(e){}
+    try{
+      const ua=(navigator.userAgent||'');
+      if(/Android|iPhone|iPad|iPod|Mobile/i.test(ua)) return true;
+      if(/Macintosh/.test(ua) && navigator.maxTouchPoints>1) return true;
+      if(window.matchMedia && window.matchMedia('(pointer:coarse)').matches) return true;
+    }catch(e){}
+    return false;
+  })();
+  const bargeActive=()=>prefs.barge() && micOn;
+
+  // Sur tablette : on rassemble les morceaux et on n'envoie la phrase qu'après une courte pause.
+  const FLUSH_MS=1500;
+  let pendingTxt='', flushTimer=null, lastSent='', lastSentT=0;
+  function resetPending(){ pendingTxt=''; clearTimeout(flushTimer); flushTimer=null; }
+  function flushPending(){
+    const t=pendingTxt.trim(); resetPending();
+    if(!interimEl.textContent.startsWith('zz')) interimEl.textContent='';
+    if(!t) return;
+    if(norm(t)===lastSent && Date.now()-lastSentT<4000) return;
+    lastSent=norm(t); lastSentT=Date.now();
+    onUser(t,true);
+  }
+  function deliver(txt){
+    txt=String(txt||'').trim(); if(!txt) return;
+    if(!IS_MOBILE){ onUser(txt,true); return; }
+    const n=norm(txt), cur=norm(pendingTxt);
+    if(cur && cur.includes(n)) { /* répétition d'un morceau déjà reçu */ }
+    else if(cur && n.startsWith(cur)) pendingTxt=txt;
+    else pendingTxt=(pendingTxt?pendingTxt+' ':'')+txt;
+    interimEl.textContent='… '+pendingTxt;
+    clearTimeout(flushTimer);
+    const c=cmdNorm(norm(fixName(pendingTxt)));
+    if(COUPURE_RE.test(c) || STOP_RE.test(c)){ flushPending(); return; }
+    flushTimer=setTimeout(flushPending,FLUSH_MS);
+  }
+
+  function buildRec(){
+    const r=new SR();
+    r.lang='fr-FR'; r.continuous=!IS_MOBILE; r.interimResults=true; r.maxAlternatives=1;
+    r.onresult=e=>{
+      let interim='', fin='';
+      for(let i=e.resultIndex;i<e.results.length;i++){
+        const t=e.results[i][0].transcript;
+        if(e.results[i].isFinal) fin+=t; else interim+=t;
+      }
+      // Pendant qu'elle parle, et juste après : seules les commandes d'arrêt comptent
+      if(speaking || Date.now()-speechEndT<900){
+        if(fin.trim()){
+          const c=cmdNorm(norm(fixName(fin)));
+          if(COUPURE_RE.test(c)){ addLine('user',fin.trim()); coupureTotale(); }
+          else if(STOP_RE.test(c)) cutAll('Parole interrompue');
+        }
+        return;
+      }
+      if(mode==='veille' && reveilActif()){
+        if(interim) interimEl.textContent='zz … '+interim;
+      }else{
+        interimEl.textContent=interim ? '… '+(pendingTxt?pendingTxt+' ':'')+interim : (pendingTxt?'… '+pendingTxt:'');
+      }
+      if(fin.trim()){ if(!interimEl.textContent.startsWith('zz')) interimEl.textContent=''; deliver(fin); }
+    };
+    r.onerror=e=>{
+      if(e.error==='not-allowed' || e.error==='service-not-allowed'){
+        addLine('sys',"Micro refusé : autorisez-le dans Chrome (cadenas à gauche de l'adresse), puis réessayez.");
+        stopListening();
+      }else if(e.error==='network'){
+        addLine('sys','Reconnaissance vocale : réseau indisponible.');
+      }
+    };
+    r.onend=()=>{
+      if(!interimEl.textContent.startsWith('zz')) interimEl.textContent=pendingTxt?('… '+pendingTxt):'';
+      if(micOn && (!speaking || bargeActive())){
+        const wait=(Date.now()-lastStart<800)?1000:250;
+        setTimeout(startRec,wait);
+      }
+    };
+    return r;
+  }
+  function startRec(){
+    if(!SR || !micOn || (speaking && !bargeActive())) return;
+    try{
+      if(!rec) rec=buildRec();
+      lastStart=Date.now();
+      rec.start();
+    }catch(e){
+      if(e && e.name==='InvalidStateError') return;
+      try{ rec=buildRec(); lastStart=Date.now(); rec.start(); }catch(_){}
+    }
+  }
+  function stopRecSoft(){ try{ rec && rec.stop(); }catch(e){} }
+  // Coupe le micro net et jette ce qu'il était en train d'écouter (évite qu'elle s'entende)
+  function muteRec(){ try{ rec && rec.abort(); }catch(e){} resetPending(); }
+
+  let greeted=false;
+  function startListening(){
+    if(!SR) return;
+    micOn=true;
+    mode=reveilActif()?'veille':'conversation';
+    majBouton(); restState();
+    addLine('sys','Écoute vocale activée (fr-FR, '+(IS_MOBILE?'mode tablette':'mode continu')+(reveilActif()?', mot d\'activation « Raylé »':', réponse à tout')+')');
+    startRec();
+    try{ if('Notification' in window && Notification.permission==='default') Notification.requestPermission().catch(()=>{}); }catch(e){}
+    if(!greeted){
+      greeted=true;
+      const g=reveilActif()
+        ? 'Raylé en ligne. '+fx('Dites','Dis')+' mon nom quand '+fx('vous avez','tu as')+' besoin de moi.'
+        : 'Raylé en ligne. '+fx('Je vous écoute, Justin.',"Je t'écoute, Justin.");
+      addLine('ray',g);
+      speak(g).then(()=>{ if(briefingEnAttente) lireBriefing(); });
+    }else if(briefingEnAttente) lireBriefing();
+  }
+  function stopListening(){
+    micOn=false;
+    try{ rec && rec.abort(); }catch(e){}
+    cutAll();
+    interimEl.textContent='';
+    majBouton(); restState();
+    addLine('sys','Écoute vocale désactivée');
+  }
+
+  /* ═════════════ RÉGLAGES ═════════════ */
+  const cfgEl=$('cfg'), kUrl=$('kUrl'), kTok=$('kTok'), cfgMsg=$('cfgMsg'),
+        kVit=$('kVit'), kVitVal=$('kVitVal'), kReveil=$('kReveil'), kBarge=$('kBarge'), kNoms=$('kNoms');
+  function majVitesseUI(){
+    const v=vitesseCourante();
+    kVit.value=String(v);
+    kVitVal.textContent=(v>0?'+':'')+v+' %'+(prefs.vitesse()==null?' (réglage du Worker)':'');
+  }
+  $('gear').addEventListener('click',()=>{
+    cfgEl.classList.toggle('open');
+    kUrl.value=store.get(KEY_WURL); kTok.value=store.get(KEY_WTOK); kTok.type='password'; cfgMsg.textContent='';
+    kReveil.checked=prefs.reveil(); kBarge.checked=prefs.barge(); kNoms.value=store.get(KEY_NOMS);
+    majVitesseUI(); majModesUI();
+    if(cfgEl.classList.contains('open')) chargerReglages();
+  });
+
+  /* ── Phase 3 : modes, Telegram, tâches ── */
+  document.querySelectorAll('#cfgModes button').forEach(b=>b.addEventListener('click',()=>changerMode(b.dataset.mode,true)));
+  const tgEtat=$('tgEtat'), kBriefing=$('kBriefing'), kBriefingH=$('kBriefingH'), kSeances=$('kSeances'), kVille=$('kVille');
+  async function chargerReglages(){
+    if(!workerReady()){ tgEtat.textContent='Worker non configuré.'; return; }
+    tgEtat.textContent='Lecture des réglages…';
+    try{
+      const r=await wjson('/reglages',12000);
+      kBriefing.checked=!!r.briefing_actif; kBriefingH.value=r.briefing_heure||'07:30'; kSeances.checked=!!r.seances; kVille.value=r.ville||'';
+      if(r.mode && r.mode!==persona.mode){ persona.mode=r.mode; majBadges(); }
+      majModesUI();
+      const t=r.telegram||{};
+      tgEtat.textContent=(!t.configure?'Telegram : secret TELEGRAM_TOKEN absent du Worker (crée le bot avec @BotFather, puis ajoute ce secret).'
+          :t.lie?'Telegram : ✔ lié'+(t.bot?' à @'+t.bot:'')+'.':'Telegram : bot prêt mais pas encore lié. Touche « Connecter Telegram ».')
+        +'\nTâche planifiée : '+(r.tache_planifiee?'✔ dernier passage '+fmtAge(new Date(r.tache_planifiee).toISOString()):'jamais vue (ajoute le déclencheur Cron « * * * * * » au Worker)')+'.';
+    }catch(e){ tgEtat.textContent=/n'est pas à jour/.test(errMsg(e))?"Le Worker n'a pas encore la mise à jour (phase 3).":'Réglages : '+errMsg(e); }
+  }
+  async function envoyerReglages(o){
+    try{
+      const res=await wfetch('/reglages',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(o)},10000);
+      if(!res.ok) throw await workerError(res);
+      addLine('sys','Réglage enregistré sur le Worker.');
+    }catch(e){ addLine('sys','Réglage : '+errMsg(e)); }
+  }
+  kBriefing.addEventListener('change',()=>envoyerReglages({briefing_actif:kBriefing.checked}));
+  kBriefingH.addEventListener('change',()=>{ if(/^\d\d:\d\d$/.test(kBriefingH.value)) envoyerReglages({briefing_heure:kBriefingH.value}); });
+  kSeances.addEventListener('change',()=>envoyerReglages({seances:kSeances.checked}));
+  kVille.addEventListener('change',()=>envoyerReglages({ville:kVille.value.trim()}));
+  let tgSuivi=null;
+  $('tgConnecter').addEventListener('click',async()=>{
+    saveCfg();
+    if(!workerReady()){ tgEtat.textContent="✖ Renseignez d'abord l'adresse du Worker et le code d'accès."; return; }
+    tgEtat.textContent='Branchement du bot…';
+    try{
+      const res=await wfetch('/telegram/installer',{method:'POST'},20000);
+      if(!res.ok) throw await workerError(res);
+      const d=await res.json();
+      if(d.lie){ tgEtat.textContent='✔ Bot '+d.bot+' branché, et déjà lié. Touche « Message de test ».'; return; }
+      tgEtat.textContent='✔ Bot '+d.bot+' branché. Ouvre Telegram, cherche '+d.bot+', touche Démarrer ou envoie « bonjour » dans les '+d.liaison_minutes+' minutes : la liaison se fait toute seule.';
+      clearInterval(tgSuivi);
+      const fin=Date.now()+d.liaison_minutes*60000;
+      tgSuivi=setInterval(async()=>{
+        if(Date.now()>fin){ clearInterval(tgSuivi); return; }
+        try{ const r=await wjson('/reglages',10000); if(r.telegram && r.telegram.lie){ clearInterval(tgSuivi); tgEtat.textContent='✔ Telegram lié à '+d.bot+'. Les alertes, rappels et briefings arriveront là-bas.'; addLine('sys','Telegram lié ('+d.bot+')'); } }catch(e){}
+      },5000);
+    }catch(e){ tgEtat.textContent='✖ '+errMsg(e); }
+  });
+  $('tgTest').addEventListener('click',async()=>{
+    if(!workerReady()) return;
+    tgEtat.textContent='Envoi du message de test…';
+    try{ const res=await wfetch('/telegram/test',{method:'POST'},15000); if(!res.ok) throw await workerError(res); tgEtat.textContent='✔ Message envoyé : regarde Telegram.'; }
+    catch(e){ tgEtat.textContent='✖ '+errMsg(e); }
+  });
+  $('cfgTaches').addEventListener('click',afficherTaches);
+  async function afficherTaches(){
+    const zone=$('listeTaches'); zone.textContent='Chargement…';
+    try{
+      const d=await wjson('/taches',12000);
+      zone.innerHTML='';
+      const bloc=(titre,l,type)=>{
+        const h=document.createElement('div'); h.className='hint'; h.textContent=titre+(l.length?'':' : aucun'); zone.appendChild(h);
+        if(!l.length) return;
+        const ul=document.createElement('ul'); ul.className='taches';
+        l.forEach(x=>{
+          const li=document.createElement('li'), s=document.createElement('span'), b=document.createElement('button');
+          s.textContent=x.texte; b.type='button'; b.textContent='✕'; b.title='Supprimer';
+          b.onclick=async()=>{
+            b.disabled=true;
+            try{ const res=await wfetch('/taches',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'supprimer',type,id:x.id})},10000); if(!res.ok) throw await workerError(res); li.remove(); }
+            catch(e){ b.disabled=false; addLine('sys','Suppression : '+errMsg(e)); }
+          };
+          li.append(s,b); ul.appendChild(li);
+        });
+        zone.appendChild(ul);
+      };
+      bloc('Alertes de prix',d.alertes||[],'alerte'); bloc('Rappels et minuteurs',d.rappels||[],'rappel'); bloc('Agenda',d.agenda||[],'agenda');
+    }catch(e){ zone.textContent='✖ '+errMsg(e); }
+  }
+  kVit.addEventListener('input',()=>{ store.set(KEY_VIT,kVit.value); majVitesseUI(); });
+  kVit.addEventListener('change',()=>{ const t='Voici ma nouvelle vitesse de lecture, Justin.'; addLine('ray',t); speak(t); });
+  kReveil.addEventListener('change',()=>{
+    store.set(KEY_REVEIL,kReveil.checked?'':'0');
+    if(micOn) mode=kReveil.checked?'veille':'conversation';
+    majBouton(); restState();
+    addLine('sys',kReveil.checked?"Mot d'activation activé : dites « Raylé » pour lui parler.":"Mot d'activation désactivé : elle répond à tout ce qu'elle entend.");
+  });
+  kBarge.addEventListener('change',()=>{ store.set(KEY_BARGE,kBarge.checked?'1':''); addLine('sys',kBarge.checked?'Interruption à la voix activée (le micro reste ouvert pendant qu\'elle parle).':'Interruption à la voix désactivée.'); });
+  kNoms.addEventListener('change',()=>{ store.set(KEY_NOMS,kNoms.value.trim()); buildFixName(); addLine('sys','Variantes du nom enregistrées.'); });
+
+  function saveCfg(){
+    let u=kUrl.value.trim();
+    if(u && !/^https?:\/\//i.test(u)) u='https://'+u;
+    kUrl.value=u;
+    store.set(KEY_WURL,u.replace(/\/+$/,'')); store.set(KEY_WTOK,kTok.value.trim());
+  }
+  $('cfgSave').addEventListener('click',async()=>{
+    saveCfg(); cfgMsg.textContent='Enregistré. Vérification…';
+    const p=await pingWorker(true);
+    cfgMsg.textContent=p ? '✔ '+p.info : '✖ Le Worker ne répond pas correctement (voir le journal).';
+  });
+  $('cfgGen').addEventListener('click',()=>{
+    const a=new Uint8Array(24); crypto.getRandomValues(a);
+    const t=Array.from(a,b=>b.toString(16).padStart(2,'0')).join('');
+    kTok.type='text'; kTok.value=t;
+    const done=ok=>{ cfgMsg.textContent=(ok?'Code généré et copié. ':'Code généré (copiez-le à la main). ')+"Collez-le dans le secret RAYLE_TOKEN du Worker, puis touchez Enregistrer ici."; };
+    if(navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(t).then(()=>done(true),()=>done(false)); else done(false);
+  });
+  $('cfgTest').addEventListener('click',async()=>{
+    saveCfg();
+    if(!workerReady()){ cfgMsg.textContent="✖ Renseignez l'adresse du Worker et le code d'accès."; return; }
+    cfgMsg.textContent='Test du Worker…';
+    const p=await pingWorker(true);
+    if(!p){ cfgMsg.textContent='✖ Le Worker ne répond pas correctement (voir le journal).'; return; }
+    cfgMsg.textContent='✔ '+p.info+'\nTest de l\'IA…';
+    try{
+      const r=await wfetch('/chat',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({text:'Présente-toi en une seule courte phrase.',context:'',history:[]})},40000);
+      if(!r.ok) throw await workerError(r);
+      const d=await r.json();
+      cfgMsg.textContent='✔ '+p.info+'\n✔ IA '+d.engine+' ('+d.model+') répond : '+String(d.reply).slice(0,140);
+      addLine('sys','Test IA réussi : '+d.engine+' · '+d.model);
+    }catch(e){ cfgMsg.textContent='✔ '+p.info+'\n✖ IA : '+errMsg(e); }
+  });
+  $('cfgTestVoix').addEventListener('click',()=>{
+    saveCfg();
+    const t='Test de la voix. Raylé à '+fx('votre','ton')+' écoute, Justin. Voici ma vitesse de lecture actuelle.';
+    cfgMsg.textContent='Lecture du test…';
+    addLine('ray',t);
+    speak(t).then(()=>{ cfgMsg.textContent='Test terminé. La source de la voix est indiquée dans le journal et en haut à droite.'; });
+  });
+  $('cfgClean').addEventListener('click',()=>{
+    OLD_KEYS.forEach(k=>store.set(k,''));
+    cfgMsg.textContent='✔ Anciennes clés Groq, OpenRouter et Twelve Data effacées de ce navigateur.';
+    addLine('sys','Anciennes clés effacées de ce navigateur');
+  });
+  $('cfgTestMkt').addEventListener('click',async()=>{
+    saveCfg();
+    if(!workerReady()){ cfgMsg.textContent="✖ Renseignez d'abord l'adresse du Worker et le code d'accès."; return; }
+    const out=[]; const codes=['NDX','XAU','BTC','SOL','EUR'];
+    for(let i=0;i<codes.length;i++){
+      const m=MKT[codes[i]];
+      cfgMsg.textContent='Test marché '+(i+1)+'/'+codes.length+' ('+m.nom+')…';
+      try{
+        const d=await marcheSeries(codes[i],'1h');
+        out.push('✔ '+cap(m.nom)+' '+Number(d.bougies.at(-1).c).toLocaleString('fr-FR',{maximumFractionDigits:m.dec})+' ['+d.source+(d.secours?', secours':'')+(d.differe?', différé':'')+']');
+      }catch(e){ out.push('✖ '+cap(m.nom)+' : '+errMsg(e)); }
+    }
+    cfgMsg.textContent=out.join('  ·  ')+'  ·  test des bougies…';
+    try{ const d=await wjson('/bougies?actif=BTC&intervalle=15min&n=5',25000); out.push('✔ Bougies BTC M15 : '+d.bougies.length+' bougies annotées ('+d.resume.structure+')'); }
+    catch(e){ out.push('✖ Bougies : '+errMsg(e)); }
+    try{ const ev=await fetchCalendar(true); out.push('✔ Calendrier : '+ev.length+' annonces ('+calVia+')'); }
+    catch(e){ out.push('✖ Calendrier : '+errMsg(e)); }
+    cfgMsg.textContent=out.join('  ·  ');
+    addLine('sys','Test marché : '+out.join(' | '));
+  });
+  $('cfgTestInfo').addEventListener('click',async()=>{
+    saveCfg();
+    if(!workerReady()){ cfgMsg.textContent="✖ Renseignez d'abord l'adresse du Worker et le code d'accès."; return; }
+    const nb=d=>d.items.length+' articles ('+d.sources.slice(0,4).join(', ')+')';
+    const tests=[
+      ['Météo',async()=>{ const d=await wjson('/meteo',18000); return d.ville+' '+rnd(d.actuel.temp)+' °C, '+d.actuel.ciel+(d.air?', air '+d.air.qualite:''); }],
+      ['Actus France',async()=>nb(await wjson('/actus?cat=fr',25000))],
+      ['Actus monde',async()=>nb(await wjson('/actus?cat=monde',25000))],
+      ['Actus économie',async()=>nb(await wjson('/actus?cat=eco',25000))],
+      ['Actus tech',async()=>nb(await wjson('/actus?cat=tech',25000))],
+      ['Actus crypto',async()=>nb(await wjson('/actus?cat=crypto',25000))],
+      ['Recherche actus',async()=>nb(await wjson('/actus?q=Nvidia',20000))],
+      ['Wikipédia',async()=>{ const d=await wjson('/wiki?q=genou&long=1',18000); return d.resultats.length+' résultat(s) : '+(d.resultats[0]?d.resultats[0].titre+' ('+d.resultats[0].extrait.length+' car.)':'aucun'); }],
+      ['MDN',async()=>{ const d=await wjson('/mdn?q=flexbox',15000); return d.resultats.length+' résultat(s) : '+(d.resultats[0]?d.resultats[0].titre:'aucun'); }],
+      ['Études',async()=>{ const d=await wjson('/sante?q='+encodeURIComponent('ligament croisé antérieur'),20000); return d.resultats.length+' étude(s)'; }],
+      ['Médicament',async()=>{ const d=await wjson('/medicament?q='+encodeURIComponent('ibuprofène'),15000); return d.resultats[0]?d.resultats[0].nom:'aucune notice'; }],
+      ['Calcul',async()=>{ const d=await wjson('/calcul?expr='+encodeURIComponent('15%*3200'),10000); return '15 % de 3200 = '+d.resultat; }],
+      ['Conversion',async()=>{ const d=await wjson('/calcul?expr='+encodeURIComponent('10 mile to km'),10000); return '10 miles = '+d.resultat; }],
+      ['Devises',async()=>{ const d=await wjson('/change?de=EUR&vers=USD&montant=100',12000); return '100 EUR = '+fmtNum(d.resultat,2)+' USD ('+d.source+')'; }],
+      ['Mémoire',async()=>{ const d=await wjson('/memoire',10000); return d.notes.length+' élément(s) retenu(s)'; }],
+      ['Sentiment',async()=>{ const d=await wjson('/sentiment',15000); const a=d.actions_peur_avidite, c=d.crypto_peur_avidite; return 'actions '+(a.score!=null?a.score:'✖')+' · crypto '+(c.score!=null?c.score:'✖'); }]
+    ];
+    const out=[];
+    for(let i=0;i<tests.length;i++){
+      cfgMsg.textContent='Test '+(i+1)+'/'+tests.length+' ('+tests[i][0]+')…\n'+out.join('\n');
+      try{ out.push('✔ '+tests[i][0]+' : '+await tests[i][1]()); }
+      catch(e){ out.push('✖ '+tests[i][0]+' : '+errMsg(e)); }
+    }
+    cfgMsg.textContent=out.join('\n')+'\n(YouTube : colle un lien dans le champ de texte pour le tester.)';
+    addLine('sys','Test savoirs : '+out.join(' | '));
+  });
+
+  $('cfgTestJarvis').addEventListener('click',async()=>{
+    saveCfg();
+    if(!workerReady()){ cfgMsg.textContent="✖ Renseignez d'abord l'adresse du Worker et le code d'accès."; return; }
+    const tests=[
+      ['Version',async()=>{ const p=await wjson('/ping',10000); if(!/^phase3/.test(p.version||'')) throw new Error('Worker en '+(p.version||'ancienne version')+' : colle le nouveau code'); return p.version; }],
+      ['Tâche planifiée',async()=>{ const r=await wjson('/reglages',10000); if(!r.tache_planifiee) throw new Error('jamais vue : ajoute le déclencheur Cron « * * * * * »'); return 'dernier passage '+fmtAge(new Date(r.tache_planifiee).toISOString()); }],
+      ['Telegram',async()=>{ const r=await wjson('/reglages',10000); const t=r.telegram||{}; if(!t.configure) throw new Error('secret TELEGRAM_TOKEN absent'); if(!t.lie) throw new Error('bot pas encore lié : « Connecter Telegram »'); return 'lié'+(t.bot?' à @'+t.bot:''); }],
+      ['Alertes, rappels, agenda',async()=>{ const d=await wjson('/taches',10000); return d.alertes.length+' alerte(s), '+d.rappels.length+' rappel(s), '+d.agenda.length+' rendez-vous'; }],
+      ['Briefing du jour',async()=>{ const d=await wjson('/briefing',10000); return d.texte?'prêt ('+d.texte.length+' caractères)':'pas encore généré aujourd\'hui (heure réglée dans les réglages)'; }],
+      ['Journal',async()=>{ const d=await wjson('/journal?jours=7',12000); return d.stats.n+' trade(s) noté(s) sur 7 jours'+(d.stats.taux!=null?', '+d.stats.taux+' % de réussite':''); }],
+      ['Checklist',async()=>{ const d=await wjson('/checklist?actif=NDX&sens=long',40000); return /CHECKLIST/.test(d.contexte)?'contexte prêt ('+d.contexte.length+' car.)':'vide'; }],
+      ['Page web',async()=>{ const d=await wjson('/page?url='+encodeURIComponent('https://fr.wikipedia.org/wiki/Genou'),30000); return '« '+d.titre+' » ('+d.texte.length+' car., '+d.via+')'; }],
+      ['Recherche web',async()=>{ const p=await wjson('/ping',10000); if(!p.recherche) throw new Error('aucune clé (TAVILY_KEY facultative)'); return p.recherche+(p.rechercheMois!=null?', '+p.rechercheMois+' recherche(s) ce mois':''); }],
+      ['Traduction',async()=>{ const r=await wfetch('/traduire',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({text:'Bonjour, je suis Raylé.',langue:'en'})},25000); if(!r.ok) throw await workerError(r); return (await r.json()).traduction; }],
+      ['Révisions',async()=>{ const d=await wjson('/revision',10000); return d.erreurs.length+' erreur(s) gardée(s) à reprendre'; }]
+    ];
+    const out=[];
+    for(let i=0;i<tests.length;i++){
+      cfgMsg.textContent='Test '+(i+1)+'/'+tests.length+' ('+tests[i][0]+')…\n'+out.join('\n');
+      try{ out.push('✔ '+tests[i][0]+' : '+await tests[i][1]()); }
+      catch(e){ out.push('✖ '+tests[i][0]+' : '+errMsg(e)); }
+    }
+    cfgMsg.textContent=out.join('\n');
+    addLine('sys','Test des nouveautés : '+out.join(' | '));
+  });
+
+  document.addEventListener('keydown',e=>{ if(e.key==='Escape') cutAll('Coupé (Échap)'); });
+
+  btn.addEventListener('click',()=> micOn ? stopListening() : startListening());
+  // Toucher le réacteur : couper la parole, ou réveiller Raylé sans dire son nom
+  reactor.addEventListener('click',()=>{
+    if(speaking || processing){ cutAll('Coupé (toucher)'); return; }
+    if(!micOn){ startListening(); return; }
+    if(mode==='veille' && reveilActif()){ enterConversation(); ack(); }
+  });
+  form.addEventListener('submit',e=>{ e.preventDefault(); const v=txt.value; txt.value=''; onUser(v,false); });
+  const fichierEl=$('fichier');
+  $('clip').addEventListener('click',()=>fichierEl.click());
+  fichierEl.addEventListener('change',()=>{ const f=fichierEl.files&&fichierEl.files[0]; const q=txt.value; txt.value=''; fichierEl.value=''; envoyerFichier(f,q); });
+  // Coller une capture (Ctrl+V) dans la page
+  document.addEventListener('paste',e=>{
+    const items=(e.clipboardData&&e.clipboardData.files)||[];
+    if(items.length && /^(image|video)\//.test(items[0].type)){ e.preventDefault(); const q=txt.value; txt.value=''; envoyerFichier(items[0],q); }
+  });
+  // Glisser-déposer une image ou une vidéo sur le terminal
+  const termEl=document.querySelector('.term');
+  if(termEl){
+    termEl.addEventListener('dragover',e=>{ e.preventDefault(); termEl.classList.add('depot'); });
+    termEl.addEventListener('dragleave',()=>termEl.classList.remove('depot'));
+    termEl.addEventListener('drop',e=>{ e.preventDefault(); termEl.classList.remove('depot'); const f=e.dataTransfer&&e.dataTransfer.files&&e.dataTransfer.files[0]; const q=txt.value; txt.value=''; envoyerFichier(f,q); });
+  }
+
+  /* ═════════════ DÉMARRAGE ═════════════ */
+  setState('idle'); majBouton(); majBadges();
+  addLine('sys','RAYLÉ — Market & Neural Core · noyau initialisé (phase 3 · alertes, rappels, agenda, briefing, Telegram, checklist, journal, révisions, documents, interprète)');
+  if(SR){ addLine('sys','Reconnaissance vocale fr-FR : disponible'); }
+  else{
+    addLine('sys','Reconnaissance vocale indisponible : ouvrez cette page dans Google Chrome. La saisie au clavier reste active.');
+    btn.disabled=true; btnTxt.textContent='Micro indisponible'; btnSub.textContent='';
+  }
+  addLine('sys', readBridge() ? 'Pont terminal détecté' : 'Pont terminal : aucune donnée pour le moment');
+  if(OLD_KEYS.some(k=>store.get(k))) addLine('sys','Anciennes clés encore présentes dans ce navigateur : ⚙ Réglages → Effacer les anciennes clés');
+  pingWorker().then(p=>{
+    workerPhase3=!!(p && p.phase3);
+    if(workerPhase3){ chargerBriefing(); setTimeout(verifierEvenements,2500); }
+  });
+  if(docActif()) addLine('sys','Document gardé : « '+lastDoc.nom+' » (questions possibles encore '+Math.max(1,Math.round((46*3600e3-(Date.now()-lastDoc.t))/3600e3))+' h)');
+  setTimeout(()=>{
+    fetchCalendar(false)
+      .then(ev=>addLine('sys','Calendrier économique : '+ev.length+' annonces ('+calVia+')'))
+      .catch(e=>addLine('sys','Calendrier économique indisponible : '+errMsg(e)));
+  },1500);
+  const hh=new Date().getHours();
+  addLine('ray',(hh>=18||hh<5?'Bonsoir':'Bonjour')+", Justin. "+fx('Touchez','Touche')+" le bouton ci-dessous pour m'activer, puis "+fx('dites','dis')+" « Raylé ».");
+  updateBridgeStatus();
+
+  // Accès pour les tests locaux uniquement
+  if(window.__RAYLE_TEST__) window.__RAYLE_TEST__({noteDepuis,SELF_RE,MEM_READ_RE,IMG_SUIVI_RE,citiesOf,wakeSplit,fixName,cmdNorm,norm,END_RE,COUPURE_RE,STOP_RE,exprDepuis,conversionDevise,conversionUnite,BOUGIE_RE,tfOf,nbBougies,assetsIn,newsQuery,clean,CALC_RE,urlYoutube,
+    ASSIST_RE,TRADE_RE,JOURNAL_RE,SEARCH_RE,PRIX_OBJET_RE,QUIZ_START_RE,QUIZ_STOP_RE,INTERP_STOP_RE,DOC_SUIVI_RE,modeDemande,interpreteDemande,traductionUnique,commandeTerminal,sujetQuiz,texteDocx,typeDocument,urlWeb,onUser,etat:()=>({quiz,interp,persona,lastDoc})});
+})();
+</script>
+</body>
+</html>
