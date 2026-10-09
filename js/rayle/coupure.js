@@ -24,6 +24,18 @@
   const COUPURE_RE=/^(?:(?:ok|oui|bon|alors)\s+)?(?:coupure|coupures|coupe|coupez|coupe tout|eteins[- ]toi|desactive[- ]toi)(?:\s+(?:merci|svp|stp|s'?il (?:te|vous) plait))?$/;
   const END_RE=/^(?:(?:ok|okay|bon|super|parfait|top|genial|nickel|d'accord|daccord|tres bien|cool|bah|eh bien)\s+)*(?:merci(?:\s+(?:beaucoup|bien|infiniment|pour tout|mille fois))?|c'est tout|ce sera tout|c'est bon|ca ira|a plus tard|a plus|a tout a l'heure|bonne nuit|repos|fin de (?:la )?conversation)(?:\s+(?:justin|c'est tout|ca ira|a plus tard|pour tout|beaucoup))*$/;
 
+  /* Panneaux holographiques : « ferme ça », « ferme tout » */
+  const FERMER_TOUT_RE=/^(?:(?:ferme|fermer|efface|effacer|enleve|enlever|retire|retirer|cache|cacher|vire|nettoie|nettoyer)(?: moi)? (?:tout|tous|toutes|tout ca|tous les panneaux|toutes les fenetres|les panneaux|les fenetres|tous les ecrans|tout l ecran)|tout fermer|nettoie l ecran)$/;
+  const FERMER_CA_RE=/^(?:ferme|fermer|enleve|enlever|retire|retirer|efface|effacer|cache|cacher|vire)(?: moi)? (?:ca|cela|ce panneau|cette fenetre|ce truc|le panneau|la fenetre|le dernier panneau|la derniere fenetre|celui la|celle la)$/;
+  // true si c'était une commande de fermeture à traiter ici
+  function commandePanneaux(c){
+    const t=String(c||'').replace(/['’]/g,' ').replace(/\s+/g,' ').trim();
+    const ouverts=Panneaux.liste().length;
+    if(FERMER_TOUT_RE.test(t)){ if(ouverts){ Panneaux.fermerTout(); return true; } return /panneaux|fenetres|ecran/.test(t); }
+    if(FERMER_CA_RE.test(t) && ouverts){ Panneaux.fermerDernier(); return true; }
+    return false;
+  }
+
   // Commandes vocales courtes (valables en conversation et au clavier)
   function command(text){
     const c=cmdNorm(norm(text));
@@ -37,6 +49,7 @@
       addLine('ray',r); speak(r); return true;
     }
     if(/^oui efface tout$/.test(c) && Date.now()-viderDemande<30000){ viderDemande=0; memoireVider(); return true; }
+    if(commandePanneaux(c)) return true;     // « ferme ça », « ferme tout »
     if(STOP_RE.test(c)){ cutAll('Parole interrompue'); return true; }
     if(COUPURE_RE.test(c)){ coupureTotale(); return true; }
     if(/(arrete|coupe|desactive).{0,12}(ecoute|micro)/.test(c)){ coupureTotale(); return true; }
