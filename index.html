@@ -13,21 +13,37 @@
 <link rel="stylesheet" href="css/terminal.css">
 </head>
 <body>
-  <header>
-    <h1>R A Y L É</h1>
-    <p>Market &amp; Neural Core</p>
+  <main class="scene" id="scene">
+    <div class="titre"><b>R A Y L É</b><span>Market &amp; Neural Core</span></div>
     <div class="bridge off" id="bridgeStatus">TERMINAL · …</div>
-    <button type="button" class="btn-terminal" id="btnOuvrirTerminal">📈 OUVRIR LE TERMINAL</button>
-  </header>
+    <div class="reactor idle" id="reactor" title="Toucher : réveiller Raylé ou la couper"></div>
+    <div class="state" id="state">MICRO COUPÉ</div>
+    <div class="soustitre" id="soustitre" aria-live="polite"></div>
+  </main>
 
-  <div class="reactor idle" id="reactor" title="Toucher : réveiller Raylé ou la couper">
-  </div>
-  <div class="state" id="state">MICRO COUPÉ</div>
+  <nav class="barre" id="barre">
+    <button class="mic" id="btn"><span id="btnTxt">Activer Raylé</span><small id="btnSub">puis dites « Raylé » pour lui parler</small></button>
+    <button type="button" class="gros" id="btnOuvrirTerminal"><i>📈</i><span>Terminal</span></button>
+    <button type="button" class="gros" id="btnCouper"><i>⏹</i><span>Couper</span></button>
+    <button type="button" class="gros" id="gear"><i>⚙</i><span>Réglages</span></button>
+  </nav>
 
-  <section class="term">
-    <div class="term-head"><span>Terminal de discussion</span><span id="voiceName">voix : …</span><button type="button" class="gear" id="gear">⚙ Réglages</button></div>
-    <div class="cfg" id="cfg">
+  <div id="panneaux" aria-live="polite"></div>
+
+  <div class="cfg" id="cfg">
       <div class="cfg-top"><span>⚙ RÉGLAGES</span><button type="button" class="ghost" id="cfgClose">✕ Fermer</button></div>
+      <h3>Affichage</h3>
+      <label class="chk"><input type="checkbox" id="kSousTitres"> Sous-titres discrets (ce que Raylé dit et ce qu'elle entend, sous l'entité)</label>
+      <label for="kQualite">Qualité de l'entité</label>
+      <select id="kQualite">
+        <option value="auto">Automatique (s'allège toute seule si l'écran rame)</option>
+        <option value="0">Élevée (2800 points)</option>
+        <option value="1">Moyenne (1500 points)</option>
+        <option value="2">Légère (800 points)</option>
+        <option value="3">Très légère (canvas 2D)</option>
+      </select>
+      <div class="hint" id="infoEntite"></div>
+
       <h3>Connexion</h3>
       <label for="kUrl">Adresse du Worker</label>
       <input id="kUrl" type="url" placeholder="https://rayle.xxxxx.workers.dev" autocomplete="off" spellcheck="false">
@@ -63,19 +79,20 @@
       </div>
       <span class="msg" id="cfgMsg"></span>
       <div class="hint">Aucune clé d'IA ni de marché n'est stockée ici : elles sont rangées dans le Worker Cloudflare. Seuls l'adresse du Worker, le code d'accès et tes réglages restent dans ce navigateur. Ne partage le code avec personne.<br>Pour une vidéo YouTube : colle le lien dans le champ de texte, ou copie-le puis dis « Raylé, analyse la vidéo ».</div>
-    </div>
-    <div class="log" id="log"></div>
-    <div class="interim" id="interim"></div>
-    <form id="form" autocomplete="off">
-      <span>&gt;</span>
-      <input id="txt" type="text" placeholder="…ou écrivez ici (lien YouTube, ou 📎 pour une image / vidéo)">
-      <button type="button" class="clip" id="clip" title="Envoyer une image ou une vidéo (écrivez d'abord votre question si vous voulez)">📎</button>
-      <input type="file" id="fichier" accept="image/*,video/*" hidden>
-      <button type="submit">↵</button>
-    </form>
-  </section>
 
-  <button class="mic" id="btn"><span id="btnTxt">Activer Raylé</span><small id="btnSub">puis dites « Raylé » pour lui parler</small></button>
+      <h3>Écrire à Raylé</h3>
+      <form id="form" autocomplete="off">
+        <span>&gt;</span>
+        <input id="txt" type="text" placeholder="…ou écrivez ici (lien YouTube, ou 📎 pour une image / vidéo)">
+        <button type="button" class="clip" id="clip" title="Envoyer une image ou une vidéo (écrivez d'abord votre question si vous voulez)">📎</button>
+        <input type="file" id="fichier" accept="image/*,video/*" hidden>
+        <button type="submit">↵</button>
+      </form>
+
+      <h3>Journal technique <span class="voix" id="voiceName">voix : …</span></h3>
+      <div class="interim" id="interim"></div>
+      <div class="log" id="log"></div>
+    </div>
 
 <div id="vueTerminal" hidden>
   <div class="tbar">
@@ -149,6 +166,7 @@
 <script src="js/rayle/lecture.js"></script>
 <script src="js/rayle/reconnaissance.js"></script>
 <script src="js/rayle/reglages.js"></script>
+<script src="js/rayle/affichage.js"></script>
 <script src="js/rayle/demarrage.js"></script>
 </body>
 </html>

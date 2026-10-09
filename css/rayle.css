@@ -1,66 +1,60 @@
-  :root{
-    --bg:#030103; --pink:#ff007f; --pink2:#ff3399; --light:#ffb3d9; --dim:#8a5a73;
+:root{
+    --bg:#030106; --pink:#ff007f; --pink2:#ff3399; --light:#ffb3d9; --dim:#8a6a95; --violet:#7a6bff; --cyan:#4de3ff;
     --mono:"Courier New",Courier,monospace;
   }
   *{box-sizing:border-box}
   html,body{height:100%;margin:0}
   body{
     background:
-      radial-gradient(ellipse 85% 60% at 50% 22%, rgba(255,0,127,.30), rgba(255,0,127,.07) 45%, transparent 72%),
+      radial-gradient(ellipse 70% 55% at 50% 38%, rgba(110,80,255,.20), rgba(255,0,127,.07) 50%, transparent 75%),
       var(--bg);
     color:var(--light); font-family:var(--mono);
-    height:100vh; height:100dvh;
-    display:flex; flex-direction:column; align-items:center;
-    padding:max(14px,env(safe-area-inset-top)) max(16px,env(safe-area-inset-right)) max(14px,env(safe-area-inset-bottom)) max(16px,env(safe-area-inset-left));
-    overflow:hidden;
+    height:100vh; height:100dvh; overflow:hidden;
+    display:flex; flex-direction:column;
+    padding:max(10px,env(safe-area-inset-top)) max(14px,env(safe-area-inset-right)) max(12px,env(safe-area-inset-bottom)) max(14px,env(safe-area-inset-left));
   }
   button,.reactor{touch-action:manipulation;-webkit-tap-highlight-color:transparent}
+  body.vue-terminal{overflow:hidden}
 
-  /* ───── En-tête ───── */
-  header{text-align:center;margin-top:6px}
-  header h1{
-    margin:0; font-size:clamp(28px,6.5vw,46px); font-weight:700;
-    letter-spacing:.5em; text-indent:.5em; color:#fff;
-    text-shadow:0 0 10px var(--pink),0 0 28px var(--pink),0 0 60px rgba(255,0,127,.6);
-  }
-  header p{margin:6px 0 0;font-size:clamp(10px,2.4vw,13px);letter-spacing:.38em;text-indent:.38em;color:var(--pink2);text-transform:uppercase}
-  .bridge{margin-top:10px;font-size:11px;letter-spacing:.12em;padding:4px 10px;border:1px solid rgba(255,0,127,.3);display:inline-block}
+  /* ───── Scène : l'entité au centre ───── */
+  .scene{flex:1 1 0;min-height:0;position:relative;display:flex;flex-direction:column;align-items:center;justify-content:center}
+  .titre{position:absolute;top:0;left:0;display:flex;flex-direction:column;gap:3px}
+  .titre b{font-size:clamp(15px,3.6vw,20px);letter-spacing:.5em;color:#fff;text-shadow:0 0 10px var(--pink),0 0 26px rgba(255,0,127,.55)}
+  .titre span{font-size:9.5px;letter-spacing:.3em;color:var(--pink2);text-transform:uppercase}
+  .bridge{position:absolute;top:0;right:0;font-size:10px;letter-spacing:.1em;padding:3px 9px;border:1px solid rgba(255,0,127,.3);white-space:nowrap}
   .bridge.on{color:var(--pink2);border-color:var(--pink2);box-shadow:0 0 10px rgba(255,0,127,.25)}
   .bridge.off{color:var(--dim)}
-
-  /* ───── Réacteur holographique ───── */
-  .reactor{position:relative;width:min(64vw,360px,34vh);aspect-ratio:1;margin:16px auto 6px;flex:none;cursor:pointer;-webkit-tap-highlight-color:transparent}
+  .reactor{position:relative;width:min(86vw,62vh,520px);aspect-ratio:1;flex:none;cursor:pointer}
   .entite-canvas{display:block;margin:0 auto;pointer-events:none}
-  .state{font-size:11px;letter-spacing:.35em;text-indent:.35em;color:var(--pink2);text-align:center;min-height:16px;margin-bottom:10px}
+  .state{font-size:11px;letter-spacing:.35em;text-indent:.35em;color:var(--pink2);text-align:center;min-height:16px;margin-top:2px;text-shadow:0 0 8px rgba(255,0,127,.5)}
+  .soustitre{min-height:2.6em;max-width:min(760px,92vw);margin-top:8px;text-align:center;font-size:14px;line-height:1.45;color:var(--light);opacity:.0;transition:opacity .4s;text-shadow:0 0 8px #000}
+  .soustitre.vu{opacity:.85}
+  .soustitre.ecoute{color:var(--cyan);font-style:italic}
+  body:not(.avec-soustitres) .soustitre{display:none}
 
-  /* ───── Terminal de discussion ───── */
-  .term{
-    width:min(900px,100%); flex:1 1 0; min-height:150px;
-    display:flex; flex-direction:column;
-    border:1px solid var(--pink); background:rgba(12,0,7,.62);
-    box-shadow:0 0 18px rgba(255,0,127,.25), inset 0 0 22px rgba(255,0,127,.06);
-    backdrop-filter:blur(6px);
-  }
-  .term-head{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:6px 12px;font-size:10.5px;letter-spacing:.2em;
-    color:var(--pink2);border-bottom:1px solid rgba(255,0,127,.35);text-transform:uppercase}
-  .log{flex:1;overflow-y:auto;padding:10px 14px;font-size:14px;line-height:1.55;scrollbar-width:thin;scrollbar-color:var(--pink) transparent}
-  .line{margin:0 0 7px;white-space:pre-wrap;word-wrap:break-word}
-  .line.sys{color:var(--dim);font-size:12.5px}
-  .line.user{color:var(--light)}
-  .line.ray{color:var(--pink);text-shadow:0 0 8px rgba(255,0,127,.35)}
-  .interim{padding:0 14px;min-height:20px;font-size:13px;color:var(--dim);font-style:italic;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-  form{display:flex;align-items:center;gap:8px;border-top:1px solid rgba(255,0,127,.35);padding:6px 12px}
-  form span{color:var(--pink)}
-  form input{flex:1;min-width:0;background:transparent;border:none;outline:none;color:var(--light);font:16px var(--mono);padding:8px 0}
-  form input::placeholder{color:var(--dim)}
-  form button{background:transparent;border:1px solid rgba(255,0,127,.4);color:var(--pink);font:13px var(--mono);padding:4px 10px;cursor:pointer}
-  form button.clip{font-size:16px;padding:2px 9px}
-  .term.depot{box-shadow:0 0 0 2px var(--pink2),0 0 30px rgba(255,0,127,.6)}
+  /* ───── Barre de gros boutons ───── */
+  .barre{flex:none;display:grid;grid-template-columns:2.6fr 1fr 1fr 1fr;gap:10px;width:min(980px,100%);margin:0 auto;padding-top:8px;position:relative;z-index:5}
+  .barre button{font-family:var(--mono);cursor:pointer;color:var(--pink);background:rgba(255,0,127,.07);border:2px solid var(--pink);
+    box-shadow:0 0 16px rgba(255,0,127,.28);transition:background .2s,box-shadow .2s;min-height:68px;
+    clip-path:polygon(12px 0,100% 0,100% calc(100% - 12px),calc(100% - 12px) 100%,0 100%,0 12px)}
+  .barre button:hover{background:rgba(255,0,127,.18)}
+  .barre button:active{transform:scale(.98)}
+  .barre .gros{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;font-size:11px;letter-spacing:.14em;text-transform:uppercase}
+  .barre .gros i{font-style:normal;font-size:22px;line-height:1}
+  .mic{padding:12px 10px;font:700 clamp(12px,3vw,17px) var(--mono);letter-spacing:.16em;text-transform:uppercase}
+  .mic.veille{background:rgba(122,107,255,.2);color:var(--light);box-shadow:0 0 22px rgba(122,107,255,.5)}
+  .mic.on{background:var(--pink);color:#1a000d;box-shadow:0 0 34px rgba(255,0,127,.85)}
+  .barre .mic:disabled{opacity:.4;cursor:not-allowed}
+  .mic small{display:block;margin-top:5px;font-size:.62em;letter-spacing:.1em;opacity:.85;text-transform:none;font-weight:400}
 
-  .gear{background:transparent;border:1px solid rgba(255,0,127,.45);color:var(--pink);font:10.5px var(--mono);letter-spacing:.15em;padding:2px 9px;cursor:pointer;text-transform:uppercase}
-  .gear:hover{background:rgba(255,0,127,.15)}
-  .cfg{display:none;padding:10px 14px 12px;border-bottom:1px solid rgba(255,0,127,.35);background:rgba(255,0,127,.04);font-size:12.5px;max-height:44vh;overflow-y:auto}
+  /* ───── Réglages : plein écran ───── */
+  .cfg{display:none;position:fixed;inset:0;z-index:80;overflow-y:auto;padding:0 max(16px,env(safe-area-inset-right)) max(24px,env(safe-area-inset-bottom)) max(16px,env(safe-area-inset-left));
+    background:rgba(8,2,12,.97);font-size:13.5px;-webkit-overflow-scrolling:touch}
   .cfg.open{display:block}
+  .cfg > *{max-width:820px;margin-left:auto;margin-right:auto}
+  .cfg-top{display:flex;position:sticky;top:0;z-index:1;justify-content:space-between;align-items:center;padding:max(12px,env(safe-area-inset-top)) 0 10px;background:#08020c;border-bottom:1px solid rgba(255,0,127,.35);margin-bottom:10px;color:var(--pink);letter-spacing:.2em}
+  .cfg-top button{min-height:42px}
+
   .cfg h3{margin:14px 0 2px;font-size:11px;letter-spacing:.2em;color:var(--pink);text-transform:uppercase;border-top:1px solid rgba(255,0,127,.25);padding-top:10px}
   .cfg h3:first-child{margin-top:0;border-top:none;padding-top:0}
   .cfg label{display:block;margin:8px 0 3px;color:var(--pink2);letter-spacing:.08em}
@@ -76,52 +70,31 @@
   .cfg .msg{color:var(--light);font-size:12px;display:block;margin-top:8px;white-space:pre-wrap}
   .cfg .hint{color:var(--dim);font-size:11.5px;line-height:1.55;margin-top:8px}
 
-  /* ───── Bouton d'écoute ───── */
-  .mic{
-    margin-top:14px; width:min(900px,100%); flex:none; padding:18px 12px;
-    font:700 clamp(12px,3.2vw,17px) var(--mono); letter-spacing:.18em; text-transform:uppercase;
-    border:2px solid var(--pink); background:rgba(255,0,127,.08); color:var(--pink);
-    cursor:pointer; box-shadow:0 0 18px rgba(255,0,127,.3); transition:.2s;
-  }
-  .mic:hover{background:rgba(255,0,127,.18)}
-  .mic.veille{background:rgba(255,0,127,.16);color:var(--light);box-shadow:0 0 22px rgba(255,0,127,.45)}
-  .mic.on{background:var(--pink);color:#1a000d;box-shadow:0 0 34px rgba(255,0,127,.85)}
-  .mic:disabled{opacity:.4;cursor:not-allowed}
-  .mic small{display:block;margin-top:5px;font-size:.68em;letter-spacing:.12em;opacity:.85;text-transform:none}
-  .cfg-top{display:none}
+  .cfg h3 .voix{float:right;font-weight:400;letter-spacing:.05em;color:var(--dim);text-transform:none}
+  .cfg form{display:flex;align-items:center;gap:8px;border:1px solid rgba(255,0,127,.35);padding:4px 8px;margin-top:6px}
+  .cfg form span{color:var(--pink)}
+  .cfg form input[type=text]{flex:1;min-width:0;width:auto;background:transparent;border:none;outline:none;color:var(--light);font:16px var(--mono);padding:8px 0}
+  .cfg form button{background:transparent;border:1px solid rgba(255,0,127,.4);color:var(--pink);font:13px var(--mono);padding:4px 10px;cursor:pointer;min-width:44px;min-height:40px}
+  .cfg .interim{padding:4px 0;min-height:20px;font-size:12.5px;color:var(--dim);font-style:italic;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .cfg .log{max-height:46vh;overflow-y:auto;font-size:12.5px;line-height:1.5;border:1px solid rgba(255,0,127,.2);padding:8px 10px;background:rgba(0,0,0,.35);scrollbar-width:thin;scrollbar-color:var(--pink) transparent}
+  .line{margin:0 0 6px;white-space:pre-wrap;word-wrap:break-word}
+  .line.sys{color:var(--dim)}
+  .line.user{color:var(--light)}
+  .line.ray{color:var(--pink)}
+  body.depot{box-shadow:inset 0 0 0 3px var(--pink2),inset 0 0 40px rgba(255,0,127,.5)}
 
   /* ───── Téléphone et tablette ───── */
-  @media (max-width:820px), (pointer:coarse){
-    body{padding-top:max(8px,env(safe-area-inset-top));padding-bottom:max(10px,env(safe-area-inset-bottom))}
-    header{margin-top:0;width:100%}
-    header h1{font-size:clamp(22px,6vw,34px);letter-spacing:.35em;text-indent:.35em}
-    header p{display:none}
-    .term{backdrop-filter:none;-webkit-backdrop-filter:none;background:rgba(12,0,7,.85)}
-    .bridge{display:block;width:fit-content;max-width:100%;margin:6px auto 0;font-size:10px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-    .reactor{width:min(30vw,130px,18vh);margin:10px auto 4px}
-    .state{margin-bottom:6px;font-size:10px}
-    .term-head{padding:6px 10px}
-    .term-head > span:first-child{display:none}
-    .log{font-size:15px;padding:8px 10px;-webkit-overflow-scrolling:touch}
-    form{padding:4px 6px 4px 10px;gap:6px}
-    form button{min-width:44px;min-height:42px}
-    .mic{margin-top:10px;padding:14px 10px;font-size:15px;letter-spacing:.12em}
-    .gear{padding:6px 12px}
-    .cfg.open{position:fixed;inset:0;z-index:50;max-height:none;padding:0 16px max(20px,env(safe-area-inset-bottom));background:#0c0007;font-size:14px}
-    .cfg-top{display:flex;position:sticky;top:0;z-index:1;justify-content:space-between;align-items:center;padding:max(12px,env(safe-area-inset-top)) 0 10px;background:#0c0007;border-bottom:1px solid rgba(255,0,127,.35);margin-bottom:10px;color:var(--pink);letter-spacing:.2em}
-    .cfg .row button{min-height:42px}
+  @media (max-width:640px){
+    .barre{grid-template-columns:repeat(3,1fr);gap:8px}
+    .barre .mic{grid-column:1 / -1;min-height:64px}
+    .barre .gros{min-height:60px}
+    .reactor{width:min(92vw,50vh)}
+    .titre span{display:none}
+    .bridge{font-size:9px;max-width:46vw;overflow:hidden;text-overflow:ellipsis}
   }
-  /* Écran peu haut (téléphone à l'horizontale, clavier ouvert) : on cache le décor */
   @media (max-height:520px){
-    header p,.reactor{display:none}
-    header h1{font-size:20px}
-    .state{margin:4px 0}
-    .mic{padding:10px;margin-top:8px}
-    .mic small{display:none}
+    .titre,.bridge{display:none}
+    .reactor{width:min(46vh,70vw)}
+    .barre button{min-height:48px}.mic small{display:none}
   }
-
-  /* ───── Bouton d'ouverture du terminal (vue de la même page) ───── */
-  .btn-terminal{display:block;margin:10px auto 0;font:700 clamp(11px,3vw,14px) var(--mono);letter-spacing:.16em;padding:9px 18px;
-    background:rgba(255,0,127,.14);color:var(--light);border:2px solid var(--pink);cursor:pointer;box-shadow:0 0 16px rgba(255,0,127,.4)}
-  .btn-terminal:hover{background:var(--pink);color:#1a000d}
-  body.vue-terminal{overflow:hidden}
+  @media (prefers-reduced-motion:reduce){ .soustitre{transition:none} }

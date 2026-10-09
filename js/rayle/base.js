@@ -37,7 +37,7 @@
 
   /* ═════════════ ÉTAT & JOURNAL ═════════════ */
   const STATES={idle:'MICRO COUPÉ',veille:'VEILLE · DITES « RAYLÉ »',listening:'CONVERSATION',thinking:'ANALYSE',speaking:'TRANSMISSION'};
-  function setState(s){ reactor.className='reactor '+s; miniReactor.className='reactor '+s; try{ Entite.etat(s); }catch(e){} let t=STATES[s]||''; try{ if(modeToucher()){ if(s==='idle') t='PRÊTE'; else if(s==='listening') t="J'ÉCOUTE"; } majBouton(); }catch(e){} stateEl.textContent=t; miniEtat.textContent=t; }
+  function setState(s){ reactor.className='reactor '+s; miniReactor.className='reactor '+s; try{ Entite.etat(s); }catch(e){} let t=STATES[s]||''; try{ if(modeToucher()){ if(s==='idle') t='PRÊTE'; else if(s==='listening') t="J'ÉCOUTE"; } majBouton(); }catch(e){} try{ if(!workerReady()) t="VERROUILLÉ · CODE D'ACCÈS REQUIS (⚙)"; }catch(e){} stateEl.textContent=t; miniEtat.textContent=t; }
   function stamp(){ return new Date().toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit',second:'2-digit'}); }
   function addLine(kind,text){
     const d=document.createElement('div'); d.className='line '+kind;
@@ -50,6 +50,7 @@
   // Dans la vue terminal, le journal est caché : la dernière phrase s'affiche à côté de la petite Raylé
   let coinTimer=null;
   function montrerDansLeCoin(kind,text){
+    try{ sousTitre(kind,text); }catch(e){}
     miniDit.textContent=(kind==='user'?'VOUS › ':'')+String(text).slice(0,220);
     clearTimeout(coinTimer); coinTimer=setTimeout(()=>{ miniDit.textContent=''; },15000);
   }

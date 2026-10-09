@@ -159,7 +159,7 @@
     if(items.length && /^(image|video)\//.test(items[0].type)){ e.preventDefault(); const q=txt.value; txt.value=''; envoyerFichier(items[0],q); }
   });
   // Glisser-déposer une image ou une vidéo sur le terminal
-  const termEl=document.querySelector('.term');
+  const termEl=document.body;
   if(termEl){
     termEl.addEventListener('dragover',e=>{ e.preventDefault(); termEl.classList.add('depot'); });
     termEl.addEventListener('dragleave',()=>termEl.classList.remove('depot'));
