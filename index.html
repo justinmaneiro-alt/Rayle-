@@ -55,6 +55,17 @@
         <button type="button" class="ghost" id="cfgGen">Générer un code</button>
       </div>
 
+      <h3>Appareil et sécurité</h3>
+      <label for="kAppNom">Nom de cet appareil (PC, tablette, téléphone…)</label>
+      <input id="kAppNom" type="text" list="appNoms" placeholder="ex. PC" autocomplete="off" spellcheck="false" maxlength="30">
+      <datalist id="appNoms"><option value="PC"><option value="Tablette"><option value="Téléphone"></datalist>
+      <div class="row">
+        <button type="button" id="cfgAppairer">Appairer cet appareil</button>
+        <button type="button" class="ghost" id="cfgOublier">Oublier cet appareil</button>
+        <button type="button" class="ghost" id="cfgAppareils">Voir les appareils</button>
+      </div>
+      <div class="hint" id="appInfo"></div>
+
       <h3>Voix et écoute</h3>
       <label for="kVit">Vitesse de la voix : <span id="kVitVal">…</span></label>
       <input id="kVit" type="range" min="-40" max="20" step="2">
@@ -172,6 +183,7 @@
 <script src="js/rayle/reglages.js"></script>
 <script src="js/rayle/affichage.js"></script>
 <script src="js/rayle/evenements.js"></script>
+<script src="js/rayle/securite.js"></script>
 <script src="js/rayle/demarrage.js"></script>
 </body>
 </html>

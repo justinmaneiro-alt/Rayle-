@@ -15,7 +15,7 @@
     get:k=>{ try{ return (localStorage.getItem(k)||'').trim(); }catch(e){ return ''; } },
     set:(k,v)=>{ try{ if(v!=='' && v!=null) localStorage.setItem(k,v); else localStorage.removeItem(k); }catch(e){} }
   };
-  const KEY_WURL='rayle_worker_url', KEY_WTOK='rayle_worker_token';
+  const KEY_WURL='rayle_worker_url', KEY_WTOK='rayle_worker_token', KEY_WDEV='rayle_worker_appareil', KEY_WDEVNOM='rayle_worker_appareil_nom';
   const KEY_VIT='rayle_vitesse', KEY_REVEIL='rayle_reveil', KEY_BARGE='rayle_interruption', KEY_NOMS='rayle_noms', KEY_MODE='rayle_mode_ecoute', KEY_SUITE='rayle_suite';
   const OLD_KEYS=['rayle_key_groq','rayle_key_openrouter','rayle_key_twelvedata'];   // anciennes clés des versions précédentes
 

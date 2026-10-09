@@ -23,11 +23,11 @@
   // ce que Raylé entend, en direct (le journal technique le reçoit, on le recopie)
   new MutationObserver(()=>{
     const t=interimEl.textContent||'';
-    if(t && !t.startsWith('zz')) afficherSousTitre(t.replace(/^…\s*/,'').slice(0,200),true,6000);
+    if(t && !t.startsWith('zz') && !document.body.classList.contains('secu-capture')) afficherSousTitre(t.replace(/^…\s*/,'').slice(0,200),true,6000);
   }).observe(interimEl,{childList:true,characterData:true,subtree:true});
 
   /* ───── Verrouillé : pas d'adresse ni de code pour le Worker ───── */
-  function majVerrou(){ try{ Entite.verrou(!workerReady()); }catch(e){} }
+  function majVerrou(){ try{ Entite.verrou(!workerReady() || (window.SEC && Date.now()<window.SEC.flashJusqua)); }catch(e){} }
   majVerrou(); setInterval(majVerrou,2000);
 
   /* ───── Réglages d'affichage ───── */

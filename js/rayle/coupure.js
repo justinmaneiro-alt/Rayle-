@@ -110,6 +110,7 @@
   }
 
   function onUser(text,voix){
+    if(typeof secCapturer==='function' && secCapturer(text,voix)) return;   // saisie de la phrase secrète : consommée ici
     text=fixName(text).trim(); if(!text) return;
     const n=norm(text), c=cmdNorm(n);
 

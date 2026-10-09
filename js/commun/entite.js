@@ -6,7 +6,8 @@
    API (window.Entite) :
      monter(conteneur)   place le canvas dans l'élément (le déplace s'il est déjà monté ailleurs)
      etat(nom)           'idle' | 'veille' | 'listening' | 'thinking' | 'speaking' (états de setState)
-     verrou(bool)        verrouillé : Worker non configuré ou code refusé
+     verrou(bool)        verrouillé : Worker non configuré, code refusé, ou accès refusé (flash gris)
+     deverrouille(bool)  accès déverrouillé (niveau 2) : teinte verte et or quand l'entité est au repos
      alerte(ms)          état alerte temporaire (rouge-orangé, agité)
      amplitude(fn|null)  fn() → 0..1 : niveau audio réel, ou null si rien à mesurer (amplitude simulée selon l'état)
      qualite(q)          'auto' | 0 | 1 | 2 | 3 (3 = canvas 2D) ; mémorisé
@@ -30,13 +31,14 @@ window.Entite=(function(){
     thinking: {c:[.78,.42,1.0],d:[1.0,.45,.80], respire:.6, agite:.55,tour:1.35,rayon:0.66,lum:.95,vitesse:2.4,gain:0},
     speaking: {c:[1.0,.25,.65],d:[.75,.35,1.0], respire:.8, agite:.30,tour:.22,rayon:0.69,lum:1.15,vitesse:1.5,gain:1.8},
     alerte:   {c:[1.0,.40,.08],d:[1.0,.15,.20], respire:2.4,agite:.95,tour:.55,rayon:0.71,lum:1.30,vitesse:3.2,gain:.8},
+    deverrouille:{c:[.25,.95,.55],d:[.95,.85,.30],respire:1.1,agite:.14,tour:.12,rayon:0.70,lum:.85,vitesse:.8,gain:0},
     verrouille:{c:[.50,.50,.58],d:[.35,.35,.45],respire:.4, agite:0,  tour:.04,rayon:0.53,lum:.32,vitesse:.4,gain:0}
   };
   const CLES=['respire','agite','tour','rayon','lum','vitesse','gain'];
 
   let hote=null, canvas=null, gl=null, ctx2=null, prog=null, tampon=null, loc={};
   let niveau=0, points=[], moteur='gl', cote=0, dpr=1;
-  let etatNom='idle', verrouille=false, alerteJusqua=0, fournisseur=null;
+  let etatNom='idle', verrouille=false, deverrouille=false, alerteJusqua=0, fournisseur=null;
   let courant=JSON.parse(JSON.stringify(ETATS.idle)), amp=0, ampBrute=0;
   let tPrec=0, tDebut=0, angle=0, rafId=0, dernierDessin=0, ema=16, mesures=0, derniereEval=0, fpsAff=60, ro=null;
 
@@ -149,6 +151,7 @@ void main(){
   function cible(){
     if(verrouille) return ETATS.verrouille;
     if(performance.now()<alerteJusqua) return ETATS.alerte;
+    if(deverrouille && (etatNom==='idle'||etatNom==='veille')) return ETATS.deverrouille;   // accès déverrouillé (10 min) : teinte verte et or au repos
     return ETATS[etatNom]||ETATS.idle;
   }
   function ampSimulee(t){
@@ -254,6 +257,7 @@ void main(){
     monter,
     etat(nom){ etatNom=ETATS[nom]?nom:'idle'; },
     verrou(b){ verrouille=!!b; },
+    deverrouille(b){ deverrouille=!!b; },
     fixer(){ const b=cible(); CLES.forEach(c=>{ courant[c]=b[c]; }); courant.c=b.c.slice(); courant.d=b.d.slice(); },   // saute directement à l'état voulu (tests)
     alerte(ms){ alerteJusqua=performance.now()+(ms||6000); },
     amplitude(fn){ fournisseur=typeof fn==='function'?fn:null; },

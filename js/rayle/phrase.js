@@ -7,6 +7,9 @@
     if(lastImage && Date.now()-lastImage.t<30*60000 && IMG_SUIVI_RE.test(norm(text))) return respondMedia({image:lastImage.dataUrl,nom:lastImage.nom,q:text,suivi:true});
     const my=epoch;
     // Commandes du terminal (« ouvre le terminal », « passe sur le Bitcoin »…) : exécutées tout de suite, sans IA
+    const cmdS=await commandeSecurite(text);    // « déverrouille », « verrouille », « journal de sécurité »…
+    if(my!==epoch) return;
+    if(cmdS){ addLine('ray',cmdS); await speak(cmdS); return; }
     const cmdT=await commandeTerminal(text);
     if(my!==epoch) return;
     if(cmdT){ addLine('ray',cmdT); await speak(cmdT); return; }

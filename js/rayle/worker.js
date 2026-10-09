@@ -1,6 +1,6 @@
 "use strict";
   /* ═════════════ CONNEXION AU WORKER ═════════════ */
-  const W={ url:()=>store.get(KEY_WURL).replace(/\/+$/,''), token:()=>store.get(KEY_WTOK) };
+  const W={ url:()=>store.get(KEY_WURL).replace(/\/+$/,''), token:()=>store.get(KEY_WDEV)||store.get(KEY_WTOK) };   // jeton d'appareil (appairé) si présent, sinon code d'accès
   const workerReady=()=>!!(W.url() && W.token());
   // Le terminal (même page) réutilise ces réglages, par le bus
   RayleBus.fournir('worker',()=>({url:W.url(),token:W.token()}));
@@ -15,10 +15,16 @@
     try{ return await fetch(url,Object.assign({},opts,{signal:c.signal})); }
     finally{ clearTimeout(tm); sig.removeEventListener('abort',onCut); }
   }
-  function wfetch(path,opts,ms){
+  async function wfetch(path,opts,ms){
     const o=Object.assign({},opts||{});
-    o.headers=Object.assign({},o.headers||{},{'X-Rayle-Token':W.token()});
-    return fetchT(W.url()+path,o,ms||15000);
+    const jeton=W.token();
+    o.headers=Object.assign({},o.headers||{},{'X-Rayle-Token':jeton});
+    const res=await fetchT(W.url()+path,o,ms||15000);
+    if(res.status===401 && jeton && jeton===store.get(KEY_WDEV)){   // appareil révoqué : on l'oublie, le code d'accès reprend la main
+      store.set(KEY_WDEV,''); store.set(KEY_WDEVNOM,'');
+      try{ addLine('sys',"Cet appareil n'est plus appairé (révoqué). Appairez-le de nouveau dans ⚙ Réglages."); }catch(e){}
+    }
+    return res;
   }
   async function workerError(res){
     let d='';

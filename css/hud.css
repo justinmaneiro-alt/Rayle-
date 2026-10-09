@@ -109,3 +109,33 @@ i.hausse,i.baisse{font-style:normal}
 .pn-carte .leaflet-bar a{background:#150b22;color:#4de3ff;border-color:rgba(255,0,127,.4)}
 .pn-carte .leaflet-tooltip{background:#150b22;color:#fff;border:1px solid #ff3399;box-shadow:none}
 .pn-carte .leaflet-tooltip-top:before{border-top-color:#ff3399}
+
+/* ───── Sécurité : pastille d'accès, pavé PIN, phrase secrète ───── */
+#badgeAcces{position:fixed;top:max(8px,env(safe-area-inset-top));left:50%;transform:translateX(-50%);z-index:60;font:700 11px "Courier New",Courier,monospace;letter-spacing:.14em;
+  text-transform:uppercase;padding:5px 12px;min-height:30px;cursor:pointer;touch-action:manipulation;background:rgba(10,4,20,.82);border:1px solid rgba(169,149,184,.6);color:var(--hud-doux)}
+#badgeAcces[hidden]{display:none}
+#badgeAcces.ouvert{color:#17d98a;border-color:#17d98a;box-shadow:0 0 12px rgba(23,217,138,.45)}
+#badgeAcces:hover{color:#fff}
+.sec-boite{display:flex;flex-direction:column;align-items:center;gap:10px;padding:4px 0}
+.sec-titre{font:700 13px "Courier New",Courier,monospace;letter-spacing:.12em;text-transform:uppercase;color:#fff;text-align:center}
+.sec-aide{color:var(--hud-doux);font-size:12px;text-align:center}
+.sec-ligne{display:flex;gap:8px;width:100%}
+.sec-champ{flex:1;min-width:0;background:rgba(0,0,0,.45);border:1px solid rgba(77,227,255,.5);color:#fff;padding:9px 10px;font-size:16px;font-family:inherit}
+.sec-pts{font:700 26px "Courier New",Courier,monospace;letter-spacing:.35em;text-indent:.35em;color:var(--hud-cyan);min-height:34px;text-shadow:0 0 10px rgba(77,227,255,.6)}
+.sec-grille{display:grid;grid-template-columns:repeat(3,64px);gap:8px}
+.sec-touche{height:52px;font:700 20px "Courier New",Courier,monospace;color:var(--hud-cyan);background:rgba(77,227,255,.07);border:1px solid rgba(77,227,255,.45);cursor:pointer;touch-action:manipulation;
+  animation:secApparait .35s ease both}
+.sec-touche:nth-child(2){animation-delay:.03s}.sec-touche:nth-child(3){animation-delay:.06s}.sec-touche:nth-child(4){animation-delay:.09s}.sec-touche:nth-child(5){animation-delay:.12s}
+.sec-touche:nth-child(6){animation-delay:.15s}.sec-touche:nth-child(7){animation-delay:.18s}.sec-touche:nth-child(8){animation-delay:.21s}.sec-touche:nth-child(9){animation-delay:.24s}
+.sec-touche:nth-child(10){animation-delay:.27s}.sec-touche:nth-child(11){animation-delay:.30s}.sec-touche:nth-child(12){animation-delay:.33s}
+.sec-touche:hover,.sec-touche:active{background:rgba(77,227,255,.28);color:#fff}
+.sec-touche.valide{color:#17d98a;border-color:#17d98a}
+.sec-msg{min-height:18px;font-size:12px;text-align:center;color:var(--hud-doux)}
+.sec-msg.bon,.pn-corps b.bon{color:#17d98a}
+.sec-msg.mauvais,.pn-corps b.mauvais{color:#ff3b5e}
+@keyframes secApparait{from{opacity:0;transform:scale(.7)}to{opacity:1;transform:none}}
+body.secu-capture #interim{visibility:hidden}
+@media (prefers-reduced-motion:reduce){.sec-touche{animation:none}}
+.pn[data-type="securite"]{max-height:min(82vh,580px)}
+.sec-touche{height:44px;font-size:18px}
+.sec-grille{gap:6px}
