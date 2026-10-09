@@ -129,3 +129,24 @@
     #vueTerminal .tools{margin-left:0;width:100%;justify-content:space-between}
     #vueTerminal .chart{height:520px} #vueTerminal .chart .tvbox{height:480px;min-height:480px}
   }
+
+  /* ── fenêtres HUD du terminal (cadre commun : css/hud.css) ── */
+  #vueTerminal:not([hidden]){animation:vue-terminal-in .45s ease both}
+  @keyframes vue-terminal-in{from{opacity:0}to{opacity:1}}
+  #vueTerminal .panel.hud-cadre{
+    background:
+      repeating-linear-gradient(0deg,rgba(255,255,255,.022) 0 1px,transparent 1px 3px),
+      linear-gradient(160deg,rgba(40,14,60,.5),rgba(10,6,20,.86) 55%);
+    border-color:var(--hud-bord);backdrop-filter:none;
+    box-shadow:0 0 16px rgba(255,0,127,.18),inset 0 0 22px rgba(122,107,255,.06)}
+  #vueTerminal .panel.hud-cadre::before{top:0;left:0}
+  #vueTerminal .panel.hud-cadre::after{bottom:0;right:0}
+  #vueTerminal .panel>h2{position:relative;padding-right:46px}
+  #vueTerminal .panel>h2 .tp-x{position:absolute;right:6px;top:50%;transform:translateY(-50%);width:30px;height:30px;display:grid;place-items:center;
+    background:transparent;border:1px solid rgba(255,0,127,.4);color:var(--neon2);font:14px var(--mono);cursor:pointer;touch-action:manipulation}
+  #vueTerminal .panel>h2 .tp-x:hover{background:rgba(255,0,127,.2);color:#fff}
+  #vueTerminal .tdock{display:flex;gap:6px;flex-wrap:wrap}
+  #vueTerminal .tdock:empty{display:none}
+  #vueTerminal .tdock button{font:700 10.5px var(--mono);letter-spacing:.06em;text-transform:uppercase;color:var(--hud-cyan);background:rgba(77,227,255,.06);
+    border:1px dashed rgba(77,227,255,.55);padding:6px 10px;cursor:pointer;touch-action:manipulation}
+  #vueTerminal .tdock button:hover{background:rgba(77,227,255,.2);color:#fff}

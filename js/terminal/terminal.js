@@ -420,23 +420,56 @@
     calendrier:{sel:'.cal',nom:'le calendrier'}
   };
   const panneauEl=n=>document.querySelector('#vueTerminal '+PANNEAUX[n].sel);
+  const estFerme=c=>c.contains('ferme')||c.contains('replie')||c.contains('hud-out');
   function majPanneauxBridge(){
-    writeBridge({panneaux_fermes:Object.keys(PANNEAUX).filter(n=>{ const c=panneauEl(n).classList; return c.contains('ferme')||c.contains('replie'); }).map(n=>PANNEAUX[n].nom)});
+    writeBridge({panneaux_fermes:Object.keys(PANNEAUX).filter(n=>estFerme(panneauEl(n).classList)).map(n=>PANNEAUX[n].nom)});
+  }
+  // Cadre holographique (css/hud.css) et apparition animée : les fenêtres s'ouvrent l'une après l'autre
+  function animer(el,delai){
+    el.classList.remove('hud-in','hud-out'); void el.offsetWidth;
+    el.style.animationDelay=(delai||0)+'ms'; el.classList.add('hud-in');
+    const b=el.querySelector(':scope>.hud-balayage'); if(b){ b.style.animationDelay=((delai||0)+250)+'ms'; b.remove(); el.appendChild(b); }
+  }
+  function animerOuverture(){
+    Object.keys(PANNEAUX).forEach((n,i)=>{ const el=panneauEl(n); if(el && !el.classList.contains('ferme')) animer(el,i*110); });
+  }
+  function majDock(){
+    const d=$('tdock'); if(!d) return;
+    d.textContent='';
+    Object.keys(PANNEAUX).forEach(n=>{
+      if(!panneauEl(n).classList.contains('ferme')) return;
+      const b=document.createElement('button'); b.type='button'; b.textContent='＋ '+PANNEAUX[n].nom.replace(/^(le |la |les |l')/,'');
+      b.title='Rouvrir cette fenêtre'; b.addEventListener('click',()=>setPanneau(n,'ouvrir')); d.appendChild(b);
+    });
   }
   function setPanneau(n,action){
     const el=panneauEl(n); if(!el) return false;
-    const fermer = action==='basculer' ? !(el.classList.contains('ferme')||el.classList.contains('replie')) : action==='fermer';
-    el.classList.toggle('ferme',fermer);
-    if(!fermer) el.classList.remove('replie');
-    majPanneauxBridge();
+    const dejaFerme=estFerme(el.classList);
+    const fermer = action==='basculer' ? !dejaFerme : action==='fermer';
+    if(fermer){
+      if(!el.classList.contains('ferme') && !el.classList.contains('hud-out')){
+        el.classList.remove('hud-in'); el.style.animationDelay='0ms'; el.classList.add('hud-out');
+        setTimeout(()=>{ if(el.classList.contains('hud-out')){ el.classList.remove('hud-out'); el.classList.add('ferme'); majDock(); } },340);
+      }
+    }else{
+      el.classList.remove('ferme','replie','hud-out'); animer(el,0);
+    }
+    majPanneauxBridge(); majDock();
     return true;
   }
-  // un clic sur le titre d'un panneau le replie / le déplie (pour quand on ne peut pas parler)
   Object.keys(PANNEAUX).forEach(n=>{
-    const h=panneauEl(n).querySelector(':scope>h2'); if(!h) return;
+    const el=panneauEl(n); if(!el) return;
+    el.classList.add('hud-cadre');
+    const b=document.createElement('i'); b.className='hud-balayage'; el.appendChild(b);
+    const h=el.querySelector(':scope>h2'); if(!h) return;
+    // un clic sur le titre replie / déplie la fenêtre ; la croix la ferme (le dock en haut permet de la rouvrir)
     h.style.cursor='pointer'; h.title='Cliquer pour replier / déplier';
-    h.addEventListener('click',()=>{ panneauEl(n).classList.toggle('replie'); majPanneauxBridge(); });
+    h.addEventListener('click',()=>{ el.classList.toggle('replie'); majPanneauxBridge(); });
+    const x=document.createElement('button'); x.type='button'; x.className='tp-x'; x.textContent='✕'; x.title='Fermer cette fenêtre'; x.setAttribute('aria-label','Fermer cette fenêtre');
+    x.addEventListener('click',e=>{ e.stopPropagation(); setPanneau(n,'fermer'); });
+    h.appendChild(x);
   });
+  { const tools=document.querySelector('#vueTerminal .tbar .tools'); if(tools){ const d=document.createElement('div'); d.className='tdock'; d.id='tdock'; tools.parentNode.insertBefore(d,tools); } }
 
   // ── COMMANDES venant de Raylé (voix) : réponse {ok, message?} ──
   function commande(c){
@@ -471,6 +504,7 @@
     clearInterval(ctxTimer); ctxTimer=setInterval(loadContexte,120000);
     if(!initFait){ initFait=true; loadChart(); loadCal(); }
     startBook(); buildDash(); loadContexte();
+    animerOuverture(); majDock();
     writeBridge({ouvert:true});
   }
   function fermer(){
