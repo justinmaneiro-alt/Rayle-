@@ -6,6 +6,10 @@
         bridgeEl=$('bridgeStatus'), voiceEl=$('voiceName'),
         miniReactor=$('miniReactor'), miniEtat=$('miniEtat'), miniDit=$('miniDit');   // petite Raylé du terminal
 
+  // L'entité (sphère de particules) vit dans le réacteur ; dans la vue terminal, elle passe dans la petite Raylé
+  Entite.monter(reactor);
+  RayleBus.on('vue:changee',d=>Entite.monter(d&&d.vue==='terminal'?miniReactor:reactor));
+
   /* ═════════════ STOCKAGE LOCAL (adresse du Worker, code et réglages uniquement) ═════════════ */
   const store={
     get:k=>{ try{ return (localStorage.getItem(k)||'').trim(); }catch(e){ return ''; } },
@@ -33,7 +37,7 @@
 
   /* ═════════════ ÉTAT & JOURNAL ═════════════ */
   const STATES={idle:'MICRO COUPÉ',veille:'VEILLE · DITES « RAYLÉ »',listening:'CONVERSATION',thinking:'ANALYSE',speaking:'TRANSMISSION'};
-  function setState(s){ reactor.className='reactor '+s; miniReactor.className='reactor '+s; let t=STATES[s]||''; try{ if(modeToucher()){ if(s==='idle') t='PRÊTE'; else if(s==='listening') t="J'ÉCOUTE"; } majBouton(); }catch(e){} stateEl.textContent=t; miniEtat.textContent=t; }
+  function setState(s){ reactor.className='reactor '+s; miniReactor.className='reactor '+s; try{ Entite.etat(s); }catch(e){} let t=STATES[s]||''; try{ if(modeToucher()){ if(s==='idle') t='PRÊTE'; else if(s==='listening') t="J'ÉCOUTE"; } majBouton(); }catch(e){} stateEl.textContent=t; miniEtat.textContent=t; }
   function stamp(){ return new Date().toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit',second:'2-digit'}); }
   function addLine(kind,text){
     const d=document.createElement('div'); d.className='line '+kind;

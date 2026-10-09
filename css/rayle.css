@@ -29,33 +29,8 @@
   .bridge.off{color:var(--dim)}
 
   /* ───── Réacteur holographique ───── */
-  .reactor{position:relative;width:min(50vw,250px,26vh);aspect-ratio:1;margin:16px auto 6px;flex:none;cursor:pointer;-webkit-tap-highlight-color:transparent}
-  .ring{position:absolute;border-radius:50%;transition:opacity .4s}
-  .r1{inset:0;border:2px dashed rgba(255,0,127,.55);animation:spin 28s linear infinite}
-  .r2{inset:11%;border:3px solid transparent;border-top-color:var(--pink);border-bottom-color:var(--pink2);
-      animation:spin 9s linear infinite reverse;filter:drop-shadow(0 0 6px var(--pink))}
-  .r3{inset:22%;border:2px dotted rgba(255,179,217,.75);animation:spin 14s linear infinite}
-  .r4{inset:33%;border:3px solid transparent;border-left-color:var(--pink);border-right-color:var(--pink);
-      animation:spin 5s linear infinite reverse;filter:drop-shadow(0 0 5px var(--pink))}
-  .core{
-    position:absolute;inset:42%;border-radius:50%;
-    background:radial-gradient(circle at 40% 35%,#fff 0%,#ff7ab8 26%,var(--pink) 62%,#7a0040 100%);
-    box-shadow:0 0 28px 8px rgba(255,0,127,.7),0 0 80px 22px rgba(255,0,127,.35);
-    animation:pulse 2.6s ease-in-out infinite; transition:opacity .4s, filter .4s;
-  }
-  @keyframes spin{to{transform:rotate(360deg)}}
-  @keyframes pulse{0%,100%{transform:scale(1);opacity:.9}50%{transform:scale(1.18);opacity:1}}
-  @keyframes talk{0%,100%{transform:scale(1)}50%{transform:scale(1.38)}}
-  .reactor.idle .ring{opacity:.35}
-  .reactor.idle .core{opacity:.45;filter:saturate(.5)}
-  .reactor.veille .ring{opacity:.55}
-  .reactor.veille .core{opacity:.65;animation-duration:4.5s}
-  .reactor.listening .core{animation-duration:1.5s}
-  .reactor.thinking .r1{animation-duration:4s}
-  .reactor.thinking .r2{animation-duration:1.6s}
-  .reactor.thinking .r3{animation-duration:3s}
-  .reactor.thinking .r4{animation-duration:1s}
-  .reactor.speaking .core{animation:talk .45s ease-in-out infinite}
+  .reactor{position:relative;width:min(64vw,360px,34vh);aspect-ratio:1;margin:16px auto 6px;flex:none;cursor:pointer;-webkit-tap-highlight-color:transparent}
+  .entite-canvas{display:block;margin:0 auto;pointer-events:none}
   .state{font-size:11px;letter-spacing:.35em;text-indent:.35em;color:var(--pink2);text-align:center;min-height:16px;margin-bottom:10px}
 
   /* ───── Terminal de discussion ───── */
