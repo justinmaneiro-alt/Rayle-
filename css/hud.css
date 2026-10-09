@@ -150,3 +150,18 @@ body.secu-capture #interim{visibility:hidden}
 .rep-pts li::before{content:"";position:absolute;left:0;top:.62em;width:7px;height:7px;background:var(--hud-cyan);box-shadow:0 0 8px var(--hud-cyan);transform:rotate(45deg)}
 @keyframes repEntre{from{opacity:0;transform:translateX(-10px);filter:blur(3px)}to{opacity:1;transform:none;filter:none}}
 @media (prefers-reduced-motion:reduce){.rep-pts li{animation:none;opacity:1}.rep-onde i{transition:none}}
+
+/* ───── panneaux de données animés (js/rayle/panneau-donnees.js) ───── */
+.pn-chiffres{display:grid;grid-template-columns:repeat(auto-fit,minmax(112px,1fr));gap:8px;margin:2px 0 8px}
+.pn-chiffre{padding:6px 8px;border:1px solid rgba(77,227,255,.28);background:rgba(77,227,255,.05);animation:pnChiffre .5s ease both;animation-delay:calc(var(--i,0)*70ms)}
+.pn-chiffre>small{display:block;color:var(--hud-doux);font-size:11px;line-height:1.2}
+.pn-chiffre>b{display:block;font:700 22px "Courier New",Courier,monospace;color:#fff;text-shadow:0 0 10px rgba(77,227,255,.5);font-weight:700}
+.pn-delta{display:block;font-size:11px;color:var(--hud-doux)}
+.pn-delta.hausse{color:#17d98a}.pn-delta.baisse{color:#ff3b5e}
+.pn-v.hausse{color:#17d98a}.pn-v.baisse{color:#ff3b5e}
+.pn-anim i{transition:width 1.1s cubic-bezier(.2,.8,.2,1)}
+.pn-anim-l{animation:pnLigne .45s ease both;animation-delay:calc(var(--i,0)*60ms + 250ms)}
+.pn-vide{display:block;margin-top:6px}
+@keyframes pnChiffre{from{opacity:0;transform:translateY(8px) scale(.94)}to{opacity:1;transform:none}}
+@keyframes pnLigne{from{opacity:0;transform:translateX(-8px)}to{opacity:1;transform:none}}
+@media (prefers-reduced-motion:reduce){.pn-chiffre,.pn-anim-l{animation:none}.pn-anim i{transition:none}}

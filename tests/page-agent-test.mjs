@@ -13,6 +13,7 @@ const ctxVm = {
     demander(n, a) { journal.push('bus:' + n + (a ? ':' + (a.valeur || a.nom || a.type) : '')); if (n === 'vue') return this.etat.vue; if (n === 'vue:ouvrir') { this.etat.vue = 'terminal'; return Promise.resolve(); } if (n === 'vue:fermer') { this.etat.vue = 'raylé'; } return { ok: true }; }
   },
   Panneaux: { fermerTout() { journal.push('panneaux:fermerTout'); } },
+  montrerDonnees: p => journal.push('donnees:' + p.id),
   commandeCarte: async t => { journal.push('carte:' + t); return /itin/.test(t) ? 'De A à B en voiture : 12 kilomètres.' : 'Voici A.'; },
   addLine: (k, t) => journal.push('ligne:' + k + ':' + t), errMsg: e => String(e.message || e),
   workerReady: () => true, valid: t => !!t && String(t).length > 1, workerError: async r => new Error('HTTP ' + r.status), contextText: () => 'ctx',
@@ -39,6 +40,23 @@ await t('carte et itinéraire : le résumé d’itinéraire est ajouté à ce qu
   assert.ok(journal.includes('carte:montre-moi la carte de Toulouse'));
   assert.ok(journal.includes('carte:itinéraire vers Albi à vélo'));
   assert.match(plus, /12 kilomètres/);
+});
+await t('panneau de données : l’action « donnees » ouvre le panneau décrit par le Worker', async () => {
+  await ctxVm.executerActions([{ type: 'donnees', panneau: { id: 'macro', titre: 'Macro' } }], 0);
+  assert.ok(journal.includes('donnees:macro'));
+});
+await t('rendu du panneau : texte échappé, liens http(s) seulement, jauge et chiffres animés', async () => {
+  const ouverts = [];
+  const pd = { Panneaux: { esc: x => String(x == null ? '' : x).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])), ouvrir: o => ouverts.push(o) }, window: {}, document: {}, performance: { now: () => 0 }, requestAnimationFrame: f => f(1000), console };
+  vm.createContext(pd);
+  vm.runInContext(fs.readFileSync(new URL('../js/rayle/panneau-donnees.js', import.meta.url), 'utf8') + '\nthis.montrer=montrerDonnees;', pd);
+  pd.montrer({ id: 'x', titre: 'Test', icone: 'B', jauges: [{ label: 'Peur', score: 130, etat: 'peur' }], chiffres: [{ label: 'CPI', valeur: 3.4, dec: 1, unite: ' %', delta: -0.1, deltaUnite: ' pt' }],
+    lignes: [{ label: 'a', valeur: '<b>x</b>', sens: 'hausse' }], items: [{ titre: '<script>alert(1)</script>', lien: 'javascript:alert(1)' }, { titre: 'ok', lien: 'https://exemple.fr/a' }], note: 'n', pied: [{ texte: 'mauvais', url: 'javascript:1' }, { texte: 'bon', url: 'https://a.fr' }] });
+  assert.equal(ouverts.length, 1); assert.equal(ouverts[0].id, 'donnees:x'); assert.equal(ouverts[0].pied.length, 1);
+  const el = { html: '', querySelectorAll: () => [], set innerHTML(v) { this.html = v; }, get innerHTML() { return this.html; } };
+  ouverts[0].corps(el);
+  assert.ok(!/<script>/.test(el.html) && !/javascript:/.test(el.html) && !/<b>x<\/b>/.test(el.html));
+  assert.ok(/href="https:\/\/exemple\.fr\/a"/.test(el.html) && /data-w="100"/.test(el.html) && /data-v="3.4"/.test(el.html) && /3,4/.test(el.html));
 });
 await t('une coupure (epoch change) arrête les actions restantes', async () => {
   ctxVm.epoch = 5;

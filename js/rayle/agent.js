@@ -34,6 +34,8 @@
           const lib=a.profil==='pied'?'à pied':a.profil==='velo'?'à vélo':'en voiture';
           const r=await commandeCarte('itinéraire '+(a.de?'de '+a.de+' à ':'vers ')+a.vers+' '+lib);
           if(r) plus+=' '+r;
+        }else if(a.type==='donnees'){
+          montrerDonnees(a.panneau);
         }else if(a.type==='fermer_panneaux'){
           Panneaux.fermerTout();
         }
