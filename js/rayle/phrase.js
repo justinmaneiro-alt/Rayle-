@@ -21,20 +21,32 @@
 
     diagAction("envoyé à l'IA");
     setState('thinking');
-    let ctx='';
-    try{ ctx=await buildLiveContext(text); }catch(e){ if(my===epoch) addLine('sys','Lecture des données : '+errMsg(e)); }
-    if(my!==epoch) return;                 // coupé pendant la lecture des données
-    liveCtx=ctx;
-    const long=/ANALYSE BOUGIE PAR BOUGIE|VIDÉO YOUTUBE/.test(ctx);
-    if(!speaking) setState('thinking');
-
-    let reply='', engine='';
+    let reply='', engine='', actions=[], viaAgent=false;
+    // 1) Agent : le Worker choisit et enchaîne ses outils (données, alertes, mémoire…) et renvoie les actions de la page
     if(workerReady()){
       try{
-        const d=await askWorker(text,long);
-        if(my!==epoch) return;             // coupé pendant que l'IA répondait
-        reply=d.reply; engine=d.engine+(d.model?' · '+d.model:'');
-      }catch(e){ if(my!==epoch) return; addLine('sys','Cerveau : '+errMsg(e)); }
+        const d=await askAgent(text);
+        if(my!==epoch) return;             // coupé pendant que l'IA travaillait
+        reply=d.reply; engine=d.engine+(d.model?' · '+d.model:''); actions=d.actions||[]; viaAgent=true;
+        if(d.outils && d.outils.length) addLine('sys','Outils : '+d.outils.map(o=>o.nom+(o.ok?'':' ✘')).join(' → '));
+        diagAction('agent : '+(d.outils&&d.outils.length?d.outils.map(o=>o.nom).join(', '):'sans outil'));
+      }catch(e){ if(my!==epoch) return; addLine('sys','Agent indisponible ('+errMsg(e)+') : chemin classique.'); }
+    }
+    // 2) Chemin classique : lecture des données par mots-clés, puis une réponse de l'IA
+    if(!viaAgent){
+      let ctx='';
+      try{ ctx=await buildLiveContext(text); }catch(e){ if(my===epoch) addLine('sys','Lecture des données : '+errMsg(e)); }
+      if(my!==epoch) return;                 // coupé pendant la lecture des données
+      liveCtx=ctx;
+      const long=/ANALYSE BOUGIE PAR BOUGIE|VIDÉO YOUTUBE/.test(ctx);
+      if(!speaking) setState('thinking');
+      if(workerReady()){
+        try{
+          const d=await askWorker(text,long);
+          if(my!==epoch) return;             // coupé pendant que l'IA répondait
+          reply=d.reply; engine=d.engine+(d.model?' · '+d.model:''); actions=d.actions||[];
+        }catch(e){ if(my!==epoch) return; addLine('sys','Cerveau : '+errMsg(e)); }
+      }
     }
     if(!valid(reply)){
       reply=localBrain(text);
@@ -43,8 +55,14 @@
       if(engine!==engineLast){ addLine('sys','Moteur IA : '+engine); engineLast=engine; }
       historiqueChat.push({role:'user',content:text},{role:'assistant',content:reply});
       saveHistory();
+      noterEchange();                        // compte pour le résumé de conversation
     }
     liveCtx='';
+    if(actions.length){                      // terminal, panneaux, cartes : exécutés pendant qu'elle parle
+      const plus=await executerActions(actions,my);
+      if(my!==epoch) return;
+      if(plus) reply+=plus;
+    }
     addLine('ray',reply);
     try{ montrerReponse(text,reply); }catch(e){}   // fenêtre HUD des points clés
     await speak(reply);

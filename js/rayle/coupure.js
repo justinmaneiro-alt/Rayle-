@@ -15,6 +15,7 @@
     if(micOn) setTimeout(startRec,300);     // l'écoute continue
   }
   function coupureTotale(){
+    try{ resumerSession('coupure'); }catch(e){}
     stopListening();
     const bye='Silence radio, Justin.';
     addLine('ray',bye); speak(bye);

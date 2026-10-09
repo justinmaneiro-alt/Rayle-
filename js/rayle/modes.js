@@ -81,6 +81,7 @@
     addLine('ray',r); speak(r);
   }
   function finConversation(){
+    try{ resumerSession('merci'); }catch(e){}
     const r=modeToucher() ? pick(['Avec plaisir, Justin.','De rien, Justin. Je suis là quand '+fx('vous voulez','tu veux')+'.','Quand '+fx('vous voulez','tu veux')+', Justin.']) : pick([
       'Avec plaisir, Justin. Je reste en veille.',
       'De rien, Justin. Je reste dans un coin, il suffit de dire mon nom.',
