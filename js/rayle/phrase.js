@@ -9,16 +9,17 @@
     // Commandes du terminal (« ouvre le terminal », « passe sur le Bitcoin »…) : exécutées tout de suite, sans IA
     const cmdS=await commandeSecurite(text);    // « déverrouille », « verrouille », « journal de sécurité »…
     if(my!==epoch) return;
-    if(cmdS){ addLine('ray',cmdS); await speak(cmdS); return; }
+    if(cmdS){ diagAction('commande de sécurité'); addLine('ray',cmdS); await speak(cmdS); return; }
     const cmdT=await commandeTerminal(text);
     if(my!==epoch) return;
-    if(cmdT){ addLine('ray',cmdT); await speak(cmdT); return; }
+    if(cmdT){ diagAction('commande du terminal'); addLine('ray',cmdT); await speak(cmdT); return; }
     const cmdC=await commandeCarte(text);      // « montre-moi Toulouse », « itinéraire de A à B »
     if(my!==epoch) return;
-    if(cmdC!==null){ if(cmdC){ addLine('ray',cmdC); await speak(cmdC); } return; }
+    if(cmdC!==null){ diagAction('commande carte'); if(cmdC){ addLine('ray',cmdC); await speak(cmdC); } return; }
     const quick=quickAnswer(text);
-    if(quick){ addLine('ray',quick); try{ montrerReponse(text,quick); }catch(e){} await speak(quick); return; }
+    if(quick){ diagAction('réponse rapide'); addLine('ray',quick); try{ montrerReponse(text,quick); }catch(e){} await speak(quick); return; }
 
+    diagAction("envoyé à l'IA");
     setState('thinking');
     let ctx='';
     try{ ctx=await buildLiveContext(text); }catch(e){ if(my===epoch) addLine('sys','Lecture des données : '+errMsg(e)); }

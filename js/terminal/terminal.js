@@ -157,7 +157,7 @@
     const col=last>70?'var(--down)':last<30?'var(--up)':'var(--neon2)';
     box.innerHTML=
       '<svg viewBox="0 0 '+W+' '+H+'" preserveAspectRatio="none" style="width:100%;height:100%;display:block">'
-      +'<rect x="0" y="'+y(70)+'" width="'+W+'" height="'+(y(100)-y(70))+'" fill="rgba(255,59,94,.07)"/>'
+      +'<rect x="0" y="'+y(100)+'" width="'+W+'" height="'+(y(70)-y(100))+'" fill="rgba(255,59,94,.07)"/>'
       +'<rect x="0" y="'+y(30)+'" width="'+W+'" height="'+(y(0)-y(30))+'" fill="rgba(23,217,138,.07)"/>'
       +'<line x1="0" y1="'+y(70)+'" x2="'+W+'" y2="'+y(70)+'" stroke="rgba(255,59,94,.4)" stroke-dasharray="4 4"/>'
       +'<line x1="0" y1="'+y(50)+'" x2="'+W+'" y2="'+y(50)+'" stroke="rgba(255,0,127,.2)"/>'

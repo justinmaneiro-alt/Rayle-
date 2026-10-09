@@ -96,6 +96,42 @@
     return dits.join(' ');
   }
 
+  /* ───── Fermeture tolérante : « ferme », « fermer le terminal », « quitte le terminal », « retour », « Raylé retour »…
+     Même avec des fautes de reconnaissance (« firme le terminale »). Appelée seulement quand le terminal est ouvert. ───── */
+  function distanceEdition(a,b){
+    if(Math.abs(a.length-b.length)>2) return 9;
+    let prec=Array.from({length:b.length+1},(_,j)=>j);
+    for(let i=1;i<=a.length;i++){
+      const cur=[i];
+      for(let j=1;j<=b.length;j++) cur[j]=Math.min(prec[j]+1,cur[j-1]+1,prec[j-1]+(a[i-1]===b[j-1]?0:1));
+      prec=cur;
+    }
+    return prec[b.length];
+  }
+  const FERM_VERBES=['ferme','fermer','fermez','fermes','fermons','quitte','quitter','quittez','retour','reviens','revenir','retourne','retourner','sors','sortir','close'];
+  const FERM_SEUL=new Set(['ferme','fermer','fermez','retour','reviens','revenir','retourne','retourner','quitte','quitter','close']);   // un seul mot : pas de tolérance (« forme » ne doit pas fermer)
+  const FERM_REMPLISSAGE=new Set(['le','la','les','l','ce','cet','cette','mon','ton','du','de','des','au','a','en','vers','sur','d','un','moi','svp','stp','merci','maintenant','vite','suite','s','il','te','vous','plait','ok','okay','bon','alors','donc','et','puis','accueil','principal','principale','ecran','page','arriere','precedent','trading','ici']);   // ni « ça », ni « tout », ni « fenêtre » : « ferme ça » / « ferme tout » visent les panneaux
+  const flou=(m,liste)=>liste.some(v=>m===v||(m.length>=4 && distanceEdition(m,v)<=(v.length>=6?2:1)));
+  function estFermetureTerminal(texte){
+    const n=cmdNorm(norm(texte)).replace(/['’\-]/g,' ').replace(/[^a-z0-9 ]/g,' ').replace(/\s+/g,' ').trim();
+    if(!n) return false;
+    const mots=n.split(' ');
+    if(mots.length>8) return false;
+    if(!flou(mots[0],FERM_VERBES)) return false;
+    const reste=mots.slice(1).filter(m=>!FERM_REMPLISSAGE.has(m));
+    if(!reste.length) return mots.length>1 || FERM_SEUL.has(mots[0]);              // « retour », « ferme », « ferme le »…
+    if(mots.length===1) return FERM_SEUL.has(mots[0]);
+    return reste.every(m=>/^termin/.test(m) || (m.length>=6 && distanceEdition(m,'terminal')<=2));   // « terminal », « terminale », « terminaux », « termina »
+  }
+  // Ferme tout de suite (même pendant qu'elle parle), sans passer par l'IA
+  function fermerTerminalVoix(texte){
+    addLine('user',texte);
+    try{ cutAll(); }catch(e){}
+    RayleBus.demander('vue:fermer');
+    const r=pick(['Je ferme le terminal.','Retour à Raylé.','Terminal fermé.']);
+    addLine('ray',r); speak(r);
+  }
+
   // Appelée avant l'IA : renvoie la phrase à dire, ou null si ce n'est pas une commande du terminal
   async function commandeTerminal(texte){
     const ouvertAvant=RayleBus.demander('vue')==='terminal';

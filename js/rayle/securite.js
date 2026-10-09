@@ -315,7 +315,7 @@
   window.rayleDiag=function(){
     const g=f=>{ try{ return f(); }catch(e){ return '?'; } };
     return {
-      micOn:g(()=>micOn), mode:g(()=>mode), toucher:g(()=>modeToucher()), parle:g(()=>speaking), occupee:g(()=>processing), file:g(()=>queue.length),
+      micOn:g(()=>micOn), reconnaissanceActive:g(()=>recActif), activeDepuisS:g(()=>recActif?Math.round((Date.now()-recDepuis)/1000):0), dernierSonIlYaS:g(()=>dernierSon?Math.round((Date.now()-dernierSon)/1000):null), mode:g(()=>mode), toucher:g(()=>modeToucher()), parle:g(()=>speaking), occupee:g(()=>processing), file:g(()=>queue.length),
       vue:g(()=>RayleBus.demander('vue')), pilotageTerminal:g(()=>typeof RayleBus.demander('terminal:commande')),
       workerPret:g(()=>workerReady()), appareil:g(()=>store.get(KEY_WDEVNOM)||'non appairé'),
       securite:g(()=>SEC.etat?{deverrouille:SEC.etat.deverrouille,bloque_dans:SEC.etat.bloque_dans}:null), saisiePhraseEnCours:!!SEC.attente,

@@ -19,6 +19,12 @@
   const KEY_VIT='rayle_vitesse', KEY_REVEIL='rayle_reveil', KEY_BARGE='rayle_interruption', KEY_NOMS='rayle_noms', KEY_MODE='rayle_mode_ecoute', KEY_SUITE='rayle_suite';
   const OLD_KEYS=['rayle_key_groq','rayle_key_openrouter','rayle_key_twelvedata'];   // anciennes clés des versions précédentes
 
+  // Journal de diagnostic (rayleDiag) : chaque phrase entendue, et ce qu'on en a fait
+  function diagEntree(texte,voix,action){
+    try{ const l=(window.RAYLE_ENTREES=window.RAYLE_ENTREES||[]); l.push({t:new Date().toLocaleTimeString('fr-FR'),texte:String(texte).slice(0,80),voix:!!voix,action:action||'reçu'}); if(l.length>20) l.shift(); }catch(e){}
+  }
+  function diagAction(action){ try{ const l=window.RAYLE_ENTREES; if(l&&l.length) l[l.length-1].action=action; }catch(e){} }
+
   const prefs={
     vitesse:()=>{ const v=store.get(KEY_VIT); return v==='' ? null : Number(v); },
     reveil:()=>store.get(KEY_REVEIL)!=='0',     // mot d'activation demandé (oui par défaut)

@@ -33,9 +33,10 @@
   }
   function retour(){
     if(vue!=='terminal') return;
-    if(pousse){ pousse=false; history.back(); return; }   // popstate fermera la vue
-    try{ history.replaceState(null,'',location.pathname+location.search); }catch(e){}
+    // On ferme la vue tout de suite (sans attendre popstate, qui n'arrive pas toujours), puis on nettoie l'adresse
     afficher('rayle');
+    if(pousse){ pousse=false; if(location.hash==='#terminal'){ try{ history.back(); }catch(e){} } return; }
+    try{ history.replaceState(null,'',location.pathname+location.search); }catch(e){}
   }
   window.addEventListener('popstate',()=>afficher(location.hash==='#terminal'?'terminal':'rayle'));
   RayleBus.on('vue:demande',d=>{ if(d&&d.vue==='terminal') ouvrirTerminal(); else retour(); });

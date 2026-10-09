@@ -1,7 +1,7 @@
 "use strict";
   /* ═════════════ RECONNAISSANCE VOCALE ═════════════ */
   const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
-  let rec=null, lastStart=0;
+  let rec=null, lastStart=0, recActif=false, recDepuis=0;
 
   // Tablette / téléphone : Chrome y découpe la voix en morceaux et répète parfois les résultats.
   const IS_MOBILE=(function(){
@@ -60,8 +60,10 @@
       if(speaking || Date.now()-speechEndT<900){
         if(fin.trim()){
           const c=cmdNorm(norm(fixName(fin)));
-          if(COUPURE_RE.test(c)){ addLine('user',fin.trim()); coupureTotale(); }
-          else if(STOP_RE.test(c)) cutAll('Parole interrompue');
+          if(COUPURE_RE.test(c)){ diagEntree(fin.trim(),true,'coupure totale (pendant ma parole)'); addLine('user',fin.trim()); coupureTotale(); }
+          else if(STOP_RE.test(c)){ diagEntree(fin.trim(),true,'parole interrompue'); cutAll('Parole interrompue'); }
+          else if(RayleBus.demander('vue')==='terminal' && estFermetureTerminal(fin)) onUser(fin.trim(),true);   // fermeture du terminal pendant qu'elle parle
+          else diagEntree(fin.trim(),true,'ignoré : pendant que je parle');
         }
         return;
       }
@@ -72,6 +74,7 @@
       }
       if(fin.trim()){ if(!interimEl.textContent.startsWith('zz')) interimEl.textContent=''; deliver(fin); }
     };
+    r.onstart=()=>{ recActif=true; recDepuis=Date.now(); };
     r.onerror=e=>{
       if(e.error==='not-allowed' || e.error==='service-not-allowed'){
         addLine('sys',"Micro refusé : autorisez-le dans Chrome (cadenas à gauche de l'adresse), puis réessayez.");
@@ -81,6 +84,7 @@
       }
     };
     r.onend=()=>{
+      recActif=false;
       if(!interimEl.textContent.startsWith('zz')) interimEl.textContent=pendingTxt?('… '+pendingTxt):'';
       if(micOn && (!speaking || bargeActive()) && !(modeToucher() && (processing || queue.length))){
         const wait=(Date.now()-lastStart<800)?1000:250;
@@ -101,6 +105,15 @@
       try{ rec=buildRec(); lastStart=Date.now(); rec.start(); }catch(_){}
     }
   }
+  // Le micro doit rester actif terminal ouvert ou non : si la reconnaissance s'est arrêtée toute seule (Chrome/Edge le font),
+  // on la relance, sauf quand elle parle (le micro est alors volontairement coupé) ou en mode « toucher pour parler ».
+  function veillerMicro(){
+    if(!micOn || modeToucher() || speaking || document.hidden || recActif) return;
+    if(Date.now()-lastStart<2500) return;
+    startRec();
+  }
+  setInterval(veillerMicro,4000);
+  RayleBus.on('vue:changee',()=>{ setTimeout(veillerMicro,600); });
   function stopRecSoft(){ try{ rec && rec.stop(); }catch(e){} }
   // Coupe le micro net et jette ce qu'il était en train d'écouter (évite qu'elle s'entende)
   function muteRec(){ try{ rec && rec.abort(); }catch(e){} resetPending(); }

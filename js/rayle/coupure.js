@@ -110,19 +110,21 @@
   }
 
   function onUser(text,voix){
-    try{ (window.RAYLE_ENTREES=window.RAYLE_ENTREES||[]).push({t:new Date().toLocaleTimeString('fr-FR'),texte:String(text).slice(0,80),voix:!!voix}); if(RAYLE_ENTREES.length>12) RAYLE_ENTREES.shift(); }catch(e){}   // pour rayleDiag()
-    if(typeof secCapturer==='function' && secCapturer(text,voix)) return;   // saisie de la phrase secrète : consommée ici
+    diagEntree(text,voix,'reçu');
+    if(typeof secCapturer==='function' && secCapturer(text,voix)){ diagAction('saisie de la phrase secrète (consommée)'); return; }
+    // Terminal ouvert : « ferme », « retour »… marchent toujours (même en veille sans « Raylé », même pendant qu'elle parle)
+    if(RayleBus.demander('vue')==='terminal' && estFermetureTerminal(text)){ diagAction('fermeture du terminal'); fermerTerminalVoix(text); return; }
     text=fixName(text).trim(); if(!text) return;
     const n=norm(text), c=cmdNorm(n);
 
     // « coupure » est prioritaire, dans tous les modes
-    if(voix && COUPURE_RE.test(c)){ addLine('user',text); coupureTotale(); return; }
+    if(voix && COUPURE_RE.test(c)){ diagAction('coupure totale'); addLine('user',text); coupureTotale(); return; }
     // Raylé qui s'entend elle-même : on ignore
-    if(voix && echoTail(n)){ addLine('sys','(écho de ma propre voix ignoré)'); return; }
+    if(voix && echoTail(n)){ diagAction('ignoré : écho de ma voix'); addLine('sys','(écho de ma propre voix ignoré)'); return; }
 
     if(voix && micOn && mode==='veille' && reveilActif()){
       const w=wakeSplit(text);
-      if(!w){ veilleEcho(text); return; }
+      if(!w){ diagAction('ignoré : veille, pas de « Raylé »'); veilleEcho(text); return; }
       addLine('user',text);
       enterConversation();
       let q=w.apres || (w.avant.split(/\s+/).length>=2 ? w.avant : '');
@@ -139,7 +141,8 @@
     // Mode toucher : micro en pause pendant qu'elle réfléchit et répond
     if(voix && modeToucher()) muteRec();
     if(voix && (reveilActif()||modeToucher()) && micOn && END_RE.test(c)){ finConversation(); return; }
-    if(command(text)) return;
+    if(command(text)){ diagAction('commande rapide'); return; }
+    diagAction('envoyé à Raylé');
     queue.push(text);
     if(!processing) drain();
   }
