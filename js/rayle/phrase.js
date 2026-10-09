@@ -10,6 +10,9 @@
     const cmdT=await commandeTerminal(text);
     if(my!==epoch) return;
     if(cmdT){ addLine('ray',cmdT); await speak(cmdT); return; }
+    const cmdC=await commandeCarte(text);      // « montre-moi Toulouse », « itinéraire de A à B »
+    if(my!==epoch) return;
+    if(cmdC!==null){ if(cmdC){ addLine('ray',cmdC); await speak(cmdC); } return; }
     const quick=quickAnswer(text);
     if(quick){ addLine('ray',quick); await speak(quick); return; }
 

@@ -70,7 +70,7 @@ body.avec-panneaux .reactor{width:min(56vw,44vh,400px)}
 
 /* téléphone et tablette étroite : une seule pile, la plus récente en haut */
 @media (max-width:820px){
-  .pn-wrap{left:10px;right:10px;top:clamp(150px,26vh,230px);bottom:96px;display:flex;flex-direction:column;gap:10px;overflow-y:auto;pointer-events:none}
+  .pn-wrap{left:10px;right:10px;top:clamp(150px,26vh,230px);bottom:158px;display:flex;flex-direction:column;gap:10px;overflow-y:auto;pointer-events:none}
   .pn-col{position:static;display:contents;width:auto}
   .pn-centre{position:static;transform:none;width:auto;min-width:0;display:contents}
   .pn,.pn.large{order:calc(var(--n,0)*-1);max-height:62vh;max-height:62dvh}
@@ -100,3 +100,12 @@ i.hausse,i.baisse{font-style:normal}
 .pn-img{display:block;max-width:100%;max-height:36vh;margin:0 auto;border:1px solid rgba(77,227,255,.35)}
 .pn-iframe{display:block;width:100%;height:min(46vh,420px);margin-top:10px;border:1px solid rgba(255,0,127,.4);background:#fff}
 .pn-zone:empty{display:none}
+
+/* ───── carte (Leaflet) : tuiles OSM assombries pour coller au HUD ───── */
+.pn-carte{height:min(40vh,340px);margin-top:8px;border:1px solid rgba(255,0,127,.4);background:#0b0612}
+.pn-carte .leaflet-tile-pane{filter:invert(1) hue-rotate(185deg) saturate(.75) brightness(.86) contrast(.95)}
+.pn-carte .leaflet-control-attribution{background:rgba(5,3,9,.85);color:#a995b8;font-size:10px}
+.pn-carte .leaflet-control-attribution a{color:#4de3ff}
+.pn-carte .leaflet-bar a{background:#150b22;color:#4de3ff;border-color:rgba(255,0,127,.4)}
+.pn-carte .leaflet-tooltip{background:#150b22;color:#fff;border:1px solid #ff3399;box-shadow:none}
+.pn-carte .leaflet-tooltip-top:before{border-top-color:#ff3399}

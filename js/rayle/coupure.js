@@ -26,7 +26,7 @@
 
   /* Panneaux holographiques : « ferme ça », « ferme tout » */
   const FERMER_TOUT_RE=/^(?:(?:ferme|fermer|efface|effacer|enleve|enlever|retire|retirer|cache|cacher|vire|nettoie|nettoyer)(?: moi)? (?:tout|tous|toutes|tout ca|tous les panneaux|toutes les fenetres|les panneaux|les fenetres|tous les ecrans|tout l ecran)|tout fermer|nettoie l ecran)$/;
-  const FERMER_CA_RE=/^(?:ferme|fermer|enleve|enlever|retire|retirer|efface|effacer|cache|cacher|vire)(?: moi)? (?:ca|cela|ce panneau|cette fenetre|ce truc|le panneau|la fenetre|le dernier panneau|la derniere fenetre|celui la|celle la)$/;
+  const FERMER_CA_RE=/^(?:ferme|fermer|enleve|enlever|retire|retirer|efface|effacer|cache|cacher|vire)(?: moi)? (?:ca|cela|la carte|cette carte|l itineraire|ce panneau|cette fenetre|ce truc|le panneau|la fenetre|le dernier panneau|la derniere fenetre|celui la|celle la)$/;
   // true si c'était une commande de fermeture à traiter ici
   function commandePanneaux(c){
     const t=String(c||'').replace(/['’]/g,' ').replace(/\s+/g,' ').trim();
