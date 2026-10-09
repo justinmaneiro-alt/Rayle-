@@ -24,13 +24,13 @@ window.Entite=(function(){
 
   // Paramètres visuels de chaque état (interpolés en douceur)
   const ETATS={
-    idle:     {c:[.42,.40,.95],d:[.25,.45,1.0], respire:1.0,agite:.12,tour:.10,rayon:0.78,lum:.50,vitesse:.7,gain:0},
-    veille:   {c:[.45,.42,1.0],d:[.30,.55,1.0], respire:1.0,agite:.18,tour:.14,rayon:0.81,lum:.75,vitesse:.8,gain:0},
-    listening:{c:[.30,.85,1.0],d:[.55,.60,1.0], respire:1.4,agite:.35,tour:.28,rayon:0.70,lum:1.05,vitesse:1.2,gain:1.5},
-    thinking: {c:[.78,.42,1.0],d:[1.0,.45,.80], respire:.6, agite:.55,tour:1.35,rayon:0.75,lum:.95,vitesse:2.4,gain:0},
-    speaking: {c:[1.0,.25,.65],d:[.75,.35,1.0], respire:.8, agite:.30,tour:.22,rayon:0.78,lum:1.15,vitesse:1.5,gain:1.8},
-    alerte:   {c:[1.0,.40,.08],d:[1.0,.15,.20], respire:2.4,agite:.95,tour:.55,rayon:0.81,lum:1.30,vitesse:3.2,gain:.8},
-    verrouille:{c:[.50,.50,.58],d:[.35,.35,.45],respire:.4, agite:0,  tour:.04,rayon:0.60,lum:.32,vitesse:.4,gain:0}
+    idle:     {c:[.42,.40,.95],d:[.25,.45,1.0], respire:1.0,agite:.12,tour:.10,rayon:0.69,lum:.50,vitesse:.7,gain:0},
+    veille:   {c:[.45,.42,1.0],d:[.30,.55,1.0], respire:1.0,agite:.18,tour:.14,rayon:0.71,lum:.75,vitesse:.8,gain:0},
+    listening:{c:[.30,.85,1.0],d:[.55,.60,1.0], respire:1.4,agite:.35,tour:.28,rayon:0.62,lum:1.05,vitesse:1.2,gain:1.5},
+    thinking: {c:[.78,.42,1.0],d:[1.0,.45,.80], respire:.6, agite:.55,tour:1.35,rayon:0.66,lum:.95,vitesse:2.4,gain:0},
+    speaking: {c:[1.0,.25,.65],d:[.75,.35,1.0], respire:.8, agite:.30,tour:.22,rayon:0.69,lum:1.15,vitesse:1.5,gain:1.8},
+    alerte:   {c:[1.0,.40,.08],d:[1.0,.15,.20], respire:2.4,agite:.95,tour:.55,rayon:0.71,lum:1.30,vitesse:3.2,gain:.8},
+    verrouille:{c:[.50,.50,.58],d:[.35,.35,.45],respire:.4, agite:0,  tour:.04,rayon:0.53,lum:.32,vitesse:.4,gain:0}
   };
   const CLES=['respire','agite','tour','rayon','lum','vitesse','gain'];
 
@@ -193,10 +193,10 @@ void main(){
       let x2=ca*x+sa*z, z2=-sa*x+ca*z; x=x2; z=z2;
       const y2=.96*y-.28*z; z=.28*y+.96*z; y=y2;
       const persp=1/(1-z*.30), prof=.5+.5*z/Math.max(courant.rayon,.2);
-      const al=Math.min(1,(.30+.70*prof)*courant.lum*1.3);
+      const al=Math.min(1,(.30+.70*prof)*courant.lum*.95);
       const m=p.s;
       const cr=Math.round(255*(c1[0]+(c2[0]-c1[0])*m)), cg=Math.round(255*(c1[1]+(c2[1]-c1[1])*m)), cb=Math.round(255*(c1[2]+(c2[2]-c1[2])*m));
-      const rad=Math.max(1.2,W/70*(.65+.9*prof)*(.8+.5*p.s)*(1+amp*.5));
+      const rad=Math.max(1.1,W/125*(.65+.9*prof)*(.8+.5*p.s)*(1+amp*.3));
       ctx2.fillStyle='rgba('+cr+','+cg+','+cb+','+al.toFixed(2)+')';
       ctx2.beginPath(); ctx2.arc(R+x*persp*R,R-y*persp*R,rad,0,6.2832); ctx2.fill();
     }
