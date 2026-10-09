@@ -139,3 +139,14 @@ body.secu-capture #interim{visibility:hidden}
 .pn[data-type="securite"]{max-height:min(82vh,580px)}
 .sec-touche{height:44px;font-size:18px}
 .sec-grille{gap:6px}
+
+/* ───── Fenêtre HUD de la réponse (points clés) ───── */
+.rep-onde{display:flex;align-items:flex-end;justify-content:center;gap:4px;height:26px;margin:0 0 10px;--amp:0}
+.rep-onde i{width:5px;border-radius:2px;background:linear-gradient(var(--hud-cyan),var(--hud-accent));
+  height:calc(4px + var(--amp) * (6px + 16px * var(--k, 1)));opacity:calc(.45 + var(--amp) * .55);transition:height .09s linear,opacity .12s linear}
+.rep-onde i:nth-child(odd){--k:.55}.rep-onde i:nth-child(3n){--k:.85}.rep-onde i:nth-child(4){--k:1.25}.rep-onde i:nth-child(6){--k:.7}
+.rep-pts{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:9px}
+.rep-pts li{position:relative;padding:2px 0 2px 16px;color:#f2e9f4;line-height:1.45;opacity:0;animation:repEntre .55s ease forwards;animation-delay:var(--d,0s)}
+.rep-pts li::before{content:"";position:absolute;left:0;top:.62em;width:7px;height:7px;background:var(--hud-cyan);box-shadow:0 0 8px var(--hud-cyan);transform:rotate(45deg)}
+@keyframes repEntre{from{opacity:0;transform:translateX(-10px);filter:blur(3px)}to{opacity:1;transform:none;filter:none}}
+@media (prefers-reduced-motion:reduce){.rep-pts li{animation:none;opacity:1}.rep-onde i{transition:none}}

@@ -28,7 +28,7 @@ window.Entite=(function(){
     idle:     {c:[.42,.40,.95],d:[.25,.45,1.0], respire:1.0,agite:.12,tour:.10,rayon:0.69,lum:.50,vitesse:.7,gain:0},
     veille:   {c:[.45,.42,1.0],d:[.30,.55,1.0], respire:1.0,agite:.18,tour:.14,rayon:0.71,lum:.75,vitesse:.8,gain:0},
     listening:{c:[.30,.85,1.0],d:[.55,.60,1.0], respire:1.4,agite:.35,tour:.28,rayon:0.62,lum:1.05,vitesse:1.2,gain:1.5},
-    thinking: {c:[.78,.42,1.0],d:[1.0,.45,.80], respire:.6, agite:.55,tour:1.35,rayon:0.66,lum:.95,vitesse:2.4,gain:0},
+    thinking: {c:[.78,.42,1.0],d:[1.0,.45,.80], respire:.6, agite:.55,tour:.6,rayon:0.66,lum:.95,vitesse:1.6,gain:0},
     speaking: {c:[1.0,.25,.65],d:[.75,.35,1.0], respire:.8, agite:.30,tour:.22,rayon:0.69,lum:1.15,vitesse:1.5,gain:1.8},
     alerte:   {c:[1.0,.40,.08],d:[1.0,.15,.20], respire:2.4,agite:.95,tour:.55,rayon:0.71,lum:1.30,vitesse:3.2,gain:.8},
     deverrouille:{c:[.25,.95,.55],d:[.95,.85,.30],respire:1.1,agite:.14,tour:.12,rayon:0.70,lum:.85,vitesse:.8,gain:0},
@@ -40,7 +40,7 @@ window.Entite=(function(){
   let niveau=0, points=[], moteur='gl', cote=0, dpr=1;
   let etatNom='idle', verrouille=false, deverrouille=false, alerteJusqua=0, fournisseur=null;
   let courant=JSON.parse(JSON.stringify(ETATS.idle)), amp=0, ampBrute=0;
-  let tPrec=0, tDebut=0, angle=0, rafId=0, dernierDessin=0, ema=16, mesures=0, derniereEval=0, fpsAff=60, ro=null;
+  let tPrec=0, tDebut=0, angle=0, phase=0, vRot=0, ampLente=0, rafId=0, dernierDessin=0, ema=16, mesures=0, derniereEval=0, fpsAff=60, ro=null;
 
   /* ───── points : spirale de Fibonacci sur la sphère ───── */
   function genererPoints(n){
@@ -169,15 +169,22 @@ void main(){
     if(fournisseur){ try{ const v=fournisseur(); if(v!=null && isFinite(v)) brute=Math.max(0,Math.min(1,+v)); }catch(e){} }
     if(brute==null) brute=ampSimulee(t);   // pas d'audio mesurable (voix du navigateur, écoute) : amplitude simulée
     ampBrute=brute*Math.max(.4,courant.gain);
-    const kk=ampBrute>amp ? 1-Math.exp(-dt*28) : 1-Math.exp(-dt*7);   // attaque vive, retombée douce
-    amp+=(ampBrute-amp)*kk;
-    angle+=dt*courant.tour*(1+amp*1.2);
+    const kk=ampBrute>amp ? 1-Math.exp(-dt*16) : 1-Math.exp(-dt*5);   // attaque vive, retombée douce
+    amp+=(ampBrute-amp)*kk; if(amp>1.1) amp=1.1;
+    // Phase d'animation INTÉGRÉE : si on multipliait le temps par la « vitesse » lissée, chaque changement d'état
+    // décalait la phase de dizaines de radians (points qui sautent, « saccades »). Là, la vitesse ne fait que varier le pas.
+    const dtA=Math.min(dt,.05);
+    phase+=dtA*courant.vitesse;
+    // Rotation : vitesse lissée lentement (la voix l'accélère un peu, sans à-coups)
+    ampLente+=(amp-ampLente)*(1-Math.exp(-dt*1.5));
+    vRot+=(courant.tour*(1+ampLente*.5)-vRot)*(1-Math.exp(-dt*2.5));
+    angle+=dtA*vRot;
   }
   function dessinerGL(t){
     gl.clearColor(0,0,0,0); gl.clear(gl.COLOR_BUFFER_BIT);
-    gl.uniform1f(loc.u_t,t); gl.uniform1f(loc.u_ang,angle); gl.uniform1f(loc.u_amp,amp);
+    gl.uniform1f(loc.u_t,phase); gl.uniform1f(loc.u_ang,angle); gl.uniform1f(loc.u_amp,amp);
     gl.uniform1f(loc.u_resp,courant.respire); gl.uniform1f(loc.u_agi,courant.agite);
-    gl.uniform1f(loc.u_ray,courant.rayon); gl.uniform1f(loc.u_vit,courant.vitesse);
+    gl.uniform1f(loc.u_ray,courant.rayon); gl.uniform1f(loc.u_vit,1.0);
     gl.uniform1f(loc.u_px,Math.max(2,canvas.width/(niveau===0?72:niveau===1?62:54)));
     gl.uniform3fv(loc.u_c1,courant.c); gl.uniform3fv(loc.u_c2,courant.d); gl.uniform1f(loc.u_lum,courant.lum*(niveau>=2?1.35:1));
     gl.drawArrays(gl.POINTS,0,points.length);
@@ -189,9 +196,9 @@ void main(){
     const c1=courant.c, c2=courant.d;
     for(let i=0;i<points.length;i++){
       const p=points[i];
-      const n=Math.sin(p.s*37.7+t*1.3*courant.vitesse)*Math.cos(p.s*19.1-t*.9*courant.vitesse);
-      const w=Math.sin(p.x*3.1+p.y*2.3+p.z*4.7+t*2*courant.vitesse);
-      const r=courant.rayon*(1+courant.respire*.035*Math.sin(t*1.1)+courant.agite*.07*n+amp*(.16*w+.14*(.5+.5*n)));
+      const n=Math.sin(p.s*37.7+phase*1.3)*Math.cos(p.s*19.1-phase*.9);
+      const w=Math.sin(p.x*3.1+p.y*2.3+p.z*4.7+phase*2);
+      const r=courant.rayon*(1+courant.respire*.035*Math.sin(phase*1.1)+courant.agite*.07*n+amp*(.16*w+.14*(.5+.5*n)));
       let x=p.x*r, y=p.y*r, z=p.z*r;
       let x2=ca*x+sa*z, z2=-sa*x+ca*z; x=x2; z=z2;
       const y2=.96*y-.28*z; z=.28*y+.96*z; y=y2;

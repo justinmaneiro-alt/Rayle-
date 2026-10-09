@@ -102,7 +102,7 @@
       const ctx=new AC();
       if(ctx.state==='suspended') ctx.resume().catch(()=>{});
       const src=ctx.createMediaElementSource(audioEl);
-      const an=ctx.createAnalyser(); an.fftSize=512; an.smoothingTimeConstant=.5;
+      const an=ctx.createAnalyser(); an.fftSize=512; an.smoothingTimeConstant=.75;
       src.connect(an); an.connect(ctx.destination);
       audioCtx=ctx; analyseur=an; tamponAudio=new Uint8Array(an.fftSize);
     }catch(e){ analyseur=null; }
@@ -111,7 +111,7 @@
     if(!analyseur || !curAudio || curAudio.paused || audioCtx.state!=='running') return null;
     analyseur.getByteTimeDomainData(tamponAudio);
     let s=0; for(let i=0;i<tamponAudio.length;i++){ const v=(tamponAudio[i]-128)/128; s+=v*v; }
-    return Math.min(1,Math.sqrt(s/tamponAudio.length)*3.2);
+    return Math.min(1,Math.sqrt(s/tamponAudio.length)*2.4);
   }
   try{ Entite.amplitude(niveauVoix); }catch(e){}
   ['pointerdown','touchend','click','keydown'].forEach(ev=>document.addEventListener(ev,()=>{ debloquerAudio(); brancherAnalyseur(); },{passive:true}));

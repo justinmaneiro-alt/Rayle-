@@ -110,6 +110,7 @@
   }
 
   function onUser(text,voix){
+    try{ (window.RAYLE_ENTREES=window.RAYLE_ENTREES||[]).push({t:new Date().toLocaleTimeString('fr-FR'),texte:String(text).slice(0,80),voix:!!voix}); if(RAYLE_ENTREES.length>12) RAYLE_ENTREES.shift(); }catch(e){}   // pour rayleDiag()
     if(typeof secCapturer==='function' && secCapturer(text,voix)) return;   // saisie de la phrase secrète : consommée ici
     text=fixName(text).trim(); if(!text) return;
     const n=norm(text), c=cmdNorm(n);

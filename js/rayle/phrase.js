@@ -17,7 +17,7 @@
     if(my!==epoch) return;
     if(cmdC!==null){ if(cmdC){ addLine('ray',cmdC); await speak(cmdC); } return; }
     const quick=quickAnswer(text);
-    if(quick){ addLine('ray',quick); await speak(quick); return; }
+    if(quick){ addLine('ray',quick); try{ montrerReponse(text,quick); }catch(e){} await speak(quick); return; }
 
     setState('thinking');
     let ctx='';
@@ -45,6 +45,7 @@
     }
     liveCtx='';
     addLine('ray',reply);
+    try{ montrerReponse(text,reply); }catch(e){}   // fenêtre HUD des points clés
     await speak(reply);
   }
 
