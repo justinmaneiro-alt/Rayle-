@@ -1,6 +1,6 @@
 "use strict";
   /* ═════════════ CARTES : Leaflet + OpenStreetMap, lieux (Nominatim), itinéraires (OSRM) ═════════════
-     « montre-moi Toulouse », « où est la gare de Castres », « itinéraire de Castres à Toulouse à pied ».
+     « montre-moi Bordeaux », « où est la gare de Lyon », « itinéraire de Bordeaux à Toulouse à pied ».
      Conditions d'usage vérifiées : tuiles OSM avec attribution visible, Nominatim 1 requête/s maximum (recherches déclenchées
      par Justin seulement, résultats gardés en mémoire), itinéraires FOSSGIS/OSRM en usage léger avec attribution.
      Leaflet est chargé seulement à la première carte (js/vendor/leaflet/). */
@@ -19,7 +19,7 @@
   }
 
   /* ───── Géocodage (Nominatim) : 1 requête par seconde au plus, avec mémoire ───── */
-  // Zone favorisée (sans exclure le reste du monde) : « Castres » doit être celui du Tarn, pas celui de l'Aisne. Modifiable : localStorage « rayle_carte_zone » = ouest,sud,est,nord
+  // Zone favorisée (sans exclure le reste du monde) : un nom de ville ambigu doit désigner celui du sud de la France plutôt qu'un homonyme du nord. Modifiable : localStorage « rayle_carte_zone » = ouest,sud,est,nord
   const ZONE_PRIORITE=(store.get('rayle_carte_zone')||'-2,42,8,46').replace(/[^0-9.,-]/g,'');
   const geoMemoire=new Map(); let geoDernier=0, geoFile=Promise.resolve();
   function geocoder(q){
