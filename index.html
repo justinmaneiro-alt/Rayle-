@@ -10,12 +10,14 @@
 <meta name="apple-mobile-web-app-title" content="Raylé">
 <title>RAYLÉ // Market &amp; Neural Core</title>
 <link rel="stylesheet" href="css/rayle.css">
+<link rel="stylesheet" href="css/terminal.css">
 </head>
 <body>
   <header>
     <h1>R A Y L É</h1>
     <p>Market &amp; Neural Core</p>
-    <div class="bridge off" id="bridgeStatus">PONT TERMINAL · …</div>
+    <div class="bridge off" id="bridgeStatus">TERMINAL · …</div>
+    <button type="button" class="btn-terminal" id="btnOuvrirTerminal">📈 OUVRIR LE TERMINAL</button>
   </header>
 
   <div class="reactor idle" id="reactor" title="Toucher : réveiller Raylé ou la couper">
@@ -77,8 +79,63 @@
 
   <button class="mic" id="btn"><span id="btnTxt">Activer Raylé</span><small id="btnSub">puis dites « Raylé » pour lui parler</small></button>
 
+<div id="vueTerminal" hidden>
+  <div class="tbar">
+      <div class="brand">RAYLÉ<span>//</span>TERMINAL</div>
+      <div class="tabs" id="tabs"></div>
+      <div class="tools">
+        <div class="ivs" id="ivs">
+          <button data-iv="15">M15</button>
+          <button data-iv="60" class="active">H1</button>
+        </div>
+        <button class="refresh" id="btnRefresh" title="Actualiser">↻</button>
+        <button class="retour" id="btnRetour" type="button">✕ RETOUR À RAYLÉ</button>
+        <span class="clock" id="clock"></span>
+      </div>
+    </div>
+  
+    <div class="tmain">
+      <div class="left">
+        <section class="panel dash">
+          <h2>Dashboard analytique <span class="px" id="dashSym">—</span></h2>
+          <div id="dashBody" class="loading">Connexion au Worker…</div>
+          <div class="srcline" id="dashSrc"></div>
+        </section>
+        <section class="panel ctxPanel">
+          <h2>Contexte de marché <span class="px">VIX · DXY · 10 ans</span></h2>
+          <div id="ctxBody" class="loading">Chargement…</div>
+        </section>
+      </div>
+  
+      <div class="right">
+        <section class="panel chart"><h2>Graphique · EMA 200 <span class="px" id="chartSym">—</span></h2><div class="tvbox" id="tv-chart"></div></section>
+        <section class="panel rsiPanel"><h2>RSI 14 <span class="px" id="rsiSym">—</span></h2><div class="rsibox" id="rsi-box"><div class="loading">RSI…</div></div></section>
+        <section class="panel book" id="bookPanel"><h2>Carnet d'ordres <span class="px" id="bookSym">—</span></h2><div class="book-body" id="bookBody"><div class="loading">—</div></div></section>
+        <section class="panel notes">
+          <h2>Notes stratégiques <span class="px">cibles · zones</span></h2>
+          <textarea id="notes" placeholder="Ex : BTC — achat si rebond 85 100, TP 86 700, invalidation sous 84 900..."></textarea>
+          <div class="savehint" id="saveHint">Sauvegarde auto · lisible par Raylé</div>
+        </section>
+        <section class="panel cal"><h2>Calendrier économique · Macro</h2><div class="tvbox" id="tv-cal"></div></section>
+      </div>
+    </div>
+  
+    <div class="foot">Données via le Worker Raylé (Yahoo Finance, Twelve Data, Binance) · Carnet Bitstamp · Graphiques TradingView — outil personnel. Raylé reste à l’écoute : dis « ferme le terminal » ou « retour ».</div>
+  <div class="mini">
+    <div class="mini-dit" id="miniDit"></div>
+    <div class="mini-etat" id="miniEtat"></div>
+    <div class="reactor idle" id="miniReactor" title="Raylé t’écoute : toucher pour lui parler ou la couper">
+      <div class="ring r1"></div><div class="ring r2"></div><div class="ring r3"></div><div class="ring r4"></div>
+      <div class="core"></div>
+    </div>
+  </div>
+</div>
+
+<script src="js/commun/bus.js"></script>
+<script src="js/commun/vues.js"></script>
 <script src="js/rayle/base.js"></script>
 <script src="js/rayle/pont-terminal.js"></script>
+<script src="js/rayle/commandes-terminal.js"></script>
 <script src="js/rayle/nettoyage-voix.js"></script>
 <script src="js/rayle/worker.js"></script>
 <script src="js/rayle/voix.js"></script>

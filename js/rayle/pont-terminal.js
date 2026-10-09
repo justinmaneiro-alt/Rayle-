@@ -1,11 +1,19 @@
 "use strict";
   /* ═════════════ PONT AVEC LE TERMINAL ═════════════ */
-  function readBridge(){
+  // L'état du terminal vit en mémoire, dans le bus d'événements (plus de localStorage entre Raylé et le terminal).
+  // Les notes sont la seule donnée gardée dans le navigateur : on les republie au démarrage.
+  (function(){
+    let notes='';
     try{
-      const raw=localStorage.getItem(BRIDGE_KEY); if(!raw) return null;
-      const o=JSON.parse(raw);
-      return (o && typeof o==='object') ? o : null;
-    }catch(e){ return null; }
+      notes=localStorage.getItem('rayle_terminal_notes')||'';
+      if(!notes){ const ancien=JSON.parse(localStorage.getItem('rayle_terminal_bridge')||'null'); notes=(ancien&&ancien.notes)||''; }   // ancienne version
+      localStorage.removeItem('rayle_terminal_bridge'); localStorage.removeItem('rayle_terminal_cmd');
+    }catch(e){}
+    RayleBus.fusion('terminal',{ouvert:false,notes:notes});
+  })();
+  function readBridge(){
+    const o=RayleBus.etat('terminal');
+    return (o && typeof o==='object' && (o.maj||o.actif||String(o.notes||'').trim())) ? o : null;
   }
   function fmtNum(v,dec){ const n=Number(v); return isFinite(n) ? n.toLocaleString('fr-FR',{maximumFractionDigits:dec==null?2:dec}) : String(v); }
   function fmtAge(iso){
@@ -14,19 +22,14 @@
     return m<1 ? "à l'instant" : m<60 ? 'il y a '+m+' min' : 'il y a '+Math.round(m/60)+' h';
   }
   const pairs=o=>Object.entries(o).map(([k,v])=>k+' '+v).join(', ');
-  // Chrome ralentit les onglets en arrière-plan : le signal de présence du terminal peut arriver avec du retard
-  const VU_MAX_S=150;
-  const terminalOuvert=b=>!!(b && b.vu && (Date.now()-new Date(b.vu).getTime())/1000<VU_MAX_S);
+  const terminalOuvert=b=>!!(b && b.ouvert);
 
   // Ligne qui dit à l'IA si elle est reliée au terminal (évite « je ne suis pas connectée »)
   function terminalLink(b){
-    if(!b) return "Liaison terminal : aucune donnée reçue pour l'instant (le terminal n'a pas été ouvert dans ce navigateur).";
-    if(b.vu){
-      return terminalOuvert(b)
-        ? 'Liaison terminal : ACTIVE, le terminal est ouvert dans ce navigateur et transmet ses données.'
-        : 'Liaison terminal : établie, mais le terminal est fermé ou en veille (dernier signe de vie '+fmtAge(b.vu)+') : les chiffres du terminal peuvent être anciens.';
-    }
-    return 'Liaison terminal : des données du terminal sont présentes.';
+    if(!b) return "Liaison terminal : aucune donnée pour l'instant (le terminal n'a pas encore été ouvert depuis le lancement de la page). Il fait partie de cette même page : Justin peut te demander de l'ouvrir.";
+    if(terminalOuvert(b)) return 'Liaison terminal : ACTIVE, le terminal est ouvert dans cette page et tu peux le piloter (actif, unité de temps, panneaux).';
+    if(b.maj) return 'Liaison terminal : le terminal est fermé (dernières données '+fmtAge(b.maj)+') : les chiffres du terminal peuvent être anciens.';
+    return 'Liaison terminal : seules des notes sont présentes, le terminal est fermé.';
   }
 
   // Résumé envoyé comme contexte à l'IA
@@ -61,15 +64,14 @@
 
   function updateBridgeStatus(){
     const b=readBridge();
-    if(!b){ bridgeEl.textContent='PONT TERMINAL · aucune donnée'; bridgeEl.className='bridge off'; return; }
-    const bits=[];
-    if(b.vu) bits.push(terminalOuvert(b)?'● terminal ouvert':'○ terminal fermé');
+    if(!b){ bridgeEl.textContent='TERMINAL · fermé'; bridgeEl.className='bridge off'; return; }
+    const bits=[terminalOuvert(b)?'● ouvert':'○ fermé'];
     if(b.actif) bits.push(b.actif);
     if(b.tendance_globale) bits.push(b.tendance_globale);
     if(b.score_global!=null) bits.push(b.score_global+'/100');
     if(b.maj) bits.push(fmtAge(b.maj));
-    bridgeEl.textContent='PONT TERMINAL · '+(bits.join(' · ')||'notes uniquement');
-    bridgeEl.className='bridge on';
+    bridgeEl.textContent='TERMINAL · '+bits.join(' · ');
+    bridgeEl.className='bridge '+(terminalOuvert(b)?'on':'off');
   }
   setInterval(updateBridgeStatus,3000);
-  window.addEventListener('storage',e=>{ if(e.key===BRIDGE_KEY) updateBridgeStatus(); });
+  RayleBus.on('etat:terminal',updateBridgeStatus);

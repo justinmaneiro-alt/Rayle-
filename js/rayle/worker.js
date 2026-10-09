@@ -2,6 +2,9 @@
   /* ═════════════ CONNEXION AU WORKER ═════════════ */
   const W={ url:()=>store.get(KEY_WURL).replace(/\/+$/,''), token:()=>store.get(KEY_WTOK) };
   const workerReady=()=>!!(W.url() && W.token());
+  // Le terminal (même page) réutilise ces réglages, par le bus
+  RayleBus.fournir('worker',()=>({url:W.url(),token:W.token()}));
+  RayleBus.fournir('worker:code',v=>{ store.set(KEY_WTOK,String(v||'').trim()); });
 
   let epoch=0;                          // change à chaque coupure : les réponses en cours deviennent « orphelines »
   let cutAbort=new AbortController();   // permet d'interrompre les appels réseau d'une réponse coupée

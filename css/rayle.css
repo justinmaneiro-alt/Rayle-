@@ -144,3 +144,9 @@
     .mic{padding:10px;margin-top:8px}
     .mic small{display:none}
   }
+
+  /* ───── Bouton d'ouverture du terminal (vue de la même page) ───── */
+  .btn-terminal{display:block;margin:10px auto 0;font:700 clamp(11px,3vw,14px) var(--mono);letter-spacing:.16em;padding:9px 18px;
+    background:rgba(255,0,127,.14);color:var(--light);border:2px solid var(--pink);cursor:pointer;box-shadow:0 0 16px rgba(255,0,127,.4)}
+  .btn-terminal:hover{background:var(--pink);color:#1a000d}
+  body.vue-terminal{overflow:hidden}

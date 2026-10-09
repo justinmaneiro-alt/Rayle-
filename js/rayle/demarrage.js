@@ -8,7 +8,7 @@
     addLine('sys','Reconnaissance vocale indisponible : ouvrez cette page dans Google Chrome. La saisie au clavier reste active.');
     btn.disabled=true; btnTxt.textContent='Micro indisponible'; btnSub.textContent='';
   }
-  addLine('sys', readBridge() ? 'Pont terminal détecté' : 'Pont terminal : aucune donnée pour le moment');
+  addLine('sys','Terminal : intégré à cette page (dis « ouvre le terminal » ou touche 📈 OUVRIR LE TERMINAL)');
   if(OLD_KEYS.some(k=>store.get(k))) addLine('sys','Anciennes clés encore présentes dans ce navigateur : ⚙ Réglages → Effacer les anciennes clés');
   pingWorker();
   setTimeout(()=>{

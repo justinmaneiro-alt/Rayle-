@@ -1,10 +1,10 @@
 "use strict";
 
   const $=id=>document.getElementById(id);
-  const BRIDGE_KEY='rayle_terminal_bridge';
   const reactor=$('reactor'), logEl=$('log'), stateEl=$('state'), interimEl=$('interim'),
         btn=$('btn'), btnTxt=$('btnTxt'), btnSub=$('btnSub'), form=$('form'), txt=$('txt'),
-        bridgeEl=$('bridgeStatus'), voiceEl=$('voiceName');
+        bridgeEl=$('bridgeStatus'), voiceEl=$('voiceName'),
+        miniReactor=$('miniReactor'), miniEtat=$('miniEtat'), miniDit=$('miniDit');   // petite Raylé du terminal
 
   /* ═════════════ STOCKAGE LOCAL (adresse du Worker, code et réglages uniquement) ═════════════ */
   const store={
@@ -33,14 +33,21 @@
 
   /* ═════════════ ÉTAT & JOURNAL ═════════════ */
   const STATES={idle:'MICRO COUPÉ',veille:'VEILLE · DITES « RAYLÉ »',listening:'CONVERSATION',thinking:'ANALYSE',speaking:'TRANSMISSION'};
-  function setState(s){ reactor.className='reactor '+s; let t=STATES[s]||''; try{ if(modeToucher()){ if(s==='idle') t='PRÊTE'; else if(s==='listening') t="J'ÉCOUTE"; } majBouton(); }catch(e){} stateEl.textContent=t; }
+  function setState(s){ reactor.className='reactor '+s; miniReactor.className='reactor '+s; let t=STATES[s]||''; try{ if(modeToucher()){ if(s==='idle') t='PRÊTE'; else if(s==='listening') t="J'ÉCOUTE"; } majBouton(); }catch(e){} stateEl.textContent=t; miniEtat.textContent=t; }
   function stamp(){ return new Date().toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit',second:'2-digit'}); }
   function addLine(kind,text){
     const d=document.createElement('div'); d.className='line '+kind;
     const prefix = kind==='sys' ? '['+stamp()+'] ' : kind==='user' ? 'VOUS › ' : 'RAYLÉ › ';
     d.textContent=prefix+String(text);
+    if(kind==='ray'||kind==='user') montrerDansLeCoin(kind,text);
     logEl.appendChild(d); logEl.scrollTop=logEl.scrollHeight;
     while(logEl.children.length>250) logEl.removeChild(logEl.firstChild);
+  }
+  // Dans la vue terminal, le journal est caché : la dernière phrase s'affiche à côté de la petite Raylé
+  let coinTimer=null;
+  function montrerDansLeCoin(kind,text){
+    miniDit.textContent=(kind==='user'?'VOUS › ':'')+String(text).slice(0,220);
+    clearTimeout(coinTimer); coinTimer=setTimeout(()=>{ miniDit.textContent=''; },15000);
   }
   const norm=t=>String(t||'').normalize('NFC').normalize('NFD').replace(/[̀-ͯ]/g,'').toLowerCase();
   // Version « commande » : sans ponctuation ni nom de Raylé
