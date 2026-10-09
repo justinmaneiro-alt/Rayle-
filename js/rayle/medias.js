@@ -56,6 +56,7 @@
       addLine('sys','Moteur : Gemini · '+(d.model||''));
       historiqueChat.push({role:'user',content:it.q+' ['+(isImg?'image':'vidéo')+' envoyée]'},{role:'assistant',content:d.reply});
       saveHistory();
+      if(isImg && lastImage) pn(montrerImage,lastImage.dataUrl,it.q);
       addLine('ray',d.reply);
       await speak(d.reply);
     }catch(e){

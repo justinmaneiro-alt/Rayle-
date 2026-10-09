@@ -27,6 +27,9 @@
     const wantMeteo=METEO_RE.test(n)||brief;
     const newsQ=newsQuery(text);
     const wantNews=!newsQ && (NEWS_RE.test(n)||brief);
+    const lienWeb=(String(text).match(/https?:\/\/[^\s<>"]+/)||[])[0]||'';
+    const wantPage=!!lienWeb && !ytUrl;
+    const wantWeb=!wantPage && !ytUrl && WEB_RE.test(n);
     const wantSent=SENT_RE.test(n);
     const wantDrug=DRUG_RE.test(n);
     let codes=(conv||unit||calc||wantVideo)?[]:assetsIn(n);
@@ -34,9 +37,9 @@
     const wantCode=CODE_RE.test(n) && !codes.length;
     const anato=ANATO_RE.test(n) && ANATO_ASK_RE.test(n);
     const wantWiki=(WIKI_RE.test(n) || anato)
-      && (explicitWiki || (!codes.length && !wantMeteo && !wantNews && !newsQ && !wantCode && !wantCandles && !conv && !unit && !calc && !wantVideo && !followVideo && !wantDrug));
+      && (explicitWiki || (!codes.length && !wantMeteo && !wantNews && !newsQ && !wantCode && !wantCandles && !conv && !unit && !calc && !wantVideo && !followVideo && !wantDrug && !wantWeb && !wantPage));
     const wantSante=STUDY_RE.test(n) && (ANATO_RE.test(n) || MED_RE.test(n));
-    const infoIntent=wantMeteo||wantNews||!!newsQ||wantWiki||wantCode||wantSante||wantDrug||wantSent||!!conv||!!unit||!!calc||wantVideo||followVideo;
+    const infoIntent=wantWeb||wantPage||wantMeteo||wantNews||!!newsQ||wantWiki||wantCode||wantSante||wantDrug||wantSent||!!conv||!!unit||!!calc||wantVideo||followVideo;
     let marketIntent=MARKET_RE.test(n) && !brief && !wantCandles && !conv && !calc && !unit && !wantVideo && !followVideo;
     if(infoIntent && !codes.length && !MARKET_STRONG.test(n)) marketIntent=false;
     if(!codes.length && !wantCal && !marketIntent && !infoIntent && !wantCandles) return '';
@@ -57,6 +60,8 @@
     if(conv) jobs.push(ctxChange(conv,live,stamp));
     if(unit) jobs.push(ctxCalcul(unit,live,stamp));
     if(calc) jobs.push(ctxCalcul(calc,live,stamp));
+    if(wantPage) jobs.push(ctxPage(lienWeb,live,stamp));
+    if(wantWeb) jobs.push(ctxRecherche(requeteWeb(text),live,stamp));
     if(wantSent) jobs.push(ctxSentiment(live,stamp));
     if(wantDrug) jobs.push(ctxMedicament(text,live,stamp));
     if(newsQ)    jobs.push(ctxNewsQuery(newsQ,live,stamp));
@@ -96,7 +101,7 @@
         const snaps=[];
         for(const c of codes){
           addLine('sys','Marché : lecture '+MKT[c].nom+(quick?' (H1)':'')+'…');
-          try{ const sn=await marketSnapshot(c,tfs); if(stamp!==epoch) return ''; live.snaps.push(sn); snaps.push(sn.text); }
+          try{ const sn=await marketSnapshot(c,tfs); if(stamp!==epoch) return ''; live.snaps.push(sn); snaps.push(sn.text); pn(montrerMarche,sn); }
           catch(e){ if(stamp!==epoch) return ''; addLine('sys','Marché ('+MKT[c].nom+') : '+errMsg(e)); snaps.push("Données de "+MKT[c].nom+" indisponibles ("+errMsg(e)+") : ne les invente pas."); }
         }
         if(snaps.length){

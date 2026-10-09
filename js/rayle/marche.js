@@ -125,7 +125,7 @@
       +cols.map(tfTxt).join(' ')
       +(missing.length?" Je n'ai pas pu lire : "+missing.map(x=>x.split(' (')[0]).join(', ')+'.':'')
       +(differe?' Attention, données différées.':'')+(secours?' Source de secours utilisée.':'');
-    const v={nom:m.nom,text,speech};
+    const v={nom:m.nom,text,speech,prix:ref.price,tendance:trend,score,cols};
     if(!missing.length) snapCache[key]={t:Date.now(),v};
     return v;
   }

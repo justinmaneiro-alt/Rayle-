@@ -122,7 +122,7 @@
     try{
       const d=await wjson('/meteo'+(ville?'?ville='+encodeURIComponent(ville):''),18000);
       if(stamp!==epoch) return '';
-      live.extra.push(meteoSpeech(d));
+      live.extra.push(meteoSpeech(d)); pn(montrerMeteo,d);
       return meteoText(d);
     }catch(e){
       if(stamp!==epoch) return '';
@@ -144,6 +144,7 @@
   function newsBloc(titre,d,lim,live,lab){
     const items=(d.items||[]).slice(0,lim);
     if(!items.length) return 'ACTUALITÉS EN DIRECT ('+titre+') : aucun article récupéré.';
+    pn(montrerActus,lab||titre,d);
     live.extra.push((lab?'Côté '+lab+', à la une : ':'À ce sujet : ')+items.slice(0,3).map(x=>x.titre).join(' ; ')+'.');
     return 'ACTUALITÉS EN DIRECT ('+titre+' ; sources : '+(d.sources||[]).join(', ')+(d.perime?' ; ancienne copie, les sources ne répondent plus':'')+') :\n'
       +items.map(x=>'- '+x.titre+' ('+x.source+(x.t?', '+agoTxt(x.t):'')+')'+(x.resume?' : '+x.resume.slice(0,130):'')).join('\n');
@@ -186,6 +187,7 @@
       if(stamp!==epoch) return '';
       const r=(d.resultats||[]).slice(0,2);
       if(!r.length) return 'EXTRAITS WIKIPÉDIA : aucun résultat pour « '+q+' ».';
+      pn(montrerWiki,q,r);
       live.extra.push("D'après Wikipédia, "+r[0].extrait.split(/(?<=[.!?])\s/).slice(0,2).join(' ').slice(0,420));
       return 'EXTRAITS WIKIPÉDIA (recherche « '+q+' » ; si un extrait est hors sujet, ignore-le) :\n'
         +r.map((x,i)=>'- '+x.titre+(x.description?' ('+x.description+')':'')+(x.langue==='en'?' [en anglais]':'')+' : '+x.extrait.slice(0,i===0&&long?3500:650)).join('\n');
@@ -225,6 +227,7 @@
       if(stamp!==epoch) return '';
       const r=(d.resultats||[]).slice(0,3);
       if(!r.length) return 'ÉTUDES SCIENTIFIQUES : aucune étude trouvée pour « '+q+' ».';
+      pn(montrerEtudes,q,r);
       live.extra.push("J'ai trouvé "+r.length+" études sur le sujet, dont : "+r[0].titre.slice(0,160)+(r[0].annee?', publiée en '+r[0].annee:'')+'.');
       return 'ÉTUDES SCIENTIFIQUES (Europe PMC, en anglais, à résumer en français ; littérature scientifique, pas un avis médical) :\n'
         +r.map(x=>'- '+x.titre+' ('+(x.revue||'revue inconnue')+(x.annee?', '+x.annee:'')+(x.citations?', citée '+x.citations+' fois':'')+')'+(x.resume?' : '+x.resume.slice(0,330):'')).join('\n');
@@ -245,6 +248,7 @@
       if(stamp!==epoch) return '';
       const r=(d.resultats||[])[0];
       if(!r) return 'MÉDICAMENT : aucune notice trouvée pour « '+q+' » dans la base américaine. Réponds avec tes connaissances générales en le précisant.';
+      pn(montrerMedicament,r,d.source);
       return 'MÉDICAMENT (notice officielle '+d.source+' ; résume en français, sans posologie personnalisée) : '+r.nom+(r.marques_usa&&r.marques_usa.length?' (marques américaines : '+r.marques_usa.join(', ')+')':'')
         +(r.indications?'\nIndications : '+r.indications:'')+(r.contre_indications?'\nContre-indications : '+r.contre_indications:'')
         +(r.mises_en_garde?'\nMises en garde : '+r.mises_en_garde:'')+(r.effets_indesirables?'\nEffets indésirables : '+r.effets_indesirables:'')
@@ -263,6 +267,7 @@
       const d=await wjsonCache('/sentiment',15000,600000);
       if(stamp!==epoch) return '';
       const a=d.actions_peur_avidite||{}, c=d.crypto_peur_avidite||{}, g=d.crypto_global||{};
+      pn(montrerSentiment,d);
       const p=[];
       if(a.score!=null) p.push('actions (CNN) : '+a.score+' sur 100, '+a.etat+(a.veille!=null?', la veille '+a.veille:'')+(a.semaine_derniere!=null?', il y a une semaine '+a.semaine_derniere:''));
       if(c.score!=null) p.push('crypto : '+c.score+' sur 100, '+c.etat+(c.veille!=null?', la veille '+c.veille:''));
