@@ -8,7 +8,7 @@
      etat(nom)           'idle' | 'veille' | 'listening' | 'thinking' | 'speaking' (états de setState)
      verrou(bool)        verrouillé : Worker non configuré ou code refusé
      alerte(ms)          état alerte temporaire (rouge-orangé, agité)
-     amplitude(fn|null)  fn() → 0..1 : niveau audio réel ; sinon amplitude simulée selon l'état
+     amplitude(fn|null)  fn() → 0..1 : niveau audio réel, ou null si rien à mesurer (amplitude simulée selon l'état)
      qualite(q)          'auto' | 0 | 1 | 2 | 3 (3 = canvas 2D) ; mémorisé
      info()              {niveau, points, moteur, fps} */
 window.Entite=(function(){
@@ -162,9 +162,9 @@ void main(){
     const k=1-Math.exp(-dt*3.5), b=cible();
     CLES.forEach(c=>{ courant[c]+=(b[c]-courant[c])*k; });
     for(let i=0;i<3;i++){ courant.c[i]+=(b.c[i]-courant.c[i])*k; courant.d[i]+=(b.d[i]-courant.d[i])*k; }
-    let brute=0;
-    if(fournisseur){ try{ brute=Math.max(0,Math.min(1,Number(fournisseur())||0)); }catch(e){} }
-    if(!fournisseur||brute===0) brute=Math.max(brute,ampSimulee(t));
+    let brute=null;
+    if(fournisseur){ try{ const v=fournisseur(); if(v!=null && isFinite(v)) brute=Math.max(0,Math.min(1,+v)); }catch(e){} }
+    if(brute==null) brute=ampSimulee(t);   // pas d'audio mesurable (voix du navigateur, écoute) : amplitude simulée
     ampBrute=brute*Math.max(.4,courant.gain);
     const kk=ampBrute>amp ? 1-Math.exp(-dt*28) : 1-Math.exp(-dt*7);   // attaque vive, retombée douce
     amp+=(ampBrute-amp)*kk;

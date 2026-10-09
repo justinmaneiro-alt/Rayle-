@@ -92,7 +92,29 @@
     try{ if(!silenceUrl) silenceUrl=wavSilence(); audioEl.src=silenceUrl; const p=audioEl.play(); if(p&&p.catch) p.catch(()=>{ audioDebloque=false; }); }catch(e){ audioDebloque=false; }
     try{ if('speechSynthesis' in window){ const u=new SpeechSynthesisUtterance(' '); u.volume=0; speechSynthesis.speak(u); } }catch(e){}
   }
-  ['pointerdown','touchend','click','keydown'].forEach(ev=>document.addEventListener(ev,debloquerAudio,{passive:true}));
+  // Niveau sonore de la voix en ligne (Azure/Edge) → l'entité vibre en temps réel.
+  // La source audio n'est branchée qu'une fois le contexte réellement actif, pour ne jamais rendre Raylé muette.
+  let audioCtx=null, analyseur=null, tamponAudio=null;
+  function brancherAnalyseur(){
+    if(analyseur) { if(audioCtx.state==='suspended') audioCtx.resume().catch(()=>{}); return; }
+    try{
+      const AC=window.AudioContext||window.webkitAudioContext; if(!AC) return;
+      const ctx=new AC();
+      if(ctx.state==='suspended') ctx.resume().catch(()=>{});
+      const src=ctx.createMediaElementSource(audioEl);
+      const an=ctx.createAnalyser(); an.fftSize=512; an.smoothingTimeConstant=.5;
+      src.connect(an); an.connect(ctx.destination);
+      audioCtx=ctx; analyseur=an; tamponAudio=new Uint8Array(an.fftSize);
+    }catch(e){ analyseur=null; }
+  }
+  function niveauVoix(){
+    if(!analyseur || !curAudio || curAudio.paused || audioCtx.state!=='running') return null;
+    analyseur.getByteTimeDomainData(tamponAudio);
+    let s=0; for(let i=0;i<tamponAudio.length;i++){ const v=(tamponAudio[i]-128)/128; s+=v*v; }
+    return Math.min(1,Math.sqrt(s/tamponAudio.length)*3.2);
+  }
+  try{ Entite.amplitude(niveauVoix); }catch(e){}
+  ['pointerdown','touchend','click','keydown'].forEach(ev=>document.addEventListener(ev,()=>{ debloquerAudio(); brancherAnalyseur(); },{passive:true}));
 
   async function playAudio(a,token){
     if(token!==speakToken) return;
