@@ -46,7 +46,7 @@
         +' · base D1 '+(p.d1?'ok':'absente')
         +(Array.isArray(p.savoirs)?' · savoirs : '+p.savoirs.join(', ')+(p.ville?' (météo par défaut : '+p.ville+')':''):'');
       if(verbose!==false) addLine('sys',info);
-      if(!/^phase2/.test(p.version||'')) addLine('sys',"⚠ Le Worker n'est pas encore à jour : colle le nouveau code dans Cloudflare pour activer les nouveautés.");
+      if(!/^phase([2-9]|\d\d)/.test(p.version||'')) addLine('sys',"⚠ Le Worker n'est pas encore à jour : colle le nouveau code dans Cloudflare pour activer les nouveautés.");
       return Object.assign(p,{info:info});
     }catch(e){ addLine('sys','Worker : '+errMsg(e)); return null; }
   }
