@@ -82,6 +82,15 @@ body.depot{box-shadow:inset 0 0 0 3px var(--pink2),inset 0 0 40px var(--a1-50)}
 body.vue-terminal .ui-fond,body.vue-terminal .ui-voile{visibility:hidden}
 
 /* ───── profondeur autour de l'entité ───── */
+/* taille de l'entité (Apparence, 70–150 %), plafonnée à la place libre (--ui-max, calculée par ui/settings.js).
+   Quand des panneaux sont ouverts, les règles des panneaux gardent la main (l'entité rapetisse pour ne pas être couverte). */
+body:not(.avec-panneaux) .reactor{width:min(calc(min(86vw,62vh,520px) * var(--ui-k,1)),var(--ui-max,100vw))}
+@media (max-width:640px){ body:not(.avec-panneaux) .reactor{width:min(calc(min(92vw,50vh) * var(--ui-k,1)),var(--ui-max,100vw))} }
+@media (max-height:520px){ body:not(.avec-panneaux) .reactor{width:min(calc(min(46vh,70vw) * var(--ui-k,1)),var(--ui-max,100vw))} }
+/* le halo et les anneaux dépassent de l'entité : on coupe ce qui sort sur les côtés de l'écran (sinon le téléphone dézoome) */
+.scene{overflow-x:clip}
+.ui-range{width:100%;margin:2px 0 4px;accent-color:var(--t1)}
+.ui-taille-val{color:var(--tx);font-weight:700;letter-spacing:.05em}
 .reactor .entite-canvas{position:relative;z-index:2;transition:opacity .8s ease}
 .reactor .entite-neurones{position:absolute;left:50%;top:0;transform:translateX(-50%);z-index:2;pointer-events:none;opacity:0;transition:opacity .8s ease}
 .reactor .entite-neurones.vu{opacity:1}

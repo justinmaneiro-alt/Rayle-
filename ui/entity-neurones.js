@@ -184,8 +184,8 @@ void main(){
     let erreurShader=null;
     rendu.debug.onShaderError=(gl,prog,vs,fs)=>{ erreurShader=(gl.getShaderInfoLog(vs)||'')+(gl.getShaderInfoLog(fs)||'')||'shader'; };
     const scene=new THREE.Scene();
-    const CAM=5.4, camera=new THREE.PerspectiveCamera(30,1,.1,20); camera.position.set(0,0,CAM);
-    const groupe=new THREE.Group(); groupe.rotation.x=.28; groupe.scale.setScalar(.85); scene.add(groupe);
+    const CAM=5.4, camera=new THREE.PerspectiveCamera(31,1,.1,20); camera.position.set(0,0,CAM);
+    const groupe=new THREE.Group(); groupe.rotation.x=.28; groupe.scale.setScalar(1.16); scene.add(groupe);   // 1,16 (au lieu de 0,85) : ≈ +35 % à l'écran
     const pivot=new THREE.Group(); groupe.add(pivot);
 
     const U={u_t:{value:0},u_casc:{value:0},u_act:{value:.3},u_cascA:{value:.4},u_onde:{value:0},u_ondeA:{value:0},u_ech:{value:1},
