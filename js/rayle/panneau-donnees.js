@@ -3,11 +3,12 @@
      Le Worker décrit le panneau (voir worker/src/outils/panneaux.js), cette fonction le dessine : jauges qui se remplissent,
      chiffres qui défilent jusqu'à leur valeur, lignes qui apparaissent l'une après l'autre. Texte toujours échappé ; liens http(s) seulement.
      Format : { id, icone, titre, jauges:[{label,score,etat}], chiffres:[{label,valeur,dec,unite,delta,deltaUnite}], lignes:[{label,valeur,sens}],
-                texte, items:[{titre,sous,texte,lien}], apercu (aperçu Drive en iframe), note, pied:[{texte,url}] } */
+                texte, items:[{titre,sous,texte,lien}], apercu (aperçu Drive en iframe), apercuLab (page rayle-lab, iframe isolée), code (bloc de code), note, pied:[{texte,url}] } */
   const pdH=Panneaux.esc;
   const pdNum=(v,dec)=>Number(v).toLocaleString('fr-FR',{minimumFractionDigits:dec||0,maximumFractionDigits:dec||0});
   const pdSens=s=>s==='hausse'||s==='baisse' ? ' '+s : '';
   const pdLien=u=>/^https?:\/\//i.test(String(u||'')) ? String(u) : '';
+  const pdApercuLab=u=>/^https:\/\/justinmaneiro-alt\.github\.io\/rayle-lab\/[\w.\/-]*$/.test(String(u||''));
   const pdApercu=u=>/^https:\/\/drive\.google\.com\/file\/d\/[\w-]{10,80}\/preview$/.test(String(u||''));
 
   function pdHtml(p){
@@ -35,6 +36,12 @@
     // Aperçu d'un document du Drive (cours, devoir) : seulement une adresse drive.google.com/file/d/…/preview
     if(pdApercu(p.apercu)) h+='<iframe class="pn-iframe" src="'+pdH(p.apercu)+'" referrerpolicy="no-referrer" sandbox="allow-scripts allow-same-origin allow-popups" loading="lazy" title="Aperçu du document"></iframe>'
       +'<small class="pn-vide">Si l’aperçu reste vide (Google non connecté dans ce navigateur), utilise « Ouvrir dans Drive ».</small>';
+    // Code (corrigé, snippet) : texte brut dans un bloc, jamais interprété
+    if(p.code) h+=(h?'<div class="pn-sep"></div>':'')+'<pre class="pn-code"><code>'+pdH(p.code)+'</code></pre>';
+    // Page du laboratoire (rayle-lab) : le code est écrit par une IA ; le site est sur LE MÊME domaine que Raylé, donc bac à sable SANS allow-same-origin
+    // (origine opaque : la page ne peut ni lire le localStorage de Raylé, ni son code d'accès, ni appeler le Worker avec nos droits)
+    if(pdApercuLab(p.apercuLab)) h+='<iframe class="pn-iframe pn-lab" src="'+pdH(p.apercuLab)+'" referrerpolicy="no-referrer" sandbox="allow-scripts allow-forms" loading="lazy" title="Aperçu du laboratoire"></iframe>'
+      +'<small class="pn-vide">Page de test écrite par une IA, isolée de Raylé. Si l’aperçu reste vide, GitHub Pages publie encore : réessaie dans une minute.</small>';
     if(p.note) h+='<small class="pn-vide">'+pdH(p.note)+'</small>';
     return h;
   }
@@ -54,7 +61,7 @@
 
   function montrerDonnees(p){
     if(!p || !p.titre) return;
-    Panneaux.ouvrir({id:'donnees:'+(p.id||p.titre),type:'donnees',icone:p.icone||'◈',titre:p.titre,taille:pdApercu(p.apercu)?'large':undefined,
+    Panneaux.ouvrir({id:'donnees:'+(p.id||p.titre),type:'donnees',icone:p.icone||'◈',titre:p.titre,taille:(pdApercu(p.apercu)||pdApercuLab(p.apercuLab))?'large':undefined,
       corps:(el)=>{ el.innerHTML=pdHtml(p); pdAnimer(el); },
       pied:(p.pied||[]).filter(b=>pdLien(b.url))});
   }

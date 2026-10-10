@@ -1,5 +1,5 @@
 /* ═════════════ PAGE « ANALYSE » : analyse fondamentale du Nasdaq 100 et de l'or (rapport du Worker, rédigé par Gemini) ═════════════ */
-import { appelWorker, demanderARayle, esc } from './hud.js?v=2026.10.10.6';
+import { appelWorker, demanderARayle, esc } from './hud.js?v=2026.10.10.7';
 
 const ACTIFS = [['NDX', 'Nasdaq 100 · US100'], ['XAU', 'Or · XAU/USD']];
 const NOMS_PARLES = { NDX: 'le Nasdaq', XAU: "l'or" };

@@ -1,5 +1,5 @@
 /* ═════════════ PAGE « COT » : positions des spéculateurs (CFTC), évolution sur 1 an, extrêmes, centile ═════════════ */
-import { appelWorker, chemin, defiler, demanderARayle, esc, jourCourt, jourLong, nombre, sansAnimation, sens, signe } from './hud.js?v=2026.10.10.6';
+import { appelWorker, chemin, defiler, demanderARayle, esc, jourCourt, jourLong, nombre, sansAnimation, sens, signe } from './hud.js?v=2026.10.10.7';
 
 export const ACTIFS_COT = [['XAU', 'Or'], ['NDX', 'Nasdaq 100'], ['SPX', 'S&P 500'], ['BTC', 'Bitcoin'], ['EUR', 'Euro'], ['XAG', 'Argent'], ['WTI', 'Pétrole']];
 const NOMS_PARLES = { XAU: "l'or", NDX: 'le Nasdaq 100', SPX: 'le S&P 500', BTC: 'le Bitcoin', EUR: "l'euro", XAG: "l'argent", WTI: 'le pétrole' };
