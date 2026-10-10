@@ -12,6 +12,7 @@
      amplitude(fn|null)  fn() → 0..1 : niveau audio réel, ou null si rien à mesurer (amplitude simulée selon l'état)
      micro(fn|null)      fn() → 0..1 : volume du micro pendant l'écoute (ui/entity.js, PC seulement), ou null
      palette(fn|null)    fn(etat) → {c:[r,g,b],d:[r,g,b]} : couleurs du thème (ui/themes.js) ; alerte et verrous gardent les leurs
+     accent(k)           0..1 : un fond est actif, l'entité ressort davantage (points plus lumineux et plus gros) ; 0 sans fond
      geler(ms)           le fond 3D s'allège d'abord : pendant ms, l'auto-qualité de l'entité attend son tour (ui/background.js)
      moteur(obj|null)    autre façon de dessiner l'entité (ui/entity-neurones.js) : états, voix, micro, couleurs et qualité restent gérés ici.
                          obj = {nom, monter(hote), niveau(n), dessiner(etat,dt), quitter(erreur)} ; fondu enchaîné de 0,8 s entre les deux
@@ -45,7 +46,7 @@ window.Entite=(function(){
   let niveau=0, points=[], moteur='gl', cote=0, dpr=1;
   let etatNom='idle', verrouille=false, deverrouille=false, alerteJusqua=0, fournisseur=null, fournisseurMicro=null, paletteFn=null;
   const teinte={};   // état teinté par le thème (objet réutilisé à chaque image)
-  let externe=null, fonduJusqua=0, gelJusqua=0;
+  let externe=null, fonduJusqua=0, gelJusqua=0, accentK=0;
   const etatDessin={};   // ce qu'on passe au moteur externe à chaque image
   let courant=JSON.parse(JSON.stringify(ETATS.idle)), amp=0, ampBrute=0;
   let tPrec=0, tDebut=0, angle=0, phase=0, vRot=0, ampLente=0, rafId=0, dernierDessin=0, ema=16, mesures=0, derniereEval=0, fpsAff=60, ro=null;
@@ -207,8 +208,8 @@ void main(){
     gl.uniform1f(loc.u_t,phase); gl.uniform1f(loc.u_ang,angle); gl.uniform1f(loc.u_amp,amp);
     gl.uniform1f(loc.u_resp,courant.respire); gl.uniform1f(loc.u_agi,courant.agite);
     gl.uniform1f(loc.u_ray,courant.rayon); gl.uniform1f(loc.u_vit,1.0);
-    gl.uniform1f(loc.u_px,Math.max(2,canvas.width/(niveau===0?72:niveau===1?62:54)));
-    gl.uniform3fv(loc.u_c1,courant.c); gl.uniform3fv(loc.u_c2,courant.d); gl.uniform1f(loc.u_lum,courant.lum*(niveau>=2?1.35:1));
+    gl.uniform1f(loc.u_px,Math.max(2,canvas.width/(niveau===0?72:niveau===1?62:54))*(1+accentK*.35));
+    gl.uniform3fv(loc.u_c1,courant.c); gl.uniform3fv(loc.u_c2,courant.d); gl.uniform1f(loc.u_lum,courant.lum*(niveau>=2?1.35:1)*(1+accentK*.6));
     gl.drawArrays(gl.POINTS,0,points.length);
   }
   function dessiner2D(t){
@@ -225,10 +226,10 @@ void main(){
       let x2=ca*x+sa*z, z2=-sa*x+ca*z; x=x2; z=z2;
       const y2=.96*y-.28*z; z=.28*y+.96*z; y=y2;
       const persp=1/(1-z*.30), prof=.5+.5*z/Math.max(courant.rayon,.2);
-      const al=Math.min(1,(.30+.70*prof)*courant.lum*.95);
+      const al=Math.min(1,(.30+.70*prof)*courant.lum*.95*(1+accentK*.5));
       const m=p.s;
       const cr=Math.round(255*(c1[0]+(c2[0]-c1[0])*m)), cg=Math.round(255*(c1[1]+(c2[1]-c1[1])*m)), cb=Math.round(255*(c1[2]+(c2[2]-c1[2])*m));
-      const rad=Math.max(1.1,W/125*(.65+.9*prof)*(.8+.5*p.s)*(1+amp*.3));
+      const rad=Math.max(1.1,W/125*(.65+.9*prof)*(.8+.5*p.s)*(1+amp*.3)*(1+accentK*.3));
       ctx2.fillStyle='rgba('+cr+','+cg+','+cb+','+al.toFixed(2)+')';
       ctx2.beginPath(); ctx2.arc(R+x*persp*R,R-y*persp*R,rad,0,6.2832); ctx2.fill();
     }
@@ -257,7 +258,7 @@ void main(){
     majParametres(dt,t);
     if(externe){
       const e=etatDessin;
-      e.phase=phase; e.angle=angle; e.amp=amp; e.courant=courant; e.niveau=niveau; e.cote=cote; e.etat=etatNom;
+      e.phase=phase; e.angle=angle; e.amp=amp; e.courant=courant; e.niveau=niveau; e.cote=cote; e.etat=etatNom; e.accent=accentK;
       e.vis=verrouille?'verrouille':(now<alerteJusqua?'alerte':etatNom);
       e.securite=verrouille || now<alerteJusqua || (deverrouille && (etatNom==='idle'||etatNom==='veille'));
       try{ externe.dessiner(e,dt); }catch(er){ console.warn('[entite] moteur externe en échec :',er); lacherExterne(er); }
@@ -302,6 +303,7 @@ void main(){
     micro(fn){ fournisseurMicro=typeof fn==='function'?fn:null; },
     palette(fn){ paletteFn=typeof fn==='function'?fn:null; },
     geler(ms){ gelJusqua=performance.now()+(+ms||5000); },
+    accent(k){ accentK=Math.max(0,Math.min(1,+k||0)); },
     moteur(m){
       if((m||null)===externe) return;
       if(!m){ lacherExterne(); return; }

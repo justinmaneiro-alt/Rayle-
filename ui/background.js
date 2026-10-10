@@ -122,6 +122,7 @@
   });
   RayleBus.on('vue:changee',()=>{ aRedessiner=true; });
   UI.fondEtat=()=>({fond,rendu,q,fps:Math.round(1000/ema)});   // diagnostic (console, tests)
+  UI.fondScene=()=>scene;                                         // diagnostic : le fond actif (images fixes, tests)
 
   requestAnimationFrame(boucle);
   try{ const r=UI.reglages&&UI.reglages(); if(r){ fond=r.fond; palier=r.palier; anim=r.anim; appliquer(); } }catch(e){}

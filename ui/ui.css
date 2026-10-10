@@ -224,3 +224,10 @@ html.ui-eco .pn.hud-in{animation:hud-fondu .3s both}
   -webkit-mask:radial-gradient(farthest-side,transparent calc(100% - 3px),#000 calc(100% - 2px));mask:radial-gradient(farthest-side,transparent calc(100% - 3px),#000 calc(100% - 2px))}
 .ecoute-suite.vu{opacity:.7}
 #vueTerminal .ecoute-suite{display:none}
+
+/* ───── contraste de l'entité sur un fond (curseur « Contraste de l'entité ») ───── */
+.ui-disque{position:absolute;left:50%;top:50%;width:150%;height:150%;border-radius:50%;pointer-events:none;z-index:0;transform:translate(-50%,-50%);
+  opacity:0;transition:opacity .8s ease;
+  background:radial-gradient(circle,rgba(2,1,5,calc(.88 * var(--ui-contraste,.6))) 0%,rgba(2,1,5,calc(.7 * var(--ui-contraste,.6))) 34%,rgba(2,1,5,calc(.28 * var(--ui-contraste,.6))) 54%,rgba(2,1,5,0) 70%)}
+html.ui-fond-actif .ui-disque{opacity:1}
+html.ui-fond-actif .state{text-shadow:0 0 calc(12px * var(--ui-contraste,.6)) var(--t1),0 0 4px #000,0 0 12px rgba(0,0,0,calc(.5 + .5 * var(--ui-contraste,.6))),0 1px 2px #000}

@@ -13,7 +13,7 @@
   const FONDS={aucun:'Aucun',globe:'Globe',ville3d:'Ville 3D',video:'Ville réelle'};
   const ENTITES={sphere:'Sphère',neurones:'Neurones'};
   const ANIMS={max:'Max',auto:'Auto',eco:'Éco'};
-  const CLE={theme:'rayle_ui_theme',fond:'rayle_ui_fond',anim:'rayle_ui_anim',micro:'rayle_ui_micro',entite:'rayle_ui_entite',taille:'rayle_ui_taille'};
+  const CLE={theme:'rayle_ui_theme',fond:'rayle_ui_fond',anim:'rayle_ui_anim',micro:'rayle_ui_micro',entite:'rayle_ui_entite',taille:'rayle_ui_taille',contraste:'rayle_ui_contraste'};
   const lire=k=>{ try{ return localStorage.getItem(k); }catch(e){ return null; } };
   const ecrire=(k,v)=>{ try{ localStorage.setItem(k,v); }catch(e){} };
   const DOM=typeof document!=='undefined';
@@ -30,7 +30,8 @@
     anim:ANIMS[lire(CLE.anim)] ? lire(CLE.anim) : 'auto',
     entite:ENTITES[lire(CLE.entite)] ? lire(CLE.entite) : 'sphere',
     micro:lire(CLE.micro)==null ? !mobile : lire(CLE.micro)==='1',
-    taille:(v=>isFinite(v)&&v>=70&&v<=150 ? v : 100)(parseInt(lire(CLE.taille),10))   // taille de l'entité, en %
+    taille:(v=>isFinite(v)&&v>=70&&v<=150 ? v : 100)(parseInt(lire(CLE.taille),10)),   // taille de l'entité, en %
+    contraste:(v=>isFinite(v)&&v>=0&&v<=100 ? v : 60)(parseInt(lire(CLE.contraste),10))   // contraste de l'entité sur un fond, en %
   };
   let palierAuto=(mobile || (typeof navigator!=='undefined' && (navigator.hardwareConcurrency||4)<=4)) ? 1 : 0;
   const palier=()=>reduit() ? 2 : R.anim==='max' ? 0 : R.anim==='eco' ? 2 : palierAuto;
@@ -43,6 +44,11 @@
     try{ UI.appliquerTheme && UI.appliquerTheme(R.theme,premier); }catch(e){}
     premier=false;
     h.style.setProperty('--ui-k',String(R.taille/100));
+    // un fond est actif : l'entité ressort (disque sombre, plus de lumière, texte d'état lisible)
+    const avecFond=R.fond!=='aucun';
+    h.classList.toggle('ui-fond-actif',avecFond);
+    h.style.setProperty('--ui-contraste',String(R.contraste/100));
+    try{ Entite.accent && Entite.accent(avecFond ? R.contraste/100 : 0); }catch(e){}
     h.classList.toggle('ui-p0',p===0); h.classList.toggle('ui-p1',p===1); h.classList.toggle('ui-eco',p===2);
     try{ RayleBus.emit('ui:reglages',UI.reglages()); }catch(e){}
     majControles();
@@ -57,7 +63,7 @@
     }
     appliquer();
   }
-  UI.reglages=()=>({theme:R.theme,fond:R.fond,anim:R.anim,palier:palier(),micro:R.micro,mobile,entite:R.entite,taille:R.taille});
+  UI.reglages=()=>({theme:R.theme,fond:R.fond,anim:R.anim,palier:palier(),micro:R.micro,mobile,entite:R.entite,taille:R.taille,contraste:R.contraste});
   UI.changer=changer;
 
   /* ───── Mesure des images/s (Auto) : seulement quand la scène de Raylé est visible ───── */
@@ -88,6 +94,7 @@
     b.innerHTML='<div class="ui-lbl">Entité</div>'+seg('entite',ENTITES)
       +'<div class="ui-lbl">Thème</div><div class="ui-themes">'+themes+'</div>'
       +'<div class="ui-lbl">Taille de l\'entité : <b class="ui-taille-val"></b></div><input type="range" class="ui-range" min="70" max="150" step="5" data-k="taille" aria-label="Taille de l\'entité">'
+      +'<div class="ui-lbl">Contraste de l\'entité (sur un fond) : <b class="ui-contraste-val"></b></div><input type="range" class="ui-range" min="0" max="100" step="5" data-k="contraste" aria-label="Contraste de l\'entité">'
       +'<div class="ui-lbl">Fond animé</div>'+seg('fond',FONDS)
       +'<div class="ui-lbl">Niveau d\'animation</div>'+seg('anim',ANIMS)
       +(mobile?'':'<label class="ui-chk"><input type="checkbox" data-k="micro"> Anneaux qui suivent le volume du micro pendant l\'écoute</label>')
@@ -97,6 +104,8 @@
       if(t.dataset.themeId) changer('theme',t.dataset.themeId);
       else if(t.dataset.v){ const k=t.parentNode.dataset.k; changer(k,t.dataset.v); }
     });
+    const contraste=b.querySelector('input[data-k="contraste"]');
+    contraste.addEventListener('input',()=>changer('contraste',parseInt(contraste.value,10)||0));
     const taille=b.querySelector('input[data-k="taille"]');
     taille.addEventListener('input',()=>changer('taille',parseInt(taille.value,10)||100));
     const chk=b.querySelector('input[data-k="micro"]');
@@ -112,6 +121,8 @@
       const chk=b.querySelector('input[data-k="micro"]'); if(chk) chk.checked=R.micro;
       const tl=b.querySelector('input[data-k="taille"]'); if(+tl.value!==R.taille) tl.value=String(R.taille);
       b.querySelector('.ui-taille-val').textContent=R.taille+' %';
+      const ct=b.querySelector('input[data-k="contraste"]'); if(+ct.value!==R.contraste) ct.value=String(R.contraste);
+      b.querySelector('.ui-contraste-val').textContent=R.contraste+' %';
       b.querySelector('.ui-info').textContent='Rendu actuel : '+NOM_PALIER[p]+(R.anim==='auto'?' (choisi automatiquement)':'')
         +(reduit()?' · « réduire les animations » est activé sur cet appareil':'')+' · environ '+fpsVu+' images/s.';
     });

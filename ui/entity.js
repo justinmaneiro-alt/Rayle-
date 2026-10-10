@@ -15,7 +15,9 @@
   const halo=document.createElement('div'); halo.className='ui-halo'; halo.setAttribute('aria-hidden','true');
   const arr=document.createElement('canvas'); arr.className='ui-anneaux arriere'; arr.setAttribute('aria-hidden','true');
   const av=document.createElement('canvas'); av.className='ui-anneaux avant'; av.setAttribute('aria-hidden','true');
-  hote.append(halo,arr,av);
+  // disque sombre et flou derrière l'entité, quand un fond est actif (intensité : curseur « Contraste de l'entité », ui.css)
+  const disque=document.createElement('div'); disque.className='ui-disque'; disque.setAttribute('aria-hidden','true');
+  hote.append(disque,halo,arr,av);
   const ca=arr.getContext('2d'), cb=av.getContext('2d');
 
   let palier=1, micro=false, mobile=false;

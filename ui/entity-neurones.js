@@ -205,7 +205,7 @@ void main(){
     const sprite=(op)=>{ const m=new THREE.SpriteMaterial({map:tex,transparent:true,depthWrite:false,depthTest:false,blending:THREE.AdditiveBlending,opacity:op}); const s=new THREE.Sprite(m); groupe.add(s); return s; };
     const noyau=sprite(.9), lueur=sprite(.35);
 
-    let noeuds=null, fils=null, niveauActuel=-1, cote=0, ratio=1, fini=false;
+    let noeuds=null, fils=null, niveauActuel=-1, cote=0, ratio=1, fini=false, pxBase=3;
     function construire(n){
       n=Math.max(0,Math.min(NIVEAUX.length-1,n|0));
       if(n===niveauActuel) return;
@@ -276,7 +276,7 @@ void main(){
         cote=e.cote; ratio=Math.min(window.devicePixelRatio||1,NIVEAUX[niveauActuel].pr);
         rendu.setPixelRatio(ratio); rendu.setSize(cote,cote,false);
         canvas.style.width=canvas.style.height=cote+'px';
-        U.u_px.value=Math.max(1.6,cote*ratio/[150,130,105,95][niveauActuel]);
+        pxBase=Math.max(1.6,cote*ratio/[150,130,105,95][niveauActuel]);
       }
       dt=Math.min(dt||0,.1);
       const b=ETATS[e.vis]||ETATS[e.etat]||ETATS.idle, k=1-Math.exp(-dt*3);
@@ -289,7 +289,10 @@ void main(){
       U.u_cascA.value=cur.casc+(e.vis==='listening'?amp*.8:0);
       U.u_onde.value=onde; U.u_ondeA.value=cur.onde*(.25+amp*1.3);
       U.u_ech.value=cur.ech*(e.courant.rayon/.69)*(1+e.courant.respire*.03*Math.sin(e.phase*1.1)+amp*.04);
-      U.u_agi.value=e.courant.agite; U.u_lum.value=Math.min(1.4,e.courant.lum/.9)*[1,1.12,1.4,1.55][niveauActuel];   // moins de nœuds : chacun plus lumineux U.u_fil.value=cur.fil;
+      U.u_agi.value=e.courant.agite; const acc=e.accent||0;
+      U.u_lum.value=Math.min(1.4,e.courant.lum/.9)*[1,1.12,1.4,1.55][niveauActuel]*(1+acc*.6);   // moins de nœuds : chacun plus lumineux ; fond actif : plus lumineux
+      U.u_fil.value=cur.fil*(1+acc*.9);
+      U.u_px.value=pxBase*(1+acc*.35);
       // couleurs : le thème (nœuds = principale, filaments = secondaire, accent), ou celles de sécurité de l'entité
       const th=UI.couleurs(), sec=e.securite;
       const cible=sec ? [e.courant.c.map(x=>x*255),e.courant.d.map(x=>x*255),e.courant.c.map(x=>x*255*.6+102)] : [th[0],th[1],th[2]];
