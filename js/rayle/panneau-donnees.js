@@ -3,7 +3,7 @@
      Le Worker décrit le panneau (voir worker/src/outils/panneaux.js), cette fonction le dessine : jauges qui se remplissent,
      chiffres qui défilent jusqu'à leur valeur, lignes qui apparaissent l'une après l'autre. Texte toujours échappé ; liens http(s) seulement.
      Format : { id, icone, titre, jauges:[{label,score,etat}], chiffres:[{label,valeur,dec,unite,delta,deltaUnite}], lignes:[{label,valeur,sens}],
-                texte, items:[{titre,sous,texte,lien}], apercu (aperçu Drive en iframe), apercuLab (page rayle-lab, iframe isolée), code (bloc de code), note, pied:[{texte,url}] } */
+                texte, serie:[nombres] (mini-graphique, ui/panels.js), items:[{titre,sous,texte,lien}], apercu (aperçu Drive en iframe), apercuLab (page rayle-lab, iframe isolée), code (bloc de code), note, pied:[{texte,url}] } */
   const pdH=Panneaux.esc;
   const pdNum=(v,dec)=>Number(v).toLocaleString('fr-FR',{minimumFractionDigits:dec||0,maximumFractionDigits:dec||0});
   const pdSens=s=>s==='hausse'||s==='baisse' ? ' '+s : '';
@@ -24,6 +24,7 @@
         return '<div class="pn-chiffre" style="--i:'+i+'"><small>'+pdH(c.label)+'</small><b><span class="pn-cpt" data-v="'+pdH(c.valeur)+'" data-dec="'+pdH(c.dec||0)+'">'+pdH(pdNum(c.valeur,c.dec))+'</span>'+pdH(c.unite||'')+'</b>'+dh+'</div>';
       }).join('')+'</div>';
     }
+    if(Array.isArray(p.serie) && window.RayleUI && RayleUI.sparkline) h+=RayleUI.sparkline(p.serie,p.titre);
     (p.lignes||[]).forEach((l,i)=>{ h+='<div class="pn-l pn-anim-l" style="--i:'+i+'"><span>'+pdH(l.label)+'</span><b class="pn-v'+pdSens(l.sens)+'">'+pdH(l.valeur)+'</b></div>'; });
     if(p.texte) h+=(h?'<div class="pn-sep"></div>':'')+'<p>'+pdH(p.texte)+'</p>';
     if((p.items||[]).length){

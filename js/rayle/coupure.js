@@ -50,6 +50,8 @@
       addLine('ray',r); speak(r); return true;
     }
     if(/^oui efface tout$/.test(c) && Date.now()-viderDemande<30000){ viderDemande=0; memoireVider(); return true; }
+    const rUI=RayleBus.demander('ui:commande',c);   // apparence (ui/settings.js) : « thème Aurore », « fond globe », « mode éco »
+    if(rUI){ addLine('ray',rUI); speak(rUI); return true; }
     if(commandePanneaux(c)) return true;     // « ferme ça », « ferme tout »
     if(STOP_RE.test(c)){ cutAll('Parole interrompue'); return true; }
     if(COUPURE_RE.test(c)){ coupureTotale(); return true; }

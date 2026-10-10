@@ -6,12 +6,16 @@
      taille : 'normal' (colonnes autour de l'entité) | 'large' (au centre : carte, page web)
      pied   : [{texte,url}] liens ouverts dans un nouvel onglet, ou [{texte,clic}] boutons
      duree  : fermeture automatique après N ms (facultatif)
+     protege: jamais chassé par un nouveau panneau (le type 'securite' est toujours protégé)
    Panneaux.fermer(id) · fermerTout() · fermerDernier() · liste()
+   Panneaux.max(n) · suspendre(id,bool) (minuterie en pause pendant qu'on le lit) · surOuverture(fn(id,el,o))
+   Panneaux.dureeParDefaut : fonction(o) → ms pour les panneaux ouverts sans durée (ui/panels.js)
    Par le bus : emit('panneau:ouvrir',{…}), emit('panneau:fermer',{id}), emit('panneaux:fermer-tout')
    Le même cadre (css/hud.css : .hud-cadre, .hud-in) sert aux fenêtres du terminal. */
 window.Panneaux=(function(){
-  const MAX=8;
-  const ouverts=new Map();       // id → {el,nettoyage,onFermer,titre,large,n,timer}
+  let MAX=8;
+  const apres=[];                // crochets appelés après la création d'un panneau (ui/panels.js)
+  const ouverts=new Map();       // id → {el,nettoyage,onFermer,titre,large,n,timer,reste,t0,pause,protege}
   let wrap=null, colG=null, colD=null, centre=null, compteur=0;
   const racine=()=>document.getElementById('panneaux');
   const esc=t=>String(t==null?'':t).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -43,6 +47,16 @@ window.Panneaux=(function(){
     });
   }
   const choisirColonne=()=>colG.children.length<=colD.children.length ? colG : colD;
+  const dureeDe=o=>o.duree || (typeof api.dureeParDefaut==='function' ? (+api.dureeParDefaut(o)||0) : 0);
+  function armer(id,p){
+    clearTimeout(p.timer); p.timer=null;
+    if(p.reste>0 && !p.pause){ p.t0=Date.now(); p.timer=setTimeout(()=>fermer(id),p.reste); }
+  }
+  function suspendre(id,oui){
+    const p=ouverts.get(id); if(!p || !p.reste) return;
+    if(oui && !p.pause){ clearTimeout(p.timer); p.reste=Math.max(4000,p.reste-(Date.now()-p.t0)); p.pause=true; }
+    else if(!oui && p.pause){ p.pause=false; armer(id,p); }
+  }
 
   function ouvrir(o){
     structure();
@@ -56,9 +70,14 @@ window.Panneaux=(function(){
       existant.el.querySelector('.pn-tete h2').textContent=existant.titre;
       remplir(existant.el.querySelector('.pn-corps'),o.corps,existant);
       remplirPied(existant.el.querySelector('.pn-pied'),o.pied);
+      existant.reste=dureeDe(o); existant.pause=false; armer(id,existant);
       return id;
     }
-    while(ouverts.size>=MAX) fermer(ouverts.keys().next().value);
+    while(ouverts.size>=MAX){   // on chasse le plus ancien, jamais un panneau protégé (PIN, phrase secrète)
+      const k=Array.from(ouverts.keys()).find(k=>!ouverts.get(k).protege);
+      if(k==null) break;
+      fermer(k);
+    }
     if(large) Array.from(ouverts.entries()).forEach(([k,p])=>{ if(p.large) fermer(k); });   // un seul grand panneau à la fois
 
     const el=document.createElement('section');
@@ -68,14 +87,15 @@ window.Panneaux=(function(){
     el.innerHTML='<header class="pn-tete"><span class="pn-ico"></span><h2></h2><button type="button" class="pn-x" aria-label="Fermer ce panneau">✕</button></header><div class="pn-corps"></div><footer class="pn-pied"></footer><i class="hud-balayage"></i>';
     el.querySelector('.pn-ico').textContent=o.icone||'◈';
     el.querySelector('h2').textContent=o.titre||'';
-    const p={el,nettoyage:null,onFermer:o.onFermer,titre:o.titre||'',large,n,timer:null};
+    const p={el,nettoyage:null,onFermer:o.onFermer,titre:o.titre||'',large,n,timer:null,reste:0,t0:0,pause:false,protege:!!o.protege||o.type==='securite'};
     ouverts.set(id,p);
     remplir(el.querySelector('.pn-corps'),o.corps,p);
     remplirPied(el.querySelector('.pn-pied'),o.pied);
     el.querySelector('.pn-x').addEventListener('click',()=>fermer(id));
     (large?centre:choisirColonne()).appendChild(el);
-    if(o.duree) p.timer=setTimeout(()=>fermer(id),o.duree);
+    p.reste=dureeDe(o); armer(id,p);
     majEtat();
+    apres.forEach(f=>{ try{ f(id,el,o); }catch(e){ console.warn('[panneaux]',e); } });
     return id;
   }
   function fermer(id){
@@ -97,5 +117,8 @@ window.Panneaux=(function(){
   RayleBus.on('panneau:fermer',d=>fermer(d&&d.id));
   RayleBus.on('panneaux:fermer-tout',fermerTout);
   document.addEventListener('keydown',e=>{ if(e.key==='Escape' && ouverts.size && !document.getElementById('cfg').classList.contains('open')) fermerDernier(); });
-  return {ouvrir,fermer,fermerTout,fermerDernier,liste,esc};
+  const api={ouvrir,fermer,fermerTout,fermerDernier,liste,esc,suspendre,dureeParDefaut:null,
+    max(n){ MAX=Math.max(1,+n||8); },
+    surOuverture(fn){ if(typeof fn==='function') apres.push(fn); }};
+  return api;
 })();

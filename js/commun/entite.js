@@ -10,6 +10,8 @@
      deverrouille(bool)  accès déverrouillé (niveau 2) : teinte verte et or quand l'entité est au repos
      alerte(ms)          état alerte temporaire (rouge-orangé, agité)
      amplitude(fn|null)  fn() → 0..1 : niveau audio réel, ou null si rien à mesurer (amplitude simulée selon l'état)
+     micro(fn|null)      fn() → 0..1 : volume du micro pendant l'écoute (ui/entity.js, PC seulement), ou null
+     palette(fn|null)    fn(etat) → {c:[r,g,b],d:[r,g,b]} : couleurs du thème (ui/themes.js) ; alerte et verrous gardent les leurs
      qualite(q)          'auto' | 0 | 1 | 2 | 3 (3 = canvas 2D) ; mémorisé
      info()              {niveau, points, moteur, fps} */
 window.Entite=(function(){
@@ -38,7 +40,8 @@ window.Entite=(function(){
 
   let hote=null, canvas=null, gl=null, ctx2=null, prog=null, tampon=null, loc={};
   let niveau=0, points=[], moteur='gl', cote=0, dpr=1;
-  let etatNom='idle', verrouille=false, deverrouille=false, alerteJusqua=0, fournisseur=null;
+  let etatNom='idle', verrouille=false, deverrouille=false, alerteJusqua=0, fournisseur=null, fournisseurMicro=null, paletteFn=null;
+  const teinte={};   // état teinté par le thème (objet réutilisé à chaque image)
   let courant=JSON.parse(JSON.stringify(ETATS.idle)), amp=0, ampBrute=0;
   let tPrec=0, tDebut=0, angle=0, phase=0, vRot=0, ampLente=0, rafId=0, dernierDessin=0, ema=16, mesures=0, derniereEval=0, fpsAff=60, ro=null;
 
@@ -152,7 +155,12 @@ void main(){
     if(verrouille) return ETATS.verrouille;
     if(performance.now()<alerteJusqua) return ETATS.alerte;
     if(deverrouille && (etatNom==='idle'||etatNom==='veille')) return ETATS.deverrouille;   // accès déverrouillé (10 min) : teinte verte et or au repos
-    return ETATS[etatNom]||ETATS.idle;
+    const b=ETATS[etatNom]||ETATS.idle;
+    if(!paletteFn) return b;
+    let p=null; try{ p=paletteFn(etatNom); }catch(e){}
+    if(!p) return b;
+    Object.assign(teinte,b); teinte.c=p.c||b.c; teinte.d=p.d||b.d;
+    return teinte;
   }
   function ampSimulee(t){
     const e=(performance.now()<alerteJusqua)?'alerte':etatNom;
@@ -167,6 +175,7 @@ void main(){
     for(let i=0;i<3;i++){ courant.c[i]+=(b.c[i]-courant.c[i])*k; courant.d[i]+=(b.d[i]-courant.d[i])*k; }
     let brute=null;
     if(fournisseur){ try{ const v=fournisseur(); if(v!=null && isFinite(v)) brute=Math.max(0,Math.min(1,+v)); }catch(e){} }
+    if(brute==null && fournisseurMicro && etatNom==='listening'){ try{ const v=fournisseurMicro(); if(v!=null && isFinite(v)) brute=Math.max(0,Math.min(1,+v)); }catch(e){} }
     if(brute==null) brute=ampSimulee(t);   // pas d'audio mesurable (voix du navigateur, écoute) : amplitude simulée
     ampBrute=brute*Math.max(.4,courant.gain);
     const kk=ampBrute>amp ? 1-Math.exp(-dt*16) : 1-Math.exp(-dt*5);   // attaque vive, retombée douce
@@ -268,10 +277,13 @@ void main(){
     fixer(){ const b=cible(); CLES.forEach(c=>{ courant[c]=b[c]; }); courant.c=b.c.slice(); courant.d=b.d.slice(); },   // saute directement à l'état voulu (tests)
     alerte(ms){ alerteJusqua=performance.now()+(ms||6000); },
     amplitude(fn){ fournisseur=typeof fn==='function'?fn:null; },
+    micro(fn){ fournisseurMicro=typeof fn==='function'?fn:null; },
+    palette(fn){ paletteFn=typeof fn==='function'?fn:null; },
     qualite(q){
       if(q==='auto'||q==null){ ecrire(CLE_Q,'auto'); try{ localStorage.removeItem(CLE_N); }catch(e){} return; }
       ecrire(CLE_Q,String(q)); if(canvas) appliquerNiveau(+q);
     },
-    info(){ return {niveau:niveau,points:points.length,moteur:moteur,fps:fpsAff,amp:+amp.toFixed(2),etat:etatNom}; }
+    info(){ return {niveau:niveau,points:points.length,moteur:moteur,fps:fpsAff,amp:+amp.toFixed(2),etat:etatNom,
+      vis:verrouille?'verrouille':(performance.now()<alerteJusqua?'alerte':etatNom)}; }
   };
 })();

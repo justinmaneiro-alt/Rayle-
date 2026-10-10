@@ -1,0 +1,194 @@
+"use strict";
+/* ═════════════ RÉGLAGES D'APPARENCE : thème, fond animé, niveau d'animation ═════════════
+   - Bouton discret ◐ en haut à droite de la scène (petit panneau), et section « Apparence » dans ⚙ Réglages.
+   - Sauvegarde dans localStorage (toujours dans des try/catch).
+   - Niveau d'animation : Max / Auto / Éco. Palier effectif : 0 complet, 1 allégé, 2 éco (fond figé, sans halos animés).
+     En Auto, on mesure les images/s : si ça rame, on baisse d'un palier (le fond et les halos d'abord ; l'entité a sa propre auto-qualité).
+     « Réduire les animations » du système impose le palier 2.
+   - Commandes vocales : « Raylé, passe en thème Aurore », « fond globe », « mode éco » (service du bus 'ui:commande', appelé par coupure.js).
+   Bus : emit('ui:reglages',{theme,fond,anim,palier,micro}) à chaque changement ; RayleUI.reglages() pour lire l'état. */
+(function(){
+  const UI=window.RayleUI=window.RayleUI||{};
+  const THEMES=UI.THEMES||{};
+  const FONDS={ville:'Ville',globe:'Globe',aucun:'Aucun'};
+  const ANIMS={max:'Max',auto:'Auto',eco:'Éco'};
+  const CLE={theme:'rayle_ui_theme',fond:'rayle_ui_fond',anim:'rayle_ui_anim',micro:'rayle_ui_micro'};
+  const lire=k=>{ try{ return localStorage.getItem(k); }catch(e){ return null; } };
+  const ecrire=(k,v)=>{ try{ localStorage.setItem(k,v); }catch(e){} };
+  const DOM=typeof document!=='undefined';
+
+  const mobile=(function(){
+    try{ if(typeof IS_MOBILE!=='undefined') return !!IS_MOBILE; }catch(e){}
+    try{ return matchMedia('(pointer:coarse)').matches || /Android|iPhone|iPad|Mobile/i.test(navigator.userAgent); }catch(e){ return false; }
+  })();
+  const reduit=()=>{ try{ return matchMedia('(prefers-reduced-motion: reduce)').matches; }catch(e){ return false; } };
+
+  const R={
+    theme:THEMES[lire(CLE.theme)] ? lire(CLE.theme) : 'originel',
+    fond:FONDS[lire(CLE.fond)] ? lire(CLE.fond) : (mobile?'aucun':'ville'),
+    anim:ANIMS[lire(CLE.anim)] ? lire(CLE.anim) : 'auto',
+    micro:lire(CLE.micro)==null ? !mobile : lire(CLE.micro)==='1'
+  };
+  let palierAuto=(mobile || (typeof navigator!=='undefined' && (navigator.hardwareConcurrency||4)<=4)) ? 1 : 0;
+  const palier=()=>reduit() ? 2 : R.anim==='max' ? 0 : R.anim==='eco' ? 2 : palierAuto;
+  const NOM_PALIER=['complet','allégé','éco'];
+
+  let premier=true;
+  function appliquer(){
+    if(!DOM) return;
+    const p=palier(), h=document.documentElement;
+    try{ UI.appliquerTheme && UI.appliquerTheme(R.theme,premier); }catch(e){}
+    premier=false;
+    h.classList.toggle('ui-p0',p===0); h.classList.toggle('ui-p1',p===1); h.classList.toggle('ui-eco',p===2);
+    try{ RayleBus.emit('ui:reglages',UI.reglages()); }catch(e){}
+    majControles();
+  }
+  function changer(k,v){
+    if(R[k]===v) return;
+    R[k]=v; ecrire(CLE[k],typeof v==='boolean'?(v?'1':'0'):v);
+    if(k==='anim'){
+      // L'entité suit le niveau choisi (Éco : 800 points en WebGL, plus léger que le canvas 2D)
+      try{ Entite.qualite(v==='max'?0:v==='eco'?2:'auto'); }catch(e){}
+      palierAuto=(mobile || (navigator.hardwareConcurrency||4)<=4) ? 1 : 0; mauvais=0;
+    }
+    appliquer();
+  }
+  UI.reglages=()=>({theme:R.theme,fond:R.fond,anim:R.anim,palier:palier(),micro:R.micro,mobile});
+  UI.changer=changer;
+
+  /* ───── Mesure des images/s (Auto) : seulement quand la scène de Raylé est visible ───── */
+  let ema=16.7, n=0, tPrec=0, dernier=0, mauvais=0, fpsVu=60;
+  function mesurer(now){
+    requestAnimationFrame(mesurer);
+    const visible=!document.hidden && RayleBus.demander('vue')!=='terminal' && !document.getElementById('cfg').classList.contains('open');
+    if(!visible){ tPrec=0; return; }
+    if(tPrec){ const dt=Math.min(250,now-tPrec); ema+=(dt-ema)*.05; n++; }
+    tPrec=now;
+    if(n<90 || now-dernier<3000) return;
+    dernier=now; n=0; fpsVu=Math.round(1000/ema);
+    if(R.anim!=='auto' || palierAuto>=2 || reduit()){ mauvais=0; return; }
+    if(ema>38){                         // sous ~26 images/s deux fois de suite : on allège
+      if(++mauvais>=2){ mauvais=0; palierAuto++; ema=16.7; appliquer(); }
+    }else mauvais=0;
+  }
+
+  /* ───── Contrôles (bouton ◐ et section des Réglages : deux copies synchronisées) ───── */
+  const boites=[];
+  function construire(){
+    const b=document.createElement('div'); b.className='ui-reglages';
+    const themes=Object.keys(THEMES).map(id=>{
+      const c=THEMES[id].c;
+      return '<button type="button" class="ui-theme" data-theme-id="'+id+'" aria-pressed="false" style="--s1:'+c[0]+';--s2:'+c[1]+';--s3:'+c[2]+'"><i></i><span>'+THEMES[id].nom+'</span></button>';
+    }).join('');
+    const seg=(k,obj)=>'<div class="ui-seg" role="group" data-k="'+k+'">'+Object.keys(obj).map(v=>'<button type="button" data-v="'+v+'" aria-pressed="false">'+obj[v]+'</button>').join('')+'</div>';
+    b.innerHTML='<div class="ui-lbl">Thème</div><div class="ui-themes">'+themes+'</div>'
+      +'<div class="ui-lbl">Fond animé</div>'+seg('fond',FONDS)
+      +'<div class="ui-lbl">Niveau d\'animation</div>'+seg('anim',ANIMS)
+      +(mobile?'':'<label class="ui-chk"><input type="checkbox" data-k="micro"> Anneaux qui suivent le volume du micro pendant l\'écoute</label>')
+      +'<div class="ui-info"></div>';
+    b.addEventListener('click',e=>{
+      const t=e.target.closest('button'); if(!t) return;
+      if(t.dataset.themeId) changer('theme',t.dataset.themeId);
+      else if(t.dataset.v){ const k=t.parentNode.dataset.k; changer(k,t.dataset.v); }
+    });
+    const chk=b.querySelector('input[data-k="micro"]');
+    if(chk) chk.addEventListener('change',()=>changer('micro',chk.checked));
+    boites.push(b);
+    return b;
+  }
+  function majControles(){
+    const p=palier();
+    boites.forEach(b=>{
+      b.querySelectorAll('.ui-theme').forEach(x=>x.setAttribute('aria-pressed',String(x.dataset.themeId===R.theme)));
+      b.querySelectorAll('.ui-seg').forEach(s=>s.querySelectorAll('button').forEach(x=>x.setAttribute('aria-pressed',String(x.dataset.v===R[s.dataset.k]))));
+      const chk=b.querySelector('input[data-k="micro"]'); if(chk) chk.checked=R.micro;
+      b.querySelector('.ui-info').textContent='Rendu actuel : '+NOM_PALIER[p]+(R.anim==='auto'?' (choisi automatiquement)':'')
+        +(reduit()?' · « réduire les animations » est activé sur cet appareil':'')+' · environ '+fpsVu+' images/s.';
+    });
+  }
+
+  function monterInterface(){
+    // Section « Apparence » en tête des Réglages
+    const cfg=document.getElementById('cfg'), top=cfg&&cfg.querySelector('.cfg-top');
+    if(top){
+      const h=document.createElement('h3'); h.textContent='Apparence';
+      top.after(h); h.after(construire());
+    }
+    // Bouton discret et petit panneau
+    const scene=document.getElementById('scene');
+    const bouton=document.createElement('button');
+    bouton.type='button'; bouton.id='uiBouton'; bouton.className='ui-bouton'; bouton.title='Apparence : thème, fond, animations';
+    bouton.setAttribute('aria-label','Apparence'); bouton.setAttribute('aria-expanded','false'); bouton.textContent='◐';
+    const pop=document.createElement('div'); pop.id='uiPop'; pop.className='ui-pop hud-cadre'; pop.hidden=true;
+    pop.setAttribute('role','dialog'); pop.setAttribute('aria-label','Apparence');
+    pop.innerHTML='<header class="pn-tete"><span class="pn-ico">◐</span><h2>Apparence</h2><button type="button" class="pn-x" aria-label="Fermer">✕</button></header>';
+    const corps=document.createElement('div'); corps.className='ui-pop-corps'; corps.appendChild(construire()); pop.appendChild(corps);
+    scene.appendChild(bouton); document.body.appendChild(pop);
+    const ouvrirPop=oui=>{
+      pop.hidden=!oui; bouton.setAttribute('aria-expanded',String(oui));
+      if(oui){ majControles(); pop.classList.remove('hud-in'); void pop.offsetWidth; pop.classList.add('hud-in'); }
+    };
+    bouton.addEventListener('click',e=>{ e.stopPropagation(); ouvrirPop(pop.hidden); });
+    pop.querySelector('.pn-x').addEventListener('click',()=>ouvrirPop(false));
+    document.addEventListener('pointerdown',e=>{ if(!pop.hidden && !pop.contains(e.target) && e.target!==bouton) ouvrirPop(false); });
+    document.addEventListener('keydown',e=>{ if(e.key==='Escape' && !pop.hidden) ouvrirPop(false); });
+    document.getElementById('gear').addEventListener('click',majControles);
+    try{ matchMedia('(prefers-reduced-motion: reduce)').addEventListener('change',appliquer); }catch(e){}
+  }
+
+  /* ───── Commandes vocales (texte déjà normalisé : minuscules, sans accents ni ponctuation, sans « Raylé ») ───── */
+  const QUESTION=/\b(?:pourquoi|comment|quel|quelle|quels|quelles|combien|c est quoi|qu est ce|est ce que)\b/;
+  const VERBES='(?:passe|passer|repasse|mets|met|mettre|remets|change|changer|bascule|basculer|active|activer|applique|appliquer|prends|choisis|affiche|afficher|je veux|on passe)';
+  const NOMS_SEULS=/^(?:aurore|nebuleuse|(?:arcs?|ark) (?:reactor|reacteur)|ambre solaire|(?:mark|marc) rouge)$/;
+  const FOND_RE=new RegExp('^(?:('+VERBES.slice(3,-1)+'|enleve|enlever|retire|retirer|coupe|couper|desactive|desactiver|supprime|eteins|pas de|sans)(?: moi)? )?(?:(?:le|un|du|de|mon|ton) )?(?:fond|arriere plan|decor)(?: d ecran| anime| animee)?((?: (?:en|sur|a|au|avec|de|du|la|le|l|une))*)(?: (ville|cite|city|globe|terre|planete|monde|aucun|rien|noir|vide|neutre|sobre))?$');
+  const ANIM_RE=new RegExp('^(?:'+VERBES+'(?: moi)? )?(?:(?:en|le|la|au|les) )?(?:mode|animations?|niveau d animation|qualite|graphismes?)(?: (?:en|au|a|sur))? (eco|economie|economique|economie d energie|leger|legere|max|maximum|maximal|maximale|auto|automatique|normal|normale)$');
+
+  function analyser(c){
+    const t=String(c||'').replace(/['’]/g,' ').replace(/-/g,' ').replace(/\s+/g,' ').trim();
+    if(!t || t.split(' ').length>9 || QUESTION.test(t)) return null;
+    if(/\b(?:graphique|graphe|chart|bougies?|rsi|terminal|carte|courbe)\b/.test(t)) return null;   // réglages du terminal, pas de l'apparence
+    if(/\b(?:theme|themes|couleurs?|palette|pack)\b/.test(t)){
+      for(const id of Object.keys(THEMES)) if(THEMES[id].alias.test(t)) return {type:'theme',valeur:id};
+      if(new RegExp('^(?:'+VERBES+' )?(?:de |le |les |d )?(?:theme|couleurs?|palette)(?: suivante?s?)?$|^autre (?:theme|couleur|palette)$').test(t)) return {type:'theme',valeur:'+'};
+      return null;
+    }
+    const m=t.match(new RegExp('^(?:'+VERBES+' )?(?:en |sur |le |la |l )?(?:mode )?(.+)$'));
+    if(m && NOMS_SEULS.test(m[1])){ for(const id of Object.keys(THEMES)) if(THEMES[id].alias.test(m[1])) return {type:'theme',valeur:id}; }
+    const f=t.match(FOND_RE);
+    if(f){
+      const v=f[3], negatif=/^(?:enleve|enlever|retire|retirer|coupe|couper|desactive|desactiver|supprime|eteins|pas de|sans)$/.test(f[1]||'');
+      if(v) return {type:'fond',valeur:/ville|cite|city/.test(v)?'ville':/globe|terre|planete|monde/.test(v)?'globe':'aucun'};
+      if(negatif) return {type:'fond',valeur:'aucun'};
+      return null;
+    }
+    const a=t.match(ANIM_RE);
+    if(a) return {type:'anim',valeur:/^(?:eco|econom|leger)/.test(a[1])?'eco':/^max/.test(a[1])?'max':'auto'};
+    return null;
+  }
+  function executer(a){
+    if(a.type==='theme'){
+      let id=a.valeur;
+      if(id==='+'){ const ids=Object.keys(THEMES); id=ids[(ids.indexOf(R.theme)+1)%ids.length]; }
+      if(id===R.theme) return 'C\'est déjà le thème '+THEMES[id].nom+'.';
+      changer('theme',id); return 'Thème '+THEMES[id].nom+' activé.';
+    }
+    if(a.type==='fond'){
+      if(a.valeur===R.fond) return a.valeur==='aucun'?'Le fond est déjà désactivé.':'C\'est déjà le fond '+FONDS[a.valeur].toLowerCase()+'.';
+      changer('fond',a.valeur);
+      return a.valeur==='aucun'?'Fond animé désactivé.':'Fond '+FONDS[a.valeur].toLowerCase()+' activé.';
+    }
+    if(a.type==='anim'){
+      changer('anim',a.valeur);
+      return a.valeur==='eco'?'Mode éco : animations allégées.':a.valeur==='max'?'Animations au maximum.':'Animations en automatique : je m\'allège toute seule si l\'écran rame.';
+    }
+    return null;
+  }
+  UI.analyserCommande=analyser;
+
+  if(DOM){
+    try{ RayleBus.fournir('ui:commande',c=>{ const a=analyser(c); return a ? executer(a) : null; }); }catch(e){}
+    try{ monterInterface(); }catch(e){ console.warn('[ui] réglages',e); }
+    appliquer();
+    requestAnimationFrame(mesurer);
+  }
+})();
