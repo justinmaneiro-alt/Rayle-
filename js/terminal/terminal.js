@@ -1,9 +1,9 @@
 /* ═════════════ TERMINAL (vue de la page unique) : module chargé à la première ouverture ═════════════
    Parle à Raylé uniquement par RayleBus (état partagé en mémoire + commandes). Aucun localStorage entre les deux. */
-import { creerGraphique, LIBELLE_IV } from './graphique-rayle.js';
-import { creerPageMarches } from './page-marches.js';
-import { creerPageCot } from './page-cot.js';
-import { creerPageAnalyse } from './page-analyse.js';
+import { creerGraphique, LIBELLE_IV } from './graphique-rayle.js?v=2026.10.10.3';
+import { creerPageMarches } from './page-marches.js?v=2026.10.10.3';
+import { creerPageCot } from './page-cot.js?v=2026.10.10.3';
+import { creerPageAnalyse } from './page-analyse.js?v=2026.10.10.3';
 
 
   // ── WORKER RAYLÉ ── adresse et code d'accès : les mêmes réglages que Raylé (⚙ Réglages), fournis par le bus
@@ -29,6 +29,13 @@ import { creerPageAnalyse } from './page-analyse.js';
     return d;
   }
 
+  // Migration unique : les anciennes versions ont pu laisser un état de panneaux replié ; on repart d'un terminal déplié
+  try{
+    if(localStorage.getItem('rayle_purge_panneaux')!=='1'){
+      Object.keys(localStorage).filter(k=>/panneau|replie|rayle_terminal_(vue|etat|panels)/i.test(k)).forEach(k=>localStorage.removeItem(k));
+      localStorage.setItem('rayle_purge_panneaux','1');
+    }
+  }catch(e){}
   const $=id=>document.getElementById(id);
   let horloge=null;
   const tickHorloge=()=>{ $('clock').textContent=new Date().toLocaleTimeString('fr-FR'); };
@@ -630,6 +637,8 @@ import { creerPageAnalyse } from './page-analyse.js';
   let ctxTimer=null, initFait=false;
   function ouvrir(){
     ouvertTerm=true;
+    { const g=document.querySelector('#vueTerminal .chart'); if(g) g.classList.remove('replie','ferme'); }   // le panneau Graphique s'ouvre toujours déplié
+    { const v=document.getElementById('versionPage'); if(v&&window.RAYLE_VERSION) v.textContent='Version '+window.RAYLE_VERSION; }
     tickHorloge(); clearInterval(horloge); horloge=setInterval(tickHorloge,1000);
     if(!initFait){ initFait=true; loadCal(); racineTerm.dataset.mode=modeAff; racineTerm.dataset.page=pageCourante; }
     mesurerBarre();

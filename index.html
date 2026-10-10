@@ -10,10 +10,10 @@
 <meta name="apple-mobile-web-app-title" content="Raylé">
 <title>RAYLÉ // Market &amp; Neural Core</title>
 <link rel="icon" type="image/svg+xml" href="favicon.svg">
-<link rel="stylesheet" href="css/rayle.css">
-<link rel="stylesheet" href="css/hud.css">
-<link rel="stylesheet" href="css/terminal.css">
-<link rel="stylesheet" href="css/terminal-pro.css">
+<link rel="stylesheet" href="css/rayle.css?v=2026.10.10.3">
+<link rel="stylesheet" href="css/hud.css?v=2026.10.10.3">
+<link rel="stylesheet" href="css/terminal.css?v=2026.10.10.3">
+<link rel="stylesheet" href="css/terminal-pro.css?v=2026.10.10.3">
 </head>
 <body>
   <main class="scene" id="scene">
@@ -169,7 +169,7 @@
     <div class="pagepro" id="pageCot" data-pro="cot"></div>
     <div class="pagepro" id="pageAnalyse" data-pro="analyse"></div>
 
-    <div class="foot">Données via le Worker Raylé (Yahoo Finance, Twelve Data, CNBC, CFTC, Binance) · Carnet Bitstamp · Graphique Raylé : <a href="https://www.tradingview.com/" target="_blank" rel="noopener" style="color:inherit">TradingView</a> Lightweight Charts™ (Apache 2.0) et widgets TradingView — outil personnel. Raylé reste à l’écoute : dis « ferme le terminal » ou « retour ».</div>
+    <div class="foot"><span id="versionPage">Version 2026.10.10.3</span> · Données via le Worker Raylé (Yahoo Finance, Twelve Data, CNBC, CFTC, Binance) · Carnet Bitstamp · Graphique Raylé : <a href="https://www.tradingview.com/" target="_blank" rel="noopener" style="color:inherit">TradingView</a> Lightweight Charts™ (Apache 2.0) et widgets TradingView — outil personnel. Raylé reste à l’écoute : dis « ferme le terminal » ou « retour ».</div>
   </div>
   <div class="mini">
     <div class="mini-dit" id="miniDit"></div>
@@ -179,37 +179,38 @@
   </div>
 </div>
 
-<script src="js/commun/bus.js"></script>
-<script src="js/commun/vues.js"></script>
-<script src="js/commun/entite.js"></script>
-<script src="js/commun/panneaux.js"></script>
-<script src="js/rayle/base.js"></script>
-<script src="js/rayle/pont-terminal.js"></script>
-<script src="js/rayle/commandes-terminal.js"></script>
-<script src="js/rayle/nettoyage-voix.js"></script>
-<script src="js/rayle/worker.js"></script>
-<script src="js/rayle/voix.js"></script>
-<script src="js/rayle/ia.js"></script>
-<script src="js/rayle/phrase.js"></script>
-<script src="js/rayle/agent.js"></script>
-<script src="js/rayle/modes.js"></script>
-<script src="js/rayle/coupure.js"></script>
-<script src="js/rayle/marche.js"></script>
-<script src="js/rayle/calendrier.js"></script>
-<script src="js/rayle/calcul.js"></script>
-<script src="js/rayle/panneaux-contenus.js"></script>
-<script src="js/rayle/panneau-donnees.js"></script>
-<script src="js/rayle/carte.js"></script>
-<script src="js/rayle/savoirs.js"></script>
-<script src="js/rayle/memoire.js"></script>
-<script src="js/rayle/medias.js"></script>
-<script src="js/rayle/lecture.js"></script>
-<script src="js/rayle/reconnaissance.js"></script>
-<script src="js/rayle/reglages.js"></script>
-<script src="js/rayle/affichage.js"></script>
-<script src="js/rayle/evenements.js"></script>
-<script src="js/rayle/reponse-hud.js"></script>
-<script src="js/rayle/securite.js"></script>
-<script src="js/rayle/demarrage.js"></script>
+<script>window.RAYLE_VERSION='2026.10.10.3';</script>
+<script src="js/commun/bus.js?v=2026.10.10.3"></script>
+<script src="js/commun/vues.js?v=2026.10.10.3"></script>
+<script src="js/commun/entite.js?v=2026.10.10.3"></script>
+<script src="js/commun/panneaux.js?v=2026.10.10.3"></script>
+<script src="js/rayle/base.js?v=2026.10.10.3"></script>
+<script src="js/rayle/pont-terminal.js?v=2026.10.10.3"></script>
+<script src="js/rayle/commandes-terminal.js?v=2026.10.10.3"></script>
+<script src="js/rayle/nettoyage-voix.js?v=2026.10.10.3"></script>
+<script src="js/rayle/worker.js?v=2026.10.10.3"></script>
+<script src="js/rayle/voix.js?v=2026.10.10.3"></script>
+<script src="js/rayle/ia.js?v=2026.10.10.3"></script>
+<script src="js/rayle/phrase.js?v=2026.10.10.3"></script>
+<script src="js/rayle/agent.js?v=2026.10.10.3"></script>
+<script src="js/rayle/modes.js?v=2026.10.10.3"></script>
+<script src="js/rayle/coupure.js?v=2026.10.10.3"></script>
+<script src="js/rayle/marche.js?v=2026.10.10.3"></script>
+<script src="js/rayle/calendrier.js?v=2026.10.10.3"></script>
+<script src="js/rayle/calcul.js?v=2026.10.10.3"></script>
+<script src="js/rayle/panneaux-contenus.js?v=2026.10.10.3"></script>
+<script src="js/rayle/panneau-donnees.js?v=2026.10.10.3"></script>
+<script src="js/rayle/carte.js?v=2026.10.10.3"></script>
+<script src="js/rayle/savoirs.js?v=2026.10.10.3"></script>
+<script src="js/rayle/memoire.js?v=2026.10.10.3"></script>
+<script src="js/rayle/medias.js?v=2026.10.10.3"></script>
+<script src="js/rayle/lecture.js?v=2026.10.10.3"></script>
+<script src="js/rayle/reconnaissance.js?v=2026.10.10.3"></script>
+<script src="js/rayle/reglages.js?v=2026.10.10.3"></script>
+<script src="js/rayle/affichage.js?v=2026.10.10.3"></script>
+<script src="js/rayle/evenements.js?v=2026.10.10.3"></script>
+<script src="js/rayle/reponse-hud.js?v=2026.10.10.3"></script>
+<script src="js/rayle/securite.js?v=2026.10.10.3"></script>
+<script src="js/rayle/demarrage.js?v=2026.10.10.3"></script>
 </body>
 </html>
