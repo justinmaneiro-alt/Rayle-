@@ -39,7 +39,7 @@
 #vueTerminal .rc-info{margin-left:auto;font-size:10px;color:var(--muted)}
 #vueTerminal .rc-info.warn{color:var(--warn)}
 #vueTerminal .rc-canvas{flex:1;min-height:0;position:relative}
-#vueTerminal .rc-legende{position:absolute;left:10px;top:44px;z-index:3;font-size:11px;color:var(--muted);pointer-events:none;text-shadow:0 0 6px #000;max-width:calc(100% - 90px)}
+#vueTerminal .rc-legende{position:absolute;left:10px;top:44px;z-index:3;font-size:11px;color:var(--muted);pointer-events:none;max-width:calc(100% - 90px)}
 #vueTerminal .rc-legende b{color:var(--ink)}
 #vueTerminal .rc-etat{position:absolute;inset:44px 0 0;display:none;place-items:center;text-align:center;padding:20px;color:var(--muted);font-size:12px;z-index:4;pointer-events:none;background:rgba(6,4,11,.55)}
 #vueTerminal .rc-etat.visible,#vueTerminal .rc-etat.erreur{display:grid}
@@ -66,7 +66,7 @@
 #vueTerminal[data-mode="graphique"][data-page="terminal"] .tmain,#vueTerminal[data-mode="graphique_rsi"][data-page="terminal"] .tmain{display:block;padding:8px}
 #vueTerminal[data-mode="graphique"] .left,#vueTerminal[data-mode="graphique_rsi"] .left,
 #vueTerminal[data-mode="graphique"] .right>.panel:not(.chart),#vueTerminal[data-mode="graphique_rsi"] .right>.panel:not(.chart){display:none}
-#vueTerminal[data-mode="graphique"] .chart,#vueTerminal[data-mode="graphique_rsi"] .chart{height:calc(100vh - var(--tbar-h,64px) - 16px);height:calc(100dvh - var(--tbar-h,64px) - 16px);animation:pro-in .35s ease both}
+#vueTerminal[data-mode="graphique"] .chart,#vueTerminal[data-mode="graphique_rsi"] .chart{height:calc(100vh - var(--tbar-h,64px) - var(--mini-h,64px) - 16px);height:calc(100dvh - var(--tbar-h,64px) - var(--mini-h,64px) - 16px);animation:pro-in .35s ease both}
 #vueTerminal[data-mode="graphique"] .chart .rcbox,#vueTerminal[data-mode="graphique_rsi"] .chart .rcbox,
 #vueTerminal[data-mode="graphique"] .chart .tvbox,#vueTerminal[data-mode="graphique_rsi"] .chart .tvbox{height:auto;min-height:0;flex:1}
 #vueTerminal[data-mode="graphique"] .mini,#vueTerminal[data-mode="graphique_rsi"] .mini{opacity:.92}
@@ -105,7 +105,8 @@
 #vueTerminal .pm-ec-barre i{position:absolute;top:0;bottom:0;animation:pm-barre .9s ease-out both}
 #vueTerminal .pm-ec-barre i.pos{left:0;background:var(--neon2)} #vueTerminal .pm-ec-barre i.neg{right:0;background:var(--down)}
 #vueTerminal .pm-ecart .tag{grid-column:1/-1;justify-self:start;margin:0}
-#vueTerminal .pm-courbe{width:calc(100% - 20px);margin:6px 10px 0;display:block;font:9.5px var(--mono);fill:var(--muted)}
+#vueTerminal .pm-courbe-boite{width:100%;padding:0 10px;min-width:0}
+#vueTerminal .pm-courbe{max-width:100%;height:auto;margin:6px 0 0;display:block;font:11px var(--mono);fill:var(--muted)}
 #vueTerminal .pm-courbe .g{stroke:rgba(255,0,127,.12);stroke-width:1}
 #vueTerminal .pm-courbe .ligne{stroke-width:2.2;stroke-dasharray:1200;stroke-dashoffset:1200;animation:pm-trace 1.4s ease-out forwards;animation-delay:var(--d,0s);filter:drop-shadow(0 0 4px currentColor)}
 @keyframes pm-trace{to{stroke-dashoffset:0}}
@@ -118,7 +119,7 @@
 #vueTerminal .pc-kpi{background:var(--panel);border:1px solid var(--line);padding:10px 13px;display:flex;flex-direction:column;gap:3px;animation:pro-in .5s ease both;position:relative}
 #vueTerminal .pc-kpi::before{content:"";position:absolute;left:0;top:0;bottom:0;width:2px;background:var(--neon);box-shadow:0 0 10px var(--neon)}
 #vueTerminal .pc-kpi .k{font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted)}
-#vueTerminal .pc-kpi b{font-size:17px;font-variant-numeric:tabular-nums} #vueTerminal .pc-kpi b.gros{font-size:24px;text-shadow:0 0 12px currentColor}
+#vueTerminal .pc-kpi b{font-size:17px;font-variant-numeric:tabular-nums} #vueTerminal .pc-kpi b.gros{font-size:24px}
 #vueTerminal .pc-kpi small{font-size:10.5px;color:var(--muted)}
 #vueTerminal .pc-grille{display:grid;gap:10px;grid-template-columns:repeat(auto-fit,minmax(min(100%,360px),1fr));align-items:start}
 #vueTerminal .pc-carte{background:var(--panel);border:1px solid var(--line);padding:0 0 10px;animation:pro-in .55s ease both;position:relative;box-shadow:0 0 16px rgba(255,0,127,.1)}
@@ -140,7 +141,7 @@
 #vueTerminal .pc-barres .long{fill:var(--up);opacity:.85;transform-origin:center;animation:pc-monte .7s ease-out both;animation-delay:calc(var(--i)*18ms);transform-box:fill-box;transform-origin:bottom}
 #vueTerminal .pc-barres .short{fill:var(--down);opacity:.85;animation:pc-monte .7s ease-out both;animation-delay:calc(var(--i)*18ms);transform-box:fill-box;transform-origin:top}
 @keyframes pc-monte{from{transform:scaleY(0)}to{transform:scaleY(1)}}
-#vueTerminal .pc-centile{padding:0 13px;display:flex;align-items:baseline;gap:8px} #vueTerminal .pc-centile b{font-size:32px;color:#fff;text-shadow:0 0 14px var(--neon)} #vueTerminal .pc-centile span{font-size:11px;color:var(--muted)}
+#vueTerminal .pc-centile{padding:0 13px;display:flex;align-items:baseline;gap:8px} #vueTerminal .pc-centile b{font-size:32px;color:#fff} #vueTerminal .pc-centile span{font-size:11px;color:var(--muted)}
 #vueTerminal .pc-jauge{padding:6px 13px 0}
 #vueTerminal .pc-rail{height:8px;background:linear-gradient(90deg,var(--down),rgba(255,255,255,.12) 20%,rgba(255,255,255,.12) 80%,var(--up));position:relative;border-radius:4px}
 #vueTerminal .pc-rail i{position:absolute;top:-4px;width:4px;height:16px;left:var(--p);transform:translateX(-2px);box-shadow:0 0 10px currentColor;animation:pc-curseur 1.2s ease-out both}

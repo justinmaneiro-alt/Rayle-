@@ -254,6 +254,7 @@ import { creerPageAnalyse } from './page-analyse.js';
     const secours=reps.some(r=>r.secours), differe=reps.some(r=>r.differe), perime=reps.some(r=>r.perime);
     let h='Source : '+h1.source+' ('+h1.symbole_source+')';
     if(secours) h+='<span class="tag">SECOURS</span>';
+    if(secours&&h1.note) h+=' <span class="alerte-src">'+h1.note.replace(/^SECOURS : /,'')+'</span>';
     if(differe) h+='<span class="tag">DIFFÉRÉ</span>';
     if(perime)  h+='<span class="tag">ANCIENNE COPIE</span>';
     h+=' · màj '+hhmm(Date.now());
@@ -279,14 +280,17 @@ import { creerPageAnalyse } from './page-analyse.js';
         reps.push(await marche(k,iv));
         if(tok!==dashTok) return;   // un autre actif a été demandé entre-temps
       }
+      // Supports et résistances : calculés par le Worker (pivots significatifs, écarts minimums en ATR), les mêmes que sur le graphique Raylé
+      const niv=await Promise.all(TFS.map(([iv])=>wk('/graphique?actif='+k+'&intervalle='+iv+'&n=50').catch(()=>null)));
+      if(tok!==dashTok) return;
       const cols=[];
       TFS.forEach(([iv,lab],i)=>{
         const d=reps[i].bougies;
         const closes=d.map(x=>x.c), highs=d.map(x=>x.h), lows=d.map(x=>x.l);
         seriesCache[iv]=closes; candleCache[iv]=d;
         const price=closes.at(-1), e200=ema(closes,200), r=rsi(closes,14);
-        const supC=lows.slice(-60).filter(x=>x<price), resC=highs.slice(-60).filter(x=>x>price);
-        const support=supC.length?Math.max(...supC):null, resist=resC.length?Math.min(...resC):null;
+        const nv0=niv[i]; let support=null, resist=null;
+        if(nv0){ support=nv0.supports.length?nv0.supports[0].prix:null; resist=nv0.resistances.length?nv0.resistances[0].prix:null; }
         const bull=e200!=null?price>e200:null, nv=netVol(d,20);
         const sc=Math.max(0,Math.min(100,Math.round((bull?60:40)+((r!=null?(r-50):0)*0.3)+(nv>=0?5:-5))));
         cols.push({lab,price,bull,rsi:r,support,resist,net:nv,score:sc,e200,dist:(e200?((price-e200)/e200*100):null)});
@@ -526,7 +530,7 @@ import { creerPageAnalyse } from './page-analyse.js';
     else if(m==='graphique') graph.regler({rsi:false});
     document.querySelectorAll('#tmodes button').forEach(b=>b.classList.toggle('actif',b.dataset.m===m));
     mesurerBarre(); setTimeout(()=>{ window.dispatchEvent(new Event('resize')); },60);
-    window.scrollTo(0,0);
+    window.scrollTo(0,0); { const ts=document.getElementById('tscroll'); if(ts) ts.scrollTop=0; }
     writeBridge({mode_affichage:MODES_AFF[m]});
     return true;
   }
@@ -555,7 +559,7 @@ import { creerPageAnalyse } from './page-analyse.js';
     document.querySelectorAll('#tpages button').forEach(b=>b.classList.toggle('actif',b.dataset.p===p));
     if(p==='terminal'){ if(avant!=='terminal' && ouvertTerm) reprendreTerminal(); }
     else if(ouvertTerm){ creerPage(p).ouvrir(opts||{}); }
-    mesurerBarre(); window.scrollTo(0,0);
+    mesurerBarre(); window.scrollTo(0,0); { const ts=document.getElementById('tscroll'); if(ts) ts.scrollTop=0; }
     writeBridge({page_terminal:{terminal:'terminal (graphique et dashboard)',marches:'Marchés',cot:'rapports COT',analyse:'analyse fondamentale'}[p]});
     return true;
   }

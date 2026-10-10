@@ -80,7 +80,7 @@ body.avec-panneaux .reactor{width:min(56vw,44vh,400px)}
 }
 
 /* ───── contenus des panneaux ───── */
-.pn-gros{font:700 44px "Courier New",Courier,monospace;color:#fff;line-height:1.05;text-shadow:0 0 14px rgba(77,227,255,.55)}
+.pn-gros{font:700 44px "Courier New",Courier,monospace;color:#fff;line-height:1.05;text-shadow:none}
 .pn-gros small{font-size:18px;color:var(--hud-doux);text-shadow:none}
 .pn-sous{color:var(--hud-doux);margin:2px 0 8px}
 .pn-l{display:flex;justify-content:space-between;align-items:baseline;gap:10px;padding:3px 0;border-bottom:1px dashed rgba(255,0,127,.16)}
@@ -155,7 +155,7 @@ body.secu-capture #interim{visibility:hidden}
 .pn-chiffres{display:grid;grid-template-columns:repeat(auto-fit,minmax(112px,1fr));gap:8px;margin:2px 0 8px}
 .pn-chiffre{padding:6px 8px;border:1px solid rgba(77,227,255,.28);background:rgba(77,227,255,.05);animation:pnChiffre .5s ease both;animation-delay:calc(var(--i,0)*70ms)}
 .pn-chiffre>small{display:block;color:var(--hud-doux);font-size:11px;line-height:1.2}
-.pn-chiffre>b{display:block;font:700 22px "Courier New",Courier,monospace;color:#fff;text-shadow:0 0 10px rgba(77,227,255,.5);font-weight:700}
+.pn-chiffre>b{display:block;font:700 22px "Courier New",Courier,monospace;color:#fff;font-weight:700}
 .pn-delta{display:block;font-size:11px;color:var(--hud-doux)}
 .pn-delta.hausse{color:#17d98a}.pn-delta.baisse{color:#ff3b5e}
 .pn-v.hausse{color:#17d98a}.pn-v.baisse{color:#ff3b5e}

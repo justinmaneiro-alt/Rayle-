@@ -28,23 +28,41 @@ export function creerPageMarches({ racine }) {
   };
   const tableau = (lignes, pre, o) => '<table class="pm-tab"><tbody>' + lignes.map((l, i) => ligne(l, pre + i, o)).join('') + '</tbody></table>';
 
-  function courbesSvg(c) {
-    const W = 360, H = 170, pad = 28;
+  /* Courbe des taux : le dessin suit la largeur réelle du panneau (px), l'échelle verticale s'adapte aux données avec une marge */
+  function echelle(mn, mx) {                       // graduations « rondes » qui encadrent les données
+    const brut = (mx - mn) / 4, pas = [0.1, 0.2, 0.25, 0.5, 1, 2, 5].find(x => x >= brut) || 5;
+    const bas = Math.floor((mn - (mx - mn) * 0.08) / pas) * pas, haut = Math.ceil((mx + (mx - mn) * 0.08) / pas) * pas;
+    const ticks = []; for (let v = bas; v <= haut + pas / 2; v += pas) ticks.push(+v.toFixed(4));
+    return { bas, haut, ticks, pas };
+  }
+  function courbesSvg(c, W) {
     const pays = [['us', 'États-Unis', '#ff3399'], ['allemagne', 'Allemagne', '#17d98a'], ['france', 'France', '#f5b642']].filter(p => c[p[0]] && c[p[0]].length >= 2);
     if (!pays.length) return '<div class="loading">Courbes indisponibles</div>';
+    W = Math.max(240, Math.round(W || 360));
+    const H = Math.round(Math.min(280, Math.max(170, W * 0.52))), gauche = 46, droite = 26, haut = 16, bas = 30;
     const vals = pays.flatMap(p => c[p[0]].map(x => x.rendement));
-    const mn = Math.floor(Math.min(...vals) * 2) / 2 - 0.25, mx = Math.ceil(Math.max(...vals) * 2) / 2 + 0.25;
-    const X = ans => pad + (Math.log(ans) - Math.log(2)) / (Math.log(30) - Math.log(2)) * (W - 2 * pad), Y = v => H - 22 - (v - mn) / (mx - mn) * (H - 40);
-    let s = '<svg viewBox="0 0 ' + W + ' ' + H + '" class="pm-courbe" role="img" aria-label="Courbes de rendement">';
-    for (let v = Math.ceil(mn); v <= mx; v++) s += '<line x1="' + pad + '" x2="' + (W - 8) + '" y1="' + Y(v) + '" y2="' + Y(v) + '" class="g"/><text x="2" y="' + (Y(v) + 3) + '">' + v + '%</text>';
-    [2, 5, 10, 30].forEach(a => { s += '<text x="' + X(a) + '" y="' + (H - 6) + '" text-anchor="middle">' + a + ' ans</text>'; });
+    const ech = echelle(Math.min(...vals), Math.max(...vals));
+    const ans = [...new Set(pays.flatMap(p => c[p[0]].map(x => x.ans)))].sort((u, v) => u - v);
+    const a0 = Math.log(ans[0]), a1 = Math.log(ans[ans.length - 1]);
+    const X = a => gauche + (a1 === a0 ? 0.5 : (Math.log(a) - a0) / (a1 - a0)) * (W - gauche - droite);
+    const Y = v => haut + (1 - (v - ech.bas) / (ech.haut - ech.bas)) * (H - haut - bas);
+    const dec = ech.pas < 1 ? 1 : 0;
+    let s = '<svg viewBox="0 0 ' + W + ' ' + H + '" width="' + W + '" height="' + H + '" class="pm-courbe" role="img" aria-label="Courbes de rendement">';
+    ech.ticks.forEach(v => { s += '<line x1="' + gauche + '" x2="' + (W - droite) + '" y1="' + Y(v).toFixed(1) + '" y2="' + Y(v).toFixed(1) + '" class="g"/><text x="' + (gauche - 6) + '" y="' + (Y(v) + 3).toFixed(1) + '" text-anchor="end">' + v.toFixed(dec).replace('.', ',') + ' %</text>'; });
+    ans.forEach(a => { s += '<text x="' + X(a).toFixed(1) + '" y="' + (H - 8) + '" text-anchor="middle">' + a + ' ans</text>'; });
     pays.forEach(([k, nom, col], i) => {
       const pts = c[k].map(x => [X(x.ans), Y(x.rendement)]);
       s += '<path class="ligne" style="--d:' + (i * 0.25) + 's" d="' + pts.map((p, j) => (j ? 'L' : 'M') + p[0].toFixed(1) + ' ' + p[1].toFixed(1)).join(' ') + '" stroke="' + col + '" fill="none"/>';
       c[k].forEach((x, j) => { s += '<circle cx="' + pts[j][0].toFixed(1) + '" cy="' + pts[j][1].toFixed(1) + '" r="3.2" fill="' + col + '"/>'; });
     });
-    s += '</svg><div class="pm-legende">' + pays.map(p => '<span><i style="background:' + p[2] + '"></i>' + p[1] + '</span>').join('') + '</div>';
-    return s;
+    return s + '</svg><div class="pm-legende">' + pays.map(p => '<span><i style="background:' + p[2] + '"></i>' + p[1] + '</span>').join('') + '</div>';
+  }
+  let largeurCourbe = 0, obsCourbe = null;
+  function dessinerCourbes(force) {
+    const boite = grille.querySelector('.pm-courbe-boite'); if (!boite || !dernier) return;
+    const w = Math.floor(boite.clientWidth);
+    if (!w || (!force && Math.abs(w - largeurCourbe) < 6)) return;
+    largeurCourbe = w; boite.innerHTML = courbesSvg(dernier.rendements.courbes, w);
   }
 
   function ecartsHtml(ec) {
@@ -66,11 +84,13 @@ export function creerPageMarches({ racine }) {
     const r = d.rendements;
     const cartes = [];
     cartes.push('<section class="pm-carte large" data-s="rendements"><h3>▤ Rendements obligataires</h3><div class="pm-deux"><div>' + tableau(r.lignes, 'r', { pts: true, dec: 3 })
-      + '</div><div><h4>Écarts</h4>' + ecartsHtml(r.ecarts) + '<h4>Courbes</h4>' + courbesSvg(r.courbes) + '</div></div></section>');
+      + '</div><div><h4>Écarts</h4>' + ecartsHtml(r.ecarts) + '<h4>Courbes</h4><div class="pm-courbe-boite"></div></div></div></section>');
     for (const [id, titre, ico] of SECTIONS.slice(1)) {
       cartes.push('<section class="pm-carte" data-s="' + id + '"><h3>' + ico + ' ' + titre + '</h3>' + tableau(d[id], id[0] + id.length, id === 'dollar_vix' ? { dec: 3 } : id === 'crypto' ? { dec: 0 } : null) + '</section>');
     }
     grille.innerHTML = cartes.join('');
+    dessinerCourbes(true);
+    if (typeof ResizeObserver !== 'undefined' && !obsCourbe) { obsCourbe = new ResizeObserver(() => dessinerCourbes(false)); obsCourbe.observe(grille); }
     grille.querySelectorAll('.pm-carte').forEach((c, i) => { c.style.animationDelay = (i * 90) + 'ms'; });
     defiler(grille, 900);
     clignoter(grille, avant);

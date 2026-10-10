@@ -50,6 +50,7 @@ export function creerGraphique({ boite, surChangement }) {
   let LW = null, chart = null, bougies = null, ema = null, rsiS = null, marqueurs = null;
   let actif = 'NDX', iv = '60', donnees = null, lignesSR = [], lignesRSI = [], annotations = [], lignesAnnot = [], numeros = [];
   let jeton = 0, minuteur = null, visible = false, rafraichirMs = 60000;
+  let cadrageAuto = true, tailleNulle = false, attenteTaille = null;
 
   const secondes = t => Math.floor(t / 1000);
   const dec = () => (donnees && donnees.decimales != null) ? donnees.decimales : 2;
@@ -84,13 +85,21 @@ export function creerGraphique({ boite, surChangement }) {
       if (!c) { majLegende(); return; }
       legende.innerHTML = ligneLegende(c, p.seriesData.get(rsiS));
     });
-    new ResizeObserver(() => { try { chart.timeScale(); } catch (e) {} }).observe(zone);
+    const manuel = () => { cadrageAuto = false; };
+    zone.addEventListener('wheel', manuel, { passive: true }); zone.addEventListener('pointerdown', manuel, { passive: true });
+    new ResizeObserver(() => {
+      const w = zone.clientWidth, h = zone.clientHeight;
+      if (!w || !h) { tailleNulle = true; return; }                 // panneau caché : on attend qu'il redevienne visible
+      try { chart.resize(w, h); } catch (e) {}
+      if (tailleNulle || cadrageAuto) { tailleNulle = false; if (donnees) cadrer(); }
+      if (attenteTaille) { const f = attenteTaille; attenteTaille = null; f(); }
+    }).observe(zone);
     return true;
   }
 
   function ligneLegende(c, r) {
     const cl = c.close >= c.open ? 'up' : 'down';
-    return '<b>' + esc(donnees ? donnees.nom || actif : actif) + '</b> · ' + LIBELLE_IV[iv] + ' <span class="' + cl + '">O ' + formatPrix(c.open) + ' H ' + formatPrix(c.high) + ' B ' + formatPrix(c.low) + ' C ' + formatPrix(c.close) + '</span>'
+    return '<b>' + esc(donnees ? donnees.nom || actif : actif) + '</b>' + (donnees && donnees.secours ? ' <span class="warn">[SECOURS ' + esc(donnees.symbole_source) + ']</span>' : '') + ' · ' + LIBELLE_IV[iv] + ' <span class="' + cl + '">O ' + formatPrix(c.open) + ' H ' + formatPrix(c.high) + ' B ' + formatPrix(c.low) + ' C ' + formatPrix(c.close) + '</span>'
       + (r && r.value != null ? ' · RSI <span>' + nombre(r.value, 1) + '</span>' : '');
   }
   function majLegende() {
@@ -99,9 +108,36 @@ export function creerGraphique({ boite, surChangement }) {
     legende.innerHTML = ligneLegende({ open: b.o, high: b.h, low: b.l, close: b.c }, rsiS ? { value: donnees.rsi_dernier } : null);
   }
 
+  function cadrer() {                  // montre les ~130 dernières bougies, calées à droite
+    if (!chart || !donnees) return;
+    const n = donnees.bougies.length;
+    try { chart.timeScale().setVisibleLogicalRange({ from: Math.max(0, n - 130), to: n + 6 }); } catch (e) {}
+    cadrageAuto = true;
+  }
+  // Le graphique ne se dessine correctement que dans un conteneur qui a une taille : on attend (3 s au plus) qu'il en ait une
+  function attendreTaille() {
+    if (zone.clientWidth > 0 && zone.clientHeight > 0) return Promise.resolve();
+    return new Promise(ok => { const t = setTimeout(() => { attenteTaille = null; ok(); }, 3000); attenteTaille = () => { clearTimeout(t); ok(); }; });
+  }
+
   /* ── Données ── */
-  const barres = d => d.bougies.map(b => ({ time: secondes(b.t), open: b.o, high: b.h, low: b.l, close: b.c }));
-  const serie = (d, tab) => d.bougies.map((b, i) => tab[i] == null ? { time: secondes(b.t) } : { time: secondes(b.t), value: tab[i] });
+  const valide = b => [b.o, b.h, b.l, b.c].every(v => typeof v === 'number' && isFinite(v));
+  const barres = d => {            // temps croissants et uniques (obligatoire pour Lightweight Charts), sans valeur invalide
+    const vus = new Set(), out = [];
+    for (const b of d.bougies.slice().sort((u, v) => u.t - v.t)) {
+      const t = secondes(b.t);
+      if (!valide(b) || vus.has(t)) continue;
+      vus.add(t); out.push({ time: t, open: b.o, high: b.h, low: b.l, close: b.c });
+    }
+    return out;
+  };
+  const serie = (d, tab) => {
+    const vus = new Set(), out = [];
+    d.bougies.map((b, i) => [secondes(b.t), tab[i]]).sort((u, v) => u[0] - v[0]).forEach(([t, v]) => {
+      if (vus.has(t)) return; vus.add(t); out.push(v == null || !isFinite(v) ? { time: t } : { time: t, value: v });
+    });
+    return out;
+  };
 
   function poserRSI() {
     if (!chart) return;
@@ -111,6 +147,7 @@ export function creerGraphique({ boite, surChangement }) {
         autoscaleInfoProvider: () => ({ priceRange: { minValue: 0, maxValue: 100 } })
       }, 1);
       rsiS.setData(serie(donnees, donnees.rsi));
+      try { chart.priceScale('right', 1).applyOptions({ scaleMargins: { top: 0.08, bottom: 0.08 } }); } catch (e) {}
       lignesRSI = [[70, COULEURS.bas], [50, 'rgba(255,0,127,.35)'], [30, COULEURS.haut]].map(([p, c]) => rsiS.createPriceLine({ price: p, color: c, lineWidth: 1, lineStyle: LW.LineStyle.Dashed, axisLabelVisible: p !== 50, title: '' }));
       try { const ps = chart.panes(); if (ps[0] && ps[0].setStretchFactor) { ps[0].setStretchFactor(3); ps[1].setStretchFactor(1); } } catch (e) {}
     } else if (!reglages.rsi && rsiS) {
@@ -145,9 +182,9 @@ export function creerGraphique({ boite, surChangement }) {
 
   function afficherSource() {
     const d = donnees; if (!d) { info.textContent = ''; return; }
-    const tags = (d.secours ? ' · SECOURS' : '') + (d.differe ? ' · DIFFÉRÉ' : '') + (d.perime ? ' · ANCIENNE COPIE' : '');
+    const tags = (d.secours ? ' · SECOURS (' + d.symbole_source + ')' : '') + (d.differe ? ' · DIFFÉRÉ' : '') + (d.perime ? ' · ANCIENNE COPIE' : '');
     info.textContent = d.source + tags + ' · màj ' + hhmm(Date.now()) + (reglages.ma200 && !d.ema200_disponible ? ' · EMA 200 : pas assez de bougies' : '');
-    info.className = 'rc-info' + (d.secours || d.perime ? ' warn' : '');
+    info.title = d.note || ''; info.className = 'rc-info' + (d.secours || d.perime ? ' warn' : '');
   }
 
   async function charger(a, i, options) {
@@ -165,22 +202,26 @@ export function creerGraphique({ boite, surChangement }) {
       return;
     }
     if (moi !== jeton) return;
+    await attendreTaille();
+    if (moi !== jeton) return;
     const memeSerie = donnees && donnees.actif === d.actif && donnees.intervalle === d.intervalle && !nouveau;
     donnees = d;
     message('');
+    try {
     bougies.applyOptions({ priceFormat: { type: 'price', precision: d.decimales, minMove: 1 / Math.pow(10, d.decimales) } });
     if (memeSerie) {                    // mise à jour discrète : on remplace les données sans rejouer l'animation
       bougies.setData(barres(d)); poserEMA(); if (rsiS) rsiS.setData(serie(d, d.rsi));
     } else {
-      poserRSI();
-      bougies.setData(barres(d)); poserEMA(); if (rsiS) rsiS.setData(serie(d, d.rsi));
-      chart.timeScale().setVisibleLogicalRange({ from: Math.max(0, d.bougies.length - 130), to: d.bougies.length + 6 });
+      bougies.setData(barres(d));       // les bougies d'abord : si le reste échoue, elles sont déjà là
+      poserRSI(); poserEMA(); if (rsiS) rsiS.setData(serie(d, d.rsi));
+      cadrer();
       if (!sansAnimation()) {        // le graphique se dévoile de gauche à droite (CSS), avec un trait lumineux qui le balaye
         zone.classList.remove('revele'); zone.parentNode.classList.remove('balayage'); void zone.offsetWidth;
         zone.classList.add('revele'); zone.parentNode.classList.add('balayage');
       }
     }
     poserRSI(); poserSupports(); poserAnnotations(); afficherSource(); majLegende();
+    } catch (e) { message('Graphique Raylé : dessin impossible (' + (e && e.message || e) + ')', true); }
     if (surChangement) surChangement(etatPublic());
   }
 
@@ -234,7 +275,7 @@ export function creerGraphique({ boite, surChangement }) {
     if (!visible) return;
     minuteur = setTimeout(async () => { if (visible && !document.hidden) await charger(null, null, { silencieux: true }); planifier(); }, rafraichirMs);
   }
-  function montrer() { visible = true; planifier(); if (chart) { try { chart.timeScale(); } catch (e) {} } }
+  function montrer() { visible = true; planifier(); if (chart && zone.clientWidth > 0) { try { chart.resize(zone.clientWidth, zone.clientHeight); } catch (e) {} if (cadrageAuto) cadrer(); } }
   function cacher() { visible = false; clearTimeout(minuteur); }
   function frequence(ms) { rafraichirMs = ms; planifier(); }
 
@@ -260,6 +301,6 @@ export function creerGraphique({ boite, surChangement }) {
     charger, regler, annoter, numeroter, effacerNumeros, montrer, cacher, frequence, etat: etatPublic,
     reglages: () => Object.assign({}, reglages),
     donnees: () => donnees,
-    redessiner: () => { if (chart) { try { chart.applyOptions({}); } catch (e) {} } }
+    redessiner: () => { if (chart && zone.clientWidth > 0) { try { chart.resize(zone.clientWidth, zone.clientHeight); } catch (e) {} if (cadrageAuto) cadrer(); } }
   };
 }
