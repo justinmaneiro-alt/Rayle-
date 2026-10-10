@@ -2,7 +2,7 @@
    Contrairement au widget TradingView (une fenêtre fermée dont on ne peut ni lire ni piloter le contenu), ce graphique est dessiné par la page
    avec les données du Worker (/graphique) : Raylé règle tout (unité de temps, RSI en sous-fenêtre, EMA 200, supports et résistances, annotations,
    numérotation des bougies) et lit exactement les mêmes chiffres. Le widget TradingView reste disponible pour l'analyse manuelle. */
-import { appelWorker, esc, hhmm, nombre, sansAnimation } from './hud.js?v=2026.10.10.4';
+import { appelWorker, esc, hhmm, nombre, sansAnimation } from './hud.js?v=2026.10.10.5';
 
 const IV_WORKER = { '5': '5min', '15': '15min', '60': '1h', '240': '4h', 'D': '1day' };
 export const LIBELLE_IV = { '5': 'M5', '15': 'M15', '60': 'H1', '240': 'H4', 'D': 'D1' };
@@ -18,7 +18,7 @@ function chargerLWC() {
   if (lwcPromesse) return lwcPromesse;
   lwcPromesse = new Promise((ok, ko) => {
     const s = document.createElement('script');
-    s.src = new URL('js/vendor/lightweight-charts.js?v=2026.10.10.4', document.baseURI).href; s.async = true;
+    s.src = new URL('js/vendor/lightweight-charts.js?v=2026.10.10.5', document.baseURI).href; s.async = true;
     s.onload = () => window.LightweightCharts ? ok(window.LightweightCharts) : ko(new Error('bibliothèque de graphique vide'));
     s.onerror = () => { lwcPromesse = null; ko(new Error('bibliothèque de graphique introuvable')); };
     document.head.appendChild(s);
