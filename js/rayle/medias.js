@@ -16,10 +16,31 @@
       img.src=url;
     });
   }
+  /* Devoirs et documents : rangés dans Drive (« Raylé - Cours / Devoirs »), puis Raylé les lit avec ses outils (lire_devoir, remplir_pdf…) */
+  const DOC_MAX=25*1024*1024;
+  const MIME_DOCS={pdf:'application/pdf',docx:'application/vnd.openxmlformats-officedocument.wordprocessingml.document',pptx:'application/vnd.openxmlformats-officedocument.presentationml.presentation',txt:'text/plain',md:'text/markdown',csv:'text/csv'};
+  const mimeDoc=f=>{ const e=((String(f.name||'').match(/\.([A-Za-z0-9]{1,5})$/)||[])[1]||'').toLowerCase(); return MIME_DOCS[e] || (Object.values(MIME_DOCS).includes(f.type)?f.type:''); };
+  async function deposerDocument(file,question,mime){
+    if(file.size>DOC_MAX){ addLine('sys','Document trop lourd ('+Math.round(file.size/1048576)+' Mo, maximum 25 Mo).'); return; }
+    if(!workerReady()){ addLine('sys','Il me faut le Worker pour ranger un document dans Drive : configurez-le dans ⚙ Réglages.'); return; }
+    addLine('user',(String(question||'').trim()||'Voici un devoir.')+'  [document : '+file.name+', '+Math.max(1,Math.round(file.size/1024))+' Ko]');
+    if(micOn && reveilActif()) enterConversation();
+    addLine('sys','Document : envoi dans Drive (Raylé - Cours / Devoirs)…');
+    try{
+      const res=await wfetch('/drive/deposer',{method:'POST',headers:{'Content-Type':mime,'X-Nom':encodeURIComponent(file.name)},body:file},120000);
+      if(!res.ok) throw await workerError(res);
+      const d=await res.json();
+      addLine('sys','Document rangé dans Drive : '+d.nom);
+      queue.push("J'ai déposé le devoir « "+d.nom+" » dans le Drive (fichier "+d.id+"). "+(String(question||'').trim()||"Lis-le et dis-moi ce qu'il demande."));
+      if(!processing) drain();
+    }catch(e){ addLine('sys','Document : '+errMsg(e)); }
+  }
   function envoyerFichier(file,question){
     if(!file) return;
     const isImg=/^image\//.test(file.type), isVid=/^video\//.test(file.type);
-    if(!isImg && !isVid){ addLine('sys','Fichier ignoré : seules les images et les vidéos sont acceptées.'); return; }
+    const mimeD=(!isImg && !isVid) ? mimeDoc(file) : '';
+    if(mimeD){ deposerDocument(file,question,mimeD); return; }
+    if(!isImg && !isVid){ addLine('sys','Fichier ignoré : images, vidéos, PDF, Word, PowerPoint et textes sont acceptés.'); return; }
     if(isVid && file.size>VIDEO_MAX){ addLine('sys','Vidéo trop lourde ('+Math.round(file.size/1048576)+' Mo, maximum 95 Mo). Coupez-la ou réduisez sa qualité.'); return; }
     const q=String(question||'').trim() || (isImg?'Analyse cette image.':'Analyse cette vidéo.');
     addLine('user',q+'  ['+(isImg?'image':'vidéo')+' : '+(file.name||'collée')+', '+Math.max(1,Math.round(file.size/1024))+' Ko]');

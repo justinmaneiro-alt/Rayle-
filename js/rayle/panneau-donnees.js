@@ -3,11 +3,12 @@
      Le Worker décrit le panneau (voir worker/src/outils/panneaux.js), cette fonction le dessine : jauges qui se remplissent,
      chiffres qui défilent jusqu'à leur valeur, lignes qui apparaissent l'une après l'autre. Texte toujours échappé ; liens http(s) seulement.
      Format : { id, icone, titre, jauges:[{label,score,etat}], chiffres:[{label,valeur,dec,unite,delta,deltaUnite}], lignes:[{label,valeur,sens}],
-                texte, items:[{titre,sous,texte,lien}], note, pied:[{texte,url}] } */
+                texte, items:[{titre,sous,texte,lien}], apercu (aperçu Drive en iframe), note, pied:[{texte,url}] } */
   const pdH=Panneaux.esc;
   const pdNum=(v,dec)=>Number(v).toLocaleString('fr-FR',{minimumFractionDigits:dec||0,maximumFractionDigits:dec||0});
   const pdSens=s=>s==='hausse'||s==='baisse' ? ' '+s : '';
   const pdLien=u=>/^https?:\/\//i.test(String(u||'')) ? String(u) : '';
+  const pdApercu=u=>/^https:\/\/drive\.google\.com\/file\/d\/[\w-]{10,80}\/preview$/.test(String(u||''));
 
   function pdHtml(p){
     let h='';
@@ -31,6 +32,9 @@
         return '<div class="pn-item pn-anim-l" style="--i:'+i+'"><h3>'+t+'</h3>'+(x.sous?'<small>'+pdH(x.sous)+'</small>':'')+(x.texte?'<p>'+pdH(x.texte)+'</p>':'')+'</div>';
       }).join('');
     }
+    // Aperçu d'un document du Drive (cours, devoir) : seulement une adresse drive.google.com/file/d/…/preview
+    if(pdApercu(p.apercu)) h+='<iframe class="pn-iframe" src="'+pdH(p.apercu)+'" referrerpolicy="no-referrer" sandbox="allow-scripts allow-same-origin allow-popups" loading="lazy" title="Aperçu du document"></iframe>'
+      +'<small class="pn-vide">Si l’aperçu reste vide (Google non connecté dans ce navigateur), utilise « Ouvrir dans Drive ».</small>';
     if(p.note) h+='<small class="pn-vide">'+pdH(p.note)+'</small>';
     return h;
   }
@@ -50,7 +54,7 @@
 
   function montrerDonnees(p){
     if(!p || !p.titre) return;
-    Panneaux.ouvrir({id:'donnees:'+(p.id||p.titre),type:'donnees',icone:p.icone||'◈',titre:p.titre,
+    Panneaux.ouvrir({id:'donnees:'+(p.id||p.titre),type:'donnees',icone:p.icone||'◈',titre:p.titre,taille:pdApercu(p.apercu)?'large':undefined,
       corps:(el)=>{ el.innerHTML=pdHtml(p); pdAnimer(el); },
       pied:(p.pied||[]).filter(b=>pdLien(b.url))});
   }
