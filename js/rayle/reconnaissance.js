@@ -62,6 +62,17 @@
           const c=cmdNorm(norm(fixName(fin)));
           if(COUPURE_RE.test(c)){ diagEntree(fin.trim(),true,'coupure totale (pendant ma parole)'); addLine('user',fin.trim()); coupureTotale(); }
           else if(STOP_RE.test(c)){ diagEntree(fin.trim(),true,'parole interrompue'); cutAll('Parole interrompue'); }
+          else if(/^(?:(?:non|ok|bon|chut)\s+)?(?:pas maintenant|pas tout de suite|pas le moment|plus tard)\b/.test(c)){ diagEntree(fin.trim(),true,'pas maintenant (pendant ma parole)'); cutAll('Parole interrompue'); onUser(fin.trim(),true); }
+          else if(wakeSplit(fin) && !echoTail(norm(fin))){   // « Raylé » pendant qu'elle parle : elle se tait et écoute
+            const w=wakeSplit(fin); diagEntree(fin.trim(),true,'interrompue par son nom'); cutAll('Parole interrompue');
+            if(mode==='veille') enterConversation();
+            if(w.apres && norm(w.apres).replace(/[^a-z0-9]/g,'').length>=3) onUser(w.apres,true);
+          }
+          else if(window.RayleEcoute && RayleEcoute.peutInterrompre(fin)){   // ordinateur : on lui parle par-dessus (voix captée avec annulation d'écho)
+            diagEntree(fin.trim(),true,'interrompue à la voix'); cutAll('Parole interrompue');
+            if(mode==='veille') enterConversation();
+            onUser(fin.trim(),true);
+          }
           else if(RayleBus.demander('vue')==='terminal' && estFermetureTerminal(fin)) onUser(fin.trim(),true);   // fermeture du terminal pendant qu'elle parle
           else diagEntree(fin.trim(),true,'ignoré : pendant que je parle');
         }
@@ -76,6 +87,7 @@
     };
     r.onstart=()=>{ recActif=true; recDepuis=Date.now(); };
     r.onerror=e=>{
+      try{ RayleBus.emit('rec:erreur',e.error); }catch(_){}
       if(e.error==='not-allowed' || e.error==='service-not-allowed'){
         addLine('sys',"Micro refusé : autorisez-le dans Chrome (cadenas à gauche de l'adresse), puis réessayez.");
         stopListening();

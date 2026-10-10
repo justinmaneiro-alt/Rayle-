@@ -1,7 +1,8 @@
 "use strict";
   /* ═════════════ MODES : micro coupé · veille · conversation ═════════════ */
   let micOn=false, mode='veille', lastAct=0;
-  const RETOUR_VEILLE_MS=90000;          // en conversation, retour en veille après 90 s de silence
+  const RETOUR_VEILLE_MS=90000;          // secours si js/rayle/ecoute-naturelle.js manque ; sinon : fenêtre de suite réglable (8 s par défaut)
+  const fenetreSuite=()=>window.RayleEcoute ? RayleEcoute.fenetreMs() : RETOUR_VEILLE_MS;
   // « toucher » : on touche le bouton, on parle, elle répond (le plus fiable sur téléphone et tablette)
   function modeEcoute(){ const m=prefs.mode(); return m==='auto' ? (IS_MOBILE?'toucher':'mainslibres') : m; }
   const modeToucher=()=>modeEcoute()==='toucher';
@@ -66,10 +67,11 @@
     if(why) addLine('sys',why);
   }
   setInterval(()=>{
-    if(micOn && mode==='conversation' && reveilActif() && !speaking && !processing && Date.now()-lastAct>RETOUR_VEILLE_MS){
-      enterVeille('Retour en veille (aucune parole depuis 90 secondes). Dites « Raylé » pour reprendre.');
+    if(micOn && mode==='conversation' && reveilActif() && !speaking && !processing && !queue.length && !pendingTxt
+       && Date.now()-Math.max(lastAct,dernierSon)>fenetreSuite()){
+      enterVeille('Retour en veille. Dites « Raylé » pour reprendre.');
     }
-  },5000);
+  },500);
 
   function ack(){
     const r=pick([

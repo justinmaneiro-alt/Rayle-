@@ -50,6 +50,8 @@
       addLine('ray',r); speak(r); return true;
     }
     if(/^oui efface tout$/.test(c) && Date.now()-viderDemande<30000){ viderDemande=0; memoireVider(); return true; }
+    const rIni=RayleBus.demander('initiative:commande',c);   // « pas maintenant » (js/rayle/initiative.js)
+    if(rIni){ addLine('ray',rIni); speak(rIni); return true; }
     const rUI=RayleBus.demander('ui:commande',c);   // apparence (ui/settings.js) : « thème Aurore », « fond globe », « mode éco »
     if(rUI){ addLine('ray',rUI); speak(rUI); return true; }
     if(commandePanneaux(c)) return true;     // « ferme ça », « ferme tout »
@@ -127,6 +129,8 @@
     if(voix && COUPURE_RE.test(c)){ diagAction('coupure totale'); addLine('user',text); coupureTotale(); return; }
     // Raylé qui s'entend elle-même : on ignore
     if(voix && echoTail(n)){ diagAction('ignoré : écho de ma voix'); addLine('sys','(écho de ma propre voix ignoré)'); return; }
+    // dans la fenêtre de suite : bruits courts et mots isolés ignorés (« euh », « hein », la télé)
+    if(voix && window.RayleEcoute && RayleEcoute.ignorer(text)){ diagAction('ignoré : bruit court'); return; }
 
     if(voix && micOn && mode==='veille' && reveilActif()){
       const w=wakeSplit(text);

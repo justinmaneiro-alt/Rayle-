@@ -28,7 +28,7 @@
   const prefs={
     vitesse:()=>{ const v=store.get(KEY_VIT); return v==='' ? null : Number(v); },
     reveil:()=>store.get(KEY_REVEIL)!=='0',     // mot d'activation demandé (oui par défaut)
-    barge:()=>store.get(KEY_BARGE)==='1',
+    barge:()=>{ const v=store.get(KEY_BARGE); if(v==='') { try{ return !IS_MOBILE; }catch(e){ return false; } } return v==='1'; },   // ordinateur : activé par défaut
     mode:()=>store.get(KEY_MODE)||'auto',
     suite:()=>store.get(KEY_SUITE)!=='0'
   };

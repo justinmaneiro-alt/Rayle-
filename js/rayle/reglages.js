@@ -31,7 +31,7 @@
   });
   kSuite.addEventListener('change',()=>{ store.set(KEY_SUITE,kSuite.checked?'':'0'); });
   $('cfgClose').addEventListener('click',()=>cfgEl.classList.remove('open'));
-  kBarge.addEventListener('change',()=>{ store.set(KEY_BARGE,kBarge.checked?'1':''); addLine('sys',kBarge.checked?'Interruption à la voix activée (le micro reste ouvert pendant qu\'elle parle).':'Interruption à la voix désactivée.'); });
+  kBarge.addEventListener('change',()=>{ store.set(KEY_BARGE,kBarge.checked?'1':'0'); addLine('sys',kBarge.checked?'Interruption à la voix activée (le micro reste ouvert pendant qu\'elle parle).':'Interruption à la voix désactivée.'); });
   kNoms.addEventListener('change',()=>{ store.set(KEY_NOMS,kNoms.value.trim()); buildFixName(); addLine('sys','Variantes du nom enregistrées.'); });
 
   function saveCfg(){
