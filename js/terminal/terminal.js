@@ -1,5 +1,9 @@
 /* ═════════════ TERMINAL (vue de la page unique) : module chargé à la première ouverture ═════════════
    Parle à Raylé uniquement par RayleBus (état partagé en mémoire + commandes). Aucun localStorage entre les deux. */
+import { creerGraphique, LIBELLE_IV } from './graphique-rayle.js';
+import { creerPageMarches } from './page-marches.js';
+import { creerPageCot } from './page-cot.js';
+import { creerPageAnalyse } from './page-analyse.js';
 
 
   // ── WORKER RAYLÉ ── adresse et code d'accès : les mêmes réglages que Raylé (⚙ Réglages), fournis par le bus
@@ -20,7 +24,7 @@
     return d;
   }
   async function marche(actif,iv){
-    const d=await wk('/marche?actif='+actif+'&intervalle='+iv+'&n=250');
+    const d=await wk('/marche?actif='+actif+'&intervalle='+iv+'&n=500');   // même clé de cache que le graphique Raylé : un seul appel aux sources
     if(!d.bougies||!d.bougies.length) throw new Error('aucune bougie reçue');
     return d;
   }
@@ -40,6 +44,15 @@
   // Fréquence de mise à jour du dashboard : plus lente pour l'or et l'EUR/USD (quota Twelve Data)
   const REFRESH={NDX:120000,BTC:120000,SOL:120000,XAU:600000,EUR:600000};
   let current='NDX', interval='60';
+  const IV_TD={'5':'5min','15':'15min','60':'1h','240':'4h','D':'1day'};     // unité du graphique → intervalle du Worker
+  const IV_VALIDES=Object.keys(IV_TD);
+  const MODES_AFF={dashboard:'le dashboard',graphique:'le graphique seul',graphique_rsi:'le graphique avec le RSI'};
+  const PAGES_TERM=['terminal','marches','cot','analyse'];
+  const CLE_PREFS='rayle_terminal_prefs';
+  const lirePrefs=()=>{ try{ return JSON.parse(localStorage.getItem(CLE_PREFS)||'{}')||{}; }catch(e){ return {}; } };
+  const ecrirePrefs=()=>{ try{ localStorage.setItem(CLE_PREFS,JSON.stringify({source:sourceGraph,r:graph?graph.reglages():{}})); }catch(e){} };
+  let modeAff='dashboard', pageCourante='terminal', sourceGraph=(lirePrefs().source==='tradingview'?'tradingview':'rayle');
+  let graph=null;
 
   function tvWidget(id,url,cfg){
     const el=$(id); el.innerHTML='';
@@ -110,16 +123,16 @@
     if(!ASSETS[k]) return;
     current=k;
     [...tabs.children].forEach((c,i)=>c.classList.toggle('active',keys[i]===k));
-    loadChart(); startBook();
-    writeBridge(Object.assign({},EMPTY,{actif:ASSETS[k].label,symbole:ASSETS[k].tv,unite_graphique:interval==='60'?'H1':'M15',analyse_en_cours:true}));
+    majGraphique(); startBook();
+    writeBridge(Object.assign({},EMPTY,{actif:ASSETS[k].label,symbole:ASSETS[k].tv,unite_graphique:LIBELLE_IV[interval],analyse_en_cours:true}));
     buildDash();
   }
   function selectInterval(iv){
-    if(iv!=='15'&&iv!=='60') return;
+    if(!IV_VALIDES.includes(iv)) return;
     interval=iv;
     $('ivs').querySelectorAll('button').forEach(x=>x.classList.toggle('active',x.dataset.iv===iv));
-    loadChart(); drawRSI();
-    writeBridge({unite_graphique:iv==='60'?'H1':'M15'});
+    majGraphique(); drawRSI();
+    writeBridge({unite_graphique:LIBELLE_IV[iv]});
     enrichBridge();
   }
   keys.forEach((k,i)=>{
@@ -143,10 +156,10 @@
   const seriesCache={};
   function drawRSI(){
     const box=$('rsi-box'); const s=ASSETS[current];
-    const iv = interval==='60'?'1h':'15min';
-    $('rsiSym').textContent=s.label+' · '+(interval==='60'?'H1':'M15');
+    const iv = IV_TD[interval];
+    $('rsiSym').textContent=s.label+' · '+LIBELLE_IV[interval];
     const closes=seriesCache[iv];
-    if(!closes||!closes.length){ box.innerHTML='<div class="loading">RSI en attente des données…</div>'; return; }
+    if(!closes||!closes.length){ box.innerHTML='<div class="loading">'+(interval==='5'?'RSI M5 : voir le graphique Raylé':'RSI en attente des données…')+'</div>'; return; }
     const r=rsiSeries(closes,14).slice(-100);
     if(!r.length){ box.innerHTML='<div class="loading">Pas assez de données</div>'; return; }
     const W=600,H=190,pad=6;
@@ -201,7 +214,7 @@
     return {lecture,dernier_sommet:rd(h1.p),dernier_creux:rd(l1.p),alerte};
   }
   function enrichBridge(){
-    const iv=interval==='60'?'1h':'15min', lab=interval==='60'?'H1':'M15';
+    const iv=candleCache[IV_TD[interval]]?IV_TD[interval]:'1h', lab=iv===IV_TD[interval]?LIBELLE_IV[interval]:'H1';
     const d=candleCache[iv]; if(!d||!d.length) return;
     const dec=ASSETS[current].dec, rd=v=>+Number(v).toFixed(dec);
     const last=d.at(-1), seg=d.slice(-50);
@@ -308,7 +321,7 @@
 
       const rh1=reps[1];
       writeBridge({
-        actif:s.label, symbole:s.tv, unite_graphique:interval==='60'?'H1':'M15',
+        actif:s.label, symbole:s.tv, unite_graphique:LIBELLE_IV[interval],
         tendance_globale:globalTrend, score_global:scoreG,
         tendances:Object.fromEntries(cols.map(c=>[c.lab, c.bull?'Haussier':'Baissier'])),
         rsi:Object.fromEntries(cols.map(c=>[c.lab, c.rsi!=null?+c.rsi.toFixed(1):null])),
@@ -471,20 +484,109 @@
   });
   { const tools=document.querySelector('#vueTerminal .tbar .tools'); if(tools){ const d=document.createElement('div'); d.className='tdock'; d.id='tdock'; tools.parentNode.insertBefore(d,tools); } }
 
+  // ── GRAPHIQUE RAYLÉ, MODES D'AFFICHAGE ET PAGES (Marchés, COT, Analyse) ──
+  const racineTerm=document.getElementById('vueTerminal');
+  graph=creerGraphique({ boite:$('rc-box'), surChangement:e=>writeBridge({graphique_rayle:e}) });
+  const frequenceGraph=()=>['XAU','EUR'].includes(current)?180000:45000;   // Twelve Data (or, euro) a un quota : on le ménage
+  function majGraphique(){     // le bon graphique pour l'actif et l'unité courants
+    $('chartSym').textContent=ASSETS[current].label+' · '+LIBELLE_IV[interval];
+    if(sourceGraph==='rayle'){ graph.frequence(frequenceGraph()); graph.charger(current,interval); }
+    else loadChart();
+  }
+  function appliquerSourceUI(){
+    racineTerm.classList.toggle('src-rayle',sourceGraph==='rayle');
+    $('rc-box').classList.toggle('cache',sourceGraph!=='rayle'); $('tv-chart').classList.toggle('cache',sourceGraph==='rayle');
+    document.querySelectorAll('#srcSw button').forEach(b=>b.classList.toggle('actif',b.dataset.src===sourceGraph));
+  }
+  function setSource(src){
+    if(src!=='rayle'&&src!=='tradingview') return false;
+    if(src===sourceGraph) return true;
+    sourceGraph=src; appliquerSourceUI();
+    if(src==='rayle') graph.montrer(); else graph.cacher();
+    if(ouvertTerm && pageCourante==='terminal') majGraphique();
+    ecrirePrefs(); writeBridge({source_graphique:src==='rayle'?'graphique Raylé':'widget TradingView'});
+    return true;
+  }
+  function reglerGraphique(r){
+    if(r.source) setSource(r.source);
+    const g={}; for(const k of ['rsi','ma200','supports']) if(typeof r[k]==='boolean') g[k]=r[k];
+    if(!Object.keys(g).length) return;
+    if(sourceGraph!=='rayle') setSource('rayle');          // le widget TradingView ne se pilote pas : on passe sur le graphique Raylé
+    graph.regler(g);
+    if(g.rsi===true && modeAff==='graphique') setMode('graphique_rsi');
+    else if(g.rsi===false && modeAff==='graphique_rsi') setMode('graphique');
+    ecrirePrefs();
+  }
+  function mesurerBarre(){ const b=racineTerm.querySelector('.tbar'); if(b) racineTerm.style.setProperty('--tbar-h',b.offsetHeight+'px'); }
+  function setMode(m){
+    if(!MODES_AFF[m]) return false;
+    modeAff=m; racineTerm.dataset.mode=m;
+    if(pageCourante!=='terminal') allerPage('terminal');
+    if(m==='graphique_rsi'){ if(sourceGraph!=='rayle') setSource('rayle'); graph.regler({rsi:true}); }
+    else if(m==='graphique') graph.regler({rsi:false});
+    document.querySelectorAll('#tmodes button').forEach(b=>b.classList.toggle('actif',b.dataset.m===m));
+    mesurerBarre(); setTimeout(()=>{ window.dispatchEvent(new Event('resize')); },60);
+    window.scrollTo(0,0);
+    writeBridge({mode_affichage:MODES_AFF[m]});
+    return true;
+  }
+
+  const pages={};
+  function creerPage(nom){
+    if(pages[nom]) return pages[nom];
+    const r=$('page'+nom[0].toUpperCase()+nom.slice(1));
+    return pages[nom]=nom==='marches'?creerPageMarches({racine:r}):nom==='cot'?creerPageCot({racine:r}):creerPageAnalyse({racine:r});
+  }
+  let ouvertTerm=false;
+  function suspendreTerminal(){     // page Marchés / COT / Analyse affichée : le dashboard et le carnet ne tournent pas dans le vide
+    clearTimeout(dashTimer); dashTimer=null; clearInterval(ctxTimer); ctxTimer=null; clearInterval(bookTimer); bookTimer=null; dashTok++;
+    graph.cacher();
+  }
+  function reprendreTerminal(){
+    clearInterval(ctxTimer); ctxTimer=setInterval(loadContexte,120000);
+    startBook(); buildDash(); loadContexte(); majGraphique();
+    if(sourceGraph==='rayle') graph.montrer();
+  }
+  function allerPage(p,opts){
+    if(!PAGES_TERM.includes(p)) return false;
+    const avant=pageCourante;
+    if(avant!==p){ if(avant==='terminal') suspendreTerminal(); else if(pages[avant]) pages[avant].fermer(); }
+    pageCourante=p; racineTerm.dataset.page=p;
+    document.querySelectorAll('#tpages button').forEach(b=>b.classList.toggle('actif',b.dataset.p===p));
+    if(p==='terminal'){ if(avant!=='terminal' && ouvertTerm) reprendreTerminal(); }
+    else if(ouvertTerm){ creerPage(p).ouvrir(opts||{}); }
+    mesurerBarre(); window.scrollTo(0,0);
+    writeBridge({page_terminal:{terminal:'terminal (graphique et dashboard)',marches:'Marchés',cot:'rapports COT',analyse:'analyse fondamentale'}[p]});
+    return true;
+  }
+  document.querySelectorAll('#tpages button').forEach(b=>{ b.onclick=()=>allerPage(b.dataset.p); });
+  document.querySelectorAll('#tmodes button').forEach(b=>{ b.onclick=()=>setMode(b.dataset.m); });
+  document.querySelectorAll('#srcSw button').forEach(b=>{ b.onclick=()=>setSource(b.dataset.src); });
+  { const r=lirePrefs().r; if(r) graph.regler({rsi:r.rsi!==false,ma200:r.ma200!==false,supports:r.supports!==false}); }
+  appliquerSourceUI();
+  if(typeof ResizeObserver!=='undefined') new ResizeObserver(mesurerBarre).observe(racineTerm.querySelector('.tbar'));
+
   // ── COMMANDES venant de Raylé (voix) : réponse {ok, message?} ──
+  function surTerminal(){ if(pageCourante!=='terminal') allerPage('terminal'); }
   function commande(c){
     if(!c||!c.type) return {ok:false,message:'commande inconnue'};
     switch(c.type){
       case 'actif':
         if(!ASSETS[c.valeur]) return {ok:false,message:'actif inconnu'};
-        selectAsset(c.valeur); return {ok:true};
+        surTerminal(); selectAsset(c.valeur); return {ok:true};
       case 'unite':
-        if(c.valeur!=='15'&&c.valeur!=='60') return {ok:false,message:'Le graphique du terminal gère M15 et H1. H4 et journalier sont dans le dashboard.'};
-        selectInterval(c.valeur); return {ok:true};
+        if(!IV_VALIDES.includes(c.valeur)) return {ok:false,message:'Le graphique gère M5, M15, H1, H4 et le journalier.'};
+        surTerminal(); selectInterval(c.valeur); return {ok:true};
       case 'actualiser':
-        buildDash(); loadContexte(); return {ok:true};
+        if(pageCourante==='marches'&&pages.marches) pages.marches.actualiser();
+        else if(pageCourante==='terminal'){ buildDash(); loadContexte(); majGraphique(); }
+        return {ok:true};
       case 'panneau':
         if(!PANNEAUX[c.nom]) return {ok:false,message:'panneau inconnu'};
+        surTerminal();
+        if(c.nom==='rsi' && sourceGraph==='rayle'){      // le RSI du graphique Raylé est une sous-fenêtre du graphique
+          reglerGraphique({rsi:c.action==='basculer'?!graph.reglages().rsi:c.action!=='fermer'}); return {ok:true};
+        }
         if(c.nom==='carnet' && c.action!=='fermer' && !ASSETS[current].book)
           return {ok:false,message:"Le carnet d'ordres n'existe que pour le Bitcoin et Solana."};
         setPanneau(c.nom,c.action); return {ok:true};
@@ -492,6 +594,28 @@
         notes.value=(notes.value?notes.value.replace(/\s+$/,'')+'\n':'')+String(c.texte||'').slice(0,500);
         try{ localStorage.setItem(CLE_NOTES,notes.value); }catch(e){}
         writeBridge({}); $('saveHint').textContent='Note ajoutée par Raylé'; return {ok:true};
+      case 'mode':
+        return setMode(c.valeur)?{ok:true}:{ok:false,message:"Modes d'affichage : dashboard, graphique seul, graphique avec RSI."};
+      case 'page':
+        if(!PAGES_TERM.includes(c.valeur)) return {ok:false,message:'page inconnue'};
+        allerPage(c.valeur,{actif:c.actif,section:c.section});
+        if(c.valeur==='cot'&&c.actif&&pages.cot) pages.cot.choisir(c.actif);
+        if(c.valeur==='analyse'&&c.actif&&pages.analyse) pages.analyse.choisir(c.actif);
+        if(c.valeur==='marches'&&c.section&&pages.marches) setTimeout(()=>pages.marches.allerA(c.section),700);
+        return {ok:true};
+      case 'graphique':
+        surTerminal(); reglerGraphique(c.reglages||{}); return {ok:true};
+      case 'annotation':
+        surTerminal(); if(sourceGraph!=='rayle') setSource('rayle');
+        if(c.effacer) graph.annoter({effacer:true});
+        else if(isFinite(c.prix)) graph.annoter({prix:+c.prix,texte:c.texte,couleur:c.couleur});
+        else return {ok:false,message:"Il me faut un prix pour l'annotation."};
+        return {ok:true};
+      case 'bougies':
+        surTerminal(); setSource('rayle');
+        if(c.actif&&ASSETS[c.actif]&&c.actif!==current) selectAsset(c.actif);
+        if(c.unite&&IV_VALIDES.includes(c.unite)&&c.unite!==interval) selectInterval(c.unite);
+        graph.numeroter(c.n); return {ok:true};
     }
     return {ok:false,message:'commande inconnue'};
   }
@@ -500,19 +624,27 @@
   // ── OUVERTURE / FERMETURE : tout ce qui tourne en arrière-plan s'arrête quand le terminal est fermé ──
   let ctxTimer=null, initFait=false;
   function ouvrir(){
+    ouvertTerm=true;
     tickHorloge(); clearInterval(horloge); horloge=setInterval(tickHorloge,1000);
-    clearInterval(ctxTimer); ctxTimer=setInterval(loadContexte,120000);
-    if(!initFait){ initFait=true; loadChart(); loadCal(); }
-    startBook(); buildDash(); loadContexte();
-    animerOuverture(); majDock();
-    writeBridge({ouvert:true});
+    if(!initFait){ initFait=true; loadCal(); racineTerm.dataset.mode=modeAff; racineTerm.dataset.page=pageCourante; }
+    mesurerBarre();
+    if(pageCourante==='terminal'){
+      clearInterval(ctxTimer); ctxTimer=setInterval(loadContexte,120000);
+      startBook(); buildDash(); loadContexte(); majGraphique();
+      if(sourceGraph==='rayle') graph.montrer();
+      animerOuverture(); majDock();
+    }else creerPage(pageCourante).ouvrir({});
+    writeBridge({ouvert:true,mode_affichage:MODES_AFF[modeAff],source_graphique:sourceGraph==='rayle'?'graphique Raylé':'widget TradingView'});
   }
   function fermer(){
+    ouvertTerm=false;
     clearInterval(horloge); horloge=null;
     clearInterval(ctxTimer); ctxTimer=null;
     clearInterval(bookTimer); bookTimer=null;
     clearTimeout(dashTimer); dashTimer=null;
     dashTok++;   // une analyse en cours est abandonnée
+    graph.cacher();
+    Object.values(pages).forEach(p=>p.fermer());
     writeBridge({ouvert:false});
   }
   writeBridge({});

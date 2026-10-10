@@ -110,6 +110,9 @@
     return w.filter(x=>ref.has(x)).length/w.length>=0.6;
   }
 
+  // Les boutons du terminal (« Raylé explique… ») parlent à Raylé comme si Justin l'avait écrit
+  RayleBus.fournir('rayle:demande',t=>{ onUser(String(t||''),false); return true; });
+
   function onUser(text,voix){
     diagEntree(text,voix,'reçu');
     if(typeof secCapturer==='function' && secCapturer(text,voix)){ diagAction('saisie de la phrase secrète (consommée)'); return; }

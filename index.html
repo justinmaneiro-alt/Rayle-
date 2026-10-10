@@ -13,6 +13,7 @@
 <link rel="stylesheet" href="css/rayle.css">
 <link rel="stylesheet" href="css/hud.css">
 <link rel="stylesheet" href="css/terminal.css">
+<link rel="stylesheet" href="css/terminal-pro.css">
 </head>
 <body>
   <main class="scene" id="scene">
@@ -110,11 +111,25 @@
 <div id="vueTerminal" hidden>
   <div class="tbar">
       <div class="brand">RAYLÉ<span>//</span>TERMINAL</div>
+      <nav class="tpages" id="tpages" aria-label="Pages du terminal">
+        <button type="button" data-p="terminal" class="actif">Terminal</button>
+        <button type="button" data-p="marches">Marchés</button>
+        <button type="button" data-p="cot">COT</button>
+        <button type="button" data-p="analyse">Analyse</button>
+      </nav>
       <div class="tabs" id="tabs"></div>
+      <div class="tmodes" id="tmodes" role="group" aria-label="Mode d'affichage">
+        <button type="button" data-m="dashboard" class="actif" title="Dashboard complet">▦ Dashboard</button>
+        <button type="button" data-m="graphique" title="Graphique seul en plein écran">▭ Graphique</button>
+        <button type="button" data-m="graphique_rsi" title="Graphique plein écran avec le RSI">▭ + RSI</button>
+      </div>
       <div class="tools">
         <div class="ivs" id="ivs">
+          <button data-iv="5">M5</button>
           <button data-iv="15">M15</button>
           <button data-iv="60" class="active">H1</button>
+          <button data-iv="240">H4</button>
+          <button data-iv="D">D1</button>
         </div>
         <button class="refresh" id="btnRefresh" title="Actualiser">↻</button>
         <button class="retour" id="btnRetour" type="button">✕ RETOUR À RAYLÉ</button>
@@ -136,7 +151,8 @@
       </div>
   
       <div class="right">
-        <section class="panel chart"><h2>Graphique · EMA 200 <span class="px" id="chartSym">—</span></h2><div class="tvbox" id="tv-chart"></div></section>
+        <section class="panel chart"><h2>Graphique <span class="srcsw" id="srcSw"><button type="button" data-src="rayle" class="actif" title="Graphique Raylé : piloté par Raylé (RSI, supports, annotations)">Raylé</button><button type="button" data-src="tradingview" title="Widget TradingView : outils de dessin pour l'analyse manuelle">TradingView</button></span> <span class="px" id="chartSym">—</span></h2>
+          <div class="rcbox" id="rc-box"></div><div class="tvbox cache" id="tv-chart"></div></section>
         <section class="panel rsiPanel"><h2>RSI 14 <span class="px" id="rsiSym">—</span></h2><div class="rsibox" id="rsi-box"><div class="loading">RSI…</div></div></section>
         <section class="panel book" id="bookPanel"><h2>Carnet d'ordres <span class="px" id="bookSym">—</span></h2><div class="book-body" id="bookBody"><div class="loading">—</div></div></section>
         <section class="panel notes">
@@ -148,7 +164,11 @@
       </div>
     </div>
   
-    <div class="foot">Données via le Worker Raylé (Yahoo Finance, Twelve Data, Binance) · Carnet Bitstamp · Graphiques TradingView — outil personnel. Raylé reste à l’écoute : dis « ferme le terminal » ou « retour ».</div>
+    <div class="pagepro" id="pageMarches" data-pro="marches"></div>
+    <div class="pagepro" id="pageCot" data-pro="cot"></div>
+    <div class="pagepro" id="pageAnalyse" data-pro="analyse"></div>
+
+    <div class="foot">Données via le Worker Raylé (Yahoo Finance, Twelve Data, CNBC, CFTC, Binance) · Carnet Bitstamp · Graphique Raylé : <a href="https://www.tradingview.com/" target="_blank" rel="noopener" style="color:inherit">TradingView</a> Lightweight Charts™ (Apache 2.0) et widgets TradingView — outil personnel. Raylé reste à l’écoute : dis « ferme le terminal » ou « retour ».</div>
   <div class="mini">
     <div class="mini-dit" id="miniDit"></div>
     <div class="mini-etat" id="miniEtat"></div>

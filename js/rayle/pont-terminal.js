@@ -56,6 +56,22 @@
       const cm=Object.entries(b.contexte_marche).map(([k,v])=>k+' '+fmtNum(v.prix)+(v.variation_pct!=null?' ('+(v.variation_pct>=0?'+':'')+v.variation_pct+' %)':'')).join(', ');
       if(cm) p.push('contexte de marché affiché au terminal : '+cm);
     }
+    if(b.page_terminal) p.push('page affichée au terminal : '+b.page_terminal);
+    if(b.mode_affichage) p.push("mode d'affichage du terminal : "+b.mode_affichage);
+    if(b.source_graphique) p.push('graphique utilisé : '+b.source_graphique+(String(b.source_graphique).includes('TradingView')?" (tu ne peux pas lire ce widget : tes chiffres viennent des données du Worker)":''));
+    if(b.graphique_rayle && typeof b.graphique_rayle==='object'){
+      const g=b.graphique_rayle, f=a=>(a||[]).map(x=>fmtNum(x)).join(', ');
+      p.push('graphique Raylé : '+g.actif+' en '+g.unite+', RSI '+(g.rsi?'affiché'+(g.rsi_dernier!=null?' (valeur '+g.rsi_dernier+')':''):'caché')+', EMA 200 '+(g.ma200?(g.ema200!=null?'affichée à '+fmtNum(g.ema200):'affichée'):'cachée')
+        +(g.supports_traces?' ; supports tracés '+(f(g.supports)||'aucun')+' ; résistances tracées '+(f(g.resistances)||'aucune'):' ; supports non tracés')
+        +(g.annotations&&g.annotations.length?' ; annotations de Justin ou de toi : '+g.annotations.map(a=>fmtNum(a.prix)+(a.texte?' ('+a.texte+')':'')).join(', '):'')
+        +(g.bougies_numerotees?' ; '+g.bougies_numerotees+' bougies numérotées sur le graphique':''));
+    }
+    if(b.page_marches && typeof b.page_marches==='object'){ const m=b.page_marches;
+      p.push('page Marchés (rendements en pourcent) : '+pairs(m.rendements||{})+' ; écarts en points de base : '+pairs(m.ecarts_pb||{})+' ; variation des indices en pourcent : '+pairs(m.indices||{})); }
+    if(b.page_cot && typeof b.page_cot==='object'){ const c=b.page_cot;
+      p.push('page COT affichée : '+c.contrat+', positions du '+c.date_positions+', position nette des spéculateurs '+fmtNum(c.net,0)+' (variation sur la semaine '+fmtNum(c.variation_semaine,0)+'), '+c.centile_1an+'e centile de l’année ; '+c.lecture); }
+    if(b.page_analyse && typeof b.page_analyse==='object'){ const a=b.page_analyse;
+      p.push('page Analyse affichée ('+a.actif+') : biais '+a.biais+', confiance '+a.confiance+' sur 5 ; '+a.synthese); }
     if(b.analyse_en_cours) p.push("l'analyse du nouvel actif est en cours de calcul, les chiffres arrivent dans quelques instants");
     if(b.notes && String(b.notes).trim()) p.push('notes stratégiques de Justin : « '+String(b.notes).trim().slice(0,600)+' »');
     if(b.maj) p.push('données mises à jour '+fmtAge(b.maj));

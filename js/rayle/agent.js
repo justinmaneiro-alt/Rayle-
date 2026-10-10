@@ -25,7 +25,6 @@
           if(RayleBus.demander('vue')!=='terminal') await RayleBus.demander('vue:ouvrir');
           if(a.op==='commande' && a.commande){
             const c=a.commande;
-            if(c.type==='unite' && c.valeur!=='15' && c.valeur!=='60') continue;   // H4 et journalier sont dans le dashboard
             RayleBus.demander('terminal:commande',c);
           }
         }else if(a.type==='carte'){

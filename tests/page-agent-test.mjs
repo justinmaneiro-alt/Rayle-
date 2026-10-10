@@ -25,11 +25,11 @@ vm.runInContext(fs.readFileSync(new URL('../js/rayle/agent.js', import.meta.url)
 
 let ok = 0; const t = async (n, f) => { try { journal.length = 0; await f(); ok++; console.log('  ✔', n); } catch (e) { console.log('  ✘', n, '\n   ', e.stack.split('\n').slice(0, 3).join('\n    ')); process.exitCode = 1; } };
 
-await t('terminal : ouvre une seule fois puis exécute les commandes dans l’ordre, saute H4', async () => {
+await t('terminal : ouvre une seule fois puis exécute les commandes dans l’ordre (H4 compris)', async () => {
   await ctxVm.executerActions([
     { type: 'terminal', op: 'ouvrir' }, { type: 'terminal', op: 'commande', commande: { type: 'actif', valeur: 'BTC' } },
-    { type: 'terminal', op: 'commande', commande: { type: 'unite', valeur: 'H4' } }, { type: 'terminal', op: 'commande', commande: { type: 'panneau', nom: 'rsi', action: 'ouvrir' } }], 0);
-  assert.deepEqual(journal.filter(l => l.startsWith('bus:') && l !== 'bus:vue'), ['bus:vue:ouvrir', 'bus:terminal:commande:BTC', 'bus:terminal:commande:rsi']);
+    { type: 'terminal', op: 'commande', commande: { type: 'unite', valeur: '240' } }, { type: 'terminal', op: 'commande', commande: { type: 'panneau', nom: 'rsi', action: 'ouvrir' } }], 0);
+  assert.deepEqual(journal.filter(l => l.startsWith('bus:') && l !== 'bus:vue'), ['bus:vue:ouvrir', 'bus:terminal:commande:BTC', 'bus:terminal:commande:240', 'bus:terminal:commande:rsi']);
 });
 await t('fermer le terminal et les panneaux', async () => {
   await ctxVm.executerActions([{ type: 'terminal', op: 'fermer' }, { type: 'fermer_panneaux' }], 0);
