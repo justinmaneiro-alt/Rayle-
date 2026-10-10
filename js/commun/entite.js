@@ -12,6 +12,7 @@
      amplitude(fn|null)  fn() → 0..1 : niveau audio réel, ou null si rien à mesurer (amplitude simulée selon l'état)
      micro(fn|null)      fn() → 0..1 : volume du micro pendant l'écoute (ui/entity.js, PC seulement), ou null
      palette(fn|null)    fn(etat) → {c:[r,g,b],d:[r,g,b]} : couleurs du thème (ui/themes.js) ; alerte et verrous gardent les leurs
+     geler(ms)           le fond 3D s'allège d'abord : pendant ms, l'auto-qualité de l'entité attend son tour (ui/background.js)
      moteur(obj|null)    autre façon de dessiner l'entité (ui/entity-neurones.js) : états, voix, micro, couleurs et qualité restent gérés ici.
                          obj = {nom, monter(hote), niveau(n), dessiner(etat,dt), quitter(erreur)} ; fondu enchaîné de 0,8 s entre les deux
      qualite(q)          'auto' | 0 | 1 | 2 | 3 (3 = canvas 2D) ; mémorisé
@@ -44,7 +45,7 @@ window.Entite=(function(){
   let niveau=0, points=[], moteur='gl', cote=0, dpr=1;
   let etatNom='idle', verrouille=false, deverrouille=false, alerteJusqua=0, fournisseur=null, fournisseurMicro=null, paletteFn=null;
   const teinte={};   // état teinté par le thème (objet réutilisé à chaque image)
-  let externe=null, fonduJusqua=0;
+  let externe=null, fonduJusqua=0, gelJusqua=0;
   const etatDessin={};   // ce qu'on passe au moteur externe à chaque image
   let courant=JSON.parse(JSON.stringify(ETATS.idle)), amp=0, ampBrute=0;
   let tPrec=0, tDebut=0, angle=0, phase=0, vRot=0, ampLente=0, rafId=0, dernierDessin=0, ema=16, mesures=0, derniereEval=0, fpsAff=60, ro=null;
@@ -234,6 +235,7 @@ void main(){
   }
   function evaluerPerf(now){
     if(mesures<40 || now-derniereEval<2500) return;
+    if(now<gelJusqua){ derniereEval=now; return; }   // le fond est en train de s'alléger : l'entité attend
     derniereEval=now;
     fpsAff=Math.round(1000/ema);
     const q=lire(CLE_Q);
@@ -299,6 +301,7 @@ void main(){
     amplitude(fn){ fournisseur=typeof fn==='function'?fn:null; },
     micro(fn){ fournisseurMicro=typeof fn==='function'?fn:null; },
     palette(fn){ paletteFn=typeof fn==='function'?fn:null; },
+    geler(ms){ gelJusqua=performance.now()+(+ms||5000); },
     moteur(m){
       if((m||null)===externe) return;
       if(!m){ lacherExterne(); return; }

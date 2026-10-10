@@ -1,0 +1,14 @@
+Images de la Terre (domaine public, NASA) :
+- terre-jour-*.jpg : NASA Earth Observatory, « Blue Marble: Next Generation » (décembre 2004), Reto Stöckli, NASA Goddard Space Flight Center.
+  https://visibleearth.nasa.gov/images/74218
+- terre-nuit-*.jpg : NASA Earth Observatory, « Earth at Night (Black Marble) 2016 », Joshua Stevens, données Suomi NPP VIIRS.
+  https://earthobservatory.nasa.gov/images/144898
+- nuages-2048.jpg : NASA Visible Earth, « Blue Marble Clouds », Reto Stöckli, NASA Goddard Space Flight Center.
+  https://visibleearth.nasa.gov/images/57747
+Redimensionnées (2048 et 4096 px) et recompressées pour Raylé.
+
+fond-globe-fixe.jpg, fond-ville3d-fixe.jpg : images fixes pré-rendues par Raylé (mode Éco), à partir des fonds ci-dessus.
+
+Vidéo de ville de nuit (ville-paysage.mp4, ville-portrait.mp4) : Pexels, vidéo n° 13246966, licence Pexels (utilisation gratuite).
+  https://www.pexels.com/video/13246966/
+  Recompressée en H.264 (720×1280 et recadrage 1280×720), boucle sans coupure par fondu enchaîné de 1,2 s.

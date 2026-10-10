@@ -10,7 +10,7 @@
 (function(){
   const UI=window.RayleUI=window.RayleUI||{};
   const THEMES=UI.THEMES||{};
-  const FONDS={ville:'Ville',globe:'Globe',aucun:'Aucun'};
+  const FONDS={aucun:'Aucun',globe:'Globe',ville3d:'Ville 3D',video:'Ville réelle'};
   const ENTITES={sphere:'Sphère',neurones:'Neurones'};
   const ANIMS={max:'Max',auto:'Auto',eco:'Éco'};
   const CLE={theme:'rayle_ui_theme',fond:'rayle_ui_fond',anim:'rayle_ui_anim',micro:'rayle_ui_micro',entite:'rayle_ui_entite',taille:'rayle_ui_taille'};
@@ -26,7 +26,7 @@
 
   const R={
     theme:THEMES[lire(CLE.theme)] ? lire(CLE.theme) : 'originel',
-    fond:FONDS[lire(CLE.fond)] ? lire(CLE.fond) : (mobile?'aucun':'ville'),
+    fond:(f=>FONDS[f] ? f : f==='ville' ? 'ville3d' : (mobile?'aucun':'ville3d'))(lire(CLE.fond)),   // l'ancienne « ville » devient la Ville 3D
     anim:ANIMS[lire(CLE.anim)] ? lire(CLE.anim) : 'auto',
     entite:ENTITES[lire(CLE.entite)] ? lire(CLE.entite) : 'sphere',
     micro:lire(CLE.micro)==null ? !mobile : lire(CLE.micro)==='1',
@@ -166,7 +166,7 @@
   const QUESTION=/\b(?:pourquoi|comment|quel|quelle|quels|quelles|combien|c est quoi|qu est ce|est ce que)\b/;
   const VERBES='(?:passe|passer|repasse|mets|met|mettre|remets|change|changer|bascule|basculer|active|activer|applique|appliquer|prends|choisis|affiche|afficher|je veux|on passe)';
   const NOMS_SEULS=/^(?:aurore|nebuleuse|(?:arcs?|ark) (?:reactor|reacteur)|ambre solaire|(?:mark|marc) rouge)$/;
-  const FOND_RE=new RegExp('^(?:('+VERBES.slice(3,-1)+'|enleve|enlever|retire|retirer|coupe|couper|desactive|desactiver|supprime|eteins|pas de|sans)(?: moi)? )?(?:(?:le|un|du|de|mon|ton) )?(?:fond|arriere plan|decor)(?: d ecran| anime| animee)?((?: (?:en|sur|a|au|avec|de|du|la|le|l|une))*)(?: (ville|cite|city|globe|terre|planete|monde|aucun|rien|noir|vide|neutre|sobre))?$');
+  const FOND_RE=new RegExp('^(?:('+VERBES.slice(3,-1)+'|enleve|enlever|retire|retirer|coupe|couper|desactive|desactiver|supprime|eteins|pas de|sans)(?: moi)? )?(?:(?:le|un|du|de|mon|ton) )?(?:fond|arriere plan|decor)(?: d ecran| anime| animee)?((?: (?:en|sur|a|au|avec|de|du|la|le|l|une))*)(?: (ville reelle|vraie ville|ville video|video|ville en 3d|ville 3d|ville|cite|city|globe|terre|planete|monde|aucun|rien|noir|vide|neutre|sobre))?$');
   const ENTITE_RE=new RegExp('^(?:'+VERBES+' )?(?:(?:l|une|mon|ton|la|en) )?(?:entite|avatar)(?: (?:en|sur|a|au|de))? (neurones?|neuronale?s?|reseau de neurones|cerveau|sphere|particules|normale|classique|actuelle|originale?)$');
   const ENTITE_COURT=new RegExp('^'+VERBES+' (?:en |sur )?(?:mode )?(neurones|reseau de neurones|sphere)$');
   const ANIM_RE=new RegExp('^(?:'+VERBES+'(?: moi)? )?(?:(?:en|le|la|au|les) )?(?:mode|animations?|niveau d animation|qualite|graphismes?)(?: (?:en|au|a|sur))? (eco|economie|economique|economie d energie|leger|legere|max|maximum|maximal|maximale|auto|automatique|normal|normale)$');
@@ -187,7 +187,7 @@
     const f=t.match(FOND_RE);
     if(f){
       const v=f[3], negatif=/^(?:enleve|enlever|retire|retirer|coupe|couper|desactive|desactiver|supprime|eteins|pas de|sans)$/.test(f[1]||'');
-      if(v) return {type:'fond',valeur:/ville|cite|city/.test(v)?'ville':/globe|terre|planete|monde/.test(v)?'globe':'aucun'};
+      if(v) return {type:'fond',valeur:/reelle|vraie|video/.test(v)?'video':/ville|cite|city/.test(v)?'ville3d':/globe|terre|planete|monde/.test(v)?'globe':'aucun'};
       if(negatif) return {type:'fond',valeur:'aucun'};
       return null;
     }

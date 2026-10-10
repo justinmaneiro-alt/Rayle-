@@ -27,9 +27,13 @@ t('thèmes', () => {
 });
 t('fonds', () => {
   assert.equal(analyser('Raylé, fond globe'), 'fond:globe');
-  assert.equal(analyser('mets le fond en ville'), 'fond:ville');
+  assert.equal(analyser('mets le fond en ville'), 'fond:ville3d');
+  assert.equal(analyser('fond ville 3D'), 'fond:ville3d');
+  assert.equal(analyser('fond ville réelle'), 'fond:video');
+  assert.equal(analyser('mets le fond vidéo'), 'fond:video');
+  assert.equal(analyser('fond vraie ville'), 'fond:video');
   assert.equal(analyser("passe sur l'arrière-plan globe"), null);   // trop tordu : pas reconnu, c'est voulu (passe à l'IA)
-  assert.equal(analyser('fond ville'), 'fond:ville');
+  assert.equal(analyser('fond ville'), 'fond:ville3d');
   assert.equal(analyser('enlève le fond'), 'fond:aucun');
   assert.equal(analyser('pas de fond'), 'fond:aucun');
   assert.equal(analyser('fond noir'), 'fond:aucun');

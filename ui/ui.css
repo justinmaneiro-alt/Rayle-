@@ -75,11 +75,32 @@ body.depot{box-shadow:inset 0 0 0 3px var(--pink2),inset 0 0 40px var(--a1-50)}
 
 /* ───── fond animé ───── */
 .ui-fond{position:fixed;left:-3vw;top:-3vh;width:106vw;height:106vh;z-index:0;pointer-events:none;opacity:0;transition:opacity 1.2s ease;will-change:transform}
-.ui-fond.vu{opacity:.5}
+.ui-fond.vu{opacity:.82}
+/* image fixe (Éco) et vidéo (Ville réelle), avec une teinte du thème par-dessus */
+.ui-fond-fixe,.ui-fond-video{position:fixed;left:-3vw;top:-3vh;width:106vw;height:106vh;z-index:0;pointer-events:none;opacity:0;transition:opacity 1.2s ease;will-change:transform}
+.ui-fond-fixe{background:#030106 center/cover no-repeat}
+.ui-fond-fixe.vu{opacity:.85}
+.ui-fond-video.vu{opacity:.6}
+.ui-fond-video video{display:block;width:100%;height:100%;object-fit:cover}
+.ui-teinte{position:fixed;inset:0;z-index:0;pointer-events:none;opacity:0;transition:opacity 1.2s ease;mix-blend-mode:soft-light;
+  background:linear-gradient(160deg,var(--t2),var(--t4) 55%,var(--t1))}
+.ui-teinte.vu{opacity:.6}
 .ui-voile{position:fixed;inset:0;z-index:0;pointer-events:none;
   background:radial-gradient(ellipse 60% 55% at 50% 42%,rgba(3,1,6,.55),rgba(3,1,6,.1) 60%,rgba(3,1,6,.55) 100%)}
 .scene{z-index:1}
-body.vue-terminal .ui-fond,body.vue-terminal .ui-voile{visibility:hidden}
+body.vue-terminal .ui-fond,body.vue-terminal .ui-voile,body.vue-terminal .ui-fond-fixe,body.vue-terminal .ui-fond-video,body.vue-terminal .ui-teinte{visibility:hidden}
+/* fonds plus visibles : la vignette assombrit le centre (entité, texte) et les bords */
+.ui-voile{background:
+  radial-gradient(ellipse 34% 40% at 50% 42%,rgba(3,1,6,.62),rgba(3,1,6,.34) 60%,rgba(3,1,6,0) 100%),
+  radial-gradient(ellipse 75% 70% at 50% 45%,rgba(3,1,6,0) 55%,rgba(3,1,6,.7) 100%)}
+/* la vidéo est le fond le plus lumineux : vignette plus marquée pour garder l'entité et le texte lisibles */
+.ui-fond-video.vu~.ui-voile{background:
+  radial-gradient(ellipse 46% 42% at 50% 45%,rgba(3,1,6,.72),rgba(3,1,6,.45) 65%,rgba(3,1,6,.2) 100%),
+  radial-gradient(ellipse 75% 70% at 50% 45%,rgba(3,1,6,0) 50%,rgba(3,1,6,.72) 100%)}
+.ui-seg[data-k="fond"]{grid-template-columns:repeat(2,1fr)}
+.ui-seg[data-k="fond"] button:nth-child(-n+2){border-bottom:1px solid var(--a1-25)}
+.ui-seg[data-k="fond"] button:nth-child(2n){border-right:0}
+@media (min-width:560px){ .cfg .ui-seg[data-k="fond"]{grid-template-columns:repeat(4,1fr)} .cfg .ui-seg[data-k="fond"] button{border-bottom:0;border-right:1px solid var(--a1-25)} .cfg .ui-seg[data-k="fond"] button:last-child{border-right:0} }
 
 /* ───── profondeur autour de l'entité ───── */
 /* taille de l'entité (Apparence, 70–150 %), plafonnée à la place libre (--ui-max, calculée par ui/settings.js).
