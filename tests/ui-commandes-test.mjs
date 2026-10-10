@@ -41,10 +41,19 @@ t('niveau d’animation', () => {
   assert.equal(analyser('animations au maximum'), 'anim:max');
   assert.equal(analyser('mets le mode automatique'), 'anim:auto');
 });
+t('entité', () => {
+  assert.equal(analyser('Raylé, entité neurones'), 'entite:neurones');
+  assert.equal(analyser('entité sphère'), 'entite:sphere');
+  assert.equal(analyser('passe en entité cerveau'), 'entite:neurones');
+  assert.equal(analyser('mets l’entité en réseau de neurones'), 'entite:neurones');
+  assert.equal(analyser('remets l’entité particules'), 'entite:sphere');
+  assert.equal(analyser('passe en mode neurones'), 'entite:neurones');
+});
 t('ne vole pas les autres commandes ni les questions', () => {
   for (const q of ['quel thème tu préfères ?', 'au fond, combien vaut le bitcoin ?', 'mets le graphique en rouge', 'mets les couleurs du graphique en rouge',
     'passe sur le Bitcoin', 'ouvre le terminal', 'mode graphique', 'ferme tout', 'explique-moi la ville de Lyon', 'quel est le prix de l’or',
-    'rouge', 'la ville de Paris', 'le globe terrestre fait combien de kilomètres'])
+    'rouge', 'la ville de Paris', 'le globe terrestre fait combien de kilomètres', 'combien de neurones dans le cerveau', 'neurones', 'cerveau',
+    'explique-moi les réseaux de neurones', 'c’est quoi une sphère'])
     assert.equal(analyser(q), null, q);
 });
 console.log(ok + ' groupe(s) réussi(s)');

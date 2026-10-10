@@ -114,8 +114,7 @@
   function boucle(now){
     requestAnimationFrame(boucle);
     const montrer=palier<2 && !masque();
-    if(montrer!==visible){ visible=montrer; arr.style.visibility=av.style.visibility=montrer?'':'hidden'; }
-    if(!montrer){ tPrec=0; return; }
+    if(!montrer){ if(visible){ visible=false; arr.style.visibility=av.style.visibility='hidden'; } tPrec=0; return; }
     if(now-dernier<1000/(palier===0?60:30)-3) return;
     dernier=now;
     const dt=tPrec?Math.min(.1,(now-tPrec)/1000):.016; tPrec=now; t+=dt;
@@ -134,6 +133,10 @@
     if(Math.abs(o-haloO)>.01){ halo.style.opacity=o.toFixed(2); haloO=o; }
     if(Math.abs(e-haloE)>.004){ halo.style.transform='translate(-50%,-50%) scale('+e.toFixed(3)+')'; haloE=e; }
 
+    // entité Neurones : le halo seulement, sans anneaux ni ondes
+    const anneaux=inf.moteur!=='neurones';
+    if(anneaux!==visible){ visible=anneaux; arr.style.visibility=av.style.visibility=anneaux?'':'hidden'; }
+    if(!anneaux) return;
     ca.clearRect(0,0,D,D); cb.clearRect(0,0,D,D);
     ca.globalCompositeOperation=cb.globalCompositeOperation='lighter';
     ca.lineCap=cb.lineCap='round';

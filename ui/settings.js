@@ -11,8 +11,9 @@
   const UI=window.RayleUI=window.RayleUI||{};
   const THEMES=UI.THEMES||{};
   const FONDS={ville:'Ville',globe:'Globe',aucun:'Aucun'};
+  const ENTITES={sphere:'Sphère',neurones:'Neurones'};
   const ANIMS={max:'Max',auto:'Auto',eco:'Éco'};
-  const CLE={theme:'rayle_ui_theme',fond:'rayle_ui_fond',anim:'rayle_ui_anim',micro:'rayle_ui_micro'};
+  const CLE={theme:'rayle_ui_theme',fond:'rayle_ui_fond',anim:'rayle_ui_anim',micro:'rayle_ui_micro',entite:'rayle_ui_entite'};
   const lire=k=>{ try{ return localStorage.getItem(k); }catch(e){ return null; } };
   const ecrire=(k,v)=>{ try{ localStorage.setItem(k,v); }catch(e){} };
   const DOM=typeof document!=='undefined';
@@ -27,6 +28,7 @@
     theme:THEMES[lire(CLE.theme)] ? lire(CLE.theme) : 'originel',
     fond:FONDS[lire(CLE.fond)] ? lire(CLE.fond) : (mobile?'aucun':'ville'),
     anim:ANIMS[lire(CLE.anim)] ? lire(CLE.anim) : 'auto',
+    entite:ENTITES[lire(CLE.entite)] ? lire(CLE.entite) : 'sphere',
     micro:lire(CLE.micro)==null ? !mobile : lire(CLE.micro)==='1'
   };
   let palierAuto=(mobile || (typeof navigator!=='undefined' && (navigator.hardwareConcurrency||4)<=4)) ? 1 : 0;
@@ -53,7 +55,7 @@
     }
     appliquer();
   }
-  UI.reglages=()=>({theme:R.theme,fond:R.fond,anim:R.anim,palier:palier(),micro:R.micro,mobile});
+  UI.reglages=()=>({theme:R.theme,fond:R.fond,anim:R.anim,palier:palier(),micro:R.micro,mobile,entite:R.entite});
   UI.changer=changer;
 
   /* ───── Mesure des images/s (Auto) : seulement quand la scène de Raylé est visible ───── */
@@ -81,7 +83,8 @@
       return '<button type="button" class="ui-theme" data-theme-id="'+id+'" aria-pressed="false" style="--s1:'+c[0]+';--s2:'+c[1]+';--s3:'+c[2]+'"><i></i><span>'+THEMES[id].nom+'</span></button>';
     }).join('');
     const seg=(k,obj)=>'<div class="ui-seg" role="group" data-k="'+k+'">'+Object.keys(obj).map(v=>'<button type="button" data-v="'+v+'" aria-pressed="false">'+obj[v]+'</button>').join('')+'</div>';
-    b.innerHTML='<div class="ui-lbl">Thème</div><div class="ui-themes">'+themes+'</div>'
+    b.innerHTML='<div class="ui-lbl">Entité</div>'+seg('entite',ENTITES)
+      +'<div class="ui-lbl">Thème</div><div class="ui-themes">'+themes+'</div>'
       +'<div class="ui-lbl">Fond animé</div>'+seg('fond',FONDS)
       +'<div class="ui-lbl">Niveau d\'animation</div>'+seg('anim',ANIMS)
       +(mobile?'':'<label class="ui-chk"><input type="checkbox" data-k="micro"> Anneaux qui suivent le volume du micro pendant l\'écoute</label>')
@@ -141,6 +144,8 @@
   const VERBES='(?:passe|passer|repasse|mets|met|mettre|remets|change|changer|bascule|basculer|active|activer|applique|appliquer|prends|choisis|affiche|afficher|je veux|on passe)';
   const NOMS_SEULS=/^(?:aurore|nebuleuse|(?:arcs?|ark) (?:reactor|reacteur)|ambre solaire|(?:mark|marc) rouge)$/;
   const FOND_RE=new RegExp('^(?:('+VERBES.slice(3,-1)+'|enleve|enlever|retire|retirer|coupe|couper|desactive|desactiver|supprime|eteins|pas de|sans)(?: moi)? )?(?:(?:le|un|du|de|mon|ton) )?(?:fond|arriere plan|decor)(?: d ecran| anime| animee)?((?: (?:en|sur|a|au|avec|de|du|la|le|l|une))*)(?: (ville|cite|city|globe|terre|planete|monde|aucun|rien|noir|vide|neutre|sobre))?$');
+  const ENTITE_RE=new RegExp('^(?:'+VERBES+' )?(?:(?:l|une|mon|ton|la|en) )?(?:entite|avatar)(?: (?:en|sur|a|au|de))? (neurones?|neuronale?s?|reseau de neurones|cerveau|sphere|particules|normale|classique|actuelle|originale?)$');
+  const ENTITE_COURT=new RegExp('^'+VERBES+' (?:en |sur )?(?:mode )?(neurones|reseau de neurones|sphere)$');
   const ANIM_RE=new RegExp('^(?:'+VERBES+'(?: moi)? )?(?:(?:en|le|la|au|les) )?(?:mode|animations?|niveau d animation|qualite|graphismes?)(?: (?:en|au|a|sur))? (eco|economie|economique|economie d energie|leger|legere|max|maximum|maximal|maximale|auto|automatique|normal|normale)$');
 
   function analyser(c){
@@ -152,6 +157,8 @@
       if(new RegExp('^(?:'+VERBES+' )?(?:de |le |les |d )?(?:theme|couleurs?|palette)(?: suivante?s?)?$|^autre (?:theme|couleur|palette)$').test(t)) return {type:'theme',valeur:'+'};
       return null;
     }
+    const en=t.match(ENTITE_RE)||t.match(ENTITE_COURT);
+    if(en) return {type:'entite',valeur:/neuron|cerveau/.test(en[1])?'neurones':'sphere'};
     const m=t.match(new RegExp('^(?:'+VERBES+' )?(?:en |sur |le |la |l )?(?:mode )?(.+)$'));
     if(m && NOMS_SEULS.test(m[1])){ for(const id of Object.keys(THEMES)) if(THEMES[id].alias.test(m[1])) return {type:'theme',valeur:id}; }
     const f=t.match(FOND_RE);
@@ -176,6 +183,10 @@
       if(a.valeur===R.fond) return a.valeur==='aucun'?'Le fond est déjà désactivé.':'C\'est déjà le fond '+FONDS[a.valeur].toLowerCase()+'.';
       changer('fond',a.valeur);
       return a.valeur==='aucun'?'Fond animé désactivé.':'Fond '+FONDS[a.valeur].toLowerCase()+' activé.';
+    }
+    if(a.type==='entite'){
+      if(a.valeur===R.entite) return 'C\'est déjà l\'entité '+ENTITES[a.valeur]+'.';
+      changer('entite',a.valeur); return 'Entité '+ENTITES[a.valeur]+' activée.';
     }
     if(a.type==='anim'){
       changer('anim',a.valeur);

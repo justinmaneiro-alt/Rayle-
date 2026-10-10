@@ -8,6 +8,7 @@
   let cv=document.getElementById('uiFond');
   if(!cv) return;
   const THREE_URL='https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.min.js';
+  UI.three=()=>import(THREE_URL);     // three.js, chargé une seule fois et seulement si besoin (globe, entité Neurones)
   let mode='aucun', palier=1, scene=null, raf=0, tPrec=0, dernier=0, aRedessiner=true, generation=0;
   let px=0, py=0, cx=0, cy=0, transfo='';
 
@@ -205,7 +206,7 @@
   const terre=(lat,lon)=>lat<-72 || TERRES.some(p=>dansPoly(lat,lon,p));
 
   async function Globe(c){
-    const THREE=await import(THREE_URL);
+    const THREE=await UI.three();
     const rendu=new THREE.WebGLRenderer({canvas:c,alpha:true,antialias:false,powerPreference:'low-power'});
     rendu.setClearColor(0x000000,0);
     const scene3=new THREE.Scene();

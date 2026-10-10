@@ -12,6 +12,8 @@
      amplitude(fn|null)  fn() → 0..1 : niveau audio réel, ou null si rien à mesurer (amplitude simulée selon l'état)
      micro(fn|null)      fn() → 0..1 : volume du micro pendant l'écoute (ui/entity.js, PC seulement), ou null
      palette(fn|null)    fn(etat) → {c:[r,g,b],d:[r,g,b]} : couleurs du thème (ui/themes.js) ; alerte et verrous gardent les leurs
+     moteur(obj|null)    autre façon de dessiner l'entité (ui/entity-neurones.js) : états, voix, micro, couleurs et qualité restent gérés ici.
+                         obj = {nom, monter(hote), niveau(n), dessiner(etat,dt), quitter(erreur)} ; fondu enchaîné de 0,8 s entre les deux
      qualite(q)          'auto' | 0 | 1 | 2 | 3 (3 = canvas 2D) ; mémorisé
      info()              {niveau, points, moteur, fps} */
 window.Entite=(function(){
@@ -42,6 +44,8 @@ window.Entite=(function(){
   let niveau=0, points=[], moteur='gl', cote=0, dpr=1;
   let etatNom='idle', verrouille=false, deverrouille=false, alerteJusqua=0, fournisseur=null, fournisseurMicro=null, paletteFn=null;
   const teinte={};   // état teinté par le thème (objet réutilisé à chaque image)
+  let externe=null, fonduJusqua=0;
+  const etatDessin={};   // ce qu'on passe au moteur externe à chaque image
   let courant=JSON.parse(JSON.stringify(ETATS.idle)), amp=0, ampBrute=0;
   let tPrec=0, tDebut=0, angle=0, phase=0, vRot=0, ampLente=0, rafId=0, dernierDessin=0, ema=16, mesures=0, derniereEval=0, fpsAff=60, ro=null;
 
@@ -135,9 +139,17 @@ void main(){
     }
     if(moteur==='2d') ctx2=canvas.getContext('2d');
     if(parent) parent.appendChild(canvas);
+    opaciteCanvas();
+    if(externe && externe.niveau){ try{ externe.niveau(niveau); }catch(e){ console.warn('[entite] moteur externe',e); } }
     dpr=Math.min(window.devicePixelRatio||1,cfg.dpr);
     redimensionner(true);
     ema=16; mesures=0; derniereEval=performance.now();
+  }
+  function opaciteCanvas(){ if(canvas) canvas.style.opacity=externe?'0':''; }
+  function lacherExterne(erreur){
+    const x=externe; if(!x) return;
+    externe=null; fonduJusqua=performance.now()+900; opaciteCanvas();
+    try{ x.quitter && x.quitter(erreur||null); }catch(e){}
   }
   function redimensionner(force){
     if(!hote||!canvas) return;
@@ -241,7 +253,14 @@ void main(){
     if(dtMs>0){ ema+=(dtMs-ema)*.08; mesures++; }
     const t=(now-tDebut)/1000;
     majParametres(dt,t);
-    if(gl) dessinerGL(t); else if(ctx2) dessiner2D(t);
+    if(externe){
+      const e=etatDessin;
+      e.phase=phase; e.angle=angle; e.amp=amp; e.courant=courant; e.niveau=niveau; e.cote=cote; e.etat=etatNom;
+      e.vis=verrouille?'verrouille':(now<alerteJusqua?'alerte':etatNom);
+      e.securite=verrouille || now<alerteJusqua || (deverrouille && (etatNom==='idle'||etatNom==='veille'));
+      try{ externe.dessiner(e,dt); }catch(er){ console.warn('[entite] moteur externe en échec :',er); lacherExterne(er); }
+    }
+    if(!externe || now<fonduJusqua){ if(gl) dessinerGL(t); else if(ctx2) dessiner2D(t); }
     evaluerPerf(now);
   }
 
@@ -263,6 +282,7 @@ void main(){
       appliquerNiveau(depart);
     }
     hote.insertBefore(canvas,hote.firstChild);
+    if(externe){ try{ externe.monter(hote); }catch(e){} }
     if(ro) ro.disconnect();
     if('ResizeObserver' in window){ ro=new ResizeObserver(()=>redimensionner(false)); ro.observe(hote); }
     redimensionner(true);
@@ -279,11 +299,19 @@ void main(){
     amplitude(fn){ fournisseur=typeof fn==='function'?fn:null; },
     micro(fn){ fournisseurMicro=typeof fn==='function'?fn:null; },
     palette(fn){ paletteFn=typeof fn==='function'?fn:null; },
+    moteur(m){
+      if((m||null)===externe) return;
+      if(!m){ lacherExterne(); return; }
+      if(externe) lacherExterne();
+      externe=m; fonduJusqua=performance.now()+900; opaciteCanvas();
+      if(hote){ try{ m.monter(hote); }catch(e){} }
+      try{ m.niveau && m.niveau(niveau); }catch(e){ console.warn('[entite] moteur externe',e); lacherExterne(e); }
+    },
     qualite(q){
       if(q==='auto'||q==null){ ecrire(CLE_Q,'auto'); try{ localStorage.removeItem(CLE_N); }catch(e){} return; }
       ecrire(CLE_Q,String(q)); if(canvas) appliquerNiveau(+q);
     },
-    info(){ return {niveau:niveau,points:points.length,moteur:moteur,fps:fpsAff,amp:+amp.toFixed(2),etat:etatNom,
+    info(){ return {niveau:niveau,points:points.length,moteur:externe?(externe.nom||'externe'):moteur,fps:fpsAff,amp:+amp.toFixed(2),etat:etatNom,
       vis:verrouille?'verrouille':(performance.now()<alerteJusqua?'alerte':etatNom)}; }
   };
 })();
