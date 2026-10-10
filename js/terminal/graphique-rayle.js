@@ -80,6 +80,7 @@ export function creerGraphique({ boite, surChangement }) {
     bougies = chart.addSeries(LW.CandlestickSeries, { upColor: COULEURS.haut, downColor: COULEURS.bas, borderUpColor: COULEURS.haut, borderDownColor: COULEURS.bas, wickUpColor: COULEURS.haut, wickDownColor: COULEURS.bas, priceLineColor: '#ff3399' }, 0);
     ema = chart.addSeries(LW.LineSeries, { color: COULEURS.ema, lineWidth: 2, priceLineVisible: false, lastValueVisible: false, crosshairMarkerVisible: false }, 0);
     marqueurs = LW.createSeriesMarkers(bougies, []);
+    chart.timeScale().subscribeVisibleLogicalRangeChange(() => requestAnimationFrame(etiquettesSansChevauchement));
     chart.subscribeCrosshairMove(p => {
       const c = p && p.seriesData && p.seriesData.get(bougies);
       if (!c) { majLegende(); return; }
@@ -92,6 +93,7 @@ export function creerGraphique({ boite, surChangement }) {
       if (!w || !h) { tailleNulle = true; return; }                 // panneau caché : on attend qu'il redevienne visible
       try { chart.resize(w, h); } catch (e) {}
       if (tailleNulle || cadrageAuto) { tailleNulle = false; if (donnees) cadrer(); }
+      requestAnimationFrame(etiquettesSansChevauchement);
       if (attenteTaille) { const f = attenteTaille; attenteTaille = null; f(); }
     }).observe(zone);
     return true;
@@ -163,13 +165,27 @@ export function creerGraphique({ boite, surChangement }) {
   }
   function poserSupports() {
     if (!bougies) return;
-    lignesSR.forEach(l => { try { bougies.removePriceLine(l); } catch (e) {} });
+    lignesSR.forEach(o => { try { bougies.removePriceLine(o.l); } catch (e) {} });
     lignesSR = [];
     if (!reglages.supports || !donnees) return;
-    const tracer = (liste, couleur, pre) => liste.forEach((z, i) => lignesSR.push(bougies.createPriceLine({
-      price: z.prix, color: couleur, lineWidth: z.force === 'forte' ? 2 : 1, lineStyle: LW.LineStyle.Dashed, axisLabelVisible: true, title: pre + (i + 1) + (z.force === 'forte' ? ' ●' : '')
-    })));
+    const tracer = (liste, couleur, pre) => liste.forEach((z, i) => {
+      const titre = pre + (i + 1) + (z.force === 'forte' ? ' ●' : '');
+      lignesSR.push({ prix: z.prix, titre, visible: true, l: bougies.createPriceLine({ price: z.prix, color: couleur, lineWidth: z.force === 'forte' ? 2 : 1, lineStyle: LW.LineStyle.Dashed, axisLabelVisible: true, title: titre }) });
+    });
     tracer(donnees.supports, COULEURS.haut, 'S'); tracer(donnees.resistances, COULEURS.bas, 'R');
+    requestAnimationFrame(etiquettesSansChevauchement);
+  }
+  // Les étiquettes de prix ne doivent jamais se chevaucher (téléphone) : de la plus proche du prix à la plus lointaine, on cache celles qui gêneraient
+  function etiquettesSansChevauchement() {
+    if (!bougies || !lignesSR.length || !donnees) return;
+    const HAUT = 17, pris = [], y0 = bougies.priceToCoordinate(donnees.prix);
+    if (y0 != null) pris.push(y0);
+    lignesSR.slice().sort((u, v) => Math.abs(u.prix - donnees.prix) - Math.abs(v.prix - donnees.prix)).forEach(o => {
+      const y = bougies.priceToCoordinate(o.prix);
+      const ok = y != null && pris.every(q => Math.abs(q - y) >= HAUT);
+      if (ok) pris.push(y);
+      if (ok !== o.visible) { o.visible = ok; try { o.l.applyOptions({ axisLabelVisible: ok, title: ok ? o.titre : '' }); } catch (e) {} }
+    });
   }
   function poserAnnotations() {
     if (!bougies) return;

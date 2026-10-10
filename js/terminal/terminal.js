@@ -35,8 +35,8 @@ import { creerPageAnalyse } from './page-analyse.js';
 
   const ASSETS={
     NDX:{label:'NASDAQ', tv:'CAPITALCOM:US100', book:null,     dec:2},
-    BTC:{label:'BITCOIN',tv:'BINANCE:BTCUSDT', book:'btcusd', dec:0},
-    SOL:{label:'SOLANA', tv:'BINANCE:SOLUSDT', book:'solusd', dec:2},
+    BTC:{label:'BITCOIN',tv:'BINANCE:BTCUSDT', book:'btcusd', dec:0,vol:true},
+    SOL:{label:'SOLANA', tv:'BINANCE:SOLUSDT', book:'solusd', dec:2,vol:true},
     XAU:{label:'OR',     tv:'OANDA:XAUUSD',    book:null,     dec:2},
     EUR:{label:'EUR/USD',tv:'FX:EURUSD',       book:null,     dec:4},
   };
@@ -182,8 +182,9 @@ import { creerPageAnalyse } from './page-analyse.js';
       +'</svg>'
       +'<div style="position:absolute;top:8px;right:14px;font-family:var(--mono);font-size:17px;font-weight:700;color:'+col+'">'+last.toFixed(1)+'</div>';
   }
-  function netVol(d,n){ let net=0; for(const b of d.slice(-n)) net+=(b.c>=b.o?1:-1)*b.v*b.c; return net; }
-  function fUsd(v){ const a=Math.abs(v),sg=v>=0?'+':'-'; return sg+(a>=1e9?(a/1e9).toFixed(2)+'B':a>=1e6?(a/1e6).toFixed(2)+'M':a>=1e3?(a/1e3).toFixed(1)+'K':a.toFixed(0))+' $'; }
+  // Volume net en dollars : seulement là où la source donne un vrai volume (crypto). Les indices (^NDX), l'or et l'EUR/USD n'en ont pas : « n/d »
+  function netVol(d,n){ if(!ASSETS[current].vol) return null; const seg=d.slice(-n); if(!seg.some(b=>b.v>0)) return null; let net=0; for(const b of seg) net+=(b.c>=b.o?1:-1)*b.v*b.c; return net; }
+  function fUsd(v){ const a=Math.abs(v),sg=v>=0?'+':'-'; return sg+(a>=1e9?(a/1e9).toFixed(1)+'B':a>=1e6?(a/1e6).toFixed(1)+'M':a>=1e3?(a/1e3).toFixed(1)+'K':a.toFixed(0)); }
   const hhmm=d=>new Date(d).toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'});
 
   // Le widget TradingView est une fenêtre externe : aucune page ne peut lire ce qu'il affiche.
@@ -292,14 +293,14 @@ import { creerPageAnalyse } from './page-analyse.js';
         const nv0=niv[i]; let support=null, resist=null;
         if(nv0){ support=nv0.supports.length?nv0.supports[0].prix:null; resist=nv0.resistances.length?nv0.resistances[0].prix:null; }
         const bull=e200!=null?price>e200:null, nv=netVol(d,20);
-        const sc=Math.max(0,Math.min(100,Math.round((bull?60:40)+((r!=null?(r-50):0)*0.3)+(nv>=0?5:-5))));
+        const sc=Math.max(0,Math.min(100,Math.round((bull?60:40)+((r!=null?(r-50):0)*0.3)+(nv==null?0:nv>=0?5:-5))));
         cols.push({lab,price,bull,rsi:r,support,resist,net:nv,score:sc,e200,dist:(e200?((price-e200)/e200*100):null)});
       });
       drawRSI();
       const h1=cols.find(c=>c.lab==='H1')||cols[0];
       const bulls=cols.filter(c=>c.bull).length, globalTrend=bulls>=2?'Haussier':'Baissier';
       const scoreG=Math.round(cols.reduce((a,c)=>a+c.score,0)/cols.length);
-      const fmt=v=>v==null?'—':v.toLocaleString('fr-FR',{maximumFractionDigits:s.dec});
+      const fmt=v=>v==null?'—':v.toLocaleString('fr-FR',{maximumFractionDigits:v>=1000?0:s.dec});
 
       let html='<table class="grid"><tr><th>INDIC.</th>';
       cols.forEach(c=>html+=`<th>${c.lab}</th>`); html+='<th>GLOBAL</th></tr>';
@@ -310,8 +311,8 @@ import { creerPageAnalyse } from './page-analyse.js';
       cols.forEach(c=>{const v=c.rsi;const cl=v>70?'rsi-hot':v<30?'rsi-cold':'';html+=`<td class="${cl}">${v!=null?v.toFixed(1):'—'}</td>`;});
       html+='<td>—</td></tr>';
       html+='<tr><td>Vol net $</td>';
-      cols.forEach(c=>html+=`<td class="${c.net>=0?'bull':'bear'}">${fUsd(c.net)}</td>`);
-      html+=`<td class="${h1.net>=0?'bull':'bear'}">${h1.net>=0?'ACHAT':'VENTE'}</td></tr>`;
+      cols.forEach(c=>html+=c.net==null?'<td class="nd" title="Pas de volume réel pour cet instrument">n/d</td>':`<td class="${c.net>=0?'bull':'bear'}">${fUsd(c.net)}</td>`);
+      html+=h1.net==null?'<td class="nd">n/d</td></tr>':`<td class="${h1.net>=0?'bull':'bear'}">${h1.net>=0?'ACHAT':'VENTE'}</td></tr>`;
       html+='<tr><td>Support</td>';
       cols.forEach(c=>html+=`<td class="bull">${fmt(c.support)}</td>`); html+='<td>—</td></tr>';
       html+='<tr><td>Résist.</td>';
@@ -329,7 +330,7 @@ import { creerPageAnalyse } from './page-analyse.js';
         tendance_globale:globalTrend, score_global:scoreG,
         tendances:Object.fromEntries(cols.map(c=>[c.lab, c.bull?'Haussier':'Baissier'])),
         rsi:Object.fromEntries(cols.map(c=>[c.lab, c.rsi!=null?+c.rsi.toFixed(1):null])),
-        volume_net:Object.fromEntries(cols.map(c=>[c.lab, Math.round(c.net)])),
+        volume_net:Object.fromEntries(cols.map(c=>[c.lab, c.net==null?'n/d (pas de volume réel pour cet instrument)':Math.round(c.net)])),
         ma200:Object.fromEntries(cols.map(c=>[c.lab, c.e200!=null?+c.e200.toFixed(s.dec):null])),
         distance_ma200_pct:Object.fromEntries(cols.map(c=>[c.lab, c.dist!=null?+c.dist.toFixed(2):null])),
         support:h1.support, resistance:h1.resist, prix:h1.price,
@@ -481,7 +482,7 @@ import { creerPageAnalyse } from './page-analyse.js';
     const h=el.querySelector(':scope>h2'); if(!h) return;
     // un clic sur le titre replie / déplie la fenêtre ; la croix la ferme (le dock en haut permet de la rouvrir)
     h.style.cursor='pointer'; h.title='Cliquer pour replier / déplier';
-    h.addEventListener('click',()=>{ el.classList.toggle('replie'); majPanneauxBridge(); });
+    h.addEventListener('click',e=>{ if(e.target.closest('button,a,input,.srcsw')) return; el.classList.toggle('replie'); majPanneauxBridge(); if(graph) requestAnimationFrame(()=>graph.redessiner()); });   // les boutons du titre (Raylé / TradingView) ne replient pas la fenêtre
     const x=document.createElement('button'); x.type='button'; x.className='tp-x'; x.textContent='✕'; x.title='Fermer cette fenêtre'; x.setAttribute('aria-label','Fermer cette fenêtre');
     x.addEventListener('click',e=>{ e.stopPropagation(); setPanneau(n,'fermer'); });
     h.appendChild(x);
@@ -506,7 +507,7 @@ import { creerPageAnalyse } from './page-analyse.js';
     if(src!=='rayle'&&src!=='tradingview') return false;
     if(src===sourceGraph) return true;
     sourceGraph=src; appliquerSourceUI();
-    if(src==='rayle') graph.montrer(); else graph.cacher();
+    if(src==='rayle'){ graph.montrer(); requestAnimationFrame(()=>graph.redessiner()); } else graph.cacher();
     if(ouvertTerm && pageCourante==='terminal') majGraphique();
     ecrirePrefs(); writeBridge({source_graphique:src==='rayle'?'graphique Raylé':'widget TradingView'});
     return true;

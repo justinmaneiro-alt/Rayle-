@@ -37,7 +37,7 @@
   #vueTerminal .refresh:hover{color:var(--ink);border-color:var(--neon)}
   #vueTerminal .clock{color:var(--neon2);font-size:13px}
   #vueTerminal .tmain{display:grid;gap:10px;padding:12px;
-    grid-template-columns:minmax(300px,360px) 1fr;
+    grid-template-columns:minmax(300px,360px) minmax(0,1fr);
     grid-template-areas:"dash right";align-items:start;}
   #vueTerminal .left{grid-area:dash;display:flex;flex-direction:column;gap:10px;
     position:sticky;top:76px;max-height:calc(100vh - 86px - var(--mini-h));overflow-y:auto}
@@ -65,9 +65,13 @@
   #vueTerminal .notes{min-height:220px}
   #vueTerminal .cal{height:540px}
   #vueTerminal .cal .tvbox{height:500px;min-height:500px}
-  #vueTerminal table.grid{width:100%;border-collapse:collapse;font-size:12px}
+  #vueTerminal table.grid{width:100%;table-layout:fixed;border-collapse:collapse;font-size:11.5px}
+  #vueTerminal table.grid td{white-space:nowrap;overflow:hidden;text-overflow:clip}
+  #vueTerminal table.grid col.c0,#vueTerminal table.grid th:first-child{width:21%}
+  #vueTerminal .nd{color:var(--muted)}
+  #vueTerminal .left{overflow-x:hidden;min-width:0} #vueTerminal .left>*{min-width:0} #vueTerminal .dash,#vueTerminal #dashBody{max-width:100%;overflow:hidden}
   #vueTerminal table.grid th,
-  #vueTerminal table.grid td{padding:7px 7px;text-align:center;border-bottom:1px solid rgba(255,0,127,.08)}
+  #vueTerminal table.grid td{padding:7px 2px;text-align:center;border-bottom:1px solid rgba(255,0,127,.08)}
   #vueTerminal table.grid th{color:var(--muted);font-weight:700;font-size:10.5px;letter-spacing:.05em}
   #vueTerminal table.grid td:first-child,
   #vueTerminal table.grid th:first-child{text-align:left;color:var(--muted);font-size:10.5px}
