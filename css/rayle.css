@@ -98,3 +98,15 @@
     .barre button{min-height:48px}.mic small{display:none}
   }
   @media (prefers-reduced-motion:reduce){ .soustitre{transition:none} }
+
+  /* ───── Application installée : message de mise à jour, gros boutons tactiles ───── */
+  .maj-banniere{position:fixed;left:50%;transform:translateX(-50%);bottom:max(14px,env(safe-area-inset-bottom));z-index:200;display:flex;flex-wrap:wrap;gap:8px;align-items:center;justify-content:center;
+    width:min(94vw,520px);padding:10px 12px;background:rgba(8,2,12,.96);border:1px solid var(--pink);box-shadow:0 0 22px rgba(255,0,127,.4);font:13px var(--mono);color:var(--light)}
+  .maj-banniere button{flex:none;min-height:44px;padding:8px 14px;background:var(--pink);border:none;color:#1a000d;font:700 12px var(--mono);letter-spacing:.1em;text-transform:uppercase;cursor:pointer}
+  .maj-banniere button.ghost{background:transparent;color:var(--pink);border:1px solid rgba(255,0,127,.5)}
+  @media (pointer:coarse){
+    .cfg button,.cfg-top button{min-height:44px}
+    .cfg select,.cfg input[type=url],.cfg input[type=password],.cfg input[type=text]{min-height:44px;font-size:16px}
+    .cfg label.chk input{width:22px;height:22px;flex:none}
+    .cfg label.chk{padding:6px 0}
+  }

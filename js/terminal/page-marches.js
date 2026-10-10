@@ -1,5 +1,5 @@
 /* ═════════════ PAGE « MARCHÉS » : tableaux HUD animés (rendements, écarts, courbes, indices, actions, matières, dollar, VIX, crypto) ═════════════ */
-import { appelWorker, clignoter, defiler, demanderARayle, esc, hhmm, instantane, nombre, sansAnimation, sens, signe } from './hud.js?v=2026.10.10.3';
+import { appelWorker, clignoter, defiler, demanderARayle, esc, hhmm, instantane, nombre, sansAnimation, sens, signe } from './hud.js?v=2026.10.10.4';
 
 const SECTIONS = [
   ['rendements', 'Rendements obligataires', '▤'], ['indices', 'Indices', '◈'], ['actions', 'Grandes actions du Nasdaq', '▦'],

@@ -248,7 +248,7 @@ void main(){
       else{
         const mobile=(window.matchMedia&&matchMedia('(pointer:coarse)').matches)||window.innerWidth<820;
         const faible=(navigator.hardwareConcurrency||4)<=4;
-        depart=mobile?1:(faible?1:0);
+        depart=window.innerWidth<500?2:(mobile?1:(faible?1:0));   // téléphone : entité allégée d'emblée
       }
       tDebut=performance.now();
       appliquerNiveau(depart);

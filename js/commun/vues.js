@@ -8,7 +8,7 @@
 
   function charger(){
     if(module) return Promise.resolve(module);
-    if(!chargement) chargement=import(new URL('js/terminal/terminal.js?v=2026.10.10.3',document.baseURI).href).then(m=>{ module=m; return m; }).catch(e=>{ chargement=null; throw e; });
+    if(!chargement) chargement=import(new URL('js/terminal/terminal.js?v=2026.10.10.4',document.baseURI).href).then(m=>{ module=m; return m; }).catch(e=>{ chargement=null; throw e; });
     return chargement;
   }
   async function afficher(v){

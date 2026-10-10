@@ -211,3 +211,11 @@
   #vueTerminal .pm-courbe .ligne,#vueTerminal .pc-svg .courbe{animation:none!important;stroke-dashoffset:0!important}
   #vueTerminal .pc-svg .aire{animation:none!important;opacity:1!important} #vueTerminal .pc-barres rect,#vueTerminal .pm-barre,#vueTerminal .pm-ec-barre i,#vueTerminal .pc-rail i,#vueTerminal .pc-svg .actuel{animation:none!important}
 }
+
+/* ── écrans tactiles : cibles d'au moins 44 px, texte lisible ── */
+@media(pointer:coarse){
+  #vueTerminal .tpages button,#vueTerminal .tmodes button,#vueTerminal .tabs button,#vueTerminal .ivs button,#vueTerminal .refresh,#vueTerminal .retour,#vueTerminal .srcsw button{min-height:44px;min-width:44px}
+  #vueTerminal .pa-hist button,#vueTerminal .pm-actions button{min-height:40px}
+  #vueTerminal .notes textarea{font-size:16px}
+}
+@media(max-width:700px){ #vueTerminal .chart>h2{flex-wrap:wrap;gap:4px 8px} }
