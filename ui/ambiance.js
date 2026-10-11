@@ -24,7 +24,7 @@
    COMMANDER :
      RayleUI.ambiance.forcer({moment?, meteo?, intensite?, vent?}, {dureeMs?})  ·  .auto()  ·  .regler(clé, valeur)
      Voix sans IA : RayleUI.ambiance.analyser(texte) + .executer(action) (branché sur le service 'ui:commande' de ui/settings.js)
-     IA : RayleUI.ambiance.executerAgent({ambiance, intensite, vent, theme, fond, entite, duree_minutes}) (action « ambiance » du Worker)
+     IA : RayleUI.ambiance.executerAgent({ambiance, intensite, vent, theme, fond, entite, astre, duree_minutes}) (action « ambiance » du Worker)
    Effets 2D (voile jour/nuit, pluie, neige, brouillard, éclairs) : ui/ambiance-fx.js. Réglages : ui/ambiance-reglages.js.
    Le calcul est pur : tests/ambiance-test.mjs (moment, mapping du thème, commandes vocales, cache et erreurs météo). */
 (function(){
@@ -119,7 +119,7 @@
   }
 
   /* ═════ commandes vocales (texte déjà normalisé par l'appelant, mais on le refait par sécurité) ═════ */
-  const norm=t=>String(t||'').normalize('NFD').replace(/[̀-ͯ]/g,'').toLowerCase().replace(/['’`]/g,' ').replace(/[?!.,;:…«»"]/g,' ').replace(/-/g,' ').replace(/\s+/g,' ').trim().replace(/^(?:(?:hey|he|eh|ok|okay|dis) )?rayle /,'');
+  const norm=t=>String(t||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().replace(/['’`]/g,' ').replace(/[?!.,;:…«»"]/g,' ').replace(/-/g,' ').replace(/\s+/g,' ').trim().replace(/^(?:(?:hey|he|eh|ok|okay|dis) )?rayle /,'');
   const QUESTION=/\b(?:pourquoi|comment|quel|quelle|quels|quelles|combien|c est quoi|qu est ce|est ce que|est ce qu)\b/;
   const PRESET_ALIAS=[
     [/^(?:pluie|pluvieu[sx]e?|de pluie|sous la pluie|il pleut)$/,'pluie'],
@@ -378,9 +378,13 @@
         if(a.theme==='auto'){ R.themeAuto=true; sauverReglages(); stock.set(CLE.themeManuel,null); appliquerThemeAuto(true); fait.push('thème automatique'); }
         else if(THEMES_IDS.includes(a.theme) && UI.changer){ UI.changer('theme',a.theme); fait.push('thème '+a.theme); }
       }
-      if(a.fond && UI.changer && ['aucun','globe','ville3d','video'].includes(a.fond)){ UI.changer('fond',a.fond); fait.push('fond '+a.fond); }
+      if(a.fond==='globe') a.fond='espace';                              // l'ancien « Globe » est devenu l'Espace
+      if(a.fond && UI.changer && ['aucun','espace','ville3d','video'].includes(a.fond)){ UI.changer('fond',a.fond); fait.push('fond '+a.fond); }
       if(a.entite && UI.changer && ['sphere','neurones'].includes(a.entite)){ UI.changer('entite',a.entite); fait.push('entité '+a.entite); }
-      return fait.length?'Réglé : '+fait.join(', ')+'.':'';
+      // « emmène-moi voir Saturne » : vol de la caméra du fond Espace + faits (ui/espace.js)
+      let phrase='';
+      if(a.astre && UI.espace && UI.espace.executer){ const ok=['terre','soleil','lune','mercure','venus','mars','jupiter','saturne','uranus','neptune','iss'].includes(a.astre); if(ok) phrase=UI.espace.executer(a.astre==='terre'?{type:'retour'}:{type:'vers',cible:a.astre})||''; }
+      return (fait.length?'Réglé : '+fait.join(', ')+'.':'')+(phrase?(fait.length?' ':'')+phrase:'');
     }
 
     function description(){

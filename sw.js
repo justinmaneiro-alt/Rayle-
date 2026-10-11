@@ -11,7 +11,7 @@ const VERSION = new URL(self.location.href).searchParams.get('v') || 'dev';
 const CACHE = 'rayle-' + VERSION;
 const DELAI_MS = 8000;
 const DE_COTE = ['./index.html', './manifest.webmanifest', './icones/icone-192.png',
-  './ui/assets/fond-globe-planete.webp', './ui/assets/fond-etoiles.webp',   // image fixe du Globe (mode Éco) : disponible hors ligne
+  './ui/assets/fond-globe-planete.webp', './ui/assets/fond-espace-paysage.webp', './ui/assets/fond-espace-portrait.webp',   // images fixes de l'Espace (mode Éco) : disponibles hors ligne
   './icones/raccourci-parler.png', './icones/raccourci-terminal.png', './icones/raccourci-briefing.png', './icones/raccourci-monde.png'];
 
 self.addEventListener('install', e => {

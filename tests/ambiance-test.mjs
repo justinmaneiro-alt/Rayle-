@@ -220,12 +220,16 @@ await t('outil « ambiance » de l’IA : règle ambiance, vent, thème, fond et
   const calls = []; UI.changer = (k, v, o) => calls.push([k, v, o]);
   const x = moteur({ now: utc(2026, 6, 21, 10) });
   const r = x.m.executerAgent({ type: 'ambiance', ambiance: 'detente', vent: 'leger', theme: 'ambre', fond: 'globe', entite: 'neurones', duree_minutes: 45 });
-  assert.match(r, /ambiance détente/); assert.match(r, /thème ambre/); assert.match(r, /fond globe/); assert.match(r, /entité neurones/);
-  assert.deepEqual(calls.map(c => c.slice(0, 2).join('=')), ['theme=ambre', 'fond=globe', 'entite=neurones']);
+  assert.match(r, /ambiance détente/); assert.match(r, /thème ambre/); assert.match(r, /fond espace/, 'l’ancien « globe » devient l’Espace'); assert.match(r, /entité neurones/);
+  assert.deepEqual(calls.map(c => c.slice(0, 2).join('=')), ['theme=ambre', 'fond=espace', 'entite=neurones']);
   assert.equal(calls[0][2], undefined, 'le thème demandé par l’IA est un choix explicite (priorité manuelle)');
   const e = x.m.etat(); assert.equal(e.moment, 'crepuscule'); assert.equal(e.vent.vitesse, .25); assert.equal(x.m.manuel().fin, x.now() + 45 * 60000);
   assert.match(x.m.executerAgent({ ambiance: 'auto', theme: 'auto' }), /ambiance automatique.*thème automatique/); assert.equal(x.m.etat().source, 'auto');
-  assert.equal(x.m.executerAgent({ ambiance: 'n’importe quoi', fond: 'espace', theme: 'violet' }), '', 'valeurs inconnues ignorées');
+  assert.equal(x.m.executerAgent({ ambiance: 'n’importe quoi', fond: 'galaxie', theme: 'violet' }), '', 'valeurs inconnues ignorées');
+  // « emmène-moi voir Saturne » : le fond Espace s’en charge (vol + faits)
+  const vus = []; UI.espace = { executer: a => { vus.push(a.type + ':' + (a.cible || '')); return 'Direction Saturne. Faits.'; } };
+  assert.equal(x.m.executerAgent({ astre: 'saturne' }), 'Direction Saturne. Faits.'); assert.equal(x.m.executerAgent({ astre: 'terre', ambiance: 'pluie' }).endsWith('Direction Saturne. Faits.'), true);
+  assert.equal(x.m.executerAgent({ astre: 'pluton' }), ''); assert.deepEqual(vus, ['vers:saturne', 'retour:', ]);
   assert.equal(x.m.executerAgent({ ambiance: 'orage', intensite: 5 }).includes('intensité 100 %'), true, 'intensité bornée');
 });
 await t('initiative : remarque UNE fois, seulement pour un vrai changement vu page ouverte, en auto', () => {

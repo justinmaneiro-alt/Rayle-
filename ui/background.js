@@ -1,6 +1,6 @@
 "use strict";
 /* ═════════════ FOND ANIMÉ : chef d'orchestre ═════════════
-   Fonds (Réglages → Fond) : Aucun · Globe (ui/fond-globe.js) · Ville 3D (ui/fond-ville3d.js) · Ville réelle (ui/fond-video.js).
+   Fonds (Réglages → Fond) : Aucun · Espace (ui/fond-globe.js + ui/fond-espace.js, l'ancien Globe) · Ville 3D (ui/fond-ville3d.js) · Ville réelle (ui/fond-video.js).
    - Rendu : 3D (three.js, chargé à la demande) ; en Éco, Globe et Ville 3D deviennent une IMAGE FIXE pré-rendue (three.js n'est même
      pas chargé) ; la Ville réelle reste une vidéo, en 720p en Éco et sur téléphone/tablette.
    - Qualité automatique (niveau Auto) : si les images/s chutent avec un fond 3D, c'est le FOND qui baisse d'abord (qualité 0 → 1 → 2),
@@ -16,9 +16,10 @@
   const THREE_URL='https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.min.js';
   UI.three=()=>import(THREE_URL);     // three.js, chargé une seule fois et seulement si besoin (fonds 3D, entité Neurones)
   const BASE=(()=>{ try{ return new URL('ui/assets/',document.baseURI).href; }catch(e){ return 'ui/assets/'; } })();
-  // images fixes du mode Éco : la ville est une image ; le Globe est un fond d'étoiles + la planète pré-rendue (sprite), posée par le même cadrage
-  // que la 3D (ui/cadrage.js) : toujours entière, quel que soit l'écran. La planète pré-rendue occupe SPRITE_PLANETE de la largeur de l'image (atmosphère comprise).
-  const FIXES={globe:'fond-etoiles.webp',ville3d:'fond-ville3d-fixe.jpg'};
+  // images fixes du mode Éco : la ville est une image ; l'Espace est un ciel pré-rendu (étoiles, Voie lactée, Soleil, Lune ; une image en portrait, une en paysage)
+  // + la Terre pré-rendue (sprite), posée par le même cadrage que la 3D (ui/cadrage.js, placement « centre ») : toujours entière, quel que soit l'écran.
+  // La Terre pré-rendue occupe SPRITE_PLANETE de la largeur de son image (atmosphère comprise).
+  const FIXES={espace:()=>'fond-espace-'+(innerHeight>innerWidth?'portrait':'paysage')+'.webp',ville3d:()=>'fond-ville3d-fixe.jpg'};
   const PLANETE='fond-globe-planete.webp', SPRITE_PLANETE=.92;
   let planete=null;
   const mobile=()=>{ try{ return !!UI.reglages().mobile; }catch(e){ return false; } };
@@ -79,18 +80,17 @@
   }
   function placerPlanete(){
     if(!planete) return;
-    const g=UI.fondsReels&&UI.fondsReels.globeCadrage; if(!g||!UI.cadrage) return;
+    const g=UI.fondsReels&&UI.fondsReels.espaceCadrage; if(!g||!UI.cadrage) return;
     try{
       const W=Math.round(innerWidth*1.06), H=Math.round(innerHeight*1.06);
-      const c=UI.cadrage.cadrer({cam:{fov:g.fov,dist:g.dist},rayonBase:g.rayon,echelleMax:g.echelleMax,canvasW:W,canvasH:H,parallaxe:16}), b=c.boite;
+      const c=UI.cadrage.cadrer({cam:{fov:g.fov,dist:g.dist},rayonBase:g.rayon,echelleMax:g.echelleMax,canvasW:W,canvasH:H,parallaxe:16,placement:g.placement}), b=c.boite;
       const d=(b.x1-b.x0)/SPRITE_PLANETE, cx=(b.x0+b.x1)/2, cy=(b.y0+b.y1)/2;
       planete.style.cssText='left:'+(cx-d/2).toFixed(1)+'px;top:'+(cy-d/2).toFixed(1)+'px;width:'+d.toFixed(1)+'px;height:'+d.toFixed(1)+'px;background-image:url("'+BASE+PLANETE+'")';
     }catch(e){}
   }
   function montrerFixe(nom){
-    fixe.style.backgroundImage='url("'+BASE+FIXES[nom]+'")';
-    fixe.classList.toggle('etoiles',nom==='globe');
-    if(nom==='globe'){ if(!planete){ planete=document.createElement('div'); planete.className='ui-fond-planete'; fixe.appendChild(planete); } placerPlanete(); }
+    fixe.style.backgroundImage='url("'+BASE+FIXES[nom]()+'")';
+    if(nom==='espace'){ if(!planete){ planete=document.createElement('div'); planete.className='ui-fond-planete'; fixe.appendChild(planete); } placerPlanete(); }
     else if(planete){ planete.remove(); planete=null; }
     rendu='fixe'; transfo='';
     requestAnimationFrame(()=>{ fixe.classList.add('vu'); teinte.classList.add('vu'); });
@@ -99,7 +99,7 @@
   async function appliquer(){
     const r=fond==='aucun'?'aucun' : fond==='video'?'video' : palier>=2?'fixe':'3d';
     const hd=anim==='max';
-    const k=fond+':'+r+(fond==='globe'&&r==='3d'&&hd?':hd':'')+(fond==='video'?(innerHeight>innerWidth?':portrait':':paysage'):'');   // vidéo : version selon l'orientation de l'écran
+    const k=fond+':'+r+(fond==='espace'&&r==='3d'&&hd?':hd':'')+(fond==='video'?(innerHeight>innerWidth?':portrait':':paysage'):'');   // vidéo : version selon l'orientation de l'écran
     if(k===cle) return;
     cle=k; arreter(); rendu='aucun';
     const g=++gen;
@@ -131,7 +131,7 @@
   }
 
   // écran, rotation, zoom, visualViewport, panneaux, taille de l'entité : une seule écoute (ui/cadrage.js), les fonds se recadrent en douceur
-  const recadrer=()=>{ if(scene && rendu==='3d'){ scene.taille(); aRedessiner=true; } if(rendu==='fixe' && fond==='globe') placerPlanete(); if(fond==='video') appliquer(); };
+  const recadrer=()=>{ if(scene && rendu==='3d'){ scene.taille(); aRedessiner=true; } if(rendu==='fixe' && fond==='espace') montrerFixe('espace'); if(fond==='video') appliquer(); };
   if(UI.cadrage) UI.cadrage.ecouter(recadrer); else window.addEventListener('resize',recadrer);
   window.addEventListener('pointermove',e=>{ if(e.pointerType==='mouse'){ px=e.clientX/innerWidth-.5; py=e.clientY/innerHeight-.5; } },{passive:true});
   RayleBus.on('ui:reglages',r=>{

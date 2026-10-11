@@ -12,5 +12,6 @@ fond-ville3d-fixe.jpg : images fixes pré-rendues par Raylé (mode Éco), à par
 Vidéo de ville de nuit (ville-paysage.mp4, ville-portrait.mp4) : Pexels, vidéo n° 13246966, licence Pexels (utilisation gratuite).
   https://www.pexels.com/video/13246966/
   Recompressée en H.264 (720×1280 et recadrage 1280×720), boucle sans coupure par fondu enchaîné de 1,2 s.
-
-fond-globe-planete.webp, fond-etoiles.webp : planète pré-rendue et mosaïque d'étoiles pour l'image fixe du mode Éco, générées par Raylé à partir des textures NASA ci-dessus (domaine public) ; aucune autre source.
+fond-globe-planete.webp : Terre pré-rendue (image fixe du mode Éco du fond Espace), générée par Raylé à partir des textures NASA ci-dessus (domaine public).
+fond-espace-paysage.webp, fond-espace-portrait.webp : ciel pré-rendu (étoiles, Voie lactée, Soleil, Lune) pour le mode Éco du fond Espace, générés par le code de Raylé (aucune source externe).
+Fond Espace : les textures de la Lune, des planètes, des anneaux de Saturne, des astéroïdes, de la Voie lactée et des nébuleuses sont dessinées par le code (aucun fichier). Positions du Soleil, de la Lune et des planètes : calcul avec les éléments orbitaux simplifiés de Paul Schlyter (« How to compute planetary positions », domaine public, formules sans service externe). ISS : API publique gratuite sans clé wheretheiss.at (position, avec orbite simulée de secours).

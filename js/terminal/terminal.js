@@ -1,10 +1,10 @@
 /* ═════════════ TERMINAL (vue de la page unique) : module chargé à la première ouverture ═════════════
    Parle à Raylé uniquement par RayleBus (état partagé en mémoire + commandes). Aucun localStorage entre les deux. */
-import { creerGraphique, LIBELLE_IV } from './graphique-rayle.js?v=2026.10.11.1';
-import { creerPageMarches } from './page-marches.js?v=2026.10.11.1';
-import { creerPageCot } from './page-cot.js?v=2026.10.11.1';
-import { creerPageAnalyse } from './page-analyse.js?v=2026.10.11.1';
-import { creerPageMonde } from './page-monde.js?v=2026.10.11.1';
+import { creerGraphique, LIBELLE_IV } from './graphique-rayle.js?v=2026.10.11.2';
+import { creerPageMarches } from './page-marches.js?v=2026.10.11.2';
+import { creerPageCot } from './page-cot.js?v=2026.10.11.2';
+import { creerPageAnalyse } from './page-analyse.js?v=2026.10.11.2';
+import { creerPageMonde } from './page-monde.js?v=2026.10.11.2';
 
 
   // ── WORKER RAYLÉ ── adresse et code d'accès : les mêmes réglages que Raylé (⚙ Réglages), fournis par le bus

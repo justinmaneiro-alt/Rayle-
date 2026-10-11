@@ -13,8 +13,9 @@ let ok = 0; const t = (n, f) => { try { f(); ok++; console.log('  ✔', n); } ca
 
 // mise en page type de Raylé (mêmes proportions que le vrai DOM : cadre de l'entité = min(86vw, 62vh, 520), titre, barre de boutons)
 function mesure(W, H) {
-  const box = Math.min(W * .86, H * .62, 520), cx = W / 2, cy = Math.max(box / 2 + 60, H * .42);
-  const bas = H - (W < 700 ? 150 : 190);
+  const court = H < 500;                                                    // téléphone en paysage : cadre plus petit, boutons plus bas
+  const box = court ? H * .46 : Math.min(W * .86, H * .62, 520), cx = W / 2, cy = court ? H * .42 : Math.max(box / 2 + 60, H * .42);
+  const bas = H - (court ? 70 : W < 700 ? 150 : 190);
   return { W, H, entite: { cx, cy, r: box * .30 }, haut: 62, bas, texteBas: Math.min(bas - 10, cy + box / 2 + 56), reserves: [] };
 }
 const FORMATS = { 'téléphone vertical': [390, 844], 'téléphone paysage': [844, 390], 'petit téléphone': [360, 640], 'tablette verticale': [768, 1024], 'tablette paysage': [1024, 768],
@@ -113,6 +114,17 @@ t('téléphone en paysage : la planète ne recouvre pas le texte d’état de l�
   assert.ok(avec.boite.x0 - 844 * .03 >= 630 + 10, 'à droite du texte : ' + Math.round(avec.boite.x0 - 844 * .03));
   assert.ok(avec.boite.x1 - avec.boite.x0 >= .5 * (m.bas - m.haut) * .9, 'reste de taille correcte');
   assert.ok(sans.boite.x0 < avec.boite.x0, 'sans le texte, elle serait plus à gauche');
+});
+t('placement « centre » (fond Espace) : centré sur l’entité et ENTIER sur tous les formats', () => {
+  for (const [nom, [W, H]] of Object.entries(FORMATS)) {
+    const m = mesure(W, H), r = cadre(W, H, { placement: 'centre' });
+    assert.equal(r.mode, 'centre', nom);
+    const dx = W * .03, dy = H * .03, b = r.boite;
+    assert.ok(b.x0 - dx >= -.5 && b.x1 - dx <= W + .5 && b.y0 - dy >= -.5 && b.y1 - dy <= H + .5, nom + ' : entier à l’écran');
+    assert.ok(Math.abs((b.x0 + b.x1) / 2 - dx - m.entite.cx) < 3 && Math.abs((b.y0 + b.y1) / 2 - dy - m.entite.cy) < 3, nom + ' : centré sur l’entité');
+    assert.ok(b.y0 - dy >= m.haut - 1 && b.y1 - dy <= m.bas + 1, nom + ' : ne passe ni sous le titre ni sous la barre');
+    assert.ok(b.x1 - b.x0 >= .3 * Math.min(W, H) * .6, nom + ' : de taille correcte');
+  }
 });
 t('zone minuscule ou absurde : pas de plantage, échelle quasi nulle mais valide', () => {
   const r = C.ajuster({ fov: 35, dist: 3.4, aspect: 1.5 }, 1500, 1000, { x0: 700, x1: 702, y0: 500, y1: 501 }, 1.09, { echelleMax: .8, marge: 4 });

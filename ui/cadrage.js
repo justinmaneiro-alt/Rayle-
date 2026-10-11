@@ -5,6 +5,8 @@
    fenêtre redimensionnée à la souris, plein écran, zoom du navigateur. Aucun nombre magique de placement : on projette VRAIMENT
    l'objet avec la caméra (silhouette exacte d'une sphère en perspective) et on cherche la plus grande échelle qui tient dans la zone libre.
 
+   Placement « centre » (cadrer({placement:'centre'})) : l'objet est centré sur l'entité, entier, dans le plus grand carré qui tient entre le titre et la barre
+   de boutons (fond Espace : la Terre derrière l'entité).
    Zone libre = écran moins : l'entité centrale (sphère + halo), la bande du titre en haut, la barre de boutons en bas, et les panneaux
    HUD ouverts (colonnes gauche/droite). Disposition :
      • écran large (ratio ≥ 1,15)      → « côté » : à droite de l'entité (ou à gauche si les panneaux l'occupent), entier ;
@@ -127,6 +129,11 @@
     const reserves=o.reserves||[], ecart=14;
     const hauteurLibre=Math.max(60,bas-haut);
 
+    if(o.placement==='centre'){                                      // « centre » : derrière l'entité, entier (fond Espace : la Terre au centre de la scène)
+      const hs=Math.max(20,Math.min(e.cx-m,W-m-e.cx,e.cy-haut,bas-e.cy));
+      return {mode:'centre',cote:'centre',zone:{x0:e.cx-hs,x1:e.cx+hs,y0:e.cy-hs,y1:e.cy+hs},haut,bas};
+    }
+
     if(ratio>=1.15){                                                 // « côté »
       const minD=.5*hauteurLibre;
       const essai=sens=>{
@@ -197,7 +204,7 @@
     const W=o.canvasW, H=o.canvasH, dx=(W-d.W)/2, dy=(H-d.H)/2;     // le canvas commence à (-dx, -dy) de l'écran
     const cam={fov:o.cam.fov,dist:o.cam.dist,aspect:W/H};
     const parallaxe=o.parallaxe!=null?o.parallaxe:16;
-    const disp=disposer(Object.assign({},d,{marge:Math.max(parallaxe+6,Math.round(Math.min(d.W,d.H)*.03))}));
+    const disp=disposer(Object.assign({},d,{placement:o.placement,marge:Math.max(parallaxe+6,Math.round(Math.min(d.W,d.H)*.03))}));
     const zone={x0:disp.zone.x0+dx,x1:disp.zone.x1+dx,y0:disp.zone.y0+dy,y1:disp.zone.y1+dy};
     let r;
     if(disp.mode==='horizon') r=horizon(cam,W,H,{haut:disp.haut+dy,largeur:(o.largeurHorizon||1.8)*d.W,rayonBase:o.rayonBase,echelleMax:o.echelleMax});

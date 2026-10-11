@@ -73,14 +73,14 @@ void main(){
   gl_FragColor=vec4(c,1.0);
 }`;
   const FS_NUAGES=`
-uniform sampler2D u_nuages; uniform vec3 u_soleil; uniform float u_dec;
+uniform sampler2D u_nuages; uniform vec3 u_soleil; uniform float u_dec; uniform float u_couv;
 varying vec2 v_uv; varying vec3 v_n; varying vec3 v_vue;
 void main(){
   float a=texture2D(u_nuages,vec2(fract(v_uv.x+u_dec),v_uv.y)).r;
   a=smoothstep(0.15,0.85,a);
   float s=dot(normalize(v_n),u_soleil);
   float l=smoothstep(-0.12,0.25,s);
-  gl_FragColor=vec4(vec3(0.95)*(0.06+0.94*l),a*(0.25+0.6*l));
+  gl_FragColor=vec4(vec3(0.95)*(0.06+0.94*l),clamp(a*(0.25+0.6*l)*u_couv,0.0,1.0));
 }`;
   const FS_ATMO=`
 uniform vec3 u_atmo; uniform vec3 u_soleil;
@@ -154,7 +154,7 @@ void main(){ float d=length(gl_PointCoord-0.5); float a=smoothstep(0.5,0.1,d)*v_
     let q=Math.max(0,Math.min(2,o.q|0));
     const matTerre=new THREE.ShaderMaterial({uniforms:Object.assign({u_jour:{value:jour},u_nuit:{value:nuit}},U),vertexShader:VS_TERRE,fragmentShader:FS_TERRE});
     const sphere=new THREE.Mesh(new THREE.SphereGeometry(1,segs[q],segs[q]/2),matTerre); terre.add(sphere);
-    const matNuages=new THREE.ShaderMaterial({uniforms:Object.assign({u_nuages:{value:nuages},u_dec:{value:0}},U),vertexShader:VS_TERRE,fragmentShader:FS_NUAGES,transparent:true,depthWrite:false});
+    const matNuages=new THREE.ShaderMaterial({uniforms:Object.assign({u_nuages:{value:nuages},u_dec:{value:0},u_couv:{value:1}},U),vertexShader:VS_TERRE,fragmentShader:FS_NUAGES,transparent:true,depthWrite:false});
     const couche=new THREE.Mesh(new THREE.SphereGeometry(1.008,96,48),matNuages); terre.add(couche);
     const matAtmo=new THREE.ShaderMaterial({uniforms:U,vertexShader:VS_TERRE,fragmentShader:FS_ATMO,side:THREE.BackSide,transparent:true,depthWrite:false,blending:THREE.AdditiveBlending});
     groupe.add(new THREE.Mesh(new THREE.SphereGeometry(1.09,64,32),matAtmo));
@@ -196,6 +196,12 @@ void main(){ float d=length(gl_PointCoord-0.5); float a=smoothstep(0.5,0.1,d)*v_
     gP.setAttribute('a_ouv',new THREE.BufferAttribute(ov,1));
     const UP={u_px:{value:22},u_c:{value:new THREE.Color()},u_temps:UA.u_temps};
     const placesPts=new THREE.Points(gP,new THREE.ShaderMaterial({uniforms:UP,vertexShader:VS_PTS,fragmentShader:FS_PTS,transparent:true,depthWrite:false,blending:THREE.AdditiveBlending})); terre.add(placesPts);
+    // fond « Espace » : la scène complète (soleil, lune, planètes, satellites…) est montée par ui/fond-espace.js autour de cette même Terre
+    if(o.espace){
+      if(!UI.espaceMonter) throw new Error('fond Espace indisponible (ui/fond-espace.js manquant)');
+      return UI.espaceMonter({THREE,canvas,rendu,scene,camera,groupe,terre,sphere,U,UA,UP,matTerre,matNuages,couche,matAtmo,arcsMesh,placesPts,q,hd:!!o.hd,
+        jour:jour,nuit:nuit,nuages:nuages,marches:marches});
+    }
     // étoiles
     const nbE=1400, ge=new THREE.BufferGeometry(), pe=[], te=[], oe=[];
     let g0=11; const rnd=()=>{ g0=(g0*1664525+1013904223)>>>0; return g0/4294967296; };
@@ -226,6 +232,9 @@ void main(){ float d=length(gl_PointCoord-0.5); float a=smoothstep(0.5,0.1,d)*v_
       U.u_soleil.value.set(...dir(s.lat,s.lon));                // repère de la Terre…
       v3.copy(U.u_soleil.value).applyQuaternion(terre.getWorldQuaternion(new THREE.Quaternion()));
       U.u_soleil.value.copy(v3.normalize());                     // …puis repère du monde (la Terre tourne sur l'écran)
+      marches();
+    }
+    function marches(){                                          // places boursières ouvertes ou fermées, arcs plus vifs quand une des deux est ouverte
       const o2={}; codes.forEach((c,i)=>{ o2[c]=ouverte(c,Date.now()); ov[i]=o2[c]; });
       gP.attributes.a_ouv.needsUpdate=true;
       codesArc.forEach(([a,b],k)=>{ UA.u_ouv.value[k]=Math.max(o2[a],o2[b])*(o2[a]&&o2[b]?1:.7); });
@@ -304,6 +313,7 @@ void main(){ float d=length(gl_PointCoord-0.5); float a=smoothstep(0.5,0.1,d)*v_
       }
     };
   };
+  UI.fondsReels.espace=(canvas,o)=>UI.fondsReels.globe(canvas,Object.assign({},o,{espace:true}));
   // paramètres de cadrage du Globe : partagés avec l'image fixe du mode Éco (ui/background.js), qui pose la planète pré-rendue au même endroit
   UI.fondsReels.globeCadrage={fov:35,dist:3.4,rayon:1.09,echelleMax:.8};
   UI.fondsReels._soleil=soleil; UI.fondsReels._ouverte=ouverte;   // pour les tests

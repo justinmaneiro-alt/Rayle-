@@ -262,3 +262,11 @@ body.vue-terminal .ui-amb{visibility:hidden}
 /* image fixe du Globe (Éco) : étoiles en mosaïque + planète pré-rendue posée par ui/cadrage.js */
 .ui-fond-fixe.etoiles{background-size:384px 384px;background-repeat:repeat;background-position:0 0}
 .ui-fond-planete{position:absolute;background:center/contain no-repeat;pointer-events:none}
+
+/* fond Espace : la Terre est derrière l'entité, la vignette du centre est plus légère (l'entité garde son disque sombre réglable) */
+html.ui-fond-espace .ui-fond.vu{opacity:.97}
+html.ui-fond-espace .ui-voile{background:
+  radial-gradient(ellipse 30% 36% at 50% 42%,rgba(3,1,6,.30),rgba(3,1,6,.14) 62%,rgba(3,1,6,0) 100%),
+  radial-gradient(ellipse 78% 72% at 50% 45%,rgba(3,1,6,0) 56%,rgba(3,1,6,.55) 100%)}
+html.ui-fond-espace .state,html.ui-fond-espace .soustitre{background:rgba(3,1,8,.5);border-radius:10px;padding-left:12px;padding-right:12px;box-shadow:0 0 14px 6px rgba(3,1,8,.5)}
+.esp-reglages .esp-vers{display:flex;flex-wrap:wrap;gap:6px;margin-top:4px}.esp-reglages .esp-vers button{min-height:40px;padding:0 10px}.esp-reglages .hint{margin-bottom:6px}

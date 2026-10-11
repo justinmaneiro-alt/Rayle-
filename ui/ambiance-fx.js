@@ -30,6 +30,7 @@
   try{ const r=UI.reglages(); palier=r.palier; mobile=r.mobile; }catch(e){}
   try{ if(navigator.getBattery) navigator.getBattery().then(b=>{ const m=()=>{ batterieFaible=!b.charging && b.level<.2; }; m(); b.addEventListener('levelchange',m); b.addEventListener('chargingchange',m); }).catch(()=>{}); }catch(e){}
 
+  const enEspace=()=>{ try{ return UI.reglages().fond==='espace'; }catch(e){ return false; } };   // dans l'espace : pas de pluie ni d'éclairs à l'écran (la météo agit sur les nuages de la Terre)
   const masque=()=>document.hidden || RayleBus.demander('vue')==='terminal' || document.getElementById('cfg').classList.contains('open');
   // niveau d'effet : 0 complet · 1 allégé · 2 image fixe
   function niveau(){
@@ -136,16 +137,17 @@
     if(!visible){ wrap.classList.add('vu'); visible=true; sale=true; }
     const n=niveau(); if(n!==niv){ taille(); }
     const dt=tPrec?Math.min(.1,(now-tPrec)/1000):0; tPrec=now; tTemps+=dt;
-    const L=A.avancer(dt), k=rg.fx/100;
+    const esp=enEspace(), L=A.avancer(dt), k=rg.fx/100*(esp?.3:1);
     majVoile(L,k);
     const vv=Math.round(L.vent*20); if(vv!==ventEcrit){ ventEcrit=vv; document.documentElement.style.setProperty('--amb-vent',(L.vent).toFixed(2)); }
     if(niv===2){                                                     // image fixe : redessinée seulement pendant un fondu (au plus 2 fois par seconde)
-      if(sale || now-dernierDessin>500 && (Math.abs(L.pluie-lp)+Math.abs(L.neige-ln)+Math.abs(L.brouillard-lb)>.02)){ dessiner(L,k,0,true); dernierDessin=now; sale=false; lp=L.pluie; ln=L.neige; lb=L.brouillard; }
+      if(esp){ if(!vide){ ctx.clearRect(0,0,W,H); vide=true; } }
+      else if(sale || now-dernierDessin>500 && (Math.abs(L.pluie-lp)+Math.abs(L.neige-ln)+Math.abs(L.brouillard-lb)>.02)){ dessiner(L,k,0,true); dernierDessin=now; sale=false; lp=L.pluie; ln=L.neige; lb=L.brouillard; }
     }else{
       const fps=niv===0?30:20;
-      if(now-dernierDessin>=1000/fps-2){ const d=Math.min(.1,(now-dernierDessin)/1000); dernierDessin=now; dessiner(L,k,d,false); }
+      if(now-dernierDessin>=1000/fps-2){ const d=Math.min(.1,(now-dernierDessin)/1000); dernierDessin=now; if(esp){ if(!vide){ ctx.clearRect(0,0,W,H); vide=true; } } else dessiner(L,k,d,false); }
     }
-    if(niv<2 && L.orage>.3 && k>.05 && !reduit()){
+    if(niv<2 && L.orage>.3 && k>.05 && !reduit() && !esp){
       if(!prochainEclair) prochainEclair=now+4000+rnd()*6000;
       if(now>=prochainEclair){ eclair(k); prochainEclair=now+(6500+rnd()*9000)/(.5+L.orage); }
     }else prochainEclair=0;

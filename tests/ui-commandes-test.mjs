@@ -26,7 +26,7 @@ t('thèmes', () => {
   assert.equal(analyser('thème suivant'), 'theme:+');
 });
 t('fonds', () => {
-  assert.equal(analyser('Raylé, fond globe'), 'fond:globe');
+  assert.equal(analyser('Raylé, fond espace'), 'fond:espace'); assert.equal(analyser('fond globe'), 'fond:espace'); assert.equal(analyser('mets le fond cosmos'), 'fond:espace'); assert.equal(analyser('fond système solaire'), 'fond:espace');
   assert.equal(analyser('mets le fond en ville'), 'fond:ville3d');
   assert.equal(analyser('fond ville 3D'), 'fond:ville3d');
   assert.equal(analyser('fond ville réelle'), 'fond:video');
