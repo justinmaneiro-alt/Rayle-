@@ -14,6 +14,11 @@
     const cmdR=typeof commandeMessages==='function' ? await commandeMessages(text) : null;
     if(my!==epoch) return;
     if(cmdR){ diagAction('répertoire, message ou appel'); addLine('ray',cmdR); await speak(cmdR); return; }
+    // Relais (js/rayle/relais.js) : « ouvre XTB sur le PC », « allume la lampe du téléphone », « regarde mon écran PC »…
+    const cmdX=typeof commandeRelais==='function' ? await commandeRelais(text) : null;
+    if(my!==epoch) return;
+    if(cmdX && cmdX.fait) return;                                   // capture d'écran : l'analyse de l'image a déjà répondu
+    if(cmdX){ diagAction('commande vers un relais'); addLine('ray',cmdX); await speak(cmdX); return; }
     // Autre appareil : « affiche l'or en H4 sur la tablette », « fais sonner le téléphone »… (js/rayle/appareils.js)
     const cmdA=typeof commandeAppareils==='function' ? await commandeAppareils(text) : null;
     if(my!==epoch) return;

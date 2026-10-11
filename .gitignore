@@ -4,3 +4,7 @@ worker/
 CLAUDE.md
 docs/
 ui/assets/ville-source.*
+relais-pc/config.json
+relais-pc/relais.log
+relais-pc/relais.log.ancien
+relais-pc/relais.pid

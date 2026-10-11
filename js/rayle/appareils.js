@@ -157,6 +157,7 @@
           case 'dire': return 'C’est dit sur '+art+'.';
           case 'lien': return /affich/.test(d.message||'') ? 'Le lien est affiché sur '+art+' : il faut toucher « Ouvrir le lien ».' : 'Le lien est ouvert sur '+art+'.';
           case 'ui': return 'C’est fait sur '+art+'.';
+          case 'systeme': return d.message ? String(d.message) : 'C’est fait sur '+art+'.';
           case 'message': return 'Le message pour '+(a.contact||'ton contact')+' est prêt sur '+art+' : touche « Ouvrir » puis Envoyer.';
           case 'appel': return 'L’appel vers '+(a.contact||'ton contact')+' est prêt sur '+art+' : touche « '+(a.canal==='whatsapp'?'Ouvrir WhatsApp':'Appeler')+' ».';
           default: return 'C’est affiché sur '+art+'.';

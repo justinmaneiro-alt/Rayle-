@@ -1,0 +1,15 @@
+{
+  "worker": "https://rayle.xxxxx.workers.dev",
+  "jeton": "rempli par installer.cmd (ne jamais publier)",
+  "intervalle_repos_s": 30,
+  "intervalle_actif_s": 5,
+  "apps": {
+    "chrome": ["cmd.exe", "/c", "start", "", "chrome"],
+    "edge": ["cmd.exe", "/c", "start", "", "msedge"],
+    "blocnotes": ["notepad.exe"],
+    "calculatrice": ["calc.exe"],
+    "explorateur": ["explorer.exe"],
+    "xtb": ["https://xstation5.xtb.com/"],
+    "tradingview": ["https://www.tradingview.com/chart/"]
+  }
+}

@@ -41,6 +41,10 @@
           // message ou appel préparé (js/rayle/repertoire.js) : la page retrouve le contact, rédige et demande confirmation
           const r=await repActionAgent(a);
           if(r) plus+=' '+r;
+        }else if(a.type==='relais' && typeof relaisAgent==='function'){
+          // contrôle d'un appareil par son relais (js/rayle/relais.js) : même liste blanche et même confirmation que la voix
+          const r=await relaisAgent(a.cible,a.phrase);
+          if(r) plus+=' '+r;
         }else if(a.type==='appareil' && typeof commandeAppareilAgent==='function'){
           // commande vers un autre appareil (js/rayle/appareils.js) : même liste blanche que la voix ; le résultat s'ajoute à ce qu'elle dit
           const r=await commandeAppareilAgent(a.cible,a.phrase);

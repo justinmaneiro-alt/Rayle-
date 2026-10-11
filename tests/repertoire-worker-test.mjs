@@ -213,6 +213,6 @@ await t('agent : outils « preparer_message » et « appeler_contact » (côté 
   assert.match(noms, /preparer_message/); assert.match(noms, /appeler_contact/);
   const src = fs.readFileSync(fichier, 'utf8');
   assert.match(src, /tu ne lis ni ses SMS, ni ses WhatsApp, ni ses mails re\\xE7us/);
-  assert.match(src, /VERSION = "phase12-messages-2026-10-11"/);
+  assert.match(src, /VERSION = "phase1[23]-[a-z]+-2026-10-11"/);
 });
 console.log(ok + ' groupes réussis');
