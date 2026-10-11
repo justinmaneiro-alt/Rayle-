@@ -231,3 +231,34 @@ html.ui-eco .pn.hud-in{animation:hud-fondu .3s both}
   background:radial-gradient(circle,rgba(2,1,5,calc(.88 * var(--ui-contraste,.6))) 0%,rgba(2,1,5,calc(.7 * var(--ui-contraste,.6))) 34%,rgba(2,1,5,calc(.28 * var(--ui-contraste,.6))) 54%,rgba(2,1,5,0) 70%)}
 html.ui-fond-actif .ui-disque{opacity:1}
 html.ui-fond-actif .state{text-shadow:0 0 calc(12px * var(--ui-contraste,.6)) var(--t1),0 0 4px #000,0 0 12px rgba(0,0,0,calc(.5 + .5 * var(--ui-contraste,.6))),0 1px 2px #000}
+
+/* ───── ambiance : voile jour/nuit, pluie, neige, brouillard, éclairs (ui/ambiance-fx.js) ───── */
+.ui-amb{position:fixed;inset:0;z-index:0;pointer-events:none;opacity:0;transition:opacity 1.6s ease;--amb-nuit:0;--amb-chaud:0;--amb-jour:0;--amb-gris:0;--amb-k:.7}
+.ui-amb.vu{opacity:1}
+.ui-amb-voile{position:absolute;inset:0;opacity:0;transition:opacity 1.6s ease;
+  background:
+    radial-gradient(ellipse 95% 55% at 50% 108%,rgba(255,140,60,calc(.34 * var(--amb-chaud) * var(--amb-k))),transparent 72%),
+    radial-gradient(ellipse 80% 45% at 72% -8%,rgba(255,238,205,calc(.2 * var(--amb-jour) * var(--amb-k))),transparent 70%),
+    linear-gradient(180deg,rgba(70,82,98,calc(.20 * var(--amb-gris) * var(--amb-k))),rgba(55,62,78,calc(.12 * var(--amb-gris) * var(--amb-k)))),
+    linear-gradient(180deg,rgba(10,18,52,calc(.42 * var(--amb-nuit) * var(--amb-k))),rgba(2,5,20,calc(.24 * var(--amb-nuit) * var(--amb-k))))}
+.ui-amb-voile.vu{opacity:1}
+.ui-amb-cv{position:absolute;inset:0;width:100%;height:100%}
+.ui-amb-flash{position:absolute;inset:0;opacity:0;transition:opacity .22s ease-out;mix-blend-mode:screen;
+  background:radial-gradient(ellipse 80% 60% at 50% 20%,rgba(210,225,255,.9),rgba(150,175,255,.35) 55%,transparent 80%)}
+body.vue-terminal .ui-amb{visibility:hidden}
+@media (prefers-reduced-motion:reduce){ .ui-amb,.ui-amb-voile{transition:none} .ui-amb-flash{display:none} }
+
+/* section « Ambiance » des Réglages (ui/ambiance-reglages.js) */
+.amb-reglages{margin-top:6px}
+.amb-reglages .ui-lbl{margin:12px 0 6px;font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:var(--pink2)}
+.amb-reglages select,.amb-reglages input[type=text]{width:100%;min-height:40px;box-sizing:border-box}
+.amb-map{display:grid;grid-template-columns:repeat(2,1fr);gap:6px 10px;margin-top:4px}
+.amb-map label{display:flex;flex-direction:column;gap:3px;font-size:11px;color:var(--dim);letter-spacing:.06em}
+.amb-lieu{display:grid;grid-template-columns:1fr auto auto;gap:6px;align-items:center}
+.amb-lieu button{min-height:40px;padding:0 10px}
+.amb-maintenant{margin-top:8px;padding:8px 10px;border:1px solid var(--a1-25);color:var(--tx);font-size:12px;line-height:1.5;background:rgba(0,0,0,.25)}
+@media (max-width:420px){ .amb-map{grid-template-columns:1fr} .amb-lieu{grid-template-columns:1fr 1fr} .amb-lieu input{grid-column:1/-1} }
+
+/* image fixe du Globe (Éco) : étoiles en mosaïque + planète pré-rendue posée par ui/cadrage.js */
+.ui-fond-fixe.etoiles{background-size:384px 384px;background-repeat:repeat;background-position:0 0}
+.ui-fond-planete{position:absolute;background:center/contain no-repeat;pointer-events:none}

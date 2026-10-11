@@ -95,4 +95,11 @@ await t('un échec du résumé garde le compteur pour réessayer', async () => {
   await ctxVm.resumerSession('inactif');
   assert.ok(ctxVm.compte() >= 2);
 });
+await t('ambiance : l’action « ambiance » du Worker règle la page et ce qui est fait s’ajoute à ce que Raylé dit', async () => {
+  ctxVm.window.RayleUI = { ambiance: { executerAgent: a => { journal.push('amb:' + a.ambiance + ':' + a.theme + ':' + a.fond); return 'Réglé : ambiance détente.'; } } };
+  const plus = await ctxVm.executerActions([{ type: 'ambiance', ambiance: 'detente', theme: 'ambre', fond: 'globe' }], 0);
+  assert.deepEqual(journal.slice(), ['amb:detente:ambre:globe'], JSON.stringify(journal)); assert.match(plus, /Réglé/);
+  ctxVm.window.RayleUI = undefined;
+  assert.equal(await ctxVm.executerActions([{ type: 'ambiance', ambiance: 'pluie' }], 0), '', 'sans moteur d’ambiance : ignorée sans erreur');
+});
 console.log(process.exitCode ? '\nÉCHEC' : '\n' + ok + ' tests réussis');

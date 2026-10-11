@@ -35,17 +35,8 @@
     const m=(+o.hour%24)*60+ +o.minute;
     return m>=p[4][0]*60+p[4][1] && m<p[5][0]*60+p[5][1] ? 1 : 0;
   }
-  // point subsolaire (approximation de l'almanach, précise à quelques dixièmes de degré)
-  function soleil(ts){
-    const d=(ts-946728000000)/864e5, rad=Math.PI/180;
-    const g=(357.529+.98560028*d)*rad, q=280.459+.98564736*d;
-    const L=(q+1.915*Math.sin(g)+.020*Math.sin(2*g))*rad, e=(23.439-.00000036*d)*rad;
-    const ra=Math.atan2(Math.cos(e)*Math.sin(L),Math.cos(L))/rad, dec=Math.asin(Math.sin(e)*Math.sin(L))/rad;
-    let eqt=((q-ra)%360+540)%360-180;                      // équation du temps, en degrés
-    const heuresUTC=(ts%864e5)/36e5;
-    let lon=-15*(heuresUTC-12)-eqt; lon=((lon+540)%360)-180;
-    return {lat:dec,lon};
-  }
+  // point subsolaire : formule partagée avec le moteur d'ambiance (ui/astro.js)
+  const soleil=ts=>UI.astro.soleil(ts);
   // direction (repère de la Terre, comme SphereGeometry de three.js : Greenwich vers +x)
   const dir=(lat,lon,r)=>{ const a=lat*Math.PI/180, b=lon*Math.PI/180; r=r||1; return [r*Math.cos(a)*Math.cos(b),r*Math.sin(a),-r*Math.cos(a)*Math.sin(b)]; };
 
@@ -216,6 +207,9 @@ void main(){ float d=length(gl_PointCoord-0.5); float a=smoothstep(0.5,0.1,d)*v_
     scene.add(etoiles);
 
     let W=1, H=1, rot=-.6, nuagesDec=0, dernierCalcul=0;
+    const RAYON_TERRE=1.09, ECHELLE_MAX=.8;                   // 1,09 = l'atmosphère ; .8 = taille maximale (celle d'origine)
+    let cible={x:0,y:0,scale:ECHELLE_MAX}, pose=null;          // pose actuelle → cible : glissement doux
+    const poser=()=>{ groupe.position.set(pose.x,pose.y,0); groupe.scale.setScalar(Math.max(.01,pose.scale)); };
     const VUE={lat:20,lon:10,dist:3.4};                       // mode interactif : où regarde la caméra
     let calqueMesh=null, calqueTex=null;
     const lanceur=new THREE.Raycaster(), souris=new THREE.Vector2(), qTmp=new THREE.Quaternion();
@@ -245,10 +239,12 @@ void main(){ float d=length(gl_PointCoord-0.5); float a=smoothstep(0.5,0.1,d)*v_
         }
         W=Math.round(innerWidth*1.06); H=Math.round(innerHeight*1.06);
         camera.aspect=W/H; camera.updateProjectionMatrix();
-        const large=W/H>1.15;
-        // la Terre se place à droite (écran large) ou en bas (écran étroit) : l'entité reste au centre
-        groupe.position.set(large?1.3*Math.min(1.8,W/H)/1.5:0,large?-.1:-1.0,0);
-        groupe.scale.setScalar(large?.8:.78);
+        // cadrage commun (ui/cadrage.js) : la Terre est TOUJOURS entière (côté, dessous) ou se lève sous l'entité (téléphone vertical),
+        // calculé avec la vraie projection de la caméra ; on glisse vers la nouvelle pose (pas de saut)
+        let c; try{ c=UI.cadrage.cadrer({cam:{fov:camera.fov,dist:camera.position.z},rayonBase:RAYON_TERRE,echelleMax:ECHELLE_MAX,canvasW:W,canvasH:H,parallaxe:16}); }
+        catch(e){ c={x:.9,y:0,scale:.55}; }
+        cible={x:c.x,y:c.y,scale:c.scale};
+        if(!pose){ pose=Object.assign({},cible); poser(); }
         appliquerQualite();
       },
       qualite(n){ q=Math.max(0,Math.min(2,n|0)); appliquerQualite(); },
@@ -257,6 +253,12 @@ void main(){ float d=length(gl_PointCoord-0.5); float a=smoothstep(0.5,0.1,d)*v_
         U.u_atmo.value.setRGB(c[1][0]/255*.85+.10,c[1][1]/255*.85+.12,c[1][2]/255*.85+.18);
         UA.u_c1.value.setRGB(c[0][0]/255,c[0][1]/255,c[0][2]/255); UA.u_c3.value.setRGB(c[2][0]/255,c[2][1]/255,c[2][2]/255);
         UP.u_c.value.setRGB(c[2][0]/255,c[2][1]/255,c[2][2]/255);
+        if(!inter && pose){
+          const k=dt>0?1-Math.exp(-dt*4.5):1;                     // ~0,5 s pour se placer
+          pose.x+=(cible.x-pose.x)*k; pose.y+=(cible.y-pose.y)*k; pose.scale+=(cible.scale-pose.scale)*k;
+          if(Math.abs(cible.x-pose.x)+Math.abs(cible.y-pose.y)+Math.abs(cible.scale-pose.scale)<1e-4) pose=Object.assign({},cible);
+          poser();
+        }
         if(inter){ rot+=dt*.035; groupe.rotation.x=VUE.lat*Math.PI/180; terre.rotation.y=-Math.PI/2-VUE.lon*Math.PI/180; camera.position.set(0,0,VUE.dist); }
         else{ rot+=dt*.035; terre.rotation.y=rot; }
         nuagesDec+=dt*.0018; matNuages.uniforms.u_dec.value=nuagesDec%1;   // les nuages vont un peu plus vite que la Terre
@@ -302,5 +304,7 @@ void main(){ float d=length(gl_PointCoord-0.5); float a=smoothstep(0.5,0.1,d)*v_
       }
     };
   };
+  // paramètres de cadrage du Globe : partagés avec l'image fixe du mode Éco (ui/background.js), qui pose la planète pré-rendue au même endroit
+  UI.fondsReels.globeCadrage={fov:35,dist:3.4,rayon:1.09,echelleMax:.8};
   UI.fondsReels._soleil=soleil; UI.fondsReels._ouverte=ouverte;   // pour les tests
 })();

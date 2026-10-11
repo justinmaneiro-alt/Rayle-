@@ -24,7 +24,7 @@ window.RayleInitiative=(function(){
   };
   const num=k=>Number(lireLS(k))||0;
   let dits={}; try{ dits=JSON.parse(lireLS(CLE.dits)||'{}')||{}; }catch(e){ dits={}; }
-  let candidats=[], derniereVoix=0;
+  let candidats=[], locaux=[], derniereVoix=0;      // locaux : propositions de la page elle-même (ambiance), jamais écrasées par le Worker
 
   const enCalme=(d=new Date())=>{
     const m=CALME_RE.exec(R.calme); if(!m) return false;
@@ -66,9 +66,9 @@ window.RayleInitiative=(function(){
     }catch(e){ return false; }
   }
   function choisir(){
-    if(!candidats.length || enCalme() || Date.now()<num(CLE.silence) || !libre()) return;
+    if((!candidats.length && !locaux.length) || enCalme() || Date.now()<num(CLE.silence) || !libre()) return;
     const min=NIVEAUX[R.niveau].min;
-    const ok=candidats.filter(c=>!dits[c.id] && (c.importance|0)>=min).sort((a,b)=>(b.importance|0)-(a.importance|0));
+    const ok=candidats.concat(locaux).filter(c=>!dits[c.id] && (c.importance|0)>=min).sort((a,b)=>(b.importance|0)-(a.importance|0));
     if(!ok.length) return;
     const c=ok[0];
     // limite de fréquence (sauf un prix qui s'approche d'un niveau : ça n'attend pas)
@@ -76,9 +76,9 @@ window.RayleInitiative=(function(){
     dire(c);
   }
   function dire(c){
-    noterDit(c.id); candidats=candidats.filter(x=>x.id!==c.id);
+    noterDit(c.id); candidats=candidats.filter(x=>x.id!==c.id); locaux=locaux.filter(x=>x.id!==c.id);
     ecrireLS(CLE.dernier,String(Date.now())); derniereVoix=Date.now();
-    envoyer({vu:[c.id]});
+    if(!c.local) envoyer({vu:[c.id]});
     try{ diagEntree('(initiative) '+c.type,false,'initiative'); }catch(e){}
     addLine('ray',c.texte);
     try{
@@ -154,6 +154,15 @@ window.RayleInitiative=(function(){
   setInterval(choisir,5000);
   document.addEventListener('visibilitychange',()=>{ if(!document.hidden) setTimeout(interroger,1500); });
 
-  return {reglages:()=>Object.assign({},R),enCalme,pasMaintenant,
+  // proposition locale (ex. « il commence à pleuvoir ») : mêmes règles que les autres (heures calmes, « pas maintenant », intervalle, niveau),
+  // et jamais pendant que le terminal de trading est ouvert. Renvoie true si elle a été retenue (elle ne sera dite qu'une fois).
+  function proposer(c){
+    try{ if(!c || !c.id || !c.texte || dits[c.id] || RayleBus.demander('vue')==='terminal' || enCalme()) return false; }catch(e){ return false; }
+    locaux=locaux.filter(x=>x.id!==c.id).concat([Object.assign({importance:1},c,{local:true})]);
+    setTimeout(choisir,0); return true;
+  }
+  setInterval(()=>{ locaux=locaux.filter(c=>!dits[c.id]).slice(-3); },600000);   // une proposition qui n'a pas pu être dite finit par expirer
+
+  return {reglages:()=>Object.assign({},R),enCalme,pasMaintenant,proposer,
     _test:{candidats:l=>{ candidats=l; choisir(); },libre,intervalleMs}};
 })();

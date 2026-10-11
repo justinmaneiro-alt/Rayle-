@@ -6,6 +6,8 @@
    - Qualité automatique (niveau Auto) : si les images/s chutent avec un fond 3D, c'est le FOND qui baisse d'abord (qualité 0 → 1 → 2),
      et l'entité (Sphère ou Neurones) est retenue pendant ce temps (Entite.geler) ; quand le fond est au minimum, l'entité peut s'alléger.
    - Lisibilité : vignette sombre au centre et sur les bords (.ui-voile), teinte du thème sur l'image fixe et la vidéo (.ui-teinte).
+   - Cadrage : chaque fond 3D place son objet principal avec ui/cadrage.js (toujours entier, sur un côté dégagé), recalculé à chaque changement
+     d'écran (resize, rotation, zoom, panneaux) via UI.cadrage.ecouter.
    - Pause quand l'onglet est caché, le terminal ou les Réglages ouverts. Légère parallaxe à la souris (translation CSS, rien à redessiner). */
 (function(){
   const UI=window.RayleUI=window.RayleUI||{};
@@ -14,7 +16,11 @@
   const THREE_URL='https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.min.js';
   UI.three=()=>import(THREE_URL);     // three.js, chargé une seule fois et seulement si besoin (fonds 3D, entité Neurones)
   const BASE=(()=>{ try{ return new URL('ui/assets/',document.baseURI).href; }catch(e){ return 'ui/assets/'; } })();
-  const FIXES={globe:'fond-globe-fixe.jpg',ville3d:'fond-ville3d-fixe.jpg'};
+  // images fixes du mode Éco : la ville est une image ; le Globe est un fond d'étoiles + la planète pré-rendue (sprite), posée par le même cadrage
+  // que la 3D (ui/cadrage.js) : toujours entière, quel que soit l'écran. La planète pré-rendue occupe SPRITE_PLANETE de la largeur de l'image (atmosphère comprise).
+  const FIXES={globe:'fond-etoiles.webp',ville3d:'fond-ville3d-fixe.jpg'};
+  const PLANETE='fond-globe-planete.webp', SPRITE_PLANETE=.92;
+  let planete=null;
   const mobile=()=>{ try{ return !!UI.reglages().mobile; }catch(e){ return false; } };
 
   const fixe=document.createElement('div'); fixe.className='ui-fond-fixe'; fixe.setAttribute('aria-hidden','true');
@@ -71,8 +77,21 @@
     cv.classList.remove('vu'); fixe.classList.remove('vu'); boiteVideo.classList.remove('vu'); teinte.classList.remove('vu');
     videoEnPause=false;
   }
+  function placerPlanete(){
+    if(!planete) return;
+    const g=UI.fondsReels&&UI.fondsReels.globeCadrage; if(!g||!UI.cadrage) return;
+    try{
+      const W=Math.round(innerWidth*1.06), H=Math.round(innerHeight*1.06);
+      const c=UI.cadrage.cadrer({cam:{fov:g.fov,dist:g.dist},rayonBase:g.rayon,echelleMax:g.echelleMax,canvasW:W,canvasH:H,parallaxe:16}), b=c.boite;
+      const d=(b.x1-b.x0)/SPRITE_PLANETE, cx=(b.x0+b.x1)/2, cy=(b.y0+b.y1)/2;
+      planete.style.cssText='left:'+(cx-d/2).toFixed(1)+'px;top:'+(cy-d/2).toFixed(1)+'px;width:'+d.toFixed(1)+'px;height:'+d.toFixed(1)+'px;background-image:url("'+BASE+PLANETE+'")';
+    }catch(e){}
+  }
   function montrerFixe(nom){
     fixe.style.backgroundImage='url("'+BASE+FIXES[nom]+'")';
+    fixe.classList.toggle('etoiles',nom==='globe');
+    if(nom==='globe'){ if(!planete){ planete=document.createElement('div'); planete.className='ui-fond-planete'; fixe.appendChild(planete); } placerPlanete(); }
+    else if(planete){ planete.remove(); planete=null; }
     rendu='fixe'; transfo='';
     requestAnimationFrame(()=>{ fixe.classList.add('vu'); teinte.classList.add('vu'); });
   }
@@ -111,7 +130,9 @@
     }
   }
 
-  window.addEventListener('resize',()=>{ if(scene && rendu==='3d'){ scene.taille(); aRedessiner=true; } if(fond==='video') appliquer(); });
+  // écran, rotation, zoom, visualViewport, panneaux, taille de l'entité : une seule écoute (ui/cadrage.js), les fonds se recadrent en douceur
+  const recadrer=()=>{ if(scene && rendu==='3d'){ scene.taille(); aRedessiner=true; } if(rendu==='fixe' && fond==='globe') placerPlanete(); if(fond==='video') appliquer(); };
+  if(UI.cadrage) UI.cadrage.ecouter(recadrer); else window.addEventListener('resize',recadrer);
   window.addEventListener('pointermove',e=>{ if(e.pointerType==='mouse'){ px=e.clientX/innerWidth-.5; py=e.clientY/innerHeight-.5; } },{passive:true});
   RayleBus.on('ui:reglages',r=>{
     const avant=palier;

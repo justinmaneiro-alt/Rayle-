@@ -6,6 +6,7 @@
    - par état : veille (respiration, poussières qui flottent) · écoute (anneaux resserrés qui pulsent avec le volume du micro, ondes)
      · réflexion (orbites rapides, nœuds qui tournent, éclats) · parole (onde qui ondule avec la voix, ondes à chaque syllabe forte).
    - micro : sur ordinateur seulement (réglage), le vrai volume du micro pendant l'écoute ; sur téléphone et tablette, l'entité simule.
+   Vent : les poussières suivent RayleUI.ambiance.vent() (dérive et agitation).
    Palier 2 (éco) : halo fixe, pas d'anneaux animés. Pause quand l'onglet est caché, le terminal ou les Réglages ouverts. */
 (function(){
   const UI=window.RayleUI=window.RayleUI||{};
@@ -213,10 +214,12 @@
     }
 
     // poussières qui flottent (veille surtout)
-    if(cur.pouss>.05){
-      ca.fillStyle=UI.rgba(col[2],cur.pouss*.45);
+    // le vent de l'ambiance (ui/ambiance.js, 0..1) les fait dériver dans un sens et les agite
+    const vent=(UI.ambiance&&UI.ambiance.vent)?UI.ambiance.vent():0, pouss=Math.max(cur.pouss,vent*.55);
+    if(pouss>.05){
+      ca.fillStyle=UI.rgba(col[2],pouss*.45);
       poussieres.forEach(p=>{
-        p.a+=dt*p.v; const y=p.y+Math.sin(t*.4+p.a*2)*.08;
+        p.a+=dt*(p.v*(1+vent*3)+vent*.55); const y=p.y+Math.sin(t*(.4+vent*1.6)+p.a*2)*(.08+vent*.12);
         const x=Math.cos(p.a+rot*.3)*p.r, z=Math.sin(p.a+rot*.3)*p.r, q=1/(1-z*.1);
         const sz=p.s*dpr*(z>0?1.4:.9);
         ca.fillRect(D/2+x*q*U*.69-sz/2,D/2-y*q*U*.69-sz/2,sz,sz);

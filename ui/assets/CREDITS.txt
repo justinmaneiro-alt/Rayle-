@@ -7,8 +7,10 @@ Images de la Terre (domaine public, NASA) :
   https://visibleearth.nasa.gov/images/57747
 Redimensionnées (2048 et 4096 px) et recompressées pour Raylé.
 
-fond-globe-fixe.jpg, fond-ville3d-fixe.jpg : images fixes pré-rendues par Raylé (mode Éco), à partir des fonds ci-dessus.
+fond-ville3d-fixe.jpg : images fixes pré-rendues par Raylé (mode Éco), à partir des fonds ci-dessus.
 
 Vidéo de ville de nuit (ville-paysage.mp4, ville-portrait.mp4) : Pexels, vidéo n° 13246966, licence Pexels (utilisation gratuite).
   https://www.pexels.com/video/13246966/
   Recompressée en H.264 (720×1280 et recadrage 1280×720), boucle sans coupure par fondu enchaîné de 1,2 s.
+
+fond-globe-planete.webp, fond-etoiles.webp : planète pré-rendue et mosaïque d'étoiles pour l'image fixe du mode Éco, générées par Raylé à partir des textures NASA ci-dessus (domaine public) ; aucune autre source.

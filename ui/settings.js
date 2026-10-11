@@ -54,9 +54,13 @@
     try{ RayleBus.emit('ui:reglages',UI.reglages()); }catch(e){}
     majControles();
   }
-  function changer(k,v){
+  // changer(k, v, {auto:true}) : réglage fait par l'ambiance (thème automatique) ; il n'est ni enregistré ni compté comme un choix de l'utilisateur.
+  // Tout autre changement de thème est un choix manuel : horodaté, l'ambiance le respecte pendant N heures (Réglages → Ambiance).
+  function changer(k,v,opt){
+    if(k==='theme' && opt && opt.auto){ if(R.theme!==v){ R.theme=v; appliquer(); } return; }
+    if(k==='theme'){ ecrire(CLE.theme,v); ecrire('rayle_ui_theme_manuel',String(Date.now())); }   // même si c'est déjà le thème affiché : c'est bien un choix
     if(R[k]===v) return;
-    R[k]=v; ecrire(CLE[k],typeof v==='boolean'?(v?'1':'0'):v);
+    R[k]=v; if(k!=='theme') ecrire(CLE[k],typeof v==='boolean'?(v?'1':'0'):v);
     if(k==='anim'){
       // L'entité suit le niveau choisi (Éco : 800 points en WebGL, plus léger que le canvas 2D)
       try{ Entite.qualite(v==='max'?0:v==='eco'?2:'auto'); }catch(e){}
@@ -66,6 +70,7 @@
   }
   UI.reglages=()=>({theme:R.theme,fond:ecoForce?'aucun':R.fond,anim:R.anim,palier:palier(),micro:R.micro,mobile,entite:R.entite,taille:R.taille,contraste:R.contraste,ecoForce});
   UI.changer=changer;
+  UI.themeManuelDepuis=()=>Number(lire('rayle_ui_theme_manuel'))||0;
   UI.forcerEco=oui=>{ oui=!!oui; if(oui===ecoForce) return; ecoForce=oui; appliquer(); };
 
   /* ───── Mesure des images/s (Auto) : seulement quand la scène de Raylé est visible ───── */
@@ -233,7 +238,8 @@
   UI.analyserCommande=analyser;
 
   if(DOM){
-    try{ RayleBus.fournir('ui:commande',c=>{ const a=analyser(c); return a ? executer(a) : null; }); }catch(e){}
+    // l'ambiance (ui/ambiance.js : « ambiance pluie », « il neige », « plus de vent »…) passe d'abord, puis l'apparence
+    try{ RayleBus.fournir('ui:commande',c=>{ const r=RayleBus.demander('ambiance:commande',c); if(r) return r; const a=analyser(c); return a ? executer(a) : null; }); }catch(e){}
     try{ monterInterface(); }catch(e){ console.warn('[ui] réglages',e); }
     appliquer();
     requestAnimationFrame(mesurer);

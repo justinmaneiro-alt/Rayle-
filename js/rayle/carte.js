@@ -111,7 +111,8 @@
   function maPosition(){
     return new Promise((ok,ko)=>{
       if(!navigator.geolocation) return ko(new Error('position indisponible'));
-      navigator.geolocation.getCurrentPosition(p=>ok({lat:p.coords.latitude,lon:p.coords.longitude,nom:'Ma position',court:'Ma position'}),()=>ko(new Error('position refusée')),{timeout:8000,maximumAge:300000});
+      // l'ambiance (météo locale, ui/ambiance.js) retient la dernière position consentie
+      navigator.geolocation.getCurrentPosition(p=>{ try{ RayleBus.emit('geo:position',{lat:p.coords.latitude,lon:p.coords.longitude}); }catch(e){} ok({lat:p.coords.latitude,lon:p.coords.longitude,nom:'Ma position',court:'Ma position'}); },()=>ko(new Error('position refusée')),{timeout:8000,maximumAge:300000});
     });
   }
 

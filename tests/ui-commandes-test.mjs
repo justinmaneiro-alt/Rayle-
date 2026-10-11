@@ -8,7 +8,7 @@ const cmdNorm = n => String(n || '').replace(/[?!.,;:…«»"]/g, ' ').replace(/
 const ctx = { console, performance };
 ctx.window = ctx;
 vm.createContext(ctx);
-for (const f of ['../ui/themes.js', '../ui/settings.js']) vm.runInContext(fs.readFileSync(new URL(f, import.meta.url), 'utf8'), ctx);
+for (const f of ['../ui/themes.js', '../ui/settings.js', '../ui/astro.js', '../ui/ambiance.js']) vm.runInContext(fs.readFileSync(new URL(f, import.meta.url), 'utf8'), ctx);
 const analyser = txt => { const r = ctx.RayleUI.analyserCommande(cmdNorm(norm(txt))); return r ? r.type + ':' + r.valeur : null; };
 
 let ok = 0; const t = (n, f) => { try { f(); ok++; console.log('  ✔', n); } catch (e) { console.log('  ✘', n, '\n   ', e.message); process.exitCode = 1; } };
@@ -59,5 +59,19 @@ t('ne vole pas les autres commandes ni les questions', () => {
     'rouge', 'la ville de Paris', 'le globe terrestre fait combien de kilomètres', 'combien de neurones dans le cerveau', 'neurones', 'cerveau',
     'explique-moi les réseaux de neurones', 'c’est quoi une sphère'])
     assert.equal(analyser(q), null, q);
+});
+t('thème choisi à la main : horodaté (priorité sur le thème automatique) ; le thème automatique, lui, ne l’est pas', () => {
+  const mem = {}; ctx.localStorage = { getItem: k => mem[k] ?? null, setItem: (k, v) => { mem[k] = String(v); } };
+  ctx.RayleUI.changer('theme', 'aurore'); assert.ok(+mem.rayle_ui_theme_manuel > 0 && mem.rayle_ui_theme === 'aurore');
+  assert.equal(ctx.RayleUI.themeManuelDepuis(), +mem.rayle_ui_theme_manuel);
+  const stamp = mem.rayle_ui_theme_manuel;
+  ctx.RayleUI.changer('theme', 'ambre', { auto: true });
+  assert.equal(mem.rayle_ui_theme, 'aurore', 'le thème automatique n’écrase pas le thème enregistré'); assert.equal(mem.rayle_ui_theme_manuel, stamp);
+  assert.equal(ctx.RayleUI.reglages().theme, 'ambre');
+});
+t('le service de commandes passe d’abord par l’ambiance, puis par l’apparence', () => {
+  const sv = {}; ctx.RayleBus = { fournir: (n, f) => { sv[n] = f; }, demander: (n, a) => sv[n] ? sv[n](a) : undefined, emit() {}, on() {} };
+  ctx.document = undefined;
+  assert.equal(typeof ctx.RayleUI.ambiance.analyser, 'function');
 });
 console.log(ok + ' groupe(s) réussi(s)');
