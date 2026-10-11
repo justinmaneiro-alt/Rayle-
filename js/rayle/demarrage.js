@@ -2,7 +2,7 @@
   /* ═════════════ DÉMARRAGE ═════════════ */
   setState('idle'); majBouton();
   addLine('sys','Appareil : '+(IS_MOBILE?'téléphone ou tablette':'ordinateur')+' · façon de parler : '+(modeToucher()?'toucher pour parler':'mains libres')+' (modifiable dans ⚙ Réglages)');
-  addLine('sys','RAYLÉ — Market & Neural Core · noyau initialisé (phase 2 · bougie par bougie, mémoire, images et vidéos, savoirs étendus)');
+  addLine('sys','RAYLÉ — Market & Neural Core · noyau initialisé (phase 3A · commandes entre appareils, raccourcis et mini-vue)');
   if(SR){ addLine('sys','Reconnaissance vocale fr-FR : disponible'); }
   else{
     addLine('sys','Reconnaissance vocale indisponible : ouvrez cette page dans Google Chrome. La saisie au clavier reste active.');

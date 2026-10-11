@@ -50,6 +50,10 @@
       addLine('ray',r); speak(r); return true;
     }
     if(/^oui efface tout$/.test(c) && Date.now()-viderDemande<30000){ viderDemande=0; memoireVider(); return true; }
+    // « thème Aurore sur la tablette », « coupe le téléphone » : c'est pour un autre appareil (js/rayle/appareils.js, appelé dans respond)
+    try{ const x=RayleAppareils.extraireCible(text,appConnus); if(x && !RayleAppareils.meme(x.cible,store.get(KEY_WDEVNOM))) return false; }catch(e){}
+    const rMini=RayleBus.demander('mini:commande',c);   // « mini vue », « vue complète » (js/rayle/raccourcis.js)
+    if(rMini){ addLine('ray',rMini); speak(rMini); return true; }
     const rIni=RayleBus.demander('initiative:commande',c);   // « pas maintenant » (js/rayle/initiative.js)
     if(rIni){ addLine('ray',rIni); speak(rIni); return true; }
     const rUI=RayleBus.demander('ui:commande',c);   // apparence (ui/settings.js) : « thème Aurore », « fond globe », « mode éco »

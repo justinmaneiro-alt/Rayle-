@@ -37,6 +37,10 @@
           montrerDonnees(a.panneau);
         }else if(a.type==='fermer_panneaux'){
           Panneaux.fermerTout();
+        }else if(a.type==='appareil' && typeof commandeAppareilAgent==='function'){
+          // commande vers un autre appareil (js/rayle/appareils.js) : même liste blanche que la voix ; le résultat s'ajoute à ce qu'elle dit
+          const r=await commandeAppareilAgent(a.cible,a.phrase);
+          if(r) plus+=' '+r;
         }
       }catch(e){ addLine('sys','Action « '+a.type+' » : '+errMsg(e)); }
     }

@@ -34,7 +34,8 @@
     contraste:(v=>isFinite(v)&&v>=0&&v<=100 ? v : 60)(parseInt(lire(CLE.contraste),10))   // contraste de l'entité sur un fond, en %
   };
   let palierAuto=(mobile || (typeof navigator!=='undefined' && (navigator.hardwareConcurrency||4)<=4)) ? 1 : 0;
-  const palier=()=>reduit() ? 2 : R.anim==='max' ? 0 : R.anim==='eco' ? 2 : palierAuto;
+  let ecoForce=false;            // mini-vue (#mini) : Éco imposé et fond coupé, sans toucher aux réglages enregistrés
+  const palier=()=>(reduit()||ecoForce) ? 2 : R.anim==='max' ? 0 : R.anim==='eco' ? 2 : palierAuto;
   const NOM_PALIER=['complet','allégé','éco'];
 
   let premier=true;
@@ -45,7 +46,7 @@
     premier=false;
     h.style.setProperty('--ui-k',String(R.taille/100));
     // un fond est actif : l'entité ressort (disque sombre, plus de lumière, texte d'état lisible)
-    const avecFond=R.fond!=='aucun';
+    const avecFond=R.fond!=='aucun' && !ecoForce;
     h.classList.toggle('ui-fond-actif',avecFond);
     h.style.setProperty('--ui-contraste',String(R.contraste/100));
     try{ Entite.accent && Entite.accent(avecFond ? R.contraste/100 : 0); }catch(e){}
@@ -63,8 +64,9 @@
     }
     appliquer();
   }
-  UI.reglages=()=>({theme:R.theme,fond:R.fond,anim:R.anim,palier:palier(),micro:R.micro,mobile,entite:R.entite,taille:R.taille,contraste:R.contraste});
+  UI.reglages=()=>({theme:R.theme,fond:ecoForce?'aucun':R.fond,anim:R.anim,palier:palier(),micro:R.micro,mobile,entite:R.entite,taille:R.taille,contraste:R.contraste,ecoForce});
   UI.changer=changer;
+  UI.forcerEco=oui=>{ oui=!!oui; if(oui===ecoForce) return; ecoForce=oui; appliquer(); };
 
   /* ───── Mesure des images/s (Auto) : seulement quand la scène de Raylé est visible ───── */
   let ema=16.7, n=0, tPrec=0, dernier=0, mauvais=0, fpsVu=60;

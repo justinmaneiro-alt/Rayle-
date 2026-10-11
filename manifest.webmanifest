@@ -17,6 +17,9 @@
     { "src": "icones/icone-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
   ],
   "shortcuts": [
-    { "name": "Terminal", "short_name": "Terminal", "url": "./index.html#terminal", "icons": [{ "src": "icones/icone-192.png", "sizes": "192x192", "type": "image/png" }] }
+    { "name": "Parler à Raylé", "short_name": "Parler", "description": "Ouvre Raylé et lance l'écoute tout de suite", "url": "./index.html#parler", "icons": [{ "src": "icones/raccourci-parler.png", "sizes": "192x192", "type": "image/png" }] },
+    { "name": "Terminal", "short_name": "Terminal", "description": "Ouvre le terminal de trading", "url": "./index.html#terminal", "icons": [{ "src": "icones/raccourci-terminal.png", "sizes": "192x192", "type": "image/png" }] },
+    { "name": "Briefing du jour", "short_name": "Briefing", "description": "Raylé fait le briefing du jour", "url": "./index.html#briefing", "icons": [{ "src": "icones/raccourci-briefing.png", "sizes": "192x192", "type": "image/png" }] },
+    { "name": "Monde", "short_name": "Monde", "description": "Ouvre la carte du monde du terminal", "url": "./index.html#monde", "icons": [{ "src": "icones/raccourci-monde.png", "sizes": "192x192", "type": "image/png" }] }
   ]
 }

@@ -10,6 +10,11 @@
     const cmdS=await commandeSecurite(text);    // « déverrouille », « verrouille », « journal de sécurité »…
     if(my!==epoch) return;
     if(cmdS){ diagAction('commande de sécurité'); addLine('ray',cmdS); await speak(cmdS); return; }
+    // Autre appareil : « affiche l'or en H4 sur la tablette », « fais sonner le téléphone »… (js/rayle/appareils.js)
+    const cmdA=typeof commandeAppareils==='function' ? await commandeAppareils(text) : null;
+    if(my!==epoch) return;
+    if(cmdA && typeof cmdA==='object') text=cmdA.texte;            // c'était cet appareil : on continue avec la phrase sans son nom
+    else if(cmdA){ diagAction('commande vers un autre appareil'); addLine('ray',cmdA); await speak(cmdA); return; }
     const cmdM=typeof commandeMonde==='function' ? await commandeMonde(text) : null;   // page Monde : « montre-moi le Japon », « affiche l'inflation sur la carte »…
     if(my!==epoch) return;
     if(cmdM){ diagAction('commande de la page Monde'); addLine('ray',cmdM); await speak(cmdM); return; }

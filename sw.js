@@ -2,14 +2,21 @@
    - Réseau d'abord pour tout (page, CSS, JS versionnés) : une version fraîche gagne toujours.
    - Le cache ne sert qu'EN SECOURS, quand le réseau échoue ou met plus de 8 s à répondre.
    - Ne touche jamais aux autres origines (Worker, TradingView, Bitstamp…) ni aux requêtes non GET.
-   - Un cache par version ; les anciens sont supprimés à l'activation. */
+   - Un cache par version ; les anciens sont supprimés à l'activation.
+   - Raccourcis d'appli (appui long sur l'icône : Parler, Terminal, Briefing, Monde) et mini-vue : ce sont des ouvertures de
+     index.html avec un #repère (#parler, #terminal, #briefing, #monde, #mini). Le repère reste dans la page (js/rayle/raccourcis.js) ;
+     ici, ce sont des navigations comme les autres : réseau d'abord, copie de secours si le réseau manque (le raccourci marche hors ligne).
+     Leurs icônes sont mises de côté à l'installation. */
 const VERSION = new URL(self.location.href).searchParams.get('v') || 'dev';
 const CACHE = 'rayle-' + VERSION;
 const DELAI_MS = 8000;
+const DE_COTE = ['./index.html', './manifest.webmanifest', './icones/icone-192.png',
+  './icones/raccourci-parler.png', './icones/raccourci-terminal.png', './icones/raccourci-briefing.png', './icones/raccourci-monde.png'];
 
 self.addEventListener('install', e => {
   self.skipWaiting();
-  e.waitUntil(caches.open(CACHE).then(c => c.addAll(['./index.html', './manifest.webmanifest', './icones/icone-192.png'])).catch(() => {}));
+  // un fichier manquant ne doit pas empêcher de garder les autres
+  e.waitUntil(caches.open(CACHE).then(c => Promise.all(DE_COTE.map(u => c.add(u).catch(() => {})))).catch(() => {}));
 });
 self.addEventListener('activate', e => {
   e.waitUntil((async () => {

@@ -220,7 +220,9 @@
   }
 
   /* ───── Journal des actions sensibles ───── */
-  const SEC_ACTIONS={'deverrouillage':'déverrouillage','verrouillage':'verrouillage','blocage':'blocage','appareil.appairer':'appairage d’appareil','appareil.revoquer':'révocation d’appareil','securite.test':'test du verrou'};
+  const SEC_ACTIONS={'deverrouillage':'déverrouillage','verrouillage':'verrouillage','blocage':'blocage','appareil.appairer':'appairage d’appareil','appareil.revoquer':'révocation d’appareil','securite.test':'test du verrou',
+    'appareil.commande':'commande à un appareil','appareil.retour':'commande exécutée','appareil.telegram':'envoi Telegram à la place','appareil.renommer':'renommage d’appareil'};
+  const secLibAction=a=>SEC_ACTIONS[a]||(/^appareil\.commande\./.test(a)?SEC_ACTIONS['appareil.commande']:a);
   function secIlYa(t){
     const s=Math.max(0,(Date.now()-t)/1000);
     if(s<90) return 'à l’instant';
@@ -234,8 +236,8 @@
     if(!r.ok) return 'Je n’arrive pas à lire le journal : '+((r.d&&r.d.error)||'Worker injoignable')+'.';
     const l=r.d.journal||[];
     if(!l.length) return 'Le journal de sécurité est vide.';
-    const lib=x=>(SEC_ACTIONS[x.action]||x.action)+(x.ok?'':' refusé')+(x.appareil?', '+x.appareil:'');
-    const h='<div class="pn-sous">Actions sensibles (niveau 2)</div>'+l.map(x=>'<div class="pn-l"><span>'+Panneaux.esc(secIlYa(x.quand))+'</span><b class="'+(x.ok?'':'mauvais')+'">'+Panneaux.esc(lib(x))+'</b></div><small>'+Panneaux.esc(x.detail||'')+'</small>').join('');
+    const lib=x=>secLibAction(x.action)+(x.ok?'':/^appareil\./.test(x.action)?' (échec ou refus)':' refusé')+(x.appareil?', '+x.appareil:'');
+    const h='<div class="pn-sous">Actions sensibles et commandes entre appareils</div>'+l.map(x=>'<div class="pn-l"><span>'+Panneaux.esc(secIlYa(x.quand))+'</span><b class="'+(x.ok?'':'mauvais')+'">'+Panneaux.esc(lib(x))+'</b></div><small>'+Panneaux.esc(x.detail||'')+'</small>').join('');
     Panneaux.ouvrir({id:'securite-journal',type:'securite',icone:'📜',titre:'Journal de sécurité',corps:{html:h},duree:5*60000});
     return 'Voici les '+Math.min(l.length,5)+' dernières actions sensibles. '+l.slice(0,5).map(x=>secIlYa(x.quand)+', '+lib(x)).join('. ')+'.';
   }
@@ -268,7 +270,9 @@
     if(!r.ok) return 'Je ne peux pas lister les appareils : '+((r.d&&r.d.error)||'Worker injoignable')+'.';
     const actifs=(r.d.appareils||[]).filter(a=>!a.revoque);
     if(!actifs.length) return 'Aucun appareil appairé.';
-    return secPluriel(actifs.length,'appareil')+' appairé'+(actifs.length>1?'s':'')+' : '+actifs.map(a=>a.nom+(a.moi?' (celui-ci)':'')).join(', ')+'.';
+    try{ appConnus=actifs.map(a=>a.nom); localStorage.setItem('rayle_appareils_connus',JSON.stringify(appConnus)); }catch(e){}   // noms compris à la voix (js/rayle/appareils.js)
+    const etat=a=>a.moi?' (celui-ci)':a.ouvert===true?' (ouvert)':a.ouvert===false?' (fermé)':'';      // « ouvert » : Worker phase 3A
+    return secPluriel(actifs.length,'appareil')+' appairé'+(actifs.length>1?'s':'')+' : '+actifs.map(a=>a.nom+etat(a)).join(', ')+'.';
   }
   async function secRevoquer(nom){
     if(!secAppaire()) return "Cet appareil n'est pas appairé.";

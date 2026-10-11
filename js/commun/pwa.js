@@ -66,11 +66,11 @@
 
   /* ── Écran maintenu allumé (Wake Lock) ── */
   const ecranVoulu=()=>store.get(KEY_ECRAN)!=='0';
-  let verrou=null;
+  let verrou=null, libere=false;     // libere : mise en veille demandée par un autre appareil, jusqu'au prochain toucher
   async function garderEcran(){
     if(!('wakeLock' in navigator)) return;
     try{
-      if(ecranVoulu() && document.visibilityState==='visible'){
+      if(ecranVoulu() && !libere && document.visibilityState==='visible'){
         if(verrou) return;
         verrou=await navigator.wakeLock.request('screen');
         verrou.addEventListener('release',()=>{ verrou=null; });
@@ -78,7 +78,8 @@
     }catch(e){ verrou=null; }                               // refusé (économie d'énergie…) : sans gravité
   }
   document.addEventListener('visibilitychange',garderEcran);
-  document.addEventListener('pointerdown',()=>{ if(!verrou) garderEcran(); },{passive:true});   // certains appareils exigent un geste
+  document.addEventListener('pointerdown',()=>{ libere=false; if(!verrou) garderEcran(); },{passive:true});   // certains appareils exigent un geste
+  try{ RayleBus.fournir('ecran:liberer',()=>{ libere=true; garderEcran(); return true; }); }catch(e){}   // « mets la tablette en veille » (js/rayle/appareils.js)
   const kEcran=$('kEcran');
   if(kEcran){
     kEcran.checked=ecranVoulu();

@@ -7,7 +7,7 @@
      pied   : [{texte,url}] liens ouverts dans un nouvel onglet, ou [{texte,clic}] boutons
      duree  : fermeture automatique après N ms (facultatif)
      protege: jamais chassé par un nouveau panneau (le type 'securite' est toujours protégé)
-   Panneaux.fermer(id) · fermerTout() · fermerDernier() · liste()
+   Panneaux.fermer(id) · fermerTout() · fermerDernier() · liste() · contenu(id) → {titre,icone,type,html,liens} (envoi vers un autre appareil)
    Panneaux.max(n) · suspendre(id,bool) (minuterie en pause pendant qu'on le lit) · surOuverture(fn(id,el,o))
    Panneaux.dureeParDefaut : fonction(o) → ms pour les panneaux ouverts sans durée (ui/panels.js)
    Par le bus : emit('panneau:ouvrir',{…}), emit('panneau:fermer',{id}), emit('panneaux:fermer-tout')
@@ -69,7 +69,7 @@ window.Panneaux=(function(){
       existant.titre=o.titre||existant.titre;
       existant.el.querySelector('.pn-tete h2').textContent=existant.titre;
       remplir(existant.el.querySelector('.pn-corps'),o.corps,existant);
-      remplirPied(existant.el.querySelector('.pn-pied'),o.pied);
+      remplirPied(existant.el.querySelector('.pn-pied'),o.pied); existant.pied=o.pied||[]; existant.icone=o.icone||existant.icone;
       existant.reste=dureeDe(o); existant.pause=false; armer(id,existant);
       return id;
     }
@@ -87,7 +87,7 @@ window.Panneaux=(function(){
     el.innerHTML='<header class="pn-tete"><span class="pn-ico"></span><h2></h2><button type="button" class="pn-x" aria-label="Fermer ce panneau">✕</button></header><div class="pn-corps"></div><footer class="pn-pied"></footer><i class="hud-balayage"></i>';
     el.querySelector('.pn-ico').textContent=o.icone||'◈';
     el.querySelector('h2').textContent=o.titre||'';
-    const p={el,nettoyage:null,onFermer:o.onFermer,titre:o.titre||'',large,n,timer:null,reste:0,t0:0,pause:false,protege:!!o.protege||o.type==='securite'};
+    const p={el,nettoyage:null,onFermer:o.onFermer,titre:o.titre||'',icone:o.icone||'◈',pied:o.pied||[],large,n,timer:null,reste:0,t0:0,pause:false,protege:!!o.protege||o.type==='securite'};
     ouverts.set(id,p);
     remplir(el.querySelector('.pn-corps'),o.corps,p);
     remplirPied(el.querySelector('.pn-pied'),o.pied);
@@ -112,12 +112,18 @@ window.Panneaux=(function(){
   function fermerTout(){ const n=ouverts.size; Array.from(ouverts.keys()).forEach(fermer); return n; }
   function fermerDernier(){ const ids=Array.from(ouverts.keys()); if(!ids.length) return false; return fermer(ids[ids.length-1]); }
   const liste=()=>Array.from(ouverts.entries()).map(([id,p])=>({id,titre:p.titre,type:p.el.dataset.type}));
+  // Contenu d'un panneau, pour l'envoyer sur un autre appareil (l'appareil qui reçoit nettoie ce HTML : js/rayle/appareils.js)
+  function contenu(id){
+    const p=ouverts.get(id); if(!p) return null;
+    return {titre:p.titre,icone:p.icone,type:p.el.dataset.type,html:p.el.querySelector('.pn-corps').innerHTML,
+      liens:(p.pied||[]).filter(b=>b&&b.url).map(b=>({texte:String(b.texte||'Lien'),url:String(b.url)}))};
+  }
 
   RayleBus.on('panneau:ouvrir',ouvrir);
   RayleBus.on('panneau:fermer',d=>fermer(d&&d.id));
   RayleBus.on('panneaux:fermer-tout',fermerTout);
   document.addEventListener('keydown',e=>{ if(e.key==='Escape' && ouverts.size && !document.getElementById('cfg').classList.contains('open')) fermerDernier(); });
-  const api={ouvrir,fermer,fermerTout,fermerDernier,liste,esc,suspendre,dureeParDefaut:null,
+  const api={ouvrir,fermer,fermerTout,fermerDernier,liste,contenu,esc,suspendre,dureeParDefaut:null,
     max(n){ MAX=Math.max(1,+n||8); },
     surOuverture(fn){ if(typeof fn==='function') apres.push(fn); }};
   return api;
