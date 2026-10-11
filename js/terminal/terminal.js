@@ -1,9 +1,10 @@
 /* ═════════════ TERMINAL (vue de la page unique) : module chargé à la première ouverture ═════════════
    Parle à Raylé uniquement par RayleBus (état partagé en mémoire + commandes). Aucun localStorage entre les deux. */
-import { creerGraphique, LIBELLE_IV } from './graphique-rayle.js?v=2026.10.10.13';
-import { creerPageMarches } from './page-marches.js?v=2026.10.10.13';
-import { creerPageCot } from './page-cot.js?v=2026.10.10.13';
-import { creerPageAnalyse } from './page-analyse.js?v=2026.10.10.13';
+import { creerGraphique, LIBELLE_IV } from './graphique-rayle.js?v=2026.10.10.14';
+import { creerPageMarches } from './page-marches.js?v=2026.10.10.14';
+import { creerPageCot } from './page-cot.js?v=2026.10.10.14';
+import { creerPageAnalyse } from './page-analyse.js?v=2026.10.10.14';
+import { creerPageMonde } from './page-monde.js?v=2026.10.10.14';
 
 
   // ── WORKER RAYLÉ ── adresse et code d'accès : les mêmes réglages que Raylé (⚙ Réglages), fournis par le bus
@@ -54,7 +55,7 @@ import { creerPageAnalyse } from './page-analyse.js?v=2026.10.10.13';
   const IV_TD={'5':'5min','15':'15min','60':'1h','240':'4h','D':'1day'};     // unité du graphique → intervalle du Worker
   const IV_VALIDES=Object.keys(IV_TD);
   const MODES_AFF={dashboard:'le dashboard',graphique:'le graphique seul',graphique_rsi:'le graphique avec le RSI'};
-  const PAGES_TERM=['terminal','marches','cot','analyse'];
+  const PAGES_TERM=['terminal','marches','cot','analyse','monde'];
   const CLE_PREFS='rayle_terminal_prefs';
   const lirePrefs=()=>{ try{ return JSON.parse(localStorage.getItem(CLE_PREFS)||'{}')||{}; }catch(e){ return {}; } };
   const ecrirePrefs=()=>{ try{ localStorage.setItem(CLE_PREFS,JSON.stringify({source:sourceGraph,r:graph?graph.reglages():{}})); }catch(e){} };
@@ -547,7 +548,7 @@ import { creerPageAnalyse } from './page-analyse.js?v=2026.10.10.13';
   function creerPage(nom){
     if(pages[nom]) return pages[nom];
     const r=$('page'+nom[0].toUpperCase()+nom.slice(1));
-    return pages[nom]=nom==='marches'?creerPageMarches({racine:r}):nom==='cot'?creerPageCot({racine:r}):creerPageAnalyse({racine:r});
+    return pages[nom]=nom==='marches'?creerPageMarches({racine:r}):nom==='cot'?creerPageCot({racine:r}):nom==='monde'?creerPageMonde({racine:r}):creerPageAnalyse({racine:r});
   }
   let ouvertTerm=false;
   function suspendreTerminal(){     // page Marchés / COT / Analyse affichée : le dashboard et le carnet ne tournent pas dans le vide
@@ -568,7 +569,7 @@ import { creerPageAnalyse } from './page-analyse.js?v=2026.10.10.13';
     if(p==='terminal'){ if(avant!=='terminal' && ouvertTerm) reprendreTerminal(); }
     else if(ouvertTerm){ creerPage(p).ouvrir(opts||{}); }
     mesurerBarre(); window.scrollTo(0,0); { const ts=document.getElementById('tscroll'); if(ts) ts.scrollTop=0; }
-    writeBridge({page_terminal:{terminal:'terminal (graphique et dashboard)',marches:'Marchés',cot:'rapports COT',analyse:'analyse fondamentale'}[p]});
+    writeBridge({page_terminal:{terminal:'terminal (graphique et dashboard)',marches:'Marchés',cot:'rapports COT',analyse:'analyse fondamentale',monde:'Monde (carte du monde)'}[p]});
     return true;
   }
   document.querySelectorAll('#tpages button').forEach(b=>{ b.onclick=()=>allerPage(b.dataset.p); });

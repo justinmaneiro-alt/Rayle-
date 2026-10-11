@@ -72,6 +72,8 @@
       p.push('page COT affichée : '+c.contrat+', positions du '+c.date_positions+', position nette des spéculateurs '+fmtNum(c.net,0)+' (variation sur la semaine '+fmtNum(c.variation_semaine,0)+'), '+c.centile_1an+'e centile de l’année ; '+c.lecture); }
     if(b.page_analyse && typeof b.page_analyse==='object'){ const a=b.page_analyse;
       p.push('page Analyse affichée ('+a.actif+') : biais '+a.biais+', confiance '+a.confiance+' sur 5 ; '+a.synthese); }
+    if(b.monde && typeof b.monde==='object'){ const m=b.monde;
+      p.push('page Monde affichée : vue '+m.vue+(m.couches?', couches '+m.couches:'')+(m.indicateur?', indicateur coloré : '+m.indicateur:'')+(m.pays?' ; pays sélectionné : '+m.pays+(m.fiche?' ('+m.fiche+')':''):'')+(m.zones&&m.zones.length?' ; zones chaudes de l’actualité : '+m.zones.join(', '):'')+" (tu ne lis pas la carte TradingView : tes chiffres viennent du Worker)"); }
     if(b.analyse_en_cours) p.push("l'analyse du nouvel actif est en cours de calcul, les chiffres arrivent dans quelques instants");
     if(b.notes && String(b.notes).trim()) p.push('notes stratégiques de Justin : « '+String(b.notes).trim().slice(0,600)+' »');
     if(b.maj) p.push('données mises à jour '+fmtAge(b.maj));

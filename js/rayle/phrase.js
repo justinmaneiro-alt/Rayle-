@@ -10,6 +10,9 @@
     const cmdS=await commandeSecurite(text);    // « déverrouille », « verrouille », « journal de sécurité »…
     if(my!==epoch) return;
     if(cmdS){ diagAction('commande de sécurité'); addLine('ray',cmdS); await speak(cmdS); return; }
+    const cmdM=typeof commandeMonde==='function' ? await commandeMonde(text) : null;   // page Monde : « montre-moi le Japon », « affiche l'inflation sur la carte »…
+    if(my!==epoch) return;
+    if(cmdM){ diagAction('commande de la page Monde'); addLine('ray',cmdM); await speak(cmdM); return; }
     const cmdT=await commandeTerminal(text);
     if(my!==epoch) return;
     if(cmdT){ diagAction('commande du terminal'); addLine('ray',cmdT); await speak(cmdT); return; }

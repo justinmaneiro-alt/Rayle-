@@ -6,7 +6,10 @@
    - Arcs lumineux entre les grandes places boursières : plus vifs quand l'une des deux places est ouverte (heures locales, jours ouvrés).
    - La Terre garde ses vraies couleurs ; seuls l'atmosphère, les arcs et les villes prennent les couleurs du thème.
    Qualité q : 0 complète · 1 allégée · 2 minimale (sans nuages, moins de pixels). Textures 4096 px seulement en niveau Max.
-   RayleUI.fondsReels.globe(canvas, {q, hd}) → {taille(), image(now, dt), qualite(q), detruire()} */
+   RayleUI.fondsReels.globe(canvas, {q, hd}) → {taille(), image(now, dt), qualite(q), detruire()}
+   Mode interactif (page Monde du terminal) : {interactif:true} → la Terre est centrée dans son cadre et pilotée de l'extérieur :
+     vue(lat, lon, dist) · pick(x, y) → {lat, lon} · projeter(lat, lon) → {x, y, face} · ajouter(objet3D) · places(bool)
+     calque(canvas|null) : carte équirectangulaire posée sur la Terre (contours, indicateur) · THREE, vec(lat, lon, r) */
 (function(){
   const UI=window.RayleUI=window.RayleUI||{};
   UI.fondsReels=UI.fondsReels||{};
@@ -152,7 +155,8 @@ void main(){ float d=length(gl_PointCoord-0.5); float a=smoothstep(0.5,0.1,d)*v_
     const taillePx=o.hd?4096:2048;
     const [jour,nuit,nuages]=await Promise.all([tex('terre-jour-'+taillePx+'.jpg'),tex('terre-nuit-'+taillePx+'.jpg'),tex('nuages-2048.jpg')]);
 
-    const groupe=new THREE.Group(); groupe.rotation.z=23.44*Math.PI/180*.6; scene.add(groupe);   // axe légèrement incliné
+    const inter=!!o.interactif;
+    const groupe=new THREE.Group(); if(!inter) groupe.rotation.z=23.44*Math.PI/180*.6; scene.add(groupe);   // axe légèrement incliné (fond)
     const terre=new THREE.Group(); groupe.add(terre);
     const U={u_soleil:{value:new THREE.Vector3(1,0,0)},u_atmo:{value:new THREE.Color(.4,.6,1)},u_nuitForce:{value:2.2}};
     const segs=[128,96,64];
@@ -192,7 +196,7 @@ void main(){ float d=length(gl_PointCoord-0.5); float a=smoothstep(0.5,0.1,d)*v_
     gArc.setIndex(idx);
     const UA={u_temps:{value:0},u_ouv:{value:new Array(10).fill(0)},u_c1:{value:new THREE.Color()},u_c3:{value:new THREE.Color()}};
     const matArc=new THREE.ShaderMaterial({uniforms:UA,vertexShader:VS_ARC,fragmentShader:FS_ARC,transparent:true,depthWrite:false,blending:THREE.AdditiveBlending});
-    terre.add(new THREE.Mesh(gArc,matArc));
+    const arcsMesh=new THREE.Mesh(gArc,matArc); terre.add(arcsMesh);
     // places boursières (points lumineux)
     const codes=Object.keys(PLACES), gP=new THREE.BufferGeometry(), pp=[], tl=[], ov=new Float32Array(codes.length);
     codes.forEach(c=>{ pp.push(...dir(PLACES[c][1],PLACES[c][2],1.012)); tl.push(1); });
@@ -200,7 +204,7 @@ void main(){ float d=length(gl_PointCoord-0.5); float a=smoothstep(0.5,0.1,d)*v_
     gP.setAttribute('a_taille',new THREE.Float32BufferAttribute(tl,1));
     gP.setAttribute('a_ouv',new THREE.BufferAttribute(ov,1));
     const UP={u_px:{value:22},u_c:{value:new THREE.Color()},u_temps:UA.u_temps};
-    terre.add(new THREE.Points(gP,new THREE.ShaderMaterial({uniforms:UP,vertexShader:VS_PTS,fragmentShader:FS_PTS,transparent:true,depthWrite:false,blending:THREE.AdditiveBlending})));
+    const placesPts=new THREE.Points(gP,new THREE.ShaderMaterial({uniforms:UP,vertexShader:VS_PTS,fragmentShader:FS_PTS,transparent:true,depthWrite:false,blending:THREE.AdditiveBlending})); terre.add(placesPts);
     // étoiles
     const nbE=1400, ge=new THREE.BufferGeometry(), pe=[], te=[], oe=[];
     let g0=11; const rnd=()=>{ g0=(g0*1664525+1013904223)>>>0; return g0/4294967296; };
@@ -212,6 +216,9 @@ void main(){ float d=length(gl_PointCoord-0.5); float a=smoothstep(0.5,0.1,d)*v_
     scene.add(etoiles);
 
     let W=1, H=1, rot=-.6, nuagesDec=0, dernierCalcul=0;
+    const VUE={lat:20,lon:10,dist:3.4};                       // mode interactif : où regarde la caméra
+    let calqueMesh=null, calqueTex=null;
+    const lanceur=new THREE.Raycaster(), souris=new THREE.Vector2(), qTmp=new THREE.Quaternion();
     const v3=new THREE.Vector3();
     function appliquerQualite(){
       const pr=[Math.min(window.devicePixelRatio||1,1.5),.9,.65][q];
@@ -231,6 +238,11 @@ void main(){ float d=length(gl_PointCoord-0.5); float a=smoothstep(0.5,0.1,d)*v_
     }
     return {
       taille(){
+        if(inter){
+          const p=canvas.parentNode; W=Math.max(2,Math.round(p.clientWidth)); H=Math.max(2,Math.round(p.clientHeight));
+          camera.aspect=W/H; camera.fov=W/H<1?48:35; camera.updateProjectionMatrix();
+          groupe.position.set(0,0,0); groupe.scale.setScalar(1); appliquerQualite(); return;
+        }
         W=Math.round(innerWidth*1.06); H=Math.round(innerHeight*1.06);
         camera.aspect=W/H; camera.updateProjectionMatrix();
         const large=W/H>1.15;
@@ -245,7 +257,8 @@ void main(){ float d=length(gl_PointCoord-0.5); float a=smoothstep(0.5,0.1,d)*v_
         U.u_atmo.value.setRGB(c[1][0]/255*.85+.10,c[1][1]/255*.85+.12,c[1][2]/255*.85+.18);
         UA.u_c1.value.setRGB(c[0][0]/255,c[0][1]/255,c[0][2]/255); UA.u_c3.value.setRGB(c[2][0]/255,c[2][1]/255,c[2][2]/255);
         UP.u_c.value.setRGB(c[2][0]/255,c[2][1]/255,c[2][2]/255);
-        rot+=dt*.035; terre.rotation.y=rot;
+        if(inter){ rot+=dt*.035; groupe.rotation.x=VUE.lat*Math.PI/180; terre.rotation.y=-Math.PI/2-VUE.lon*Math.PI/180; camera.position.set(0,0,VUE.dist); }
+        else{ rot+=dt*.035; terre.rotation.y=rot; }
         nuagesDec+=dt*.0018; matNuages.uniforms.u_dec.value=nuagesDec%1;   // les nuages vont un peu plus vite que la Terre
         UA.u_temps.value+=dt;
         etoiles.rotation.y=rot*.05;
@@ -253,9 +266,38 @@ void main(){ float d=length(gl_PointCoord-0.5); float a=smoothstep(0.5,0.1,d)*v_
         else{ terre.updateMatrixWorld(true); const s=soleil(Date.now()); U.u_soleil.value.set(...dir(s.lat,s.lon)).applyQuaternion(terre.getWorldQuaternion(new THREE.Quaternion())).normalize(); }
         rendu.render(scene,camera);
       },
+      // ── mode interactif ──
+      THREE, terre,
+      vec:(lat,lon,r)=>new THREE.Vector3(...dir(lat,lon,r||1)),
+      vue(lat,lon,dist){ if(lat!=null) VUE.lat=Math.max(-85,Math.min(85,lat)); if(lon!=null) VUE.lon=((lon+540)%360)-180; if(dist!=null) VUE.dist=Math.max(1.35,Math.min(5,dist)); return Object.assign({},VUE); },
+      pick(x,y){                                                  // coordonnées dans le canvas (px CSS) → latitude, longitude
+        const r=canvas.getBoundingClientRect();
+        souris.set((x/r.width)*2-1,-(y/r.height)*2+1);
+        lanceur.setFromCamera(souris,camera);
+        const h=lanceur.intersectObject(sphere,false)[0]; if(!h) return null;
+        const p=terre.worldToLocal(h.point.clone()).normalize();
+        return {lat:Math.asin(p.y)*180/Math.PI,lon:Math.atan2(-p.z,p.x)*180/Math.PI};
+      },
+      projeter(lat,lon){                                          // position à l'écran (px CSS) et face visible ?
+        const v=new THREE.Vector3(...dir(lat,lon,1.01)); terre.localToWorld(v);
+        const face=v.clone().normalize().dot(camera.position.clone().normalize());
+        v.project(camera);
+        return {x:(v.x+1)/2*W,y:(1-v.y)/2*H,face};
+      },
+      ajouter(obj){ terre.add(obj); },
+      places(oui){ arcsMesh.visible=placesPts.visible=!!oui; },
+      calque(toile){
+        if(!toile){ if(calqueMesh) calqueMesh.visible=false; return; }
+        if(!calqueMesh){
+          calqueTex=new THREE.CanvasTexture(toile);
+          calqueMesh=new THREE.Mesh(new THREE.SphereGeometry(1.003,96,48),new THREE.MeshBasicMaterial({map:calqueTex,transparent:true,depthWrite:false}));
+          terre.add(calqueMesh);
+        }else if(calqueTex.image!==toile){ calqueTex.image=toile; }
+        calqueTex.needsUpdate=true; calqueMesh.visible=true;
+      },
       detruire(){
         scene.traverse(x=>{ if(x.geometry) x.geometry.dispose(); if(x.material) x.material.dispose(); });
-        [jour,nuit,nuages].forEach(t=>t.dispose());
+        [jour,nuit,nuages].forEach(t=>t.dispose()); if(calqueTex) calqueTex.dispose();
         rendu.dispose(); try{ rendu.forceContextLoss(); }catch(e){}
       }
     };
