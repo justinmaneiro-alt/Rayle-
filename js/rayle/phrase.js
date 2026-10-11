@@ -10,6 +10,10 @@
     const cmdS=await commandeSecurite(text);    // « déverrouille », « verrouille », « journal de sécurité »…
     if(my!==epoch) return;
     if(cmdS){ diagAction('commande de sécurité'); addLine('ray',cmdS); await speak(cmdS); return; }
+    // Répertoire, messages et appels préparés (js/rayle/repertoire.js) : avant les autres appareils, pour « … sur le téléphone »
+    const cmdR=typeof commandeMessages==='function' ? await commandeMessages(text) : null;
+    if(my!==epoch) return;
+    if(cmdR){ diagAction('répertoire, message ou appel'); addLine('ray',cmdR); await speak(cmdR); return; }
     // Autre appareil : « affiche l'or en H4 sur la tablette », « fais sonner le téléphone »… (js/rayle/appareils.js)
     const cmdA=typeof commandeAppareils==='function' ? await commandeAppareils(text) : null;
     if(my!==epoch) return;
@@ -27,6 +31,7 @@
     const quick=quickAnswer(text);
     if(quick){ diagAction('réponse rapide'); addLine('ray',quick); try{ montrerReponse(text,quick); }catch(e){} await speak(quick); return; }
 
+    if(typeof RayleRepertoire!=='undefined') text=RayleRepertoire.masquer(text);   // jamais un numéro ni une adresse vers l'IA
     diagAction("envoyé à l'IA");
     setState('thinking');
     let reply='', engine='', actions=[], viaAgent=false;

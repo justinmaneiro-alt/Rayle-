@@ -37,6 +37,10 @@
           montrerDonnees(a.panneau);
         }else if(a.type==='fermer_panneaux'){
           Panneaux.fermerTout();
+        }else if((a.type==='message' || a.type==='appel') && typeof repActionAgent==='function'){
+          // message ou appel préparé (js/rayle/repertoire.js) : la page retrouve le contact, rédige et demande confirmation
+          const r=await repActionAgent(a);
+          if(r) plus+=' '+r;
         }else if(a.type==='appareil' && typeof commandeAppareilAgent==='function'){
           // commande vers un autre appareil (js/rayle/appareils.js) : même liste blanche que la voix ; le résultat s'ajoute à ce qu'elle dit
           const r=await commandeAppareilAgent(a.cible,a.phrase);

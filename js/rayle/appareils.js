@@ -140,6 +140,8 @@
         case 'lien': return 'lien '+String(a.url||'').replace(/^https?:\/\//,'').slice(0,40);
         case 'panneau': return 'panneau « '+((a.panneau&&a.panneau.titre)||'?')+' »';
         case 'dire': return '« '+String(a.texte||'').slice(0,60)+' »';
+        case 'message': return 'message pour '+(a.contact||'?');
+        case 'appel': return 'appeler '+(a.contact||'?');
         default: return '« '+String(a.phrase||a.type).slice(0,60)+' »';
       }
     }
@@ -155,6 +157,8 @@
           case 'dire': return 'C’est dit sur '+art+'.';
           case 'lien': return /affich/.test(d.message||'') ? 'Le lien est affiché sur '+art+' : il faut toucher « Ouvrir le lien ».' : 'Le lien est ouvert sur '+art+'.';
           case 'ui': return 'C’est fait sur '+art+'.';
+          case 'message': return 'Le message pour '+(a.contact||'ton contact')+' est prêt sur '+art+' : touche « Ouvrir » puis Envoyer.';
+          case 'appel': return 'L’appel vers '+(a.contact||'ton contact')+' est prêt sur '+art+' : touche « '+(a.canal==='whatsapp'?'Ouvrir WhatsApp':'Appeler')+' ».';
           default: return 'C’est affiché sur '+art+'.';
         }
       }
@@ -228,6 +232,8 @@
         case 'panneau': { const p=action.panneau||{}; return (p.icone||'◈')+' '+p.titre+'\n'+RayleAppareils.texteBrut(p.html).slice(0,3000)+((p.liens||[]).length?'\n'+p.liens.map(l=>l.texte+' : '+l.url).join('\n'):''); }
         case 'sonner': return '📳 Ton téléphone est ici ! (Raylé voulait le faire sonner, mais il n’était pas ouvert.)';
         case 'dire': return '💬 '+action.texte;
+        case 'message': return '💬 Message prêt pour '+action.contact+' (à envoyer toi-même, depuis Raylé sur le téléphone ou en le copiant) :\n'+action.texte;
+        case 'appel': return '📞 Pense à appeler '+action.contact+'.';
       }
     }catch(e){}
     return 'Demande : « '+phrase+' »';
@@ -386,6 +392,10 @@
         case 'sonner': ok=await appSonner(de); msg=ok?'sonne':'son bloqué par le navigateur : touche une fois l’écran de cet appareil'; break;
         case 'veille': appVeille(false,de); msg='en veille'; break;
         case 'couper': appVeille(true,de); msg='coupée'; break;
+        case 'message': case 'appel':{   // phase 4A : prêt à l'écran, il faut encore toucher « Ouvrir » (ou dire « oui »)
+          if(typeof repRecevoir!=='function'){ ok=false; msg='répertoire indisponible sur cet appareil'; break; }
+          const r=await repRecevoir(a,de); ok=r.ok; msg=r.msg; break;
+        }
         default: ok=false; msg='commande inconnue';
       }
     }catch(e){ ok=false; msg=errMsg(e); }
