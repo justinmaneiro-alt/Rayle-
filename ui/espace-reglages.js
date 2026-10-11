@@ -18,7 +18,7 @@
   function maj(){
     const el=E.elements(); b.querySelectorAll('input[data-el]').forEach(i=>{ i.checked=!!el[i.dataset.el]; });
     const r=UI.reglages?UI.reglages():{fond:'aucun',palier:0};
-    b.querySelector('[data-info="espace"]').textContent=r.fond!=='espace'?'Le fond actuel n’est pas « Espace » : un bouton ci-dessus le sélectionne.':r.palier>=2?'Mode Éco : le fond est une image fixe (Terre, étoiles, Soleil, Lune). Les boutons « Aller vers » donnent juste les faits ; passe en Auto ou Max pour voler.':'Dis « montre-moi Mars », « montre-moi l’ISS », puis « reviens sur la Terre ».';
+    b.querySelector('[data-info="espace"]').textContent=r.fond!=='espace'?'Le fond actuel n’est pas « Espace » : un bouton ci-dessus le sélectionne.':r.palier>=2?'Mode Éco : le fond est une image fixe (Terre, étoiles, Soleil, Lune). Les boutons « Aller vers » donnent juste les faits ; passe en Auto ou Max pour voler.':'Dis « montre-moi Mars », « montre-moi l’ISS » : la caméra y vole, puis revient seule sur la Terre (ou dis « reviens sur la Terre »).';
   }
   b.addEventListener('change',e=>{ const k=e.target.dataset.el; if(k) E.regler(k,e.target.checked); maj(); });
   b.addEventListener('click',e=>{

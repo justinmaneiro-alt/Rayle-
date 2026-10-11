@@ -36,7 +36,7 @@ t('images fixes du mode Éco : ciel en portrait et en paysage + Terre pré-rendu
   assert.ok(ajouts < 4 * 1024 * 1024, 'poids total des ajouts : ' + ajouts);
   assert.ok(!fs.existsSync(new URL('../ui/assets/fond-etoiles.webp', import.meta.url)), 'l’ancienne tuile d’étoiles n’est plus utilisée : supprimée');
 });
-t('aucun fichier lourd ajouté pour la 3D : textures des astres générées par le code', () => {
+t('textures de secours dessinées par le code, et fond-espace.js ne nomme aucune image (les vraies textures passent par ui/espace-astres.js)', () => {
   const tex = lire('ui/espace-textures.js');
   assert.match(tex, /function lune\(/); assert.match(tex, /function planete\(/); assert.match(tex, /function ciel\(/); assert.match(tex, /function anneaux\(/);
   assert.ok(!/\.(?:jpg|png|webp|mp4)['"]/.test(lire('ui/fond-espace.js')), 'fond-espace.js ne charge aucune image');

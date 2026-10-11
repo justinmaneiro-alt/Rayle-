@@ -2,12 +2,15 @@
 /* ═════════════ FOND « ESPACE » : un écosystème spatial centré sur la Terre (three.js, monté par ui/fond-globe.js avec {espace:true}) ═════════════
    Repère du monde : la Terre est à l'origine, y = pôle nord céleste, ascension droite α → (cos δ cos α, sin δ, −cos δ sin α) (comme dir() du Globe).
    Tout est à sa VRAIE direction du jour (ui/astro.js) ; distances et tailles sont composées pour que ce soit beau et crédible :
-     Soleil à 70 (halo, rayons, lens-flare) · planètes à 40 (tailles apparentes agrandies, rotation lente, lueur) · Lune à 3,6 rayons terrestres
-     (taille réelle ×1, vraie phase : elle est éclairée par le vrai Soleil) · ceinture d'astéroïdes à 18–34 dans le plan de l'écliptique · satellites près de la Terre.
+     Soleil à 70 (disque granuleux animé, couronne, éruptions, lens-flare ; jamais aveuglant) · planètes à 40 (tailles apparentes agrandies, photos réelles,
+     pôle de rotation réel, vitesses relatives réelles ×60, lumière du Soleil vue de CETTE planète : vraies phases) · Lune à 3,6 rayons terrestres (taille réelle ×1,
+     vraie phase, libration, lueur cendrée) · ceinture d'astéroïdes à 18–34 dans le plan de l'écliptique · satellites près de la Terre.
+   Shaders et textures : ui/espace-astres.js (fichiers ui/assets/espace/, 1k par défaut, 2k pour l'astre visité au palier 0 sur appareil capable).
    La Terre, elle, tourne au rythme réel (temps sidéral) : le jour et la nuit sont ceux de maintenant.
    Cadrage : la Terre est centrée DERRIÈRE l'entité (placement « centre » de ui/cadrage.js) ; la caméra reste en orbite autour d'elle et change de vue
-   lentement (choix de ui/espace.js : Terre bien éclairée, Lune et planètes dans le champ). « Montre-moi Mars » : vol doux vers l'astre, puis « reviens sur la Terre ».
-   Qualité q : 0 tout · 1 sans lens-flare, moins d'astéroïdes, planètes simples (sans lueur, textures réduites) · 2 Terre, étoiles, Soleil et Lune seulement.
+   lentement (choix de ui/espace.js : Terre bien éclairée, Lune et planètes dans le champ). « Montre-moi Mars » : vol cinématique en arc vers l'astre, dérive douce autour de lui, puis retour seul sur la Terre (ou « reviens sur la Terre »).
+   Qualité q : 0 textures complètes + relief + atmosphères + lens-flare · 1 textures 1k sans relief, sans lens-flare, moins d'astéroïdes ·
+     2 couleurs simples sans aucune texture (planètes et Lune en sphères de couleur, Soleil en noyau lumineux). En Auto, c'est le fond qui baisse le premier (ui/background.js).
    Ambiance (ui/ambiance.js) : nuages de la Terre selon la météo réelle (couverture, vitesse du vent) ; aurores polaires sur la face nuit.
    API (en plus de taille/image/qualite/detruire) : vers(nom) · retour() · etat() */
 (function(){
@@ -17,57 +20,8 @@
   const lisse=(a,b,x)=>{ const t=clamp((x-a)/(b-a),0,1); return t*t*(3-2*t); };
   const DIST_PLANETES=40, DIST_SOLEIL=70, DIST_LUNE=3.6, R_LUNE=.2727, R_SOLEIL=3.6, DIST_CIEL=230;
 
-  // ───── shaders ─────
-  const VS_CORPS=`
-varying vec2 v_uv; varying vec3 v_n; varying vec3 v_w; varying vec3 v_vue; varying vec3 v_loc;
-void main(){
-  v_uv=uv; v_loc=position;
-  vec4 wp=modelMatrix*vec4(position,1.0);
-  v_w=wp.xyz; v_n=normalize(mat3(modelMatrix)*normal); v_vue=normalize(cameraPosition-wp.xyz);
-  gl_Position=projectionMatrix*viewMatrix*wp;
-}`;
-  const FS_CORPS=`
-uniform sampler2D u_map, u_haut; uniform vec3 u_sunPos, u_col, u_atmo; uniform float u_bump, u_hasMap, u_amb, u_atmoK;
-varying vec2 v_uv; varying vec3 v_n; varying vec3 v_w; varying vec3 v_vue; varying vec3 v_loc;
-void main(){
-  vec3 N=normalize(v_n);
-  if(u_bump>0.0){
-    float h=texture2D(u_haut,v_uv).r;
-    vec3 dpx=dFdx(v_w), dpy=dFdy(v_w); float dhx=dFdx(h), dhy=dFdy(h);
-    vec3 r1=cross(dpy,N), r2=cross(N,dpx); float det=dot(dpx,r1);
-    vec3 g=sign(det)*(dhx*r1+dhy*r2);
-    N=normalize(abs(det)*N-u_bump*g);
-  }
-  vec3 L=normalize(u_sunPos-v_w);
-  float d=dot(N,L);
-  float lum=smoothstep(-0.04,0.55,d)*0.82+max(d,0.0)*0.28;
-  vec3 alb=u_hasMap>0.5?texture2D(u_map,v_uv).rgb:u_col;
-  vec3 c=alb*(u_amb+lum*(1.0-u_amb));
-  float f=pow(1.0-max(dot(normalize(v_n),v_vue),0.0),3.0);
-  c+=u_atmo*f*u_atmoK*(0.2+0.8*smoothstep(-0.25,0.5,dot(normalize(v_n),L)));
-  gl_FragColor=vec4(c,1.0);
-}`;
-  const FS_LUEUR=`
-uniform vec3 u_c, u_sunPos; uniform float u_k;
-varying vec3 v_n; varying vec3 v_w; varying vec3 v_vue; varying vec2 v_uv; varying vec3 v_loc;
-void main(){
-  vec3 n=normalize(v_n);
-  float f=pow(max(0.0,0.70+dot(n,v_vue)),4.0);
-  float lit=0.30+0.70*smoothstep(-0.45,0.5,dot(n,normalize(u_sunPos-v_w)));
-  gl_FragColor=vec4(u_c*f*lit*u_k,f*lit*u_k);
-}`;
-  const FS_ANNEAU=`
-uniform sampler2D u_ring; uniform vec3 u_sunPos, u_ctr; uniform float u_R, u_in, u_out;
-varying vec3 v_n; varying vec3 v_w; varying vec3 v_vue; varying vec2 v_uv; varying vec3 v_loc;
-void main(){
-  float t=(length(v_loc.xy)-u_in)/(u_out-u_in);
-  vec4 s=texture2D(u_ring,vec2(clamp(t,0.0,1.0),0.5));
-  vec3 L=normalize(u_sunPos-v_w), P=v_w-u_ctr;
-  float b=dot(P,L), c=dot(P,P)-u_R*u_R, d=b*b-c;
-  float sh=(d>0.0 && -b>0.0)?0.10:1.0;                      // ombre de la planète sur ses anneaux
-  float face=0.5+0.5*abs(dot(normalize(v_n),L));
-  gl_FragColor=vec4(s.rgb*(0.28+0.95*face)*sh,s.a*0.96);
-}`;
+  // ───── shaders ─────  (corps, anneaux, Soleil, Terre : ui/espace-astres.js)
+  const AST=UI.espaceAstres;
   const VS_PTS=`
 attribute float a_size; attribute float a_phase; attribute vec3 a_col;
 uniform float u_t, u_px, u_tw, u_att; varying vec3 v_c; varying float v_a;
@@ -120,7 +74,7 @@ void main(){
   UI.fondsReels.espaceCadrage={fov:35,dist:6.4,rayon:1.09,echelleMax:1.12,placement:'centre'};
 
   UI.espaceMonter=function(X){
-    const {THREE,canvas,rendu,scene,camera,groupe,terre,U,matNuages,couche,matAtmo,arcsMesh,placesPts,UA,UP}=X;
+    const {THREE,canvas,rendu,scene,camera,groupe,terre,U,matNuages,couche,matAtmo,arcsMesh,placesPts,UA,UP}=X, sphereTerre=X.sphere;
     const TEX=UI.espaceTex, ESP=UI.espace, A=UI.astro;
     let q=X.q|0, W=1, H=1;
     const vec=(a,k)=>new THREE.Vector3(a[0]*(k||1),a[1]*(k||1),a[2]*(k||1));
@@ -154,71 +108,150 @@ void main(){
     const texHalo=new THREE.CanvasTexture(TEX.disque(256)), texNoyau=new THREE.CanvasTexture(TEX.noyau(128)), texRayons=new THREE.CanvasTexture(TEX.rayons(256));
     const spr=(tex,taille,couleur,op)=>{ const s=new THREE.Sprite(new THREE.SpriteMaterial({map:tex,color:couleur,transparent:true,opacity:op,blending:THREE.AdditiveBlending,depthWrite:false})); s.scale.setScalar(taille); return s; };
     const soleil=new THREE.Group();
-    const sHalo=spr(texHalo,54,0xffe2b0,.55), sHalo2=spr(texHalo,150,0xffc080,.20), sNoyau=spr(texNoyau,R_SOLEIL*2.6,0xfffbf0,1), sRayons=spr(texRayons,34,0xffeacc,.34);
-    soleil.add(sHalo2,sHalo,sRayons,sNoyau); scene.add(soleil);
+    const sHalo=spr(texHalo,46,0xffe2b0,.20), sHalo2=spr(texHalo,130,0xffc080,.07), sNoyau=spr(texNoyau,R_SOLEIL*2.6,0xfffbf0,1), sRayons=spr(texRayons,26,0xffeacc,.09);
+    // disque granuleux animé + couronne + éruptions (shader ui/espace-astres.js) ; en palier 2, le simple noyau lumineux d'avant
+    const EXT_SOLEIL=3.4;
+    const matSoleil=new THREE.ShaderMaterial({uniforms:{u_t:UT.u_t,u_taille:{value:2*R_SOLEIL*EXT_SOLEIL},u_ext:{value:EXT_SOLEIL},u_det:{value:1},u_k:{value:1}},vertexShader:AST.VS_SOLEIL,fragmentShader:AST.FS_SOLEIL,
+      transparent:true,depthWrite:false,blending:THREE.CustomBlending,blendEquation:THREE.AddEquation,blendSrc:THREE.OneFactor,blendDst:THREE.OneMinusSrcAlphaFactor});
+    const sDisque=new THREE.Mesh(new THREE.PlaneGeometry(1,1),matSoleil); sDisque.frustumCulled=false;
+    sDisque.renderOrder=2; soleil.add(sHalo2,sHalo,sRayons,sNoyau,sDisque); scene.add(soleil);
 
-    /* ───── Lune : cratères, mers, éclairée par le vrai Soleil, face visible toujours tournée vers la Terre ───── */
-    const eclairage=(map,haut)=>new THREE.ShaderMaterial({uniforms:{u_map:{value:map||null},u_haut:{value:haut||null},u_sunPos:SUNPOS,u_col:{value:new THREE.Color(.55,.55,.55)},u_atmo:{value:new THREE.Color(0,0,0)},
-      u_bump:{value:0},u_hasMap:{value:map?1:0},u_amb:{value:.035},u_atmoK:{value:0}},vertexShader:VS_CORPS,fragmentShader:FS_CORPS});
-    const lune=new THREE.Mesh(new THREE.SphereGeometry(R_LUNE,q===0?64:40,q===0?32:20),eclairage(null,null)); lune.material.uniforms.u_col.value.set(.62,.62,.6); scene.add(lune);
+    /* ───── Terre : shader enrichi (relief, reflet sur les océans, ombre des nuages, atmosphère au limbe) ; relief et masque des océans chargés au palier 0 seulement ───── */
+    const CH=AST.chargeur(THREE);
+    const plat=new THREE.DataTexture(new Uint8Array([128,128,255,255]),1,1,THREE.RGBAFormat), noir=new THREE.DataTexture(new Uint8Array([0,0,0,255]),1,1,THREE.RGBAFormat); plat.needsUpdate=noir.needsUpdate=true;
+    const matTerre2=new THREE.ShaderMaterial({uniforms:Object.assign({u_jour:{value:X.jour},u_nuit:{value:X.nuit},u_nuages:{value:X.nuages},u_relief:{value:plat},u_ocean:{value:noir},u_texel:{value:new THREE.Vector2(1/2048,1/1024)},
+      u_det:{value:q===0?1:0},u_relK:{value:.8},u_hasOcean:{value:0},u_dec:matNuages.uniforms.u_dec,u_couv:matNuages.uniforms.u_couv},U),vertexShader:AST.VS_TERRE,fragmentShader:AST.FS_TERRE});
+    sphereTerre.material=matTerre2;
+    matNuages.vertexShader=AST.VS_TERRE; matNuages.fragmentShader=AST.FS_NUAGES; matNuages.needsUpdate=true;     // nuages plus fins
+    matAtmo.vertexShader=AST.VS_TERRE; matAtmo.fragmentShader=AST.FS_ATMO; matAtmo.needsUpdate=true;              // atmosphère : liseré, teinte orangée au crépuscule
+    const terreRes={rel:false,oc:false};
+    function appliquerTerre(){
+      const u=matTerre2.uniforms; u.u_det.value=q===0?1:0;
+      const charge=(cle,nom,res,pose,vide,ok)=>{
+        if(q===0){ if(terreRes[cle]) return; terreRes[cle]=true; CH.tex(nom,res).then(t=>{ if(q!==0){ CH.liberer(nom,res); terreRes[cle]=false; return; } pose(t); },()=>{ terreRes[cle]=false; }); }
+        else if(terreRes[cle]){ vide(); CH.liberer(nom,res); terreRes[cle]=false; }
+      };
+      charge('rel','terre-relief','2k',t=>{ u.u_relief.value=t; },()=>{ u.u_relief.value=plat; });
+      charge('oc','terre-ocean','1k',t=>{ u.u_ocean.value=t; u.u_hasOcean.value=1; },()=>{ u.u_ocean.value=noir; u.u_hasOcean.value=0; });
+    }
+
+    /* ───── corps célestes : matériau commun (ui/espace-astres.js), textures réelles chargées à la demande ───── */
+    const mobile=(()=>{ try{ return !!UI.reglages().mobile; }catch(e){ return false; } })();
+    const capable2k=()=>q===0&&!mobile&&(X.hd||(navigator.deviceMemory||0)>=8)&&rendu.capabilities.maxTextureSize>=4096;   // 2k : palier 0 sur appareil capable, pour l'astre visité seulement
+    const V3=(x,y,z)=>new THREE.Vector3(x,y,z);
+    const corps=o=>new THREE.ShaderMaterial({uniforms:{
+      u_map:{value:null},u_ring:{value:null},u_sunPos:o.sun||SUNPOS,u_gain:{value:o.gain||1},u_col:{value:new THREE.Color(...(o.couleur||[.55,.55,.55]))},u_atmo:{value:new THREE.Color(...(o.atmo||[0,0,0]))},
+      u_shine:{value:new THREE.Color(0,0,0)},u_earthDir:{value:V3(0,0,1)},u_ringN:{value:V3(0,1,0)},u_ringC:{value:V3(0,0,0)},
+      u_texel:{value:new THREE.Vector2(1/1024,1/512)},u_term:{value:new THREE.Vector2(...(o.term||[-.03,.30]))},u_ringR:{value:new THREE.Vector2(0,1)},
+      u_hasMap:{value:0},u_amb:{value:o.amb==null?.04:o.amb},u_atmoK:{value:0},u_bump:{value:0},u_limb:{value:o.limb||0},u_anim:{value:o.anim||0},u_t:UT.u_t,u_flat:{value:o.flat||0},
+      u_ringOn:{value:0},u_rimP:{value:3}},vertexShader:AST.VS_CORPS,fragmentShader:AST.FS_CORPS});
+    const sunLune={value:new THREE.Vector3(0,0,1000)};              // direction réelle du Soleil depuis la Lune (très loin : rayons parallèles)
+    const lune=new THREE.Mesh(new THREE.SphereGeometry(R_LUNE,q===0?96:48,q===0?48:24),corps({couleur:AST.COULEUR_LUNE,term:[-.02,.12],amb:.025,gain:AST.GAIN_LUNE,sun:sunLune})); scene.add(lune);
 
     /* ───── tout le reste, construit par étapes (la Terre s'affiche d'abord) ───── */
     const bati={}; let fini=false;
     const planetes={};                          // nom → {mesh, groupe, lueur, R, ...}
     let ceinture=null, debris=null, rochers=[], satGroupe=null, issGroupe=null, issTrace=null, train=null, geos=null, issPts=null;
     let aurore=null, ciel=null, cielBake=null, cielTex=null;
+    let cible=null;                             // astre visité (null = on regarde la Terre)
     const textures=[];                          // à libérer
     const texCanvas=c=>{ const t=new THREE.CanvasTexture(c); t.anisotropy=2; textures.push(t); return t; };
     const pause=()=>new Promise(r=>{ const id=setTimeout(r,16); minuteries.push(id); });
-    const PL={
-      mercure:{ang:1.2,atmo:null,tilt:2,spin:.03,cadre:7.6},
-      venus:  {ang:2.0,atmo:[1,.82,.5],k:.9,tilt:177,spin:-.01,cadre:7.6},
-      mars:   {ang:1.8,atmo:[1,.55,.35],k:.55,tilt:25,spin:.2,cadre:7.6},
-      jupiter:{ang:3.6,atmo:[.95,.82,.6],k:.5,tilt:3,spin:.5,cadre:16},
-      saturne:{ang:3.0,atmo:[.95,.85,.6],k:.45,tilt:27,spin:.45,cadre:12.5,anneaux:true},
-      uranus: {ang:1.6,atmo:[.5,.9,1],k:.9,tilt:98,spin:.28,cadre:7.6},
-      neptune:{ang:1.6,atmo:[.3,.5,1],k:.9,tilt:28,spin:.3,cadre:7.6}
+    const PL=AST.PLANETES;
+    // lunes principales : [nom, distance (en rayons de la planète, resserrée pour rester dans l'image), rayon (× planète), couleur réelle, période (jours), phase initiale (°)]
+    const LUNES={
+      jupiter:[['Io',5.9,.06,[.96,.84,.45],1.769138,106.07],['Europe',9.4,.052,[.92,.88,.78],3.551181,175.73],['Ganymède',15,.085,[.60,.55,.48],7.154553,120.56],['Callisto',26.4,.078,[.32,.29,.27],16.689018,84.44]],
+      saturne:[['Titan',7.4,.05,[.88,.62,.28],15.945421,60]]
     };
-    const LUNES_JUPITER=[['Io',5.9,.06,[.96,.86,.5],1.769138,106.07],['Europe',9.4,.052,[.92,.9,.82],3.551181,175.73],['Ganymède',15,.085,[.62,.58,.52],7.154553,120.56],['Callisto',26.4,.078,[.34,.31,.29],16.689018,84.44]];
+
+    /* textures des corps : 1k par défaut, 2k pour l'astre visité (palier 0 capable), rien au palier 2 ; en cas d'échec (hors ligne), textures dessinées par le code */
+    const corpsListe=[];
+    const resCible=c=>(capable2k()&&c.nom===cible)?'2k':'1k';
+    function majBump(c){
+      const u=c.mat.uniforms, w=u.u_map.value&&u.u_map.value.image?u.u_map.value.image.width:1024;
+      u.u_bump.value=(q===0&&c.bumpK&&u.u_hasMap.value>.5)?c.bumpK*w/2048:0;
+    }
+    function poserTexture(c,t,res){
+      const u=c.mat.uniforms, w=t.image&&t.image.width||1024, h=t.image&&t.image.height||512;
+      u.u_map.value=t; u.u_hasMap.value=1; u.u_texel.value.set(1/w,1/h);
+      if(c.res&&c.res!==res&&c.res!=='secours') CH.liberer(c.nom,c.res);
+      c.res=res; majBump(c);
+    }
+    async function texturer(c,res){
+      if(q>=2||c.demande===res||c.res===res) return;
+      c.demande=res;
+      let t=null; try{ t=await CH.tex(c.nom,res); }catch(e){ t=null; }
+      if(c.demande!==res||q>=2){ if(t&&c.res!==res) CH.liberer(c.nom,res); return; }
+      if(t){ poserTexture(c,t,res); return; }
+      if(!c.res){                                                   // hors ligne : la texture dessinée par le code (plus grossière) prend le relais
+        const cv=c.nom==='lune'?TEX.lune(q===0?768:384).albedo:TEX.planete(c.nom,q===0?512:256);
+        if(cv){ poserTexture(c,texCanvas(cv),'secours'); }
+      }
+    }
+    function videCorps(c){
+      const u=c.mat.uniforms; if(c.res&&c.res!=='secours') CH.liberer(c.nom,c.res);
+      u.u_map.value=null; u.u_hasMap.value=0; u.u_bump.value=0; c.res=null; c.demande=null;
+    }
+    function appliquerCorps(){                                      // selon le palier : q0 complet · q1 1k sans relief · q2 couleurs simples
+      for(const c of corpsListe){
+        if(q>=2){ videCorps(c); continue; }
+        if(c.nom==='lune'&&!lune.visible&&!bati.lune) continue;
+        texturer(c,resCible(c)); majBump(c);
+      }
+    }
+    const nouveauCorps=(nom,mesh,bumpK)=>{ const c={nom,mesh,mat:mesh.material,bumpK:bumpK||0,res:null,demande:null}; corpsListe.push(c); return c; };
+    nouveauCorps('lune',lune,2.2);
 
     async function etapeLune(){
       if(bati.lune) return; bati.lune=true;
-      const t=TEX.lune(q===0?768:384), map=texCanvas(t.albedo), haut=texCanvas(t.hauteur);
-      lune.material.uniforms.u_map.value=map; lune.material.uniforms.u_haut.value=haut; lune.material.uniforms.u_hasMap.value=1; lune.material.uniforms.u_bump.value=.016;
+      appliquerCorps();
     }
     async function etapePlanetes(){
       if(bati.planetes) return; bati.planetes=true;
-      const w=q===0?512:256, seg=q===0?[56,28]:[28,14];
+      const seg=q===0?[64,32]:[32,16], bandeau=AST.RING;
       for(const nom of Object.keys(PL)){
         const d=PL[nom], R=DIST_PLANETES*Math.tan(d.ang*RAD/2);
-        const g=new THREE.Group(), incl=new THREE.Group();                   // g : position ; incl : inclinaison de l'axe
-        const m=new THREE.Mesh(new THREE.SphereGeometry(R,seg[0],seg[1]),eclairage(texCanvas(TEX.planete(nom,w)),null));
-        m.material.uniforms.u_amb.value=.05; m.material.uniforms.u_atmoK.value=d.atmo?(d.k||.5)*.8:0; if(d.atmo) m.material.uniforms.u_atmo.value.setRGB(...d.atmo);
-        incl.rotation.z=d.tilt*RAD; incl.add(m); g.add(incl);
+        const g=new THREE.Group(), incl=new THREE.Group();                   // g : position ; incl : axe de rotation réel (pôle IAU)
+        const sun={value:new THREE.Vector3(0,0,1000)};                  // Soleil vu de CETTE planète (direction héliocentrique réelle : phases justes, Jupiter presque pleine)
+        const m=new THREE.Mesh(new THREE.SphereGeometry(R,seg[0],seg[1]),corps({couleur:d.couleur,atmo:d.atmo,term:d.term,flat:d.flat,limb:d.limb,anim:d.anim,gain:d.gain,amb:.05,sun}));
+        const p0=vec(A.direction(d.pole[0],d.pole[1])).normalize();
+        incl.quaternion.setFromUnitVectors(V3(0,1,0),p0); incl.add(m); g.add(incl);
+        const c=nouveauCorps(nom,m,d.bump);
         let lueur=null;
-        if(d.atmo){ lueur=new THREE.Mesh(new THREE.SphereGeometry(R*1.1,32,16),mat(VS_CORPS,FS_LUEUR,{u_c:{value:new THREE.Color(...d.atmo)},u_sunPos:SUNPOS,u_k:{value:(d.k||.5)*1.3}},{side:THREE.BackSide})); g.add(lueur); }
-        const o={nom,g,m,incl,lueur,R,d};
+        if(d.atmo){ lueur=new THREE.Mesh(new THREE.SphereGeometry(R*1.1,32,16),mat(AST.VS_CORPS,AST.FS_LUEUR,{u_c:{value:new THREE.Color(...d.atmo)},u_sunPos:sun,u_k:{value:(d.k||.5)*1.3}},{side:THREE.BackSide})); g.add(lueur); }
+        const o={nom,g,m,incl,lueur,R,d,c,sun,spinRad:d.spin*RAD*AST.TEMPS_ACCELERE/86400};
         if(d.anneaux){
           const rd=TEX.anneaux(512), tx=new THREE.DataTexture(rd,512,1,THREE.RGBAFormat); tx.needsUpdate=true; tx.minFilter=tx.magFilter=THREE.LinearFilter; tx.generateMipmaps=false; textures.push(tx);
-          const ring=new THREE.Mesh(new THREE.RingGeometry(R*1.35,R*2.45,q===0?128:64,1),new THREE.ShaderMaterial({uniforms:{u_ring:{value:tx},u_sunPos:SUNPOS,u_ctr:{value:new THREE.Vector3()},u_R:{value:R},u_in:{value:R*1.35},u_out:{value:R*2.45}},
-            vertexShader:VS_CORPS,fragmentShader:FS_ANNEAU,transparent:true,side:THREE.DoubleSide,depthWrite:false}));
+          const ring=new THREE.Mesh(new THREE.RingGeometry(R*bandeau.in,R*bandeau.out,q===0?160:80,1),new THREE.ShaderMaterial({uniforms:{u_ring:{value:tx},u_sunPos:sun,u_ctr:{value:new THREE.Vector3()},u_R:{value:R},u_in:{value:R*bandeau.in},u_out:{value:R*bandeau.out},u_flat:{value:0}},
+            vertexShader:AST.VS_CORPS,fragmentShader:AST.FS_ANNEAU,transparent:true,side:THREE.DoubleSide,depthWrite:false}));
           ring.rotation.x=-Math.PI/2; o.ring=ring; o.ringGroup=new THREE.Group(); o.ringGroup.add(ring); g.add(o.ringGroup);
+          m.material.uniforms.u_ring.value=tx; m.material.uniforms.u_ringR.value.set(R*bandeau.in,R*bandeau.out);
+          o.axe=p0.clone();
+          CH.tex('saturne-anneaux','',{lineaire:true}).then(t=>{ if(q>=2){ CH.liberer('saturne-anneaux',''); return; } ring.material.uniforms.u_ring.value=t; m.material.uniforms.u_ring.value=t; },()=>{});
         }
-        if(nom==='jupiter'){
-          o.lunes=LUNES_JUPITER.map(([n,r,rr,c,P,L0])=>{ const mm=new THREE.Mesh(new THREE.SphereGeometry(R*rr,16,8),eclairage(null,null)); mm.material.uniforms.u_col.value.setRGB(...c); mm.material.uniforms.u_amb.value=.06; g.add(mm); return {m:mm,r:r*R,P,L0}; });
+        if(LUNES[nom]){
+          o.lunes=LUNES[nom].map(([n,r,rr,col,P,L0])=>{
+            const mm=new THREE.Mesh(new THREE.SphereGeometry(R*rr,q===0?24:14,q===0?12:8),corps({couleur:col,amb:.06,sun}));
+            if(q<2){ const w=q===0?256:128; mm.material.uniforms.u_map.value=texCanvas(TEX.satellite(n,w)); mm.material.uniforms.u_hasMap.value=1; mm.material.uniforms.u_texel.value.set(1/w,2/w); }
+            g.add(mm); return {nom:n,m:mm,r:r*R,P,L0,col};
+          });
         }
         { const p=A.planete(nom,Date.now()), d0=vec(A.direction(p.ra,p.dec),DIST_PLANETES); g.position.copy(d0); o.dir=d0.clone().normalize(); o.dist=p.dist; }
         g.visible=false;                                              // invisible tant que tout n'est pas en place (jamais une planète au centre de la Terre)
         planetes[nom]=o; scene.add(g);
         await pause();
       }
-      majAstres(true); appliquerElements();
+      majAstres(true); appliquerElements(); appliquerCorps();
     }
     // roche : géométrie déformée par un bruit (quelques gros rochers qui roulent doucement)
     function geoRoche(seed){
       const g=new THREE.IcosahedronGeometry(1,q===0?3:2), p=g.attributes.position, R=TEX.rng(seed), N=TEX.bruit(seed), a=[R()*9,R()*9,R()*9];
       for(let i=0;i<p.count;i++){ const x=p.getX(i),y=p.getY(i),z=p.getZ(i), n=1+.34*(N((x+1)*.5+a[0],(y+1)*.5+a[1],4,4,3)-.5)+.22*Math.sin(x*3.1+a[2])*Math.cos(y*2.7+a[0])*.5; p.setXYZ(i,x*n*(.8+.45*Math.abs(Math.sin(a[1]))),y*n,z*n*(.85+.3*Math.abs(Math.cos(a[2])))); }
-      g.computeVertexNormals(); return g;
+      g.computeVertexNormals();
+      { const n=g.attributes.normal, acc=new Map(), key=i=>Math.round(p.getX(i)*1e3)+','+Math.round(p.getY(i)*1e3)+','+Math.round(p.getZ(i)*1e3);   // la géométrie n'est pas indexée : on moyenne les normales des sommets confondus
+        for(let i=0;i<p.count;i++){ const k=key(i), a=acc.get(k)||[0,0,0]; a[0]+=n.getX(i); a[1]+=n.getY(i); a[2]+=n.getZ(i); acc.set(k,a); }
+        for(let i=0;i<p.count;i++){ const a=acc.get(key(i)), l=Math.hypot(a[0],a[1],a[2])||1; n.setXYZ(i,a[0]/l,a[1]/l,a[2]/l); } }
+      return g;
     }
     function planEcliptique(R,rMin,rMax,epais){                      // point au hasard dans l'anneau de l'écliptique
       const a=R()*6.2832, r=rMin+(rMax-rMin)*Math.pow(R(),.8), h=(R()+R()+R()-1.5)*epais;
@@ -235,10 +268,10 @@ void main(){
       debris=new THREE.Points(nuagePoints(nd,0,R=>{ const v=sphere(R,2.6+R()*3.2); return [v[0],v[1]*.6,v[2]]; },R=>.8+1.6*Math.pow(R(),3),R=>{ const k=.45+.45*R(); return [k,k*.92,k*.8]; },32),
         mat(VS_PTS,FS_PTS,{u_t:UT.u_t,u_px:{value:1.5},u_tw:{value:.7},u_att:{value:7}})); debris.frustumCulled=false;
       ceintureG.add(debris);
-      const rc=TEX.roche(q===0?256:128), mapR=texCanvas(rc.albedo), hauR=texCanvas(rc.hauteur), nr=q===0?9:4, R=TEX.rng(33);
+      const rc=TEX.roche(q===0?256:128), mapR=texCanvas(rc.albedo), nr=q===0?9:4, R=TEX.rng(33);
       for(let i=0;i<nr;i++){
-        const p=planEcliptique(R,19,33,1.2), m=new THREE.Mesh(geoRoche(100+i),eclairage(mapR,hauR));
-        m.material.uniforms.u_bump.value=.5; m.material.uniforms.u_amb.value=.04;
+        const p=planEcliptique(R,19,33,1.2), m=new THREE.Mesh(geoRoche(100+i),corps({couleur:[.4,.37,.33],amb:.04,term:[-.03,.2],gain:1.15}));
+        m.material.uniforms.u_map.value=mapR; m.material.uniforms.u_hasMap.value=1; m.material.uniforms.u_texel.value.set(1/mapR.image.width,1/mapR.image.height); m.material.uniforms.u_bump.value=q===0?2.6:0;
         const e=.35+.7*R(); m.scale.setScalar(e); m.position.set(p[0],p[1],p[2]); m.userData={e,w:new THREE.Vector3(R()-.5,R()-.5,R()-.5).multiplyScalar(.5)};
         ceintureG.add(m); rochers.push(m);
       }
@@ -338,7 +371,7 @@ void main(){
     (function(){
       const tex={disque:texHalo,anneau:new THREE.CanvasTexture(TEX.anneauFlare(256)),hex:new THREE.CanvasTexture(TEX.hexagone(128)),streak:new THREE.CanvasTexture(TEX.streak(256,16)),noyau:texNoyau};
       textures.push(tex.anneau,tex.hex,tex.streak);
-      const def=[['streak',0,1.0,[.78,.86,1],.30,.9],['disque',0,.75,[1,.88,.7],.28,0],['hex',.32,.07,[.7,.9,1],.45,0],['anneau',.62,.13,[1,.8,.6],.40,0],['hex',1.0,.05,[1,.85,.7],.45,0],['disque',1.45,.16,[.6,.8,1],.25,0],['anneau',1.9,.25,[.8,.9,1],.20,0]];
+      const def=[['streak',0,1.0,[.78,.86,1],.10,.9],['disque',0,.75,[1,.88,.7],.28,0],['hex',.32,.07,[.7,.9,1],.45,0],['anneau',.62,.13,[1,.8,.6],.40,0],['hex',1.0,.05,[1,.85,.7],.45,0],['disque',1.45,.16,[.6,.8,1],.25,0],['anneau',1.9,.25,[.8,.9,1],.20,0]];
       for(const [t,g,s,c,o,aniso] of def){ const sp=new THREE.Sprite(new THREE.SpriteMaterial({map:tex[t],color:new THREE.Color(...c),transparent:true,opacity:0,blending:THREE.AdditiveBlending,depthTest:false,depthWrite:false})); flare.groupe.add(sp); flare.items.push({sp,g,s,o,aniso}); }
       scene2.add(flare.groupe);
     })();
@@ -368,29 +401,37 @@ void main(){
       const s=A.soleilEq(now), m=A.luneEq(now);
       sunDir.set(...A.direction(s.ra,s.dec)); moonDir.set(...A.direction(m.ra,m.dec));
       U.u_soleil.value.copy(sunDir); SUNPOS.value.copy(sunDir).multiplyScalar(DIST_SOLEIL); soleil.position.copy(SUNPOS.value);
-      lune.position.copy(moonDir).multiplyScalar(DIST_LUNE);
+      lune.position.copy(moonDir).multiplyScalar(DIST_LUNE); sunLune.value.copy(lune.position).addScaledVector(sunDir,1000);
       const X=moonDir.clone().negate(), Y=POLE_ECL.clone().sub(X.clone().multiplyScalar(POLE_ECL.dot(X))).normalize(), Z=new THREE.Vector3().crossVectors(X,Y);
       lune.quaternion.setFromRotationMatrix(new THREE.Matrix4().makeBasis(X,Y,Z));
+      const jj=(now-946728000000)/864e5;                             // libération : la Lune se balance un peu (≈ 8° en longitude, 6,7° en latitude), on voit un peu plus que la moitié
+      lune.quaternion.multiply(new THREE.Quaternion().setFromEuler(new THREE.Euler(0,7.9*RAD*Math.sin(2*Math.PI*jj/27.5546+.8),6.7*RAD*Math.sin(2*Math.PI*jj/27.2122+2.1),'XYZ')));
+      { const u=lune.material.uniforms, ecl=A.lune(now).eclairee; u.u_earthDir.value.copy(moonDir).negate(); u.u_shine.value.setRGB(.085,.12,.2).multiplyScalar(.2+.8*(1-ecl)); }   // la Terre éclaire la face nuit : fort à la nouvelle Lune
       for(const nom in planetes){
         const o=planetes[nom], p=A.planete(nom,now), d=vec(A.direction(p.ra,p.dec),DIST_PLANETES); o.g.position.copy(d); o.dir=d.clone().normalize(); o.dist=p.dist;
+        { const Lr=sunDir.clone().multiplyScalar(s.dist).addScaledVector(o.dir,-p.dist).normalize(); o.sun.value.copy(d).addScaledVector(Lr,1000); }   // Soleil − planète, en unités astronomiques
         if(o.ringGroup){                                             // anneaux : plan réel de Saturne (pôle ≈ α 40,6° δ 83,5°), ouverture un peu accentuée
           const n=vec(A.direction(40.59,83.54)).normalize(), v=o.dir, nv=n.dot(v);
           if(Math.abs(nv)<.27){ n.addScaledVector(v,(nv<0?-1:1)*(.27-Math.abs(nv))*1.3).normalize(); }
           o.ringGroup.quaternion.setFromUnitVectors(new THREE.Vector3(0,1,0),n); o.incl.quaternion.setFromUnitVectors(new THREE.Vector3(0,1,0),n);
-          o.ring.material.uniforms.u_ctr.value.copy(d);
+          o.ring.material.uniforms.u_ctr.value.copy(d); o.axe=n;
+          const um=o.m.material.uniforms; um.u_ringN.value.copy(n); um.u_ringC.value.copy(d);
         }
       }
     }
-    function majLunesJupiter(){
-      const o=planetes.jupiter; if(!o||!o.lunes) return; const j=(Date.now()-946728000000)/864e5, n=POLE_ECL.clone().normalize();
-      const u=new THREE.Vector3(1,0,0).sub(n.clone().multiplyScalar(n.x)).normalize(), v=new THREE.Vector3().crossVectors(n,u);
-      for(const l of o.lunes){ const a=(l.L0+360/l.P*j)*RAD; l.m.position.copy(u).multiplyScalar(Math.cos(a)*l.r).addScaledVector(v,Math.sin(a)*l.r); }
+    function majLunes(){                                              // lunes de Jupiter (plan de l'écliptique ≈ équateur de Jupiter) et Titan (plan des anneaux), vraies périodes
+      const j=(Date.now()-946728000000)/864e5;
+      for(const nom in planetes){
+        const o=planetes[nom]; if(!o.lunes) continue; const n=(o.axe||POLE_ECL).clone().normalize();
+        const u=new THREE.Vector3(1,0,0).sub(n.clone().multiplyScalar(n.x)).normalize(), v=new THREE.Vector3().crossVectors(n,u);
+        for(const l of o.lunes){ const a=(l.L0+360/l.P*j)*RAD; l.m.position.copy(u).multiplyScalar(Math.cos(a)*l.r).addScaledVector(v,Math.sin(a)*l.r); }
+      }
     }
 
     /* ───── caméra : orbite lente, changement de vue, vol vers un astre ───── */
     const cad={dist:6.4,ox:0,oy:0,tdist:6.4,tox:0,toy:0,vx:0,vy:0};          // ox/oy : où la Terre se place (derrière l'entité) ; vx/vy : où se place l'astre visité (zone dégagée)
     const base={yaw:200,pitch:14,tyaw:200,tpitch:14};
-    let tOrbite=0, offMix=1, vol=null, cible=null, prochainChangement=150, posCam=new THREE.Vector3(0,0,6.4), regard=new THREE.Vector3(), initialise=false;
+    let figee=false, figDist=0, solo=false, tOrbite=0, offMix=1, vol=null, arrivee=0, retexture=false, prochainChangement=150, posCam=new THREE.Vector3(0,0,6.4), regard=new THREE.Vector3(), initialise=false;
     const vueVec=(yaw,pitch)=>new THREE.Vector3(...ESP.vueVecteur(yaw,pitch));
     function contexteVue(){
       const el=elements(), pl=[];
@@ -401,9 +442,10 @@ void main(){
       const v=ESP.choisirVue(contexteVue(),initial?{}:{loinDe:base.tyaw,ecartMin:50});
       if(v){ base.tyaw=v.yaw; base.tpitch=v.pitch; if(initial){ base.yaw=v.yaw; base.pitch=v.pitch; } }
     }
-    const ease=t=>t*t*(3-2*t);
+    const ease=t=>t*t*(3-2*t), douce=t=>t*t*t*(t*(t*6-15)+10);          // douce : départ et arrivée très progressifs (vol cinématique)
+    let DUREE_VISITE=24;                                                     // secondes passées près d'un astre avant de revenir seul sur la Terre
     function poseOrbite(){
-      const t=tOrbite, yaw=base.yaw+26*Math.sin(t*.0299)+8*Math.sin(t*.071+1.3), pitch=base.pitch+5*Math.sin(t*.043+.6);
+      const t=tOrbite, yaw=figee?base.yaw:base.yaw+26*Math.sin(t*.0299)+8*Math.sin(t*.071+1.3), pitch=figee?base.pitch:base.pitch+5*Math.sin(t*.043+.6);
       const c=vueVec(yaw,pitch);
       return {pos:c.multiplyScalar(cad.dist),look:new THREE.Vector3(0,0,0)};
     }
@@ -414,12 +456,16 @@ void main(){
       if(nom==='iss'){ const e=ESP.iss.position(Date.now()), d=vec(A.direction(e.ra,e.dec)), P=d.clone().multiplyScalar(e.r), e2=ESP.iss.position(Date.now()+30000), P2=vec(A.direction(e2.ra,e2.dec)).multiplyScalar(e2.r), av=P2.clone().sub(P).normalize();
         return {pos:P.clone().addScaledVector(d,.17).addScaledVector(av,-.2).addScaledVector(new THREE.Vector3().crossVectors(d,av),.2),look:P}; }
       const o=planetes[nom]; if(!o||!o.dir) return poseOrbite();
-      const P=o.g.position, dF=o.R*o.d.cadre, perp=new THREE.Vector3().crossVectors(o.dir,up).normalize();
-      return {pos:P.clone().addScaledVector(o.dir,-dF).addScaledVector(perp,dF*.32).addScaledVector(up,dF*.14),look:P.clone()};
+      const tanH=Math.tan(camera.fov*RAD/2)*camera.aspect, ext=o.R*(o.d.anneaux?2.5:1.12);
+      const P=o.g.position, dF=Math.max(o.R*o.d.cadre,ext/(.6*tanH)), perp=new THREE.Vector3().crossVectors(o.dir,up).normalize();   // écran étroit (téléphone vertical) : on recule pour que l'astre (et les anneaux) restent entiers
+      const dec=new THREE.Vector3().addScaledVector(o.dir,-dF).addScaledVector(perp,dF*.32).addScaledVector(up,dF*.14);
+      dec.applyAxisAngle(up,.42*Math.sin(arrivee*.16));                          // une fois arrivé, la caméra dérive doucement autour de l'astre (on voit son relief et sa rotation)
+      return {pos:P.clone().add(dec),look:P.clone()};
     }
     function demarrerVol(nomCible){
-      cible=nomCible; vol={t:0,from:camera.position.clone(),fromLook:regard.clone(),dur:3.4};
-      const dest=(nomCible?poseCible(nomCible):poseOrbite()).pos; vol.dur=clamp(2.6+dest.distanceTo(camera.position)/30,2.6,5.2);
+      cible=nomCible; arrivee=0; vol={t:0,from:camera.position.clone(),fromLook:regard.clone(),dur:3.4,sens:Math.random()<.5?-1:1};
+      const dest=(nomCible?poseCible(nomCible):poseOrbite()).pos; vol.dur=clamp(3.6+dest.distanceTo(camera.position)/14,3.6,7.5);
+      if(nomCible) appliquerCorps(); else retexture=true;                      // astre visité : texture 2k (palier 0 capable) ; au retour, on repasse en 1k une fois parti
     }
     function vers(nom){
       if(!nom||nom==='terre') return retour();
@@ -440,8 +486,18 @@ void main(){
       let dy=((base.tyaw-base.yaw+540)%360)-180; base.yaw=(base.yaw+dy*(1-Math.exp(-dt*.25))+360)%360; base.pitch+=(base.tpitch-base.pitch)*(1-Math.exp(-dt*.25));
       prochainChangement-=dt; if(prochainChangement<=0&&!cible&&!vol){ prochainChangement=150; choisirBase(false); }
       const cib=cible?poseCible(cible):poseOrbite();
-      if(vol){ vol.t+=dt; const e=ease(clamp(vol.t/vol.dur,0,1)); posCam.lerpVectors(vol.from,cib.pos,e); regard.lerpVectors(vol.fromLook,cib.look,e); if(vol.t>=vol.dur) vol=null; }
-      else{ posCam.copy(cib.pos); regard.copy(cib.look); }
+      if(vol){
+        vol.t+=dt; const f=clamp(vol.t/vol.dur,0,1), e=douce(f);
+        posCam.lerpVectors(vol.from,cib.pos,e);
+        const seg=cib.pos.clone().sub(vol.from), lat=new THREE.Vector3().crossVectors(seg,camera.up).normalize();
+        posCam.addScaledVector(lat,Math.sin(Math.PI*e)*seg.length()*.14*vol.sens);   // trajectoire en arc, pas en ligne droite
+        regard.lerpVectors(vol.fromLook,cib.look,douce(Math.min(1,f*1.18)));          // le regard devance un peu le déplacement
+        if(vol.t>=vol.dur){ vol=null; if(retexture&&!cible){ retexture=false; appliquerCorps(); } }
+      }
+      else{
+        posCam.copy(cib.pos); regard.copy(cib.look);
+        if(cible){ arrivee+=dt; if(arrivee>DUREE_VISITE) retour(); }                  // après un moment près de l'astre, retour doux sur la Terre
+      }
       camera.position.copy(posCam); camera.up.set(0,1,0); camera.lookAt(regard);
       // décalage de l'image : Terre centrée sur l'entité, sauf pendant qu'on regarde autre chose
       const visee=cible?0:1; offMix+=(visee-offMix)*(1-Math.exp(-dt*(cible?3.2:1.8)));
@@ -452,6 +508,7 @@ void main(){
 
     /* ───── dimensions, qualité, éléments ───── */
     function recadrer(){
+      if(figDist) return;                                            // image fixe en préparation : cadrage imposé
       try{
         const c=UI.cadrage.cadrer({cam:{fov:camera.fov,dist:ESP.DIST_CAM},rayonBase:1.09,echelleMax:1.12,canvasW:W,canvasH:H,parallaxe:16,placement:'centre'});
         cad.tdist=ESP.DIST_CAM/Math.max(.2,c.scale); const b=c.boite;
@@ -474,8 +531,8 @@ void main(){
     function assurer(){                                              // construit ce qui manque (une fois), selon le palier et les éléments activés
       const el=elements(); let p=Promise.resolve();
       const etape=(cond,nom,f)=>{ if(cond&&!bati[nom]) p=p.then(()=>f()).then(pause); };
-      etape(q<2&&el.lune,'lune',etapeLune);
-      etape(q<2&&el.planetes,'planetes',etapePlanetes);
+      etape(el.lune,'lune',etapeLune);
+      etape(el.planetes,'planetes',etapePlanetes);                    // au palier 2 : sphères aux couleurs simples (sans texture)
       etape(q<2&&el.asteroides,'asteroides',etapeAsteroides);
       etape(q<2&&el.satellites,'satellites',etapeSatellites);
       etape(q<2&&el.aurores,'aurores',etapeAurores);
@@ -485,7 +542,9 @@ void main(){
     function appliquerElements(){
       const el=elements(), plein=q<2;
       lune.visible=!!el.lune;
-      for(const n in planetes){ const o=planetes[n]; o.g.visible=plein&&!!el.planetes; if(o.lueur) o.lueur.visible=q===0; o.m.material.uniforms.u_atmoK.value=(q===0&&o.d.atmo)?(o.d.k||.5)*.8:0; }   // planètes simples en q1 : sans lueur
+      for(const n in planetes){ const o=planetes[n]; o.g.visible=!!el.planetes; if(o.lueur) o.lueur.visible=q===0; o.m.material.uniforms.u_atmoK.value=(q<2&&o.d.atmo)?(o.d.k||.5)*.8:0;   // q1 : sans lueur autour ; q2 : couleurs simples, sans atmosphère
+        if(o.ring){ o.ring.material.uniforms.u_flat.value=q>=2?1:0; o.m.material.uniforms.u_ringOn.value=q<2?1:0; }
+        if(o.lunes) for(const l of o.lunes){ const u=l.m.material.uniforms; if(q>=2){ u.u_hasMap.value=0; } else if(u.u_map.value) u.u_hasMap.value=1; } }
       if(bati.ceintureG) bati.ceintureG.visible=plein&&!!el.asteroides;
       if(satGroupe) satGroupe.visible=plein&&!!el.satellites; if(geos) geos.visible=plein&&!!el.satellites;
       if(aurore) aurore.visible=plein&&!!el.aurores;
@@ -499,7 +558,7 @@ void main(){
     function image(now,dt){
       const c=UI.couleurs?UI.couleurs():[[255,255,255],[200,200,255],[230,230,255],[150,150,255]];
       UT.u_t.value+=dt; tPlus+=dt;
-      majAstres(false); majLunesJupiter();
+      majAstres(false); majLunes();
       const gm=A.gmst(Date.now()); terre.rotation.y=gm*RAD;
       let L=null; try{ L=UI.ambiance&&UI.ambiance.lisse(); }catch(e){}
       const nuages=L?L.nuages:.35, vent=L?L.vent:.1, jourAmb=L?L.jour:1;
@@ -512,9 +571,9 @@ void main(){
       if(now-derniereMarches>2000){ derniereMarches=now; try{ X.marches(); }catch(e){} }
       // soleil : rotation lente des rayons, éclat légèrement vivant
       sRayons.material.rotation=tPlus*.015; sHalo.material.opacity=.5+.05*Math.sin(tPlus*.7);
-      sRayons.visible=sHalo2.visible=q<2; sNoyau.scale.setScalar(R_SOLEIL*(q<2?2.6:2.2));
+      sRayons.visible=sHalo2.visible=q<2; sDisque.visible=q<2; sNoyau.visible=q>=2; sNoyau.scale.setScalar(R_SOLEIL*2.2); matSoleil.uniforms.u_det.value=q===0?1:0;
       // planètes
-      if(q<2) for(const n in planetes){ const o=planetes[n]; o.m.rotation.y+=dt*o.d.spin*.08; }
+      if(q<2) for(const n in planetes){ const o=planetes[n]; o.m.rotation.y+=dt*o.spinRad; }   // vraies vitesses relatives (Jupiter ≈ 10 h, Mars 24,6 h, Vénus rétrograde…), jouées ×60
       if(ceinture&&bati.ceintureG.visible){
         bati.ceintureG.rotation.y+=dt*.0035;
         for(const r of rochers){ r.rotation.x+=dt*r.userData.w.x; r.rotation.y+=dt*r.userData.w.y; r.rotation.z+=dt*r.userData.w.z;
@@ -549,6 +608,7 @@ void main(){
       }
       majComete(dt,aste); majFilantes(dt,aste);
       majCamera(dt);
+      if(solo) for(const c of scene.children) if(c!==camera&&c!==groupe) c.visible=false;      // outil des images fixes : la Terre seule
       // rendu
       rendu.clear();
       rendu.render(scene,camera);
@@ -568,24 +628,24 @@ void main(){
       cam2.left=-W/2; cam2.right=W/2; cam2.top=H/2; cam2.bottom=-H/2; cam2.updateProjectionMatrix();
       appliquerQualite(); recadrer();
     }
-    function qualite(n){ q=Math.max(0,Math.min(2,n|0)); appliquerQualite(); appliquerElements(); assurer(); }
+    function qualite(n){ q=Math.max(0,Math.min(2,n|0)); appliquerQualite(); appliquerElements(); appliquerCorps(); appliquerTerre(); assurer(); }
     function detruire(){
       abonnements.forEach(f=>{ try{ f(); }catch(e){} }); minuteries.forEach(id=>{ clearTimeout(id); clearInterval(id); });
       scene.traverse(x=>{ if(x.geometry) x.geometry.dispose(); if(x.material){ (Array.isArray(x.material)?x.material:[x.material]).forEach(m=>m.dispose&&m.dispose()); } });
       scene2.traverse(x=>{ if(x.material) x.material.dispose(); });
       [texHalo,texNoyau,texRayons].concat(textures).forEach(t=>{ try{ t.dispose(); }catch(e){} });
-      [X.jour,X.nuit,X.nuages].forEach(t=>{ try{ t&&t.dispose(); }catch(e){} });
+      [X.jour,X.nuit,X.nuages,plat,noir].forEach(t=>{ try{ t&&t.dispose(); }catch(e){} }); try{ CH.toutLiberer(); }catch(e){}
       rendu.autoClear=true; rendu.dispose(); try{ rendu.forceContextLoss(); }catch(e){}
     }
     const etat=()=>({cible,vol:!!vol,yaw:base.yaw,pitch:base.pitch,dist:cad.dist,q,planetes:Object.keys(planetes).length,asteroides:!!ceinture,satellites:!!satGroupe,aurores:!!aurore,ciel:!!(ciel&&ciel.visible),
       cadre:{ox:cad.ox,oy:cad.oy},lune:moonDir.toArray(),soleil:sunDir.toArray(),camera:camera.position.toArray(),
-      comete:!!(comete&&comete.actif),filantes:filantes.filter(f=>f.actif).length});
+      comete:!!(comete&&comete.actif),filantes:filantes.filter(f=>f.actif).length,arrivee,textures:corpsListe.map(c=>c.nom+':'+(c.res||'-')).join(' '),terreRelief:terreRes.rel,terreOcean:terreRes.oc});
 
     // démarrage : positions du jour, vue de départ, puis le reste par étapes
-    majAstres(true); recadrer(); choisirBase(true); initialise=true; appliquerQualite(); appliquerElements();
+    majAstres(true); recadrer(); choisirBase(true); initialise=true; appliquerQualite(); appliquerElements(); appliquerTerre();
     camera.position.copy(poseOrbite().pos); regard.set(0,0,0); posCam.copy(camera.position);
     minuteries.push(setTimeout(()=>{ assurer(); RayleBus.emit('espace:pret',{}); },30));
     prochaineComete=45+Math.random()*30; prochaineFilante=8+Math.random()*8;
-    return {taille,image,qualite,detruire,vers,retour,etat,THREE,planetes,test:{sansTerre:b=>{ groupe.visible=!b; },comete:lancerComete,filante:lancerFilante,vue:(y,p)=>{ base.yaw=base.tyaw=y; base.pitch=base.tpitch=p; }}};
+    return {taille,image,qualite,detruire,vers,retour,etat,THREE,planetes,test:{figer:(oui,dist)=>{ figee=!!oui; figDist=oui&&dist?dist:0; if(figDist){ cad.dist=cad.tdist=dist; cad.ox=cad.tox=cad.oy=cad.toy=0; offMix=1; } },dureeVisite:t=>{ DUREE_VISITE=t; },objets:()=>({couche,sphereTerre,matTerre2,matAtmo,aurore,terre,scene,arcsMesh,placesPts}),saut:(nom,t)=>{ vers(nom); vol=null; arrivee=t||0; },sansTerre:b=>{ groupe.visible=!b; },soloTerre:b=>{ solo=!!b; },fixerTemps:t=>{ UT.u_t.value=t; },comete:lancerComete,filante:lancerFilante,vue:(y,p)=>{ base.yaw=base.tyaw=y; base.pitch=base.tpitch=p; }}};
   };
 })();
