@@ -78,7 +78,7 @@
   let ema=16.7, n=0, tPrec=0, dernier=0, mauvais=0, fpsVu=60;
   function mesurer(now){
     requestAnimationFrame(mesurer);
-    const visible=!document.hidden && RayleBus.demander('vue')!=='terminal' && !document.getElementById('cfg').classList.contains('open');
+    const visible=!document.hidden && !['terminal','anatomie'].includes(RayleBus.demander('vue')) && !document.getElementById('cfg').classList.contains('open');
     if(!visible){ tPrec=0; return; }
     if(tPrec){ const dt=Math.min(250,now-tPrec); ema+=(dt-ema)*.05; n++; }
     tPrec=now;

@@ -39,7 +39,7 @@
     cv.replaceWith(c); cv=c; transfo='';
     return c;
   }
-  const masque=()=>document.hidden || RayleBus.demander('vue')==='terminal' || document.getElementById('cfg').classList.contains('open');
+  const masque=()=>document.hidden || ['terminal','anatomie'].includes(RayleBus.demander('vue')) || document.getElementById('cfg').classList.contains('open');
   const fpsMax=()=>q===0?30:24;
   const actif=()=>rendu==='3d'?cv:rendu==='fixe'?fixe:rendu==='video'?boiteVideo:null;
 

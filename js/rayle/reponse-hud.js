@@ -12,7 +12,7 @@
     return phrases.map((x,i)=>({x,i,n:note(x,i)})).sort((a,b)=>b.n-a.n||a.i-b.i).slice(0,REP_MAX).sort((a,b)=>a.i-b.i).map(o=>o.x);
   }
   function montrerReponse(question,reponse){
-    if(RayleBus.demander('vue')==='terminal') return;     // pas de fenêtre par-dessus le terminal
+    if(['terminal','anatomie'].includes(RayleBus.demander('vue'))) return;     // pas de fenêtre par-dessus le terminal
     const pts=repPoints(reponse);
     if(!pts.length || String(reponse).length<25) return;
     const duree=Math.max(14000,Math.min(45000,String(reponse).length*75+8000));

@@ -98,7 +98,7 @@
   RayleBus.on('ui:reglages',r=>{ if(!r.micro) refus=false; });
 
   /* ───── dessin ───── */
-  const masque=()=>document.hidden || RayleBus.demander('vue')==='terminal' || document.getElementById('cfg').classList.contains('open');
+  const masque=()=>document.hidden || ['terminal','anatomie'].includes(RayleBus.demander('vue')) || document.getElementById('cfg').classList.contains('open');
   let tPrec=0, dernier=0, t=0, rot=0, ampPrec=0, prochaineOnde=0, haloO=-1, haloE=-1, visible=true;
   const lisse=(k,dt,v)=>1-Math.exp(-dt*v);
 

@@ -9,4 +9,8 @@ const ecrire = (f, fn) => { const a = lire(f), b = fn(a); if (a !== b) fs.writeF
 ecrire('index.html', s => s.replace(/(<(?:script|link)[^>]*(?:src|href)=")((?:css|js|ui)\/[^"?]+)(?:\?v=[^"]*)?"/g, `$1$2?v=${v}"`).replace(/(window\.RAYLE_VERSION=')[^']*'/, `$1${v}'`).replace(/(Version )[\w.-]+/, `$1${v}`));
 for (const f of fs.readdirSync('js/terminal').filter(x => x.endsWith('.js')).map(x => 'js/terminal/' + x))
   ecrire(f, s => s.replace(/(from\s+'\.\/[\w-]+\.js)(?:\?v=[^']*)?'/g, `$1?v=${v}'`).replace(/(js\/vendor\/lightweight-charts\.js)(?:\?v=[^']*)?'/g, `$1?v=${v}'`));
-ecrire('js/commun/vues.js', s => s.replace(/(js\/terminal\/terminal\.js)(?:\?v=[^']*)?'/, `$1?v=${v}'`));
+ecrire('js/commun/vues.js', s => s.replace(/(js\/(?:terminal\/terminal|anatomie\/fenetre)\.js)(?:\?v=[^']*)?'/g, `$1?v=${v}'`));
+// module Anatomie & Orthopédie : imports statiques (from './x.js') et dynamiques (import('./x.js')) de chaque fichier, puis son chargement depuis Raylé
+for (const f of fs.readdirSync('js/anatomie').filter(x => x.endsWith('.js')).map(x => 'js/anatomie/' + x))
+  ecrire(f, s => s.replace(/(from\s+'\.\/[\w-]+\.js)(?:\?v=[^']*)?'/g, `$1?v=${v}'`).replace(/(import\('\.\/[\w-]+\.js)(?:\?v=[^']*)?'\)/g, `$1?v=${v}')`));
+ecrire('js/rayle/commandes-anatomie.js', s => s.replace(/(js\/anatomie\/index\.js)(?:\?v=[^']*)?'/, `$1?v=${v}'`));

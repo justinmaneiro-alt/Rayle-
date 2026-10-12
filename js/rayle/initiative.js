@@ -82,7 +82,7 @@ window.RayleInitiative=(function(){
     try{ diagEntree('(initiative) '+c.type,false,'initiative'); }catch(e){}
     addLine('ray',c.texte);
     try{
-      if(RayleBus.demander('vue')!=='terminal')
+      if(!['terminal','anatomie'].includes(RayleBus.demander('vue')))
         Panneaux.ouvrir({id:'initiative',type:'initiative',icone:'💡',titre:'Raylé · initiative',corps:c.texte,duree:45000,
           pied:[{texte:'Pas maintenant',clic:()=>pasMaintenant(true)}]});
     }catch(e){}
@@ -157,7 +157,7 @@ window.RayleInitiative=(function(){
   // proposition locale (ex. « il commence à pleuvoir ») : mêmes règles que les autres (heures calmes, « pas maintenant », intervalle, niveau),
   // et jamais pendant que le terminal de trading est ouvert. Renvoie true si elle a été retenue (elle ne sera dite qu'une fois).
   function proposer(c){
-    try{ if(!c || !c.id || !c.texte || dits[c.id] || RayleBus.demander('vue')==='terminal' || enCalme()) return false; }catch(e){ return false; }
+    try{ if(!c || !c.id || !c.texte || dits[c.id] || ['terminal','anatomie'].includes(RayleBus.demander('vue')) || enCalme()) return false; }catch(e){ return false; }
     locaux=locaux.filter(x=>x.id!==c.id).concat([Object.assign({importance:1},c,{local:true})]);
     setTimeout(choisir,0); return true;
   }

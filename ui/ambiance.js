@@ -420,7 +420,7 @@
     appliquerThemeSoon();
     try{
       const r=remarque(avant,apres,apres.lieu&&apres.lieu.nom);
-      if(r && Date.now()-dernierTexte()>3*3600000 && RayleBus.demander('vue')!=='terminal' && window.RayleInitiative && RayleInitiative.proposer){
+      if(r && Date.now()-dernierTexte()>3*3600000 && !['terminal','anatomie'].includes(RayleBus.demander('vue')) && window.RayleInitiative && RayleInitiative.proposer){
         if(RayleInitiative.proposer(r)){ try{ localStorage.setItem(CLE.dit,String(Date.now())); }catch(e){} }
       }
     }catch(e){}

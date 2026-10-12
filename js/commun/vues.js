@@ -1,53 +1,74 @@
 "use strict";
-/* ═════════════ VUES : Raylé (par défaut) et terminal, dans la même page ═════════════
-   Le terminal est une vue plein écran (#vueTerminal) chargée à la première ouverture.
-   Demandes par le bus : emit('vue:demande',{vue:'terminal'|'rayle'}). Réponse : emit('vue:changee',{vue}). */
+/* ═════════════ VUES : Raylé (par défaut), terminal et Anatomie & Orthopédie, dans la même page ═════════════
+   Le terminal et la fenêtre Anatomie sont des vues plein écran (#vueTerminal, #vueAnatomie) chargées à la première ouverture.
+   Demandes par le bus : emit('vue:demande',{vue:'terminal'|'anatomie'|'rayle', options}). Réponse : emit('vue:changee',{vue}).
+   Services : 'vue' (vue courante) · 'vue:ouvrir' (terminal) · 'vue:ouvrir-anatomie'(options) · 'vue:fermer' (ferme la vue ouverte, quelle qu'elle soit). */
 (function(){
-  const vueEl=()=>document.getElementById('vueTerminal');
-  let vue='rayle', module=null, chargement=null, pousse=false;
+  const PLEINES={
+    terminal:{ el:'vueTerminal', url:'js/terminal/terminal.js?v=2026.10.12.2', hash:'#terminal', classe:'vue-terminal', erreur:'Terminal impossible à charger : ', bus:'terminal' },
+    anatomie:{ el:'vueAnatomie', url:'js/anatomie/fenetre.js?v=2026.10.12.2', hash:'#anatomie', classe:'vue-anatomie', erreur:'Anatomie impossible à charger : ', bus:'anatomie' }
+  };
+  let vue='rayle', pousse=false;
+  const modules={}, chargements={};
 
-  function charger(){
-    if(module) return Promise.resolve(module);
-    if(!chargement) chargement=import(new URL('js/terminal/terminal.js?v=2026.10.12.1',document.baseURI).href).then(m=>{ module=m; return m; }).catch(e=>{ chargement=null; throw e; });
-    return chargement;
+  function charger(nom){
+    if(modules[nom]) return Promise.resolve(modules[nom]);
+    if(!chargements[nom]) chargements[nom]=import(new URL(PLEINES[nom].url,document.baseURI).href).then(m=>{ modules[nom]=m; return m; }).catch(e=>{ chargements[nom]=null; throw e; });
+    return chargements[nom];
   }
-  async function afficher(v){
-    if(v===vue) return;
-    if(v==='terminal'){
-      let m;
-      try{ m=await charger(); }
-      catch(e){ RayleBus.emit('vue:erreur',{message:'Terminal impossible à charger : '+(e&&e.message||e)}); return; }
-      vue='terminal'; vueEl().hidden=false; document.body.classList.add('vue-terminal');
-      m.ouvrir();
+  function fermerVue(nom){
+    const p=PLEINES[nom]; if(!p) return;
+    document.getElementById(p.el).hidden=true; document.body.classList.remove(p.classe);
+    if(modules[nom]) modules[nom].fermer();
+    RayleBus.fusion(p.bus,{ouvert:false});
+  }
+  async function afficher(v,options){
+    if(v===vue && !(v==='anatomie' && options)) return;
+    if(v==='terminal' || v==='anatomie'){
+      const p=PLEINES[v]; let m;
+      try{ m=await charger(v); }
+      catch(e){ RayleBus.emit('vue:erreur',{message:p.erreur+(e&&e.message||e)}); return; }
+      if(vue!=='rayle' && vue!==v) fermerVue(vue);            // une seule vue plein écran à la fois
+      vue=v; document.getElementById(p.el).hidden=false; document.body.classList.add(p.classe);
+      m.ouvrir(options);
     }else{
-      vue='rayle'; vueEl().hidden=true; document.body.classList.remove('vue-terminal');
-      if(module) module.fermer();
+      if(vue!=='rayle') fermerVue(vue);
+      vue='rayle';
     }
     RayleBus.fusion('terminal',{ouvert:vue==='terminal'});
+    RayleBus.fusion('anatomie',{ouvert:vue==='anatomie'});
     RayleBus.emit('vue:changee',{vue});
   }
-  function ouvrirTerminal(){
-    if(vue==='terminal') return Promise.resolve();
-    if(location.hash!=='#terminal'){ try{ history.pushState(null,'','#terminal'); pousse=true; }catch(e){} }
-    return afficher('terminal');
+  function ouvrirVue(nom,options){
+    const p=PLEINES[nom];
+    if(vue===nom && !options) return Promise.resolve();
+    if(vue!==nom && location.hash!==p.hash){ try{ history.pushState(null,'',p.hash); pousse=true; }catch(e){} }
+    return afficher(nom,options);
   }
+  const ouvrirTerminal=()=>ouvrirVue('terminal');
+  const ouvrirAnatomie=options=>ouvrirVue('anatomie',options||null);
   function retour(){
-    if(vue!=='terminal') return;
+    if(vue==='rayle') return;
+    const hash=PLEINES[vue].hash;
     // On ferme la vue tout de suite (sans attendre popstate, qui n'arrive pas toujours), puis on nettoie l'adresse
     afficher('rayle');
-    if(pousse){ pousse=false; if(location.hash==='#terminal'){ try{ history.back(); }catch(e){} } return; }
+    if(pousse){ pousse=false; if(location.hash===hash){ try{ history.back(); }catch(e){} } return; }
     try{ history.replaceState(null,'',location.pathname+location.search); }catch(e){}
   }
-  window.addEventListener('popstate',()=>afficher(location.hash==='#terminal'?'terminal':'rayle'));
-  RayleBus.on('vue:demande',d=>{ if(d&&d.vue==='terminal') ouvrirTerminal(); else retour(); });
+  const depuisAdresse=()=>location.hash==='#terminal'?'terminal':location.hash==='#anatomie'?'anatomie':'rayle';
+  window.addEventListener('popstate',()=>afficher(depuisAdresse()));
+  RayleBus.on('vue:demande',d=>{ if(d&&PLEINES[d.vue]) ouvrirVue(d.vue,d.options||null); else retour(); });
   RayleBus.fournir('vue',()=>vue);
   RayleBus.fournir('vue:ouvrir',ouvrirTerminal);
+  RayleBus.fournir('vue:ouvrir-anatomie',ouvrirAnatomie);
   RayleBus.fournir('vue:fermer',retour);
 
   document.addEventListener('DOMContentLoaded',()=>{
-    const o=document.getElementById('btnOuvrirTerminal'), r=document.getElementById('btnRetour');
+    const o=document.getElementById('btnOuvrirTerminal'), r=document.getElementById('btnRetour'), a=document.getElementById('btnOuvrirAnatomie');
     if(o) o.addEventListener('click',ouvrirTerminal);
+    if(a) a.addEventListener('click',()=>ouvrirAnatomie());
     if(r) r.addEventListener('click',retour);
-    if(location.hash==='#terminal') afficher('terminal');   // ancienne adresse du terminal, ou lien direct
+    const v=depuisAdresse();
+    if(v!=='rayle') afficher(v);   // ancienne adresse du terminal, ou lien direct
   });
 })();

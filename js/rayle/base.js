@@ -50,6 +50,7 @@
     const prefix = kind==='sys' ? '['+stamp()+'] ' : kind==='user' ? 'VOUS › ' : 'RAYLÉ › ';
     d.textContent=prefix+String(text);
     if(kind==='ray'||kind==='user') montrerDansLeCoin(kind,text);
+    if(kind==='ray'||kind==='user'){ try{ RayleBus.emit('rayle:dit',{kind,text:String(text)}); }catch(e){} }   // fenêtre Anatomie : bandeau de réponse
     logEl.appendChild(d); logEl.scrollTop=logEl.scrollHeight;
     while(logEl.children.length>250) logEl.removeChild(logEl.firstChild);
   }

@@ -31,7 +31,7 @@
   try{ if(navigator.getBattery) navigator.getBattery().then(b=>{ const m=()=>{ batterieFaible=!b.charging && b.level<.2; }; m(); b.addEventListener('levelchange',m); b.addEventListener('chargingchange',m); }).catch(()=>{}); }catch(e){}
 
   const enEspace=()=>{ try{ return UI.reglages().fond==='espace'; }catch(e){ return false; } };   // dans l'espace : pas de pluie ni d'éclairs à l'écran (la météo agit sur les nuages de la Terre)
-  const masque=()=>document.hidden || RayleBus.demander('vue')==='terminal' || document.getElementById('cfg').classList.contains('open');
+  const masque=()=>document.hidden || ['terminal','anatomie'].includes(RayleBus.demander('vue')) || document.getElementById('cfg').classList.contains('open');
   // niveau d'effet : 0 complet · 1 allégé · 2 image fixe
   function niveau(){
     const rg=A.reglages();

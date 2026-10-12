@@ -27,6 +27,9 @@
     const cmdM=typeof commandeMonde==='function' ? await commandeMonde(text) : null;   // page Monde : « montre-moi le Japon », « affiche l'inflation sur la carte »…
     if(my!==epoch) return;
     if(cmdM){ diagAction('commande de la page Monde'); addLine('ray',cmdM); await speak(cmdM); return; }
+    const cmdAn=typeof commandeAnatomie==='function' ? await commandeAnatomie(text) : null;   // anatomie et orthopédie : pop-up 3D, fenêtre, pathologies, appareillages
+    if(my!==epoch) return;
+    if(cmdAn){ diagAction('commande anatomie'); addLine('ray',cmdAn); await speak(cmdAn); return; }
     const cmdT=await commandeTerminal(text);
     if(my!==epoch) return;
     if(cmdT){ diagAction('commande du terminal'); addLine('ray',cmdT); await speak(cmdT); return; }
@@ -40,6 +43,10 @@
     diagAction("envoyé à l'IA");
     setState('thinking');
     let reply='', engine='', actions=[], viaAgent=false;
+    // Cours de Justin (onglet « Cours » de la fenêtre Anatomie) : extraits utiles à une question d'anatomie, de clinique ou d'appareillage
+    let coursCtx=''; try{ coursCtx=typeof contexteCours==='function' ? await contexteCours(text) : ''; }catch(e){}
+    if(my!==epoch) return;
+    if(coursCtx) liveCtx=coursCtx;
     // 1) Agent : le Worker choisit et enchaîne ses outils (données, alertes, mémoire…) et renvoie les actions de la page
     if(workerReady()){
       try{
@@ -55,7 +62,7 @@
       let ctx='';
       try{ ctx=await buildLiveContext(text); }catch(e){ if(my===epoch) addLine('sys','Lecture des données : '+errMsg(e)); }
       if(my!==epoch) return;                 // coupé pendant la lecture des données
-      liveCtx=ctx;
+      liveCtx=(coursCtx ? coursCtx+'\n' : '')+ctx;
       const long=/ANALYSE BOUGIE PAR BOUGIE|VIDÉO YOUTUBE/.test(ctx);
       if(!speaking) setState('thinking');
       if(workerReady()){
