@@ -27,16 +27,22 @@ t('thèmes', () => {
 });
 t('fonds', () => {
   assert.equal(analyser('Raylé, fond espace'), 'fond:espace'); assert.equal(analyser('fond globe'), 'fond:espace'); assert.equal(analyser('mets le fond cosmos'), 'fond:espace'); assert.equal(analyser('fond système solaire'), 'fond:espace');
-  assert.equal(analyser('mets le fond en ville'), 'fond:ville3d');
-  assert.equal(analyser('fond ville 3D'), 'fond:ville3d');
+  assert.equal(analyser('mets le fond en ville'), 'fond:video');   // la Ville 3D n'existe plus : « ville » désigne la ville réelle
+  assert.equal(analyser('fond ville 3D'), 'fond:video');
   assert.equal(analyser('fond ville réelle'), 'fond:video');
   assert.equal(analyser('mets le fond vidéo'), 'fond:video');
   assert.equal(analyser('fond vraie ville'), 'fond:video');
   assert.equal(analyser("passe sur l'arrière-plan globe"), null);   // trop tordu : pas reconnu, c'est voulu (passe à l'IA)
-  assert.equal(analyser('fond ville'), 'fond:ville3d');
+  assert.equal(analyser('fond ville'), 'fond:video');
   assert.equal(analyser('enlève le fond'), 'fond:aucun');
   assert.equal(analyser('pas de fond'), 'fond:aucun');
   assert.equal(analyser('fond noir'), 'fond:aucun');
+});
+t('fond Jarvis : « mets le fond Jarvis », « mode Jarvis », « passe en mode holographique »… (sans IA)', () => {
+  for (const p of ['mets le fond Jarvis', 'fond jarvis', 'Raylé, mode Jarvis', 'mode jarvis', 'passe en mode holographique', 'mets le mode holographique', 'active le mode jarvis', 'mets le fond holographique', 'fond hologramme', 'passe en Jarvis', 'mets jarvis', 'change le fond en jarvis', 'mode hologramme', 'bascule sur le fond Jarvis'])
+    assert.equal(analyser(p), 'fond:jarvis', p);
+  for (const p of ['pourquoi le mode jarvis', 'quel est le fond jarvis', 'jarvis', 'ouvre le terminal en mode holographique', 'mode eco', 'fond espace']) assert.notEqual(analyser(p), 'fond:jarvis', p);
+  assert.equal(analyser('fond ville réelle'), 'fond:video'); assert.equal(analyser('enlève le fond'), 'fond:aucun');
 });
 t('niveau d’animation', () => {
   assert.equal(analyser('Raylé, mode éco'), 'anim:eco');

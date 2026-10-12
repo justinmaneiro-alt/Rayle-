@@ -17,7 +17,7 @@ const src = fs.readFileSync(fichier, 'utf8');
 t('paramètres : ambiances, thèmes, fonds et entités connus de la page', () => {
   const bloc = src.slice(src.indexOf('nom: "regler_ambiance"'), src.indexOf('GROUPES_OUTILS.ambiance'));
   for (const v of ['auto', 'off', 'detente', 'focus', 'pluie', 'orage', 'neige', 'brouillard', 'nuit', 'aube', 'crepuscule']) assert.ok(bloc.includes('"' + v + '"'), 'ambiance ' + v);
-  for (const v of ['originel', 'arc', 'rouge', 'aurore', 'ambre', 'nebuleuse', 'ville3d', 'video', 'sphere', 'neurones', 'espace', 'mars', 'jupiter', 'saturne', 'iss', 'terre']) assert.ok(bloc.includes('"' + v + '"'), v);
+  for (const v of ['originel', 'arc', 'rouge', 'aurore', 'ambre', 'nebuleuse', 'jarvis', 'video', 'sphere', 'neurones', 'espace', 'mars', 'jupiter', 'saturne', 'iss', 'terre']) assert.ok(bloc.includes('"' + v + '"'), v);
   assert.ok(/duree_minutes/.test(bloc) && /Math\.min\(1440/.test(bloc), 'durée bornée à 24 h');
 });
 t('groupe de mots-clés : « ambiance pluie », « mets le thème », « il neige »… offrent l’outil à l’IA', () => {

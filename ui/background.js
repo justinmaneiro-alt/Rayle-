@@ -1,7 +1,7 @@
 "use strict";
 /* ═════════════ FOND ANIMÉ : chef d'orchestre ═════════════
-   Fonds (Réglages → Fond) : Aucun · Espace (ui/fond-globe.js + ui/fond-espace.js, l'ancien Globe) · Ville 3D (ui/fond-ville3d.js) · Ville réelle (ui/fond-video.js).
-   - Rendu : 3D (three.js, chargé à la demande) ; en Éco, Globe et Ville 3D deviennent une IMAGE FIXE pré-rendue (three.js n'est même
+   Fonds (Réglages → Fond) : Aucun · Espace (ui/fond-globe.js + ui/fond-espace.js, l'ancien Globe) · Jarvis (ui/fond-jarvis.js : interface holographique) · Ville réelle (ui/fond-video.js).
+   - Rendu : 3D (three.js, chargé à la demande) ; en Éco, Espace et Jarvis deviennent une IMAGE FIXE pré-rendue (three.js n'est même
      pas chargé) ; la Ville réelle reste une vidéo, en 720p en Éco et sur téléphone/tablette.
    - Qualité automatique (niveau Auto) : si les images/s chutent avec un fond 3D, c'est le FOND qui baisse d'abord (qualité 0 → 1 → 2),
      et l'entité (Sphère ou Neurones) est retenue pendant ce temps (Entite.geler) ; quand le fond est au minimum, l'entité peut s'alléger.
@@ -19,8 +19,8 @@
   // images fixes du mode Éco : la ville est une image ; l'Espace est un ciel pré-rendu (étoiles, Voie lactée, Soleil, Lune ; une image en portrait, une en paysage)
   // + la Terre pré-rendue (sprite), posée par le même cadrage que la 3D (ui/cadrage.js, placement « centre ») : toujours entière, quel que soit l'écran.
   // La Terre pré-rendue occupe SPRITE_PLANETE de la largeur de son image (atmosphère comprise).
-  const FIXES={espace:()=>'fond-espace-'+(innerHeight>innerWidth?'portrait':'paysage')+'.webp',ville3d:()=>'fond-ville3d-fixe.jpg'};
-  const PLANETE='fond-globe-planete.webp', SPRITE_PLANETE=.92;
+  const FIXES={espace:()=>'fond-espace-'+(innerHeight>innerWidth?'portrait':'paysage')+'.webp',jarvis:()=>'fond-jarvis-'+(innerHeight>innerWidth?'portrait':'paysage')+'.webp'};
+  const PLANETE='fond-globe-planete.webp', SPRITE_PLANETE=.92, COEUR='fond-jarvis-coeur.webp';   // sprites posés au centre : la Terre (Espace) ou le cœur holographique (Jarvis)
   let planete=null;
   const mobile=()=>{ try{ return !!UI.reglages().mobile; }catch(e){ return false; } };
 
@@ -80,6 +80,13 @@
   }
   function placerPlanete(){
     if(!planete) return;
+    if(fond==='jarvis'){                                                // cœur pré-rendu : même calcul que le fond 3D (UI.fondsReels.jarvisNoyau)
+      try{
+        const n=UI.fondsReels.jarvisNoyau(), d=2*n.R*.99/SPRITE_PLANETE, dx=(Math.round(innerWidth*1.06)-innerWidth)/2, dy=(Math.round(innerHeight*1.06)-innerHeight)/2;
+        planete.style.cssText='left:'+(n.cx+dx-d/2).toFixed(1)+'px;top:'+(n.cy+dy-d/2).toFixed(1)+'px;width:'+d.toFixed(1)+'px;height:'+d.toFixed(1)+'px;background-image:url("'+BASE+COEUR+'")';
+      }catch(e){}
+      return;
+    }
     const g=UI.fondsReels&&UI.fondsReels.espaceCadrage; if(!g||!UI.cadrage) return;
     try{
       const W=Math.round(innerWidth*1.06), H=Math.round(innerHeight*1.06);
@@ -90,7 +97,7 @@
   }
   function montrerFixe(nom){
     fixe.style.backgroundImage='url("'+BASE+FIXES[nom]()+'")';
-    if(nom==='espace'){ if(!planete){ planete=document.createElement('div'); planete.className='ui-fond-planete'; fixe.appendChild(planete); } placerPlanete(); }
+    if(nom==='espace'||nom==='jarvis'){ if(!planete){ planete=document.createElement('div'); planete.className='ui-fond-planete'; fixe.appendChild(planete); } placerPlanete(); }
     else if(planete){ planete.remove(); planete=null; }
     rendu='fixe'; transfo='';
     requestAnimationFrame(()=>{ fixe.classList.add('vu'); teinte.classList.add('vu'); });
@@ -125,13 +132,13 @@
       console.warn('[fond] '+fond+' indisponible :',e&&e.message||e);
       if(fond==='video'){
         if(!videoSignalee){ videoSignalee=true; try{ addLine('sys','Fond « Ville réelle » : '+(e&&e.message||e)+'. En attendant, image fixe de la ville.'); }catch(_){} }
-        montrerFixe('ville3d');
+        montrerFixe('jarvis');
       }else montrerFixe(fond);            // three.js ou WebGL indisponible : l'image fixe prend le relais
     }
   }
 
   // écran, rotation, zoom, visualViewport, panneaux, taille de l'entité : une seule écoute (ui/cadrage.js), les fonds se recadrent en douceur
-  const recadrer=()=>{ if(scene && rendu==='3d'){ scene.taille(); aRedessiner=true; } if(rendu==='fixe' && fond==='espace') montrerFixe('espace'); if(fond==='video') appliquer(); };
+  const recadrer=()=>{ if(scene && rendu==='3d'){ scene.taille(); aRedessiner=true; } if(rendu==='fixe' && (fond==='espace'||fond==='jarvis')) montrerFixe(fond); if(fond==='video') appliquer(); };
   if(UI.cadrage) UI.cadrage.ecouter(recadrer); else window.addEventListener('resize',recadrer);
   window.addEventListener('pointermove',e=>{ if(e.pointerType==='mouse'){ px=e.clientX/innerWidth-.5; py=e.clientY/innerHeight-.5; } },{passive:true});
   RayleBus.on('ui:reglages',r=>{

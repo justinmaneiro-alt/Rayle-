@@ -7,7 +7,8 @@ Images de la Terre (domaine public, NASA) :
   https://visibleearth.nasa.gov/images/57747
 Redimensionnées (2048 et 4096 px) et recompressées pour Raylé.
 
-fond-ville3d-fixe.jpg : images fixes pré-rendues par Raylé (mode Éco), à partir des fonds ci-dessus.
+fond-jarvis-paysage.webp, fond-jarvis-portrait.webp, fond-jarvis-coeur.webp : images fixes du fond Jarvis (mode Éco), pré-rendues par le code de Raylé (aucune source externe).
+Fond Jarvis : interface holographique dessinée entièrement par le code (shaders, géométries, textes) ; aucun logo, aucune image ni marque tierce.
 
 Vidéo de ville de nuit (ville-paysage.mp4, ville-portrait.mp4) : Pexels, vidéo n° 13246966, licence Pexels (utilisation gratuite).
   https://www.pexels.com/video/13246966/

@@ -14,7 +14,7 @@ const CACHE = 'rayle-' + VERSION;
 const DELAI_MS = 8000;
 const CACHE_TEX = 'rayle-tex-1';
 const DE_COTE = ['./index.html', './manifest.webmanifest', './icones/icone-192.png',
-  './ui/assets/fond-globe-planete.webp', './ui/assets/fond-espace-paysage.webp', './ui/assets/fond-espace-portrait.webp',   // images fixes de l'Espace (mode Éco) : disponibles hors ligne
+  './ui/assets/fond-globe-planete.webp', './ui/assets/fond-espace-paysage.webp', './ui/assets/fond-espace-portrait.webp', './ui/assets/fond-jarvis-paysage.webp', './ui/assets/fond-jarvis-portrait.webp', './ui/assets/fond-jarvis-coeur.webp',   // images fixes de l'Espace (mode Éco) : disponibles hors ligne
   './icones/raccourci-parler.png', './icones/raccourci-terminal.png', './icones/raccourci-briefing.png', './icones/raccourci-monde.png'];
 
 self.addEventListener('install', e => {

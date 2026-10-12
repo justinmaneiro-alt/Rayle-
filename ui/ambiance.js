@@ -378,8 +378,8 @@
         if(a.theme==='auto'){ R.themeAuto=true; sauverReglages(); stock.set(CLE.themeManuel,null); appliquerThemeAuto(true); fait.push('thème automatique'); }
         else if(THEMES_IDS.includes(a.theme) && UI.changer){ UI.changer('theme',a.theme); fait.push('thème '+a.theme); }
       }
-      if(a.fond==='globe') a.fond='espace';                              // l'ancien « Globe » est devenu l'Espace
-      if(a.fond && UI.changer && ['aucun','espace','ville3d','video'].includes(a.fond)){ UI.changer('fond',a.fond); fait.push('fond '+a.fond); }
+      if(a.fond==='globe') a.fond='espace'; if(a.fond==='ville3d') a.fond='jarvis';                              // l'ancien « Globe » est devenu l'Espace
+      if(a.fond && UI.changer && ['aucun','espace','jarvis','video'].includes(a.fond)){ UI.changer('fond',a.fond); fait.push('fond '+a.fond); }
       if(a.entite && UI.changer && ['sphere','neurones'].includes(a.entite)){ UI.changer('entite',a.entite); fait.push('entité '+a.entite); }
       // « emmène-moi voir Saturne » : vol de la caméra du fond Espace + faits (ui/espace.js)
       let phrase='';

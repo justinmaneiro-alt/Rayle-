@@ -59,6 +59,6 @@ t('crédits : les nouveaux assets sont déclarés', () => {
 });
 t('l’orchestrateur ne casse rien : mêmes fonds d’avant, mêmes paliers', () => {
   const b = lire('ui/background.js');
-  assert.match(b, /ville3d/); assert.match(b, /video/); assert.match(b, /UI\.fondsReels\[fond\]\(c,\{q,hd\}\)/); assert.match(b, /palier>=2\?'fixe':'3d'/);
+  assert.match(b, /jarvis/); assert.match(b, /video/); assert.match(b, /UI\.fondsReels\[fond\]\(c,\{q,hd\}\)/); assert.match(b, /palier>=2\?'fixe':'3d'/);
 });
 console.log(ok + ' tests réussis');
