@@ -1,9 +1,9 @@
 /* ═════════════ APPAREILLAGES EN 3D : prothèses, corsets, orthèses, zones d'appui et de décharge ═════════════
    construireAppareil(THREE, C, ctx) → { group, notes:[{p,texte,classe}], mats:[] }
    ctx : { etat, amp (définition d'amputation) | null, modele (catalogue), positions (rachis effectif), courbes (effectives), pos(repèreId, cote) → [x,y,z]|null } */
-import { MATERIAUX } from './donnees-ortho.js?v=2026.10.12.2';
-import { rayonTronc, PROFONDEUR_TRONC, axeMembre } from './construction.js?v=2026.10.12.2';
-import { J, VERTEBRES } from './donnees-os.js?v=2026.10.12.2';
+import { MATERIAUX } from './donnees-ortho.js?v=2026.10.13.1';
+import { rayonTronc, PROFONDEUR_TRONC, axeMembre } from './construction.js?v=2026.10.13.1';
+import { J, VERTEBRES } from './donnees-os.js?v=2026.10.13.1';
 
 export const materiau = id => MATERIAUX.find(m => m.id === id) || MATERIAUX[0];
 const COULEUR_APPUI = 0xff8a3d, COULEUR_DECHARGE = 0x4da8ff, COULEUR_FORCE = 0xff3d6e;
@@ -18,7 +18,7 @@ export function construireAppareil(THREE, C, ctx) {
       transparent: r.alpha != null, opacity: r.alpha == null ? 1 : r.alpha }, extra || {}));
     mats.push(mat); return mat;
   };
-  const basique = (couleur, op) => { const m = new THREE.MeshBasicMaterial({ color: couleur, transparent: true, opacity: op == null ? .85 : op, depthTest: false, depthWrite: false }); mats.push(m); return m; };
+  const basique = (couleur, op) => { const m = new THREE.MeshBasicMaterial({ color: couleur, transparent: true, opacity: op == null ? .85 : op, depthTest: false, depthWrite: false, toneMapped: false }); mats.push(m); return m; };
   const ajoute = (geo, mat, partie, ordre) => { const m = new THREE.Mesh(geo, mat); m.userData.partie = partie; if (ordre) m.renderOrder = ordre; group.add(m); return m; };
   const fleche = (de, vers, couleur, long) => {
     const d = new THREE.Vector3(...vers).sub(new THREE.Vector3(...de)); const L = long || d.length(); if (L < 1e-4) return;

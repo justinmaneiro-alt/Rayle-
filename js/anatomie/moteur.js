@@ -2,15 +2,17 @@
    new MoteurAnatomie(THREE, canvas, { store, etiquettes: Element|null, mini: bool, surSelection(id) })
    Le moteur suit l'état du store : calques, sélection, isolation, pathologies, appareillage. Rendu à la demande (pas d'animation inutile).
    Contrôles : glisser = rotation 360°, molette / pincement = zoom, clic droit ou Maj + glisser ou 2 doigts = translation, double clic = focaliser. */
-import { construire, axeMembre } from './construction.js?v=2026.10.12.2';
-import { construireAppareil } from './appareils3d.js?v=2026.10.12.2';
-import { OS, VERTEBRES, REPERES, SACRUM_Y } from './donnees-os.js?v=2026.10.12.2';
-import { MUSCLES } from './donnees-muscles.js?v=2026.10.12.2';
-import { NERFS, ORGANES, DERMATOMES } from './donnees-nerfs-organes.js?v=2026.10.12.2';
-import { AMPUTATIONS, APPAREILLAGES, FRACTURES } from './donnees-ortho.js?v=2026.10.12.2';
-import { definition, base as baseDe, cote as coteDe, typeDe, instances, nomAffiche, musclesDe } from './registre.js?v=2026.10.12.2';
-import { COULEURS } from './registre.js?v=2026.10.12.2';
-import { chargerGLB } from './modeles-glb.js?v=2026.10.12.2';
+import { construire, axeMembre } from './construction.js?v=2026.10.13.1';
+import { construireAppareil } from './appareils3d.js?v=2026.10.13.1';
+import { OS, VERTEBRES, REPERES, SACRUM_Y } from './donnees-os.js?v=2026.10.13.1';
+import { MUSCLES } from './donnees-muscles.js?v=2026.10.13.1';
+import { NERFS, ORGANES, DERMATOMES } from './donnees-nerfs-organes.js?v=2026.10.13.1';
+import { AMPUTATIONS, APPAREILLAGES, FRACTURES } from './donnees-ortho.js?v=2026.10.13.1';
+import { definition, base as baseDe, cote as coteDe, typeDe, instances, nomAffiche, musclesDe } from './registre.js?v=2026.10.13.1';
+import { COULEURS } from './registre.js?v=2026.10.13.1';
+import { chargerGLB } from './modeles-glb.js?v=2026.10.13.1';
+import { creerMateriauPBR } from './pbr.js?v=2026.10.13.1';
+import { studio, solOmbre, fondDegrade, environnement, pipeline, lireNiveau } from './rendu.js?v=2026.10.13.1';
 
 const CALQUE_DE = { os: 'squelette', muscle: 'muscles', nerf: 'nerfs', organe: 'organes', repere: 'reperes', dermatome: 'dermatomes', peau: 'peau' };
 const DIST_DEFAUT = 3.5;
@@ -34,6 +36,10 @@ export class MoteurAnatomie {
     const rendu = this.rendu = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true, powerPreference: 'low-power' });
     rendu.setPixelRatio(Math.min(window.devicePixelRatio || 1, this.mini ? 1.5 : 2));
     rendu.localClippingEnabled = true;
+    // qualité : eco (matériaux simples) · standard (PBR, studio 3 points, ombres douces) · haute (+ SSAO, bloom, tonalité ACES) ; le pop-up reste en standard au maximum
+    this.niveau = opts.qualite || lireNiveau(this.mini); if (this.mini && this.niveau === 'haute') this.niveau = 'standard';
+    rendu.toneMapping = this.niveau === 'eco' ? THREE.NoToneMapping : THREE.ACESFilmicToneMapping; rendu.toneMappingExposure = 1.05;
+    if (this.niveau !== 'eco' && rendu.shadowMap) { rendu.shadowMap.enabled = true; rendu.shadowMap.type = THREE.PCFSoftShadowMap; }
     this.scene = new THREE.Scene();
     this.camera = new THREE.PerspectiveCamera(32, 1, .02, 60);
     this.cible = new THREE.Vector3(0, .92, 0);
@@ -41,9 +47,10 @@ export class MoteurAnatomie {
     this.auto = !!opts.rotationAuto;
     this.anim = null;
 
-    this.scene.add(new THREE.HemisphereLight(0xdfe9ff, 0x3a2a30, .95));
-    const d1 = new THREE.DirectionalLight(0xffffff, .9); d1.position.set(2, 3, 3); this.scene.add(d1);
-    const d2 = new THREE.DirectionalLight(0xcfe0ff, .8); d2.position.set(-3, 1.5, -3); this.scene.add(d2);
+    this.studio = studio(THREE, this.scene, this.niveau, this.mini);
+    if (this.niveau !== 'eco') { this.sol = solOmbre(THREE); this.scene.add(this.sol); }
+    this.pipeline = null;
+    if (this.niveau !== 'eco') this.initialiserRendu();
     if (!this.mini) {
       const grille = new THREE.GridHelper(2, 20, 0x4de3ff, 0x1e3a4a); grille.material.transparent = true; grille.material.opacity = .28; grille.material.depthWrite = false; this.scene.add(grille);
       this.grille = grille;
@@ -62,7 +69,9 @@ export class MoteurAnatomie {
   // ───────────────────────── matériaux ─────────────────────────
   mat(type, couleur, extra) {
     const T = this.THREE;
-    const m = new T.MeshStandardMaterial(Object.assign({ color: couleur, roughness: type === 'os' ? .62 : .5, metalness: 0, side: T.DoubleSide }, extra || {}));
+    const m = this.niveau !== 'eco' && ['os', 'muscle', 'nerf', 'organe', 'peau'].includes(type)
+      ? creerMateriauPBR(T, type, couleur, Object.assign({ envMapIntensity: .6 }, extra || {}))
+      : new T.MeshStandardMaterial(Object.assign({ color: couleur, roughness: type === 'os' ? .62 : .5, metalness: 0, side: T.DoubleSide }, extra || {}));
     m.userData.base = { opacity: m.opacity, transparent: m.transparent, depthWrite: m.depthWrite, emissive: m.emissive.getHex(), ei: m.emissiveIntensity };
     return m;
   }
@@ -72,7 +81,8 @@ export class MoteurAnatomie {
     const calque = this.calques[CALQUE_DE[type] || 'squelette']; calque.add(obj);
     const e = { sid, type, base: baseDe(sid), cote: cote || coteDe(sid), obj, mats, membre: membre || null };
     this.entrees.set(sid, e);
-    if (membre) mats.forEach(m => this.clip.push({ mat: m, membre, cote: e.cote }));
+    if (membre) mats.forEach(m => { m.clipShadows = true; this.clip.push({ mat: m, membre, cote: e.cote }); });
+    if (this.niveau !== 'eco' && ['os', 'muscle', 'nerf', 'organe'].includes(type)) obj.traverse(o => { if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; } });
     this.surchargerGLB(e);
     return e;
   }
@@ -126,7 +136,7 @@ export class MoteurAnatomie {
     if (r.distal) {
       grp.add(new T.Mesh(r.distal, m));
       r.eclats.forEach(g => grp.add(new T.Mesh(g, m)));
-      const tr = r.trait, anneau = new T.Mesh(new T.TorusGeometry(tr.r, .0012, 5, 24), new T.MeshBasicMaterial({ color: 0xff3030, depthTest: false, transparent: true, opacity: .9 }));
+      const tr = r.trait, anneau = new T.Mesh(new T.TorusGeometry(tr.r, .0012, 5, 24), new T.MeshBasicMaterial({ color: 0xff3030, depthTest: false, transparent: true, opacity: .9, toneMapped: false }));
       anneau.renderOrder = 9; anneau.position.set(...tr.p);
       anneau.quaternion.setFromUnitVectors(new T.Vector3(0, 0, 1), new T.Vector3(...tr.axe).normalize());
       anneau.rotateX(tr.incl * .6); grp.add(anneau); mats.push(anneau.material);
@@ -216,7 +226,7 @@ export class MoteurAnatomie {
     const T = this.THREE;
     for (const def of REPERES) for (const c of (def.sym === false ? [null] : ['D', 'G'])) {
       const p = def.sym === false ? def.p : [def.p[0] * (c === 'D' ? -1 : 1), def.p[1], def.p[2]];
-      const m = new T.MeshBasicMaterial({ color: COULEURS.repere, depthTest: false, transparent: true, opacity: .95 });
+      const m = new T.MeshBasicMaterial({ color: COULEURS.repere, depthTest: false, transparent: true, opacity: .95, toneMapped: false });
       m.userData.base = { opacity: .95, transparent: true, depthWrite: true };
       const mesh = new T.Mesh(new T.SphereGeometry(.0075, 10, 8), m); mesh.position.set(...p); mesh.renderOrder = 8;
       const mb = def.os && /^(humerus|radius|ulna|carpe|metacarpiens|phalanges-main)$/.test(def.os) ? 'MS' : def.os && /^(femur|tibia|fibula|patella|talus|calcaneus|tarse-anterieur|metatarsiens)$/.test(def.os) ? 'MI' : null;
@@ -228,6 +238,7 @@ export class MoteurAnatomie {
   // ───────────────────────── amputations (plans de coupe) ─────────────────────────
   appliquerCoupesSiBesoin() { this.coupes(this.store.obtenir().pathologie.amputation); }
   coupes(amp) {
+    if (this.pipeline) this.pipeline.ssao.enabled = !amp;
     const T = this.THREE, def = amp && AMPUTATIONS.find(a => a.id === amp.niveau);
     const cotes = def ? (amp.cote === 'DG' ? ['D', 'G'] : [amp.cote]) : [];
     this.clip.forEach(({ mat, membre, cote }) => {
@@ -263,7 +274,7 @@ export class MoteurAnatomie {
       const amp = e.pathologie.amputation && AMPUTATIONS.find(a => a.id === e.pathologie.amputation.niveau);
       const ctx = { etat: e, amp: amp ? Object.assign({}, amp, { cote: e.pathologie.amputation.cote }) : null, modele, positions: this.positions || this.C.positionsRachis(this.courbesEffectives(e)), courbes: this.courbesEffectives(e),
         pos: (id, c) => { const r = REPERES.find(q => q.id === id); if (!r) return null; return r.sym === false ? r.p.slice() : [r.p[0] * (c === 'D' ? -1 : 1), r.p[1], r.p[2]]; } };
-      try { const r = construireAppareil(T, this.C, ctx); g.add(r.group); this.matsAppareil = r.mats; this.notesAppareil = r.notes; } catch (err) { console.error('[anatomie] appareil', err); }
+      try { const r = construireAppareil(T, this.C, ctx); g.add(r.group); if (this.niveau !== 'eco') r.group.traverse(o => { if (o.isMesh && o.material && !o.material.depthTest === false) { o.castShadow = true; } }); this.matsAppareil = r.mats; this.notesAppareil = r.notes; } catch (err) { console.error('[anatomie] appareil', err); }
     }
     this.reconstruireNotes(); this.demander();
   }
@@ -282,7 +293,7 @@ export class MoteurAnatomie {
         bornes.forEach(p => {
           const a = new T.Vector3(-.11, 0, 0).applyAxisAngle(new T.Vector3(0, 0, 1), p.rotZ), b = new T.Vector3(.11, 0, 0).applyAxisAngle(new T.Vector3(0, 0, 1), p.rotZ);
           const geo = new T.BufferGeometry().setFromPoints([a.add(new T.Vector3(p.x, p.y, p.z - .045)), b.add(new T.Vector3(p.x, p.y, p.z - .045))]);
-          const l = new T.Line(geo, new T.LineBasicMaterial({ color: 0x4de3ff, depthTest: false, transparent: true })); l.renderOrder = 9; g.add(l);
+          const l = new T.Line(geo, new T.LineBasicMaterial({ color: 0x4de3ff, depthTest: false, transparent: true, toneMapped: false })); l.renderOrder = 9; g.add(l);
         });
         const ap = pos.find(p => p.id === c.apex) || bornes[0];
         this.notesMarques.push({ p: [ap.x + (c.convexite === 'D' ? -.16 : .16), ap.y, ap.z], texte: 'Cobb ' + Math.round(c.cobb) + '° (' + c.apex + ', convexe ' + (c.convexite === 'D' ? 'droite' : 'gauche') + ')', classe: 'cobb' });
@@ -294,7 +305,7 @@ export class MoteurAnatomie {
       const d = definition(sel), c = coteDe(sel), sg = c === 'D' ? -1 : 1;
       const f0 = d.faisceaux[0], oP = f0[0], iP = f0[f0.length - 1];
       [[oP, 0x39d98a, 'Origine'], [iP, 0xff5b6e, 'Terminaison']].forEach(([p, col, txt]) => {
-        const m = new T.Mesh(new T.SphereGeometry(.012, 12, 10), new T.MeshBasicMaterial({ color: col, depthTest: false, transparent: true, opacity: .9 })); m.position.set(p[0] * sg, p[1], p[2]); m.renderOrder = 10; g.add(m);
+        const m = new T.Mesh(new T.SphereGeometry(.012, 12, 10), new T.MeshBasicMaterial({ color: col, depthTest: false, transparent: true, opacity: .9, toneMapped: false })); m.position.set(p[0] * sg, p[1], p[2]); m.renderOrder = 10; g.add(m);
         this.notesMarques.push({ p: [p[0] * sg, p[1] + .03, p[2]], texte: txt, classe: txt === 'Origine' ? 'origine' : 'insertion' });
       });
     }
@@ -407,7 +418,7 @@ export class MoteurAnatomie {
   }
   redimensionner() {
     const p = this.canvas.parentElement || this.canvas, w = Math.max(p.clientWidth, 10), h = Math.max(p.clientHeight, 10);
-    this.rendu.setSize(w, h, false); this.camera.aspect = w / h; this.camera.updateProjectionMatrix(); this.largeur = w; this.hauteur = h; this.demander();
+    this.rendu.setSize(w, h, false); this.camera.aspect = w / h; this.camera.updateProjectionMatrix(); if (this.pipeline) this.pipeline.setSize(w, h); this.largeur = w; this.hauteur = h; this.demander();
   }
   /** Cadre la zone touchée par une amputation (jambe, pied, bras, main…), de face */
   cadrerAmputation(niveau, cote) {
@@ -516,7 +527,7 @@ export class MoteurAnatomie {
       if (k >= 1) this.anim = null; else continuer = true;
     }
     if (this.auto) { this.az += .006; this.placerCamera(); continuer = true; }
-    if (!document.hidden) { this.rendu.render(this.scene, this.camera); this.placerNotes(); }
+    if (!document.hidden) { if (this.pipeline) this.pipeline.render(); else this.rendu.render(this.scene, this.camera); this.placerNotes(); }
     this.dirty = false;
     if (continuer) this.raf = requestAnimationFrame(t2 => this.image(t2));
   }
@@ -531,11 +542,27 @@ export class MoteurAnatomie {
     }
   }
   rotationAuto(oui) { this.auto = !!oui; this.demander(); }
+  /** Environnement de studio (reflets) puis, au niveau haute, post-traitement : chargés à la demande, le rendu simple reste actif entre-temps ou en cas d'échec */
+  async initialiserRendu() {
+    try {
+      const env = await environnement(this.THREE, this.rendu); if (this.mort) return;
+      this.scene.environment = env; this.envTex = env;
+      if (this.niveau === 'haute') {
+        this.scene.background = fondDegrade(this.THREE);
+        this.pipeline = await pipeline(this.THREE, this.rendu, this.scene, this.camera, this.largeur || 800, this.hauteur || 600);
+        if (this.mort) { this.pipeline.dispose(); this.pipeline = null; return; }
+        this.pipeline.ssao.enabled = !this.store.obtenir().pathologie.amputation;    // les plans de coupe ne passent pas dans la passe de profondeur du SSAO
+      }
+      this.scene.traverse(o => { if (o.material) [].concat(o.material).forEach(m => { m.needsUpdate = true; }); });
+    } catch (e) { console.warn('[anatomie] rendu avancé indisponible : ' + (e && e.message || e)); this.niveau = 'standard'; this.scene.background = null; this.pipeline = null; }
+    this.demander();
+  }
   capture() { this.rendu.render(this.scene, this.camera); return this.canvas.toDataURL('image/png'); }
   dispose() {
     this.mort = true; cancelAnimationFrame(this.raf); this.desabonne && this.desabonne(); this.obs && this.obs.disconnect();
     this.notes.forEach(n => n.el.remove());
     this.scene.traverse(o => { if (o.geometry) o.geometry.dispose(); if (o.material) [].concat(o.material).forEach(m => m.dispose()); });
+    if (this.pipeline) this.pipeline.dispose(); if (this.envTex) this.envTex.dispose(); this.studio && this.studio.retirer();
     this.rendu.dispose(); try { this.rendu.forceContextLoss(); } catch (e) { }
   }
 }

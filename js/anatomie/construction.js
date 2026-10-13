@@ -1,7 +1,7 @@
 /* ═════════════ CONSTRUCTION 3D : géométries procédurales (solution de repli quand aucun modèle GLB n'est fourni) ═════════════
    Tout prend THREE en paramètre (three.js est chargé à la demande par UI.three()). Les géométries sont « cuites » (transformées puis
    fusionnées) : une structure = un Mesh. Voir docs/anatomie-3d.md. */
-import { J, VERTEBRES, zRachis, profilCote } from './donnees-os.js?v=2026.10.12.2';
+import { J, VERTEBRES, zRachis, profilCote } from './donnees-os.js?v=2026.10.13.1';
 
 /** Profil du tronc (rayon latéral, y) ; la profondeur est × 0,72 */
 export const PROFIL_TRONC = [[.001, .88], [.12, .88], [.152, .93], [.158, 1.0], [.148, 1.08], [.138, 1.14], [.142, 1.21], [.156, 1.3], [.162, 1.37], [.145, 1.44], [.085, 1.49], [.056, 1.515], [.001, 1.515]];
@@ -37,8 +37,10 @@ export function construire(THREE) {
     const liste = geoms.filter(Boolean);
     liste.forEach(g => { nbV += g.attributes.position.count; nbI += g.index ? g.index.count : g.attributes.position.count; });
     const pos = new Float32Array(nbV * 3), nor = new Float32Array(nbV * 3), idx = new Uint32Array(nbI);
+    const fibre = liste.some(g => g.attributes.aFibre) ? new Float32Array(nbV * 2) : null;   // u = longueur du muscle, v = tour (stries des fibres)
     let ov = 0, oi = 0;
     liste.forEach(g => {
+      if (fibre && g.attributes.aFibre) fibre.set(g.attributes.aFibre.array, ov * 2);
       pos.set(g.attributes.position.array, ov * 3); nor.set(g.attributes.normal.array, ov * 3);
       if (g.index) for (let i = 0; i < g.index.count; i++) idx[oi + i] = g.index.array[i] + ov;
       else for (let i = 0; i < g.attributes.position.count; i++) idx[oi + i] = ov + i;
@@ -47,6 +49,7 @@ export function construire(THREE) {
     });
     const out = new THREE.BufferGeometry();
     out.setAttribute('position', new THREE.BufferAttribute(pos, 3)); out.setAttribute('normal', new THREE.BufferAttribute(nor, 3)); out.setIndex(new THREE.BufferAttribute(idx, 1));
+    if (fibre) out.setAttribute('aFibre', new THREE.BufferAttribute(fibre, 2));
     out.computeBoundingSphere(); out.computeBoundingBox();
     return out;
   }
@@ -169,7 +172,8 @@ export function construire(THREE) {
   // ── muscles et nerfs ──
   function geoFuseau(pts, rMax, miroirS) {
     const curve = new THREE.CatmullRomCurve3(pts.map(p => V(miroir(p, miroirS))), false, 'centripetal');
-    const seg = 18, g = nettoie(new THREE.TubeGeometry(curve, seg, 1, 8, false));
+    const seg = 18, g = new THREE.TubeGeometry(curve, seg, 1, 8, false);
+    g.setAttribute('aFibre', g.attributes.uv.clone()); g.deleteAttribute('uv');
     const pos = g.attributes.position, ringPts = 9, tendon = Math.max(rMax * .14, .0035);
     for (let i = 0; i <= seg; i++) {
       const t = i / seg, c = curve.getPointAt(t);
