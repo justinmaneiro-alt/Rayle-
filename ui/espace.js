@@ -88,8 +88,92 @@
   ];
   const ON=/^(?:active|activer|allume|allumer|remets|remet|remettre|affiche|afficher|montre|montrer|mets|met|mettre|ajoute|ajouter|rends|rends moi)(?: moi)?$/;
   const OFF=/^(?:desactive|desactiver|eteins|eteindre|coupe|couper|enleve|enlever|retire|retirer|cache|cacher|masque|masquer|supprime|supprimer|ote|plus de|sans)(?: moi)?$/;
+  /* ═════ lieux de la Terre, rovers, trou noir ═════
+     Cibles : un astre (« mars »), « trounoir », un rover (« perseverance », « curiosity »), un lieu (« lieu:japon ») ou un point (« geo:35.68,139.69,Tokyo »). */
+  const LX=()=>UI.espaceLieux||{LIEUX:[],ROVERS:{},FICHES:{},TROU_NOIR:{}};
+  const ALIAS_EXTRA=[[/^(?:trou noir|trou noir supermassif|sagittarius a|sagittarius a etoile|sgr a)$/,'trounoir']];
+  let indexLieux=null;
+  const sansArticle=s=>s.replace(/^(?:le|la|les|l|un|une) /,'');
+  function lieux(){ if(indexLieux) return indexLieux; indexLieux=new Map(); LX().LIEUX.forEach(l=>{ const k=sansArticle(norm(l.nom)); if(!indexLieux.has(k)) indexLieux.set(k,l); }); return indexLieux; }
+  function lieuDe(id){ return LX().LIEUX.find(l=>l.id===id)||null; }
+  function geoDe(cible){ const m=/^geo:(-?[\d.]+),(-?[\d.]+)(?:,(.*))?$/.exec(cible||''); return m?{lat:+m[1],lon:+m[2],nom:m[3]||'ce point',zoom:1.5}:null; }
+  /** Texte normalisé → { cible, genre:'astre'|'rover'|'lieu', lieu? } ou null */
+  function cibleDe(r){
+    r=String(r||'').replace(/ (?:stp|svp|s il te plait|maintenant|sur le globe|sur la terre|sur terre)$/,'').trim();
+    for(let i=0;i<3 && ARTICLES.test(r);i++) r=r.replace(ARTICLES,'');
+    const a=ALIAS_ASTRE.concat(ALIAS_EXTRA).find(([re])=>re.test(r)); if(a) return {cible:a[1],genre:'astre'};
+    for(const id of Object.keys(LX().ROVERS)) if(LX().ROVERS[id].alias.some(x=>{ const n=norm(x); return r===n || r==='rover '+n || r==='le rover '+n; })) return {cible:id,genre:'rover'};
+    const l=lieux().get(sansArticle(r)); if(l) return {cible:'lieu:'+l.id,genre:'lieu',lieu:l};
+    return null;
+  }
+  const estRover=c=>!!(LX().ROVERS||{})[c];
+  function nomCible(c){
+    if(!c) return 'la Terre';
+    if(ASTRES[c]) return ASTRES[c].nom; if(c==='trounoir') return 'le trou noir';
+    if(estRover(c)) return 'le rover '+LX().ROVERS[c].nom;
+    if(c.startsWith('lieu:')){ const l=lieuDe(c.slice(5)); return l?l.nom:'ce lieu'; }
+    const g=geoDe(c); return g?g.nom:'la Terre';
+  }
+
+  /* ═════ vue par défaut : l'astre ou le lieu où l'on reste (mémorisé, plus de retour forcé sur la Terre) ═════ */
+  const CLE_ACCUEIL='rayle_esp_accueil';
+  const accueil=()=>lireLS(CLE_ACCUEIL)||null;
+  function definirAccueil(cible){
+    ecrireLS(CLE_ACCUEIL,cible&&cible!=='terre'?cible:null);
+    publier(undefined);
+    try{ RayleBus.emit('espace:accueil',{cible:accueil()}); }catch(e){}
+  }
+  // état partagé (équivalent d'un store) : RayleBus.etat('espace') → { currentPlanet, savedHomeLocation, focusedTarget }
+  function publier(cible){
+    const sc=UI.fondScene&&UI.fondScene(), cur=cible!==undefined?cible:((sc&&sc.etat&&sc.etat().cible)||null);
+    try{ RayleBus.fusion('espace',{currentPlanet:(cur&&ASTRES[cur]&&cur!=='iss')?cur:(cur?null:'terre'),focusedTarget:cur,savedHomeLocation:accueil()}); }catch(e){}
+  }
+
+  /* ═════ fiches de présentation (rubriques variées, tirées au hasard à chaque fois) ═════ */
+  function melanger(a){ const b=a.slice(); for(let i=b.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); [b[i],b[j]]=[b[j],b[i]]; } return b; }
+  /** → { titre, rubriques:[{t,v}], parle } : `parle` est la phrase dite (chiffres du jour + 1 ou 2 rubriques), `rubriques` remplit la fiche affichée */
+  function fiche(cible,ctx){
+    ctx=ctx||{}; const L=LX();
+    if(estRover(cible)){
+      const R=L.ROVERS[cible], infos=melanger(R.infos);
+      return {titre:'Rover '+R.nom,rubriques:[{t:'Site',v:'Il explore '+R.site+', sur Mars ('+Math.abs(R.lat).toFixed(1)+'° '+(R.lat>=0?'N':'S')+', '+Math.abs(R.lon).toFixed(1)+'° E).'}].concat(R.infos.map((v,i)=>({t:['Mission','Science','Technique','À retenir'][i]||'Info',v}))),parle:'Le rover '+R.nom+' explore '+R.site+'. '+infos.slice(0,2).join(' ')};
+    }
+    if(cible&&cible.startsWith('lieu:')||geoDe(cible)){
+      const l=cible.startsWith('lieu:')?lieuDe(cible.slice(5)):null, g=geoDe(cible), nom=l?l.nom:g.nom, lat=l?l.lat:g.lat, lon=l?l.lon:g.lon;
+      const rub=[{t:'Position',v:Math.abs(lat).toFixed(2)+'° '+(lat>=0?'nord':'sud')+', '+Math.abs(lon).toFixed(2)+'° '+(lon>=0?'est':'ouest')+'.'}];
+      let parle='Voici '+nom+'.';
+      if(l&&l.capitale){ rub.push({t:'Capitale',v:l.capitale}); parle+=' Sa capitale est '+l.capitale+'.'; }
+      if(l&&l.pays){ rub.push({t:'Pays',v:l.pays}); parle+=' Capitale de : '+l.pays+'.'; }
+      if(l&&l.info){ rub.push({t:'À savoir',v:l.info}); parle+=' '+l.info; }
+      return {titre:nom.replace(/^./,x=>x.toUpperCase()),rubriques:rub,parle};
+    }
+    const base=faits(cible,ctx), rub=(L.FICHES&&L.FICHES[cible])||[], choix=melanger(rub).slice(0,1+(Math.random()<.5?1:0));
+    return {titre:(ASTRES[cible]?ASTRES[cible].nom:nomCible(cible)).replace(/^./,x=>x.toUpperCase()),rubriques:rub,parle:(base||'')+(choix.length?' '+choix.map(r=>r.v).join(' '):'')};
+  }
+  const echapper=t=>String(t==null?'':t).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  function afficherFiche(f){
+    try{
+      if(typeof Panneaux==='undefined'||!f||!f.rubriques.length) return;
+      Panneaux.ouvrir({id:'espace-fiche',type:'espace',titre:f.titre,icone:'🪐',duree:45000,
+        corps:{html:f.rubriques.map(r=>'<p><b>'+echapper(r.t)+' : </b>'+echapper(r.v)+'</p>').join('')}});
+    }catch(e){}
+  }
+
   function analyser(texte){
     let t=norm(texte);
+    if(t && t.split(' ').length<=10){
+      // « où est la Terre… » : où est / où se trouve / situe / localise + un astre, un rover, un lieu
+      const ou=t.match(/^(?:montre moi )?(?:ou (?:est|se trouve|se situe|se trouvent|sont|habite)|situe|situer|localise|localiser|trouve moi|repere moi)(?: moi)? (.+)$/);
+      if(ou){ const c=cibleDe(ou[1]); if(c) return {type:'vers',cible:c.cible,genre:c.genre,question:true}; }
+      // vue par défaut : « garde Mars comme vue par défaut », « sauvegarde cette vue », « remets la Terre par défaut »
+      if(/\b(?:par defaut|d accueil|de depart|favorite|favori|habituelle)\b/.test(t)){
+        if(/^(?:reinitialise|reinitialiser|remets?|remettre|reviens|oublie|oublier|supprime|supprimer|efface|effacer|annule|annuler)\b/.test(t) || /\bterre\b/.test(t)) return {type:'accueil',cible:null,reset:true};
+        if(/^(?:garde|garder|sauvegarde|sauvegarder|enregistre|enregistrer|memorise|memoriser|mets|met|mettre|definis|definir|fixe|fixer|reste|rester|prends|prendre|choisis|choisir|utilise|utiliser)\b/.test(t)){
+          const mid=t.replace(/^[a-z]+(?: moi)? /,'').replace(/ (?:comme|en|par|pour|a|au) .*$/,'').replace(/^(?:cette vue|cet astre|cette planete|ici|cette position|la vue actuelle|la vue|ce lieu)$/,'');
+          const c=mid?cibleDe(mid):null; return {type:'accueil',cible:c?c.cible:undefined};
+        }
+      }
+    }
     if(!t || t.split(' ').length>10 || QUESTION.test(t)) return null;
     if(/\b(?:graphique|graphe|chart|bougies?|rsi|terminal|carte|courbe|bitcoin|nasdaq|calendrier|mois)\b/.test(t)) return null;
     // retour sur la Terre
@@ -110,6 +194,9 @@
       for(let i=0;i<3 && ARTICLES.test(r);i++) r=r.replace(ARTICLES,'');
       const a=ALIAS_ASTRE.find(([re])=>re.test(r));
       if(a) return {type:'vers',cible:a[1]};
+      // trou noir, rovers ; un lieu seulement si c'est un monument, ou « sur le globe » (sinon « montre-moi le Japon » reste la page Monde)
+      const c=cibleDe(r);
+      if(c && (c.genre!=='lieu' || c.lieu.type==='monument' || /\b(?:sur le globe|sur la terre|sur terre)\b/.test(t))) return {type:'vers',cible:c.cible,genre:c.genre};
     }
     return null;
   }
@@ -229,23 +316,44 @@
     }
     if(a.type==='retour'){
       const sc=UI.fondScene&&UI.fondScene(); attente=null;
-      if(sc && sc.retour && r.fond==='espace') sc.retour();
+      if(sc && sc.retour && r.fond==='espace') sc.retour(true);                  // explicite : la Terre, même si une autre vue est mémorisée par défaut
       return 'Retour sur la Terre.';
     }
+    if(a.type==='accueil'){
+      const sc=UI.fondScene&&UI.fondScene();
+      if(a.reset){ definirAccueil(null); return 'C’est noté : la Terre redevient ta vue par défaut.'; }
+      const cur=a.cible!==undefined?a.cible:((sc&&sc.etat&&sc.etat().cible)||null);
+      if(!cur){ definirAccueil(null); return 'Tu es sur la Terre : c’est ta vue par défaut.'; }
+      definirAccueil(cur);
+      return 'C’est noté : '+nomCible(cur)+' devient ta vue par défaut. Je n’y reviendrai plus sur la Terre toute seule, même après un rechargement.';
+    }
     if(a.type==='vers'){
-      const f=faits(a.cible,{iss});
-      if(r.palier>=2) return 'Voici '+ASTRES[a.cible].nom+'. '+f+' (En mode Éco le fond reste une image fixe : passe en Auto ou Max pour que la caméra y vole.)';
+      const fi=fiche(a.cible,{iss});
+      if(r.palier>=2){ afficherFiche(fi); return 'Voici '+nomCible(a.cible)+'. '+fi.parle+' (En mode Éco le fond reste une image fixe : passe en Auto ou Max pour que la caméra y vole.)'; }
       if(r.fond!=='espace'){ try{ UI.changer('fond','espace'); }catch(e){} }
       allerVers(a.cible);
-      return 'Direction '+ASTRES[a.cible].nom+'. '+f;
+      afficherFiche(fi);
+      return (a.question?'Je te montre ':'Direction ')+nomCible(a.cible)+'. '+fi.parle;
     }
     return null;
   }
   if(typeof RayleBus!=='undefined'){
     try{ RayleBus.fournir('espace:commande',c=>{ const a=analyser(c); return a?executer(a):null; }); }catch(e){}
+    // Événements d'actions 3D pour le reste de l'appli (ou un autre module) : { planetName } · { roverName } · { lat, long, name } ou { country }
+    try{
+      RayleBus.on('rayle:show-planet',d=>{ const c=cibleDe(norm(d&&(d.planetName||d.name)||'')); if(c) executer({type:'vers',cible:c.cible,genre:c.genre}); });
+      RayleBus.on('rayle:show-rover',d=>{ const c=cibleDe(norm(d&&(d.roverName||d.name)||'')); if(c&&c.genre==='rover') executer({type:'vers',cible:c.cible,genre:'rover'}); });
+      RayleBus.on('rayle:show-landmark',d=>{
+        if(!d) return;
+        const lat=+(d.lat!=null?d.lat:d.latitude), lon=+(d.long!=null?d.long:d.lon!=null?d.lon:d.longitude);
+        if(isFinite(lat)&&isFinite(lon)&&d.lat!=null){ executer({type:'vers',cible:'geo:'+lat+','+lon+','+String(d.name||d.country||'ce point').replace(/,/g,' '),genre:'lieu'}); return; }
+        const c=cibleDe(norm(d.country||d.name||'')); if(c&&c.genre==='lieu') executer({type:'vers',cible:c.cible,genre:'lieu'});
+      });
+    }catch(e){}
+    try{ publier(null); }catch(e){}
     try{ RayleBus.on('espace:pret',()=>{ if(attente){ const c=attente; attente=null; const sc=UI.fondScene&&UI.fondScene(); if(sc&&sc.vers) setTimeout(()=>sc.vers(c),1500); } }); }catch(e){}
   }
 
-  UI.espace={ELEMENTS,elements:()=>Object.assign({},elements),regler,ASTRES,faits,analyser,executer,creerISS,choisirVue,evaluerVue,vueVecteur,DIST_CAM,DIST_LUNE,FOV_V,INCL,PERIODE_S,TTL_ISS};
+  UI.espace={accueil,definirAccueil,publier,fiche,nomCible,cibleDe,lieuDe,geoDe,estRover,ELEMENTS,elements:()=>Object.assign({},elements),regler,ASTRES,faits,analyser,executer,creerISS,choisirVue,evaluerVue,vueVecteur,DIST_CAM,DIST_LUNE,FOV_V,INCL,PERIODE_S,TTL_ISS};
   if(typeof document!=='undefined') UI.espace.iss=creerISS();
 })();

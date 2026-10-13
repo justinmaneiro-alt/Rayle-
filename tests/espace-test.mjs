@@ -78,7 +78,7 @@ await t('commandes vocales : activer / désactiver les éléments', () => {
   assert.equal(a('affiche les planètes'), 'planetes=true'); assert.equal(a('remets les satellites'), 'satellites=true');
 });
 await t('commandes vocales : ne vole ni les questions ni les autres commandes', () => {
-  for (const q of ['quelle est la distance de Mars', 'où est Jupiter', 'combien de lunes a Saturne', 'c’est quoi l’ISS', 'montre-moi le graphique', 'montre-moi la carte de Paris', 'affiche le bitcoin', 'ouvre le terminal',
+  for (const q of ['quelle est la distance de Mars', 'combien de lunes a Saturne', 'c’est quoi l’ISS', 'montre-moi le graphique', 'montre-moi la carte de Paris', 'affiche le bitcoin', 'ouvre le terminal',
     'montre-moi le calendrier de mars', 'passe en thème Aurore', 'fond espace', 'mode éco', 'ambiance nuit', 'plus de vent', 'mars', 'jupiter', 'la lune', 'reviens', 'retour', 'ferme tout', 'active le micro', 'désactive le son',
     'coupe l’écoute', 'montre-moi mon dernier message', 'affiche les panneaux', 'montre la lune de miel', 'va sur Terre-Neuve'])
     assert.equal(E.analyser(q), null, 'ne doit pas être pris : ' + q);

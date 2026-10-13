@@ -151,6 +151,8 @@ void main(){
     /* ───── tout le reste, construit par étapes (la Terre s'affiche d'abord) ───── */
     const bati={}; let fini=false;
     const planetes={};                          // nom → {mesh, groupe, lueur, R, ...}
+    let EXT=null;                                                          // ui/espace-extras.js : trou noir, rovers, lieux de la Terre, ISS détaillée (construit à la demande)
+    const ext=()=>EXT||(UI.espaceExtras?(EXT=UI.espaceExtras.monter({THREE,scene,camera,terre,ESP,A,vec,planetes:()=>planetes,sunDir:()=>sunDir})):null);
     let ceinture=null, debris=null, rochers=[], satGroupe=null, issGroupe=null, issTrace=null, train=null, geos=null, issPts=null;
     let aurore=null, ciel=null, cielBake=null, cielTex=null;
     let cible=null;                             // astre visité (null = on regarde la Terre)
@@ -295,6 +297,7 @@ void main(){
       const mod=new THREE.Mesh(new THREE.CylinderGeometry(.0035,.0035,.028,8),dore); mod.rotation.z=Math.PI/2; mod.position.set(0,0,.0); issGroupe.add(mod);
       const mod2=new THREE.Mesh(new THREE.CylinderGeometry(.0028,.0028,.02,8),gris); mod2.position.set(0,.0,.012); mod2.rotation.x=Math.PI/2; issGroupe.add(mod2);
       issGroupe.scale.setScalar(1.15); satGroupe.add(issGroupe);
+      try{ const e=ext(); if(e) e.ameliorerISS(issGroupe); }catch(err){}                // modèle détaillé (poutre, panneaux, modules), GLB facultatif
       const NT=64, gt=new THREE.BufferGeometry(); gt.setAttribute('position',new THREE.BufferAttribute(new Float32Array(NT*3),3)); gt.setAttribute('color',new THREE.BufferAttribute(new Float32Array(NT*3),3));
       issTrace=new THREE.Line(gt,new THREE.LineBasicMaterial({vertexColors:true,transparent:true,blending:THREE.AdditiveBlending,depthWrite:false})); issTrace.frustumCulled=false; satGroupe.add(issTrace);
       // train de petits satellites (53°, 550 km) : 16 points alignés
@@ -450,25 +453,27 @@ void main(){
       return {pos:c.multiplyScalar(cad.dist),look:new THREE.Vector3(0,0,0)};
     }
     function poseCible(nom){
+      { const e=nom&&ext(); if(e&&e.reconnait(nom)){ const p=e.pose(nom,arrivee); return p||poseOrbite(); } }
       const up=new THREE.Vector3(0,1,0);
       if(nom==='soleil'){ const S=SUNPOS.value, perp=new THREE.Vector3().crossVectors(sunDir,up).normalize(); return {pos:S.clone().addScaledVector(sunDir,-R_SOLEIL*7.5).addScaledVector(perp,R_SOLEIL*1.6).addScaledVector(up,R_SOLEIL*1.1),look:S.clone()}; }
       if(nom==='lune'){ const M=lune.position, perp=new THREE.Vector3().crossVectors(moonDir,up).normalize(); return {pos:M.clone().addScaledVector(moonDir,-.55).addScaledVector(perp,1.95).addScaledVector(up,.4),look:M.clone()}; }
       if(nom==='iss'){ const e=ESP.iss.position(Date.now()), d=vec(A.direction(e.ra,e.dec)), P=d.clone().multiplyScalar(e.r), e2=ESP.iss.position(Date.now()+30000), P2=vec(A.direction(e2.ra,e2.dec)).multiplyScalar(e2.r), av=P2.clone().sub(P).normalize();
         return {pos:P.clone().addScaledVector(d,.17).addScaledVector(av,-.2).addScaledVector(new THREE.Vector3().crossVectors(d,av),.2),look:P}; }
       const o=planetes[nom]; if(!o||!o.dir) return poseOrbite();
-      const tanH=Math.tan(camera.fov*RAD/2)*camera.aspect, ext=o.R*(o.d.anneaux?2.5:1.12);
-      const P=o.g.position, dF=Math.max(o.R*o.d.cadre,ext/(.6*tanH)), perp=new THREE.Vector3().crossVectors(o.dir,up).normalize();   // écran étroit (téléphone vertical) : on recule pour que l'astre (et les anneaux) restent entiers
+      const tanH=Math.tan(camera.fov*RAD/2)*camera.aspect, etendue=o.R*(o.d.anneaux?2.5:1.12);
+      const P=o.g.position, dF=Math.max(o.R*o.d.cadre,etendue/(.6*tanH)), perp=new THREE.Vector3().crossVectors(o.dir,up).normalize();   // écran étroit (téléphone vertical) : on recule pour que l'astre (et les anneaux) restent entiers
       const dec=new THREE.Vector3().addScaledVector(o.dir,-dF).addScaledVector(perp,dF*.32).addScaledVector(up,dF*.14);
       dec.applyAxisAngle(up,.42*Math.sin(arrivee*.16));                          // une fois arrivé, la caméra dérive doucement autour de l'astre (on voit son relief et sa rotation)
       return {pos:P.clone().add(dec),look:P.clone()};
     }
     function demarrerVol(nomCible){
-      cible=nomCible; arrivee=0; vol={t:0,from:camera.position.clone(),fromLook:regard.clone(),dur:3.4,sens:Math.random()<.5?-1:1};
+      cible=nomCible; arrivee=0; try{ const e=nomCible&&ext(); if(e&&e.reconnait(nomCible)) e.preparer(nomCible); ESP.publier&&ESP.publier(nomCible); }catch(err){}
+      vol={t:0,from:camera.position.clone(),fromLook:regard.clone(),dur:3.4,sens:Math.random()<.5?-1:1};
       const dest=(nomCible?poseCible(nomCible):poseOrbite()).pos; vol.dur=clamp(3.6+dest.distanceTo(camera.position)/14,3.6,7.5);
       if(nomCible) appliquerCorps(); else retexture=true;                      // astre visité : texture 2k (palier 0 capable) ; au retour, on repasse en 1k une fois parti
     }
     function vers(nom){
-      if(!nom||nom==='terre') return retour();
+      if(!nom||nom==='terre') return retour(true);
       const el=elements();
       if(nom in PL&&!el.planetes) ESP.regler('planetes',true);
       if(nom==='lune'&&!el.lune) ESP.regler('lune',true);
@@ -476,7 +481,11 @@ void main(){
       assurer();
       if(cible===nom) return; demarrerVol(nom);
     }
-    function retour(){ if(cible===null&&!vol) return; demarrerVol(null); }
+    function retour(explicite){
+      const h=explicite?null:(ESP.accueil&&ESP.accueil());                    // vue par défaut (« garde Mars comme vue par défaut ») : on y revient au lieu de la Terre
+      if(h){ if(cible===h&&!vol) return; return vers(h); }
+      if(cible===null&&!vol) return; demarrerVol(null);
+    }
     function majCamera(dt){
       tOrbite+=dt;
       // cadrage de la Terre (derrière l'entité) : distance et décalage de l'image, glissés doucement
@@ -496,7 +505,7 @@ void main(){
       }
       else{
         posCam.copy(cib.pos); regard.copy(cib.look);
-        if(cible){ arrivee+=dt; if(arrivee>DUREE_VISITE) retour(); }                  // après un moment près de l'astre, retour doux sur la Terre
+        if(cible){ arrivee+=dt; if(arrivee>DUREE_VISITE&&cible!==(ESP.accueil&&ESP.accueil())) retour(); }                  // après un moment près de l'astre, retour doux sur la Terre
       }
       camera.position.copy(posCam); camera.up.set(0,1,0); camera.lookAt(regard);
       // décalage de l'image : Terre centrée sur l'entité, sauf pendant qu'on regarde autre chose
@@ -607,6 +616,7 @@ void main(){
         prochaineFilante-=dt; if(prochaineFilante<=0){ prochaineFilante=(q===0?7:16)+Math.random()*(q===0?14:24); if(tPlus>6) lancerFilante(); }
       }
       majComete(dt,aste); majFilantes(dt,aste);
+      if(EXT) EXT.maj(dt,cible);
       majCamera(dt);
       if(solo) for(const c of scene.children) if(c!==camera&&c!==groupe) c.visible=false;      // outil des images fixes : la Terre seule
       // rendu
@@ -630,6 +640,7 @@ void main(){
     }
     function qualite(n){ q=Math.max(0,Math.min(2,n|0)); appliquerQualite(); appliquerElements(); appliquerCorps(); appliquerTerre(); assurer(); }
     function detruire(){
+      try{ EXT&&EXT.liberer(); }catch(e){}
       abonnements.forEach(f=>{ try{ f(); }catch(e){} }); minuteries.forEach(id=>{ clearTimeout(id); clearInterval(id); });
       scene.traverse(x=>{ if(x.geometry) x.geometry.dispose(); if(x.material){ (Array.isArray(x.material)?x.material:[x.material]).forEach(m=>m.dispose&&m.dispose()); } });
       scene2.traverse(x=>{ if(x.material) x.material.dispose(); });
@@ -645,6 +656,7 @@ void main(){
     majAstres(true); recadrer(); choisirBase(true); initialise=true; appliquerQualite(); appliquerElements(); appliquerTerre();
     camera.position.copy(poseOrbite().pos); regard.set(0,0,0); posCam.copy(camera.position);
     minuteries.push(setTimeout(()=>{ assurer(); RayleBus.emit('espace:pret',{}); },30));
+    { const h=ESP.accueil&&ESP.accueil(); if(h) minuteries.push(setTimeout(()=>vers(h),1400)); }          // la vue par défaut mémorisée (planète, ISS, lieu…) : pas de retour forcé sur la Terre au rechargement
     prochaineComete=45+Math.random()*30; prochaineFilante=8+Math.random()*8;
     return {taille,image,qualite,detruire,vers,retour,etat,THREE,planetes,test:{figer:(oui,dist)=>{ figee=!!oui; figDist=oui&&dist?dist:0; if(figDist){ cad.dist=cad.tdist=dist; cad.ox=cad.tox=cad.oy=cad.toy=0; offMix=1; } },dureeVisite:t=>{ DUREE_VISITE=t; },objets:()=>({couche,sphereTerre,matTerre2,matAtmo,aurore,terre,scene,arcsMesh,placesPts}),saut:(nom,t)=>{ vers(nom); vol=null; arrivee=t||0; },sansTerre:b=>{ groupe.visible=!b; },soloTerre:b=>{ solo=!!b; },fixerTemps:t=>{ UT.u_t.value=t; },comete:lancerComete,filante:lancerFilante,vue:(y,p)=>{ base.yaw=base.tyaw=y; base.pitch=base.tpitch=p; }}};
   };

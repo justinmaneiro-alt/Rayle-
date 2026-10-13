@@ -119,8 +119,8 @@ await t('fond-espace.js : Lune (libration, lueur cendrée, phase réelle), plan�
 await t('vol cinématique : trajectoire en arc, arrivée douce, dérive autour de l’astre, retour seul sur la Terre', () => {
   const f = lire('ui/fond-espace.js');
   assert.match(f, /douce=t=>t\*t\*t\*\(t\*\(t\*6-15\)\+10\)/); assert.match(f, /Math\.sin\(Math\.PI\*e\)\*seg\.length\(\)/); assert.match(f, /applyAxisAngle\(up,\.42\*Math\.sin\(arrivee/);
-  assert.match(f, /arrivee>DUREE_VISITE\) retour\(\)/); assert.match(f, /DUREE_VISITE=24/);
-  const e = lire('ui/espace.js'); assert.match(e, /Direction '\+ASTRES\[a\.cible\]\.nom\+'\. '\+f/, 'Raylé annonce l’astre et dit ses faits');
+  assert.match(f, /arrivee>DUREE_VISITE&&cible!==\(ESP\.accueil&&ESP\.accueil\(\)\)\) retour\(\)/); assert.match(f, /DUREE_VISITE=24/);
+  const e = lire('ui/espace.js'); assert.match(e, /'Direction '\)\+nomCible\(a\.cible\)\+'\. '\+fi\.parle/, 'Raylé annonce l’astre et dit ses faits');
 });
 await t('images fixes Éco : portrait 1080×1920, paysage 1920×1080, Terre 1024×1024 transparente, toutes légères', () => {
   const dim = f => { const b = fs.readFileSync(new URL('ui/assets/' + f, racine)); const k = b.toString('ascii', 12, 16);

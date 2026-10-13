@@ -5,8 +5,8 @@
    Services : 'vue' (vue courante) · 'vue:ouvrir' (terminal) · 'vue:ouvrir-anatomie'(options) · 'vue:fermer' (ferme la vue ouverte, quelle qu'elle soit). */
 (function(){
   const PLEINES={
-    terminal:{ el:'vueTerminal', url:'js/terminal/terminal.js?v=2026.10.12.2', hash:'#terminal', classe:'vue-terminal', erreur:'Terminal impossible à charger : ', bus:'terminal' },
-    anatomie:{ el:'vueAnatomie', url:'js/anatomie/fenetre.js?v=2026.10.12.2', hash:'#anatomie', classe:'vue-anatomie', erreur:'Anatomie impossible à charger : ', bus:'anatomie' }
+    terminal:{ el:'vueTerminal', url:'js/terminal/terminal.js?v=2026.10.13.1', hash:'#terminal', classe:'vue-terminal', erreur:'Terminal impossible à charger : ', bus:'terminal' },
+    anatomie:{ el:'vueAnatomie', url:'js/anatomie/fenetre.js?v=2026.10.13.1', hash:'#anatomie', classe:'vue-anatomie', erreur:'Anatomie impossible à charger : ', bus:'anatomie' }
   };
   let vue='rayle', pousse=false;
   const modules={}, chargements={};
