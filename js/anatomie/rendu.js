@@ -87,7 +87,7 @@ export async function pipeline(THREE, rendu, scene, camera, w, h) {
     import('three/addons/postprocessing/EffectComposer.js'), import('three/addons/postprocessing/RenderPass.js'), import('three/addons/postprocessing/SSAOPass.js'),
     import('three/addons/postprocessing/UnrealBloomPass.js'), import('three/addons/postprocessing/OutputPass.js'), import('three/addons/postprocessing/ShaderPass.js')]);
   const pr = rendu.getPixelRatio();
-  let cible; try { if (rendu.capabilities.isWebGL2) cible = new THREE.WebGLRenderTarget(w * pr, h * pr, { type: THREE.HalfFloatType, samples: 4 }); } catch (e) { cible = undefined; }   // anticrénelage matériel
+  let cible; try { if (rendu.capabilities.isWebGL2) cible = new THREE.WebGLRenderTarget(w * pr, h * pr, { type: THREE.HalfFloatType, samples: 4, stencilBuffer: true }); } catch (e) { cible = undefined; }   // anticrénelage matériel
   const composer = new EffectComposer(rendu, cible);
   composer.setPixelRatio(pr); composer.setSize(w, h);
   composer.addPass(new RenderPass(scene, camera));

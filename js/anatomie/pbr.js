@@ -27,6 +27,21 @@ vec3 bumpNormal(vec3 pos, vec3 n, float h, float k){
 }
 `;
 
+// occlusion ambiante cuite (aFibre.y, 0 = dégagé, 1 = fond d'un creux) : assombrit l'éclairage indirect (fort) et un peu le direct, pour que les creux restent sombres à tous les niveaux de qualité
+const AO_CUITE = `{ float aoc=1.0-clamp(vFib.y,0.0,1.0)*0.92; reflectedLight.indirectDiffuse*=aoc; reflectedLight.indirectSpecular*=aoc; reflectedLight.directDiffuse*=mix(1.0,aoc,0.4); reflectedLight.directSpecular*=mix(1.0,aoc,0.4); }`;
+
+/** Niveau Éco : matériau standard (sans les shaders de texture) qui garde malgré tout l'occlusion ambiante cuite et la teinte diaphyse / épiphyse de l'os */
+export function ajouterAOCuite(m) {
+  m.onBeforeCompile = shader => {
+    shader.vertexShader = shader.vertexShader.replace('#include <common>', '#include <common>\nattribute vec2 aFibre;\nvarying vec2 vFib;').replace('#include <begin_vertex>', '#include <begin_vertex>\nvFib=aFibre;');
+    shader.fragmentShader = shader.fragmentShader.replace('#include <common>', '#include <common>\nvarying vec2 vFib;')
+      .replace('#include <color_fragment>', '#include <color_fragment>\ndiffuseColor.rgb=mix(diffuseColor.rgb*vec3(1.04,1.03,1.02),diffuseColor.rgb*vec3(1.0,0.91,0.8),clamp(vFib.x,0.0,1.0)*0.6)*(1.0-0.5*clamp(vFib.y,0.0,1.0));')
+      .replace('#include <aomap_fragment>', '#include <aomap_fragment>\n' + AO_CUITE);
+  };
+  m.customProgramCacheKey = () => 'os-eco-ao';
+  return m;
+}
+
 const PROFILS = {
   os: { rough: .62, clearcoat: .12, clearcoatRoughness: .55, sheen: 0, bump: .0011 },
   muscle: { rough: .5, clearcoat: .55, clearcoatRoughness: .32, sheen: .5, bump: .0009 },
@@ -65,7 +80,8 @@ export function creerMateriauPBR(THREE, type, couleur, options = {}) {
           diffuseColor.rgb=mix(mix(ivoire,jaune,g),gris,smoothstep(0.55,0.9,v)*0.5)*(0.92+0.16*v);
           float epi=clamp(vFib.x,0.0,1.0);                                                       // diaphyse : ivoire plus clair ; épiphyse : plus jaune / rosé, un peu plus sombre
           diffuseColor.rgb=mix(diffuseColor.rgb*vec3(1.05,1.04,1.02),diffuseColor.rgb*vec3(1.0,0.90,0.78)+vec3(0.035,0.0,0.0),epi*0.7);
-          diffuseColor.rgb*=1.0-0.9*clamp(vFib.y,0.0,1.0); }                                    // cavités (orbites, narines) : occlusion ambiante cuite dans la géométrie`))
+          diffuseColor.rgb*=1.0-0.55*clamp(vFib.y,0.0,1.0); }                                   // cavités (orbites, narines, creux entre les os) : occlusion ambiante cuite dans la géométrie (aFibre.y)`))
+      .replace('#include <aomap_fragment>', '#include <aomap_fragment>\n' + (os ? AO_CUITE : ''))
       .replace('#include <roughnessmap_fragment>', '#include <roughnessmap_fragment>\nroughnessFactor=clamp(roughnessFactor*(0.78+0.5*fbm3(vOPos*70.0))' + (muscle ? '*(0.8+0.4*vn2(vec2(vFib.y*90.0,vFib.x*3.0)))' : lig ? '*(0.85+0.3*vn3(vOPos*vec3(260.0,26.0,260.0)))' : '') + ',0.14,1.0);')
       .replace('#include <normal_fragment_maps>', '#include <normal_fragment_maps>\n' + (lig
         ? `{ float hf=vn3(vOPos*vec3(300.0,30.0,300.0)); normal=bumpNormal(-vViewPosition, normal, hf*${p.bump.toFixed(5)}, 1.0); }`

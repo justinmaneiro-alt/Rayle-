@@ -156,7 +156,7 @@ t('disques intervertébraux : 23, cartilage, hors sélection par clic', () => {
   S.definir({ pathologie: { amputation: null, scoliose: null, fracture: null }, selection: null, isolation: false });
   const d = Array.from(M.entrees.values()).filter(e => e.type === 'cartilage' && e.sid.startsWith('disque-'));
   assert.equal(d.length, 23, 'disques : ' + d.length);
-  assert.ok(d.every(e => e.mats[0].userData.pbr === 'cartilage'));
+  assert.ok(d.every(e => M.niveau === 'eco' || e.mats[0].userData.pbr === 'cartilage'));          // en Éco (niveau choisi sans navigateur), matériaux simples sans shader
 });
 t('transparence par calque : opacité réglable, 0 % masque, retour au rendu d’origine', () => {
   calque('muscles', true);

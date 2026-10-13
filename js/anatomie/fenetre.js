@@ -1,15 +1,15 @@
 /* ═════════════ FENÊTRE « ANATOMIE & ORTHOPÉDIE » (vue plein écran, comme le terminal) ═════════════
    Chargée par js/commun/vues.js à la première ouverture. Exporte ouvrir() / fermer() ; tout l'état passe par le store (store.js). */
-import { useAnatomieStore as S, actions as A, CALQUES } from './store.js?v=2026.10.13.4';
-import { MoteurAnatomie, VUES } from './moteur.js?v=2026.10.13.4';
-import * as R from './registre.js?v=2026.10.13.4';
-import * as K from './cours.js?v=2026.10.13.4';
-import { AMPUTATIONS, SCOLIOSE, FRACTURES, TYPES_FRACTURE, MATERIAUX, APPAREILLAGES, appareilsCompatibles } from './donnees-ortho.js?v=2026.10.13.4';
-import { REPERES } from './donnees-os.js?v=2026.10.13.4';
-import { GROUPES_OS, nomGroupe } from './groupes-os.js?v=2026.10.13.4';
-import { chargerTHREE, webglDisponible, h, vider } from './outils.js?v=2026.10.13.4';
-import { NIVEAUX, NOMS_NIVEAUX, lireNiveau, ecrireNiveau, detecterCapacites, niveauConseille } from './rendu.js?v=2026.10.13.4';
-import { abonnerChargement, lireEtatChargement, lireManifeste, normaliserEntree, atlasDeclare } from './modeles-glb.js?v=2026.10.13.4';
+import { useAnatomieStore as S, actions as A, CALQUES } from './store.js?v=2026.10.13.5';
+import { MoteurAnatomie, VUES } from './moteur.js?v=2026.10.13.5';
+import * as R from './registre.js?v=2026.10.13.5';
+import * as K from './cours.js?v=2026.10.13.5';
+import { AMPUTATIONS, SCOLIOSE, FRACTURES, TYPES_FRACTURE, MATERIAUX, APPAREILLAGES, appareilsCompatibles } from './donnees-ortho.js?v=2026.10.13.5';
+import { REPERES } from './donnees-os.js?v=2026.10.13.5';
+import { GROUPES_OS, nomGroupe } from './groupes-os.js?v=2026.10.13.5';
+import { chargerTHREE, webglDisponible, h, vider } from './outils.js?v=2026.10.13.5';
+import { NIVEAUX, NOMS_NIVEAUX, lireNiveau, ecrireNiveau, detecterCapacites, niveauConseille } from './rendu.js?v=2026.10.13.5';
+import { abonnerChargement, lireEtatChargement, lireManifeste, normaliserEntree, atlasListe } from './modeles-glb.js?v=2026.10.13.5';
 
 const NOMS_CALQUES = { squelette: 'Squelette', muscles: 'Muscles', nerfs: 'Nerfs', organes: 'Organes', peau: 'Peau', reperes: 'Repères', dermatomes: 'Dermatomes' };
 const COMBOS = [['Squelette + Muscles', ['squelette', 'muscles']], ['Muscles + Nerfs', ['muscles', 'nerfs']], ['Squelette + Nerfs', ['squelette', 'nerfs']], ['Tout', ['squelette', 'muscles', 'nerfs', 'organes']]];
@@ -290,9 +290,10 @@ function pAffichage(e) {
   const manifeste = h('p', { class: 'an-note-texte' }, 'Modèles GLB : recherche en cours…');
   lireManifeste().then(m => {
     const n = m ? Object.keys(m).filter(k => normaliserEntree(m[k])).length : 0;
-    atlasDeclare().then(a => { if (a) manifeste.textContent = 'Squelette réaliste : ' + a.fichier + ' (' + (a.licence || 'licence ?') + ', ' + (a.auteur || 'auteur ?') + ')' + (n ? ' + ' + n + ' modèle(s) individuel(s)' : '') + '. Si le fichier manque, les formes schématiques prennent le relais.'; });
+    atlasListe().then(l => { if (l.length) manifeste.textContent = 'Squelette réaliste : ' + l.map(a => a.fichier + ' (' + (a.licence || 'licence ?') + ', ' + (a.auteur || 'auteur ?') + ')').join(' ; ') + (n ? ' + ' + n + ' modèle(s) individuel(s)' : '') + '. Si un fichier manque, le suivant ou les formes schématiques prennent le relais.'; else
     manifeste.textContent = n ? n + ' modèle(s) GLB déclaré(s) dans ui/assets/anatomie/manifest.json ; en cas d’échec, la forme schématique est conservée.'
       : 'Aucun modèle GLB déclaré : formes schématiques générées par le code (voir docs/anatomie-3d.md pour en ajouter).';
+    });
   });
   return gauche(
     titre('Qualité du rendu'), qualite,
@@ -360,7 +361,7 @@ function rendreFiche(e) {
   const actions = h('div', { class: 'an-chips' },
     bouton(e.isolation ? '↩ Tout réafficher' : '◎ Isoler', () => e.isolation ? A.quitterIsolation() : A.isoler(sid), e.isolation),
     bouton(e.masques.includes(sid) ? 'Réafficher' : 'Masquer', () => A.masquer(sid)),
-    bouton('Pop-up 3D', () => import('./index.js?v=2026.10.13.4').then(m => m.afficherQuick(sid))),
+    bouton('Pop-up 3D', () => import('./index.js?v=2026.10.13.5').then(m => m.afficherQuick(sid))),
     bouton('🔊 Raylé lit', () => window.RayleBus && RayleBus.demander('anatomie:parler', f.resume)));
   el.fiche.append(actions);
   f.champs.forEach(c => el.fiche.append(h('div', { class: 'an-champ-fiche' }, h('h4', null, c.label), Array.isArray(c.valeur) ? h('ul', null, c.valeur.map(v => h('li', null, v))) : h('p', null, c.valeur))));

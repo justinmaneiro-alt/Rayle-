@@ -1,9 +1,18 @@
 {
-  "_atlas": {
-    "fichier": "squelette-cc0.glb",
-    "table": "squelette-cc0",
-    "licence": "CC0-1.0",
-    "auteur": "Armen Barsegyan (CGI Coffee)",
-    "source": "https://cgicoffee.com/blog/2017/10/free-human-skeleton-3d-model"
-  }
+  "_atlas": [
+    {
+      "fichier": "os-detail-bp3d.glb",
+      "table": "bodyparts3d",
+      "licence": "CC-BY-4.0",
+      "auteur": "The Database Center for Life Science (BodyParts3D)",
+      "source": "https://dbarchive.biosciencedbc.jp/en/bodyparts3d/lic.html"
+    },
+    {
+      "fichier": "squelette-cc0.glb",
+      "table": "squelette-cc0",
+      "licence": "CC0-1.0",
+      "auteur": "Armen Barsegyan (CGI Coffee)",
+      "source": "https://cgicoffee.com/blog/2017/10/free-human-skeleton-3d-model"
+    }
+  ]
 }

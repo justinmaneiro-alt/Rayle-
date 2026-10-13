@@ -15,7 +15,7 @@
 
    Robustesse : cache mémoire + cache du navigateur (Cache API, le fichier n'est téléchargé qu'une fois), indicateur de chargement (abonnerChargement),
    et repli automatique sur la forme procédurale en cas d'absence, d'échec réseau, de fichier invalide ou de dimensions aberrantes (le moteur compare les boîtes englobantes). */
-import { TABLES } from './correspondance-squelette.js?v=2026.10.13.4';
+import { TABLES } from './correspondance-squelette.js?v=2026.10.13.5';
 
 const cache = new Map();
 const NOM_CACHE = 'rayle-anatomie-glb-v1';
@@ -59,6 +59,21 @@ async function octets(url) {
   return await rep.arrayBuffer();
 }
 
+/** Les GLB quantifiés (KHR_mesh_quantization : positions 16 bits, normales 8 bits, matrice du nœud qui rétablit l'échelle) donnent au shader des positions normalisées ; les textures procédurales
+    des matériaux travaillent en mètres, d'où ce retour aux flottants en mètres, matrice du nœud appliquée aux sommets (le nœud redevient neutre). */
+export function dequantifier(THREE, scene) {
+  scene.updateMatrixWorld(true);
+  scene.traverse(o => {
+    if (!o.isMesh || !o.geometry) return;
+    const g = o.geometry, p = g.attributes.position, n = g.attributes.normal;
+    if (!p || p.array instanceof Float32Array) return;
+    const flottants = a => { const t = new Float32Array(a.count * 3); for (let i = 0; i < a.count; i++) { t[3 * i] = a.getX(i); t[3 * i + 1] = a.getY(i); t[3 * i + 2] = a.getZ(i); } return new THREE.BufferAttribute(t, 3); };
+    g.setAttribute('position', flottants(p)); if (n) g.setAttribute('normal', flottants(n));
+    o.updateMatrix(); g.applyMatrix4(o.matrix); g.computeBoundingBox(); g.computeBoundingSphere();
+    o.position.set(0, 0, 0); o.quaternion.identity(); o.scale.set(1, 1, 1); o.updateMatrix();
+  });
+}
+
 /** Atlas : fichier GLB analysé une seule fois → gltf.scene (ou null) */
 function lireAtlas(atlas) {
   const cle = 'atlas:' + atlas.fichier;
@@ -69,6 +84,7 @@ function lireAtlas(atlas) {
       const { GLTFLoader } = await import('three/addons/loaders/GLTFLoader.js');
       const url = new URL('ui/assets/anatomie/' + atlas.fichier, document.baseURI).href;
       const gltf = await new GLTFLoader().parseAsync(await octets(url), url.slice(0, url.lastIndexOf('/') + 1));
+      dequantifier(await import('three'), gltf.scene);
       etat.termines++;
       return gltf.scene;
     })().catch(e => {
@@ -80,12 +96,14 @@ function lireAtlas(atlas) {
   return cache.get(cle);
 }
 
-/** Atlas déclaré dans le manifeste (avec sa table), ou null */
-export async function atlasDeclare() {
-  const m = await lireManifeste();
-  if (!m || !m._atlas || typeof m._atlas.fichier !== 'string' || !TABLES[m._atlas.table]) return null;
-  return m._atlas;
+/** Atlas déclarés dans le manifeste (avec leur table), du plus prioritaire au moins prioritaire : « _atlas » est un objet ou une liste. Une structure est prise dans le premier atlas
+    qui la décrit ET dont le fichier se charge ; sinon dans le suivant (repli : le squelette CC0 si le fichier détaillé manque) puis sur la forme procédurale. */
+export async function atlasListe() {
+  const m = await lireManifeste(); if (!m || !m._atlas) return [];
+  return [].concat(m._atlas).filter(a => a && typeof a.fichier === 'string' && TABLES[a.table]);
 }
+/** Premier atlas déclaré (compatibilité) */
+export async function atlasDeclare() { return (await atlasListe())[0] || null; }
 
 /** → { scene: Object3D (à cloner), meta } ou null si la structure n'a pas de modèle GLB ou si le chargement a échoué (repli procédural).
     meta.miroir : le modèle est celui du côté GAUCHE et doit être retourné pour le côté droit (entrées individuelles) ; avec un atlas, chaque côté a son propre nœud.
@@ -98,16 +116,18 @@ export async function chargerGLB(base, cote, options = {}) {
     const res = await chargerEntree(base, meta0);
     return res && { scene: res.scene, meta: Object.assign({}, res.meta, { miroir: cote === 'D', ajuster: res.meta.ajuster || 'aucun' }) };
   }
-  const atlas = await atlasDeclare();
-  const ent = atlas && TABLES[atlas.table].os[base];
-  if (!ent || (ent.rachis && options.avecRachis === false)) return null;
-  const noms = cote && ent[cote] ? ent[cote] : ent.noeuds;
-  if (!noms) return null;
-  const src = await lireAtlas(atlas); if (!src) return null;
-  const groupe = new src.constructor(); groupe.name = base + (cote ? ':' + cote : '');
-  for (const n of noms) { const o = src.getObjectByName(n); if (o) groupe.add(o.clone(true)); }
-  if (!groupe.children.length) return null;
-  return { scene: groupe, meta: { echelle: [1, 1, 1], decalage: [0, 0, 0], rotation: [0, 0, 0], miroir: false, ajuster: ent.ajuster || 'boite', groupe: ent.groupe || null, licence: atlas.licence || TABLES[atlas.table].licence, source: atlas.source || TABLES[atlas.table].source, auteur: atlas.auteur || TABLES[atlas.table].auteur } };
+  for (const atlas of await atlasListe()) {
+    const ent = TABLES[atlas.table].os[base];
+    if (!ent || (ent.rachis && options.avecRachis === false)) continue;
+    const noms = cote && ent[cote] ? ent[cote] : ent.noeuds;
+    if (!noms) continue;
+    const src = await lireAtlas(atlas); if (!src) continue;
+    const groupe = new src.constructor(); groupe.name = base + (cote ? ':' + cote : '');
+    for (const n of noms) { const o = src.getObjectByName(n); if (o) groupe.add(o.clone(true)); }
+    if (!groupe.children.length) continue;
+    return { scene: groupe, meta: { echelle: [1, 1, 1], decalage: [0, 0, 0], rotation: [0, 0, 0], miroir: false, ajuster: ent.ajuster || 'boite', groupe: ent.groupe || null, table: atlas.table, licence: atlas.licence || TABLES[atlas.table].licence, source: atlas.source || TABLES[atlas.table].source, auteur: atlas.auteur || TABLES[atlas.table].auteur } };
+  }
+  return null;
 }
 
 async function chargerEntree(base, meta) {
@@ -117,6 +137,7 @@ async function chargerEntree(base, meta) {
       const { GLTFLoader } = await import('three/addons/loaders/GLTFLoader.js');     // import map de index.html (même instance de three.js)
       const url = new URL('ui/assets/anatomie/' + meta.fichier, document.baseURI).href;
       const gltf = await new GLTFLoader().parseAsync(await octets(url), url.slice(0, url.lastIndexOf('/') + 1));
+      dequantifier(await import('three'), gltf.scene);
       etat.termines++;
       return { scene: gltf.scene, meta };
     })().catch(e => {

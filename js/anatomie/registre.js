@@ -1,9 +1,9 @@
 /* ═════════════ REGISTRE DES STRUCTURES : recherche, fiches, liens os ↔ muscles ═════════════
    Identifiants d'instance : 'humerus:D' (os, muscle, nerf symétriques : D = droite, G = gauche du patient),
    'vertebre-L4', 'cote-5:G', 'coeur', 'moelle'. Les repères palpables sont 'repere:eias:D'. */
-import { OS, VERTEBRES, REPERES, ficheVertebre, ficheCote } from './donnees-os.js?v=2026.10.13.4';
-import { MUSCLES } from './donnees-muscles.js?v=2026.10.13.4';
-import { NERFS, MOELLE, NERFS_SPINAUX, ORGANES, DERMATOMES } from './donnees-nerfs-organes.js?v=2026.10.13.4';
+import { OS, VERTEBRES, REPERES, ficheVertebre, ficheCote } from './donnees-os.js?v=2026.10.13.5';
+import { MUSCLES } from './donnees-muscles.js?v=2026.10.13.5';
+import { NERFS, MOELLE, NERFS_SPINAUX, ORGANES, DERMATOMES } from './donnees-nerfs-organes.js?v=2026.10.13.5';
 
 export const norm = t => String(t == null ? '' : t).normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/[œ]/g, 'oe').replace(/[’']/g, ' ').replace(/[^a-z0-9]+/g, ' ').trim();
 

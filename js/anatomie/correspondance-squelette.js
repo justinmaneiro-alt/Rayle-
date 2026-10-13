@@ -7,7 +7,7 @@
    Le GLB est déclaré dans manifest.json :  { "_atlas": { "fichier": "squelette-cc0.glb", "table": "squelette-cc0", … } }.
    Le rachis et les côtes ne sont repris du GLB que sans scoliose ni fracture vertébrale (ils sont alors déformés en direct par la forme procédurale). */
 
-const paire = (g, d, ajuster) => ({ G: g, D: d, ajuster });
+const paire = (g, d, ajuster, groupe) => Object.assign({ G: g, D: d, ajuster }, groupe ? { groupe } : {});
 const cotes = (nom, ajuster, groupe) => Object.assign(paire([nom + '_G'], [nom + '_D'], ajuster), groupe ? { groupe } : {});
 
 const VERTEBRES = ['C1', 'C2', 'C3', 'C4', 'C5', 'C6', 'C7', 'T1', 'T2', 'T3', 'T4', 'T5', 'T6', 'T7', 'T8', 'T9', 'T10', 'T11', 'T12', 'L1', 'L2', 'L3', 'L4', 'L5'];
@@ -50,11 +50,40 @@ function construire() {
   return os;
 }
 
+
+/* Table du GLB « os-detail-bp3d.glb » (BodyParts3D, CC BY 4.0, voir scripts/convertir-bodyparts3d.mjs) : crâne en os séparés, mandibule et dents, mains et pieds à os individuels.
+   Les os fusionnés sous un même identifiant d'application (carpe = 8 os, phalanges = 14 os…) gardent leur forme propre : on les voit séparés, jointifs, avec leurs facettes articulaires. */
+function construireDetail() {
+  const cote = c => ({
+    carpe: ['scaphoid', 'lunate', 'triquetral', 'pisiform', 'trapezium', 'trapezoid', 'capitate', 'hamate'].map(n => 'carpe_' + n + '_' + c),
+    meta: [1, 2, 3, 4, 5].map(i => 'mc' + i + '_' + c),
+    phal: ['ph_p1', 'ph_d1', ...[2, 3, 4, 5].flatMap(i => ['ph_p' + i, 'ph_m' + i, 'ph_d' + i])].map(n => n + '_' + c),
+    tarse: ['naviculaire', 'cuboide', 'cun1', 'cun2', 'cun3'].map(n => n + '_' + c),
+    mt: [1, 2, 3, 4, 5].map(i => 'mt' + i + '_' + c),
+    po: ['po_p1', 'po_d1', ...[2, 3, 4, 5].flatMap(i => ['po_p' + i, 'po_m' + i, 'po_d' + i])].map(n => n + '_' + c)
+  });
+  const G = cote('G'), D = cote('D');
+  const crane = ['frontal', 'occipital', 'sphenoide', 'ethmoide', 'vomer'].map(n => 'crane_' + n);
+  for (const c of ['G', 'D']) for (const n of ['parietal_bone', 'temporal_bone', 'zygomatic_bone', 'lacrimal_bone', 'nasal_bone', 'maxilla', 'palatine_bone', 'inferior_nasal_concha']) crane.push('crane_' + n + '_' + c);
+  const dents = arc => { const l = []; for (const c of ['left', 'right']) for (const t of ['central_incisor', 'lateral_incisor', 'canine', 'first_premolar', 'second_premolar', 'first_molar', 'second_molar']) l.push('dent_' + c + '_' + arc + '_' + t); return l; };
+  return {
+    crane: { noeuds: [...crane, ...dents('upper')] },
+    mandibule: { noeuds: ['mandibule', ...dents('lower')] },
+    carpe: paire(G.carpe, D.carpe, 'boite', 'main'), metacarpiens: paire(G.meta, D.meta, 'boite', 'main'), 'phalanges-main': paire(G.phal, D.phal, 'boite', 'main'),
+    talus: paire(['talus_G'], ['talus_D'], 'boite', 'pied'), calcaneus: paire(['calcaneus_G'], ['calcaneus_D'], 'boite', 'pied'),
+    'tarse-anterieur': paire(G.tarse, D.tarse, 'boite', 'pied'), metatarsiens: paire(G.mt, D.mt, 'boite', 'pied'), 'phalanges-pied': paire(G.po, D.po, 'boite', 'pied')
+  };
+}
+
 /** Tables disponibles, par identifiant (champ « table » de l'entrée _atlas du manifeste) */
 export const TABLES = {
   'squelette-cc0': {
     licence: 'CC0-1.0', auteur: 'Armen Barsegyan (CGI Coffee)', source: 'https://cgicoffee.com/blog/2017/10/free-human-skeleton-3d-model',
     os: construire()
+  },
+  'bodyparts3d': {
+    licence: 'CC-BY-4.0', auteur: 'The Database Center for Life Science (BodyParts3D)', source: 'https://dbarchive.biosciencedbc.jp/en/bodyparts3d/lic.html',
+    os: construireDetail()
   }
 };
 
