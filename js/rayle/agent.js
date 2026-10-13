@@ -6,7 +6,7 @@
   async function askAgent(text){
     const res=await wfetch('/chat',{
       method:'POST', headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({text:text, agent:true, context:contextText(), history:historiqueChat.slice(-8)})
+      body:JSON.stringify({text:text, agent:true, context:contextText(text), history:historiqueChat.slice(-8)})
     },70000);
     if(!res.ok) throw await workerError(res);
     const d=await res.json();
@@ -16,7 +16,7 @@
 
   // Exécute, dans l'ordre, les actions décidées par le Worker. Renvoie un complément à dire (distance d'un itinéraire).
   async function executerActions(actions,my){
-    let plus='';
+    let plus=''; if(typeof echecsActions!=='undefined') echecsActions.length=0;
     for(const a of (actions||[])){
       if(my!==epoch) return plus;
       try{
@@ -45,6 +45,10 @@
           // contrôle d'un appareil par son relais (js/rayle/relais.js) : même liste blanche et même confirmation que la voix
           const r=await relaisAgent(a.cible,a.phrase);
           if(r) plus+=' '+r;
+        }else if(a.type==='espace' && typeof espaceAgent==='function'){
+          // action de l'Espace décidée par l'IA (js/rayle/commandes-espace.js) : la page rend compte du résultat réel, un échec remplace la réponse
+          const r=await espaceAgent(a);
+          if(r) plus+=' '+r;
         }else if(a.type==='ambiance' && window.RayleUI && window.RayleUI.ambiance && window.RayleUI.ambiance.executerAgent){
           // ambiance, thème, fond, entité (ui/ambiance.js) : l'IA règle l'apparence seule ; ce qui est fait s'ajoute à ce qu'elle dit
           const r=window.RayleUI.ambiance.executerAgent(a);
@@ -54,7 +58,10 @@
           const r=await commandeAppareilAgent(a.cible,a.phrase);
           if(r) plus+=' '+r;
         }
-      }catch(e){ addLine('sys','Action « '+a.type+' » : '+errMsg(e)); }
+      }catch(e){
+        addLine('sys','Action « '+a.type+' » : '+errMsg(e));
+        if(typeof echecsActions!=='undefined') echecsActions.push('Je n’ai pas pu faire cette action ('+a.type+') : '+errMsg(e)+'.');   // la réponse de l'IA annonçait un succès : on dit la vérité
+      }
     }
     return plus;
   }

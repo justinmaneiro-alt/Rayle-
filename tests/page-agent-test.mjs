@@ -18,6 +18,7 @@ const ctxVm = {
   addLine: (k, t) => journal.push('ligne:' + k + ':' + t), errMsg: e => String(e.message || e),
   workerReady: () => true, valid: t => !!t && String(t).length > 1, workerError: async r => new Error('HTTP ' + r.status), contextText: () => 'ctx',
   wfetch: async (path, opts) => { journal.push('fetch:' + path + ':' + opts.body); const r = reponses.shift() || { ok: true, json: async () => ({ enregistre: true }) }; return r; },
+  echecsActions: [], espaceAgent: async a => { journal.push('espace:' + a.phrases.join('|')); return 'Direction Mars.'; },
   setInterval: () => 0, window: { addEventListener() {} }, console
 };
 vm.createContext(ctxVm);
@@ -101,5 +102,15 @@ await t('ambiance : l’action « ambiance » du Worker règle la page et ce qui
   assert.deepEqual(journal.slice(), ['amb:detente:ambre:globe'], JSON.stringify(journal)); assert.match(plus, /Réglé/);
   ctxVm.window.RayleUI = undefined;
   assert.equal(await ctxVm.executerActions([{ type: 'ambiance', ambiance: 'pluie' }], 0), '', 'sans moteur d’ambiance : ignorée sans erreur');
+});
+await t('vérité sur les échecs : une action qui plante est signalée (echecsActions), une action « espace » réussie s’ajoute à la réponse', async () => {
+  ctxVm.echecsActions.length = 0;
+  const plus = await ctxVm.executerActions([{ type: 'espace', phrases: ['montre-moi Mars'] }], 0);
+  assert.deepEqual(journal.slice(), ['espace:montre-moi Mars']); assert.match(plus, /Direction Mars/); assert.equal(ctxVm.echecsActions.length, 0);
+  const avant = ctxVm.commandeCarte; ctxVm.commandeCarte = async () => { throw new Error('Nominatim ne répond pas'); };
+  await ctxVm.executerActions([{ type: 'carte', lieu: 'Atlantis' }], 0);
+  assert.equal(ctxVm.echecsActions.length, 1); assert.match(ctxVm.echecsActions[0], /Je n’ai pas pu faire cette action \(carte\) : Nominatim ne répond pas/);
+  ctxVm.commandeCarte = avant;
+  await ctxVm.executerActions([], 0); assert.equal(ctxVm.echecsActions.length, 0, 'remis à zéro à chaque série d’actions');
 });
 console.log(process.exitCode ? '\nÉCHEC' : '\n' + ok + ' tests réussis');

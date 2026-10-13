@@ -6,9 +6,13 @@
   function saveHistory(){ while(historiqueChat.length>12) historiqueChat.shift(); try{ localStorage.setItem(HIST_KEY,JSON.stringify({t:Date.now(),m:historiqueChat})); }catch(e){} }
   let liveCtx='';   // données lues en direct pour la question en cours
 
-  function contextText(){
+  function contextText(texte){
     let s='';
     if(liveCtx) s+=liveCtx+'\n';
+    try{                                   // capacités de Raylé, état de l'écran, fiches d'espace utiles (js/rayle/capacites.js, commandes-espace.js)
+      if(typeof RayleCapacites!=='undefined') s+=RayleCapacites.contexte(texte||'')+'\n';
+      if(typeof contexteEspace==='function'){ const ce=contexteEspace(texte||''); if(ce) s+=ce+'\n'; }
+    }catch(e){}
     const b=readBridge();
     s+=terminalLink(b)+'\n';
     if(b){ const sm=bridgeSummary(b); if(sm) s+="Ce que Justin a actuellement à l'écran sur son terminal, et ses notes : "+sm+".\n"; }
@@ -19,7 +23,7 @@
   async function askWorker(text,long){
     const res=await wfetch('/chat',{
       method:'POST', headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({text:text, context:contextText(), history:historiqueChat.slice(-8)})
+      body:JSON.stringify({text:text, context:contextText(text), history:historiqueChat.slice(-8)})
     },long?90000:40000);
     if(!res.ok) throw await workerError(res);
     const d=await res.json();

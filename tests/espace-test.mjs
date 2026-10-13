@@ -91,9 +91,10 @@ await t('éléments : tous actifs par défaut, mémorisés, événement émis', 
 });
 await t('faits : 1 ou 2 phrases courtes avec les chiffres du jour (distances calculées)', () => {
   const ts = U(2026, 10, 11, 12);
-  const mars = E.faits('mars', { ts }); assert.match(mars, /^Mars est à \d+ millions de kilomètres/); assert.match(mars, /Olympus Mons/); assert.ok(mars.split('. ').length <= 3);
-  assert.match(E.faits('jupiter', { ts }), /Grande Tache rouge/); assert.match(E.faits('saturne', { ts }), /anneaux/);
-  assert.match(E.faits('soleil', { ts }), /8,\d minutes/); assert.match(E.faits('lune', { ts }), /kilomètres ce soir, éclairée à \d+ %/);
+  const mars = E.faits('mars', { ts }); assert.match(mars, /^Mars est à \d+ millions de kilomètres/); assert.match(mars, /Valles Marineris.*3 870 kilomètres/); assert.ok(mars.split('. ').length <= 3);
+  assert.match(E.faits('jupiter', { ts }), /95 lunes connues/); assert.match(E.faits('saturne', { ts }), /^Saturne est à .*Il possède un système d’anneaux/);
+  assert.match(E.faits('soleil', { ts }), /8,\d minutes/); assert.match(E.faits('lune', { ts }), /kilomètres ce soir, éclairée à \d+ pour cent/);
+  for (const c of ['soleil', 'lune', 'mercure', 'venus', 'mars', 'jupiter', 'saturne', 'uranus', 'neptune', 'iss']) assert.ok(!/[°%×²³→*#_]/.test(E.faits(c, { ts, iss: { etat: () => ({ alt: 421, lat: 12, lon: -40, simule: false }) } })), c + ' : un symbole dans ce qui est dit à voix haute');
   assert.equal(E.faits('terre', { ts }), 'De retour sur la Terre.');
   for (const c of A.PLANETES) assert.ok(E.faits(c, { ts }).length > 40 && E.faits(c, { ts }).length < 260, c);
   const mm = +/(\d+(?:,\d)?) millions/.exec(E.faits('mars', { ts }))[1].replace(',', '.'); const d = A.planete('mars', ts).dist * 149.6; assert.ok(Math.abs(mm - d) < 1.5, 'distance de Mars cohérente');

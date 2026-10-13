@@ -61,7 +61,7 @@
         lastImage={dataUrl,nom:it.nom||(it.file&&it.file.name)||'image',t:Date.now()};
         addLine('sys',it.suivi?'Image : je la regarde à nouveau pour répondre…':'Image : analyse par Gemini…');
         const res=await wfetch('/image',{method:'POST',headers:{'Content-Type':'application/json'},
-          body:JSON.stringify({image:dataUrl,question:it.q,context:contextText(),history:historiqueChat.slice(-4)})},100000);
+          body:JSON.stringify({image:dataUrl,question:it.q,context:contextText(it.q),history:historiqueChat.slice(-4)})},100000);
         if(!res.ok) throw await workerError(res);
         d=await res.json();
       }else{

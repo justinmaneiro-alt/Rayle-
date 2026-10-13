@@ -503,8 +503,10 @@ void main(){
       dec.applyAxisAngle(up,.42*Math.sin(arrivee*.16));                          // une fois arrivé, la caméra dérive doucement autour de l'astre (on voit son relief et sa rotation)
       return {pos:P.clone().add(dec),look:P.clone()};
     }
+    let zoomF=1, zoomT=1;                                                       // facteur de distance à l'astre visité (1 = cadrage d'origine)
+    function zoom(f){ if(!cible) return false; zoomT=clamp(zoomT*f,.3,3); return true; }
     function demarrerVol(nomCible){
-      cible=nomCible; arrivee=0; try{ const e=nomCible&&ext(); if(e&&e.reconnait(nomCible)) e.preparer(nomCible); ESP.publier&&ESP.publier(nomCible); }catch(err){}
+      cible=nomCible; arrivee=0; zoomT=1; try{ const e=nomCible&&ext(); if(e&&e.reconnait(nomCible)) e.preparer(nomCible); ESP.publier&&ESP.publier(nomCible); }catch(err){}
       vol={t:0,from:camera.position.clone(),fromLook:regard.clone(),dur:3.4,sens:Math.random()<.5?-1:1};
       const dest=(nomCible?poseCible(nomCible):poseOrbite()).pos; vol.dur=clamp(3.6+dest.distanceTo(camera.position)/14,3.6,7.5);
       if(nomCible) appliquerCorps(); else retexture=true;                      // astre visité : texture 2k (palier 0 capable) ; au retour, on repasse en 1k une fois parti
@@ -548,6 +550,8 @@ void main(){
       let dy=((base.tyaw-base.yaw+540)%360)-180; base.yaw=(base.yaw+dy*(1-Math.exp(-dt*.25))+360)%360; base.pitch+=(base.tpitch-base.pitch)*(1-Math.exp(-dt*.25));
       prochainChangement-=dt; if(prochainChangement<=0&&!cible&&!vol){ prochainChangement=150; choisirBase(false); }
       const cib=cible?poseCible(cible):poseOrbite();
+      zoomF+=(zoomT-zoomF)*(1-Math.exp(-dt*2.5));
+      if(cible&&Math.abs(zoomF-1)>.002){ cib.pos=cib.look.clone().add(cib.pos.clone().sub(cib.look).multiplyScalar(zoomF)); }          // « zoome dessus » / « recule » : on rapproche ou éloigne la caméra de l'astre visité
       if(vol){
         vol.t+=dt; const f=clamp(vol.t/vol.dur,0,1), e=douce(f);
         posCam.lerpVectors(vol.from,cib.pos,e);
@@ -702,7 +706,7 @@ void main(){
       [X.jour,X.nuit,X.nuages,plat,noir].forEach(t=>{ try{ t&&t.dispose(); }catch(e){} }); try{ CH.toutLiberer(); }catch(e){}
       rendu.autoClear=true; rendu.dispose(); try{ rendu.forceContextLoss(); }catch(e){}
     }
-    const etat=()=>({cible,vol:!!vol,yaw:base.yaw,pitch:base.pitch,dist:cad.dist,q,planetes:Object.keys(planetes).length,asteroides:!!ceinture,satellites:!!satGroupe,aurores:!!aurore,ciel:!!(ciel&&ciel.visible),
+    const etat=()=>({cible,vol:!!vol,zoom:Math.round(zoomT*100)/100,yaw:base.yaw,pitch:base.pitch,dist:cad.dist,q,planetes:Object.keys(planetes).length,asteroides:!!ceinture,satellites:!!satGroupe,aurores:!!aurore,ciel:!!(ciel&&ciel.visible),
       cadre:{ox:cad.ox,oy:cad.oy},lune:moonDir.toArray(),soleil:sunDir.toArray(),camera:camera.position.toArray(),
       comete:!!(comete&&comete.actif),filantes:filantes.filter(f=>f.actif).length,arrivee,textures:corpsListe.map(c=>c.nom+':'+(c.res||'-')).join(' '),terreRelief:terreRes.rel,terreOcean:terreRes.oc});
 
@@ -712,6 +716,6 @@ void main(){
     minuteries.push(setTimeout(()=>{ assurer(); RayleBus.emit('espace:pret',{}); },30));
     { const h=ESP.accueil&&ESP.accueil(); if(h) minuteries.push(setTimeout(()=>vers(h),1400)); }          // la vue par défaut mémorisée (planète, ISS, lieu…) : pas de retour forcé sur la Terre au rechargement
     prochaineComete=45+Math.random()*30; prochaineFilante=8+Math.random()*8;
-    return {taille,image,qualite,detruire,vers,retour,etat,THREE,planetes,test:{figer:(oui,dist)=>{ figee=!!oui; figDist=oui&&dist?dist:0; if(figDist){ cad.dist=cad.tdist=dist; cad.ox=cad.tox=cad.oy=cad.toy=0; offMix=1; } },dureeVisite:t=>{ DUREE_VISITE=t; },objets:()=>({couche,sphereTerre,matTerre2,matAtmo,aurore,terre,scene,arcsMesh,placesPts}),saut:(nom,t)=>{ vers(nom); vol=null; arrivee=t||0; },sansTerre:b=>{ groupe.visible=!b; },soloTerre:b=>{ solo=!!b; },fixerTemps:t=>{ UT.u_t.value=t; },comete:lancerComete,filante:lancerFilante,vue:(y,p)=>{ base.yaw=base.tyaw=y; base.pitch=base.tpitch=p; }}};
+    return {taille,image,qualite,detruire,vers,retour,zoom,etat,THREE,planetes,test:{figer:(oui,dist)=>{ figee=!!oui; figDist=oui&&dist?dist:0; if(figDist){ cad.dist=cad.tdist=dist; cad.ox=cad.tox=cad.oy=cad.toy=0; offMix=1; } },dureeVisite:t=>{ DUREE_VISITE=t; },objets:()=>({couche,sphereTerre,matTerre2,matAtmo,aurore,terre,scene,arcsMesh,placesPts}),saut:(nom,t)=>{ vers(nom); vol=null; arrivee=t||0; },sansTerre:b=>{ groupe.visible=!b; },soloTerre:b=>{ solo=!!b; },fixerTemps:t=>{ UT.u_t.value=t; },comete:lancerComete,filante:lancerFilante,vue:(y,p)=>{ base.yaw=base.tyaw=y; base.pitch=base.tpitch=p; }}};
   };
 })();

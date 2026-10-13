@@ -27,6 +27,8 @@
     const cmdM=typeof commandeMonde==='function' ? await commandeMonde(text) : null;   // page Monde : « montre-moi le Japon », « affiche l'inflation sur la carte »…
     if(my!==epoch) return;
     if(cmdM){ diagAction('commande de la page Monde'); addLine('ray',cmdM); await speak(cmdM); return; }
+    const cmdE=typeof commandeEspaceSavoir==='function' ? commandeEspaceSavoir(text) : null;   // questions de savoir sur l'espace (fiches sourcées), sans IA
+    if(cmdE){ diagAction('savoir espace (fiches sourcées)'); addLine('ray',cmdE); await speak(cmdE); return; }
     const cmdAn=typeof commandeAnatomie==='function' ? await commandeAnatomie(text) : null;   // anatomie et orthopédie : pop-up 3D, fenêtre, pathologies, appareillages
     if(my!==epoch) return;
     if(cmdAn){ diagAction('commande anatomie'); addLine('ray',cmdAn); await speak(cmdAn); return; }
@@ -86,7 +88,8 @@
     if(actions.length){                      // terminal, panneaux, cartes : exécutés pendant qu'elle parle
       const plus=await executerActions(actions,my);
       if(my!==epoch) return;
-      if(plus) reply+=plus;
+      if(typeof echecsActions!=='undefined' && echecsActions.length){ reply=echecsActions.join(' '); echecsActions.length=0; }   // une action a échoué : on le dit, on ne prétend pas l'avoir faite
+      else if(plus) reply+=plus;
     }
     addLine('ray',reply);
     try{ montrerReponse(text,reply); }catch(e){}   // fenêtre HUD des points clés

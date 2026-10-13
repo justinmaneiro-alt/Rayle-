@@ -49,37 +49,42 @@
   const UA_KM=149597870.7;
   const fr=(n,d=0)=>Number(n).toLocaleString('fr-FR',{maximumFractionDigits:d,minimumFractionDigits:d});
   const millions=km=>{ const m=km/1e6; return m>=100?fr(Math.round(m)):fr(m,1); };
+  // un fait par astre : uniquement des chiffres SOURCÉS (NASA, voir docs/espace-sources.md et ui/espace-savoir.js) ; dit à voix haute, donc sans symbole
   const FAIT2={
-    soleil:'Il contient 99,8 % de la masse du système solaire.',
-    lune:'Elle s’éloigne de nous de près de 4 centimètres par an.',
-    mercure:'Sa surface passe de 430 degrés le jour à moins 180 la nuit.',
-    venus:'Son atmosphère de gaz carbonique en fait la planète la plus chaude : 465 degrés.',
-    mars:'Il porte le plus grand volcan connu, l’Olympus Mons, trois fois haut comme l’Everest.',
-    jupiter:'Sa Grande Tache rouge est une tempête plus large que la Terre, observée depuis plus de trois siècles.',
-    saturne:'Ses anneaux s’étendent sur près de 280 000 kilomètres, mais ne font que quelques dizaines de mètres d’épaisseur.',
-    uranus:'Il tourne couché sur le côté, incliné de 98 degrés.',
-    neptune:'Il a les vents les plus rapides du système solaire : plus de 2 000 kilomètres par heure.',
-    iss:'Six à sept astronautes y vivent en permanence depuis l’an 2000.'
+    soleil:'Il concentre presque toute la masse du système solaire.',
+    lune:'Elle nous montre toujours la même face, car elle tourne sur elle-même en 27,3 jours, exactement le temps qu’elle met pour faire le tour de la Terre.',
+    mercure:'Un jour solaire y dure environ 176 jours terrestres, deux fois plus que son année de 88 jours.',
+    venus:'Il y fait 464 degrés Celsius : c’est la planète la plus chaude du système solaire, à cause de son effet de serre.',
+    mars:'Le canyon Valles Marineris y mesure environ 3 870 kilomètres de long et jusqu’à 9,3 kilomètres de profondeur.',
+    jupiter:'Elle a 95 lunes connues, dont les quatre grandes lunes de Galilée.',
+    saturne:'Elle possède un système d’anneaux, et sa densité est inférieure à celle de l’eau : elle flotterait dans un océan assez grand.',
+    uranus:'Son axe est incliné de 97,8 degrés : elle roule pratiquement sur son orbite.',
+    neptune:'Ses vents atteignent 580 mètres par seconde, plus de 2 000 kilomètres par heure.',
+    iss:'Elle est habitée en continu depuis novembre 2000.'
   };
+  const MASC={soleil:1,mars:1,jupiter:1,saturne:1,uranus:1,neptune:1};
+  const auMasc=(c,t)=>MASC[c]?t.replace(/\bElle\b/g,'Il').replace(/\belle\b/g,'il'):t;                  // « Mars… il », « la Lune… elle »
+  // ce qu'on dit à voix haute : jamais de symbole
+  const oral=t=>String(t||'').replace(/CO₂/g,'gaz carbonique').replace(/(\d)\s?%/g,'$1 pour cent').replace(/°\s?([NSEO])\b/g,(m,x)=>' degrés '+({N:'nord',S:'sud',E:'est',O:'ouest'})[x]).replace(/°/g,' degrés').replace(/\s+/g,' ').trim();
   // 1 ou 2 faits courts ; les chiffres du jour sont calculés (distances, phase, altitude de l'ISS)
   function faits(cible,ctx){
     ctx=ctx||{}; const ts=ctx.ts||Date.now(), A=UI.astro;
     if(cible==='terre') return 'De retour sur la Terre.';
     if(cible==='soleil'){
       const d=A.soleilEq(ts).dist;
-      return 'Le Soleil est à '+millions(d*UA_KM)+' millions de kilomètres : sa lumière met '+fr(d*8.317,1)+' minutes à nous parvenir. '+FAIT2.soleil;
+      return 'Le Soleil est à '+millions(d*UA_KM)+' millions de kilomètres : sa lumière met '+fr(d*8.317,1)+' minutes à nous parvenir. '+auMasc('soleil',FAIT2.soleil);
     }
     if(cible==='lune'){
       const m=A.luneEq(ts), l=A.lune(ts);
-      return 'La Lune est à '+fr(Math.round(m.distKm/1000)*1000)+' kilomètres ce soir, éclairée à '+Math.round(l.eclairee*100)+' %. '+FAIT2.lune;
+      return 'La Lune est à '+fr(Math.round(m.distKm/1000)*1000)+' kilomètres ce soir, éclairée à '+Math.round(l.eclairee*100)+' pour cent. '+FAIT2.lune;
     }
     if(cible==='iss'){
       const e=ctx.iss&&ctx.iss.etat?ctx.iss.etat(ts):null;
       const alt=e?Math.round(e.alt/10)*10:420;
-      return 'L’ISS est à environ '+fr(alt)+' kilomètres d’altitude et file à 27 600 kilomètres par heure : un tour de la Terre en 93 minutes.'+(e&&!e.simule?' Elle est en ce moment au-dessus de '+fr(Math.abs(e.lat),0)+'° '+(e.lat>=0?'nord':'sud')+', '+fr(Math.abs(e.lon),0)+'° '+(e.lon>=0?'est':'ouest')+'.':'');
+      return 'L’ISS est à environ '+fr(alt)+' kilomètres d’altitude et file à 27 600 kilomètres par heure : un tour de la Terre en 93 minutes.'+(e&&!e.simule?' Elle est en ce moment au-dessus de '+fr(Math.abs(e.lat),0)+' degrés '+(e.lat>=0?'nord':'sud')+', '+fr(Math.abs(e.lon),0)+' degrés '+(e.lon>=0?'est':'ouest')+'.':'')+' '+FAIT2.iss;
     }
     const p=A.planete(cible,ts); if(!p) return '';
-    return ASTRES[cible].nom+' est à '+millions(p.dist*UA_KM)+' millions de kilomètres de nous aujourd’hui. '+FAIT2[cible];
+    return ASTRES[cible].nom+' est à '+millions(p.dist*UA_KM)+' millions de kilomètres de nous aujourd’hui. '+auMasc(cible,FAIT2[cible]);
   }
 
   /* ═════ commandes vocales (texte normalisé : minuscules, sans accents ni ponctuation) ═════ */
@@ -87,10 +92,10 @@
   const QUESTION=/\b(?:pourquoi|comment|quel|quelle|quels|quelles|combien|c est quoi|qu est ce|est ce que|est ce qu|ou est|ou se trouve)\b/;
   const ALIAS_ASTRE=[
     [/^(?:soleil|etoile du jour)$/,'soleil'], [/^(?:lune|satellite naturel)$/,'lune'],
-    [/^(?:iss|i s s|isse|station spatiale(?: internationale)?|station internationale)$/,'iss'],
+    [/^(?:iss|i s s|isse|(?:la )?station(?: spatiale)?(?: internationale)?)$/,'iss'],
     [/^mercure$/,'mercure'], [/^venus$/,'venus'], [/^mars$/,'mars'], [/^jupiter$/,'jupiter'], [/^saturne$/,'saturne'], [/^uranus$/,'uranus'], [/^neptune$/,'neptune']
   ];
-  const VERBE_VOL=/^(?:(?:s il te plait|stp) )?(?:montre|montres|montrer|affiche|afficher|emmene|emmener|amene|amener|vole|voler|va|vas|aller|zoome|zoomer|regarde|regarder|visite|visiter|direction|cap sur|focus sur|fais moi voir|fais voir)(?: moi)?(?: voler)?(?: (?:vers|sur|a|au|aux|jusqu a|jusqu au|dans|de))*(?: moi)? (.+)$/;
+  const VERBE_VOL=/^(?:(?:s il te plait|stp) )?(?:montre|montres|montrer|affiche|afficher|emmene|emmener|amene|amener|vole|voler|va|vas|aller|zoome|zoomer|regarde|regarder|visite|visiter|direction|cap sur|focus sur|fais moi voir|fais voir)(?: moi)?(?: voler)?(?: (?:voir|vers|sur|a|au|aux|jusqu a|jusqu au|dans|de))*(?: moi)? (.+)$/;
   const ARTICLES=/^(?:le|la|l|les|un|une|mon|ma|notre|planete|astre|de|d|du) /;
   const ELEM_ALIAS=[
     [/^(?:planetes?|les planetes)$/,'planetes'], [/^(?:asteroides?|ceinture d asteroides|ceinture|cometes?|etoiles filantes?|debris|rochers)$/,'asteroides'],
@@ -143,11 +148,19 @@
   /* ═════ fiches de présentation (rubriques variées, tirées au hasard à chaque fois) ═════ */
   function melanger(a){ const b=a.slice(); for(let i=b.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); [b[i],b[j]]=[b[j],b[i]]; } return b; }
   /** → { titre, rubriques:[{t,v}], parle } : `parle` est la phrase dite (chiffres du jour + 1 ou 2 rubriques), `rubriques` remplit la fiche affichée */
+  const CLE_SAVOIR={lune:'lune',soleil:'soleil',iss:'iss',terre:'terre',trounoir:'trounoir',perseverance:'perseverance',curiosity:'curiosity'};
+  const LIBELLES={diametre:'Taille',masse:'Masse',distance:'Distance',jour:'Jour',annee:'Année',gravite:'Pesanteur',atmosphere:'Atmosphère',temperature:'Température',lunes:'Lunes',anneaux:'Anneaux',geologie:'Géologie',histoire:'Histoire',records:'À retenir',missions:'Missions',obliquite:'Inclinaison de l’axe',inclinaison:'Inclinaison de l’orbite',composition:'Composition',orbite:'Orbite',energie:'Énergie',volume:'Volume',densite:'Densité',vitesse_orbitale:'Vitesse',vitesse_liberation:'Vitesse de libération',luminosite:'Luminosité',age:'Âge',nombre:'Nombre'};
+  /** rubriques de la fiche affichée, tirées de la base sourcée (ui/espace-savoir.js) ; [] si elle n'est pas chargée */
+  function rubriquesSavoir(cible){
+    const S=UI.savoir, f=S&&S.fiche(CLE_SAVOIR[cible]||cible); if(!f) return [];
+    return Object.keys(f.champs).map(k=>({t:LIBELLES[k]||k,v:auMasc(cible,f.champs[k][0])}));
+  }
   function fiche(cible,ctx){
     ctx=ctx||{}; const L=LX();
     if(estRover(cible)){
-      const R=L.ROVERS[cible], infos=melanger(R.infos);
-      return {titre:'Rover '+R.nom,rubriques:[{t:'Site',v:'Il explore '+R.site+', sur Mars ('+Math.abs(R.lat).toFixed(1)+'° '+(R.lat>=0?'N':'S')+', '+Math.abs(R.lon).toFixed(1)+'° E).'}].concat(R.infos.map((v,i)=>({t:['Mission','Science','Technique','À retenir'][i]||'Info',v}))),parle:'Le rover '+R.nom+' explore '+R.site+'. '+infos.slice(0,2).join(' ')};
+      const R=L.ROVERS[cible], sv=rubriquesSavoir(cible), infos=sv.length?sv:R.infos.map((v,i)=>({t:['Mission','Science','Technique','À retenir'][i]||'Info',v}));
+      const dit=melanger(infos).slice(0,1).map(r=>r.v).join(' ');
+      return {titre:'Rover '+R.nom,rubriques:[{t:'Site',v:'Il explore '+R.site+', sur Mars ('+Math.abs(R.lat).toFixed(2)+'° '+(R.lat>=0?'N':'S')+', '+Math.abs(R.lon).toFixed(2)+'° E).'}].concat(infos),parle:oral('Le rover '+R.nom+' explore '+R.site+', sur Mars. '+dit)};
     }
     if(cible&&cible.startsWith('lieu:')||geoDe(cible)){
       const l=cible.startsWith('lieu:')?lieuDe(cible.slice(5)):null, g=geoDe(cible), nom=l?l.nom:g.nom, lat=l?l.lat:g.lat, lon=l?l.lon:g.lon;
@@ -158,8 +171,10 @@
       if(l&&l.info){ rub.push({t:'À savoir',v:l.info}); parle+=' '+l.info; }
       return {titre:nom.replace(/^./,x=>x.toUpperCase()),rubriques:rub,parle};
     }
-    const base=faits(cible,ctx), rub=(L.FICHES&&L.FICHES[cible])||[], choix=melanger(rub).slice(0,1+(Math.random()<.5?1:0));
-    return {titre:(ASTRES[cible]?ASTRES[cible].nom:nomCible(cible)).replace(/^./,x=>x.toUpperCase()),rubriques:rub,parle:(base||'')+(choix.length?' '+choix.map(r=>r.v).join(' '):'')};
+    const sv=rubriquesSavoir(cible), rub=sv.length?sv:((L.FICHES&&L.FICHES[cible])||[]);
+    let base=faits(cible,ctx);
+    if(!base&&cible==='trounoir'&&UI.savoir){ const f=UI.savoir.fiche('trounoir'); base=f?f.resume+' '+f.champs.masse[0]:''; }       // « une phrase + un fait » : pas de rubrique supplémentaire
+    return {titre:(ASTRES[cible]?ASTRES[cible].nom:nomCible(cible)).replace(/^./,x=>x.toUpperCase()),rubriques:rub,parle:oral(base||(rub[0]?rub[0].v:''))};
   }
   const echapper=t=>String(t==null?'':t).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
   function afficherFiche(f){
@@ -170,8 +185,49 @@
     }catch(e){}
   }
 
+  /* ═════ état : ce que Raylé sait de l'écran à tout instant (injecté dans son contexte par js/rayle/capacites.js) ═════ */
+  function etat(){
+    const sc=UI.fondScene&&UI.fondScene(), e=sc&&sc.etat?sc.etat():null;
+    let vue='rayle'; try{ if(typeof RayleBus!=='undefined') vue=RayleBus.demander('vue')||'rayle'; }catch(err){}
+    const r=UI.reglages?UI.reglages():{}, cible=e&&e.cible?e.cible:null;
+    return {vue,fond:r.fond||null,palier:r.palier==null?null:r.palier,cible,nom:nomCible(cible),accueil:accueil(),echelle,vol:!!(e&&e.vol),zoom:e&&e.zoom!=null?e.zoom:1};
+  }
+  /* ═════ noms mal formés : « perseverence », « jupitere », « curiosité » → la cible la plus proche (une lettre d'écart, deux pour les longs noms) ═════ */
+  function distance(a,b){
+    const m=a.length, n=b.length; if(Math.abs(m-n)>2) return 9;
+    let prec=Array.from({length:n+1},(_,j)=>j);
+    for(let i=1;i<=m;i++){ const cur=[i]; for(let j=1;j<=n;j++) cur[j]=Math.min(prec[j]+1,cur[j-1]+1,prec[j-1]+(a[i-1]===b[j-1]?0:1)); prec=cur; }
+    return prec[n];
+  }
+  function flou(r){
+    r=String(r||'').replace(/ (?:stp|svp|s il te plait|maintenant)$/,'').trim();
+    for(let i=0;i<3 && ARTICLES.test(r);i++) r=r.replace(ARTICLES,'');
+    r=r.replace(/^(?:rover|le rover) /,'');
+    if(r.length<5||r.split(' ').length>2) return null;
+    const noms=[['mercure','mercure','astre'],['venus','venus','astre'],['jupiter','jupiter','astre'],['saturne','saturne','astre'],['uranus','uranus','astre'],['neptune','neptune','astre'],['soleil','soleil','astre']];
+    for(const id of Object.keys(LX().ROVERS)) for(const x of LX().ROVERS[id].alias) noms.push([norm(x),id,'rover']);
+    let meilleur=null, dm=9;
+    for(const [n,cible,genre] of noms){ if(n.length<5) continue; const d=distance(r,n); if(d<dm){ dm=d; meilleur={cible,genre,nom:n}; } else if(d===dm&&meilleur&&meilleur.cible!==cible) meilleur=null; }
+    return meilleur&&dm<=(r.length>=8?2:1)?meilleur:null;
+  }
+
+  /* ═════ objets sans modèle 3D : lunes, planètes naines, engins ═════ */
+  const HORS_MODELE={io:'jupiter',europa:'jupiter',ganymede:'jupiter',callisto:'jupiter',titan:'saturne',encelade:'saturne',enceladus:'saturne',phobos:'mars',deimos:'mars',triton:'neptune',
+    charon:null,pluton:null,ceres:null,eris:null,haumea:null,makemake:null,hubble:null,'telescope hubble':null,webb:null,'james webb':null,'telescope james webb':null,voyager:null,'voyager 1':null,'voyager 2':null,'ceinture d asteroides':null,'la ceinture d asteroides':null};
+  const SAVOIR_DE={europa:'europe',encelade:'encelade',enceladus:'encelade',deimos:'deimos','telescope hubble':'hubble','james webb':'webb','telescope james webb':'webb','voyager':'voyager1','ceinture d asteroides':'ceinture','la ceinture d asteroides':'ceinture'};
+  const NOMS_HM={europa:'Europe',enceladus:'Encelade',ceres:'Cérès',eris:'Éris',pluton:'Pluton',deimos:'Déimos','telescope hubble':'Hubble','james webb':'Webb','telescope james webb':'Webb','voyager':'Voyager','ceinture d asteroides':'la ceinture d’astéroïdes','la ceinture d asteroides':'la ceinture d’astéroïdes'};
   function analyser(texte){
     let t=norm(texte);
+    // commandes qui dépendent de ce qui est affiché : « zoome dessus », « et sa lune ? », « garde cette vue », « et Mars ? », « reviens »
+    if(t && t.split(' ').length<=8){
+      if(/^(?:zoome|zoom|zoomer|rapproche|rapprocher|approche|approcher|avance|avancer|plus pres|va plus pres)(?: toi)?(?: (?:dessus|dedans|la|ici|un peu|encore|plus|davantage|plus pres))*$/.test(t)) return {type:'zoom',facteur:.65};
+      if(/^(?:dezoome|dezoomer|recule|reculer|eloigne|eloigner|eloigne toi|prends du recul|plus loin|un peu plus loin|recule un peu|dezoome un peu)$/.test(t)) return {type:'zoom',facteur:1.5};
+      if(/^(?:et )?(?:sa|ses|leur|leurs|ses principales) (?:lunes?|satellites?(?: naturels?)?)$|^(?:montre|affiche)(?: moi)? (?:sa|ses) lunes?$/.test(t)) return {type:'lunes'};
+      if(/^(?:garde|garder|sauvegarde|sauvegarder|enregistre|enregistrer|memorise|memoriser|retiens|retenir) (?:cette|la|ma) (?:vue|position|scene)(?: actuelle)?$/.test(t)) return {type:'accueil'};
+      if(/^(?:reviens|revenir|retour|retourne|retourner|ramene moi)(?: en arriere| a la vue d ensemble| a l orbite)?$/.test(t)){ const e=etat(); if(e.cible && e.vue==='rayle') return {type:'retour'}; }
+      const et=t.match(/^et (?:pour |avec |si on (?:regardait|allait voir) |pour voir )?(.+)$/);
+      if(et){ const c=cibleDe(et[1]); if(c && c.genre!=='lieu') return {type:'vers',cible:c.cible,genre:c.genre}; }
+    }
     if(t && t.split(' ').length<=10){
       // « où est la Terre… » : où est / où se trouve / situe / localise + un astre, un rover, un lieu
       const ou=t.match(/^(?:montre moi )?(?:ou (?:est|se trouve|se situe|se trouvent|sont|habite)|situe|situer|localise|localiser|trouve moi|repere moi)(?: moi)? (.+)$/);
@@ -211,6 +267,9 @@
       // trou noir, rovers ; un lieu seulement si c'est un monument, ou « sur le globe » (sinon « montre-moi le Japon » reste la page Monde)
       const c=cibleDe(r);
       if(c && (c.genre!=='lieu' || c.lieu.type==='monument' || /\b(?:sur le globe|sur la terre|sur terre)\b/.test(t))) return {type:'vers',cible:c.cible,genre:c.genre};
+      if(!c){ const fl=flou(r); if(fl) return {type:'vers',cible:fl.cible,genre:fl.genre,corrige:fl.nom}; }
+      { const k=r.replace(/^(?:la |le |les |l |lune |planete naine |planete |telescope )+/,'').trim(), h=Object.prototype.hasOwnProperty.call(HORS_MODELE,r)?r:Object.prototype.hasOwnProperty.call(HORS_MODELE,k)?k:null;
+        if(h) return {type:'horsmodele',id:h,ancre:HORS_MODELE[h]}; }       // « perseverence », « jupitere » : un nom mal formé est corrigé
     }
     return null;
   }
@@ -319,8 +378,10 @@
     if(sc && sc.vers && UI.reglages().fond==='espace'){ sc.vers(cible); return true; }
     attente=cible; return false;
   }
+  let dernier={ok:true};                                                           // résultat de la dernière action : lu par commandeDetaillee() (jamais « fait » si ça a échoué)
   function executer(a,ctx){
     if(!a) return null;
+    dernier={ok:true};
     const r=UI.reglages?UI.reglages():{fond:'aucun',palier:0};
     const iss=UI.espace&&UI.espace.iss;
     if(a.type==='elements'){
@@ -347,18 +408,84 @@
       definirAccueil(cur);
       return 'C’est noté : '+nomCible(cur)+' devient ta vue par défaut. Je n’y reviendrai plus sur la Terre toute seule, même après un rechargement.';
     }
+    if(a.type==='zoom'){
+      const sc=UI.fondScene&&UI.fondScene();
+      if(!(r.fond==='espace') || !sc || !sc.zoom || r.palier>=2){ dernier={ok:false}; return 'Je ne peux pas zoomer ici : le zoom de la caméra n’existe qu’avec le fond Espace, en qualité Auto ou Max.'; }
+      if(!sc.zoom(a.facteur)){ dernier={ok:false}; return 'Il n’y a rien à rapprocher pour l’instant : dis-moi d’abord quel astre tu veux voir, par exemple « montre-moi Mars ».'; }
+      return a.facteur<1?'Je me rapproche de '+nomCible(etat().cible)+'.':'Je prends du recul sur '+nomCible(etat().cible)+'.';
+    }
+    if(a.type==='lunes'){
+      const e=etat(), c=e.cible;
+      if(!c||c==='terre') return executer({type:'vers',cible:'lune'},ctx);                 // « et sa lune ? » depuis la Terre : la Lune
+      const S=UI.savoir, f=S&&S.fiche(c);
+      if(f&&f.champs.lunes) return nomCible(c).replace(/^./,x=>x.toUpperCase())+' : '+auMasc(c,f.champs.lunes[0]);
+      dernier={ok:false}; return 'Je n’ai pas de fiche sur les lunes de '+nomCible(c)+', et je préfère ne pas l’inventer.';
+    }
+    if(a.type==='horsmodele'){
+      const S=UI.savoir, nom=NOMS_HM[a.id]||a.id.replace(/^./,x=>x.toUpperCase()), f=S&&S.fiche(SAVOIR_DE[a.id]||a.id);
+      const savoir=f?' '+oral(S.expliquer(f.id,()=>0).split('. ').slice(0,2).join('. ').replace(/\.?$/,'.')):'';
+      if(/^(?:la )?ceinture/.test(a.id)){                                                    // la ceinture est dessinée dans le fond : on l'allume, on ne vole pas vers elle
+        regler('asteroides',true);
+        return 'J’affiche la ceinture d’astéroïdes dans le fond, mais je ne peux pas la survoler.'+savoir;
+      }
+      if(a.ancre){
+        const r2=executer({type:'vers',cible:a.ancre},ctx);
+        return 'Je n’ai pas de vue 3D de '+nom+' : je ne peux pas le survoler lui-même. Je t’emmène vers '+nomCible(a.ancre)+', autour de qui il tourne.'+savoir+' '+r2;
+      }
+      dernier={ok:false};
+      return 'Je n’ai pas de vue 3D de '+nom+'.'+(savoir||' Je n’ai pas non plus de fiche chiffrée dessus, et je préfère ne pas l’inventer.')+' Mes cibles de vol sont le Soleil, la Lune, l’ISS, les huit planètes, le trou noir et les rovers Curiosity et Perseverance.';
+    }
     if(a.type==='vers'){
       const fi=fiche(a.cible,{iss});
       if(r.palier>=2){ afficherFiche(fi); return 'Voici '+nomCible(a.cible)+'. '+fi.parle+' (En mode Éco le fond reste une image fixe : passe en Auto ou Max pour que la caméra y vole.)'; }
       if(r.fond!=='espace'){ try{ UI.changer('fond','espace'); }catch(e){} }
       allerVers(a.cible);
       afficherFiche(fi);
-      return (a.question?'Je te montre ':'Direction ')+nomCible(a.cible)+'. '+fi.parle;
+      return (a.corrige?'J’ai compris '+nomCible(a.cible)+'. ':'')+(a.question?'Je te montre ':'Direction ')+nomCible(a.cible)+'. '+fi.parle;
     }
     return null;
   }
+  /* ═════ enchaînements : « montre Mars puis Perseverance », « va sur Saturne puis reviens » ═════
+     La première étape part tout de suite ; les suivantes attendent la fin du vol et quelques secondes de visite, puis Raylé les annonce (service 'rayle:dire'). */
+  let jeton=0;
+  function chaine(texte){
+    const t=norm(texte); if(t.split(' ').length>20) return null;
+    const parts=t.split(/ (?:puis|ensuite|et ensuite|et apres|et puis|apres ca|apres) /).map(x=>x.trim()).filter(Boolean);
+    if(parts.length<2) return null;
+    const acts=[];
+    for(const p of parts){
+      let a=analyser(p)||(/^(?:reviens|revenir|retour|retourne|retourner|rentre|ramene moi)(?: .*)?$/.test(p)?{type:'retour'}:analyser('montre moi '+p));
+      if(!a || !['vers','retour','zoom','lunes','elements','echelle'].includes(a.type)) return null;
+      acts.push(a);
+    }
+    return acts;
+  }
+  const attendreDefaut=ms=>new Promise(ok=>setTimeout(ok,ms));
+  async function suite(actions,mon,deps){
+    const attendre=deps.attendre||attendreDefaut, dire=deps.dire||(t=>{ try{ if(typeof RayleBus!=='undefined') RayleBus.demander('rayle:dire',t); }catch(e){} });
+    for(let i=1;i<actions.length;i++){
+      for(let k=0;k<40;k++){ const sc=UI.fondScene&&UI.fondScene(); if(!(sc&&sc.etat&&sc.etat().vol)) break; await attendre(500); }   // le vol en cours doit finir
+      await attendre(deps.pause==null?6000:deps.pause);                                                                    // quelques secondes pour regarder
+      if(mon!==jeton) return;                                                                                              // une nouvelle commande a pris le relais
+      const t=executer(actions[i]); if(t) dire(t);
+      if(!dernier.ok) return;                                                                                              // une étape a échoué : on s'arrête là
+    }
+  }
+  /** → { texte, ok, suite? } : la phrase à dire et si l'action a réellement réussi ; null si ce n'est pas une commande de l'Espace */
+  function commandeDetaillee(texte,deps){
+    deps=deps||{}; const acts=chaine(texte);
+    if(acts){
+      const mon=++jeton, t=executer(acts[0]); const ok=dernier.ok;
+      if(!ok) return {texte:t,ok:false};
+      const p=suite(acts,mon,deps);
+      return {texte:t+' Ensuite : '+nomCible(acts[1].cible||'terre')+'.',ok:true,suite:p};
+    }
+    const a=analyser(texte); if(!a) return null;
+    jeton++; const t=executer(a); return {texte:t,ok:dernier.ok};
+  }
+  const commande=texte=>{ const r=commandeDetaillee(texte); return r?r.texte:null; };
   if(typeof RayleBus!=='undefined'){
-    try{ RayleBus.fournir('espace:commande',c=>{ const a=analyser(c); return a?executer(a):null; }); }catch(e){}
+    try{ RayleBus.fournir('espace:commande',commande); }catch(e){}
     // Événements d'actions 3D pour le reste de l'appli (ou un autre module) : { planetName } · { roverName } · { lat, long, name } ou { country }
     try{
       RayleBus.on('rayle:show-planet',d=>{ const c=cibleDe(norm(d&&(d.planetName||d.name)||'')); if(c) executer({type:'vers',cible:c.cible,genre:c.genre}); });
@@ -374,6 +501,6 @@
     try{ RayleBus.on('espace:pret',()=>{ if(attente){ const c=attente; attente=null; const sc=UI.fondScene&&UI.fondScene(); if(sc&&sc.vers) setTimeout(()=>sc.vers(c),1500); } }); }catch(e){}
   }
 
-  UI.espace={accueil,definirAccueil,publier,fiche,nomCible,cibleDe,lieuDe,geoDe,estRover,ELEMENTS,elements:()=>Object.assign({},elements),regler,ECHELLES,echelle:()=>echelle,reglerEchelle,ASTRES,faits,analyser,executer,creerISS,choisirVue,evaluerVue,vueVecteur,DIST_CAM,DIST_LUNE,FOV_V,INCL,PERIODE_S,TTL_ISS};
+  UI.espace={etat,flou,chaine,commande,commandeDetaillee,accueil,definirAccueil,publier,fiche,nomCible,cibleDe,lieuDe,geoDe,estRover,ELEMENTS,elements:()=>Object.assign({},elements),regler,ECHELLES,echelle:()=>echelle,reglerEchelle,ASTRES,faits,analyser,executer,creerISS,choisirVue,evaluerVue,vueVecteur,DIST_CAM,DIST_LUNE,FOV_V,INCL,PERIODE_S,TTL_ISS};
   if(typeof document!=='undefined') UI.espace.iss=creerISS();
 })();
