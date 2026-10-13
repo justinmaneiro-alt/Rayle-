@@ -2,19 +2,19 @@
    new MoteurAnatomie(THREE, canvas, { store, etiquettes: Element|null, mini: bool, surSelection(id) })
    Le moteur suit l'état du store : calques, sélection, isolation, pathologies, appareillage. Rendu à la demande (pas d'animation inutile).
    Contrôles : glisser = rotation 360°, molette / pincement = zoom, clic droit ou Maj + glisser ou 2 doigts = translation, double clic = focaliser. */
-import { construire, axeMembre } from './construction.js?v=2026.10.13.1';
-import { construireAppareil } from './appareils3d.js?v=2026.10.13.1';
-import { OS, VERTEBRES, REPERES, SACRUM_Y } from './donnees-os.js?v=2026.10.13.1';
-import { MUSCLES } from './donnees-muscles.js?v=2026.10.13.1';
-import { NERFS, ORGANES, DERMATOMES } from './donnees-nerfs-organes.js?v=2026.10.13.1';
-import { AMPUTATIONS, APPAREILLAGES, FRACTURES } from './donnees-ortho.js?v=2026.10.13.1';
-import { definition, base as baseDe, cote as coteDe, typeDe, instances, nomAffiche, musclesDe } from './registre.js?v=2026.10.13.1';
-import { COULEURS } from './registre.js?v=2026.10.13.1';
-import { chargerGLB } from './modeles-glb.js?v=2026.10.13.1';
-import { creerMateriauPBR } from './pbr.js?v=2026.10.13.1';
-import { studio, solOmbre, fondDegrade, environnement, pipeline, lireNiveau } from './rendu.js?v=2026.10.13.1';
+import { construire, axeMembre } from './construction.js?v=2026.10.13.2';
+import { construireAppareil } from './appareils3d.js?v=2026.10.13.2';
+import { OS, VERTEBRES, REPERES, SACRUM_Y } from './donnees-os.js?v=2026.10.13.2';
+import { MUSCLES } from './donnees-muscles.js?v=2026.10.13.2';
+import { NERFS, ORGANES, DERMATOMES } from './donnees-nerfs-organes.js?v=2026.10.13.2';
+import { AMPUTATIONS, APPAREILLAGES, FRACTURES } from './donnees-ortho.js?v=2026.10.13.2';
+import { definition, base as baseDe, cote as coteDe, typeDe, instances, nomAffiche, musclesDe } from './registre.js?v=2026.10.13.2';
+import { COULEURS } from './registre.js?v=2026.10.13.2';
+import { chargerGLB } from './modeles-glb.js?v=2026.10.13.2';
+import { creerMateriauPBR } from './pbr.js?v=2026.10.13.2';
+import { studio, solOmbre, fondDegrade, environnement, pipeline, lireNiveau } from './rendu.js?v=2026.10.13.2';
 
-const CALQUE_DE = { os: 'squelette', muscle: 'muscles', nerf: 'nerfs', organe: 'organes', repere: 'reperes', dermatome: 'dermatomes', peau: 'peau' };
+const CALQUE_DE = { cartilage: 'squelette', os: 'squelette', muscle: 'muscles', nerf: 'nerfs', organe: 'organes', repere: 'reperes', dermatome: 'dermatomes', peau: 'peau' };
 const DIST_DEFAUT = 3.5;
 export const ZONES = { tronc: { cible: [0, 1.25, 0], dist: 1.7 }, bassin: { cible: [0, .98, 0], dist: 1.5 }, 'jambe-droite': { cible: [-.05, .52, 0], dist: 2.5 }, 'jambe-gauche': { cible: [.05, .52, 0], dist: 2.5 },
   'bras-droit': { cible: [-.2, 1.1, 0], dist: 1.7 }, 'bras-gauche': { cible: [.2, 1.1, 0], dist: 1.7 }, 'pied-droit': { cible: [-.09, .06, .05], dist: .9 }, 'pied-gauche': { cible: [.09, .06, .05], dist: .9 },
@@ -69,7 +69,7 @@ export class MoteurAnatomie {
   // ───────────────────────── matériaux ─────────────────────────
   mat(type, couleur, extra) {
     const T = this.THREE;
-    const m = this.niveau !== 'eco' && ['os', 'muscle', 'nerf', 'organe', 'peau'].includes(type)
+    const m = this.niveau !== 'eco' && ['os', 'muscle', 'nerf', 'organe', 'peau', 'cartilage', 'ligament'].includes(type)
       ? creerMateriauPBR(T, type, couleur, Object.assign({ envMapIntensity: .6 }, extra || {}))
       : new T.MeshStandardMaterial(Object.assign({ color: couleur, roughness: type === 'os' ? .62 : .5, metalness: 0, side: T.DoubleSide }, extra || {}));
     m.userData.base = { opacity: m.opacity, transparent: m.transparent, depthWrite: m.depthWrite, emissive: m.emissive.getHex(), ei: m.emissiveIntensity };
@@ -82,7 +82,7 @@ export class MoteurAnatomie {
     const e = { sid, type, base: baseDe(sid), cote: cote || coteDe(sid), obj, mats, membre: membre || null };
     this.entrees.set(sid, e);
     if (membre) mats.forEach(m => { m.clipShadows = true; this.clip.push({ mat: m, membre, cote: e.cote }); });
-    if (this.niveau !== 'eco' && ['os', 'muscle', 'nerf', 'organe'].includes(type)) obj.traverse(o => { if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; } });
+    if (this.niveau !== 'eco' && ['os', 'muscle', 'nerf', 'organe', 'cartilage'].includes(type)) obj.traverse(o => { if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; } });
     this.surchargerGLB(e);
     return e;
   }
@@ -90,13 +90,21 @@ export class MoteurAnatomie {
   surchargerGLB(en) {
     if (typeof fetch === 'undefined' || !['os', 'muscle', 'nerf', 'organe'].includes(en.type)) return;
     if (/^(vertebre-|cote-|moelle|nerfs-spinaux)/.test(en.sid) || en.obj.children.length > 1) return;     // rachis déformable et os fracturés : toujours procéduraux
-    chargerGLB(en.base).then(src => {
-      if (!src || this.mort || this.entrees.get(en.sid) !== en) return;
-      const g = src.clone(true); if (en.cote === 'D') g.scale.x = -1;
-      g.traverse(o => { if (o.isMesh) { o.material = en.mats[0]; o.userData.sid = en.sid; } });
-      if (en.obj.isMesh) { en.obj.geometry.dispose(); en.obj.geometry = new this.THREE.BufferGeometry(); }     // muscle, nerf, organe : un seul Mesh
+    chargerGLB(en.base).then(res => {
+      if (!res || this.mort || this.entrees.get(en.sid) !== en) return;
+      const T = this.THREE, { scene: src, meta } = res;
+      const g = src.clone(true);
+      g.scale.set(...meta.echelle); g.rotation.set(...meta.rotation.map(d => d * Math.PI / 180)); g.position.set(...meta.decalage);
+      const pack = new T.Group(); pack.add(g); if (en.cote === 'D') pack.scale.x = -1;     // côté droit : miroir du modèle gauche
+      pack.updateMatrixWorld(true);
+      // garde-fou : un modèle dont la taille n'a rien à voir avec la forme procédurale (mauvaise unité ou mauvais repère) est écarté
+      const bm = new T.Box3().setFromObject(pack), bp = new T.Box3().setFromObject(en.obj);
+      const tm = bm.getSize(new T.Vector3()).length(), tp = bp.getSize(new T.Vector3()).length();
+      if (!(tm > 0) || (tp > 0 && (tm / tp > 4 || tm / tp < .25))) { console.warn('[anatomie] GLB ' + en.base + ' écarté : dimensions incohérentes (' + tm.toFixed(2) + ' m contre ' + tp.toFixed(2) + ' m) → forme procédurale conservée'); return; }
+      pack.traverse(o => { if (o.isMesh) { o.material = en.mats[0]; o.userData.sid = en.sid; o.castShadow = o.receiveShadow = this.niveau !== 'eco'; } });
+      if (en.obj.isMesh) { en.obj.geometry.dispose(); en.obj.geometry = new T.BufferGeometry(); }     // muscle, nerf, organe : un seul Mesh
       else en.obj.children.slice().forEach(c => { en.obj.remove(c); c.geometry && c.geometry.dispose(); });   // os : groupe
-      en.obj.add(g); this.demander();
+      en.obj.add(pack); en.obj.traverse(o => { o.userData.sid = en.sid; }); this.demander();
     }).catch(() => { });
   }
   retirer(sid) {
@@ -145,7 +153,7 @@ export class MoteurAnatomie {
   }
   reconstruireRachis() {
     const T = this.THREE, C = this.C, e = this.store.obtenir();
-    for (const sid of Array.from(this.entrees.keys())) if (sid.startsWith('vertebre-') || sid.startsWith('cote-')) this.retirer(sid);
+    for (const sid of Array.from(this.entrees.keys())) if (sid.startsWith('vertebre-') || sid.startsWith('cote-') || sid.startsWith('disque-')) this.retirer(sid);
     this.positions = C.positionsRachis(this.courbesEffectives(e));
     const frac = e.pathologie.fracture;
     this.positions.forEach(p => {
@@ -154,6 +162,15 @@ export class MoteurAnatomie {
       mesh.applyMatrix4(C.matriceVertebre(p)); mesh.matrixAutoUpdate = false; mesh.updateMatrix();
       this.enregistrer('vertebre-' + p.id, 'os', mesh, [m]);
     });
+    // disques intervertébraux : cartilage laiteux entre deux vertèbres voisines (suivent la scoliose)
+    for (let k = 0; k + 1 < this.positions.length; k++) {
+      const a = this.positions[k], b = this.positions[k + 1], rr = (a.v.region === 'lombaire' ? .022 : a.v.region === 'thoracique' ? .0175 : .0125) * 1.1;
+      const hh = Math.max(.0045, Math.abs(b.y - a.y) - (a.v.region === 'lombaire' ? .03 : a.v.region === 'thoracique' ? .021 : .015) * .92);
+      const g = new T.CylinderGeometry(rr, rr, hh, 14, 1, false); g.scale(1, 1, .85);
+      const mid = { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2, z: (a.z + b.z) / 2, rotY: (a.rotY + b.rotY) / 2, rotZ: (a.rotZ + b.rotZ) / 2 };
+      const m = this.mat('cartilage', 0xd5e3e6), mesh = new T.Mesh(g, m); mesh.applyMatrix4(C.matriceVertebre(mid)); mesh.matrixAutoUpdate = false; mesh.updateMatrix();
+      this.enregistrer('disque-' + a.id + '-' + b.id, 'cartilage', mesh, [m]);
+    }
     this.positions.filter(p => p.v.region === 'thoracique').forEach(p => {
       const i = parseInt(p.id.slice(1), 10);
       ['D', 'G'].forEach(c => { const m = this.mat('os', COULEURS.os); this.enregistrer('cote-' + i + ':' + c, 'os', new T.Mesh(C.geoCote(i, c, p), m), [m], null, c); });
@@ -355,6 +372,7 @@ export class MoteurAnatomie {
     if (!a || p.amputation !== pd.amputation || p.scoliose !== pd.scoliose || p.fracture !== pd.fracture || e.appareillage !== d.appareillage) this.reconstruireAppareil();
     if (!a || p.scoliose !== pd.scoliose || e.appareillage.actif !== (d.appareillage || {}).actif || e.appareillage.correction !== (d.appareillage || {}).correction || e.selection !== d.selection || e.isolation !== d.isolation) this.reconstruireMarques();
     this.appliquerVisibilite(e);
+    this.appliquerAffichage(e);
     if (!this.mini) this.etiquettesRepere();
     if (e.selection && e.selection !== (d.selection || null) && (e.isolation || this.mini) && !(this.mini && e.groupe)) this.focaliser(e.selection);
     else if (!e.selection && d.selection && this.mini === false && a && d.isolation) this.vue('face');
@@ -385,13 +403,44 @@ export class MoteurAnatomie {
         if (en.sid === sel) vis = true;
       }
       en.obj.visible = vis;
-      if (en.type === 'os' || en.type === 'muscle' || en.type === 'nerf' || en.type === 'organe') this.fantome(en, ghost);
+      if (en.type === 'os' || en.type === 'muscle' || en.type === 'nerf' || en.type === 'organe' || en.type === 'cartilage') this.fantome(en, ghost);
       this.surbrillance(en, en.sid === sel && !iso && !groupe ? 2 : en.sid === sel && groupe ? 2 : en.sid === this.survol ? 1 : 0);
     }
     this.grille && (this.grille.visible = !iso);
     // contexte global en isolation avec « garder le reste » : tout le squelette en fantôme
     if (iso && e.contexte && !this.mini) for (const en of this.entrees.values()) if (en.type === 'os' && en.sid !== sel) { en.obj.visible = true; this.fantome(en, true); }
     this.calques.pathologie.visible = !iso; this.calques.appareil.visible = !iso;
+  }
+  /** Transparence par calque, plan de coupe global et passes optionnelles du post-traitement */
+  appliquerAffichage(e) {
+    const T = this.THREE, af = e.affichage || {}, ops = af.opacites || {};
+    for (const en of this.entrees.values()) {
+      const k = ops[CALQUE_DE[en.type]];
+      if (k !== undefined && k <= .02) en.obj.visible = false;
+      if (k === undefined && !en.opaciteAppliquee) continue;
+      en.opaciteAppliquee = k !== undefined;
+      en.mats.forEach(m => {
+        const b = m.userData.base; if (!b || m.userData.fantome || !m.emissive) return;
+        const t = k === undefined ? b.transparent : (b.transparent || k < 1);
+        if (m.transparent !== t) { m.transparent = t; m.needsUpdate = true; }
+        m.opacity = k === undefined ? b.opacity : k; m.depthWrite = k !== undefined && k < 1 ? false : b.depthWrite;
+      });
+    }
+    const c = af.coupe || {};
+    if (c.actif) {
+      const [lo, hi] = { y: [0, 1.85], x: [-.5, .5], z: [-.22, .22] }[c.axe] || [0, 1.85], v = lo + (hi - lo) * c.position;
+      const n = new T.Vector3(c.axe === 'x' ? 1 : 0, c.axe === 'y' ? 1 : 0, c.axe === 'z' ? 1 : 0).multiplyScalar(c.inverse ? -1 : 1);
+      this.planCoupe = new T.Plane(n, -v * (c.inverse ? -1 : 1));
+      this.rendu.clippingPlanes = [this.planCoupe];
+    } else { this.planCoupe = null; this.rendu.clippingPlanes = []; }
+    this.majPasses();
+  }
+  /** SSAO et profondeur de champ n'aiment pas les plans de coupe (leurs passes de profondeur les ignorent) : désactivés tant qu'une coupe est active */
+  majPasses() {
+    const p = this.pipeline; if (!p) return;
+    const e = this.store.obtenir(), coupe = this.planCoupe || e.pathologie.amputation;
+    p.ssao.enabled = !coupe;
+    p.activerDOF(!!(e.affichage && e.affichage.profondeurChamp) && !this.planCoupe);
   }
   fantome(en, oui) {
     en.mats.forEach(m => {
@@ -494,10 +543,11 @@ export class MoteurAnatomie {
   pointer(ev) {
     const T = this.THREE, r = this.canvas.getBoundingClientRect(), v = new T.Vector2(((ev.clientX - r.left) / r.width) * 2 - 1, -((ev.clientY - r.top) / r.height) * 2 + 1);
     const rc = this.raycaster || (this.raycaster = new T.Raycaster()); rc.setFromCamera(v, this.camera);
-    const cibles = []; for (const en of this.entrees.values()) if (en.obj.visible && en.type !== 'peau' && en.type !== 'dermatome') cibles.push(en.obj);
+    const cibles = []; for (const en of this.entrees.values()) if (en.obj.visible && en.type !== 'peau' && en.type !== 'dermatome' && en.type !== 'cartilage') cibles.push(en.obj);
     const hits = rc.intersectObjects(cibles, true);
     for (const h of hits) {
       const m = h.object.material;
+      if (this.planCoupe && this.planCoupe.distanceToPoint(h.point) < 0) continue;      // partie retirée par le plan de coupe
       if (m && m.clippingPlanes && m.clippingPlanes.length && m.clippingPlanes.every(pl => pl.distanceToPoint(h.point) < 0)) continue;   // partie retirée par une amputation : on ne la touche pas
       const sid = h.object.userData.sid; if (sid) return sid;
     }
@@ -507,7 +557,15 @@ export class MoteurAnatomie {
     if (this.mini || ev.pointerType === 'touch') return;
     const t = performance.now(); if (t - (this.dernierSurvol || 0) < 60) return; this.dernierSurvol = t;
     const sid = this.pointer(ev);
-    if (sid !== this.survol) { const prec = this.survol; this.survol = sid; const e = this.store.obtenir(); [prec, sid].forEach(i => { const en = i && this.entrees.get(i); if (en) this.surbrillance(en, en.sid === e.selection ? 2 : en.sid === this.survol ? 1 : 0); }); this.canvas.style.cursor = sid ? 'pointer' : 'grab'; if (this.opts.surSurvol) this.opts.surSurvol(sid); this.demander(); }
+    if (sid !== this.survol) { const prec = this.survol; this.survol = sid; const e = this.store.obtenir(); [prec, sid].forEach(i => { const en = i && this.entrees.get(i); if (en) this.surbrillance(en, en.sid === e.selection ? 2 : en.sid === this.survol ? 1 : 0); }); this.canvas.style.cursor = sid ? 'pointer' : 'grab'; this.noteSurvol(sid); if (this.opts.surSurvol) this.opts.surSurvol(sid); this.demander(); }
+  }
+  /** Étiquette au survol : nom de la structure sous le pointeur (la sélection garde la sienne) */
+  noteSurvol(sid) {
+    if (!this.etiquettes) return;
+    this.notes = this.notes.filter(n => { if (n.cle === 'hov') { n.el.remove(); return false; } return true; });
+    const en = sid && this.entrees.get(sid); if (!en || sid === this.store.obtenir().selection) return;
+    const T = this.THREE, box = new T.Box3().setFromObject(en.obj), c = box.getCenter(new T.Vector3()); c.y = box.max.y + .015;
+    const el = document.createElement('div'); el.className = 'an-note survol'; el.textContent = nomAffiche(sid); this.etiquettes.appendChild(el); this.notes.push({ p: c, el, cle: 'hov' });
   }
   cliquer(ev) {
     const sid = this.pointer(ev);
@@ -527,18 +585,28 @@ export class MoteurAnatomie {
       if (k >= 1) this.anim = null; else continuer = true;
     }
     if (this.auto) { this.az += .006; this.placerCamera(); continuer = true; }
-    if (!document.hidden) { if (this.pipeline) this.pipeline.render(); else this.rendu.render(this.scene, this.camera); this.placerNotes(); }
+    if (!document.hidden) { if (this.pipeline) { this.pipeline.focus(this.dist); this.pipeline.render(); } else this.rendu.render(this.scene, this.camera); this.placerNotes(); }
     this.dirty = false;
     if (continuer) this.raf = requestAnimationFrame(t2 => this.image(t2));
   }
   placerNotes() {
     if (!this.notes.length) return;
-    const T = this.THREE, w = this.largeur, h = this.hauteur, v = new T.Vector3();
-    for (const n of this.notes) {
+    const T = this.THREE, w = this.largeur, h = this.hauteur, v = new T.Vector3(), places = [];
+    // les étiquettes prioritaires (sélection, survol) se placent d'abord ; les autres sont décalées vers le haut tant qu'elles en recouvrent une autre
+    const ordre = this.notes.slice().sort((a, b) => (b.cle ? 1 : 0) - (a.cle ? 1 : 0));
+    for (const n of ordre) {
       v.copy(n.p).project(this.camera);
       const visible = v.z < 1 && Math.abs(v.x) < 1.05 && Math.abs(v.y) < 1.05;
       n.el.style.display = visible ? '' : 'none';
-      if (visible) n.el.style.transform = 'translate(' + ((v.x * .5 + .5) * w).toFixed(1) + 'px,' + ((-v.y * .5 + .5) * h).toFixed(1) + 'px) translate(-50%,-100%)';
+      if (!visible) continue;
+      const x = (v.x * .5 + .5) * w; let y = (-v.y * .5 + .5) * h;
+      const lw = n.largeur || (n.largeur = n.el.offsetWidth || 60), lh = n.hauteur || (n.hauteur = n.el.offsetHeight || 20);
+      for (let k = 0; k < 10; k++) {
+        const r = places.find(q => Math.abs(q.x - x) < (q.w + lw) / 2 && Math.abs(q.y - y) < (q.h + lh) / 2 + 1);
+        if (!r) break; y = r.y - (r.h + lh) / 2 - 3;
+      }
+      places.push({ x, y, w: lw, h: lh });
+      n.el.style.transform = 'translate(' + x.toFixed(1) + 'px,' + y.toFixed(1) + 'px) translate(-50%,-100%)';
     }
   }
   rotationAuto(oui) { this.auto = !!oui; this.demander(); }
@@ -551,7 +619,7 @@ export class MoteurAnatomie {
         this.scene.background = fondDegrade(this.THREE);
         this.pipeline = await pipeline(this.THREE, this.rendu, this.scene, this.camera, this.largeur || 800, this.hauteur || 600);
         if (this.mort) { this.pipeline.dispose(); this.pipeline = null; return; }
-        this.pipeline.ssao.enabled = !this.store.obtenir().pathologie.amputation;    // les plans de coupe ne passent pas dans la passe de profondeur du SSAO
+        this.majPasses();
       }
       this.scene.traverse(o => { if (o.material) [].concat(o.material).forEach(m => { m.needsUpdate = true; }); });
     } catch (e) { console.warn('[anatomie] rendu avancé indisponible : ' + (e && e.message || e)); this.niveau = 'standard'; this.scene.background = null; this.pipeline = null; }

@@ -19,6 +19,7 @@ const canvas = { parentElement: { clientWidth: 800, clientHeight: 600 }, style: 
 
 const { MoteurAnatomie } = await import('../js/anatomie/moteur.js');
 const { creerStore, ETAT_INITIAL, actions, useAnatomieStore } = await import('../js/anatomie/store.js');
+const { normaliserEntree } = await import('../js/anatomie/modeles-glb.js');
 const { AMPUTATIONS, FRACTURES, APPAREILLAGES, SCOLIOSE } = await import('../js/anatomie/donnees-ortho.js');
 const { OS, MUSCLES } = await import('../js/anatomie/donnees-os.js').then(async o => ({ OS: o.OS, MUSCLES: (await import('../js/anatomie/donnees-muscles.js')).MUSCLES }));
 
@@ -150,6 +151,38 @@ t('matériaux : le choix change la couleur de la pièce', () => {
   const a = couleur();
   S.definir(e => ({ appareillage: Object.assign({}, e.appareillage, { materiaux: { emboiture: 'carbone' } }) }));
   assert.notEqual(couleur(), a);
+});
+t('disques intervertébraux : 23, cartilage, hors sélection par clic', () => {
+  S.definir({ pathologie: { amputation: null, scoliose: null, fracture: null }, selection: null, isolation: false });
+  const d = Array.from(M.entrees.values()).filter(e => e.type === 'cartilage');
+  assert.equal(d.length, 23, 'disques : ' + d.length);
+  assert.ok(d.every(e => e.mats[0].userData.pbr === 'cartilage'));
+});
+t('transparence par calque : opacité réglable, 0 % masque, retour au rendu d’origine', () => {
+  calque('muscles', true);
+  const m = Array.from(M.entrees.values()).find(e => e.type === 'muscle');
+    S.definir(e => ({ affichage: Object.assign({}, e.affichage, { opacites: { muscles: .4 } }) }));
+  assert.equal(m.mats[0].opacity, .4); assert.equal(m.mats[0].transparent, true);
+  S.definir(e => ({ affichage: Object.assign({}, e.affichage, { opacites: { muscles: 0 } }) }));
+  assert.equal(visibles('muscle'), 0);
+  S.definir(e => ({ affichage: Object.assign({}, e.affichage, { opacites: {} }) }));
+  assert.equal(m.mats[0].opacity, 1); assert.equal(m.mats[0].transparent, false); assert.ok(visibles('muscle') > 20);
+});
+t('plan de coupe global : position, inversion, désactivation', () => {
+  S.definir(e => ({ affichage: Object.assign({}, e.affichage, { coupe: { actif: true, axe: 'y', position: .5, inverse: false } }) }));
+  assert.ok(M.planCoupe && M.rendu.clippingPlanes.length === 1);
+  assert.ok(M.planCoupe.distanceToPoint(new THREE.Vector3(0, 1.5, 0)) > 0 && M.planCoupe.distanceToPoint(new THREE.Vector3(0, .3, 0)) < 0, 'au-dessus de 0,925 m : gardé');
+  S.definir(e => ({ affichage: Object.assign({}, e.affichage, { coupe: { actif: true, axe: 'y', position: .5, inverse: true } }) }));
+  assert.ok(M.planCoupe.distanceToPoint(new THREE.Vector3(0, .3, 0)) > 0 && M.planCoupe.distanceToPoint(new THREE.Vector3(0, 1.5, 0)) < 0, 'inversée : le bas est gardé');
+  S.definir(e => ({ affichage: Object.assign({}, e.affichage, { coupe: { actif: false, axe: 'y', position: .5, inverse: false } }) }));
+  assert.equal(M.planCoupe, null); assert.equal(M.rendu.clippingPlanes.length, 0);
+});
+t('manifeste GLB : entrées normalisées, chemins dangereux refusés', () => {
+
+  assert.deepEqual(normaliserEntree('crane.glb').echelle, [1, 1, 1]);
+  const e = normaliserEntree({ fichier: 'a.glb', echelle: .01, decalage: [0, 1, 0], licence: 'CC0-1.0' });
+  assert.deepEqual(e.echelle, [.01, .01, .01]); assert.equal(e.licence, 'CC0-1.0');
+  for (const mauvais of ['../x.glb', '/etc/x.glb', 'http://x/y.glb', 'C:/x.glb', 'x.exe', null, { fichier: 3 }]) assert.equal(normaliserEntree(mauvais), null, String(mauvais));
 });
 t('libération des ressources', () => { M.dispose(); assert.ok(M.mort); });
 console.log(ok + ' tests réussis');

@@ -28,6 +28,8 @@ js/anatomie/
   registre.js           recherche par nom (alias, pluriels, côtés), fiches, liens os ↔ muscles
   construction.js       géométries procédurales (repli sans GLB) : os, vertèbres, côtes, muscles, nerfs, peau, dermatomes
   modeles-glb.js        chargement optionnel de modèles GLB (voir plus bas)
+  pbr.js                matériaux PBR procéduraux (os, muscles + tendons, cartilage, ligament, nerf, organe, peau), sans texture
+  rendu.js              studio d'éclairage, environnement, ombres, post-traitement, niveaux de qualité, détection des capacités
   moteur.js             scène three.js : calques, isolation, focalisation, plans de coupe, sélection, étiquettes 3D
   appareils3d.js        prothèses, corsets, orthèses, points d'appui / zones de décharge, forces
   fenetre.js            fenêtre plein écran (onglets : structures, amputations, déformations, fractures, appareillage, repères, cours)
@@ -65,16 +67,30 @@ La structure est isolée en 3D (rotation, zoom, rotation automatique), avec sa f
 
 Mètres, personne debout de 1,75 m, `y` vers le haut, face vers `+z`, pieds à `y = 0`. Les données sont écrites pour le côté **gauche** du patient (`x > 0`) ; le côté droit est le miroir. Vu de face, la droite du patient est à gauche de l'écran. Les identifiants d'instance sont `humerus:D`, `biceps-brachial:G`, `vertebre-L4`, `coeur`, `repere:eias:D`.
 
+## Rendu réaliste et niveaux de qualité
+
+Onglet **Affichage** de la fenêtre (le choix est mémorisé : `localStorage` `rayle_an_qualite`). Sans choix, le niveau est **conseillé selon l'appareil** (`detecterCapacites` : WebGL2, mémoire annoncée, cœurs, taille de texture ; ★ dans l'onglet) : Éco si ≤ 2 Go / ≤ 2 cœurs / texture max < 4096, Haute seulement sur un poste de bureau bien équipé (≥ 8 Go et ≥ 8 cœurs), Standard sinon. Le pop-up reste en Standard au maximum.
+
+| Niveau | Contenu |
+|---|---|
+| **Éco** | matériaux simples, lumières de base, aucune ombre ni post-traitement |
+| **Standard** | matériaux PBR procéduraux, studio à 3 points (principale chaude + remplissage froid + contre-jour), environnement de studio fabriqué sur place (`RoomEnvironment` → PMREM, aucune image), ombres douces (PCF soft), tonalité ACES |
+| **Haute** | Standard + SSAO, profondeur de champ optionnelle, bloom discret, tonalité ACES (OutputPass), vignettage, FXAA, cible de rendu multi-échantillonnée (MSAA ×4 en WebGL2), fond dégradé |
+
+Matériaux (`pbr.js`, shaders écrits par le code) : os (micro-relief poreux par normales perturbées, rugosité et teinte variables, lueur chaude aux bords simulant la translucidité), muscles (stries le long des fibres, variations rouge ↔ rose, extrémités tendineuses blanc nacré avec vernis humide renforcé, reflets étirés dans le sens des fibres), cartilage (disques intervertébraux, bleu-blanc laiteux très lisse), ligament (fibres étirées), nerfs, organes (clearcoat humide), peau.
+Limites assumées : l'anisotropie native de three.js demande des tangentes (UV) que les géométries procédurales n'ont pas, elle est donc simulée par la rugosité ; la translucidité réelle (`transmission`) est trop coûteuse sur tablette, elle est simulée par la lueur de bord ; les ombres sont PCF soft (le PCSS/VSM n'a pas été retenu : fuites de lumière avec les plans de coupe). Si une passe de post-traitement ne se charge pas (hors ligne), les autres continuent ; si tout échoue, retour au niveau Standard.
+
+Interaction : surbrillance au survol (et nom de la structure survolée), **transparence réglable par calque** (squelette, muscles, nerfs, organes, peau), **plan de coupe** (horizontal, sagittal ou frontal, position réglable, inversable ; les os restent creux, sans surface de section ; SSAO et profondeur de champ sont suspendus pendant une coupe), étiquettes lisibles (ombre, trait de rappel, décalage automatique quand deux étiquettes se chevauchent).
+
 ## Remplacer les formes procédurales par des modèles GLB
 
-Sans fichier, tout fonctionne avec les formes procédurales. Pour utiliser de vrais modèles :
+Sans fichier, tout fonctionne avec les formes procédurales. Pour utiliser de vrais modèles : voir `ui/assets/anatomie/LISEZMOI.md` (format du manifeste, repère, échelle / décalage / rotation par modèle) et noter chaque licence dans `CREDITS.md`. **Aucun modèle n'est livré** (voir `CREDITS.md` pour la raison).
 
-1. déposer les fichiers dans `ui/assets/anatomie/` ;
-2. créer `ui/assets/anatomie/manifest.json` : `{ "humerus": "humerus.glb", "biceps-brachial": "biceps.glb", "foie": "foie.glb" }` (les clés sont les identifiants de base de `registre.js`) ;
-3. chaque GLB doit être exprimé dans le repère ci-dessus, **pour le côté gauche** (le côté droit est obtenu par miroir) ; les matériaux du GLB sont remplacés par ceux de l'application (couleurs, surbrillance, coupes d'amputation) ;
-4. le rachis (vertèbres, côtes, moelle) et les os fracturés restent procéduraux : ils se déforment en direct.
-
-`three/addons/` est résolu par l'import map de `index.html`.
+- le chargement est mis en cache (mémoire + Cache API du navigateur), un indicateur « Chargement des modèles 3D… n / N » s'affiche pendant le chargement ;
+- **repli automatique** sur la forme procédurale en cas de fichier absent, d'échec réseau, de GLB invalide ou de dimensions incohérentes avec la forme procédurale (rapport > 4 ou < 0,25), avec un avertissement en console et dans l'onglet Affichage ;
+- les chemins du manifeste doivent être relatifs (pas d'URL, de chemin absolu ni de `..`) ;
+- le rachis (vertèbres, côtes, disques, moelle) et les os fracturés restent procéduraux : ils se déforment en direct ;
+- `three/addons/` est résolu par l'import map de `index.html`.
 
 ## Ajouter du contenu
 
@@ -98,4 +114,5 @@ Le dernier test construit toutes les structures, amputations, scolioses, fractur
 
 - three.js n'est chargé qu'à la première ouverture ; chaque calque (muscles, nerfs, organes, peau, dermatomes, repères) n'est construit que lorsqu'on l'affiche ;
 - une structure = un seul `Mesh` (géométries fusionnées) ; rendu à la demande, aucune animation quand rien ne bouge ; le fond animé de l'accueil et l'entité sont mis en pause sous la fenêtre ;
-- fermer la fenêtre ou le pop-up libère le contexte WebGL.
+- fermer la fenêtre ou le pop-up libère le contexte WebGL ;
+- en Haute, le post-traitement coûte surtout sur grand écran : sur tablette, rester en Éco ou Standard.

@@ -9,9 +9,27 @@ export const NIVEAUX = ['eco', 'standard', 'haute'];
 export const NOMS_NIVEAUX = { eco: 'Éco', standard: 'Standard', haute: 'Haute' };
 const CLE = 'rayle_an_qualite';
 
+/** Capacités de l'appareil : WebGL2, mémoire annoncée (Chrome / Android), cœurs, écran tactile, taille de texture maximale. Sert à choisir le niveau par défaut. */
+export function detecterCapacites() {
+  const c = { webgl2: false, memoire: null, coeurs: null, mobile: false, pixelRatio: 1, texMax: 0 };
+  try {
+    c.pixelRatio = window.devicePixelRatio || 1; c.memoire = navigator.deviceMemory || null; c.coeurs = navigator.hardwareConcurrency || null;
+    c.mobile = /Android|iPhone|iPad|Mobile/i.test(navigator.userAgent || '') || (navigator.maxTouchPoints > 1 && Math.min(screen.width, screen.height) < 900);
+    const cv = document.createElement('canvas'), gl = cv.getContext('webgl2'); c.webgl2 = !!gl;
+    const g = gl || cv.getContext('webgl'); if (g) c.texMax = g.getParameter(g.MAX_TEXTURE_SIZE);
+  } catch (e) { }
+  return c;
+}
+/** Niveau conseillé : Éco si l'appareil est modeste (≤ 2 Go, ≤ 2 cœurs, texture max < 4096), Standard sinon, Haute seulement sur grand écran de bureau bien équipé */
+export function niveauConseille(c = detecterCapacites()) {
+  if ((c.memoire && c.memoire <= 2) || (c.coeurs && c.coeurs <= 2) || (c.texMax && c.texMax < 4096)) return 'eco';
+  if (!c.mobile && c.webgl2 && (c.memoire || 4) >= 8 && (c.coeurs || 4) >= 8) return 'haute';
+  return 'standard';
+}
+/** Niveau mémorisé par l'utilisateur ; à défaut, celui que conseillent les capacités de l'appareil */
 export function lireNiveau(mini) {
   try { const v = localStorage.getItem(CLE); if (NIVEAUX.includes(v)) return v; } catch (e) { }
-  return 'standard';
+  const n = niveauConseille(); return mini && n === 'haute' ? 'standard' : n;
 }
 export function ecrireNiveau(n) { try { localStorage.setItem(CLE, n); } catch (e) { } }
 
@@ -53,20 +71,47 @@ export async function environnement(THREE, rendu) {
   return env;
 }
 
-/** Pipeline de post-traitement (niveau haute). → { render(), setSize(w,h), ssao, bloom, dispose() } */
+/** Vignettage léger : assombrit doucement les bords, après la tonalité (le contenu reste lisible) */
+const SHADER_VIGNETTE = {
+  uniforms: { tDiffuse: { value: null }, force: { value: .32 }, rayon: { value: .78 } },
+  vertexShader: 'varying vec2 vUv; void main(){ vUv=uv; gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.0); }',
+  fragmentShader: 'uniform sampler2D tDiffuse; uniform float force; uniform float rayon; varying vec2 vUv;' +
+    'void main(){ vec4 c=texture2D(tDiffuse,vUv); float d=distance(vUv,vec2(.5))*1.4142; c.rgb*=1.0-force*smoothstep(rayon*.55,rayon*1.15,d); gl_FragColor=c; }'
+};
+
+/** Pipeline de post-traitement (niveau haute) : rendu (MSAA si WebGL2) → SSAO → profondeur de champ (optionnelle) → bloom → tonalité ACES → vignettage → FXAA.
+    → { render(), setSize(w,h), ssao, bloom, dof, vignette, fxaa, activerDOF(oui), focus(dist), dispose() }
+    Chaque passe est indépendante : si une passe optionnelle (DOF, FXAA) ne se charge pas, les autres fonctionnent. */
 export async function pipeline(THREE, rendu, scene, camera, w, h) {
-  const [{ EffectComposer }, { RenderPass }, { SSAOPass }, { UnrealBloomPass }, { OutputPass }] = await Promise.all([
+  const [{ EffectComposer }, { RenderPass }, { SSAOPass }, { UnrealBloomPass }, { OutputPass }, { ShaderPass }] = await Promise.all([
     import('three/addons/postprocessing/EffectComposer.js'), import('three/addons/postprocessing/RenderPass.js'), import('three/addons/postprocessing/SSAOPass.js'),
-    import('three/addons/postprocessing/UnrealBloomPass.js'), import('three/addons/postprocessing/OutputPass.js')]);
-  const composer = new EffectComposer(rendu);
-  composer.setPixelRatio(rendu.getPixelRatio()); composer.setSize(w, h);
+    import('three/addons/postprocessing/UnrealBloomPass.js'), import('three/addons/postprocessing/OutputPass.js'), import('three/addons/postprocessing/ShaderPass.js')]);
+  const pr = rendu.getPixelRatio();
+  let cible; try { if (rendu.capabilities.isWebGL2) cible = new THREE.WebGLRenderTarget(w * pr, h * pr, { type: THREE.HalfFloatType, samples: 4 }); } catch (e) { cible = undefined; }   // anticrénelage matériel
+  const composer = new EffectComposer(rendu, cible);
+  composer.setPixelRatio(pr); composer.setSize(w, h);
   composer.addPass(new RenderPass(scene, camera));
   const ssao = new SSAOPass(scene, camera, w, h);
   ssao.kernelRadius = .07; ssao.minDistance = .0004; ssao.maxDistance = .035; composer.addPass(ssao);
+  let dof = null;
+  try {
+    const { BokehPass } = await import('three/addons/postprocessing/BokehPass.js');
+    dof = new BokehPass(scene, camera, { focus: 3.5, aperture: .00012, maxblur: .004 }); dof.enabled = false; composer.addPass(dof);
+  } catch (e) { dof = null; }
   const bloom = new UnrealBloomPass(new THREE.Vector2(w, h), .2, .6, .86); composer.addPass(bloom);
   composer.addPass(new OutputPass());
+  const vignette = new ShaderPass(SHADER_VIGNETTE); composer.addPass(vignette);
+  let fxaa = null;
+  try {
+    const { FXAAShader } = await import('three/addons/shaders/FXAAShader.js');
+    fxaa = new ShaderPass(FXAAShader); composer.addPass(fxaa);
+  } catch (e) { fxaa = null; }
+  const taille = (a, b) => { composer.setSize(a, b); if (fxaa) fxaa.material.uniforms.resolution.value.set(1 / (a * pr), 1 / (b * pr)); };
+  taille(w, h);
   return {
-    render: () => composer.render(), setSize: (a, b) => { composer.setSize(a, b); }, ssao, bloom,
+    render: () => composer.render(), setSize: taille, ssao, bloom, dof, vignette, fxaa,
+    activerDOF(oui) { if (dof) dof.enabled = !!oui; return !!dof && !!oui; },
+    focus(dist) { if (dof) dof.uniforms.focus.value = dist; },
     dispose() { try { composer.dispose(); } catch (e) { } }
   };
 }

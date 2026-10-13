@@ -38,6 +38,11 @@ export const ETAT_INITIAL = {
   masques: [],                                                 // ids d'instance cachés par l'utilisateur
   reperesAffiches: [],                                         // ids de repères palpables affichés (en plus du calque)
   recherche: '',
+  affichage: {
+    opacites: {},                                              // { calque: 0..1 } transparence par calque (absent = rendu d'origine)
+    coupe: { actif: false, axe: 'y', position: .5, inverse: false },   // plan de coupe global (axe x : frontal… voir moteur.js, position 0..1 sur la hauteur / largeur / profondeur du corps)
+    profondeurChamp: false                                     // flou d'arrière-plan (niveau Haute)
+  },
   pathologie: {
     amputation: null,                                          // { niveau:'transtibiale', cote:'D'|'G'|'DG' }
     scoliose: null,                                            // { courbes:[{apex,cobb,convexite}], lignesCobb:true }
@@ -95,6 +100,25 @@ export const actions = {
   recherche(t) { S.definir({ recherche: String(t || '') }); },
   basculerRepere(id) { S.definir(e => ({ reperesAffiches: e.reperesAffiches.includes(id) ? e.reperesAffiches.filter(x => x !== id) : e.reperesAffiches.concat(id) })); },
   tousReperes(ids) { S.definir(e => ({ reperesAffiches: e.reperesAffiches.length >= ids.length ? [] : ids.slice() })); },
+
+  // ── affichage : transparence par calque, plan de coupe, profondeur de champ ──
+  opaciteCalque(nom, v) {
+    if (!CALQUES.includes(nom)) return;
+    S.definir(e => {
+      const o = Object.assign({}, e.affichage.opacites);
+      if (v == null) delete o[nom]; else o[nom] = Math.min(Math.max(+v, 0), 1);
+      return { affichage: fusion(e.affichage, { opacites: o }) };
+    });
+  },
+  coupe(patch) {
+    S.definir(e => {
+      const c = fusion(e.affichage.coupe, patch || {});
+      if (!['x', 'y', 'z'].includes(c.axe)) c.axe = 'y';
+      c.position = Math.min(Math.max(+c.position || 0, 0), 1);
+      return { affichage: fusion(e.affichage, { coupe: c }) };
+    });
+  },
+  profondeurChamp(oui) { S.definir(e => ({ affichage: fusion(e.affichage, { profondeurChamp: oui === undefined ? !e.affichage.profondeurChamp : !!oui }) })); },
 
   // ── pathologies ──
   amputation(niveau, cote) {

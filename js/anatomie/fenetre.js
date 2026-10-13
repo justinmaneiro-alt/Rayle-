@@ -1,18 +1,21 @@
 /* ═════════════ FENÊTRE « ANATOMIE & ORTHOPÉDIE » (vue plein écran, comme le terminal) ═════════════
    Chargée par js/commun/vues.js à la première ouverture. Exporte ouvrir() / fermer() ; tout l'état passe par le store (store.js). */
-import { useAnatomieStore as S, actions as A, CALQUES } from './store.js?v=2026.10.13.1';
-import { MoteurAnatomie, VUES } from './moteur.js?v=2026.10.13.1';
-import * as R from './registre.js?v=2026.10.13.1';
-import * as K from './cours.js?v=2026.10.13.1';
-import { AMPUTATIONS, SCOLIOSE, FRACTURES, TYPES_FRACTURE, MATERIAUX, APPAREILLAGES, appareilsCompatibles } from './donnees-ortho.js?v=2026.10.13.1';
-import { REPERES } from './donnees-os.js?v=2026.10.13.1';
-import { chargerTHREE, webglDisponible, h, vider } from './outils.js?v=2026.10.13.1';
+import { useAnatomieStore as S, actions as A, CALQUES } from './store.js?v=2026.10.13.2';
+import { MoteurAnatomie, VUES } from './moteur.js?v=2026.10.13.2';
+import * as R from './registre.js?v=2026.10.13.2';
+import * as K from './cours.js?v=2026.10.13.2';
+import { AMPUTATIONS, SCOLIOSE, FRACTURES, TYPES_FRACTURE, MATERIAUX, APPAREILLAGES, appareilsCompatibles } from './donnees-ortho.js?v=2026.10.13.2';
+import { REPERES } from './donnees-os.js?v=2026.10.13.2';
+import { chargerTHREE, webglDisponible, h, vider } from './outils.js?v=2026.10.13.2';
+import { NIVEAUX, NOMS_NIVEAUX, lireNiveau, ecrireNiveau, detecterCapacites, niveauConseille } from './rendu.js?v=2026.10.13.2';
+import { abonnerChargement, lireEtatChargement, lireManifeste, normaliserEntree } from './modeles-glb.js?v=2026.10.13.2';
 
 const NOMS_CALQUES = { squelette: 'Squelette', muscles: 'Muscles', nerfs: 'Nerfs', organes: 'Organes', peau: 'Peau', reperes: 'Repères', dermatomes: 'Dermatomes' };
 const COMBOS = [['Squelette + Muscles', ['squelette', 'muscles']], ['Muscles + Nerfs', ['muscles', 'nerfs']], ['Squelette + Nerfs', ['squelette', 'nerfs']], ['Tout', ['squelette', 'muscles', 'nerfs', 'organes']]];
-const ONGLETS = [['structures', 'Structures'], ['amputations', 'Amputations'], ['deformations', 'Déformations'], ['fractures', 'Fractures'], ['appareillage', 'Appareillage'], ['reperes', 'Repères'], ['cours', 'Cours']];
+const ONGLETS = [['structures', 'Structures'], ['amputations', 'Amputations'], ['deformations', 'Déformations'], ['fractures', 'Fractures'], ['appareillage', 'Appareillage'], ['reperes', 'Repères'], ['affichage', 'Affichage'], ['cours', 'Cours']];
 const CALQUE_DE_TYPE = { os: 'squelette', muscle: 'muscles', nerf: 'nerfs', organe: 'organes', repere: 'reperes', dermatome: 'dermatomes' };
 
+let desabonneGLB = null;
 let racine = null, moteur = null, desabonne = null, monte = false, ouvert = false, tokenOuverture = 0;
 const el = {};                // références DOM
 let cleOnglet = '', liens = [];  // liens : champs numériques à resynchroniser sans tout redessiner
@@ -31,6 +34,7 @@ function monter() {
   el.etiquettes = h('div', { class: 'an-etiquettes', 'aria-hidden': 'true' });
   el.isolation = h('div', { class: 'an-isolation', hidden: true });
   el.erreur = h('div', { class: 'an-erreur', hidden: true });
+  el.chargement = h('div', { class: 'an-chargement', hidden: true, role: 'status', 'aria-live': 'polite' });
   el.fiche = h('div', { class: 'an-fiche' });
   el.dit = h('div', { class: 'an-dit', 'aria-live': 'polite' });
   el.question = h('input', { type: 'text', class: 'an-question', placeholder: 'Demander à Raylé… (« où s’insère le biceps ? »)', 'aria-label': 'Demander à Raylé', enterkeyhint: 'send' });
@@ -42,13 +46,14 @@ function monter() {
       h('button', { type: 'button', class: 'an-chip', onclick: () => { A.toutNormal(); A.selectionner(null); A.toutAfficher(); moteur && moteur.vue('face'); } }, '↺ Anatomie normale')),
     h('div', { class: 'an-corps' },
       h('aside', { class: 'an-gauche hud-cadre' }, el.onglets, el.panneau),
-      h('main', { class: 'an-centre' }, el.canvas, el.etiquettes, el.isolation, el.erreur),
+      h('main', { class: 'an-centre' }, el.canvas, el.etiquettes, el.isolation, el.chargement, el.erreur),
       h('aside', { class: 'an-droite hud-cadre' }, el.fiche)),
     h('div', { class: 'an-pied' }, el.dit, el.question,
       h('span', { class: 'an-avert' }, 'Outil pédagogique : modèle schématique, il ne remplace ni un diagnostic, ni une prescription, ni un orthoprothésiste.')));
   CALQUES.forEach(n => el.boutonsCalques.append(h('button', { type: 'button', class: 'an-chip an-calque', 'data-c': n, 'aria-pressed': 'false', onclick: () => A.basculerCalque(n) }, NOMS_CALQUES[n])));
   COMBOS.forEach(([t, l]) => el.combos.append(h('button', { type: 'button', class: 'an-chip', onclick: () => { A.seulementCalques(l); } }, t)));
   ONGLETS.forEach(([id, t]) => el.onglets.append(h('button', { type: 'button', role: 'tab', class: 'an-onglet', 'data-o': id, onclick: () => A.onglet(id) }, t)));
+  desabonneGLB = abonnerChargement(majChargement); majChargement(lireEtatChargement());
   if (window.RayleBus) RayleBus.on('rayle:dit', d => { if (ouvert && d && d.kind === 'ray') el.dit.textContent = 'RAYLÉ › ' + String(d.text).slice(0, 260); });
 }
 
@@ -107,13 +112,14 @@ const cleDe = e => {
     case 'fractures': return [o, p.fracture ? p.fracture.id + p.fracture.cote + p.fracture.type : '-'].join('|');
     case 'appareillage': return [o, JSON.stringify(p.amputation), p.scoliose ? 's' : '', p.fracture && p.fracture.id, e.appareillage.modele, JSON.stringify(e.appareillage.materiaux), e.appareillage.appuis, e.appareillage.forces].join('|');
     case 'reperes': return [o, e.selection, JSON.stringify(e.reperesAffiches)].join('|');
+    case 'affichage': return [o, qualiteVersion, e.affichage.coupe.actif, e.affichage.coupe.axe, e.affichage.coupe.inverse, e.affichage.profondeurChamp].join('|');
     default: return o + '|' + coursVersion;
   }
 };
 function rendrePanneau(e) {
   liens = [];
   vider(el.panneau);
-  const f = { structures: pStructures, amputations: pAmputations, deformations: pDeformations, fractures: pFractures, appareillage: pAppareillage, reperes: pReperes, cours: pCours }[e.fenetre.onglet] || pStructures;
+  const f = { affichage: pAffichage, structures: pStructures, amputations: pAmputations, deformations: pDeformations, fractures: pFractures, appareillage: pAppareillage, reperes: pReperes, cours: pCours }[e.fenetre.onglet] || pStructures;
   el.panneau.append(f(e));
   el.panneau.scrollTop = 0;
 }
@@ -247,6 +253,53 @@ function pAppareillage(e) {
   return gauche(...sortie);
 }
 
+// ───────────────────────── indicateur de chargement des modèles GLB ─────────────────────────
+function majChargement(c) {
+  if (!el.chargement) return;
+  const actif = c.enCours > 0;
+  el.chargement.hidden = !actif && !c.echecs;
+  el.chargement.classList.toggle('an-charge-echec', !actif && c.echecs > 0);
+  el.chargement.textContent = actif ? 'Chargement des modèles 3D… ' + c.termines + ' / ' + c.demandes
+    : c.echecs ? 'Modèles 3D : ' + c.echecs + ' indisponible(s), formes schématiques utilisées' : '';
+}
+
+// ───────────────────────── onglet Affichage : qualité, transparence, coupe, profondeur de champ ─────────────────────────
+let qualiteVersion = 0;
+const AIDE_NIVEAUX = { eco: 'matériaux simples, aucune ombre : tablettes modestes, économie de batterie', standard: 'matériaux réalistes, éclairage de studio, ombres douces, reflets', haute: 'en plus : occlusion ambiante, bloom, vignettage, anticrénelage, profondeur de champ optionnelle' };
+function changerQualite(n) {
+  ecrireNiveau(n); qualiteVersion++;
+  if (ouvert && webglDisponible()) ouvrir();          // recrée le moteur avec le nouveau niveau (le store garde tout l'état)
+  else { cleOnglet = ''; majEtat(S.obtenir(), null); }
+}
+function pAffichage(e) {
+  const cap = detecterCapacites(), niv = lireNiveau(false), conseil = niveauConseille(cap);
+  const qualite = h('div', { class: 'an-chips', role: 'group', 'aria-label': 'Niveau de qualité' }, NIVEAUX.map(n => bouton(NOMS_NIVEAUX[n] + (n === conseil ? ' ★' : ''), () => { if (n !== niv) changerQualite(n); }, n === niv)));
+  const calques = h('div', { class: 'an-opacites' }, CALQUES.filter(c => c !== 'reperes' && c !== 'dermatomes').map(c => curseur({
+    label: NOMS_CALQUES[c], min: 0, max: 100, pas: 5, unite: ' %',
+    lire: ee => Math.round(100 * (ee.affichage.opacites[c] !== undefined ? ee.affichage.opacites[c] : c === 'peau' ? .16 : 1)),
+    ecrire: v => A.opaciteCalque(c, v / 100)
+  })));
+  const cp = e.affichage.coupe;
+  const axes = h('div', { class: 'an-chips', role: 'group', 'aria-label': 'Axe de coupe' }, [['y', 'Horizontale'], ['x', 'Sagittale'], ['z', 'Frontale']].map(([a, t]) => bouton(t, () => A.coupe({ axe: a, actif: true, position: .5 }), cp.actif && cp.axe === a)));
+  const manifeste = h('p', { class: 'an-note-texte' }, 'Modèles GLB : recherche en cours…');
+  lireManifeste().then(m => {
+    const n = m ? Object.keys(m).filter(k => normaliserEntree(m[k])).length : 0;
+    manifeste.textContent = n ? n + ' modèle(s) GLB déclaré(s) dans ui/assets/anatomie/manifest.json ; en cas d’échec, la forme schématique est conservée.'
+      : 'Aucun modèle GLB déclaré : formes schématiques générées par le code (voir docs/anatomie-3d.md pour en ajouter).';
+  });
+  return gauche(
+    titre('Qualité du rendu'), qualite,
+    note(NOMS_NIVEAUX[niv] + ' : ' + AIDE_NIVEAUX[niv] + '. ★ = conseillé pour cet appareil (' + (cap.webgl2 ? 'WebGL2' : 'WebGL1') + (cap.memoire ? ', ' + cap.memoire + ' Go' : '') + (cap.coeurs ? ', ' + cap.coeurs + ' cœurs' : '') + ').'),
+    bouton('Profondeur de champ (Haute)', () => A.profondeurChamp(), e.affichage.profondeurChamp),
+    titre('Transparence par calque'), calques,
+    titre('Plan de coupe'),
+    h('div', { class: 'an-chips' }, bouton(cp.actif ? 'Coupe active' : 'Activer la coupe', () => A.coupe({ actif: !cp.actif }), cp.actif), bouton('Inverser', () => A.coupe({ inverse: !cp.inverse }), cp.inverse)),
+    axes,
+    curseur({ label: 'Position', min: 0, max: 100, pas: 1, unite: ' %', lire: ee => Math.round(ee.affichage.coupe.position * 100), ecrire: v => A.coupe({ position: v / 100, actif: true }) }),
+    note('La coupe masque tout ce qui se trouve d’un côté du plan (les os restent creux, sans surface de section).'),
+    titre('Modèles 3D'), manifeste);
+}
+
 // ───────────────────────── onglet Repères / palpation ─────────────────────────
 function pReperes(e) {
   const ids = []; REPERES.forEach(r => (r.sym === false ? [null] : ['D', 'G']).forEach(c => ids.push('repere:' + r.id + (c ? ':' + c : ''))));
@@ -297,7 +350,7 @@ function rendreFiche(e) {
   const actions = h('div', { class: 'an-chips' },
     bouton(e.isolation ? '↩ Tout réafficher' : '◎ Isoler', () => e.isolation ? A.quitterIsolation() : A.isoler(sid), e.isolation),
     bouton(e.masques.includes(sid) ? 'Réafficher' : 'Masquer', () => A.masquer(sid)),
-    bouton('Pop-up 3D', () => import('./index.js?v=2026.10.13.1').then(m => m.afficherQuick(sid))),
+    bouton('Pop-up 3D', () => import('./index.js?v=2026.10.13.2').then(m => m.afficherQuick(sid))),
     bouton('🔊 Raylé lit', () => window.RayleBus && RayleBus.demander('anatomie:parler', f.resume)));
   el.fiche.append(actions);
   f.champs.forEach(c => el.fiche.append(h('div', { class: 'an-champ-fiche' }, h('h4', null, c.label), Array.isArray(c.valeur) ? h('ul', null, c.valeur.map(v => h('li', null, v))) : h('p', null, c.valeur))));
