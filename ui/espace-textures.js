@@ -130,7 +130,18 @@
     'Europe':{base:[226,216,196],haut:[240,236,222],bas:[196,184,166],fissures:[[150,98,62],.8],grain:6},
     'Ganymède':{base:[150,138,122],haut:[184,176,160],bas:[104,94,84],craters:.5,grain:8},
     Callisto:{base:[82,74,68],haut:[120,112,102],bas:[56,50,46],craters:.9,grain:12},
-    Titan:{base:[224,158,70],haut:[236,184,104],bas:[196,128,52],grain:3}
+    Titan:{base:[224,158,70],haut:[236,184,104],bas:[196,128,52],grain:3},
+    Phobos:{base:[112,100,90],haut:[140,128,116],bas:[78,70,64],craters:1.1,grain:9},
+    Deimos:{base:[128,112,98],haut:[152,138,124],bas:[92,82,72],craters:.6,grain:5},
+    Encelade:{base:[238,242,246],haut:[252,252,255],bas:[214,222,230],fissures:[[150,190,220],.55],grain:4},
+    'Téthys':{base:[206,204,198],haut:[226,224,218],bas:[170,168,162],craters:.7,grain:6},
+    'Dioné':{base:[196,192,186],haut:[222,218,212],bas:[150,146,140],fissures:[[236,236,236],.45],craters:.5,grain:6},
+    'Rhéa':{base:[190,186,178],haut:[216,212,204],bas:[146,142,134],craters:.9,grain:8},
+    Miranda:{base:[170,168,164],haut:[196,194,190],bas:[124,122,118],fissures:[[110,108,104],.7],craters:.5,grain:9},
+    Ariel:{base:[176,172,166],haut:[204,200,194],bas:[132,128,122],fissures:[[120,116,110],.5],craters:.5,grain:7},
+    Titania:{base:[150,138,128],haut:[182,170,160],bas:[108,98,90],craters:.7,grain:8},
+    'Obéron':{base:[130,118,108],haut:[164,152,142],bas:[92,84,76],craters:.9,grain:9},
+    Triton:{base:[222,206,196],haut:[240,226,216],bas:[190,172,162],taches:[[120,96,92],.4],grain:6}
   };
   function satellite(nom,w){
     const d=SAT[nom]||SAT.Callisto, N=bruit(nom.length*53+nom.charCodeAt(0)), R=rng(nom.charCodeAt(1)*7);

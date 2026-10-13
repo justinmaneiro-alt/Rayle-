@@ -132,4 +132,23 @@ await t('images fixes Éco : portrait 1080×1920, paysage 1920×1080, Terre 1024
   const p = dim('fond-globe-planete.webp'); assert.deepEqual([p.w, p.h, p.alpha], [1024, 1024, true]);
   for (const f of ['fond-espace-paysage.webp', 'fond-espace-portrait.webp', 'fond-globe-planete.webp']) assert.ok(taille('ui/assets/' + f) < 400 * 1024, f);
 });
+await t('atmosphère à diffusion de Rayleigh : shader, coefficients ∝ 1/λ⁴ pour la Terre, une entrée par atmosphère', () => {
+  assert.match(AST.FS_RAYLEIGH, /RAY_PAS/); assert.ok(AST.FS_RAYLEIGH.includes('exp(-(u_beta')); assert.ok(AST.VS_RAYLEIGH.includes('modelMatrix[3]'));
+  const b = AST.ATMO_RAYLEIGH.terre.beta;
+  assert.ok(b[2] > b[1] && b[1] > b[0], 'le bleu est diffusé plus que le vert, plus que le rouge');
+  const rapport = b[2] / b[0]; assert.ok(rapport > 4.5 && rapport < 7, 'rapport bleu / rouge réel ≈ 5,7 : ' + rapport.toFixed(2));
+  for (const n of ['terre', 'venus', 'mars', 'jupiter', 'saturne', 'uranus', 'neptune']) { const a = AST.ATMO_RAYLEIGH[n]; assert.ok(a && a.beta.length === 3 && a.beta.every(x => x > 0) && a.ratio > 1 && a.H > 0, n); }
+});
+await t('cirrus et rochers instanciés : shaders présents, fabriques exportées', () => {
+  assert.match(AST.FS_CIRRUS, /u_nuages/); assert.equal(typeof AST.rocheInstancee, 'function'); assert.equal(typeof AST.rayleigh, 'function');
+});
+await t('lunes : chaque lune du fond a sa texture dessinée (couleurs réelles)', () => {
+  const src = lire('ui/fond-espace.js'), tex = lire('ui/espace-textures.js');
+  const bloc = src.slice(src.indexOf('const LUNES={'), src.indexOf('};', src.indexOf('const LUNES={')));
+  const noms = [...bloc.matchAll(/\['([^']+)',[\d.]+,/g)].map(m => m[1]);
+  assert.ok(noms.length >= 16, 'lunes : ' + noms.join(', '));
+  for (const n of noms) assert.ok(tex.includes("'" + n + "':") || tex.includes('    ' + n + ':'), 'texture manquante : ' + n);
+  for (const n of ['Phobos', 'Deimos', 'Titan', 'Encelade', 'Triton']) assert.ok(noms.includes(n), n);
+  assert.ok(bloc.includes("'Triton',5.5,.04,[.88,.81,.77],-5.876854"), 'Triton est rétrograde (période négative)');
+});
 console.log(ok + ' tests réussis');

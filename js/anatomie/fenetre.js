@@ -1,14 +1,14 @@
 /* ═════════════ FENÊTRE « ANATOMIE & ORTHOPÉDIE » (vue plein écran, comme le terminal) ═════════════
    Chargée par js/commun/vues.js à la première ouverture. Exporte ouvrir() / fermer() ; tout l'état passe par le store (store.js). */
-import { useAnatomieStore as S, actions as A, CALQUES } from './store.js?v=2026.10.13.2';
-import { MoteurAnatomie, VUES } from './moteur.js?v=2026.10.13.2';
-import * as R from './registre.js?v=2026.10.13.2';
-import * as K from './cours.js?v=2026.10.13.2';
-import { AMPUTATIONS, SCOLIOSE, FRACTURES, TYPES_FRACTURE, MATERIAUX, APPAREILLAGES, appareilsCompatibles } from './donnees-ortho.js?v=2026.10.13.2';
-import { REPERES } from './donnees-os.js?v=2026.10.13.2';
-import { chargerTHREE, webglDisponible, h, vider } from './outils.js?v=2026.10.13.2';
-import { NIVEAUX, NOMS_NIVEAUX, lireNiveau, ecrireNiveau, detecterCapacites, niveauConseille } from './rendu.js?v=2026.10.13.2';
-import { abonnerChargement, lireEtatChargement, lireManifeste, normaliserEntree } from './modeles-glb.js?v=2026.10.13.2';
+import { useAnatomieStore as S, actions as A, CALQUES } from './store.js?v=2026.10.13.3';
+import { MoteurAnatomie, VUES } from './moteur.js?v=2026.10.13.3';
+import * as R from './registre.js?v=2026.10.13.3';
+import * as K from './cours.js?v=2026.10.13.3';
+import { AMPUTATIONS, SCOLIOSE, FRACTURES, TYPES_FRACTURE, MATERIAUX, APPAREILLAGES, appareilsCompatibles } from './donnees-ortho.js?v=2026.10.13.3';
+import { REPERES } from './donnees-os.js?v=2026.10.13.3';
+import { chargerTHREE, webglDisponible, h, vider } from './outils.js?v=2026.10.13.3';
+import { NIVEAUX, NOMS_NIVEAUX, lireNiveau, ecrireNiveau, detecterCapacites, niveauConseille } from './rendu.js?v=2026.10.13.3';
+import { abonnerChargement, lireEtatChargement, lireManifeste, normaliserEntree } from './modeles-glb.js?v=2026.10.13.3';
 
 const NOMS_CALQUES = { squelette: 'Squelette', muscles: 'Muscles', nerfs: 'Nerfs', organes: 'Organes', peau: 'Peau', reperes: 'Repères', dermatomes: 'Dermatomes' };
 const COMBOS = [['Squelette + Muscles', ['squelette', 'muscles']], ['Muscles + Nerfs', ['muscles', 'nerfs']], ['Squelette + Nerfs', ['squelette', 'nerfs']], ['Tout', ['squelette', 'muscles', 'nerfs', 'organes']]];
@@ -350,7 +350,7 @@ function rendreFiche(e) {
   const actions = h('div', { class: 'an-chips' },
     bouton(e.isolation ? '↩ Tout réafficher' : '◎ Isoler', () => e.isolation ? A.quitterIsolation() : A.isoler(sid), e.isolation),
     bouton(e.masques.includes(sid) ? 'Réafficher' : 'Masquer', () => A.masquer(sid)),
-    bouton('Pop-up 3D', () => import('./index.js?v=2026.10.13.2').then(m => m.afficherQuick(sid))),
+    bouton('Pop-up 3D', () => import('./index.js?v=2026.10.13.3').then(m => m.afficherQuick(sid))),
     bouton('🔊 Raylé lit', () => window.RayleBus && RayleBus.demander('anatomie:parler', f.resume)));
   el.fiche.append(actions);
   f.champs.forEach(c => el.fiche.append(h('div', { class: 'an-champ-fiche' }, h('h4', null, c.label), Array.isArray(c.valeur) ? h('ul', null, c.valeur.map(v => h('li', null, v))) : h('p', null, c.valeur))));

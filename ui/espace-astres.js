@@ -235,6 +235,109 @@ void main(){
   gl_FragColor=vec4(c*(f*1.35+fin*0.9)*jour,(f+fin*0.6)*jour);
 }`;
 
+  /* ───── atmosphère à diffusion de Rayleigh et de Mie (diffusion simple, intégration le long du rayon de vue) ─────
+     Coque sphérique vue par l'intérieur (BackSide, mélange additif). Pour chaque pixel : le rayon de vue traverse l'atmosphère en N pas ; à chaque pas on calcule
+     la profondeur optique vers le Soleil (3 sous-pas, ombre de la planète comprise), la lumière transmise exp(−β·τ) et la diffusion :
+       Rayleigh : β ∝ 1/λ⁴ (le bleu est diffusé bien plus que le rouge → limbe bleu, soleil rouge à l'horizon, crépuscule orangé)  ·  Mie : halo blanc vers le Soleil (Henyey-Greenstein).
+     Tout est calculé en coordonnées du monde (centre et échelle lus dans la matrice du maillage), donc indifférent aux déplacements de cadrage.
+     Les épaisseurs sont exagérées pour rester lisibles à l'écran ; les coefficients des planètes sont des valeurs de composition, pas des mesures. */
+  const VS_RAYLEIGH=`
+varying vec3 v_w; varying vec3 v_c; varying float v_s;
+void main(){
+  vec4 wp=modelMatrix*vec4(position,1.0); v_w=wp.xyz; v_c=modelMatrix[3].xyz; v_s=length(modelMatrix[0].xyz);
+  gl_Position=projectionMatrix*viewMatrix*wp;
+}`;
+  const FS_RAYLEIGH=`
+uniform vec3 u_beta, u_sunVec, u_tint; uniform float u_dirMode, u_Rp, u_ratio, u_H, u_k, u_mie, u_g;
+varying vec3 v_w; varying vec3 v_c; varying float v_s;
+void main(){
+  float Rp=u_Rp*v_s, Ra=Rp*u_ratio;
+  vec3 ro=cameraPosition-v_c, rd=normalize(v_w-cameraPosition);
+  vec3 L=normalize(u_dirMode>0.5?u_sunVec:u_sunVec-v_c);
+  float b=dot(ro,rd), c=dot(ro,ro)-Ra*Ra, d=b*b-c;
+  if(d<0.0){ gl_FragColor=vec4(0.0); return; }
+  float sq=sqrt(d), t0=max(-b-sq,0.0), t1=-b+sq;
+  float dp=b*b-(dot(ro,ro)-Rp*Rp); if(dp>0.0){ float tp=-b-sqrt(dp); if(tp>0.0) t1=min(t1,tp); }       // le rayon s'arrête sur la planète
+  float dt=(t1-t0)/float(RAY_PAS);
+  vec3 sR=vec3(0.0), sM=vec3(0.0); float odR=0.0, odM=0.0;
+  for(int i=0;i<RAY_PAS;i++){
+    vec3 p=ro+rd*(t0+(float(i)+0.5)*dt);
+    float h=max((length(p)-Rp)/Rp,0.0);
+    float dR=exp(-h/u_H)*dt/Rp, dM=exp(-h/(u_H*0.2))*dt/Rp;
+    odR+=dR; odM+=dM;
+    float bl=dot(p,L), dpp=bl*bl-(dot(p,p)-Rp*Rp);
+    if(dpp>0.0 && -bl-sqrt(dpp)>0.0) continue;                                                              // dans l'ombre de la planète
+    float tl=-bl+sqrt(max(bl*bl-(dot(p,p)-Ra*Ra),0.0)), odRs=0.0, odMs=0.0;
+    for(int j=0;j<3;j++){ vec3 q=p+L*(tl*(float(j)+0.5)/3.0); float hs=max((length(q)-Rp)/Rp,0.0); odRs+=exp(-hs/u_H)*tl/3.0/Rp; odMs+=exp(-hs/(u_H*0.2))*tl/3.0/Rp; }
+    vec3 att=exp(-(u_beta*(odR+odRs)+vec3(u_mie*1.1)*(odM+odMs)));
+    sR+=att*dR; sM+=att*dM;
+  }
+  float mu=dot(rd,L), g=u_g;
+  float phR=0.75*(1.0+mu*mu), phM=1.5*(1.0-g*g)/(2.0+g*g)*(1.0+mu*mu)/pow(max(1.0+g*g-2.0*g*mu,0.01),1.5);
+  vec3 col=(sR*u_beta*phR+sM*vec3(u_mie)*phM)*u_k*u_tint;
+  gl_FragColor=vec4(col,clamp(max(col.r,max(col.g,col.b)),0.0,1.0));
+}`;
+  /** Matériau d'atmosphère. o : { beta:[r,g,b], k, mie, H (hauteur d'échelle, en rayons), ratio (rayon de la coque / rayon de la planète), Rp (rayon local de la planète), sunVec (uniform {value:Vector3}),
+      dirMode (1 : sunVec est une direction, 0 : une position), tint (uniform {value:Color}), pas } */
+  function rayleigh(THREE,o){
+    return new THREE.ShaderMaterial({
+      uniforms:{u_beta:{value:new THREE.Vector3(...(o.beta||[1.7,4.1,9.9]))},u_sunVec:o.sunVec,u_dirMode:{value:o.dirMode?1:0},u_Rp:{value:o.Rp||1},u_ratio:{value:o.ratio||1.09},
+        u_H:{value:o.H||.045},u_k:{value:o.k==null?.55:o.k},u_mie:{value:o.mie==null?.12:o.mie},u_g:{value:o.g==null?.76:o.g},u_tint:o.tint||{value:new THREE.Color(1,1,1)}},
+      vertexShader:VS_RAYLEIGH,fragmentShader:FS_RAYLEIGH,defines:{RAY_PAS:o.pas||10},side:THREE.BackSide,transparent:true,depthWrite:false,blending:THREE.AdditiveBlending});
+  }
+  /** Coefficients de diffusion (composition) : Terre = Rayleigh réel (5,8 · 13,5 · 33,1 ×10⁻⁶ m⁻¹, mis à l'échelle) ; les autres, teintes plausibles */
+  const ATMO_RAYLEIGH={
+    terre:{beta:[1.74,4.05,9.93],k:.7,mie:.12,H:.045,ratio:1.09},
+    venus:{beta:[2.6,2.2,1.5],k:.5,mie:.45,H:.05,ratio:1.1},
+    mars:{beta:[.8,1.4,2.3],k:.45,mie:.35,H:.05,ratio:1.1},
+    jupiter:{beta:[1.2,1.5,2.0],k:.4,mie:.2,H:.05,ratio:1.1},
+    saturne:{beta:[1.3,1.5,1.9],k:.4,mie:.2,H:.05,ratio:1.1},
+    uranus:{beta:[.5,1.9,2.9],k:.5,mie:.12,H:.05,ratio:1.1},
+    neptune:{beta:[.4,1.5,4.4],k:.5,mie:.12,H:.05,ratio:1.1}
+  };
+  /* ───── nuages d'altitude (cirrus) : seconde couche, plus haute, fine et blanche, qui glisse à une autre vitesse ───── */
+  const FS_CIRRUS=BRUIT+`
+uniform sampler2D u_nuages; uniform vec3 u_soleil; uniform float u_dec,u_couv;
+varying vec2 v_uv; varying vec3 v_n; varying vec3 v_w; varying vec3 v_vue; varying vec3 v_loc; varying vec3 v_E; varying vec3 v_Nn;
+void main(){
+  vec2 uv=vec2(fract(v_uv.x*1.6+u_dec),v_uv.y*1.6+0.31);
+  float a=texture2D(u_nuages,uv).r, a2=texture2D(u_nuages,vec2(fract(uv.x*3.1-u_dec*0.5),uv.y*3.1)).r;
+  float fin=smoothstep(0.52,0.98,a*0.7+a2*0.45*a)*0.55;
+  float s=dot(normalize(v_n),u_soleil), l=smoothstep(-0.15,0.2,s);
+  float bord=pow(1.0-max(dot(normalize(v_n),v_vue),0.0),2.0);
+  vec3 teinte=mix(vec3(0.95,0.78,0.66),vec3(1.0),smoothstep(0.0,0.5,s));             // rosés au crépuscule
+  gl_FragColor=vec4(teinte*(0.04+0.96*l),clamp(fin*l*u_couv*(0.7+0.5*bord),0.0,0.8));
+}`;
+
+  /* ───── rochers de la ceinture d'astéroïdes, en instances (un seul appel de dessin par variante) ───── */
+  const VS_ROCHE_INST=`
+varying vec3 v_n; varying vec3 v_w; varying vec3 v_loc; varying vec3 v_ic;
+void main(){
+  v_loc=position;
+  #ifdef USE_INSTANCING_COLOR
+  v_ic=instanceColor;
+  #else
+  v_ic=vec3(0.4);
+  #endif
+  mat4 im=instanceMatrix;
+  vec4 wp=modelMatrix*im*vec4(position,1.0); v_w=wp.xyz;
+  v_n=normalize(mat3(modelMatrix)*mat3(im)*normal);
+  gl_Position=projectionMatrix*viewMatrix*wp;
+}`;
+  const FS_ROCHE_INST=BRUIT+`
+uniform vec3 u_sunPos;
+varying vec3 v_n; varying vec3 v_w; varying vec3 v_loc; varying vec3 v_ic;
+void main(){
+  vec3 n=normalize(v_n), L=normalize(u_sunPos-v_w), V=normalize(cameraPosition-v_w);
+  float grain=0.78+0.44*vn3(v_loc*5.0)*0.6+0.22*vn3(v_loc*17.0);                  // roche sombre piquetée
+  float lum=smoothstep(-0.04,0.22,dot(n,L));
+  float rim=pow(1.0-max(dot(n,V),0.0),3.0)*0.10*lum;
+  gl_FragColor=vec4(v_ic*grain*(0.05+1.1*lum)+rim,1.0);
+}`;
+  function rocheInstancee(THREE,sunPos){
+    return new THREE.ShaderMaterial({uniforms:{u_sunPos:sunPos},vertexShader:VS_ROCHE_INST,fragmentShader:FS_ROCHE_INST});
+  }
+
   /* ───── table des planètes ─────
      ang : diamètre apparent (degrés, agrandi pour la composition) · pole : [ascension droite, déclinaison] du pôle nord de rotation (IAU) ·
      spin : degrés par jour (négatif = rotation rétrograde), joués ×TEMPS_ACCELERE · couleur : palier 2 (aucune texture) ·
@@ -271,5 +374,5 @@ void main(){
     return {tex,liberer,toutLiberer,tailles:()=>[...cache.keys()]};
   }
 
-  UI.espaceAstres={BASE,BRUIT,VS_CORPS,FS_CORPS,FS_LUEUR,FS_ANNEAU,VS_SOLEIL,FS_SOLEIL,VS_TERRE,FS_TERRE,FS_NUAGES,FS_ATMO,PLANETES,COULEUR_LUNE,GAIN_LUNE,RING,TEMPS_ACCELERE,chargeur};
+  UI.espaceAstres={BASE,BRUIT,VS_CORPS,FS_CORPS,FS_LUEUR,FS_ANNEAU,VS_SOLEIL,FS_SOLEIL,VS_TERRE,FS_TERRE,FS_NUAGES,FS_ATMO,FS_CIRRUS,rocheInstancee,VS_RAYLEIGH,FS_RAYLEIGH,rayleigh,ATMO_RAYLEIGH,PLANETES,COULEUR_LUNE,GAIN_LUNE,RING,TEMPS_ACCELERE,chargeur};
 })();

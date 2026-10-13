@@ -2,17 +2,17 @@
    new MoteurAnatomie(THREE, canvas, { store, etiquettes: Element|null, mini: bool, surSelection(id) })
    Le moteur suit l'état du store : calques, sélection, isolation, pathologies, appareillage. Rendu à la demande (pas d'animation inutile).
    Contrôles : glisser = rotation 360°, molette / pincement = zoom, clic droit ou Maj + glisser ou 2 doigts = translation, double clic = focaliser. */
-import { construire, axeMembre } from './construction.js?v=2026.10.13.2';
-import { construireAppareil } from './appareils3d.js?v=2026.10.13.2';
-import { OS, VERTEBRES, REPERES, SACRUM_Y } from './donnees-os.js?v=2026.10.13.2';
-import { MUSCLES } from './donnees-muscles.js?v=2026.10.13.2';
-import { NERFS, ORGANES, DERMATOMES } from './donnees-nerfs-organes.js?v=2026.10.13.2';
-import { AMPUTATIONS, APPAREILLAGES, FRACTURES } from './donnees-ortho.js?v=2026.10.13.2';
-import { definition, base as baseDe, cote as coteDe, typeDe, instances, nomAffiche, musclesDe } from './registre.js?v=2026.10.13.2';
-import { COULEURS } from './registre.js?v=2026.10.13.2';
-import { chargerGLB } from './modeles-glb.js?v=2026.10.13.2';
-import { creerMateriauPBR } from './pbr.js?v=2026.10.13.2';
-import { studio, solOmbre, fondDegrade, environnement, pipeline, lireNiveau } from './rendu.js?v=2026.10.13.2';
+import { construire, axeMembre } from './construction.js?v=2026.10.13.3';
+import { construireAppareil } from './appareils3d.js?v=2026.10.13.3';
+import { OS, VERTEBRES, REPERES, SACRUM_Y } from './donnees-os.js?v=2026.10.13.3';
+import { MUSCLES } from './donnees-muscles.js?v=2026.10.13.3';
+import { NERFS, ORGANES, DERMATOMES } from './donnees-nerfs-organes.js?v=2026.10.13.3';
+import { AMPUTATIONS, APPAREILLAGES, FRACTURES } from './donnees-ortho.js?v=2026.10.13.3';
+import { definition, base as baseDe, cote as coteDe, typeDe, instances, nomAffiche, musclesDe } from './registre.js?v=2026.10.13.3';
+import { COULEURS } from './registre.js?v=2026.10.13.3';
+import { chargerGLB } from './modeles-glb.js?v=2026.10.13.3';
+import { creerMateriauPBR } from './pbr.js?v=2026.10.13.3';
+import { studio, solOmbre, fondDegrade, environnement, pipeline, lireNiveau } from './rendu.js?v=2026.10.13.3';
 
 const CALQUE_DE = { cartilage: 'squelette', os: 'squelette', muscle: 'muscles', nerf: 'nerfs', organe: 'organes', repere: 'reperes', dermatome: 'dermatomes', peau: 'peau' };
 const DIST_DEFAUT = 3.5;

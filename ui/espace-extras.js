@@ -90,8 +90,11 @@ void main(){
       box(94,1.6,1.6,gris,0,0,0);                                   // poutre intégrée
       for(let i=-4;i<=4;i++) box(.5,2.2,2.2,blanc,i*10.5,0,0);      // nervures
       // 8 ailes de panneaux solaires : 2 paires à chaque extrémité de la poutre, 35 m de long le long de ±z, 12 m de large le long de x
+      // chaque paire d'ailes pivote autour de son mât (axe z) pour faire face au Soleil (cardan « beta », voir orienterAiles)
+      g.userData.ailes=[];
       for(const sx of [-1,1]) for(const xp of [44,30]){
-        for(const sz of [-1,1]){ const w=mesh(new THREE.PlaneGeometry(11.5,34),solaire); w.rotation.x=-Math.PI/2; w.position.set(sx*xp,0,sz*18.5); g.add(w); }
+        const pivot=new THREE.Group(); pivot.position.set(sx*xp,0,0); g.add(pivot); g.userData.ailes.push(pivot);
+        for(const sz of [-1,1]){ const w=mesh(new THREE.PlaneGeometry(11.5,34),solaire); w.rotation.x=-Math.PI/2; w.position.set(0,0,sz*18.5); pivot.add(w); }
         cyl(.35,3,or,sx*xp,0,0,'z');
       }
       // radiateurs thermiques
@@ -111,11 +114,20 @@ void main(){
       g.userData.taille=109;
       return g;
     }
+    let issRef=null; const _q=new THREE.Quaternion(), _d=new THREE.Vector3();
+    /** Les panneaux solaires suivent le Soleil : direction du Soleil dans le repère de la station, rotation de chaque aile autour de son mât (lissée) */
+    function orienterAiles(dt){
+      if(!issRef||!issRef.groupe.visible) return; const m=issRef.modele, ailes=m.userData.ailes; if(!ailes) return;
+      m.getWorldQuaternion(_q).invert(); _d.copy(sunDir()).applyQuaternion(_q);
+      if(Math.abs(_d.x)+Math.abs(_d.y)<1e-3) return;                 // Soleil dans l'axe des mâts : on ne bouge pas
+      const cible=-Math.atan2(_d.x,_d.y);
+      for(const p of ailes){ let e=cible-p.rotation.z; e=Math.atan2(Math.sin(e),Math.cos(e)); p.rotation.z+=e*Math.min(1,dt*1.5); }
+    }
     async function ameliorerISS(issGroupe){
       if(!issGroupe||issGroupe.userData.detaille) return; issGroupe.userData.detaille=true;
       const ancien=issGroupe.children.slice(); ancien.forEach(c=>issGroupe.remove(c));
       const taille=.08, modele=construireISS(); modele.scale.setScalar(taille/109);
-      issGroupe.add(modele); issGroupe.scale.setScalar(1.15);
+      issGroupe.add(modele); issGroupe.scale.setScalar(1.15); issRef={groupe:issGroupe,modele};
       essayerGLB('iss',taille,modele.parent,false).then(ok=>{ if(ok) issGroupe.remove(modele); });
     }
 
@@ -222,7 +234,7 @@ void main(){
     }
     /** à appeler à chaque image */
     function maj(dt,cible){
-      temps+=dt; cibleCourante=cible;
+      temps+=dt; cibleCourante=cible; orienterAiles(dt);
       lum.position.copy(sunDir()).multiplyScalar(100);
       if(!reconnait(cible)&&camera.near!==nearBase&&!/^(mars)$/.test(cible||'')){ camera.near=nearBase; }
       if(tn){ tn.g.visible=cible==='trounoir'; if(tn.g.visible){ tn.um.u_t.value=temps; tn.g.quaternion.copy(camera.quaternion); } }
