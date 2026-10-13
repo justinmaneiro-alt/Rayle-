@@ -9,13 +9,13 @@
      appareils3d.js      prothèses, corsets, orthèses, appuis et décharges
      fenetre.js          fenêtre plein écran  ·  quickview.js : pop-up 3D flottant
      cours.js            base de connaissances (cours de l'utilisateur)  ·  commandes.js : ordres de Raylé */
-import { useAnatomieStore as S, actions as A } from './store.js?v=2026.10.13.3';
+import { useAnatomieStore as S, actions as A } from './store.js?v=2026.10.13.4';
 
-export { afficherQuick, fermerQuick, quickOuvert } from './quickview.js?v=2026.10.13.3';
-export { analyser, executer } from './commandes.js?v=2026.10.13.3';
-export { chercher as chercherCours, contexte as contexteCours, lister as listerCours } from './cours.js?v=2026.10.13.3';
-export { trouver, fiche, resume } from './registre.js?v=2026.10.13.3';
-export { useAnatomieStore, actions } from './store.js?v=2026.10.13.3';
+export { afficherQuick, fermerQuick, quickOuvert } from './quickview.js?v=2026.10.13.4';
+export { analyser, executer } from './commandes.js?v=2026.10.13.4';
+export { chercher as chercherCours, contexte as contexteCours, lister as listerCours } from './cours.js?v=2026.10.13.4';
+export { trouver, fiche, resume } from './registre.js?v=2026.10.13.4';
+export { useAnatomieStore, actions } from './store.js?v=2026.10.13.4';
 
 /** Ouvre la fenêtre Anatomie & Orthopédie ; options : { onglet, selection, isoler } */
 export async function ouvrirAnatomie(options = {}) {

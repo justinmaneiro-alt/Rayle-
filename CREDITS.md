@@ -20,18 +20,17 @@ Ce fichier recense ce que Raylé utilise qui n'a pas été écrit par son auteur
 | `ui/assets/ville-*.mp4` | Pexels, vidéo n° 13246966 | licence Pexels |
 | Soleil, petites lunes, astéroïdes, Voie lactée, nébuleuses, matériaux anatomiques (os, muscles, cartilages, organes), environnement d'éclairage | dessinés par le code (shaders et canvas), aucun fichier | — |
 
-## Modèles 3D du module Anatomie (GLB, optionnels)
-**Aucun modèle GLB n'est livré avec Raylé** : le module fonctionne avec ses formes procédurales. Un téléchargement automatique n'a pas été fait : les modèles
-anatomiques réellement libres sont rares, leur repère et leur échelle varient, et la licence de chacun doit être lue sur la page du fichier avant de l'embarquer.
-
-Quand vous ajoutez un modèle (voir `ui/assets/anatomie/LISEZMOI.md`), **ajoutez une ligne ici** et renseignez les champs `licence`, `source` et `auteur`
-de son entrée dans `ui/assets/anatomie/manifest.json`.
-
-| Structure (clé du manifeste) | Fichier | Auteur | Licence | Source |
+## Modèles 3D du module Anatomie (GLB)
+| Structures | Fichier | Auteur | Licence | Source |
 |---|---|---|---|---|
-| — (aucun pour l'instant) | | | | |
+| Squelette humain complet : crâne, mandibule, dents, 24 vertèbres, disques, 12 paires de côtes, sternum, clavicules, omoplates, bras, avant-bras, mains, bassin, jambes, rotules, pieds (116 nœuds) | `ui/assets/anatomie/squelette-cc0.glb` | **Armen Barsegyan** (CGI Coffee) | **CC0 1.0** (« No Rights Reserved », domaine public) | https://cgicoffee.com/blog/2017/10/free-human-skeleton-3d-model |
 
-Licences à surveiller : **CC0** et **domaine public** : usage libre ; **CC BY** : citer l'auteur ici ; **CC BY-SA** : le modèle (et ses dérivés) doit rester sous la même licence ; **CC BY-NC** : usage commercial interdit.
+**Modifications faites par Raylé** (permises par la licence CC0, signalées par courtoisie) : le modèle original (`human_skeleton.obj`, 2017, 71 objets, textures PBR) a été converti par `scripts/convertir-squelette.mjs` en un seul GLB de 1,4 Mo : mise à l'échelle (×0,1 → 1,75 m), normales recalculées, textures et UV retirés (Raylé applique ses propres matériaux), séparation des côtes et des clavicules en côté droit / gauche, découpe des mains et des pieds en composantes (carpe, métacarpiens, phalanges ; talus, calcanéus, tarse, métatarsiens, phalanges) et des disques intervertébraux, suppression d'un doublon de L1 (`l02`) et d'une face parasite (`jaw0`). Les os du GLB sont ensuite recalés à l'exécution sur les formes schématiques de l'application (`js/anatomie/ajustement.js`).
+Limite du modèle source : les mains et les pieds sont rudimentaires (doigts d'un seul tenant, tarse en trois pièces).
+
+Autres modèles : aucun. Pour en ajouter, voir `ui/assets/anatomie/LISEZMOI.md` et inscrire une ligne dans le tableau ci-dessus. Licences à surveiller : **CC0** et **domaine public** : usage libre ; **CC BY** : citer l'auteur ; **CC BY-SA** : le modèle (et ses dérivés) doit rester sous la même licence (non retenu ici) ; **CC BY-NC** : usage commercial interdit.
+
+Pistes examinées et écartées : « Human Skeleton » de NIH 3D (CC BY 4.0, mais le téléchargement direct est refusé sans passer par le site), le dépôt `lucgrn3/anatomy-models` et BodyParts3D / Z-Anatomy (CC BY-SA : licence à partage dans les mêmes conditions, incompatible avec la règle « CC0 ou CC BY » retenue), un dépôt GitHub sans licence déclarée.
 
 ## Modèles 3D du fond Espace (ISS, rovers, GLB optionnels)
 Les formes procédurales sont utilisées par défaut. Si vous ajoutez des GLB dans `ui/assets/espace/modeles/` (voir `docs/espace.md`), notez-les ici. Les modèles 3D

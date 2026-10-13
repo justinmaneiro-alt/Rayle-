@@ -154,7 +154,7 @@ t('matériaux : le choix change la couleur de la pièce', () => {
 });
 t('disques intervertébraux : 23, cartilage, hors sélection par clic', () => {
   S.definir({ pathologie: { amputation: null, scoliose: null, fracture: null }, selection: null, isolation: false });
-  const d = Array.from(M.entrees.values()).filter(e => e.type === 'cartilage');
+  const d = Array.from(M.entrees.values()).filter(e => e.type === 'cartilage' && e.sid.startsWith('disque-'));
   assert.equal(d.length, 23, 'disques : ' + d.length);
   assert.ok(d.every(e => e.mats[0].userData.pbr === 'cartilage'));
 });
@@ -183,6 +183,35 @@ t('manifeste GLB : entrées normalisées, chemins dangereux refusés', () => {
   const e = normaliserEntree({ fichier: 'a.glb', echelle: .01, decalage: [0, 1, 0], licence: 'CC0-1.0' });
   assert.deepEqual(e.echelle, [.01, .01, .01]); assert.equal(e.licence, 'CC0-1.0');
   for (const mauvais of ['../x.glb', '/etc/x.glb', 'http://x/y.glb', 'C:/x.glb', 'x.exe', null, { fichier: 3 }]) assert.equal(normaliserEntree(mauvais), null, String(mauvais));
+});
+t('squelette procédural : os médians détaillés, cartilages costaux, disques, régions', () => {
+  S.definir({ pathologie: { amputation: null, scoliose: null, fracture: null }, selection: null, isolation: false, isolationGroupe: null, calques: Object.assign({}, S.obtenir().calques, { squelette: true }) });
+  const tri = sid => M.entrees.get(sid).obj.children[0].geometry.attributes.position.count;
+  assert.ok(tri('crane') > 3000, 'crâne détaillé : ' + tri('crane')); assert.ok(tri('mandibule') > 1500, 'mandibule : ' + tri('mandibule'));
+  const c = M.entrees.get('cartilages-costaux'); assert.ok(c && c.type === 'cartilage' && c.obj.geometry.attributes.position.count > 500, 'cartilages costaux');
+  const ep = M.entrees.get('femur:G').obj.children[0].geometry.attributes.aFibre; assert.ok(ep, 'attribut épiphyse / diaphyse'); const v = Array.from(ep.array).filter((_, i) => i % 2 === 0); assert.ok(Math.min(...v) < .1 && Math.max(...v) > .9, 'diaphyse et épiphyse distinguées');
+  for (const e of M.entrees.values()) e.obj.traverse(o => { if (o.geometry) { const p = o.geometry.attributes.position; for (let i = 0; i < p.array.length; i++) if (!Number.isFinite(p.array[i])) assert.fail('sommet non fini : ' + e.sid); } });
+});
+t('isolation d’une région du squelette : seuls ses os restent visibles, le contexte laisse le reste en fantôme', () => {
+  S.definir({ isolationGroupe: 'crane' });
+  const vis = Array.from(M.entrees.values()).filter(e => e.obj.visible).map(e => e.sid).sort();
+  assert.deepEqual(vis, ['crane', 'mandibule']);
+  S.definir({ contexte: true });
+  const fant = Array.from(M.entrees.values()).filter(e => e.obj.visible && e.mats[0].userData.fantome).length;
+  assert.ok(fant > 80, 'os en fantôme : ' + fant); assert.equal(M.entrees.get('crane').mats[0].userData.fantome, false);
+  S.definir({ contexte: false, isolationGroupe: 'membre-inferieur' });
+  const inf = Array.from(M.entrees.values()).filter(e => e.obj.visible).map(e => e.sid);
+  assert.ok(inf.includes('femur:D') && inf.includes('metatarsiens:G') && !inf.includes('humerus:D') && !inf.includes('crane'));
+  S.definir({ isolationGroupe: null });
+  assert.ok(M.entrees.get('crane').obj.visible && M.entrees.get('humerus:D').obj.visible);
+});
+t('transparence par région : se combine à celle du calque, 0 % masque la région', () => {
+  S.definir(e => ({ affichage: Object.assign({}, e.affichage, { opacitesOs: { thorax: .5 }, opacites: { squelette: .8 } }) }));
+  assert.ok(Math.abs(M.entrees.get('cote-3:D').mats[0].opacity - .4) < 1e-9, 'côte : 0,5 × 0,8'); assert.ok(Math.abs(M.entrees.get('humerus:D').mats[0].opacity - .8) < 1e-9, 'humérus : calque seul');
+  S.definir(e => ({ affichage: Object.assign({}, e.affichage, { opacitesOs: { thorax: 0 } }) }));
+  assert.equal(M.entrees.get('sternum').obj.visible, false); assert.equal(M.entrees.get('cote-3:D').obj.visible, false); assert.equal(M.entrees.get('crane').obj.visible, true);
+  S.definir(e => ({ affichage: Object.assign({}, e.affichage, { opacitesOs: {}, opacites: {} }) }));
+  assert.equal(M.entrees.get('sternum').mats[0].opacity, 1); assert.ok(M.entrees.get('sternum').obj.visible);
 });
 t('libération des ressources', () => { M.dispose(); assert.ok(M.mort); });
 console.log(ok + ' tests réussis');

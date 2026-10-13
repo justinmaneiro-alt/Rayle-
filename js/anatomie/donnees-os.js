@@ -25,7 +25,8 @@ export const VERTEBRES = (() => {
 })();
 export const SACRUM_Y = .975;
 /** profondeur (z) de l'axe du rachis à la hauteur y : lordose lombaire, cyphose thoracique */
-export const zRachis = y => -.058 - .032 * Math.sin(Math.PI * Math.min(Math.max((y - 1.03) / .46, 0), 1));
+export const zRachis = y => -.058 - .032 * Math.sin(Math.PI * Math.min(Math.max((y - 1.03) / .46, 0), 1))
+  + .014 * Math.sin(Math.PI * Math.min(Math.max((y - 1.49) / .15, 0), 1));      // lordose cervicale (le rachis cervical bombe vers l'avant) en plus de la lordose lombaire et de la cyphose thoracique
 /** profil des côtes : demi-largeur et profondeur du thorax selon le rang (1 à 12) */
 export const profilCote = i => {
   const u = (i - 1) / 11;
@@ -35,24 +36,76 @@ export const profilCote = i => {
 export const cap = (a, b, r0, r1, extra) => Object.assign({ t: 'cap', a, b, r0, r1: r1 == null ? r0 : r1 }, extra);
 const ell = (c, r, rot) => ({ t: 'ell', c, r, rot });
 const sph = (c, r) => ({ t: 'sph', c, r });
+const tube = (pts, r, r1) => ({ t: 'tube', pts, r, r1 });
+const tor = (c, R, r, rot) => ({ t: 'tor', c, R, r, rot });
+/** reflète une liste de parties (x → −x) pour décrire un os médian à deux côtés (crâne, mandibule) */
+const mx = p => { const m = q => [-q[0], q[1], q[2]]; const o = Object.assign({}, p); if (p.c) o.c = m(p.c); if (p.a) { o.a = m(p.a); o.b = m(p.b); } if (p.pts) o.pts = p.pts.map(m); if (p.rot) o.rot = [p.rot[0], -p.rot[1], -p.rot[2]]; return o; };
+const deuxCotes = l => l.flatMap(p => [p, mx(p)]);
+/** rangée de dents le long d'un arc (liste de points de gauche à droite) : une petite ellipsoïde par dent */
+const dents = (arc, y, h, n) => { const c = new Array(n).fill(0).map((_, i) => { const u = i / (n - 1) * (arc.length - 1), k = Math.min(Math.floor(u), arc.length - 2), t = u - k; return [arc[k][0] + (arc[k + 1][0] - arc[k][0]) * t, y, arc[k][1] + (arc[k + 1][1] - arc[k][1]) * t]; }); return c.map((p, i) => Object.assign(ell(p, [i > 3 && i < n - 4 ? .0032 : .0042, h, i > 3 && i < n - 4 ? .0026 : .0034]), { sym: false })); };
+
+/* Crâne : neurocrâne (voûte, base, bosse frontale), massif facial (maxillaire, os nasaux, zygomatiques), orbites, arcades sourcilières, arcades zygomatiques, mastoïdes, protubérance occipitale, dents du haut */
+const creux = p => Object.assign(p, { creux: true, sym: false });       // cavité (orbite, narine, conduit) : assombrie par l'attribut aFibre.y, comme une occlusion ambiante cuite
+const CRANE = [
+  ell([0, 1.703, -.012], [.074, .08, .093]), ell([0, 1.668, -.03], [.062, .04, .07]), ell([0, 1.718, .028], [.066, .057, .05]),
+  ell([0, 1.64, .052], [.043, .033, .034]), ell([0, 1.664, .086], [.008, .016, .008], [.5, 0, 0]),
+  ell([0, 1.658, .06], [.05, .034, .03]),                                                    // plan du massif facial, sur lequel reposent les orbites
+  ...deuxCotes([tor([.031, 1.667, .0845], .0158, .0032, [0, .3, 0]), creux(ell([.031, 1.667, .0838], [.0138, .0122, .0055], [0, .3, 0])),
+    ell([.044, 1.647, .066], [.0095, .008, .0095]), tube([[.046, 1.649, .064], [.068, 1.654, .04], [.074, 1.66, -.002]], .0036), ell([.05, 1.628, -.026], [.007, .011, .007]),
+    ]),
+  tube([[-.044, 1.686, .08], [0, 1.693, .088], [.044, 1.686, .08]], .0048), creux(ell([0, 1.646, .0905], [.0072, .0125, .005])), ell([0, 1.656, -.098], [.007, .006, .004]),
+  tube([[-.026, 1.619, .07], [-.012, 1.615, .088], [0, 1.614, .092], [.012, 1.615, .088], [.026, 1.619, .07]], .0046),
+  ...dents([[-.027, .068], [-.012, .088], [0, .092], [.012, .088], [.027, .068]], 1.612, .0052, 12)
+];
+/* Mandibule : corps en arc, branches montantes, angles, coronoïdes, condyles (articulation temporo-mandibulaire), menton, dents du bas */
+const MANDIBULE = [
+  tube([[-.046, 1.652, -.012], [-.047, 1.612, -.004], [-.04, 1.598, .044], [-.02, 1.594, .07], [0, 1.592, .076], [.02, 1.594, .07], [.04, 1.598, .044], [.047, 1.612, -.004], [.046, 1.652, -.012]], .0072),
+  ...deuxCotes([ell([.048, 1.626, .0], [.0035, .021, .016], [0, 0, 0]), ell([.044, 1.603, .03], [.005, .009, .02])]),
+  ell([0, 1.594, .074], [.014, .0085, .007]),
+  ...deuxCotes([ell([.047, 1.651, -.012], [.0065, .004, .005]), ell([.047, 1.628, .01], [.003, .012, .008]), ell([.046, 1.604, -.006], [.006, .005, .008])]),
+  ...dents([[-.025, .068], [-.012, .086], [0, .089], [.012, .086], [.025, .068]], 1.607, .0048, 12)
+];
+/* Sternum en trois parties : manubrium, corps, processus xiphoïde (+ échancrure jugulaire et angle de Louis) */
+const STERNUM = [
+  ell([0, 1.432, .097], [.03, .027, .0095]), ell([0, 1.347, .103], [.02, .061, .0085]), ell([0, 1.406, .104], [.027, .004, .006]),
+  Object.assign(cap([0, 1.292, .1], [0, 1.257, .097], .0065, .0025), { simple: true })
+];
+/* Sacrum (5 vertèbres soudées, ailes, crête médiane) et coccyx (3 à 4 pièces) */
+const SACRUM = [ell([0, SACRUM_Y, -.062], [.045, .05, .02], [.35, 0, 0]), ell([0, SACRUM_Y + .022, -.056], [.058, .018, .018], [.2, 0, 0]), tube([[0, SACRUM_Y + .035, -.082], [0, SACRUM_Y - .005, -.086], [0, SACRUM_Y - .04, -.078]], .005)];
+const COCCYX = [sph([0, .928, -.07], .008), sph([0, .912, -.066], .0065), sph([0, .899, -.06], .005), sph([0, .889, -.054], .0035)];
+/* Os coxal : aile iliaque, crête iliaque, épines (EIAS, EIPS), acétabulum, ischion et tubérosité ischiatique, branche ilio-pubienne, trou obturé */
+const COXAL = [
+  ell([.09, 1.045, -.005], [.011, .06, .078], [0, .55, 0]),
+  tube([[.056, 1.085, -.085], [.105, 1.092, -.04], [.14, 1.082, .015], [.125, 1.056, .078]], .0062),
+  sph([.12, 1.04, .085], .009), sph([.05, 1.045, -.095], .009), sph([.105, .985, .075], .007),
+  cap([.07, .98, -.04], [.07, .885, -.055], .015, .015), ell([.07, .887, -.058], [.014, .013, .017]),
+  cap([.045, .93, .05], [.012, .9, .072], .012, .012), sph([.09, .93, 0], .03),
+  tor([.057, .915, .022], .02, .0045, [0, 1.35, 0]),
+  tube([[.03, 1.0, -.08], [.06, 1.03, -.085], [.075, 1.05, -.07]], .013),                // articulation sacro-iliaque : relie l'aile au sacrum
+  cap([.095, 1.015, -.012], [.09, .945, 0], .022, .026), ell([.11, 1.06, .03], [.012, .036, .06], [0, .55, 0]), sph([0, .905, .076], .0085)       // corps de l'os coxal, aile antérieure, symphyse pubienne
+];
+// carpe : deux rangées de quatre os ; tarse antérieur : naviculaire, cuboïde et trois cunéiformes
+const CARPE = [ell([.212, .848, -.006], [.0085, .007, .0085]), ell([.223, .85, -.006], [.008, .0075, .008]), ell([.234, .848, -.004], [.008, .007, .008]), ell([.244, .843, .002], [.007, .0065, .007]),
+  ell([.213, .832, .004], [.0075, .007, .008]), ell([.224, .833, .006], [.008, .0075, .008]), ell([.235, .832, .008], [.0075, .007, .008]), ell([.245, .83, .013], [.0075, .0075, .008])];
+const TARSE_ANT = [ell([.075, .052, .07], [.012, .01, .014]), ell([.115, .038, .082], [.013, .012, .018]), ell([.083, .036, .098], [.0085, .011, .011]), ell([.097, .035, .1], [.0085, .011, .011]), ell([.108, .034, .1], [.0085, .011, .011])];
 
 /* Fiche : nom, latin, region, description, reperes[], articulations[], role, ortho.
    `membre` : 'MI' (membre inférieur, de la hanche aux orteils) ou 'MS' (membre supérieur) → coupé par les amputations. */
 export const OS = [
-  { id: 'crane', nom: 'Crâne', latin: 'Cranium', sym: false, region: 'Tête', parts: [ell([0, 1.695, -.005], [.077, .088, .095]), ell([0, 1.645, .045], [.05, .038, .04])],
+  { id: 'crane', nom: 'Crâne', latin: 'Cranium', sym: false, region: 'Tête', parts: CRANE,
     description: "Boîte osseuse qui protège l'encéphale ; il comprend la voûte (frontal, pariétaux, occipital, temporaux) et la face.",
     reperes: ['Protubérance occipitale externe', 'Processus mastoïde', 'Arcade zygomatique'], articulations: ['Atlas (C1) : articulation atlanto-occipitale', 'Mandibule : ATM'],
     role: "Protection de l'encéphale et des organes des sens ; point d'insertion des muscles de la nuque et de la mastication.", ortho: "Orthèses crâniennes (casque pour plagiocéphalie), collier cervical : le crâne est le point d'appui supérieur." },
-  { id: 'mandibule', nom: 'Mandibule', latin: 'Mandibula', sym: false, region: 'Tête', parts: [ell([0, 1.617, .042], [.05, .022, .045])],
+  { id: 'mandibule', nom: 'Mandibule', latin: 'Mandibula', sym: false, region: 'Tête', parts: MANDIBULE,
     description: "Seul os mobile de la tête, en forme de fer à cheval.", reperes: ['Angle de la mandibule', 'Condyle (devant le tragus)'], articulations: ['Articulation temporo-mandibulaire'],
     role: 'Mastication, phonation.', ortho: 'Les colliers cervicaux prennent appui sur la mandibule (menton) : attention aux escarres.' },
-  { id: 'sternum', nom: 'Sternum', latin: 'Sternum', sym: false, region: 'Thorax', parts: [ell([0, 1.36, .102], [.025, .095, .012])],
+  { id: 'sternum', nom: 'Sternum', latin: 'Sternum', sym: false, region: 'Thorax', parts: STERNUM,
     description: 'Os plat médian en avant du thorax : manubrium, corps et processus xiphoïde.', reperes: ['Fourchette sternale', "Angle de Louis (2e côte)", 'Processus xiphoïde'],
     articulations: ['Clavicules (sterno-claviculaire)', 'Cartilages costaux 1 à 7'], role: 'Protège le cœur ; fixe la cage thoracique en avant.', ortho: "Point d'appui antérieur des corsets de rachis (Jewett, minerve sterno-occipito-mandibulaire)." },
-  { id: 'sacrum', nom: 'Sacrum', latin: 'Os sacrum', sym: false, region: 'Bassin', parts: [ell([0, SACRUM_Y, -.062], [.045, .05, .02], [.35, 0, 0])],
+  { id: 'sacrum', nom: 'Sacrum', latin: 'Os sacrum', sym: false, region: 'Bassin', parts: SACRUM,
     description: 'Cinq vertèbres soudées, en coin entre les deux os coxaux ; base de la colonne.', reperes: ['Épines iliaques postéro-supérieures (fossettes de Vénus)'], articulations: ['L5 (disque L5-S1)', 'Os coxaux (sacro-iliaques)', 'Coccyx'],
     role: 'Transmet le poids du tronc aux membres inférieurs.', ortho: "Base de la mesure de l'obliquité pelvienne en scoliose ; repère du bord inférieur des corsets." },
-  { id: 'coccyx', nom: 'Coccyx', latin: 'Os coccygis', sym: false, region: 'Bassin', parts: [cap([0, .93, -.07], [0, .895, -.055], .01, .005)],
+  { id: 'coccyx', nom: 'Coccyx', latin: 'Os coccygis', sym: false, region: 'Bassin', parts: COCCYX,
     description: 'Petit os terminal formé de 3 à 5 vertèbres atrophiées.', reperes: ['Palpable dans le pli interfessier'], articulations: ['Sacrum'], role: "Insertion de muscles du plancher pelvien.", ortho: "Les emboîtures fémorales doivent décharger le coccyx et l'ischion." },
   { id: 'clavicule', nom: 'Clavicule', latin: 'Clavicula', sym: true, region: 'Épaule', membre: null, parts: [cap([.02, 1.44, .055], [.17, 1.465, -.005], .007, .0085, { diaphyse: true })],
     description: "Os long en S couché, seul lien osseux entre le tronc et le membre supérieur.", reperes: ['Palpable sur toute sa longueur sous la peau', 'Extrémité acromiale (articulation acromio-claviculaire)'],
@@ -61,7 +114,7 @@ export const OS = [
     description: "Os plat triangulaire à la face postérieure du thorax ; porte la cavité glénoïde, l'épine, l'acromion et le processus coracoïde.", reperes: ['Épine de la scapula', 'Angle inférieur', 'Acromion', 'Processus coracoïde'],
     articulations: ['Humérus (gléno-humérale)', 'Clavicule (acromio-claviculaire)'], role: "Plateforme mobile de l'épaule ; insertion de 17 muscles dont la coiffe des rotateurs.", ortho: "En scoliose, la saillie de l'angle inférieur côté convexe signe la rotation vertébrale (gibbosité)." },
   { id: 'humerus', nom: 'Humérus', latin: 'Humerus', sym: true, membre: 'MS', region: 'Bras',
-    parts: [sph([.175, 1.41, 0], .023), cap([.178, 1.395, 0], [.205, 1.135, 0], .017, .014, { diaphyse: true, nom: 'diaphyse' }), ell([.205, 1.12, 0], [.03, .016, .02])],
+    parts: [sph([.175, 1.41, 0], .023), cap([.178, 1.395, 0], [.205, 1.135, 0], .017, .014, { diaphyse: true, nom: 'diaphyse' }), ell([.205, 1.12, 0], [.03, .016, .02]), sph([.178, 1.12, 0], .0105), sph([.237, 1.12, 0], .0105), sph([.195, 1.4, .012], .014), sph([.19, 1.3, .012], .0085)],
     description: "Os long du bras : tête articulaire, col anatomique et chirurgical, diaphyse avec la tubérosité deltoïdienne, extrémité distale (trochlée, capitulum).", reperes: ['Tubercule majeur (sous l\'acromion)', 'Épicondyles médial et latéral', 'Épitrochlée (gouttière du nerf ulnaire)'],
     articulations: ['Scapula (gléno-humérale)', 'Radius et ulna (coude)'], role: "Levier du bras ; insertion du deltoïde, des muscles de la coiffe, du biceps (origine) et du triceps.",
     ortho: "Le nerf radial contourne la diaphyse : risque de paralysie (main tombante) dans les fractures du tiers moyen. Orthèse brachiale (Sarmiento) en traitement fonctionnel." },
@@ -71,7 +124,7 @@ export const OS = [
   { id: 'ulna', nom: 'Ulna (cubitus)', latin: 'Ulna', sym: true, membre: 'MS', region: 'Avant-bras', parts: [sph([.205, 1.135, -.03], .014), cap([.205, 1.125, -.02], [.218, .865, -.008], .012, .007, { diaphyse: true })],
     description: "Os médial de l'avant-bras ; l'olécrane forme la saillie du coude.", reperes: ['Olécrane', 'Bord postérieur (palpable sur toute sa longueur)', 'Processus styloïde ulnaire'],
     articulations: ['Humérus (huméro-ulnaire)', 'Radius (radio-ulnaires)'], role: "Charnière de flexion-extension du coude.", ortho: "Le moignon d'amputation trans-radiale conserve radius et ulna : l'emboîture respecte l'olécrane et le pli du coude." },
-  { id: 'carpe', nom: 'Carpe', latin: 'Ossa carpi', sym: true, membre: 'MS', region: 'Main', parts: [ell([.225, .84, 0], [.026, .016, .016])],
+  { id: 'carpe', nom: 'Carpe', latin: 'Ossa carpi', sym: true, membre: 'MS', region: 'Main', parts: CARPE,
     description: "Huit os en deux rangées (scaphoïde, lunatum, triquetrum, pisiforme ; trapèze, trapézoïde, capitatum, hamatum).", reperes: ['Pisiforme', 'Tubercule du scaphoïde', 'Tabatière anatomique'],
     articulations: ['Radius (radio-carpienne)', 'Métacarpiens'], role: "Mobilité du poignet.", ortho: "Le scaphoïde se fracture souvent (chute sur la main) : douleur de la tabatière, immobilisation 6 à 12 semaines." },
   { id: 'metacarpiens', nom: 'Métacarpiens', latin: 'Ossa metacarpi', sym: true, membre: 'MS', region: 'Main',
@@ -81,12 +134,12 @@ export const OS = [
     parts: [cap([.255, .782, .02], [.262, .735, .026], .0045), cap([.242, .75, 0], [.245, .672, 0], .004), cap([.229, .743, 0], [.23, .658, 0], .004), cap([.217, .748, 0], [.216, .668, 0], .0038), cap([.205, .758, 0], [.203, .69, 0], .0034)],
     description: "14 phalanges : 2 pour le pouce, 3 pour chacun des autres doigts.", reperes: ['Articulations interphalangiennes'], articulations: ['Métacarpiens'], role: 'Préhension fine.', ortho: "Amputation de doigts : prothèses digitales en silicone, doigts mécaniques ou myoélectriques." },
   { id: 'os-coxal', nom: 'Os coxal', latin: 'Os coxae', sym: true, region: 'Bassin',
-    parts: [ell([.085, 1.043, -.005], [.012, .05, .1], [0, .37, 0]), cap([.07, .98, -.04], [.07, .885, -.055], .015), cap([.045, .93, .05], [.012, .9, .072], .012), sph([.09, .93, 0], .03)],
+    parts: COXAL,
     description: "Os large formé de l'ilium, de l'ischium et du pubis soudés autour de l'acétabulum (cotyle).", reperes: ['Crête iliaque', 'Épine iliaque antéro-supérieure (EIAS)', 'Épine iliaque postéro-supérieure (EIPS)', 'Tubérosité ischiatique', 'Symphyse pubienne'],
     articulations: ['Sacrum (sacro-iliaque)', 'Fémur (coxo-fémorale)', 'Pubis controlatéral (symphyse)'], role: "Transmet le poids du tronc aux membres inférieurs ; large surface d'insertion des fessiers et des muscles de la cuisse.",
     ortho: "Les crêtes iliaques sont le point d'appui du corset ; la tubérosité ischiatique supporte la prothèse fémorale (emboîture à contenance ischiatique)." },
   { id: 'femur', nom: 'Fémur', latin: 'Femur', sym: true, membre: 'MI', region: 'Cuisse',
-    parts: [sph([.08, .93, 0], .024), cap([.08, .93, 0], [.155, .905, 0], .011, .011, { nom: 'col', diaphyse: false }), sph([.158, .915, -.005], .02), cap([.145, .89, 0], [.1, .53, .012], .016, .014, { diaphyse: true, nom: 'diaphyse' }), ell([.095, .505, 0], [.045, .025, .035])],
+    parts: [sph([.08, .93, 0], .024), cap([.08, .93, 0], [.155, .905, 0], .011, .011, { nom: 'col', diaphyse: false }), sph([.158, .915, -.005], .02), cap([.145, .89, 0], [.1, .53, .012], .016, .014, { diaphyse: true, nom: 'diaphyse' }), ell([.074, .505, -.005], [.02, .026, .035]), ell([.118, .505, -.005], [.022, .026, .035]), sph([.095, .525, .028], .019), sph([.092, .885, -.022], .0095)],
     description: "Plus long et plus solide os du corps : tête, col (angle cervico-diaphysaire ≈ 125°), grand et petit trochanters, diaphyse avec la ligne âpre, condyles.", reperes: ['Grand trochanter', 'Épicondyles médial et latéral'],
     articulations: ['Os coxal (coxo-fémorale)', 'Tibia (fémoro-tibiale)', 'Patella (fémoro-patellaire)'], role: "Support du poids ; levier des fessiers, du quadriceps et des ischio-jambiers.",
     ortho: "Fracture du col (Garden I à IV) chez le sujet âgé : prothèse de hanche ou vissage. Amputation trans-fémorale : la longueur du moignon conditionne le levier et le choix du genou prothétique." },
@@ -94,7 +147,7 @@ export const OS = [
     description: "Os sésamoïde dans le tendon du quadriceps ; augmente le bras de levier de l'extension du genou.", reperes: ['Base (haut), apex (bas)', 'Tendon patellaire (jusqu\'à la tubérosité tibiale)'], articulations: ['Fémur (trochlée)'],
     role: "Poulie du quadriceps.", ortho: "L'emboîture trans-tibiale PTB prend appui sur le tendon patellaire, sous la patella." },
   { id: 'tibia', nom: 'Tibia', latin: 'Tibia', sym: true, membre: 'MI', region: 'Jambe',
-    parts: [ell([.095, .485, .005], [.04, .012, .032]), cap([.097, .47, .015], [.088, .095, 0], .018, .014, { diaphyse: true, nom: 'diaphyse' }), sph([.077, .078, 0], .012), ell([.09, .085, 0], [.026, .012, .022])],
+    parts: [ell([.095, .485, .005], [.04, .012, .032]), cap([.097, .47, .015], [.088, .095, 0], .018, .014, { diaphyse: true, nom: 'diaphyse' }), sph([.077, .078, 0], .012), ell([.09, .085, 0], [.026, .012, .022]), sph([.098, .455, .038], .0095)],
     description: "Os médial et porteur de la jambe : plateaux tibiaux, tubérosité tibiale, crête (bord antérieur) sous-cutanée, malléole médiale.", reperes: ['Tubérosité tibiale antérieure', 'Crête tibiale', 'Malléole médiale'],
     articulations: ['Fémur (genou)', 'Fibula (tibio-fibulaires)', 'Talus (cheville)'], role: "Reprend l'essentiel de la charge du membre inférieur.",
     ortho: "Amputation trans-tibiale : moignon de 12 à 15 cm sous l'interligne en général. Zones intolérantes : crête tibiale, extrémité distale ; zones tolérantes : tendon patellaire, loges musculaires." },
@@ -105,7 +158,7 @@ export const OS = [
     description: "Os de la cheville entre le tibia/fibula et le calcanéus.", reperes: ['Sous la mortaise malléolaire'], articulations: ['Tibia/fibula', 'Calcanéus', 'Naviculaire'], role: "Transmet le poids du corps au pied.", ortho: "Désarticulation de Syme : le talus est retiré, le coussinet talonnier est conservé." },
   { id: 'calcaneus', nom: 'Calcanéus', latin: 'Calcaneus', sym: true, membre: 'MI', region: 'Pied', parts: [ell([.09, .032, -.04], [.018, .022, .04])],
     description: "Plus gros os du tarse : le talon ; le tendon calcanéen s'y insère.", reperes: ['Tubérosité postérieure du calcanéus'], articulations: ['Talus', 'Cuboïde'], role: "Bras de levier du triceps sural.", ortho: "Fracture par chute de hauteur ; semelles de décharge du talon." },
-  { id: 'tarse-anterieur', nom: 'Tarse antérieur', latin: 'Ossa tarsi', sym: true, membre: 'MI', region: 'Pied', parts: [ell([.09, .045, .075], [.03, .015, .025])],
+  { id: 'tarse-anterieur', nom: 'Tarse antérieur', latin: 'Ossa tarsi', sym: true, membre: 'MI', region: 'Pied', parts: TARSE_ANT,
     description: "Naviculaire, cuboïde et trois cunéiformes : voûte du pied.", reperes: ['Tubercule du naviculaire', 'Base du Ve métatarsien'], articulations: ['Talus et calcanéus (Chopart)', 'Métatarsiens (Lisfranc)'], role: 'Voûte plantaire.', ortho: "Amputations partielles : interlignes de Chopart (talo-naviculaire et calcanéo-cuboïdienne) et de Lisfranc (tarso-métatarsienne)." },
   { id: 'metatarsiens', nom: 'Métatarsiens', latin: 'Ossa metatarsi', sym: true, membre: 'MI', region: 'Pied',
     parts: [cap([.07, .03, .1], [.065, .02, .17], .0075), cap([.08, .03, .1], [.08, .02, .175], .0055), cap([.09, .03, .1], [.094, .02, .172], .0055), cap([.1, .03, .1], [.107, .02, .165], .005), cap([.11, .03, .1], [.12, .02, .155], .005)],

@@ -27,7 +27,10 @@ js/anatomie/
   donnees-ortho.js      amputations (14 niveaux), scolioses types, fractures (10), matériaux (16), appareillages (14)
   registre.js           recherche par nom (alias, pluriels, côtés), fiches, liens os ↔ muscles
   construction.js       géométries procédurales (repli sans GLB) : os, vertèbres, côtes, muscles, nerfs, peau, dermatomes
-  modeles-glb.js        chargement optionnel de modèles GLB (voir plus bas)
+  modeles-glb.js        chargement des modèles GLB (atlas de squelette, entrées individuelles, cache, repli)
+  correspondance-squelette.js   table : nœuds du GLB de squelette → os de l'application
+  ajustement.js         recalage de chaque os du GLB sur la forme schématique qu'il remplace (axe / boîte)
+  groupes-os.js         régions du squelette (crâne, colonne, thorax, bassin, membres) : isolation et transparence
   pbr.js                matériaux PBR procéduraux (os, muscles + tendons, cartilage, ligament, nerf, organe, peau), sans texture
   rendu.js              studio d'éclairage, environnement, ombres, post-traitement, niveaux de qualité, détection des capacités
   moteur.js             scène three.js : calques, isolation, focalisation, plans de coupe, sélection, étiquettes 3D
@@ -82,15 +85,34 @@ Limites assumées : l'anisotropie native de three.js demande des tangentes (UV) 
 
 Interaction : surbrillance au survol (et nom de la structure survolée), **transparence réglable par calque** (squelette, muscles, nerfs, organes, peau), **plan de coupe** (horizontal, sagittal ou frontal, position réglable, inversable ; les os restent creux, sans surface de section ; SSAO et profondeur de champ sont suspendus pendant une coupe), étiquettes lisibles (ombre, trait de rappel, décalage automatique quand deux étiquettes se chevauchent).
 
-## Remplacer les formes procédurales par des modèles GLB
+## Le squelette réaliste (GLB) et son repli procédural
 
-Sans fichier, tout fonctionne avec les formes procédurales. Pour utiliser de vrais modèles : voir `ui/assets/anatomie/LISEZMOI.md` (format du manifeste, repère, échelle / décalage / rotation par modèle) et noter chaque licence dans `CREDITS.md`. **Aucun modèle n'est livré** (voir `CREDITS.md` pour la raison).
+**Installé : `ui/assets/anatomie/squelette-cc0.glb`** (1,4 Mo, 38 000 sommets, 116 nœuds nommés), dérivé du modèle **CC0** d'Armen Barsegyan (voir `CREDITS.md`). Il est déclaré dans `ui/assets/anatomie/manifest.json` :
+`{ "_atlas": { "fichier": "squelette-cc0.glb", "table": "squelette-cc0", "licence": "CC0-1.0", "auteur": "…", "source": "…" } }`.
 
-- le chargement est mis en cache (mémoire + Cache API du navigateur), un indicateur « Chargement des modèles 3D… n / N » s'affiche pendant le chargement ;
-- **repli automatique** sur la forme procédurale en cas de fichier absent, d'échec réseau, de GLB invalide ou de dimensions incohérentes avec la forme procédurale (rapport > 4 ou < 0,25), avec un avertissement en console et dans l'onglet Affichage ;
-- les chemins du manifeste doivent être relatifs (pas d'URL, de chemin absolu ni de `..`) ;
-- le rachis (vertèbres, côtes, disques, moelle) et les os fracturés restent procéduraux : ils se déforment en direct ;
-- `three/addons/` est résolu par l'import map de `index.html`.
+- **Table de correspondance** (`correspondance-squelette.js`) : quel nœud du GLB habille quel os de l'application (sélection, étiquettes, transparence, coupes d'amputation, surbrillance continuent de fonctionner : le GLB reprend l'identifiant et le matériau de l'os). Un test vérifie que chaque nœud cité existe, que chaque os de l'application a un habillage, et que chaque nœud du GLB sert.
+- **Recalage** (`ajustement.js`) : les muscles, nerfs, repères palpables et appareillages sont placés par rapport aux formes schématiques ; chaque os du GLB est donc recalé sur la forme qu'il remplace : os longs (clavicule, humérus, radius, ulna, fémur, tibia, fibula) alignés sur l'axe et la longueur de la forme (les articulations restent là où l'application les attend) ; autres os : même centre, taille uniforme ; main et pied : une seule transformation pour tout le groupe (les positions relatives du modèle sont conservées). Un garde-fou écarte tout modèle de taille aberrante.
+- **Rachis, côtes, disques** : repris du GLB seulement sans scoliose ni fracture vertébrale. Dès qu'une déformation est demandée, ils reviennent à leur forme procédurale (qui se déforme en direct) ; le GLB reprend la main quand la déformation est retirée.
+- **Régénérer le GLB** : `node scripts/convertir-squelette.mjs <human_skeleton.obj> ui/assets/anatomie/squelette-cc0.glb` (le fichier source se télécharge sur la page citée dans `CREDITS.md`).
+- **Remplacer par un autre squelette** : voir `ui/assets/anatomie/LISEZMOI.md`. Les entrées individuelles du manifeste (`"humerus": "humerus.glb"`) ont priorité sur l'atlas.
+- **Repli automatique** : fichier absent, réseau coupé, GLB invalide ou dimensions incohérentes → forme procédurale, avec un avertissement en console et dans l'onglet Affichage. Le chargement est mis en cache (mémoire + Cache API) ; l'indicateur « Chargement des modèles 3D… » s'affiche pendant l'analyse.
+
+Limites du modèle source : mains et pieds rudimentaires (doigts d'un seul tenant, tarse en trois pièces), pas de rotule détaillée, pas d'osselets de l'oreille.
+
+### Squelette procédural de secours
+Utilisé sans GLB (ou le temps du chargement, ou pour le rachis déformé). Formes organiques construites par le code :
+- **crâne** : voûte, base, bosse frontale, massif facial, os nasaux, orbites (anneaux), arcades sourcilières, zygomatiques et arcades zygomatiques, mastoïdes, protubérance occipitale, 12 dents ; **mandibule** articulée (branches, angles, coronoïdes, condyles, menton, 12 dents) ;
+- **colonne** : 24 vertèbres individuelles, lordose cervicale + cyphose thoracique + lordose lombaire (`zRachis`), disques intervertébraux (cartilage), sacrum avec ailes et crête, coccyx en 4 pièces ;
+- **thorax** : 12 paires de côtes (courbure, longueur, section aplatie plus épaisse au milieu), **cartilages costaux** des côtes 1 à 10, sternum en trois parties (manubrium, corps, processus xiphoïde) ;
+- **membres** : os longs en fuseau évasé aux métaphyses, épiphyses, tubérosités et épicondyles (humérus, fémur : petit trochanter et condyles, tibia : tubérosité), os coxal (aile, crête iliaque, EIAS, EIPS, acétabulum, tubérosité ischiatique, trou obturé), carpe en 8 os, tarse antérieur en 5 os ;
+- **teinte** : ivoire plus clair aux diaphyses, plus jaune-rosé aux épiphyses (attribut `aFibre.x`), légère asymétrie droite / gauche (±1,5 %).
+Les proportions sont celles de l'application (personne de 1,75 m) ; le modèle reste schématique.
+
+### Interaction avec le squelette
+- chaque os est sélectionnable (clic ou toucher), surligné au survol, avec une étiquette « nom français · nom latin » ;
+- **isoler une région** (onglet Structures) : crâne, colonne, thorax, bassin, membre supérieur, membre inférieur ; « Garder le contexte » laisse les autres os en fantôme ;
+- **transparence par région** (onglet Affichage), qui se combine à la transparence du calque ;
+- sans GLB, tout reste utilisable : les régions et la transparence agissent sur les formes procédurales.
 
 ## Ajouter du contenu
 
@@ -105,6 +127,7 @@ Sans fichier, tout fonctionne avec les formes procédurales. Pour utiliser de vr
 node tests/anatomie-commandes-test.mjs     # ce que Raylé comprend (sans faux positifs sur les marchés, la météo…)
 node tests/anatomie-executer-test.mjs      # effets sur le store et phrases dites
 node tests/anatomie-cours-test.mjs         # base de cours (IndexedDB simulée)
+node tests/anatomie-squelette-test.mjs     # GLB de squelette (structure, dimensions, nœuds), table de correspondance, crédits, ajustement
 THREE_PATH=<dossier>/node_modules/three/build/three.module.js node tests/anatomie-moteur-test.mjs
 ```
 

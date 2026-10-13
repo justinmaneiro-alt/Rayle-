@@ -1,4 +1,10 @@
-# Modèles 3D anatomiques (optionnels)
+# Modèles 3D anatomiques
+
+**Installé** : `squelette-cc0.glb` (squelette humain complet, CC0, voir `CREDITS.md`), déclaré dans le manifeste par l'entrée `_atlas`. La table `js/anatomie/correspondance-squelette.js` dit quel nœud du fichier habille quel os.
+Pour **remplacer le squelette par un autre** : donnez à vos nœuds les mêmes noms que ceux du GLB actuel (liste dans la table), ou ajoutez une table dans `correspondance-squelette.js` et pointez `"table"` dessus ; sinon utilisez les entrées individuelles ci-dessous (qui ont priorité sur l'atlas).
+
+## Entrées individuelles (optionnelles)
+
 
 Déposez ici des fichiers `.glb` et un `manifest.json`. Sans manifeste, ou si un fichier manque, est invalide, ou a des dimensions incohérentes, Raylé garde
 automatiquement la forme procédurale de la structure (un message d'avertissement est écrit dans la console du navigateur, et l'onglet « Affichage » le signale).

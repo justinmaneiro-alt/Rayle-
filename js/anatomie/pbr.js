@@ -1,6 +1,6 @@
 /* ═════════════ MATÉRIAUX PBR PROCÉDURAUX (aucune image à télécharger) ═════════════
    creerMateriauPBR(THREE, type, couleur, options) → MeshPhysicalMaterial dont le shader est enrichi :
-     os      : micro-relief poreux (normales perturbées), variations de teinte ivoire / jaune / gris, rugosité variable, diffusion sous la surface simulée
+     os      : (attribut aFibre.x : 0 diaphyse, 1 épiphyse) teinte ivoire clair → jaune rosé aux extrémités ; micro-relief poreux (normales perturbées), variations de teinte ivoire / jaune / gris, rugosité variable, diffusion sous la surface simulée
                (lueur chaude aux bords : la lumière traverse l'os mince) ;
      muscle  : stries de fibres le long du muscle (attribut aFibre : u = longueur, v = tour), micro-relief fibreux, teinte rouge / rose, tendons blanc nacré
                aux extrémités, reflet humide (clearcoat) ;
@@ -45,11 +45,11 @@ export function creerMateriauPBR(THREE, type, couleur, options = {}) {
   }, options));
   m.userData.pbr = type;
   if (type === 'peau' || type === 'nerf') return m;            // simples : pas de shader sur mesure
-  const muscle = type === 'muscle', cart = type === 'cartilage', lig = type === 'ligament';
+  const os = type === 'os', muscle = type === 'muscle', cart = type === 'cartilage', lig = type === 'ligament';
   m.onBeforeCompile = shader => {
     shader.vertexShader = shader.vertexShader
-      .replace('#include <common>', '#include <common>\nvarying vec3 vOPos;\nvarying vec2 vFib;\n' + (muscle ? 'attribute vec2 aFibre;\n' : ''))
-      .replace('#include <begin_vertex>', '#include <begin_vertex>\nvOPos=position;\n' + (muscle ? 'vFib=aFibre;\n' : 'vFib=vec2(0.0);\n'));
+      .replace('#include <common>', '#include <common>\nvarying vec3 vOPos;\nvarying vec2 vFib;\n' + (muscle || os ? 'attribute vec2 aFibre;\n' : ''))
+      .replace('#include <begin_vertex>', '#include <begin_vertex>\nvOPos=position;\n' + (muscle || os ? 'vFib=aFibre;\n' : 'vFib=vec2(0.0);\n'));
     shader.fragmentShader = shader.fragmentShader
       .replace('#include <common>', '#include <common>\nvarying vec3 vOPos;\nvarying vec2 vFib;\n' + GLSL_BRUIT + GLSL_BUMP)
       .replace('#include <color_fragment>', '#include <color_fragment>\n' + (cart ? `
@@ -62,7 +62,10 @@ export function creerMateriauPBR(THREE, type, couleur, options = {}) {
           diffuseColor.rgb=mix(chair,vec3(0.90,0.86,0.78),clamp(tendon,0.0,1.0)); }` : `
         { float v=fbm3(vOPos*55.0), g=fbm3(vOPos*9.0+3.7);
           vec3 ivoire=vec3(0.90,0.84,0.70), jaune=vec3(0.84,0.74,0.52), gris=vec3(0.70,0.68,0.62);
-          diffuseColor.rgb=mix(mix(ivoire,jaune,g),gris,smoothstep(0.55,0.9,v)*0.5)*(0.92+0.16*v); }`))
+          diffuseColor.rgb=mix(mix(ivoire,jaune,g),gris,smoothstep(0.55,0.9,v)*0.5)*(0.92+0.16*v);
+          float epi=clamp(vFib.x,0.0,1.0);                                                       // diaphyse : ivoire plus clair ; épiphyse : plus jaune / rosé, un peu plus sombre
+          diffuseColor.rgb=mix(diffuseColor.rgb*vec3(1.05,1.04,1.02),diffuseColor.rgb*vec3(1.0,0.90,0.78)+vec3(0.035,0.0,0.0),epi*0.7);
+          diffuseColor.rgb*=1.0-0.9*clamp(vFib.y,0.0,1.0); }                                    // cavités (orbites, narines) : occlusion ambiante cuite dans la géométrie`))
       .replace('#include <roughnessmap_fragment>', '#include <roughnessmap_fragment>\nroughnessFactor=clamp(roughnessFactor*(0.78+0.5*fbm3(vOPos*70.0))' + (muscle ? '*(0.8+0.4*vn2(vec2(vFib.y*90.0,vFib.x*3.0)))' : lig ? '*(0.85+0.3*vn3(vOPos*vec3(260.0,26.0,260.0)))' : '') + ',0.14,1.0);')
       .replace('#include <normal_fragment_maps>', '#include <normal_fragment_maps>\n' + (lig
         ? `{ float hf=vn3(vOPos*vec3(300.0,30.0,300.0)); normal=bumpNormal(-vViewPosition, normal, hf*${p.bump.toFixed(5)}, 1.0); }`
@@ -76,7 +79,7 @@ export function creerMateriauPBR(THREE, type, couleur, options = {}) {
         #endif` : ''))
       .replace('#include <emissivemap_fragment>', `#include <emissivemap_fragment>
         { vec3 vd=normalize(vViewPosition); float bord=pow(1.0-clamp(abs(dot(normalize(vNormal),vd)),0.0,1.0),2.2);
-          totalEmissiveRadiance+=${muscle ? 'vec3(0.34,0.04,0.03)*0.35' : 'vec3(0.62,0.32,0.18)*0.30'}*bord; }`);       // diffusion sous la surface simulée : lueur chaude aux bords
+          totalEmissiveRadiance+=${muscle ? 'vec3(0.34,0.04,0.03)*0.35' : 'vec3(0.62,0.32,0.18)*0.30'}*bord${os ? '*(1.0-clamp(vFib.y,0.0,1.0))' : ''}; }`);       // diffusion sous la surface simulée : lueur chaude aux bords
   };
   m.customProgramCacheKey = () => 'pbr-' + type;
   return m;

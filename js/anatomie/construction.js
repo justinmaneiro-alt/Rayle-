@@ -1,7 +1,7 @@
 /* ═════════════ CONSTRUCTION 3D : géométries procédurales (solution de repli quand aucun modèle GLB n'est fourni) ═════════════
    Tout prend THREE en paramètre (three.js est chargé à la demande par UI.three()). Les géométries sont « cuites » (transformées puis
    fusionnées) : une structure = un Mesh. Voir docs/anatomie-3d.md. */
-import { J, VERTEBRES, zRachis, profilCote } from './donnees-os.js?v=2026.10.13.3';
+import { J, VERTEBRES, zRachis, profilCote } from './donnees-os.js?v=2026.10.13.4';
 
 /** Profil du tronc (rayon latéral, y) ; la profondeur est × 0,72 */
 export const PROFIL_TRONC = [[.001, .88], [.12, .88], [.152, .93], [.158, 1.0], [.148, 1.08], [.138, 1.14], [.142, 1.21], [.156, 1.3], [.162, 1.37], [.145, 1.44], [.085, 1.49], [.056, 1.515], [.001, 1.515]];
@@ -72,28 +72,66 @@ export function construire(THREE) {
     if (rot) g.applyMatrix4(new THREE.Matrix4().makeRotationFromEuler(new THREE.Euler(rot[0], rot[1], rot[2], 'XYZ')));
     g.translate(c[0], c[1], c[2]); return g;
   }
-  function partie(p, s) {
+  /** Marque la géométrie (attribut aFibre.x) : 0 = diaphyse (ivoire clair), 1 = épiphyse (plus jaune / rosé) ; lu par les matériaux d'os de pbr.js */
+  function marquer(g, epi, creux = 0) {
+    const n = g.attributes.position.count, a = new Float32Array(n * 2);
+    for (let i = 0; i < n; i++) { a[2 * i] = typeof epi === 'function' ? epi(i) : epi; a[2 * i + 1] = creux; }
+    g.setAttribute('aFibre', new THREE.BufferAttribute(a, 2)); return g;
+  }
+  /** Os long : fût en fuseau évasé aux deux extrémités (métaphyses), extrémités arrondies par les épiphyses */
+  function geoCapOs(a, b, r0, r1) {
+    const va = V(a), vb = V(b), d = vb.clone().sub(va), L = Math.max(d.length(), 1e-4), N = 16, prof = [], epis = [];
+    for (let k = 0; k <= N; k++) {
+      const t = k / N, flare = Math.exp(-Math.pow(t / .14, 2)) + Math.exp(-Math.pow((1 - t) / .14, 2));
+      prof.push(new THREE.Vector2((r0 + (r1 - r0) * t) * (.86 + .42 * flare), (t - .5) * L)); epis.push(Math.min(1, flare * 1.1));
+    }
+    const g = nettoie(new THREE.LatheGeometry(prof, 12));
+    marquer(g, i => epis[i % (N + 1)]);
+    g.applyMatrix4(new THREE.Matrix4().compose(va.clone().add(vb).multiplyScalar(.5), new THREE.Quaternion().setFromUnitVectors(Y, d.clone().normalize()), new THREE.Vector3(1, 1, 1)));
+    return [g, marquer(geoSph(a, r0 * 1.05), 1), marquer(geoSph(b, r1 * 1.05), 1)];
+  }
+  /** Tube lisse passant par des points (arcades, branches de la mandibule, crête iliaque…) */
+  function geoTubeOs(pts, r, r1) {
+    const g = nettoie(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts.map(V), false, 'centripetal'), Math.max(8, pts.length * 5), r, 7, false));
+    if (r1 != null && r1 !== r) {                                // rayon variable : on remet les anneaux à l'échelle
+      const pos = g.attributes.position, ring = 8, n = pos.count / ring, curve = new THREE.CatmullRomCurve3(pts.map(V), false, 'centripetal');
+      for (let i = 0; i < n; i++) { const c = curve.getPointAt(i / (n - 1)), k = (r1 / r - 1) * (i / (n - 1)) + 1; for (let j = 0; j < ring; j++) { const q = i * ring + j; pos.setXYZ(q, c.x + (pos.getX(q) - c.x) * k, c.y + (pos.getY(q) - c.y) * k, c.z + (pos.getZ(q) - c.z) * k); } }
+      g.computeVertexNormals();
+    }
+    return [g, geoSph(pts[0], r), geoSph(pts[pts.length - 1], r1 == null ? r : r1)];
+  }
+  /** Légère asymétrie droite / gauche, déterministe (±1,5 %) : les deux côtés ne sont pas des jumeaux parfaits */
+  const asym = (s, graine) => 1 + .015 * s * Math.sin(graine * 12.9898);
+  function partie(p, s, defaut = .35) {
     const m = q => miroir(q, s);
-    if (p.t === 'cap') return geoCap(m(p.a), m(p.b), p.r0, p.r1);
-    if (p.t === 'ell') return [geoEll(m(p.c), p.r, p.rot ? [p.rot[0], p.rot[1] * s, p.rot[2] * s] : null)];
-    if (p.t === 'sph') return [geoSph(m(p.c), p.r)];
-    return [];
+    const epi = p.diaphyse ? 0 : defaut;
+    let out = [];
+    if (p.t === 'cap') {
+      const L = V(p.b).distanceTo(V(p.a));
+      out = L > .05 && p.r0 >= .0065 && !p.simple ? geoCapOs(m(p.a), m(p.b), p.r0, p.r1) : geoCap(m(p.a), m(p.b), p.r0, p.r1);
+    } else if (p.t === 'ell') {
+      const k = asym(s, p.c[0] + p.c[1] * 7 + p.c[2] * 13), r = p.sym === false ? p.r : [p.r[0] * k, p.r[1] * (2 - k), p.r[2] * k];
+      out = [geoEll(m(p.c), r, p.rot ? [p.rot[0], p.rot[1] * s, p.rot[2] * s] : null)];
+    } else if (p.t === 'sph') out = [geoSph(m(p.c), p.r)];
+    else if (p.t === 'tube') out = geoTubeOs(p.pts.map(m), p.r, p.r1);
+    else if (p.t === 'tor') { const g = nettoie(new THREE.TorusGeometry(p.R, p.r, 7, 18)); const e = p.rot || [0, 0, 0]; g.applyMatrix4(new THREE.Matrix4().makeRotationFromEuler(new THREE.Euler(e[0], e[1] * s, e[2] * s, 'XYZ'))); const c = m(p.c); g.translate(c[0], c[1], c[2]); out = [g]; }
+    return out.map(g => g.attributes.aFibre ? g : marquer(g, epi, p.creux ? 1 : 0));
   }
 
   // ── os ──
   /** Géométrie d'un os (côté c) ; fracture : spec ou null. → { geoms:[…], eclats:[…], trait:{p,n}|null } */
   function geoOs(def, c, fracture) {
     const s = def.sym ? sensCote(c) : 1;
-    const parts = def.parts;
-    if (!fracture || !fracture.os) return { geoms: fusion(parts.flatMap(p => partie(p, s))), eclats: [], trait: null, fragments: null };
+    const parts = def.parts, dft = parts.some(p => p.diaphyse) ? 1 : .3;      // os long : les parties hors diaphyse sont des épiphyses ; os court ou plat : teinte intermédiaire
+    if (!fracture || !fracture.os) return { geoms: fusion(parts.flatMap(p => partie(p, s, dft))), eclats: [], trait: null, fragments: null };
     const i = fracture.partie ? parts.findIndex(p => p.nom === fracture.partie) : parts.findIndex(p => p.diaphyse);
-    const sh = parts[i]; if (!sh || sh.t !== 'cap') return { geoms: fusion(parts.flatMap(p => partie(p, s))), eclats: [], trait: null, fragments: null };
+    const sh = parts[i]; if (!sh || sh.t !== 'cap') return { geoms: fusion(parts.flatMap(p => partie(p, s, dft))), eclats: [], trait: null, fragments: null };
     const t = Math.min(Math.max(fracture.t == null ? .5 : fracture.t, .08), .92);
     const a = miroir(sh.a, s), b = miroir(sh.b, s);
     const pt = [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t, a[2] + (b[2] - a[2]) * t];
     const rt = sh.r0 + (sh.r1 - sh.r0) * t;
-    const A = parts.slice(0, i).flatMap(p => partie(p, s)).concat(geoCap(a, pt, sh.r0, rt));
-    const B = geoCap(pt, b, rt, sh.r1).concat(parts.slice(i + 1).flatMap(p => partie(p, s)));
+    const A = parts.slice(0, i).flatMap(p => partie(p, s, dft)).concat(geoCap(a, pt, sh.r0, rt));
+    const B = geoCap(pt, b, rt, sh.r1).concat(parts.slice(i + 1).flatMap(p => partie(p, s, dft)));
     const axe = V(b).sub(V(a)).normalize();
     // déplacement du fragment distal : angulation, rotation axiale, décalage, raccourcissement
     const ang = (fracture.angulation || 0) * Math.PI / 180, rot = (fracture.rotation || 0) * Math.PI / 180;
@@ -155,7 +193,7 @@ export function construire(THREE) {
   }
   const matriceVertebre = p => new THREE.Matrix4().compose(new THREE.Vector3(p.x, p.y, p.z), new THREE.Quaternion().setFromEuler(new THREE.Euler(0, p.rotY, p.rotZ, 'YXZ')), new THREE.Vector3(1, 1, 1));
 
-  function geoCote(i, c, pv) {
+  function ptsCote(i, c, pv) {
     const pr = profilCote(i), s = sensCote(c), N = 16;
     const pts = [];
     const zb = -.035, zf = pr.zAvant + .012 - zRachis(pv.y);
@@ -165,7 +203,24 @@ export function construire(THREE) {
     }
     const M = matriceVertebre(pv);
     pts.forEach(p => p.applyMatrix4(M));
-    const g = nettoie(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts), 22, i === 1 ? .0065 : .0045, 6, false));
+    return pts;
+  }
+  function geoCote(i, c, pv) {
+    const pts = ptsCote(i, c, pv), t = Math.min(Math.max((i - 1) / 11, 0), 1);
+    // section plus plate que ronde, plus forte au milieu : on épaissit le tube au tiers moyen
+    const g = nettoie(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts), 24, i === 1 ? .0072 : .0046, 7, false));
+    const pos = g.attributes.position, ring = 8, n = pos.count / ring, curve = new THREE.CatmullRomCurve3(pts);
+    for (let k = 0; k < n; k++) { const u = k / (n - 1), c0 = curve.getPointAt(u), f = .82 + .3 * Math.sin(Math.PI * Math.min(u * 1.1, 1)) - .1 * t; for (let j = 0; j < ring; j++) { const q = k * ring + j; pos.setXYZ(q, c0.x + (pos.getX(q) - c0.x) * f, c0.y + (pos.getY(q) - c0.y) * f, c0.z + (pos.getZ(q) - c0.z) * f); } }
+    g.computeVertexNormals();
+    return g;
+  }
+  /** Cartilage costal d'une côte : de l'extrémité antérieure de la côte au sternum (côtes 1 à 7), à l'arc costal (8 à 10) ; rien pour les côtes flottantes 11 et 12 */
+  function geoCartilageCostal(i, c, pv) {
+    if (i > 10) return null;
+    const pts = ptsCote(i, c, pv), E = pts[pts.length - 1], s = sensCote(c);
+    const T = i <= 7 ? V([s * .021, 1.448 - (i - 1) * .0225, .103]) : V([s * (.03 + (i - 8) * .006), 1.27 - (i - 8) * .004, .097]);
+    const mid = E.clone().lerp(T, .5); mid.y += i <= 7 ? .006 : .014; mid.z += .006;
+    const g = nettoie(new THREE.TubeGeometry(new THREE.CatmullRomCurve3([E, mid, T], false, 'centripetal'), 12, i === 1 ? .0058 : .0042, 6, false));
     return g;
   }
 
@@ -227,5 +282,5 @@ export function construire(THREE) {
     return fusion(out);
   }
 
-  return { V, fusion, nettoie, geoCap, geoSph, geoEll, geoOs, geoVertebre, positionsRachis, matriceVertebre, geoCote, geoMuscle, geoNerf, geoTube, geoOrgane, geoPeau, geoDermatome, sensCote, miroir, partie };
+  return { V, fusion, nettoie, geoCap, geoSph, geoEll, geoOs, geoCartilageCostal, ptsCote, geoVertebre, positionsRachis, matriceVertebre, geoCote, geoMuscle, geoNerf, geoTube, geoOrgane, geoPeau, geoDermatome, sensCote, miroir, partie };
 }

@@ -8,8 +8,15 @@
    Sans transformation, le GLB doit être dans le repère de l'application : mètres, y vers le haut, face vers +z, pieds au sol, structures du côté GAUCHE (x > 0) ;
    le côté droit est obtenu par miroir. Les matériaux du GLB sont remplacés par ceux de l'application (couleurs, surbrillance, coupes d'amputation).
 
+   Atlas : un seul GLB aux nœuds nommés peut habiller de nombreux os. Le manifeste le déclare ainsi :
+       { "_atlas": { "fichier": "squelette-cc0.glb", "table": "squelette-cc0", "licence": "CC0-1.0", "auteur": "…", "source": "https://…" } }
+   et js/anatomie/correspondance-squelette.js (table de correspondance) dit quel nœud va sur quel os ; une entrée individuelle du manifeste a priorité sur l'atlas.
+   Le fichier n'est lu et analysé qu'une fois ; `avecRachis:false` (scoliose, fracture vertébrale) fait garder au rachis et aux côtes leur forme procédurale déformable.
+
    Robustesse : cache mémoire + cache du navigateur (Cache API, le fichier n'est téléchargé qu'une fois), indicateur de chargement (abonnerChargement),
    et repli automatique sur la forme procédurale en cas d'absence, d'échec réseau, de fichier invalide ou de dimensions aberrantes (le moteur compare les boîtes englobantes). */
+import { TABLES } from './correspondance-squelette.js?v=2026.10.13.4';
+
 const cache = new Map();
 const NOM_CACHE = 'rayle-anatomie-glb-v1';
 let manifeste;
@@ -52,11 +59,58 @@ async function octets(url) {
   return await rep.arrayBuffer();
 }
 
-/** → { scene: Object3D (à cloner), meta } ou null si la structure n'a pas de modèle GLB ou si le chargement a échoué (repli procédural) */
-export async function chargerGLB(base) {
+/** Atlas : fichier GLB analysé une seule fois → gltf.scene (ou null) */
+function lireAtlas(atlas) {
+  const cle = 'atlas:' + atlas.fichier;
+  if (!cache.has(cle)) {
+    etat.demandes++; etat.enCours++; notifier();
+    cache.set(cle, (async () => {
+      if (!normaliserEntree(atlas.fichier)) throw new Error('chemin d’atlas refusé : ' + atlas.fichier);     // relatif, .glb / .gltf, sans « .. »
+      const { GLTFLoader } = await import('three/addons/loaders/GLTFLoader.js');
+      const url = new URL('ui/assets/anatomie/' + atlas.fichier, document.baseURI).href;
+      const gltf = await new GLTFLoader().parseAsync(await octets(url), url.slice(0, url.lastIndexOf('/') + 1));
+      etat.termines++;
+      return gltf.scene;
+    })().catch(e => {
+      etat.echecs++; etat.repli.push(atlas.fichier);
+      console.warn('[anatomie] atlas ' + atlas.fichier + ' : ' + (e && e.message || e) + ' → formes procédurales conservées');
+      return null;
+    }).finally(() => { etat.enCours--; notifier(); }));
+  }
+  return cache.get(cle);
+}
+
+/** Atlas déclaré dans le manifeste (avec sa table), ou null */
+export async function atlasDeclare() {
   const m = await lireManifeste();
-  const meta = m && normaliserEntree(m[base]);
-  if (!meta) return null;
+  if (!m || !m._atlas || typeof m._atlas.fichier !== 'string' || !TABLES[m._atlas.table]) return null;
+  return m._atlas;
+}
+
+/** → { scene: Object3D (à cloner), meta } ou null si la structure n'a pas de modèle GLB ou si le chargement a échoué (repli procédural).
+    meta.miroir : le modèle est celui du côté GAUCHE et doit être retourné pour le côté droit (entrées individuelles) ; avec un atlas, chaque côté a son propre nœud.
+    options.avecRachis === false : le rachis, les côtes et les disques gardent leur forme procédurale. */
+export async function chargerGLB(base, cote, options = {}) {
+  const m = await lireManifeste();
+  if (!m) return null;
+  const meta0 = normaliserEntree(m[base]);
+  if (meta0) {
+    const res = await chargerEntree(base, meta0);
+    return res && { scene: res.scene, meta: Object.assign({}, res.meta, { miroir: cote === 'D', ajuster: res.meta.ajuster || 'aucun' }) };
+  }
+  const atlas = await atlasDeclare();
+  const ent = atlas && TABLES[atlas.table].os[base];
+  if (!ent || (ent.rachis && options.avecRachis === false)) return null;
+  const noms = cote && ent[cote] ? ent[cote] : ent.noeuds;
+  if (!noms) return null;
+  const src = await lireAtlas(atlas); if (!src) return null;
+  const groupe = new src.constructor(); groupe.name = base + (cote ? ':' + cote : '');
+  for (const n of noms) { const o = src.getObjectByName(n); if (o) groupe.add(o.clone(true)); }
+  if (!groupe.children.length) return null;
+  return { scene: groupe, meta: { echelle: [1, 1, 1], decalage: [0, 0, 0], rotation: [0, 0, 0], miroir: false, ajuster: ent.ajuster || 'boite', groupe: ent.groupe || null, licence: atlas.licence || TABLES[atlas.table].licence, source: atlas.source || TABLES[atlas.table].source, auteur: atlas.auteur || TABLES[atlas.table].auteur } };
+}
+
+async function chargerEntree(base, meta) {
   if (!cache.has(base)) {
     etat.demandes++; etat.enCours++; notifier();
     cache.set(base, (async () => {

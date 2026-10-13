@@ -1,14 +1,15 @@
 /* ═════════════ FENÊTRE « ANATOMIE & ORTHOPÉDIE » (vue plein écran, comme le terminal) ═════════════
    Chargée par js/commun/vues.js à la première ouverture. Exporte ouvrir() / fermer() ; tout l'état passe par le store (store.js). */
-import { useAnatomieStore as S, actions as A, CALQUES } from './store.js?v=2026.10.13.3';
-import { MoteurAnatomie, VUES } from './moteur.js?v=2026.10.13.3';
-import * as R from './registre.js?v=2026.10.13.3';
-import * as K from './cours.js?v=2026.10.13.3';
-import { AMPUTATIONS, SCOLIOSE, FRACTURES, TYPES_FRACTURE, MATERIAUX, APPAREILLAGES, appareilsCompatibles } from './donnees-ortho.js?v=2026.10.13.3';
-import { REPERES } from './donnees-os.js?v=2026.10.13.3';
-import { chargerTHREE, webglDisponible, h, vider } from './outils.js?v=2026.10.13.3';
-import { NIVEAUX, NOMS_NIVEAUX, lireNiveau, ecrireNiveau, detecterCapacites, niveauConseille } from './rendu.js?v=2026.10.13.3';
-import { abonnerChargement, lireEtatChargement, lireManifeste, normaliserEntree } from './modeles-glb.js?v=2026.10.13.3';
+import { useAnatomieStore as S, actions as A, CALQUES } from './store.js?v=2026.10.13.4';
+import { MoteurAnatomie, VUES } from './moteur.js?v=2026.10.13.4';
+import * as R from './registre.js?v=2026.10.13.4';
+import * as K from './cours.js?v=2026.10.13.4';
+import { AMPUTATIONS, SCOLIOSE, FRACTURES, TYPES_FRACTURE, MATERIAUX, APPAREILLAGES, appareilsCompatibles } from './donnees-ortho.js?v=2026.10.13.4';
+import { REPERES } from './donnees-os.js?v=2026.10.13.4';
+import { GROUPES_OS, nomGroupe } from './groupes-os.js?v=2026.10.13.4';
+import { chargerTHREE, webglDisponible, h, vider } from './outils.js?v=2026.10.13.4';
+import { NIVEAUX, NOMS_NIVEAUX, lireNiveau, ecrireNiveau, detecterCapacites, niveauConseille } from './rendu.js?v=2026.10.13.4';
+import { abonnerChargement, lireEtatChargement, lireManifeste, normaliserEntree, atlasDeclare } from './modeles-glb.js?v=2026.10.13.4';
 
 const NOMS_CALQUES = { squelette: 'Squelette', muscles: 'Muscles', nerfs: 'Nerfs', organes: 'Organes', peau: 'Peau', reperes: 'Repères', dermatomes: 'Dermatomes' };
 const COMBOS = [['Squelette + Muscles', ['squelette', 'muscles']], ['Muscles + Nerfs', ['muscles', 'nerfs']], ['Squelette + Nerfs', ['squelette', 'nerfs']], ['Tout', ['squelette', 'muscles', 'nerfs', 'organes']]];
@@ -43,7 +44,7 @@ function monter() {
   racine.append(
     h('div', { class: 'an-barre' }, h('div', { class: 'an-marque' }, 'RAYLÉ', h('span', null, '//'), 'ANATOMIE & ORTHOPÉDIE'), el.boutonsCalques, retour),
     h('div', { class: 'an-sous-barre' }, el.combos, el.vues,
-      h('button', { type: 'button', class: 'an-chip', onclick: () => { A.toutNormal(); A.selectionner(null); A.toutAfficher(); moteur && moteur.vue('face'); } }, '↺ Anatomie normale')),
+      h('button', { type: 'button', class: 'an-chip', onclick: () => { A.toutNormal(); A.selectionner(null); A.toutAfficher(); A.isolerGroupe(null); moteur && moteur.vue('face'); } }, '↺ Anatomie normale')),
     h('div', { class: 'an-corps' },
       h('aside', { class: 'an-gauche hud-cadre' }, el.onglets, el.panneau),
       h('main', { class: 'an-centre' }, el.canvas, el.etiquettes, el.isolation, el.chargement, el.erreur),
@@ -96,8 +97,12 @@ function majEtat(e, a) {
   if (cle !== cleOnglet) { cleOnglet = cle; rendrePanneau(e); } else liens.forEach(l => l(e));
   if (!a || a.selection !== e.selection || a.masques !== e.masques || a.isolation !== e.isolation) rendreFiche(e);
   const sel = e.selection;
-  el.isolation.hidden = !(e.isolation && sel);
-  if (e.isolation && sel) {
+  el.isolation.hidden = !((e.isolation && sel) || e.isolationGroupe);
+  if (e.isolationGroupe && !(e.isolation && sel)) {
+    vider(el.isolation).append(h('b', null, 'Région isolée : ' + nomGroupe(e.isolationGroupe)),
+      h('button', { type: 'button', class: 'an-chip' + (e.contexte ? ' actif' : ''), onclick: () => A.contexte() }, 'Garder le contexte'),
+      h('button', { type: 'button', class: 'an-chip', onclick: () => A.isolerGroupe(null) }, '↩ Tout réafficher'));
+  } else if (e.isolation && sel) {
     vider(el.isolation).append(h('b', null, 'Isolé : ' + R.nomAffiche(sel)),
       h('button', { type: 'button', class: 'an-chip' + (e.contexte ? ' actif' : ''), onclick: () => A.contexte() }, 'Garder le contexte'),
       h('button', { type: 'button', class: 'an-chip', onclick: () => A.quitterIsolation() }, '↩ Tout réafficher'));
@@ -106,7 +111,7 @@ function majEtat(e, a) {
 const cleDe = e => {
   const o = e.fenetre.onglet, p = e.pathologie;
   switch (o) {
-    case 'structures': return [o, e.selection, filtreType].join('|');
+    case 'structures': return [o, e.selection, filtreType, e.isolationGroupe].join('|');
     case 'amputations': return [o, JSON.stringify(p.amputation)].join('|');
     case 'deformations': return [o, p.scoliose ? p.scoliose.courbes.map(c => c.apex + c.convexite).join(',') + p.scoliose.lignesCobb : '-'].join('|');
     case 'fractures': return [o, p.fracture ? p.fracture.id + p.fracture.cote + p.fracture.type : '-'].join('|');
@@ -166,7 +171,8 @@ function pStructures(e) {
   };
   champ.addEventListener('input', () => { A.recherche(champ.value); remplir(S.obtenir()); });   // seule la liste est refaite : le champ garde le focus
   remplir(e);
-  return gauche(champ, filtres, corps);
+  const regions = h('div', { class: 'an-chips', role: 'group', 'aria-label': 'Isoler une région du squelette' }, GROUPES_OS.map(g => bouton(g.court, () => A.isolerGroupe(g.id), e.isolationGroupe === g.id)));
+  return gauche(titre('Isoler une région'), regions, champ, filtres, corps);
 }
 
 // ───────────────────────── onglet Amputations ─────────────────────────
@@ -284,6 +290,7 @@ function pAffichage(e) {
   const manifeste = h('p', { class: 'an-note-texte' }, 'Modèles GLB : recherche en cours…');
   lireManifeste().then(m => {
     const n = m ? Object.keys(m).filter(k => normaliserEntree(m[k])).length : 0;
+    atlasDeclare().then(a => { if (a) manifeste.textContent = 'Squelette réaliste : ' + a.fichier + ' (' + (a.licence || 'licence ?') + ', ' + (a.auteur || 'auteur ?') + ')' + (n ? ' + ' + n + ' modèle(s) individuel(s)' : '') + '. Si le fichier manque, les formes schématiques prennent le relais.'; });
     manifeste.textContent = n ? n + ' modèle(s) GLB déclaré(s) dans ui/assets/anatomie/manifest.json ; en cas d’échec, la forme schématique est conservée.'
       : 'Aucun modèle GLB déclaré : formes schématiques générées par le code (voir docs/anatomie-3d.md pour en ajouter).';
   });
@@ -292,6 +299,9 @@ function pAffichage(e) {
     note(NOMS_NIVEAUX[niv] + ' : ' + AIDE_NIVEAUX[niv] + '. ★ = conseillé pour cet appareil (' + (cap.webgl2 ? 'WebGL2' : 'WebGL1') + (cap.memoire ? ', ' + cap.memoire + ' Go' : '') + (cap.coeurs ? ', ' + cap.coeurs + ' cœurs' : '') + ').'),
     bouton('Profondeur de champ (Haute)', () => A.profondeurChamp(), e.affichage.profondeurChamp),
     titre('Transparence par calque'), calques,
+    titre('Transparence du squelette par région'),
+    h('div', { class: 'an-opacites' }, GROUPES_OS.map(g => curseur({ label: g.court, min: 0, max: 100, pas: 5, unite: ' %',
+      lire: ee => Math.round(100 * (ee.affichage.opacitesOs[g.id] !== undefined ? ee.affichage.opacitesOs[g.id] : 1)), ecrire: v => A.opaciteOs(g.id, v / 100) }))),
     titre('Plan de coupe'),
     h('div', { class: 'an-chips' }, bouton(cp.actif ? 'Coupe active' : 'Activer la coupe', () => A.coupe({ actif: !cp.actif }), cp.actif), bouton('Inverser', () => A.coupe({ inverse: !cp.inverse }), cp.inverse)),
     axes,
@@ -350,7 +360,7 @@ function rendreFiche(e) {
   const actions = h('div', { class: 'an-chips' },
     bouton(e.isolation ? '↩ Tout réafficher' : '◎ Isoler', () => e.isolation ? A.quitterIsolation() : A.isoler(sid), e.isolation),
     bouton(e.masques.includes(sid) ? 'Réafficher' : 'Masquer', () => A.masquer(sid)),
-    bouton('Pop-up 3D', () => import('./index.js?v=2026.10.13.3').then(m => m.afficherQuick(sid))),
+    bouton('Pop-up 3D', () => import('./index.js?v=2026.10.13.4').then(m => m.afficherQuick(sid))),
     bouton('🔊 Raylé lit', () => window.RayleBus && RayleBus.demander('anatomie:parler', f.resume)));
   el.fiche.append(actions);
   f.champs.forEach(c => el.fiche.append(h('div', { class: 'an-champ-fiche' }, h('h4', null, c.label), Array.isArray(c.valeur) ? h('ul', null, c.valeur.map(v => h('li', null, v))) : h('p', null, c.valeur))));

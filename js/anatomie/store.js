@@ -34,12 +34,14 @@ export const ETAT_INITIAL = {
   groupe: null,                                                // pop-up : liste d'ids affichés ensemble (rachis, main, quadriceps…)
   selection: null,                                             // id d'instance : 'humerus:D', 'biceps-brachial:G', 'vertebre-L4', 'coeur'
   isolation: false,                                            // la sélection est isolée en 3D
+  isolationGroupe: null,                                       // région du squelette isolée (voir groupes-os.js) : 'crane', 'colonne', 'thorax', 'bassin', 'membre-superieur', 'membre-inferieur'
   contexte: false,                                             // en isolation, garder le reste en fantôme
   masques: [],                                                 // ids d'instance cachés par l'utilisateur
   reperesAffiches: [],                                         // ids de repères palpables affichés (en plus du calque)
   recherche: '',
   affichage: {
     opacites: {},                                              // { calque: 0..1 } transparence par calque (absent = rendu d'origine)
+    opacitesOs: {},                                            // { région: 0..1 } transparence par région du squelette (se multiplie à celle du calque)
     coupe: { actif: false, axe: 'y', position: .5, inverse: false },   // plan de coupe global (axe x : frontal… voir moteur.js, position 0..1 sur la hauteur / largeur / profondeur du corps)
     profondeurChamp: false                                     // flou d'arrière-plan (niveau Haute)
   },
@@ -88,7 +90,13 @@ export const actions = {
   // ── sélection et isolation ──
   selectionner(id) { S.definir(e => ({ selection: id || null, isolation: id ? e.isolation : false })); },
   isoler(id) { S.definir(e => ({ selection: id || e.selection, isolation: !!(id || e.selection) })); },
-  quitterIsolation() { S.definir({ isolation: false }); },
+  quitterIsolation() { S.definir({ isolation: false, isolationGroupe: null }); },
+  /** Isole une région du squelette (ou, sans argument ou avec la région déjà isolée, la réaffiche) */
+  isolerGroupe(id) {
+    S.definir(e => id && e.isolationGroupe !== id
+      ? { isolationGroupe: id, isolation: false, selection: null, calques: fusion(e.calques, { squelette: true }) }
+      : { isolationGroupe: null });
+  },
   contexte(oui) { S.definir(e => ({ contexte: oui === undefined ? !e.contexte : !!oui })); },
   masquer(id, oui) {
     S.definir(e => {
@@ -108,6 +116,13 @@ export const actions = {
       const o = Object.assign({}, e.affichage.opacites);
       if (v == null) delete o[nom]; else o[nom] = Math.min(Math.max(+v, 0), 1);
       return { affichage: fusion(e.affichage, { opacites: o }) };
+    });
+  },
+  opaciteOs(groupe, v) {
+    S.definir(e => {
+      const o = Object.assign({}, e.affichage.opacitesOs);
+      if (v == null) delete o[groupe]; else o[groupe] = Math.min(Math.max(+v, 0), 1);
+      return { affichage: fusion(e.affichage, { opacitesOs: o }) };
     });
   },
   coupe(patch) {

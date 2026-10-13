@@ -2,17 +2,20 @@
    new MoteurAnatomie(THREE, canvas, { store, etiquettes: Element|null, mini: bool, surSelection(id) })
    Le moteur suit l'état du store : calques, sélection, isolation, pathologies, appareillage. Rendu à la demande (pas d'animation inutile).
    Contrôles : glisser = rotation 360°, molette / pincement = zoom, clic droit ou Maj + glisser ou 2 doigts = translation, double clic = focaliser. */
-import { construire, axeMembre } from './construction.js?v=2026.10.13.3';
-import { construireAppareil } from './appareils3d.js?v=2026.10.13.3';
-import { OS, VERTEBRES, REPERES, SACRUM_Y } from './donnees-os.js?v=2026.10.13.3';
-import { MUSCLES } from './donnees-muscles.js?v=2026.10.13.3';
-import { NERFS, ORGANES, DERMATOMES } from './donnees-nerfs-organes.js?v=2026.10.13.3';
-import { AMPUTATIONS, APPAREILLAGES, FRACTURES } from './donnees-ortho.js?v=2026.10.13.3';
-import { definition, base as baseDe, cote as coteDe, typeDe, instances, nomAffiche, musclesDe } from './registre.js?v=2026.10.13.3';
-import { COULEURS } from './registre.js?v=2026.10.13.3';
-import { chargerGLB } from './modeles-glb.js?v=2026.10.13.3';
-import { creerMateriauPBR } from './pbr.js?v=2026.10.13.3';
-import { studio, solOmbre, fondDegrade, environnement, pipeline, lireNiveau } from './rendu.js?v=2026.10.13.3';
+import { construire, axeMembre } from './construction.js?v=2026.10.13.4';
+import { construireAppareil } from './appareils3d.js?v=2026.10.13.4';
+import { OS, VERTEBRES, REPERES, SACRUM_Y } from './donnees-os.js?v=2026.10.13.4';
+import { MUSCLES } from './donnees-muscles.js?v=2026.10.13.4';
+import { NERFS, ORGANES, DERMATOMES } from './donnees-nerfs-organes.js?v=2026.10.13.4';
+import { AMPUTATIONS, APPAREILLAGES, FRACTURES } from './donnees-ortho.js?v=2026.10.13.4';
+import { definition, base as baseDe, cote as coteDe, typeDe, instances, nomAffiche, musclesDe } from './registre.js?v=2026.10.13.4';
+import { COULEURS } from './registre.js?v=2026.10.13.4';
+import { chargerGLB } from './modeles-glb.js?v=2026.10.13.4';
+import { points as pointsDe, ajuster as ajusterGLB, matriceAjustement } from './ajustement.js?v=2026.10.13.4';
+import { TABLES } from './correspondance-squelette.js?v=2026.10.13.4';
+import { groupeDe } from './groupes-os.js?v=2026.10.13.4';
+import { creerMateriauPBR } from './pbr.js?v=2026.10.13.4';
+import { studio, solOmbre, fondDegrade, environnement, pipeline, lireNiveau } from './rendu.js?v=2026.10.13.4';
 
 const CALQUE_DE = { cartilage: 'squelette', os: 'squelette', muscle: 'muscles', nerf: 'nerfs', organe: 'organes', repere: 'reperes', dermatome: 'dermatomes', peau: 'peau' };
 const DIST_DEFAUT = 3.5;
@@ -86,26 +89,55 @@ export class MoteurAnatomie {
     this.surchargerGLB(e);
     return e;
   }
-  /** Remplace la forme procédurale par le modèle GLB de la structure, s'il y en a un (voir modeles-glb.js) */
+  /** Os d'un même groupe (main, pied) : une seule transformation, calculée sur l'ensemble du groupe (formes schématiques d'un côté, nœuds du modèle de l'autre).
+      Les formes schématiques sont photographiées de façon synchrone au premier appel, avant qu'aucun os du groupe soit remplacé ; les autres appels attendent la même promesse. */
+  matriceGroupe(en, meta) {
+    const T = this.THREE, cle = meta.groupe + ':' + en.cote;
+    this.groupesAjustes = this.groupesAjustes || new Map();
+    if (this.groupesAjustes.has(cle)) return this.groupesAjustes.get(cle);
+    const table = Object.values(TABLES).map(t => t.os).find(o => o[en.base]) || {};
+    const freres = Object.keys(table).filter(b => table[b].groupe === meta.groupe && this.entrees.get(b + ':' + en.cote));
+    const formes = []; freres.forEach(b => formes.push(...pointsDe(T, this.entrees.get(b + ':' + en.cote).obj)));
+    const p = (async () => {
+      const modeles = [];
+      for (const b of freres) { const r = await chargerGLB(b, en.cote); if (r) modeles.push(...pointsDe(T, r.scene.clone(true))); }
+      return formes.length && modeles.length ? matriceAjustement(T, modeles, formes, 'boite') : null;
+    })();
+    this.groupesAjustes.set(cle, p); return p;
+  }
+  /** Le rachis et les côtes ne sont repris d'un GLB que s'ils n'ont pas à se déformer (ni scoliose, ni fracture vertébrale) */
+  rachisGLBPossible() {
+    const p = this.store.obtenir().pathologie, f = p.fracture;
+    return !p.scoliose && !(f && f.os && f.os.some(o => o.id.startsWith('vertebre-')));
+  }
+  /** Remplace la forme procédurale par le modèle GLB de la structure, s'il y en a un (voir modeles-glb.js) ; le modèle est recalé sur la forme schématique (ajustement.js) */
   surchargerGLB(en) {
-    if (typeof fetch === 'undefined' || !['os', 'muscle', 'nerf', 'organe'].includes(en.type)) return;
-    if (/^(vertebre-|cote-|moelle|nerfs-spinaux)/.test(en.sid) || en.obj.children.length > 1) return;     // rachis déformable et os fracturés : toujours procéduraux
-    chargerGLB(en.base).then(res => {
+    if (typeof fetch === 'undefined' || !['os', 'muscle', 'nerf', 'organe', 'cartilage'].includes(en.type)) return;
+    const rachis = /^(vertebre-|cote-|disque-)/.test(en.sid);
+    if (/^(moelle|nerfs-spinaux)/.test(en.sid) || en.obj.children.length > 1) return;     // moelle : toujours procédurale ; os fracturés : forme procédurale
+    chargerGLB(en.base, en.cote, { avecRachis: !rachis || this.rachisGLBPossible() }).then(async res => {
       if (!res || this.mort || this.entrees.get(en.sid) !== en) return;
+      if (rachis && !this.rachisGLBPossible()) return;                                  // la pathologie est apparue pendant le chargement
       const T = this.THREE, { scene: src, meta } = res;
       const g = src.clone(true);
       g.scale.set(...meta.echelle); g.rotation.set(...meta.rotation.map(d => d * Math.PI / 180)); g.position.set(...meta.decalage);
-      const pack = new T.Group(); pack.add(g); if (en.cote === 'D') pack.scale.x = -1;     // côté droit : miroir du modèle gauche
+      const pack = new T.Group(); pack.add(g); if (meta.miroir) pack.scale.x = -1;     // entrées individuelles : le côté droit est le miroir du modèle gauche
       pack.updateMatrixWorld(true);
+      const forme = pointsDe(T, en.obj);
       // garde-fou : un modèle dont la taille n'a rien à voir avec la forme procédurale (mauvaise unité ou mauvais repère) est écarté
-      const bm = new T.Box3().setFromObject(pack), bp = new T.Box3().setFromObject(en.obj);
-      const tm = bm.getSize(new T.Vector3()).length(), tp = bp.getSize(new T.Vector3()).length();
+      const tm = new T.Box3().setFromObject(pack).getSize(new T.Vector3()).length(), tp = forme.length ? new T.Box3().setFromPoints(forme).getSize(new T.Vector3()).length() : 0;
       if (!(tm > 0) || (tp > 0 && (tm / tp > 4 || tm / tp < .25))) { console.warn('[anatomie] GLB ' + en.base + ' écarté : dimensions incohérentes (' + tm.toFixed(2) + ' m contre ' + tp.toFixed(2) + ' m) → forme procédurale conservée'); return; }
+      const Mg = meta.groupe ? await this.matriceGroupe(en, meta) : null;
+      if (this.mort || this.entrees.get(en.sid) !== en) return;
+      if (en.obj.matrixAutoUpdate === false) { en.obj.matrixAutoUpdate = true; en.obj.matrix.identity(); en.obj.position.set(0, 0, 0); en.obj.quaternion.identity(); en.obj.scale.set(1, 1, 1); }   // vertèbres : la matrice était portée par l'objet
       pack.traverse(o => { if (o.isMesh) { o.material = en.mats[0]; o.userData.sid = en.sid; o.castShadow = o.receiveShadow = this.niveau !== 'eco'; } });
       if (en.obj.isMesh) { en.obj.geometry.dispose(); en.obj.geometry = new T.BufferGeometry(); }     // muscle, nerf, organe : un seul Mesh
       else en.obj.children.slice().forEach(c => { en.obj.remove(c); c.geometry && c.geometry.dispose(); });   // os : groupe
-      en.obj.add(pack); en.obj.traverse(o => { o.userData.sid = en.sid; }); this.demander();
-    }).catch(() => { });
+      en.obj.add(pack); en.obj.updateMatrixWorld(true);
+      if (meta.groupe) { if (Mg) { pack.updateMatrix(); pack.matrixAutoUpdate = false; pack.matrix.copy(Mg.clone().multiply(pack.matrix)); pack.updateMatrixWorld(true); } }
+      else ajusterGLB(T, pack, forme, meta.ajuster || 'aucun');
+      en.obj.traverse(o => { o.userData.sid = en.sid; }); en.glb = true; this.demander();
+    }).catch(e => { console.warn('[anatomie] GLB ' + en.sid + ' : ' + (e && e.message || e)); });
   }
   retirer(sid) {
     const e = this.entrees.get(sid); if (!e) return;
@@ -153,7 +185,7 @@ export class MoteurAnatomie {
   }
   reconstruireRachis() {
     const T = this.THREE, C = this.C, e = this.store.obtenir();
-    for (const sid of Array.from(this.entrees.keys())) if (sid.startsWith('vertebre-') || sid.startsWith('cote-') || sid.startsWith('disque-')) this.retirer(sid);
+    for (const sid of Array.from(this.entrees.keys())) if (sid.startsWith('vertebre-') || sid.startsWith('cote-') || sid.startsWith('disque-') || sid === 'cartilages-costaux') this.retirer(sid);
     this.positions = C.positionsRachis(this.courbesEffectives(e));
     const frac = e.pathologie.fracture;
     this.positions.forEach(p => {
@@ -171,10 +203,12 @@ export class MoteurAnatomie {
       const m = this.mat('cartilage', 0xd5e3e6), mesh = new T.Mesh(g, m); mesh.applyMatrix4(C.matriceVertebre(mid)); mesh.matrixAutoUpdate = false; mesh.updateMatrix();
       this.enregistrer('disque-' + a.id + '-' + b.id, 'cartilage', mesh, [m]);
     }
+    const cartilages = [];
     this.positions.filter(p => p.v.region === 'thoracique').forEach(p => {
       const i = parseInt(p.id.slice(1), 10);
-      ['D', 'G'].forEach(c => { const m = this.mat('os', COULEURS.os); this.enregistrer('cote-' + i + ':' + c, 'os', new T.Mesh(C.geoCote(i, c, p), m), [m], null, c); });
+      ['D', 'G'].forEach(c => { const m = this.mat('os', COULEURS.os); this.enregistrer('cote-' + i + ':' + c, 'os', new T.Mesh(C.geoCote(i, c, p), m), [m], null, c); const g = C.geoCartilageCostal(i, c, p); if (g) cartilages.push(g); });
     });
+    { const m = this.mat('cartilage', 0xcfdfe4); this.enregistrer('cartilages-costaux', 'cartilage', new T.Mesh(C.fusion(cartilages), m), [m]); }     // cartilages costaux : côtes 1 à 10 jusqu'au sternum et à l'arc costal
     if (this.construits.nerfs) this.reconstruireMoelle();
     if (this.construits.dermatomes === undefined) { /* rien */ }
     this.vertebreTourne = true;
@@ -347,7 +381,7 @@ export class MoteurAnatomie {
     const sel = e.selection && this.entrees.get(e.selection);
     if (sel && sel.type !== 'repere' && sel.obj.visible && !this.mini) {
       const box = new T.Box3().setFromObject(sel.obj), c = box.getCenter(new T.Vector3()); c.y = box.max.y + .02;
-      const el = document.createElement('div'); el.className = 'an-note selection'; el.textContent = nomAffiche(sel.sid); this.etiquettes.appendChild(el); this.notes.push({ p: c, el, cle: 'sel' });
+      const el = document.createElement('div'); el.className = 'an-note selection'; el.textContent = this.libelle(sel.sid); this.etiquettes.appendChild(el); this.notes.push({ p: c, el, cle: 'sel' });
     }
   }
 
@@ -378,6 +412,10 @@ export class MoteurAnatomie {
     else if (!e.selection && d.selection && this.mini === false && a && d.isolation) this.vue('face');
     if (a && e.isolation && !d.isolation && e.selection) this.focaliser(e.selection);
     if (a && !e.isolation && d.isolation) this.vue('face');
+    if (e.isolationGroupe !== d.isolationGroupe && !this.mini) {
+      if (e.isolationGroupe) this.focaliser(Array.from(this.entrees.values()).filter(x => (x.type === 'os' || x.type === 'cartilage') && groupeDe(x.base) === e.isolationGroupe).map(x => x.sid));
+      else if (a) this.vue('face');
+    }
     this.dernier = e; this.demander();
   }
 
@@ -396,6 +434,11 @@ export class MoteurAnatomie {
       let vis, ghost = false;
       if (groupe) vis = groupe.includes(en.sid);
       else if (iso) { vis = en.sid === sel || (e.contexte || this.mini) && lies.has(en.sid); ghost = vis && en.sid !== sel; }
+      else if (e.isolationGroupe && !this.mini && (en.type === 'os' || en.type === 'cartilage')) {      // région du squelette isolée (voir groupes-os.js)
+        const dedans = groupeDe(en.base) === e.isolationGroupe;
+        vis = dedans || !!e.contexte; ghost = vis && !dedans;
+      }
+      else if (e.isolationGroupe && !this.mini) vis = false;                                           // muscles, nerfs, organes… : masqués pendant l'isolation d'une région
       else {
         vis = !!e.calques[CALQUE_DE[en.type]] && !e.masques.includes(en.sid);
         if (en.type === 'repere') vis = vis || e.reperesAffiches.includes(en.sid);
@@ -413,9 +456,10 @@ export class MoteurAnatomie {
   }
   /** Transparence par calque, plan de coupe global et passes optionnelles du post-traitement */
   appliquerAffichage(e) {
-    const T = this.THREE, af = e.affichage || {}, ops = af.opacites || {};
+    const T = this.THREE, af = e.affichage || {}, ops = af.opacites || {}, opsOs = af.opacitesOs || {};
     for (const en of this.entrees.values()) {
-      const k = ops[CALQUE_DE[en.type]];
+      const kc = ops[CALQUE_DE[en.type]], kg = en.type === 'os' || en.type === 'cartilage' ? opsOs[groupeDe(en.base)] : undefined;
+      const k = kc === undefined && kg === undefined ? undefined : (kc === undefined ? 1 : kc) * (kg === undefined ? 1 : kg);       // calque × région
       if (k !== undefined && k <= .02) en.obj.visible = false;
       if (k === undefined && !en.opaciteAppliquee) continue;
       en.opaciteAppliquee = k !== undefined;
@@ -559,13 +603,18 @@ export class MoteurAnatomie {
     const sid = this.pointer(ev);
     if (sid !== this.survol) { const prec = this.survol; this.survol = sid; const e = this.store.obtenir(); [prec, sid].forEach(i => { const en = i && this.entrees.get(i); if (en) this.surbrillance(en, en.sid === e.selection ? 2 : en.sid === this.survol ? 1 : 0); }); this.canvas.style.cursor = sid ? 'pointer' : 'grab'; this.noteSurvol(sid); if (this.opts.surSurvol) this.opts.surSurvol(sid); this.demander(); }
   }
+  /** Nom français et, quand la fiche le donne, nom latin : « Fémur (Femur) » */
+  libelle(sid) {
+    const d = definition(sid), n = nomAffiche(sid), plat = x => String(x).normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
+    return d && d.latin && !/^vertebre|^cote/.test(sid) && !plat(n).startsWith(plat(d.latin).split(' ')[0]) ? n + ' · ' + d.latin : n;     // pas de doublon quand le nom français ressemble au nom latin
+  }
   /** Étiquette au survol : nom de la structure sous le pointeur (la sélection garde la sienne) */
   noteSurvol(sid) {
     if (!this.etiquettes) return;
     this.notes = this.notes.filter(n => { if (n.cle === 'hov') { n.el.remove(); return false; } return true; });
     const en = sid && this.entrees.get(sid); if (!en || sid === this.store.obtenir().selection) return;
     const T = this.THREE, box = new T.Box3().setFromObject(en.obj), c = box.getCenter(new T.Vector3()); c.y = box.max.y + .015;
-    const el = document.createElement('div'); el.className = 'an-note survol'; el.textContent = nomAffiche(sid); this.etiquettes.appendChild(el); this.notes.push({ p: c, el, cle: 'hov' });
+    const el = document.createElement('div'); el.className = 'an-note survol'; el.textContent = this.libelle(sid); this.etiquettes.appendChild(el); this.notes.push({ p: c, el, cle: 'hov' });
   }
   cliquer(ev) {
     const sid = this.pointer(ev);
