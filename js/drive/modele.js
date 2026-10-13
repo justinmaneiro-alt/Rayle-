@@ -2,7 +2,7 @@
    Un document = une liste de paragraphes { texte, niveau, page?, editable? } :
    niveau 0 = texte courant, 1 à 6 = titres. Tout ce que Raylé lit, cherche, résume ou modifie passe par ce modèle ; il ne cite QUE le texte réel.
    Les modifications sont des « opérations » (remplacer / inserer / supprimer) dont l'inverse est calculé pour pouvoir annuler. */
-import { norm, mots, motsUtiles, phrases, estMotVide, morceaux } from './texte.js?v=2026.10.13.9';
+import { norm, mots, motsUtiles, phrases, estMotVide, morceaux } from './texte.js?v=2026.10.13.10';
 
 export const estTitre = p => p.niveau > 0;
 export const estVide = p => !String(p.texte || '').trim();

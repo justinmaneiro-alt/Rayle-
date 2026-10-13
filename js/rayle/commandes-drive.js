@@ -11,7 +11,7 @@
   let driveModule=null, driveChargement=null;
   function chargerDrive(){
     if(driveModule) return Promise.resolve(driveModule);
-    if(!driveChargement) driveChargement=import(new URL('js/drive/index.js?v=2026.10.13.9',document.baseURI).href).then(m=>{ driveModule=m; return m; }).catch(e=>{ driveChargement=null; throw e; });
+    if(!driveChargement) driveChargement=import(new URL('js/drive/index.js?v=2026.10.13.10',document.baseURI).href).then(m=>{ driveModule=m; return m; }).catch(e=>{ driveChargement=null; throw e; });
     return driveChargement;
   }
   function driveFichiersConnus(){ try{ return JSON.parse(localStorage.getItem('rayle_drive_fichiers')||'[]'); }catch(e){ return []; } }
@@ -80,5 +80,73 @@
     RayleBus.on('etat:drive',afficher);
     afficher();
     // déjà connecté lors d'une visite précédente : on prépare la connexion silencieuse pendant que la page est au repos
-    try{ if(cfgOk() && localStorage.getItem('rayle_drive_connecte')==='1') (window.requestIdleCallback||setTimeout)(vite,3000); }catch(e){}
+    try{ if(cfgOk() && localStorage.getItem('rayle_drive_connecte')==='1') setTimeout(vite,3000); }catch(e){}
+  })();
+
+  /* ───── Réglages : mémoire des cours (analyser, relire, oublier ; resynchronisation seule à l'ouverture) ───── */
+  (function reglagesCours(){
+    const info=$('coursInfo'), barre=$('coursProgres'), bAna=$('coursAnalyser'), bRel=$('coursRelire'), bOub=$('coursOublier');
+    if(!info) return;
+    const cfgOk=()=>driveConfigure();
+    const actif=()=>{ try{ return localStorage.getItem('rayle_cours_actif')==='1'; }catch(e){ return false; } };
+    let occupe=false, enAttente=false, resume=null, dernierBilan='';
+    const taille=o=>o<1024?o+' o':o<1048576?Math.round(o/1024)+' Ko':(o/1048576).toFixed(o<10485760?1:0).replace('.',',')+' Mo';
+    function texteResume(){
+      if(!resume||!resume.documents) return 'aucun cours en mémoire pour l’instant.';
+      const d=resume.derniere?' · dernière synchronisation : '+new Date(resume.derniere).toLocaleString('fr-FR',{day:'numeric',month:'long',hour:'2-digit',minute:'2-digit'}):'';
+      return resume.documents+' document'+(resume.documents>1?'s':'')+' en mémoire sur cet appareil ('+taille(resume.octets)+')'+d+'.';
+    }
+    function afficher(){
+      bAna.disabled=!cfgOk()||occupe; bRel.disabled=!cfgOk()||occupe||!actif(); bOub.disabled=occupe||!(actif()||(resume&&resume.documents));
+      if(occupe) return;
+      barre.hidden=true;
+      if(!cfgOk()){ info.textContent='Mémoire des cours : il faut d’abord configurer Google Drive (identifiant client dans js/config-drive.js — voir docs/drive.md).'; return; }
+      info.textContent='Mémoire des cours : '+(dernierBilan||texteResume())+(enAttente?' Resynchronisation en attente : connecte-toi à Google (bouton ci-dessus).':'');
+    }
+    function progres(e){
+      occupe=true; bAna.disabled=bRel.disabled=bOub.disabled=true; barre.hidden=false;
+      if(e.phase==='lecture'&&e.n){ barre.max=e.n; barre.value=Math.max(0,e.i-1); info.textContent='Mémoire des cours : document '+e.i+' sur '+e.n+' — '+(e.nom||''); }
+      else { barre.removeAttribute('value'); info.textContent='Mémoire des cours : '+(e.nom?'je parcours « '+e.nom+' »…':'je prépare l’analyse…'); }
+    }
+    function fini(r,silencieux){
+      occupe=false; enAttente=!!(r&&r.reconnexion); dernierBilan='';
+      if(r&&r.ok&&!r.annule&&!r.vide){ dernierBilan=r.dit; resume={documents:r.documents,octets:r.octets,derniere:Date.now()}; }
+      // au démarrage (silencieux) on n'écrit dans la conversation que s'il y a eu du changement ou un problème
+      const parle=r&&r.dit&&(!silencieux||(r.ok?(r.nouveaux||r.modifies||r.supprimes||(r.echecs&&r.echecs.length)):!r.reconnexion));
+      if(parle) addLine('sys',(silencieux?'Cours resynchronisés — ':'Mémoire des cours : ')+r.dit);
+      afficher();
+      if(r&&!r.ok&&r.dit&&!(silencieux&&r.reconnexion)) info.textContent='Mémoire des cours : '+r.dit;
+    }
+    let propre=false;                  // vrai quand un clic ou la synchro d'ouverture suit lui-même son résultat (sinon, c'est la synchro déclenchée par la reconnexion)
+    async function lancer(nom,silencieux){
+      if(occupe) return;
+      occupe=true; propre=true; progres({phase:'exploration',nom:''});
+      let r; try{ const m=await chargerDrive(); r=await m[nom](silencieux?{silencieux:true}:undefined); }catch(e){ r={ok:false,dit:errMsg(e)}; }
+      propre=false; fini(r,silencieux);
+    }
+    bAna.addEventListener('click',()=>{ lancer('analyserCours',false); });
+    bRel.addEventListener('click',()=>{ lancer('relireCours',false); });
+    bOub.addEventListener('click',async()=>{
+      if(occupe) return;
+      if(!window.confirm('Effacer de cet appareil tout le texte de tes cours mémorisés ? (Ton Drive n’est pas touché ; tu pourras refaire l’analyse.)')) return;
+      try{ const m=await chargerDrive(); const r=await m.oublierCours(); resume=null; dernierBilan=r.ok?'':''; enAttente=false; addLine('sys','Mémoire des cours : '+r.dit); afficher(); if(r.ok) info.textContent='Mémoire des cours : '+r.dit; }
+      catch(e){ addLine('sys','Mémoire des cours : '+errMsg(e)); }
+    });
+    RayleBus.on('cours:etat',e=>{
+      if(!e) return;
+      if(e.phase==='exploration'||e.phase==='lecture') progres(e);
+      else if(e.phase==='repos'&&e.dernier&&!propre&&occupe) fini(e.dernier,!!e.silencieux);
+    });
+    afficher();
+    // une mémoire existe déjà : à chaque ouverture, resynchronisation seule (seuls les documents modifiés sont relus)
+    if(cfgOk()&&actif()){
+      setTimeout(async()=>{
+        try{
+          const m=await chargerDrive(); resume=await m.coursResume(); afficher();
+          propre=true; occupe=true; progres({phase:'exploration',nom:''});
+          const r=await m.synchroAuto(); propre=false;
+          if(r) fini(r,true); else { occupe=false; afficher(); }
+        }catch(e){ propre=false; occupe=false; afficher(); }
+      },2500);
+    }
   })();

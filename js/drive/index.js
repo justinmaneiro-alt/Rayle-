@@ -1,13 +1,13 @@
 /* ═════════════ DRIVE : point d'entrée du module (chargé à la demande par js/rayle/commandes-drive.js) ═════════════
    analyser(texte) → commande | null · executer(commande) → phrase à dire · etat() · connecter() · choisirDocuments() · statut()
    Le module assemble : connexion Google (auth.js) · API (api.js) · service (service.js) · fenêtre (fenetre.js). */
-import { creerAuth, choisirFichiers, chargerScript, lireConfig, MESSAGE_CONFIG } from './auth.js?v=2026.10.13.9';
-import { creerApi, estErreurDrive } from './api.js?v=2026.10.13.9';
-import { creerService, parlable } from './service.js?v=2026.10.13.9';
-import { creerFenetre } from './fenetre.js?v=2026.10.13.9';
-import { analyser as analyserPhrase } from './commandes.js?v=2026.10.13.9';
-import { URL_JSZIP } from './fmt-docx.js?v=2026.10.13.9';
-import { MIMES_ACCEPTES } from './formats.js?v=2026.10.13.9';
+import { creerAuth, choisirFichiers, chargerScript, lireConfig, MESSAGE_CONFIG } from './auth.js?v=2026.10.13.10';
+import { creerApi, estErreurDrive } from './api.js?v=2026.10.13.10';
+import { creerService, parlable } from './service.js?v=2026.10.13.10';
+import { creerFenetre } from './fenetre.js?v=2026.10.13.10';
+import { analyser as analyserPhrase } from './commandes.js?v=2026.10.13.10';
+import { URL_JSZIP } from './fmt-docx.js?v=2026.10.13.10';
+import { MIMES_ACCEPTES } from './formats.js?v=2026.10.13.10';
 
 const URL_PDFJS = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js';
 // empreintes SRI : le navigateur refuse le script s'il a été altéré
@@ -17,7 +17,7 @@ const G = globalThis;
 const bus = () => G.RayleBus;
 const dire = t => { try { if (t) bus().demander('drive:dire', t); } catch (e) { /* ignore */ } };
 
-let auth, api, service, fenetre, nomVoulu = null, dernierOk = true;
+let auth, api, service, fenetre, envDocs, nomVoulu = null, dernierOk = true;
 /** la dernière commande exécutée a-t-elle réussi ? (l'agent remplace sa réponse par l'échec réel : jamais « c'est fait » à tort) */
 export const dernierResultat = () => ({ ok: dernierOk });
 const fin = res => { dernierOk = !res || res.ok !== false; return res && res.dit; };
@@ -51,6 +51,7 @@ function pret() {
       return lib;
     }
   };
+  envDocs = env;
   const ui = {
     afficher: (...a) => fenetre.afficher(...a), montrer: (...a) => fenetre.montrer(...a), apercu: (...a) => fenetre.apercu(...a),
     rafraichir: (...a) => fenetre.rafraichir(...a), visible: () => fenetre.visible(), demanderConnexion: (...a) => fenetre.demanderConnexion(...a)
@@ -59,6 +60,7 @@ function pret() {
   fenetre = creerFenetre({ service, auth, choisir: choisirDocuments, dire });
   service.surChangement(publier);
   auth.surChangement(publier);
+  auth.surChangement(e => { if (e.connecte && coursEnAttente && coursEtat.phase === 'repos') { coursEnAttente = false; synchroniserCours({ silencieux: true }); } });
   publier();
 }
 
@@ -203,3 +205,74 @@ export async function seDeconnecter() { pret(); return executer({ op: 'deconnect
 export function listeFichiers() { pret(); return service.fichiers(); }
 export function oublier(id) { pret(); service.oublier(id); }
 export async function ouvrirFichier(nom) { pret(); return { dit: await executer({ op: 'ouvrir', nom }) }; }
+
+/* ═════════════ MÉMOIRE DES COURS : analyser, resynchroniser seule, relire, oublier (voir memoire.js) ═════════════ */
+const CLE_COURS = 'rayle_cours_actif';                  // repère « une mémoire existe » : évite de charger le module pour rien à l'ouverture
+let memoire = null, coursEtat = { phase: 'repos' }, coursEnAttente = false, coursSyncFaite = false;
+const coursPublier = e => { coursEtat = { ...coursEtat, ...e }; try { bus().emit('cours:etat', coursEtat); } catch (x) { /* ignore */ } };
+async function laMemoire() {
+  if (memoire) return memoire;
+  pret();
+  const { ouvrirBase } = await import('./base-locale.js?v=2026.10.13.10'), { creerMemoire } = await import('./memoire.js?v=2026.10.13.10');
+  memoire = creerMemoire({ api, base: await ouvrirBase(), env: envDocs });
+  return memoire;
+}
+const progression = p => coursPublier({ phase: p.etape, i: p.i, n: p.n, nom: p.nom });
+const repere = v => { try { v ? localStorage.setItem(CLE_COURS, '1') : localStorage.removeItem(CLE_COURS); } catch (e) { /* ignore */ } };
+export const coursActif = () => { try { return localStorage.getItem(CLE_COURS) === '1'; } catch (e) { return false; } };
+export const coursStatut = () => ({ ...coursEtat, enAttente: coursEnAttente, actif: coursActif() });
+
+/** exécute une opération de mémoire en publiant l'avancement ; une demande de reconnexion Google est dite clairement */
+async function coursOperation(nom, f, { silencieux = false } = {}) {
+  pret();
+  if (!lireConfig(G).valide) return { ok: false, dit: MESSAGE_CONFIG };
+  try {
+    const m = await laMemoire();
+    coursPublier({ phase: 'exploration', i: 0, n: 0, nom: '', operation: nom, silencieux });
+    const r = await f(m);
+    coursPublier({ phase: 'repos', dernier: r, operation: nom, silencieux, i: 0, n: 0 });
+    return r;
+  } catch (e) {
+    const co = estErreurDrive(e) && (e.raison === 'reconnexion' || e.raison === 'popup' || e.statut === 401);
+    if (co) { coursEnAttente = true; try { fenetre.demanderConnexion(); } catch (x) { /* ignore */ } }
+    const dit = co ? 'Je dois d’abord me connecter à Google : touche « Se connecter à Google » dans Réglages' + (silencieux ? ' ; je resynchroniserai tes cours ensuite.' : ', puis recommence.') : 'Mémoire des cours : ' + (e && e.message || e);
+    const r = { ok: false, reconnexion: co, dit };
+    coursPublier({ phase: 'repos', dernier: r, operation: nom, silencieux, i: 0, n: 0 });
+    return r;
+  }
+}
+
+/** bouton « Analyser et mémoriser tous mes cours » : sélecteur (multi-sélection, dossiers), puis lecture de tout */
+export async function analyserCours() {
+  pret();
+  if (!lireConfig(G).valide) return { ok: false, dit: MESSAGE_CONFIG };
+  let choix;
+  try { choix = await choisirFichiers({ auth, mimes: MIMES_ACCEPTES, dossiers: true, titre: 'Choisis tes cours : des documents et/ou des dossiers' }); }
+  catch (e) {
+    if (estErreurDrive(e) && (e.raison === 'reconnexion' || e.raison === 'popup')) { coursEnAttente = false; try { fenetre.demanderConnexion(); } catch (x) { /* ignore */ } return { ok: false, reconnexion: true, dit: 'Je dois d’abord me connecter à Google : touche « Se connecter à Google », puis recommence.' }; }
+    return { ok: false, dit: 'Le sélecteur Google n’a pas pu s’ouvrir : ' + (e && e.message || e) };
+  }
+  if (!choix.length) return { ok: true, annule: true, dit: 'Aucun cours choisi : rien n’a changé.' };
+  const r = await coursOperation('analyse', m => m.analyser(choix, { progression }));
+  if (r.ok) { repere(true); coursEnAttente = false; }
+  return r;
+}
+/** resynchronisation : seulement les documents modifiés (appelée seule à l'ouverture, puis dès que la connexion Google est rétablie) */
+export async function synchroniserCours({ silencieux = false } = {}) {
+  const r = await coursOperation('synchro', m => m.synchroniser({ progression }), { silencieux });
+  if (r.ok) coursEnAttente = false;
+  return r;
+}
+export async function relireCours() { const r = await coursOperation('relecture', m => m.relire({ progression })); if (r.ok) coursEnAttente = false; return r; }
+export async function oublierCours() {
+  pret();
+  try { const m = await laMemoire(); const r = await m.oublier(); if (r.ok) { repere(false); coursEnAttente = false; coursPublier({ phase: 'repos', dernier: r, operation: 'oubli', i: 0, n: 0 }); } return r; }
+  catch (e) { return { ok: false, dit: 'Mémoire des cours : ' + (e && e.message || e) }; }
+}
+export async function coursResume() { try { const m = await laMemoire(); return await m.etat(); } catch (e) { return null; } }
+/** à l'ouverture de Raylé : si une mémoire existe, resynchronise seule (une fois par ouverture) ; sans connexion possible, attend que Justin se connecte */
+export async function synchroAuto() {
+  if (coursSyncFaite || !coursActif() || !lireConfig(G).valide) return null;
+  coursSyncFaite = true;
+  return synchroniserCours({ silencieux: true });
+}

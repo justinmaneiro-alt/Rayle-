@@ -4,16 +4,17 @@
    • Le jeton d'accès vit uniquement en mémoire de la page (1 heure). Un simple repère « déjà connecté » est gardé dans localStorage pour tenter
      une reconnexion silencieuse quand le jeton expire ; si Google exige un geste de ta part, on affiche « Se connecter à Google ».
    • Tablette : la fenêtre de connexion de Google s'ouvre en popup (c'est le seul mode sans serveur) ; elle doit être déclenchée par un toucher. */
-import { ErreurDrive } from './api.js?v=2026.10.13.9';
+import { ErreurDrive } from './api.js?v=2026.10.13.10';
 
 export const PORTEE = 'https://www.googleapis.com/auth/drive.file';
+export const PORTEE_LECTURE = 'https://www.googleapis.com/auth/drive.readonly';      // optionnelle (config « lectureComplete ») : voir le contenu des dossiers choisis
 export const URL_GIS = 'https://accounts.google.com/gsi/client', URL_GAPI = 'https://apis.google.com/js/api.js';
 const REPERE = 'rayle_drive_connecte';
 
 export function lireConfig(G = globalThis) {
   const c = (G.RAYLE_DRIVE_CONFIG || {});
   const clientId = String(c.clientId || '').trim();
-  return { clientId, appId: String(c.appId || '').trim(), apiKey: String(c.apiKey || '').trim(), valide: /^[\w-]+\.apps\.googleusercontent\.com$/.test(clientId) };
+  return { clientId, appId: String(c.appId || '').trim(), apiKey: String(c.apiKey || '').trim(), lectureComplete: c.lectureComplete === true, valide: /^[\w-]+\.apps\.googleusercontent\.com$/.test(clientId) };
 }
 export const MESSAGE_CONFIG = 'La connexion à Google n’est pas encore configurée : il manque l’identifiant client dans js/config-drive.js. Les étapes sont dans docs/drive.md.';
 
@@ -53,7 +54,7 @@ export function creerAuth(dep = {}) {
     const oauth2 = G.google && G.google.accounts && G.google.accounts.oauth2;
     if (!oauth2) throw new ErreurDrive('Le service de connexion Google ne s’est pas chargé.', { raison: 'reseau' });
     client = oauth2.initTokenClient({
-      client_id: cfg.clientId, scope: PORTEE,
+      client_id: cfg.clientId, scope: cfg.lectureComplete ? PORTEE + ' ' + PORTEE_LECTURE : PORTEE,
       callback: rep => {
         const a = enAttente; enAttente = null; if (!a) return;
         if (rep && rep.access_token) {
@@ -108,7 +109,7 @@ export function creerAuth(dep = {}) {
 }
 
 /** sélecteur Google : renvoie les fichiers choisis [{ id, name, mimeType }] ([] si annulé) */
-export async function choisirFichiers({ auth, mimes, G = globalThis, charger = chargerScript }) {
+export async function choisirFichiers({ auth, mimes, dossiers = false, titre, G = globalThis, charger = chargerScript }) {
   const cfg = lireConfig(G);
   if (!cfg.valide) throw new ErreurDrive(MESSAGE_CONFIG, { raison: 'config' });
   const jeton = await auth.jeton();
@@ -116,12 +117,13 @@ export async function choisirFichiers({ auth, mimes, G = globalThis, charger = c
   await new Promise((ok, ko) => G.gapi.load('picker', { callback: ok, onerror: () => ko(new ErreurDrive('Le sélecteur Google ne s’est pas chargé.', { raison: 'reseau' })), timeout: 15000, ontimeout: () => ko(new ErreurDrive('Le sélecteur Google ne répond pas.', { raison: 'reseau' })) }));
   const P = G.google.picker;
   return new Promise(ok => {
-    const vue = (v) => v.setMimeTypes(mimes.join(',')).setIncludeFolders(true);
+    const types = dossiers ? [...mimes, 'application/vnd.google-apps.folder'] : mimes;
+    const vue = (v) => { v.setMimeTypes(types.join(',')).setIncludeFolders(true); if (dossiers && v.setSelectFolderEnabled) v.setSelectFolderEnabled(true); return v; };
     let b = new P.PickerBuilder()
       .addView(vue(new P.DocsView(P.ViewId.DOCS)))
       .addView(vue(new P.DocsView(P.ViewId.DOCS).setOwnedByMe(false)))
       .enableFeature(P.Feature.MULTISELECT_ENABLED)
-      .setOAuthToken(jeton).setLocale('fr').setTitle('Choisis les documents que Raylé peut lire')
+      .setOAuthToken(jeton).setLocale('fr').setTitle(titre || 'Choisis les documents que Raylé peut lire')
       .setCallback(d => {
         if (d[P.Response.ACTION] === P.Action.PICKED) ok((d[P.Response.DOCUMENTS] || []).map(x => ({ id: x[P.Document.ID], name: x[P.Document.NAME], mimeType: x[P.Document.MIME_TYPE] })));
         else if (d[P.Response.ACTION] === P.Action.CANCEL) ok([]);

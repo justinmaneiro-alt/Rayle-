@@ -61,7 +61,7 @@ export class FauxGoogleDoc {
 
 /* ───── faux Drive ───── */
 export class FauxDrive {
-  constructor() { this.fichiers = new Map(); this.journal = []; this.panne = null; this.jetonsValides = new Set(['jeton-1', 'jeton-2']); this.expirerAuProchain = false; this.apiDocsActive = true; this.ignorerEcritures = false; }
+  constructor() { this.fichiers = new Map(); this.journal = []; this.panne = null; this.jetonsValides = new Set(['jeton-1', 'jeton-2']); this.expirerAuProchain = false; this.apiDocsActive = true; this.ignorerEcritures = false; this.taillePage = 200; this.pannesFichiers = new Map(); this.dossiersOpaques = new Set(); }
   ajouter(id, meta, contenu) { this.fichiers.set(id, { meta: { id, version: 1, modifiedTime: '2026-10-13T10:00:00.000Z', capabilities: { canEdit: true }, ...meta }, contenu }); return this; }
   touche(id) { const f = this.fichiers.get(id); f.meta.version++; f.meta.modifiedTime = new Date(Date.parse(f.meta.modifiedTime) + 60000).toISOString(); }
   fetch = async (url, opts = {}) => {
@@ -74,6 +74,15 @@ export class FauxDrive {
     if (this.expirerAuProchain) { this.expirerAuProchain = false; return erreur(401, 'Invalid Credentials', 'authError'); }
     if (this.panne) { const p = this.panne; return erreur(p.statut, p.message, p.raison || ''); }
     let m;
+    if (chemin === '/drive/v3/files' && methode === 'GET') {          // liste d'un dossier : « 'ID' in parents and trashed=false » (pagination par taillePage)
+      const parent = /'([^']+)' in parents/.exec(u.searchParams.get('q') || '');
+      if (!parent) return erreur(400, 'requête de liste inattendue', 'badRequest');
+      const tous = this.dossiersOpaques.has(parent[1]) ? [] : [...this.fichiers.values()].map(x => x.meta).filter(x => (x.parents || []).includes(parent[1]) && !x.trashed);
+      const debut = Number(u.searchParams.get('pageToken') || 0), page = tous.slice(debut, debut + this.taillePage);
+      return json({ files: page, nextPageToken: debut + this.taillePage < tous.length ? String(debut + this.taillePage) : undefined });
+    }
+    const panne = (chemin.match(/^\/drive\/v3\/files\/([^/]+)/) || [])[1];
+    if (panne && this.pannesFichiers.has(decodeURIComponent(panne)) && (u.searchParams.get('alt') === 'media' || /export/.test(chemin))) { const p = this.pannesFichiers.get(decodeURIComponent(panne)); return erreur(p.statut, p.message, p.raison || ''); }
     const fich = id => { const f = this.fichiers.get(decodeURIComponent(id)); return f || null; };
     if ((m = chemin.match(/^\/drive\/v3\/files\/([^/]+)\/export$/))) {
       const f = fich(m[1]); if (!f) return erreur(404, 'File not found', 'notFound');

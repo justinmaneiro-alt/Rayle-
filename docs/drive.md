@@ -99,6 +99,25 @@ Les mêmes outils sont déclarés dans le registre des capacités (`docs/capacit
 - Bibliothèques tierces chargées à la demande depuis cdnjs avec **empreinte SRI** vérifiée : JSZip 3.10.1 (Word) et PDF.js 3.11.174 (PDF). Voir `CREDITS.md`.
 - Portée minimale `drive.file`. Déconnexion = révocation du jeton ; tu peux aussi retirer l'accès sur [myaccount.google.com/permissions](https://myaccount.google.com/permissions).
 
+## 6 bis. Mémoire des cours (Réglages → « Mémoire des cours »)
+
+| Bouton | Ce qui se passe |
+|---|---|
+| **Analyser et mémoriser tous mes cours** | Ouvre le sélecteur Google en **multi-sélection**, dossiers autorisés. Raylé parcourt les dossiers choisis (sous-dossiers compris), lit chaque document (Google Docs, Word, PDF, texte, Sheets, Slides), en extrait le texte et le range dans une **base locale IndexedDB** de cet appareil. Une barre indique « document X sur Y » ; le résumé final donne le nombre de documents et la taille. |
+| **Relire mes cours** | Relit TOUT depuis le Drive (mêmes dossiers et fichiers), sans rouvrir le sélecteur. |
+| **Oublier mes cours** | Efface la base locale et la liste des dossiers suivis (après confirmation). Le Drive n'est jamais modifié. |
+
+**Resynchronisation automatique** : à chaque ouverture de Raylé, si une mémoire existe, elle compare les dates de modification du Drive et ne relit que les documents **modifiés**, ajoute les **nouveaux** et retire ceux qui ont **disparu**. Rien à refaire. Si Google demande un geste pour se reconnecter, Raylé attend ta connexion (« Se connecter à Google ») puis resynchronise seule.
+
+**Honnêteté** : un document qui ne peut pas être lu est listé dans le bilan (jamais compté comme mémorisé) et son ancienne version reste en base. Un PDF scanné sans texte est signalé « sans texte exploitable ».
+
+### Dossiers : à savoir
+
+Avec la portée par défaut `drive.file`, Google donne accès **aux fichiers choisis un par un**, pas toujours à ce que contient un dossier. Si un dossier ressort « sans document visible pour Raylé », deux solutions :
+
+1. choisir les documents eux-mêmes dans le sélecteur (Ctrl/⌘ + clic ou « tout sélectionner » dans le dossier) ;
+2. **autoriser la lecture complète** : dans la console Google Cloud → écran de consentement → ajouter la portée `.../auth/drive.readonly`, puis dans `js/config-drive.js` mettre `lectureComplete: true`. Raylé redemande alors le consentement (`drive.file` + `drive.readonly`). Tant que ton application reste en mode « Test » avec toi comme utilisateur de test, aucune vérification Google n'est nécessaire. L'écriture (corrections) reste limitée aux documents choisis.
+
 ## 7. Dépannage
 
 | Symptôme | Cause et remède |
@@ -115,5 +134,7 @@ Les mêmes outils sont déclarés dans le registre des capacités (`docs/capacit
 ## 8. Ce qui est vérifié, et ce qui ne l'est pas
 
 Vérifié automatiquement : recherche de document par nom approximatif, extraction de passage (paragraphe, titre, page, mot-clé, suite), résumé extractif, analyseur de phrases, lecture/écriture/annulation pour Google Docs (avec contrôle des positions de l'API), Word (JSZip réel), texte, PDF (PDF.js réel), Sheets et Slides, conflits, erreurs honnêtes, garde-fou de correction, connexion/expiration/déconnexion (faux services Google), sélecteur, absence de secret dans le dépôt — `node tests/drive-test.mjs`, `tests/drive-auth-test.mjs`, `tests/drive-worker-test.mjs`. Vérifié dans Chrome (headless, souris et émulation tactile de tablette) : fenêtre, déplacement, redimensionnement, plein écran réel, réduction, lecture, aperçu, édition, enregistrement, annulation, sans erreur JavaScript.
+
+Mémoire des cours : `node tests/drive-memoire-test.mjs` (dossiers imbriqués et en cycle, pagination, progression, resynchronisation sans relecture, modifiés / nouveaux / supprimés, erreurs isolées, coupure de connexion, oubli, verrou) ; la base IndexedDB réelle, la barre de progression et la resynchronisation à la réouverture ont été vérifiées dans Chrome headless.
 
 **Non testé** : une vraie connexion Google (compte, consentement, sélecteur réel, API réelles de Google : seuls des simulacres fidèles ont servi), et une vraie tablette (gestes tactiles et popup de connexion sur Android / iPad : seulement l'émulation tactile de Chrome). Le premier essai réel est donc la vraie recette : « Se connecter », « Choisir des documents », « ouvre … », « lis le 2e paragraphe ».

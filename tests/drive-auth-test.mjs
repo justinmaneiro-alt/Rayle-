@@ -112,4 +112,24 @@ await t('sélecteur annulé → liste vide ; sans config → message clair', asy
   await assert.rejects(() => choisirFichiers({ auth: m.auth, mimes: [], G: { RAYLE_DRIVE_CONFIG: {} }, charger: async () => {} }), /config-drive/);
   const non = monde(); await assert.rejects(() => choisirFichiers({ auth: non.auth, mimes: [], G: non.G, charger: async () => {} }), e => e.raison === 'reconnexion');
 });
+await t('sélecteur des cours : multi-sélection, dossiers autorisés (choix et type), titre propre ; sans cela, pas de dossiers', async () => {
+  const m = monde(); const { P, rec } = fauxPicker(); const dossiers = [];
+  P.DocsView = class { constructor(v) { this.v = v; } setMimeTypes(x) { this.mimes = x; return this; } setIncludeFolders(b) { this.inclus = b; return this; } setOwnedByMe() { return this; } setSelectFolderEnabled(b) { dossiers.push(b); this.dossiers = b; return this; } };
+  P.PickerBuilder.prototype.setTitle = function (x) { rec.options.titre = x; return this; };
+  m.G.gapi = { load: (n, o) => o.callback() }; m.G.google.picker = P; await m.auth.connecter();
+  const p = choisirFichiers({ auth: m.auth, mimes: MIMES_ACCEPTES, dossiers: true, titre: 'Choisis tes cours', G: m.G, charger: async () => {} });
+  await new Promise(r => setTimeout(r, 10));
+  assert.equal(rec.options.feature, 'multi'); assert.equal(rec.options.titre, 'Choisis tes cours');
+  assert.ok(rec.vues.every(v => v.dossiers === true && v.inclus === true && v.mimes.includes('application/vnd.google-apps.folder')), 'toutes les vues acceptent les dossiers');
+  rec.cb({ action: 'picked', docs: [{ id: 'd', name: 'Cours', mimeType: 'application/vnd.google-apps.folder' }, { id: 'a', name: 'Fiche', mimeType: 'application/pdf' }] });
+  assert.equal((await p).length, 2);
+  rec.vues.length = 0; const q = choisirFichiers({ auth: m.auth, mimes: MIMES_ACCEPTES, G: m.G, charger: async () => {} }); await new Promise(r => setTimeout(r, 10));
+  assert.ok(rec.vues.every(v => !v.dossiers && !v.mimes.includes('folder')), 'sélecteur habituel : inchangé'); rec.cb({ action: 'cancel' }); await q;
+});
+await t('portée : drive.file seul par défaut ; drive.readonly ajoutée seulement si « lectureComplete: true » dans la configuration', async () => {
+  const defaut = monde(); await defaut.auth.connecter(); assert.equal(defaut.journal.find(j => j[0] === 'init')[2], PORTEE);
+  const lecture = monde({ config: { clientId: CLIENT, appId: '1', apiKey: '', lectureComplete: true } }); await lecture.auth.connecter();
+  assert.equal(lecture.journal.find(j => j[0] === 'init')[2], PORTEE + ' https://www.googleapis.com/auth/drive.readonly');
+  assert.equal(lireConfig({ RAYLE_DRIVE_CONFIG: { clientId: CLIENT, lectureComplete: 'oui' } }).lectureComplete, false, 'seul true active');
+});
 console.log(`${ok} tests réussis`);

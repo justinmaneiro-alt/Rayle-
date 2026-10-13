@@ -16,5 +16,5 @@ for (const f of fs.readdirSync('js/anatomie').filter(x => x.endsWith('.js')).map
 ecrire('js/rayle/commandes-anatomie.js', s => s.replace(/(js\/anatomie\/index\.js)(?:\?v=[^']*)?'/, `$1?v=${v}'`));
 // module Documents Drive : imports statiques de chaque fichier de js/drive/, puis son chargement depuis Raylé
 for (const f of fs.readdirSync('js/drive').filter(x => x.endsWith('.js')).map(x => 'js/drive/' + x))
-  ecrire(f, s => s.replace(/(from\s+'\.\/[\w-]+\.js)(?:\?v=[^']*)?'/g, `$1?v=${v}'`));
+  ecrire(f, s => s.replace(/(from\s+'\.\/[\w-]+\.js)(?:\?v=[^']*)?'/g, `$1?v=${v}'`).replace(/(import\('\.\/[\w-]+\.js)(?:\?v=[^']*)?'\)/g, `$1?v=${v}')`));
 ecrire('js/rayle/commandes-drive.js', s => s.replace(/(js\/drive\/index\.js)(?:\?v=[^']*)?'/, `$1?v=${v}'`));

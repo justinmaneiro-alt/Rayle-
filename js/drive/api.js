@@ -51,6 +51,16 @@ export function creerApi({ jeton, fetch: f }) {
   const enc = encodeURIComponent;
   return {
     meta: id => json(DRIVE + '/files/' + enc(id) + '?supportsAllDrives=true&fields=' + enc('id,name,mimeType,modifiedTime,version,size,headRevisionId,webViewLink,capabilities/canEdit')),
+    /** contenu d'un dossier (toutes les pages) : [{ id, name, mimeType, modifiedTime, version, size }] — seulement ce que l'autorisation de Raylé lui laisse voir */
+    async liste(dossierId) {
+      const sortie = []; let page = '';
+      for (let k = 0; k < 50; k++) {
+        const q = "'" + String(dossierId).replace(/['\\]/g, '') + "' in parents and trashed=false";
+        const r = await json(DRIVE + '/files?supportsAllDrives=true&includeItemsFromAllDrives=true&pageSize=200&q=' + enc(q) + '&fields=' + enc('nextPageToken,files(id,name,mimeType,modifiedTime,version,size)') + (page ? '&pageToken=' + enc(page) : ''));
+        sortie.push(...(r.files || [])); page = r.nextPageToken || ''; if (!page) break;
+      }
+      return sortie;
+    },
     async octets(id) { return (await appeler(DRIVE + '/files/' + enc(id) + '?alt=media&supportsAllDrives=true')).arrayBuffer(); },
     async texte(id) { return (await appeler(DRIVE + '/files/' + enc(id) + '?alt=media&supportsAllDrives=true')).text(); },
     async exporter(id, mime) { return (await appeler(DRIVE + '/files/' + enc(id) + '/export?mimeType=' + enc(mime))).text(); },

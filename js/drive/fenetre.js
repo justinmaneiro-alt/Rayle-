@@ -5,8 +5,8 @@
      avec confirmation, enregistrement automatique optionnel).
    • Aperçu avant/après des changements proposés par Raylé, avec Valider / Annuler.
    Contrat avec le service (js/drive/service.js) : afficher · montrer · apercu · rafraichir · visible · demanderConnexion. */
-import { diffOps } from './modele.js?v=2026.10.13.9';
-import { parlable } from './service.js?v=2026.10.13.9';
+import { diffOps } from './modele.js?v=2026.10.13.10';
+import { parlable } from './service.js?v=2026.10.13.10';
 
 const CLE = 'rayle_drive_fenetre', CLE_AUTO = 'rayle_drive_auto';
 const MIN_L = 290, MIN_H = 170, ZOOM_MIN = 0.8, ZOOM_MAX = 2.2;
