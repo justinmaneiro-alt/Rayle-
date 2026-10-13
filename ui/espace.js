@@ -274,8 +274,12 @@
     return null;
   }
 
-  /* ═════ ISS : position réelle (cache 10 min), orbite simulée sinon ═════ */
+  /* ═════ ISS : orbite réelle par TLE + SGP4 (ui/sgp4.js), repli sur la position publique wheretheiss.at, puis orbite simulée ═════
+     Ordre : TLE frais (CelesTrak, rafraîchi toutes les 6 h) → dernier TLE en cache → TLE de secours embarqué (13/10/2026) → [sans SGP4] position wheretheiss.at → orbite d'exemple.
+     SGP4 est précis à quelques kilomètres près du TLE et se dégrade d'environ 1 à 3 km par jour : hors ligne, le TLE de secours reste utile quelques semaines (erreur de plusieurs minutes d'avance ensuite). */
   const INCL=51.64, PERIODE_S=92.9*60, N_RAD_S=2*Math.PI/PERIODE_S, TTL_ISS=10*60000;
+  const TLE_SECOURS=['1 25544U 98067A   26286.11204827  .00005858  00000+0  11499-3 0  9991','2 25544  51.6319  76.5194 0006724 256.4602 103.5638 15.48846742590035'];
+  const TTL_TLE=6*3600*1000, URL_TLE='https://celestrak.org/NORAD/elements/gp.php?CATNR=25544&FORMAT=TLE';
   const EXEMPLE={t0:Date.UTC(2026,0,1,0,0,0),lat0:0,lon0:30,asc:true,alt:420,vitesse:27600};   // orbite d'exemple si rien n'est connu
   function creerISS(deps){
     deps=deps||{};
@@ -283,7 +287,8 @@
     const stock=deps.stockage||{get:lireLS,set:ecrireLS};
     const doFetch=deps.fetch||(typeof fetch==='function'?(u,o)=>fetch(u,o):null);
     const gmst=ts=>UI.astro.gmst(ts);
-    let modele=null, simule=true, erreur=null;
+    const SG=deps.sgp4||UI.sgp4||null;
+    let modele=null, simule=true, erreur=null, sat=null, srcTLE=null;
     const lireCache=()=>{ try{ return JSON.parse(stock.get('rayle_esp_iss')||'null'); }catch(e){ return null; } };
     // ajuste l'orbite sur deux positions (lat/lon terrestres) prises à 60 s d'écart
     function ajuster(p0,p1){
@@ -301,19 +306,50 @@
       else{ modele=depuisEchantillon(EXEMPLE); simule=true; }
     }
     init();
+    function poserTLE(l1,l2,src){ sat=SG.lireTLE(l1,l2); srcTLE=src; }
+    function initTLE(){
+      if(!SG) return;
+      try{ const c=JSON.parse(stock.get('rayle_esp_tle')||'null'); if(c&&c.l1&&c.l2){ poserTLE(c.l1,c.l2,'cache'); return; } }catch(e){}
+      try{ poserTLE(TLE_SECOURS[0],TLE_SECOURS[1],'secours'); }catch(e){ sat=null; }
+    }
+    initTLE();
     // position inertielle : {ra, dec (degrés), r (rayons terrestres), lat, lon (terrestres)} à l'instant ts
+    function positionTLE(ts){
+      const p=SG.propager(sat,ts), r=Math.hypot(p.x,p.y,p.z), g=SG.geodesique(p,ts);
+      const dec=Math.asin(p.z/r)*DEG, ra=((Math.atan2(p.y,p.x)*DEG)%360+360)%360;
+      return {ra,dec,lat:g.lat,lon:g.lon,r:r/6371,alt:g.alt,vitesse:Math.hypot(p.vx,p.vy,p.vz)*3600};
+    }
     function position(ts){
+      if(sat){ try{ return positionTLE(ts); }catch(e){ /* repli ci-dessous */ } }
       const u=modele.u0+N_RAD_S*(ts-modele.t0)/1000, i=INCL*RAD;
       const dec=Math.asin(Math.sin(i)*Math.sin(u))*DEG;
       const ra=(modele.omega+Math.atan2(Math.cos(i)*Math.sin(u),Math.cos(u))*DEG+720)%360;
       const lon=((ra-gmst(ts)+540)%360+360)%360-180;
       return {ra,dec,lat:dec,lon,r:1+modele.alt/6371,alt:modele.alt};
     }
-    const etat=ts=>Object.assign(position(ts||maintenant()),{vitesse:modele.vitesse,simule});
+    const etat=ts=>{ const t=ts||maintenant(), p=position(t); return Object.assign(p,{vitesse:p.vitesse||modele.vitesse,simule:sat?srcTLE!=='frais':simule,source:sat?'tle-'+srcTLE:(simule?'simule':'api'),ageTleJours:sat?Math.round((t-sat.epoqueMs)/864e5*10)/10:null}); };
     function trace(ts,avantMin,apresMin,pas){                       // suite de positions inertielles (pour la traînée)
       const o=[]; for(let m=-avantMin;m<=apresMin+1e-6;m+=pas){ const p=position(ts+m*60000); o.push(p); } return o;
     }
+    async function chargerTLE(force){
+      const c=lireTLEcache();
+      if(!force && c && maintenant()-(c.recu||0)<TTL_TLE){ if(!sat||srcTLE==='secours') try{ poserTLE(c.l1,c.l2,'frais'); }catch(e){} return etat(); }
+      try{
+        if(!doFetch) throw new Error('réseau indisponible');
+        const r=await doFetch(URL_TLE);
+        if(!r||!r.ok) throw new Error('HTTP '+(r&&r.status));
+        const lignes=(await r.text()).split(/\r?\n/).map(x=>x.trimEnd()).filter(Boolean);
+        const i=lignes.findIndex(x=>x[0]==='1'&&/^1 25544/.test(x));
+        if(i<0||!lignes[i+1]) throw new Error('TLE absent de la réponse');
+        poserTLE(lignes[i],lignes[i+1],'frais');                       // lève une erreur si le TLE est illisible : l'ancien reste en place
+        stock.set('rayle_esp_tle',JSON.stringify({l1:lignes[i],l2:lignes[i+1],recu:maintenant()}));
+        erreur=null;
+      }catch(e){ erreur=String(e&&e.message||e); if(sat&&srcTLE==='frais') srcTLE='cache'; }
+      return etat();
+    }
+    const lireTLEcache=()=>{ try{ return JSON.parse(stock.get('rayle_esp_tle')||'null'); }catch(e){ return null; } };
     async function charger(force){
+      if(SG) return chargerTLE(force);
       const c=lireCache();
       if(!force && c && c.t0!=null && maintenant()-(c.recu||0)<TTL_ISS){ return etat(); }
       try{
@@ -333,7 +369,7 @@
       }
       return etat();
     }
-    return {etat,position,trace,charger,erreur:()=>erreur,simule:()=>simule};
+    return {etat,position,trace,charger,tle:()=>sat?{source:srcTLE,epoque:sat.epoqueMs}:null,erreur:()=>erreur,simule:()=>simule};
   }
 
   /* ═════ choix de la vue de la caméra : où regarder pour avoir une belle image ═════ */

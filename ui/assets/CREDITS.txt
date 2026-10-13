@@ -25,3 +25,5 @@ Fond Espace, textures réelles (ui/assets/espace/, chargées à la demande, ~2,6
 Soleil, petites lunes (Io, Europe, Ganymède, Callisto, Titan), astéroïdes, Voie lactée, nébuleuses et textures de secours (hors ligne) : dessinés par le code (aucun fichier). Positions du Soleil, de la Lune et des planètes : calcul avec les éléments orbitaux simplifiés de Paul Schlyter (« How to compute planetary positions », domaine public, formules sans service externe). ISS : API publique gratuite sans clé wheretheiss.at (position, avec orbite simulée de secours).
 
 Modèles 3D (ui/assets/espace/modeles/ : iss.glb, perseverance.glb) : NASA 3D Resources (https://github.com/nasa/NASA-3D-Resources), « free and without copyright » ; allégés et compressés par scripts/optimiser-glb.mjs. Détails dans CREDITS.md.
+
+Données orbitales de l’ISS : TLE CelesTrak (https://celestrak.org) propagé par SGP4 (ui/sgp4.js) ; position de contrôle : api.wheretheiss.at. Chiffres des fiches Espace : NASA, NASA/JPL, ESA (docs/espace-sources.md). L’ISS affichée est un modèle dessiné par le code ; le modèle NASA (iss.glb) n’est utilisé que sur demande (rayle_esp_iss_modele = nasa).

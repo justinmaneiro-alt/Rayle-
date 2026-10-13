@@ -495,7 +495,7 @@ void main(){
       if(nom==='soleil'){ const S=SUNPOS.value, perp=new THREE.Vector3().crossVectors(sunDir,up).normalize(); return {pos:S.clone().addScaledVector(sunDir,-R_SOLEIL*7.5).addScaledVector(perp,R_SOLEIL*1.6).addScaledVector(up,R_SOLEIL*1.1),look:S.clone()}; }
       if(nom==='lune'){ const M=lune.position, perp=new THREE.Vector3().crossVectors(moonDir,up).normalize(); return {pos:M.clone().addScaledVector(moonDir,-.55).addScaledVector(perp,1.95).addScaledVector(up,.4),look:M.clone()}; }
       if(nom==='iss'){ const e=ESP.iss.position(Date.now()), d=vec(A.direction(e.ra,e.dec)), P=d.clone().multiplyScalar(e.r), e2=ESP.iss.position(Date.now()+30000), P2=vec(A.direction(e2.ra,e2.dec)).multiplyScalar(e2.r), av=P2.clone().sub(P).normalize();
-        return {pos:P.clone().addScaledVector(d,.17).addScaledVector(av,-.2).addScaledVector(new THREE.Vector3().crossVectors(d,av),.2),look:P}; }
+        return {pos:P.clone().addScaledVector(d,.2).addScaledVector(av,-.3).addScaledVector(new THREE.Vector3().crossVectors(d,av),.3),look:P}; }
       const o=planetes[nom]; if(!o||!o.dir) return poseOrbite();
       const tanH=Math.tan(camera.fov*RAD/2)*camera.aspect, etendue=o.R*(o.d.anneaux?2.5:1.12);
       const P=o.g.position, dF=Math.max(o.R*o.d.cadre,etendue/(.6*tanH)), perp=new THREE.Vector3().crossVectors(o.dir,up).normalize();   // écran étroit (téléphone vertical) : on recule pour que l'astre (et les anneaux) restent entiers
@@ -503,6 +503,7 @@ void main(){
       dec.applyAxisAngle(up,.42*Math.sin(arrivee*.16));                          // une fois arrivé, la caméra dérive doucement autour de l'astre (on voit son relief et sa rotation)
       return {pos:P.clone().add(dec),look:P.clone()};
     }
+    let spinK=1;                                                                // 1 = rotations ×60 (pédagogique), 1/60 = temps réel (réaliste)
     let zoomF=1, zoomT=1;                                                       // facteur de distance à l'astre visité (1 = cadrage d'origine)
     function zoom(f){ if(!cible) return false; zoomT=clamp(zoomT*f,.3,3); return true; }
     function demarrerVol(nomCible){
@@ -640,7 +641,9 @@ void main(){
       sRayons.material.rotation=tPlus*.015; sHalo.material.opacity=.5+.05*Math.sin(tPlus*.7);
       sRayons.visible=sHalo2.visible=q<2; sDisque.visible=q<2; sNoyau.visible=q>=2; sNoyau.scale.setScalar(R_SOLEIL*2.2); matSoleil.uniforms.u_det.value=q===0?1:0;
       // planètes
-      if(q<2) for(const n in planetes){ const o=planetes[n]; o.m.rotation.y+=dt*o.spinRad; }   // vraies vitesses relatives (Jupiter ≈ 10 h, Mars 24,6 h, Vénus rétrograde…), jouées ×60
+      // vraies vitesses relatives (Jupiter ≈ 10 h, Mars 24,6 h, Vénus rétrograde…) : jouées ×60 en mode pédagogique (sinon on ne verrait rien bouger), en TEMPS RÉEL en mode réaliste, comme la Terre (temps sidéral)
+      spinK+=((ech==='realiste'?1/AST.TEMPS_ACCELERE:1)-spinK)*(1-Math.exp(-dt*1.5));
+      if(q<2) for(const n in planetes){ const o=planetes[n]; o.m.rotation.y+=dt*o.spinRad*spinK; }
       if(ceinture&&bati.ceintureG.visible){
         bati.ceintureG.rotation.y+=dt*.0035;
         for(const r of rochers){ r.rotation.x+=dt*r.userData.w.x; r.rotation.y+=dt*r.userData.w.y; r.rotation.z+=dt*r.userData.w.z;

@@ -76,60 +76,35 @@ void main(){
       }catch(e){ console.warn('[espace] modèle '+nom+' : '+(e&&e.message||e)); return false; }
     }
 
-    /* ───── Station spatiale internationale ───── */
-    // unités : mètres ; l'ISS fait ≈ 109 m de large (poutre le long de x) et avance vers +z
-    function construireISS(){
-      const g=new THREE.Group();
-      const blanc=mat(0xe9e9e4,{roughness:.5,metalness:.3}), gris=mat(0xa9afb8,{metalness:.6,roughness:.4}), or=mat(0xc89a3c,{metalness:.7,roughness:.35}), noir=mat(0x2a2d33,{roughness:.7}),
-            rad=mat(0xf4f4f2,{roughness:.6,metalness:.1,side:THREE.DoubleSide});
-      // panneau solaire : toile bleue à grille (texture dessinée)
-      const cv=document.createElement('canvas'); cv.width=64; cv.height=128; const cx=cv.getContext('2d'); cx.fillStyle='#16306e'; cx.fillRect(0,0,64,128); cx.strokeStyle='#4f79c9'; cx.lineWidth=1;
-      for(let i=0;i<=8;i++){ cx.beginPath(); cx.moveTo(i*8,0); cx.lineTo(i*8,128); cx.stroke(); } for(let j=0;j<=32;j++){ cx.beginPath(); cx.moveTo(0,j*4); cx.lineTo(64,j*4); cx.stroke(); }
-      const tex=new THREE.CanvasTexture(cv); tex.anisotropy=4; const solaire=mat(0xffffff,{map:tex,metalness:.5,roughness:.35,emissive:0x0a1633,emissiveIntensity:.6,side:THREE.DoubleSide}); mats.push({dispose(){ tex.dispose(); }});
-      const box=(w,h,d,m,x,y,z)=>{ const o=mesh(new THREE.BoxGeometry(w,h,d),m); o.position.set(x,y,z); g.add(o); return o; };
-      const cyl=(r,l,m,x,y,z,axe)=>{ const o=mesh(new THREE.CylinderGeometry(r,r,l,16),m); o.position.set(x,y,z); if(axe==='x') o.rotation.z=Math.PI/2; else if(axe==='z') o.rotation.x=Math.PI/2; g.add(o); return o; };
-      box(94,1.6,1.6,gris,0,0,0);                                   // poutre intégrée
-      for(let i=-4;i<=4;i++) box(.5,2.2,2.2,blanc,i*10.5,0,0);      // nervures
-      // 8 ailes de panneaux solaires : 2 paires à chaque extrémité de la poutre, 35 m de long le long de ±z, 12 m de large le long de x
-      // chaque paire d'ailes pivote autour de son mât (axe z) pour faire face au Soleil (cardan « beta », voir orienterAiles)
-      g.userData.ailes=[];
-      for(const sx of [-1,1]) for(const xp of [44,30]){
-        const pivot=new THREE.Group(); pivot.position.set(sx*xp,0,0); g.add(pivot); g.userData.ailes.push(pivot);
-        for(const sz of [-1,1]){ const w=mesh(new THREE.PlaneGeometry(11.5,34),solaire); w.rotation.x=-Math.PI/2; w.position.set(0,0,sz*18.5); pivot.add(w); }
-        cyl(.35,3,or,sx*xp,0,0,'z');
-      }
-      // radiateurs thermiques
-      for(const sx of [-1,1]) for(const z of [-1,1]){ const r=mesh(new THREE.PlaneGeometry(11,3.6),rad); r.rotation.x=-Math.PI/2; r.position.set(sx*20,0,z*5.4); g.add(r); }
-      // fuselage pressurisé : axe z
-      cyl(2.1,12.6,or,0,-2.4,-13,'z');                              // Zarya
-      cyl(2.3,5.5,blanc,0,-2.4,-5,'z');                             // Unity
-      cyl(2.2,8.5,blanc,0,-2.4,3.4,'z');                            // Destiny
-      cyl(2.3,7,blanc,0,-2.4,10.5,'z');                             // Harmony
-      cyl(2.1,13,blanc,0,-2.4,-26,'z');                             // Zvezda
-      cyl(2.2,7,blanc,-7.5,-2.4,10.5,'x'); cyl(2.2,11,blanc,7.5,-2.4,10.5,'x');   // Columbus, Kibo
-      box(5.5,2.5,4,gris,10.5,-2.4,10.5);                           // plateforme exposée de Kibo
-      const dome=mesh(new THREE.SphereGeometry(1.5,12,8,0,Math.PI*2,0,Math.PI/2),blanc); dome.position.set(0,-4.8,5); dome.rotation.x=Math.PI; g.add(dome);   // Cupola
-      cyl(1.1,7,noir,0,-2.4,-33,'z'); cyl(1.2,6,blanc,3.4,-2.4,-5,'x'); cyl(1.2,6,blanc,-3.4,-2.4,-5,'x');       // Soyouz / Progress, nœud latéral
-      // lien entre poutre et fuselage
-      box(2.6,2.6,2.6,blanc,0,-1.2,-1);
-      g.userData.taille=109;
-      return g;
+    /* ───── Station spatiale internationale (ui/espace-iss.js) ───── */
+    // modèle procédural articulé : panneaux (SARJ alpha + BGA bêta) qui suivent le Soleil, radiateurs en bord, ombre de la Terre.
+    // Le modèle NASA (iss.glb) n'a que 3 maillages soudés : ses panneaux ne peuvent pas bouger ; il ne sert que si localStorage rayle_esp_iss_modele = 'nasa'.
+    let issRef=null; const _q=new THREE.Quaternion(), _d=new THREE.Vector3(), _p=new THREE.Vector3();
+    const lumBase=2.6, ambBase=.55;
+    /** 0 = pleine lumière, 1 = dans l'ombre (ombre cylindrique de la Terre de rayon 1, pénombre d'environ 8 s à 7,7 km/s) */
+    function ombreTerre(P,s){
+      const along=P.dot(s); if(along>=0) return 0;
+      const perp=_d.copy(P).addScaledVector(s,-along).length();
+      return 1-clamp((perp-.9955)/.0095,0,1);
     }
-    let issRef=null; const _q=new THREE.Quaternion(), _d=new THREE.Vector3();
-    /** Les panneaux solaires suivent le Soleil : direction du Soleil dans le repère de la station, rotation de chaque aile autour de son mât (lissée) */
-    function orienterAiles(dt){
-      if(!issRef||!issRef.groupe.visible) return; const m=issRef.modele, ailes=m.userData.ailes; if(!ailes) return;
+    function orienterAiles(dt,cible){
+      if(!issRef||!issRef.groupe.visible) return;
+      const iss=issRef.iss, m=issRef.groupe;
       m.getWorldQuaternion(_q).invert(); _d.copy(sunDir()).applyQuaternion(_q);
-      if(Math.abs(_d.x)+Math.abs(_d.y)<1e-3) return;                 // Soleil dans l'axe des mâts : on ne bouge pas
-      const cible=-Math.atan2(_d.x,_d.y);
-      for(const p of ailes){ let e=cible-p.rotation.z; e=Math.atan2(Math.sin(e),Math.cos(e)); p.rotation.z+=e*Math.min(1,dt*1.5); }
+      iss.maj([_d.x,_d.y,_d.z],dt);
+      m.getWorldPosition(_p); const o=ombreTerre(_p.clone(),sunDir());
+      issRef.ombre=o;
+      if(cible==='iss'){ lum.intensity=lumBase*(1-.97*o); amb.intensity=ambBase*(1-.55*o); amb.color.setHex(o>.5?0x3a5a9a:0x8a96c8); }
+      else{ lum.intensity=lumBase; amb.intensity=ambBase; amb.color.setHex(0x8a96c8); }
     }
     async function ameliorerISS(issGroupe){
-      if(!issGroupe||issGroupe.userData.detaille) return; issGroupe.userData.detaille=true;
+      if(!issGroupe||issGroupe.userData.detaille||!UI.espaceISS) return; issGroupe.userData.detaille=true;
+      let palier=0; try{ palier=UI.reglages?UI.reglages().palier|0:0; }catch(e){}
       const ancien=issGroupe.children.slice(); ancien.forEach(c=>issGroupe.remove(c));
-      const taille=.08, modele=construireISS(); modele.scale.setScalar(taille/109);
-      issGroupe.add(modele); issGroupe.scale.setScalar(1.15); issRef={groupe:issGroupe,modele};
-      essayerGLB('iss',taille,modele.parent,false).then(ok=>{ if(ok) issGroupe.remove(modele); });
+      const taille=.08, iss=UI.espaceISS.construire(THREE,{niveau:palier>=1?1:0}), modele=iss.groupe; modele.scale.setScalar(taille/109);
+      issGroupe.add(modele); issGroupe.scale.setScalar(1.15); issRef={groupe:issGroupe,modele,iss,ombre:0};
+      let nasa=false; try{ nasa=localStorage.getItem('rayle_esp_iss_modele')==='nasa'; }catch(e){}
+      if(nasa) essayerGLB('iss',taille,modele.parent,false).then(ok=>{ if(ok){ issGroupe.remove(modele); issRef=null; } });
     }
 
     /* ───── rovers sur Mars ───── */
@@ -235,7 +210,7 @@ void main(){
     }
     /** à appeler à chaque image */
     function maj(dt,cible){
-      temps+=dt; cibleCourante=cible; orienterAiles(dt);
+      temps+=dt; cibleCourante=cible; orienterAiles(dt,cible);
       lum.position.copy(sunDir()).multiplyScalar(100);
       if(!reconnait(cible)&&camera.near!==nearBase&&!/^(mars)$/.test(cible||'')){ camera.near=nearBase; }
       if(tn){ tn.g.visible=cible==='trounoir'; if(tn.g.visible){ tn.um.u_t.value=temps; tn.g.quaternion.copy(camera.quaternion); } }
@@ -260,7 +235,7 @@ void main(){
       scene.remove(racine); geos.forEach(g=>{ try{ g.dispose(); }catch(e){} }); mats.forEach(m=>{ try{ m.dispose(); }catch(e){} });
       if(balise){ scene.remove(balise); try{ balise.material.dispose(); }catch(e){} } if(marq) terre.remove(marq.g); camera.near=nearBase;
     }
-    return {reconnait,preparer,pose,maj,ameliorerISS,liberer,construireISS,construireRover};
+    return {reconnait,preparer,pose,maj,ameliorerISS,liberer,construireRover,etatISS:()=>issRef?Object.assign({ombre:issRef.ombre},issRef.iss.etat):null};
   }
   UI.espaceExtras={monter,FS_TN};
 })();
