@@ -1,13 +1,14 @@
 /* ═════════════ DRIVE : point d'entrée du module (chargé à la demande par js/rayle/commandes-drive.js) ═════════════
    analyser(texte) → commande | null · executer(commande) → phrase à dire · etat() · connecter() · choisirDocuments() · statut()
    Le module assemble : connexion Google (auth.js) · API (api.js) · service (service.js) · fenêtre (fenetre.js). */
-import { creerAuth, choisirFichiers, chargerScript, lireConfig, MESSAGE_CONFIG } from './auth.js?v=2026.10.13.10';
-import { creerApi, estErreurDrive } from './api.js?v=2026.10.13.10';
-import { creerService, parlable } from './service.js?v=2026.10.13.10';
-import { creerFenetre } from './fenetre.js?v=2026.10.13.10';
-import { analyser as analyserPhrase } from './commandes.js?v=2026.10.13.10';
-import { URL_JSZIP } from './fmt-docx.js?v=2026.10.13.10';
-import { MIMES_ACCEPTES } from './formats.js?v=2026.10.13.10';
+import { creerAuth, choisirFichiers, chargerScript, lireConfig, MESSAGE_CONFIG } from './auth.js?v=2026.10.13.11';
+import { creerApi, estErreurDrive } from './api.js?v=2026.10.13.11';
+import { creerService, parlable } from './service.js?v=2026.10.13.11';
+import { creerFenetre } from './fenetre.js?v=2026.10.13.11';
+import { analyser as analyserPhrase } from './commandes.js?v=2026.10.13.11';
+import { URL_JSZIP } from './fmt-docx.js?v=2026.10.13.11';
+import { MIMES_ACCEPTES } from './formats.js?v=2026.10.13.11';
+import { demanderSuite } from './lot.js?v=2026.10.13.11';
 
 const URL_PDFJS = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js';
 // empreintes SRI : le navigateur refuse le script s'il a été altéré
@@ -99,26 +100,50 @@ export function analyser(texte) {
 /** prépare la connexion (charge le service de connexion Google) sans rien demander à l'utilisateur */
 export async function precharger() { pret(); if (lireConfig(G).valide) await chargerScript('https://accounts.google.com/gsi/client'); }
 
+/** mode par lots : le sélecteur se rouvre tant que Justin répond « Ajouter d'autres documents » (aucune limite) ; chaque lot est mémorisé tout de suite, sans écraser ni doubler */
 export async function choisirDocuments() {
   pret();
   if (!lireConfig(G).valide) return { ok: false, dit: MESSAGE_CONFIG };
+  const tous = new Map(); let refus = 0;
   try {
-    const l = await choisirFichiers({ auth, mimes: MIMES_ACCEPTES });
-    if (!l.length) return { ok: true, dit: 'Aucun document choisi.' };
-    const bons = l.filter(f => MIMES_ACCEPTES.includes(f.mimeType)), refus = l.length - bons.length;
-    service.memoriser(bons); service.definirProposition(null);
-    fenetre.dessiner && fenetre._racine() && !fenetre._racine().hidden && fenetre.ouvrirListe();
-    let dit = bons.length ? 'J’ai ajouté ' + (bons.length > 1 ? bons.length + ' documents : ' : 'le document ') + bons.slice(0, 4).map(f => '« ' + f.name + ' »').join(', ') + '.' : 'Aucun des fichiers choisis n’est d’un type que je sais lire.';
-    if (refus && bons.length) dit += ' ' + refus + ' fichier' + (refus > 1 ? 's' : '') + ' ignoré' + (refus > 1 ? 's' : '') + ' (type non pris en charge).';
-    const voulu = nomVoulu ? bons.find(f => parlable(f.name).toLowerCase().includes(String(nomVoulu).toLowerCase())) : null;
-    nomVoulu = null;
-    const cible = voulu || (bons.length === 1 ? bons[0] : null);
-    if (cible) { const r = await service.ouvrir(cible.name); dit += ' ' + r.dit; }
-    return { ok: true, dit };
+    for (;;) {
+      const l = await choisirFichiers({ auth, mimes: MIMES_ACCEPTES });
+      if (!l.length) break;
+      const bons = l.filter(f => MIMES_ACCEPTES.includes(f.mimeType));
+      refus += l.length - bons.length;
+      service.memoriser(bons); service.definirProposition(null);
+      for (const f of bons) if (!tous.has(f.id)) tous.set(f.id, f);
+      fenetre.dessiner && fenetre._racine() && !fenetre._racine().hidden && fenetre.ouvrirListe();
+      if (!await demanderSuite({ total: tous.size })) break;
+    }
   } catch (e) {
     if (estErreurDrive(e) && (e.raison === 'reconnexion' || e.raison === 'popup')) { fenetre.demanderConnexion(); service.memoriserReprise(async () => choisirDocuments()); return { ok: false, dit: 'Je dois d’abord me connecter à Google : touche « Se connecter à Google » dans la fenêtre Drive, puis je rouvre le sélecteur.', reconnexion: true }; }
     return { ok: false, dit: 'Le sélecteur Google n’a pas pu s’ouvrir : ' + (e && e.message || e) };
   }
+  if (!tous.size && !refus) return { ok: true, dit: 'Aucun document choisi.' };
+  const bons = [...tous.values()];
+  let dit = bons.length ? 'J’ai ajouté ' + (bons.length > 1 ? bons.length + ' documents : ' : 'le document ') + bons.slice(0, 4).map(f => '« ' + f.name + ' »').join(', ') + (bons.length > 4 ? '…' : '') + '.' : 'Aucun des fichiers choisis n’est d’un type que je sais lire.';
+  if (refus && bons.length) dit += ' ' + refus + ' fichier' + (refus > 1 ? 's' : '') + ' ignoré' + (refus > 1 ? 's' : '') + ' (type non pris en charge).';
+  const voulu = nomVoulu ? bons.find(f => parlable(f.name).toLowerCase().includes(String(nomVoulu).toLowerCase())) : null;
+  nomVoulu = null;
+  const cible = voulu || (bons.length === 1 ? bons[0] : null);
+  if (cible) { const r = await service.ouvrir(cible.name); dit += ' ' + r.dit; }
+  return { ok: true, dit };
+}
+
+/** bouton « Ouvrir un document » : un seul document, affiché dans la fenêtre de lecture, JAMAIS mémorisé ni indexé (lecture seule, texte copiable) */
+export async function ouvrirUnDocument() {
+  pret();
+  if (!lireConfig(G).valide) return { ok: false, dit: MESSAGE_CONFIG };
+  let l;
+  try { l = await choisirFichiers({ auth, mimes: MIMES_ACCEPTES, unique: true }); }
+  catch (e) {
+    if (estErreurDrive(e) && (e.raison === 'reconnexion' || e.raison === 'popup')) { fenetre.demanderConnexion(); service.memoriserReprise(async () => ouvrirUnDocument()); return { ok: false, dit: 'Je dois d’abord me connecter à Google : touche « Se connecter à Google » dans la fenêtre Drive, puis je rouvre le sélecteur.', reconnexion: true }; }
+    return { ok: false, dit: 'Le sélecteur Google n’a pas pu s’ouvrir : ' + (e && e.message || e) };
+  }
+  if (!l.length) return { ok: true, dit: 'Aucun document choisi.' };
+  if (!MIMES_ACCEPTES.includes(l[0].mimeType)) return { ok: false, dit: '« ' + l[0].name + ' » est d’un type que je ne sais pas lire.' };
+  return service.ouvrirTemporaire(l[0]);
 }
 
 export async function connecter() {
@@ -208,17 +233,19 @@ export async function ouvrirFichier(nom) { pret(); return { dit: await executer(
 
 /* ═════════════ MÉMOIRE DES COURS : analyser, resynchroniser seule, relire, oublier (voir memoire.js) ═════════════ */
 const CLE_COURS = 'rayle_cours_actif';                  // repère « une mémoire existe » : évite de charger le module pour rien à l'ouverture
-let memoire = null, coursEtat = { phase: 'repos' }, coursEnAttente = false, coursSyncFaite = false;
+let memoire = null, baseInjectee = null, resumeBilan = null, coursEtat = { phase: 'repos' }, coursEnAttente = false, coursSyncFaite = false;
 const coursPublier = e => { coursEtat = { ...coursEtat, ...e }; try { bus().emit('cours:etat', coursEtat); } catch (x) { /* ignore */ } };
 async function laMemoire() {
   if (memoire) return memoire;
   pret();
-  const { ouvrirBase } = await import('./base-locale.js?v=2026.10.13.10'), { creerMemoire } = await import('./memoire.js?v=2026.10.13.10');
-  memoire = creerMemoire({ api, base: await ouvrirBase(), env: envDocs });
+  const { ouvrirBase } = await import('./base-locale.js?v=2026.10.13.11'), mod = await import('./memoire.js?v=2026.10.13.11'), { creerMemoire } = mod; resumeBilan = mod.resumeBilan;
+  memoire = creerMemoire({ api, base: baseInjectee || await ouvrirBase(), env: envDocs });
   return memoire;
 }
 const progression = p => coursPublier({ phase: p.etape, i: p.i, n: p.n, nom: p.nom });
 const repere = v => { try { v ? localStorage.setItem(CLE_COURS, '1') : localStorage.removeItem(CLE_COURS); } catch (e) { /* ignore */ } };
+/** tests Node seulement : une base en mémoire à la place d'IndexedDB */
+export const _injecterBase = b => { baseInjectee = b; memoire = null; };
 export const coursActif = () => { try { return localStorage.getItem(CLE_COURS) === '1'; } catch (e) { return false; } };
 export const coursStatut = () => ({ ...coursEtat, enAttente: coursEnAttente, actif: coursActif() });
 
@@ -242,20 +269,37 @@ async function coursOperation(nom, f, { silencieux = false } = {}) {
   }
 }
 
-/** bouton « Analyser et mémoriser tous mes cours » : sélecteur (multi-sélection, dossiers), puis lecture de tout */
+/** bouton « Analyser et mémoriser tous mes cours » : sélecteur multi-sélection (documents seulement), lecture de chaque lot, puis « en ajouter d'autres ? » (aucune limite).
+    Les documents déjà en mémoire ne sont ni écrasés ni doublés : un lot n'ajoute que ses nouveautés (un document inchangé n'est pas relu). */
 export async function analyserCours() {
   pret();
   if (!lireConfig(G).valide) return { ok: false, dit: MESSAGE_CONFIG };
-  let choix;
-  try { choix = await choisirFichiers({ auth, mimes: MIMES_ACCEPTES, dossiers: true, titre: 'Choisis tes cours : des documents et/ou des dossiers' }); }
-  catch (e) {
-    if (estErreurDrive(e) && (e.raison === 'reconnexion' || e.raison === 'popup')) { coursEnAttente = false; try { fenetre.demanderConnexion(); } catch (x) { /* ignore */ } return { ok: false, reconnexion: true, dit: 'Je dois d’abord me connecter à Google : touche « Se connecter à Google », puis recommence.' }; }
-    return { ok: false, dit: 'Le sélecteur Google n’a pas pu s’ouvrir : ' + (e && e.message || e) };
+  const vus = new Set(), cumul = { nouveaux: 0, modifies: 0, supprimes: 0, inchanges: 0, echecs: [], sansTexte: [], ignores: 0, dossiersVides: [], tronque: false };
+  let dernier = null;
+  for (;;) {
+    let choix;
+    try { choix = await choisirFichiers({ auth, mimes: MIMES_ACCEPTES, titre: 'Coche tes cours (les dossiers s’ouvrent, seuls les documents cochés sont ajoutés)' }); }
+    catch (e) {
+      if (estErreurDrive(e) && (e.raison === 'reconnexion' || e.raison === 'popup')) { coursEnAttente = false; try { fenetre.demanderConnexion(); } catch (x) { /* ignore */ } return dernier ? fusionLots(dernier, cumul) : { ok: false, reconnexion: true, dit: 'Je dois d’abord me connecter à Google : touche « Se connecter à Google », puis recommence.' }; }
+      return dernier ? fusionLots(dernier, cumul) : { ok: false, dit: 'Le sélecteur Google n’a pas pu s’ouvrir : ' + (e && e.message || e) };
+    }
+    if (!choix.length) break;
+    const r = await coursOperation('analyse', m => m.analyser(choix, { progression, lot: true }));
+    if (!r.ok) return dernier ? fusionLots(dernier, cumul) : r;
+    repere(true); coursEnAttente = false;
+    for (const c of choix) vus.add(c.id);
+    for (const k of ['nouveaux', 'modifies', 'supprimes', 'inchanges']) cumul[k] += r[k] || 0;
+    cumul.echecs.push(...(r.echecs || [])); cumul.sansTexte.push(...(r.sansTexte || [])); cumul.ignores += r.ignores || 0; cumul.tronque = cumul.tronque || !!r.tronque;
+    dernier = r;
+    if (!await demanderSuite({ total: vus.size })) break;
   }
-  if (!choix.length) return { ok: true, annule: true, dit: 'Aucun cours choisi : rien n’a changé.' };
-  const r = await coursOperation('analyse', m => m.analyser(choix, { progression }));
-  if (r.ok) { repere(true); coursEnAttente = false; }
-  return r;
+  if (!dernier) return { ok: true, annule: true, dit: 'Aucun cours choisi : rien n’a changé.' };
+  return fusionLots(dernier, cumul);
+}
+/** bilan de tous les lots : les compteurs sont cumulés, les totaux sont ceux de la mémoire après le dernier lot */
+function fusionLots(dernier, cumul) {
+  const b = { ...dernier, ...cumul };
+  return { ...b, dit: resumeBilan ? resumeBilan(b) : dernier.dit };
 }
 /** resynchronisation : seulement les documents modifiés (appelée seule à l'ouverture, puis dès que la connexion Google est rétablie) */
 export async function synchroniserCours({ silencieux = false } = {}) {

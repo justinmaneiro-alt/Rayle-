@@ -1,11 +1,11 @@
 /* ═════════════ POP-UP 3D RAPIDE (« Quick View ») ═════════════
    Fenêtre flottante, déplaçable et redimensionnable : la structure demandée est isolée en 3D (rotation, zoom) avec sa description à côté.
    Appelée par Raylé (« décris-moi l'humérus », « où s'insère le biceps ? ») depuis l'accueil, le chat ou le terminal. */
-import { useAnatomieStore as S, actions as A, creerStore, ETAT_INITIAL } from './store.js?v=2026.10.13.10';
-import { MoteurAnatomie } from './moteur.js?v=2026.10.13.10';
-import * as R from './registre.js?v=2026.10.13.10';
-import * as K from './cours.js?v=2026.10.13.10';
-import { chargerTHREE, webglDisponible, h, vider } from './outils.js?v=2026.10.13.10';
+import { useAnatomieStore as S, actions as A, creerStore, ETAT_INITIAL } from './store.js?v=2026.10.13.11';
+import { MoteurAnatomie } from './moteur.js?v=2026.10.13.11';
+import * as R from './registre.js?v=2026.10.13.11';
+import * as K from './cours.js?v=2026.10.13.11';
+import { chargerTHREE, webglDisponible, h, vider } from './outils.js?v=2026.10.13.11';
 
 let boite = null, moteur = null, store = null, cible = null, jeton = 0;
 const dom = {};
@@ -104,7 +104,7 @@ function rendreTexte() {
 }
 function ouvrirComplet() {
   const c = cible; fermerQuick();
-  import('./index.js?v=2026.10.13.10').then(m => m.ouvrirAnatomie({ selection: c && c.sid, isoler: true }));
+  import('./index.js?v=2026.10.13.11').then(m => m.ouvrirAnatomie({ selection: c && c.sid, isoler: true }));
 }
 export function fermerQuick() {
   if (!boite) return;

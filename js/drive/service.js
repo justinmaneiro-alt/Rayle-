@@ -2,12 +2,12 @@
    Tout est injecté (api, auth, ui, correcteur, stockage) : les tests branchent une FAUSSE API Drive, la page branche les vraies.
    Principes : (1) Raylé ne dit « lu » ou « modifié » que si l'opération a réussi — et après une écriture, elle RELIT le document pour vérifier ;
    (2) elle ne cite que le texte réel du document ; (3) toute modification passe par un aperçu avant/après que Justin valide, sauf « applique directement ». */
-import { ErreurDrive, estErreurDrive } from './api.js?v=2026.10.13.10';
-import { adaptateur, typeDe, verifierEcriture, MIMES_ACCEPTES } from './formats.js?v=2026.10.13.10';
-import { trouverFichier } from './texte.js?v=2026.10.13.10';
-import { passage, texteLecture, resumer as resumerModele, chercher as chercherModele, trouverTitre, titreDe, appliquerOps, changementMinimal, estTitre, estVide, plan } from './modele.js?v=2026.10.13.10';
-import { distance, norm } from './texte.js?v=2026.10.13.10';
-import { plier } from './commandes.js?v=2026.10.13.10';
+import { ErreurDrive, estErreurDrive } from './api.js?v=2026.10.13.11';
+import { adaptateur, typeDe, verifierEcriture, MIMES_ACCEPTES } from './formats.js?v=2026.10.13.11';
+import { trouverFichier } from './texte.js?v=2026.10.13.11';
+import { passage, texteLecture, resumer as resumerModele, chercher as chercherModele, trouverTitre, titreDe, appliquerOps, changementMinimal, estTitre, estVide, plan } from './modele.js?v=2026.10.13.11';
+import { distance, norm } from './texte.js?v=2026.10.13.11';
+import { plier } from './commandes.js?v=2026.10.13.11';
 
 const CLE_FICHIERS = 'rayle_drive_fichiers', CLE_HISTO = 'rayle_drive_historique';
 const MAX_FICHIERS = 200, MAX_HISTO = 8;
@@ -69,15 +69,15 @@ export function creerService(dep) {
   const garde = async (action, f) => { try { return await f(); } catch (e) { return echec(e, action); } };
 
   /* ───── ouverture ───── */
-  async function charger(fichier) {
+  async function charger(fichier, { temporaire = false } = {}) {
     const meta = await api.meta(fichier.id);
     const ad = adaptateur(meta.mimeType);
     if (!ad) return { ok: false, dit: 'Je ne sais pas lire ce type de fichier (' + (meta.mimeType || 'inconnu') + '). Je lis Google Docs, PDF, Word, texte, Sheets et Slides.' };
     const lu = await ad.lire(api, meta, env);
-    const peutEcrire = ad.editable && !lu.lectureSeule && !(meta.capabilities && meta.capabilities.canEdit === false);
-    courant = { fichier, meta, ad, paragraphes: lu.paragraphes, avertissements: lu.avertissements.slice(), lectureSeule: !peutEcrire, etat: lu.etat || {}, modifiedTime: meta.modifiedTime, lu: { indices: [], dernier: -1, intitule: '' }, surlignage: [] };
-    if (ad.editable && !lu.lectureSeule && meta.capabilities && meta.capabilities.canEdit === false) courant.avertissements.push('Tu n’as que le droit de lecture sur ce fichier.');
-    if (meta.name && meta.name !== fichier.name) memoriser([{ id: fichier.id, name: meta.name, mimeType: meta.mimeType }]);
+    const peutEcrire = !temporaire && ad.editable && !lu.lectureSeule && !(meta.capabilities && meta.capabilities.canEdit === false);
+    courant = { fichier, meta, ad, paragraphes: lu.paragraphes, avertissements: lu.avertissements.slice(), lectureSeule: !peutEcrire, temporaire, etat: lu.etat || {}, modifiedTime: meta.modifiedTime, lu: { indices: [], dernier: -1, intitule: '' }, surlignage: [] };
+    if (!temporaire && ad.editable && !lu.lectureSeule && meta.capabilities && meta.capabilities.canEdit === false) courant.avertissements.push('Tu n’as que le droit de lecture sur ce fichier.');
+    if (!temporaire && meta.name && meta.name !== fichier.name) memoriser([{ id: fichier.id, name: meta.name, mimeType: meta.mimeType }]);
     attente = null;
     try { ui.afficher(etatPublic(), courant); } catch (e) { /* l'interface n'est pas indispensable à la lecture */ }
     changement();
@@ -85,7 +85,8 @@ export function creerService(dep) {
     if (!n) return { ok: true, dit: 'J’ai ouvert « ' + meta.name + ' » (' + typeDe(meta.mimeType) + ') mais je n’y trouve aucun texte' + (courant.avertissements.length ? '. ' + courant.avertissements[0] : '.') };
     const titres = plan(courant).length, texte = n - titres;
     let dit = 'J’ai ouvert « ' + meta.name + ' » (' + typeDe(meta.mimeType) + ') : ' + texte + ' paragraphe' + (texte > 1 ? 's' : '') + ' de texte' + (titres ? ' et ' + titres + ' titre' + (titres > 1 ? 's' : '') : '') + '.';
-    if (courant.lectureSeule) dit += ' Lecture seule.';
+    if (temporaire) dit += ' Ouvert pour lecture seulement : je ne l’ai pas ajouté à ma liste ni à ma mémoire.';
+    else if (courant.lectureSeule) dit += ' Lecture seule.';
     if (courant.avertissements.length) dit += ' ' + courant.avertissements[0];
     return { ok: true, dit };
   }
@@ -105,6 +106,12 @@ export function creerService(dep) {
       choix = null; proposition = null;
       return charger(r.fichier);
     }).then(res => res);
+  }
+  /** ouvre un document choisi à l'instant, SANS le mémoriser (ni liste d'autorisés, ni mémoire des cours) : lecture seule */
+  async function ouvrirTemporaire(fichier) {
+    if (!fichier || !fichier.id) return { ok: false, dit: 'Aucun document à ouvrir.' };
+    choix = null; proposition = null;
+    return garde('ouvrir ce document', () => charger({ id: fichier.id, name: fichier.name || 'Sans titre', mimeType: fichier.mimeType || '' }, { temporaire: true }));
   }
   async function ouvrirChoix(position) {
     if (!choix) return { ok: false, dit: 'Je n’ai pas de choix en attente.' };
@@ -365,7 +372,7 @@ export function creerService(dep) {
     const e = { ouvert: !!courant, fichiers: fichiers().length, enAttente: !!attente, proposition };
     if (courant) {
       const v = indiceVisible(), P = courant.paragraphes;
-      Object.assign(e, { id: courant.fichier.id, nom: courant.meta.name, type: typeDe(courant.meta.mimeType), lectureSeule: courant.lectureSeule, nbParagraphes: P.filter(p => !estVide(p)).length,
+      Object.assign(e, { id: courant.fichier.id, nom: courant.meta.name, type: typeDe(courant.meta.mimeType), lectureSeule: courant.lectureSeule, temporaire: !!courant.temporaire, nbParagraphes: P.filter(p => !estVide(p)).length,
         passage: courant.lu.indices.length ? { debut: courant.lu.indices[0], fin: courant.lu.indices[courant.lu.indices.length - 1], intitule: courant.lu.intitule } : null,
         visible: v, titreVisible: v >= 0 ? titreDe(courant, v) : '', extrait: v >= 0 && P[v] ? court(P[v].texte, 160) : '', annulable: histoDe(courant.fichier.id).length > 0,
         surlignage: courant.surlignage.length });
@@ -374,7 +381,7 @@ export function creerService(dep) {
   }
 
   return {
-    fichiers, memoriser, oublier, ouvrir, ouvrirChoix, lire, resumer, chercher, modifier, valider, refuser, annuler, enregistrer, appliquerEdition, etat: etatPublic,
+    fichiers, memoriser, oublier, ouvrir, ouvrirTemporaire, ouvrirChoix, lire, resumer, chercher, modifier, valider, refuser, annuler, enregistrer, appliquerEdition, etat: etatPublic,
     courant: () => courant, fermer() { courant = null; attente = null; changement(); },
     surChangement(f) { abonnes.add(f); return () => abonnes.delete(f); },
     choix: () => (choix ? choix.slice() : null), proposition: () => proposition, definirProposition(p) { proposition = p; },

@@ -5,8 +5,8 @@
      avec confirmation, enregistrement automatique optionnel).
    • Aperçu avant/après des changements proposés par Raylé, avec Valider / Annuler.
    Contrat avec le service (js/drive/service.js) : afficher · montrer · apercu · rafraichir · visible · demanderConnexion. */
-import { diffOps } from './modele.js?v=2026.10.13.10';
-import { parlable } from './service.js?v=2026.10.13.10';
+import { diffOps } from './modele.js?v=2026.10.13.11';
+import { parlable } from './service.js?v=2026.10.13.11';
 
 const CLE = 'rayle_drive_fenetre', CLE_AUTO = 'rayle_drive_auto';
 const MIN_L = 290, MIN_H = 170, ZOOM_MIN = 0.8, ZOOM_MAX = 2.2;
@@ -39,13 +39,15 @@ export function creerFenetre({ service, auth, choisir, dire }) {
     const bouton = (cls, txt, titre, f) => h('button', { type: 'button', class: 'dr-b ' + cls, title: titre, 'aria-label': titre, onclick: f }, txt);
     el.bAnnuler = bouton('dr-annuler', '↶', 'Annuler la dernière modification', () => rep(service.annuler()));
     el.bListe = bouton('dr-liste', '📁', 'Mes documents autorisés', () => { etat.vue = 'liste'; dessiner(); });
+    el.bCopier = bouton('dr-copier', '⧉ Copier', 'Copier le texte sélectionné (ou tout le document si rien n’est sélectionné)', () => copierTexte());
+    el.bCopier.addEventListener('pointerdown', ev => ev.preventDefault());            // garde la sélection de texte en cours
     el.bMode = bouton('dr-mode', '✎ Éditer', 'Passer en mode édition', () => basculerMode());
     el.bMoins = bouton('dr-zm', 'A−', 'Texte plus petit', () => zoom(-1));
     el.bPlus = bouton('dr-zp', 'A+', 'Texte plus grand', () => zoom(1));
     el.bReduire = bouton('dr-reduire', '▁', 'Réduire', () => etat.reduit ? restaurer() : reduire());
     el.bPlein = bouton('dr-plein-b', '⤢', 'Plein écran', () => etat.plein ? normal() : plein());
     el.bFermer = bouton('dr-fermer', '✕', 'Fermer', () => fermer());
-    el.barre = h('div', { class: 'dr-barre' }, h('div', { class: 'dr-titres' }, el.titre, el.type), el.badge, h('div', { class: 'dr-outils' }, el.bAnnuler, el.bListe, el.bMode, el.bMoins, el.bPlus, el.bReduire, el.bPlein, el.bFermer));
+    el.barre = h('div', { class: 'dr-barre' }, h('div', { class: 'dr-titres' }, el.titre, el.type), el.badge, h('div', { class: 'dr-outils' }, el.bAnnuler, el.bListe, el.bCopier, el.bMode, el.bMoins, el.bPlus, el.bReduire, el.bPlein, el.bFermer));
     el.connexion = h('div', { class: 'dr-connexion', hidden: true });
     el.bandeau = h('div', { class: 'dr-bandeau', hidden: true });
     el.corps = h('div', { class: 'dr-corps', tabindex: '0' });
@@ -89,7 +91,7 @@ export function creerFenetre({ service, auth, choisir, dire }) {
   function memoriser() { ecrireJson(CLE, { ...etat.rect, reduit: etat.reduit, zoom: etat.zoom }); }
   function appliquerClasses() {
     racine.classList.toggle('dr-plein', etat.plein); racine.classList.toggle('dr-pseudo', etat.plein && etat.pseudo);
-    racine.classList.toggle('dr-reduit', etat.reduit); racine.classList.toggle('dr-edition', etat.edition);
+    racine.classList.toggle('dr-reduit', etat.reduit); racine.classList.toggle('dr-doc-temp', !!(service.courant() && service.courant().temporaire)); racine.classList.toggle('dr-edition', etat.edition);
     document.body.classList.toggle('dr-pseudo-actif', etat.plein && etat.pseudo);
     el.bPlein.textContent = etat.plein ? '⤡' : '⤢'; el.bPlein.title = el.bPlein.ariaLabel = etat.plein ? 'Quitter le plein écran' : 'Plein écran';
     el.bReduire.textContent = etat.reduit ? '▢' : '▁'; el.bReduire.title = el.bReduire.ariaLabel = etat.reduit ? 'Restaurer' : 'Réduire';
@@ -174,13 +176,14 @@ export function creerFenetre({ service, auth, choisir, dire }) {
   function majTitre() {
     if (!racine) return;
     const c = service.courant();
-    if (etat.vue === 'doc' && c) { el.titre.textContent = c.meta.name; el.type.textContent = (c.lectureSeule ? 'lecture seule' : etat.edition ? 'édition' : 'lecture'); }
+    if (etat.vue === 'doc' && c) { el.titre.textContent = c.meta.name; el.type.textContent = (c.temporaire ? 'lecture seule · non mémorisé' : c.lectureSeule ? 'lecture seule' : etat.edition ? 'édition' : 'lecture'); }
     else { el.titre.textContent = 'Documents Drive'; el.type.textContent = service.fichiers().length + ' autorisé' + (service.fichiers().length > 1 ? 's' : ''); }
     el.badge.hidden = !etat.modifie;
   }
   function majBoutons() {
     if (!racine) return;
     const c = service.courant(), doc = etat.vue === 'doc' && !!c;
+    el.bCopier.hidden = !doc;
     el.bMode.hidden = !doc || (c && c.lectureSeule); el.bMode.textContent = etat.edition ? '👁 Lire' : '✎ Éditer';
     el.bAnnuler.hidden = !doc || !service.etat().annulable; el.bMoins.hidden = el.bPlus.hidden = !doc;
     el.bListe.hidden = etat.vue === 'liste'; el.pied.hidden = !doc || !etat.edition;
@@ -259,6 +262,21 @@ export function creerFenetre({ service, auth, choisir, dire }) {
     etat.selection = i; service.choisirPassage(i);
     el.corps.querySelectorAll('.dr-choisi').forEach(x => x.classList.remove('dr-choisi'));
     const n = el.corps.querySelector('[data-i="' + i + '"]'); if (n) n.classList.add('dr-choisi');
+  }
+
+  /** copie la sélection (ou, sans sélection, tout le texte du document) dans le presse-papiers */
+  async function copierTexte() {
+    const c = service.courant(); if (!c) return { ok: false, dit: 'Aucun document n’est ouvert.' };
+    const sel = ((getSelection() && getSelection().toString()) || '').trim();
+    const texte = sel || c.paragraphes.filter(p => parlable(p.texte)).map(p => p.texte.replace(/￼/g, '')).join('\n\n');
+    let ok = false;
+    try { await navigator.clipboard.writeText(texte); ok = true; }
+    catch (e) {
+      try { const t = h('textarea', { style: 'position:fixed;opacity:0;top:0' }); t.value = texte; document.body.append(t); t.select(); ok = document.execCommand('copy'); t.remove(); } catch (x) { ok = false; }
+    }
+    el.bCopier.textContent = ok ? (sel ? '✔ Sélection copiée' : '✔ Document copié') : '✖ Copie impossible';
+    setTimeout(() => { el.bCopier.textContent = '⧉ Copier'; }, 2200);
+    return { ok, dit: ok ? (sel ? 'J’ai copié la sélection.' : 'J’ai copié le texte du document.') : 'Je n’ai pas pu copier le texte : sélectionne-le et utilise « Copier » du navigateur.' };
   }
 
   /* ───── édition ───── */

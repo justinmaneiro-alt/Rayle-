@@ -11,7 +11,7 @@
   let driveModule=null, driveChargement=null;
   function chargerDrive(){
     if(driveModule) return Promise.resolve(driveModule);
-    if(!driveChargement) driveChargement=import(new URL('js/drive/index.js?v=2026.10.13.10',document.baseURI).href).then(m=>{ driveModule=m; return m; }).catch(e=>{ driveChargement=null; throw e; });
+    if(!driveChargement) driveChargement=import(new URL('js/drive/index.js?v=2026.10.13.11',document.baseURI).href).then(m=>{ driveModule=m; return m; }).catch(e=>{ driveChargement=null; throw e; });
     return driveChargement;
   }
   function driveFichiersConnus(){ try{ return JSON.parse(localStorage.getItem('rayle_drive_fichiers')||'[]'); }catch(e){ return []; } }
@@ -62,20 +62,21 @@
 
   /* ───── Réglages : connexion, sélecteur, liste ───── */
   (function reglagesDrive(){
-    const info=$('driveInfo'), bCo=$('driveConnexion'), bDeco=$('driveDeconnexion'), bChoix=$('driveChoisir'), bOuvre=$('driveOuvrir');
+    const info=$('driveInfo'), bCo=$('driveConnexion'), bDeco=$('driveDeconnexion'), bChoix=$('driveChoisir'), bOuvre=$('driveOuvrir'), bUn=$('driveOuvrirDoc');
     if(!info) return;
     const cfgOk=()=>{ const c=window.RAYLE_DRIVE_CONFIG||{}; return /^[\w-]+\.apps\.googleusercontent\.com$/.test(String(c.clientId||'').trim()); };
     function afficher(){
       const s=(driveModule&&driveModule.statut)?driveModule.statut():{configure:cfgOk(),connecte:false,fichiers:driveFichiersConnus().length,dejaConnecte:localStorage.getItem('rayle_drive_connecte')==='1'};
       if(!cfgOk()){ info.textContent='Google Drive : pas encore configuré. Il manque l’identifiant client dans js/config-drive.js — étapes dans docs/drive.md.'; }
       else info.textContent='Google Drive : '+(s.connecte?'connecté':(s.dejaConnecte?'session à rétablir (touche « Se connecter »)':'non connecté'))+' · '+s.fichiers+' document'+(s.fichiers>1?'s':'')+' autorisé'+(s.fichiers>1?'s':'')+(s.ouvert?' · « '+s.nom+' » ouvert':'')+'.';
-      bCo.disabled=!cfgOk(); bChoix.disabled=!cfgOk(); bDeco.disabled=!cfgOk()||!(s.connecte||s.dejaConnecte);
+      bCo.disabled=!cfgOk(); bChoix.disabled=!cfgOk(); if(bUn) bUn.disabled=!cfgOk(); bDeco.disabled=!cfgOk()||!(s.connecte||s.dejaConnecte);
     }
     const vite=()=>{ if(cfgOk()) chargerDrive().then(m=>{ try{ m.precharger(); }catch(e){} }).catch(()=>{}); };
     bCo.addEventListener('pointerenter',vite); bCo.addEventListener('focus',vite);
     bCo.addEventListener('click',async()=>{ try{ const m=await chargerDrive(); const r=await m.seConnecter(); if(r.dit) addLine('sys','Drive : '+r.dit); }catch(e){ addLine('sys','Drive : '+errMsg(e)); } afficher(); });
     bDeco.addEventListener('click',async()=>{ try{ const m=await chargerDrive(); const r=await m.seDeconnecter(); if(r.dit) addLine('sys','Drive : '+r.dit); }catch(e){ addLine('sys','Drive : '+errMsg(e)); } afficher(); });
     bChoix.addEventListener('click',async()=>{ try{ const m=await chargerDrive(); const r=await m.choisirDocuments(); if(r.dit) addLine('sys','Drive : '+r.dit); }catch(e){ addLine('sys','Drive : '+errMsg(e)); } afficher(); });
+    if(bUn) bUn.addEventListener('click',async()=>{ try{ const m=await chargerDrive(); const r=await m.ouvrirUnDocument(); if(r.dit) addLine('sys','Drive : '+r.dit); }catch(e){ addLine('sys','Drive : '+errMsg(e)); } afficher(); });
     bOuvre.addEventListener('click',async()=>{ try{ const m=await chargerDrive(); m.ouvrirFenetre(); }catch(e){ addLine('sys','Drive : '+errMsg(e)); } });
     RayleBus.on('etat:drive',afficher);
     afficher();

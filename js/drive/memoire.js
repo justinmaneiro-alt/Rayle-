@@ -7,8 +7,8 @@
      etat()                              → { documents, caracteres, octets, derniere, racines }
    La progression est { etape:'exploration'|'lecture', i, n, nom }. Une erreur de connexion Google interrompt tout (rien de faux n'est enregistré) ;
    une erreur sur UN document est notée dans `echecs` et la suite continue. Raylé n'affirme « mémorisé » que pour ce qui est réellement dans la base. */
-import { estErreurDrive } from './api.js?v=2026.10.13.10';
-import { adaptateur } from './formats.js?v=2026.10.13.10';
+import { estErreurDrive } from './api.js?v=2026.10.13.11';
+import { adaptateur } from './formats.js?v=2026.10.13.11';
 
 export const MIME_DOSSIER = 'application/vnd.google-apps.folder';
 const MAX_DOCUMENTS = 1000, MAX_PROFONDEUR = 12, MAX_CARACTERES = 3_000_000;
@@ -152,7 +152,9 @@ export function creerMemoire({ api, base, env = {}, maintenant = () => Date.now(
       for (const c of choix) { if (c && c.id && !racines.some(r => r.id === c.id)) racines.push({ id: c.id, name: c.name || 'Sans titre', mimeType: c.mimeType || '' }); }
       if (!racines.length) return { ok: false, dit: 'Aucun document ni dossier choisi.' };
       await ecrireMeta('racines', racines);
-      return lancer(racines, { progression: opts.progression, force: !!opts.force });
+      // en mode lot, seul ce lot est exploré et lu (les autres racines gardent leurs textes, intacts ; un document déjà en base et inchangé n'est pas relu ni doublé)
+      const cible = opts.lot ? racines.filter(r => choix.some(c => c && c.id === r.id)) : racines;
+      return lancer(cible, { progression: opts.progression, force: !!opts.force });
     },
     async synchroniser(opts = {}) {
       const racines = await lireMeta('racines', []);

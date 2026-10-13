@@ -84,12 +84,13 @@ await t('les abonnés sont prévenus (bouton « Se connecter / Se déconnecter �
 /* ───── sélecteur ───── */
 function fauxPicker() {
   const rec = { vues: [], options: {} }, P = {};
-  P.ViewId = { DOCS: 'docs' }; P.Feature = { MULTISELECT_ENABLED: 'multi' }; P.Action = { PICKED: 'picked', CANCEL: 'cancel' };
+  P.ViewId = { DOCS: 'docs' }; P.Feature = { MULTISELECT_ENABLED: 'multi' }; rec.options.features = []; P.Action = { PICKED: 'picked', CANCEL: 'cancel' };
   P.Response = { ACTION: 'action', DOCUMENTS: 'docs' }; P.Document = { ID: 'id', NAME: 'name', MIME_TYPE: 'mimeType' };
-  P.DocsView = class { constructor(v) { this.v = v; } setMimeTypes(m) { this.mimes = m; return this; } setIncludeFolders() { return this; } setOwnedByMe(b) { this.propre = b; return this; } };
+  P.DocsViewMode = { LIST: 'liste', GRID: 'grille' };
+  P.DocsView = class { constructor(v) { this.v = v; } setMimeTypes(m) { this.mimes = m; return this; } setIncludeFolders(b) { this.inclus = b; return this; } setSelectFolderEnabled(b) { this.dossiersChoisis = b; return this; } setMode(m) { this.mode = m; return this; } setOwnedByMe(b) { this.propre = b; return this; } };
   P.PickerBuilder = class {
-    addView(v) { rec.vues.push(v); return this; } enableFeature(f) { rec.options.feature = f; return this; } setOAuthToken(t) { rec.options.jeton = t; return this; } setLocale(l) { rec.options.locale = l; return this; }
-    setTitle() { return this; } setAppId(a) { rec.options.appId = a; return this; } setDeveloperKey(k) { rec.options.cle = k; return this; } setCallback(cb) { rec.cb = cb; return this; }
+    addView(v) { rec.vues.push(v); return this; } enableFeature(f) { rec.options.feature = f; rec.options.features.push(f); return this; } setOAuthToken(t) { rec.options.jeton = t; return this; } setLocale(l) { rec.options.locale = l; return this; }
+    setTitle() { return this; } setAppId(a) { rec.options.appId = a; return this; } setDeveloperKey(k) { rec.options.cle = k; return this; } setCallback(cb) { rec.cb = cb; return this; } setSize(w, h) { rec.options.taille = [w, h]; return this; }
     build() { return { setVisible: v => { rec.visible = v; } }; }
   };
   return { P, rec };
@@ -112,19 +113,24 @@ await t('sélecteur annulé → liste vide ; sans config → message clair', asy
   await assert.rejects(() => choisirFichiers({ auth: m.auth, mimes: [], G: { RAYLE_DRIVE_CONFIG: {} }, charger: async () => {} }), /config-drive/);
   const non = monde(); await assert.rejects(() => choisirFichiers({ auth: non.auth, mimes: [], G: non.G, charger: async () => {} }), e => e.raison === 'reconnexion');
 });
-await t('sélecteur des cours : multi-sélection, dossiers autorisés (choix et type), titre propre ; sans cela, pas de dossiers', async () => {
-  const m = monde(); const { P, rec } = fauxPicker(); const dossiers = [];
-  P.DocsView = class { constructor(v) { this.v = v; } setMimeTypes(x) { this.mimes = x; return this; } setIncludeFolders(b) { this.inclus = b; return this; } setOwnedByMe() { return this; } setSelectFolderEnabled(b) { dossiers.push(b); this.dossiers = b; return this; } };
+await t('sélecteur : multi-sélection réelle en liste (cases à cocher), dossiers ouverts mais jamais cochables ni renvoyés, titre propre', async () => {
+  const m = monde(); const { P, rec } = fauxPicker();
   P.PickerBuilder.prototype.setTitle = function (x) { rec.options.titre = x; return this; };
   m.G.gapi = { load: (n, o) => o.callback() }; m.G.google.picker = P; await m.auth.connecter();
-  const p = choisirFichiers({ auth: m.auth, mimes: MIMES_ACCEPTES, dossiers: true, titre: 'Choisis tes cours', G: m.G, charger: async () => {} });
+  const p = choisirFichiers({ auth: m.auth, mimes: MIMES_ACCEPTES, titre: 'Choisis tes cours', G: m.G, charger: async () => {} });
   await new Promise(r => setTimeout(r, 10));
-  assert.equal(rec.options.feature, 'multi'); assert.equal(rec.options.titre, 'Choisis tes cours');
-  assert.ok(rec.vues.every(v => v.dossiers === true && v.inclus === true && v.mimes.includes('application/vnd.google-apps.folder')), 'toutes les vues acceptent les dossiers');
-  rec.cb({ action: 'picked', docs: [{ id: 'd', name: 'Cours', mimeType: 'application/vnd.google-apps.folder' }, { id: 'a', name: 'Fiche', mimeType: 'application/pdf' }] });
-  assert.equal((await p).length, 2);
-  rec.vues.length = 0; const q = choisirFichiers({ auth: m.auth, mimes: MIMES_ACCEPTES, G: m.G, charger: async () => {} }); await new Promise(r => setTimeout(r, 10));
-  assert.ok(rec.vues.every(v => !v.dossiers && !v.mimes.includes('folder')), 'sélecteur habituel : inchangé'); rec.cb({ action: 'cancel' }); await q;
+  assert.deepEqual(rec.options.features, ['multi']); assert.equal(rec.options.titre, 'Choisis tes cours'); assert.ok(rec.options.taille[0] >= 800, 'grande fenêtre pour la tablette');
+  assert.equal(rec.vues.length, 2, 'Mon Drive et Partagés avec moi');
+  assert.ok(rec.vues.every(v => v.inclus === true && v.dossiersChoisis === false && v.mode === 'liste' && v.mimes.includes('application/vnd.google-apps.folder')), 'dossiers navigables, non sélectionnables, vue en liste');
+  rec.cb({ action: 'picked', docs: [{ id: 'd', name: 'Cours', mimeType: 'application/vnd.google-apps.folder' }, { id: 'a', name: 'Fiche', mimeType: 'application/pdf' }, { id: 'b', name: 'Notes', mimeType: 'text/plain' }] });
+  assert.deepEqual((await p).map(f => f.id), ['a', 'b'], 'un dossier n’est jamais importé');
+});
+await t('sélecteur « un seul document » : pas de multi-sélection, un seul résultat', async () => {
+  const m = monde(); const { P, rec } = fauxPicker(); m.G.gapi = { load: (n, o) => o.callback() }; m.G.google.picker = P; await m.auth.connecter();
+  const p = choisirFichiers({ auth: m.auth, mimes: MIMES_ACCEPTES, unique: true, G: m.G, charger: async () => {} }); await new Promise(r => setTimeout(r, 10));
+  assert.deepEqual(rec.options.features, [], 'MULTISELECT_ENABLED absent'); assert.ok(rec.vues.every(v => v.dossiersChoisis === false && v.inclus === true));
+  rec.cb({ action: 'picked', docs: [{ id: 'a', name: 'Fiche', mimeType: 'application/pdf' }, { id: 'b', name: 'Notes', mimeType: 'text/plain' }] });
+  assert.deepEqual((await p).map(f => f.id), ['a']);
 });
 await t('portée : drive.file seul par défaut ; drive.readonly ajoutée seulement si « lectureComplete: true » dans la configuration', async () => {
   const defaut = monde(); await defaut.auth.connecter(); assert.equal(defaut.journal.find(j => j[0] === 'init')[2], PORTEE);

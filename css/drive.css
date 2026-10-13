@@ -139,3 +139,12 @@ body.dr-pseudo-actif{overflow:hidden}
 .cours-progres::-webkit-progress-bar{background:rgba(127,127,127,.25)}
 .cours-progres::-webkit-progress-value{background:var(--accent,#4fc3f7);transition:width .2s}
 .cours-progres::-moz-progress-bar{background:var(--accent,#4fc3f7)}
+
+/* mode par lots : « X documents ajoutés au total, en ajouter d'autres ? » */
+.dr-lot{position:fixed;inset:0;z-index:2147483000;display:flex;align-items:center;justify-content:center;padding:16px;background:rgba(6,2,12,.72)}
+.dr-lot-boite{max-width:460px;width:100%;padding:18px 18px 16px;border-radius:10px;background:rgba(14,6,22,.99);border:2px solid var(--cyan,#4de3ff);color:#eafaff;box-shadow:0 10px 40px rgba(0,0,0,.6)}
+.dr-lot-msg{margin:0 0 14px;font-size:16px;line-height:1.4}
+.dr-lot-boutons{display:flex;gap:10px;flex-wrap:wrap}
+.dr-lot-boutons .dr-b{flex:1 1 180px;min-height:48px}
+#driveOuvrirDoc:disabled{opacity:.4;cursor:not-allowed}
+.dr-doc-temp .dr-corps{user-select:text;-webkit-user-select:text}

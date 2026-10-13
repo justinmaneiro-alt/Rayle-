@@ -4,7 +4,7 @@
    • Le jeton d'accès vit uniquement en mémoire de la page (1 heure). Un simple repère « déjà connecté » est gardé dans localStorage pour tenter
      une reconnexion silencieuse quand le jeton expire ; si Google exige un geste de ta part, on affiche « Se connecter à Google ».
    • Tablette : la fenêtre de connexion de Google s'ouvre en popup (c'est le seul mode sans serveur) ; elle doit être déclenchée par un toucher. */
-import { ErreurDrive } from './api.js?v=2026.10.13.10';
+import { ErreurDrive } from './api.js?v=2026.10.13.11';
 
 export const PORTEE = 'https://www.googleapis.com/auth/drive.file';
 export const PORTEE_LECTURE = 'https://www.googleapis.com/auth/drive.readonly';      // optionnelle (config « lectureComplete ») : voir le contenu des dossiers choisis
@@ -108,8 +108,12 @@ export function creerAuth(dep = {}) {
   };
 }
 
-/** sélecteur Google : renvoie les fichiers choisis [{ id, name, mimeType }] ([] si annulé) */
-export async function choisirFichiers({ auth, mimes, dossiers = false, titre, G = globalThis, charger = chargerScript }) {
+export const MIME_DOSSIER = 'application/vnd.google-apps.folder';
+
+/** sélecteur Google : renvoie les DOCUMENTS choisis [{ id, name, mimeType }] ([] si annulé).
+    • Les dossiers s'ouvrent pour naviguer mais ne se sélectionnent jamais (setSelectFolderEnabled(false)) ; un dossier qui passerait quand même est écarté.
+    • Multi-sélection par défaut (vue en liste : une case à cocher par ligne, utilisable au toucher) ; `unique: true` → un seul document. */
+export async function choisirFichiers({ auth, mimes, unique = false, titre, G = globalThis, charger = chargerScript }) {
   const cfg = lireConfig(G);
   if (!cfg.valide) throw new ErreurDrive(MESSAGE_CONFIG, { raison: 'config' });
   const jeton = await auth.jeton();
@@ -117,17 +121,22 @@ export async function choisirFichiers({ auth, mimes, dossiers = false, titre, G 
   await new Promise((ok, ko) => G.gapi.load('picker', { callback: ok, onerror: () => ko(new ErreurDrive('Le sélecteur Google ne s’est pas chargé.', { raison: 'reseau' })), timeout: 15000, ontimeout: () => ko(new ErreurDrive('Le sélecteur Google ne répond pas.', { raison: 'reseau' })) }));
   const P = G.google.picker;
   return new Promise(ok => {
-    const types = dossiers ? [...mimes, 'application/vnd.google-apps.folder'] : mimes;
-    const vue = (v) => { v.setMimeTypes(types.join(',')).setIncludeFolders(true); if (dossiers && v.setSelectFolderEnabled) v.setSelectFolderEnabled(true); return v; };
+    const types = [...mimes, MIME_DOSSIER];
+    const vue = v => {
+      v.setMimeTypes(types.join(',')).setIncludeFolders(true).setSelectFolderEnabled(false);
+      if (!unique && P.DocsViewMode && v.setMode) v.setMode(P.DocsViewMode.LIST);              // la liste affiche les cases à cocher
+      return v;
+    };
     let b = new P.PickerBuilder()
       .addView(vue(new P.DocsView(P.ViewId.DOCS)))
       .addView(vue(new P.DocsView(P.ViewId.DOCS).setOwnedByMe(false)))
-      .enableFeature(P.Feature.MULTISELECT_ENABLED)
-      .setOAuthToken(jeton).setLocale('fr').setTitle(titre || 'Choisis les documents que Raylé peut lire')
+      .setOAuthToken(jeton).setLocale('fr').setTitle(titre || (unique ? 'Choisis le document à ouvrir' : 'Coche les documents que Raylé peut lire'))
       .setCallback(d => {
-        if (d[P.Response.ACTION] === P.Action.PICKED) ok((d[P.Response.DOCUMENTS] || []).map(x => ({ id: x[P.Document.ID], name: x[P.Document.NAME], mimeType: x[P.Document.MIME_TYPE] })));
+        if (d[P.Response.ACTION] === P.Action.PICKED) ok((d[P.Response.DOCUMENTS] || []).map(x => ({ id: x[P.Document.ID], name: x[P.Document.NAME], mimeType: x[P.Document.MIME_TYPE] })).filter(f => f.mimeType !== MIME_DOSSIER).slice(0, unique ? 1 : undefined));
         else if (d[P.Response.ACTION] === P.Action.CANCEL) ok([]);
       });
+    if (!unique) b = b.enableFeature(P.Feature.MULTISELECT_ENABLED);
+    if (b.setSize) b = b.setSize(1100, 720);                                                   // grande fenêtre (Google la réduit à l'écran disponible)
     if (cfg.appId) b = b.setAppId(cfg.appId);
     if (cfg.apiKey) b = b.setDeveloperKey(cfg.apiKey);
     b.build().setVisible(true);
