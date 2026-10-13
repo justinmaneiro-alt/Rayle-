@@ -1,6 +1,13 @@
 {
   "_atlas": [
     {
+      "fichier": "os-axial-bp3d.glb",
+      "table": "bodyparts3d-axial",
+      "licence": "CC-BY-4.0",
+      "auteur": "The Database Center for Life Science (BodyParts3D)",
+      "source": "https://dbarchive.biosciencedbc.jp/en/bodyparts3d/lic.html"
+    },
+    {
       "fichier": "os-detail-bp3d.glb",
       "table": "bodyparts3d",
       "licence": "CC-BY-4.0",

@@ -23,14 +23,14 @@ export function creerStore(initial) {
   };
 }
 
-export const CALQUES = ['squelette', 'muscles', 'nerfs', 'organes', 'peau', 'reperes', 'dermatomes'];
+export const CALQUES = ['squelette', 'muscles', 'arteres', 'veines', 'nerfs', 'organes', 'peau', 'reperes', 'dermatomes'];
 
 export const COURBE_DEFAUT = { apex: 'T8', cobb: 30, convexite: 'D' };
 
 export const ETAT_INITIAL = {
   fenetre: { ouverte: false, onglet: 'structures' },          // onglet : structures | amputations | deformations | fractures | appareillage | reperes | cours
   quick: { ouvert: false, id: null, cote: 'D' },               // pop-up 3D rapide
-  calques: { squelette: true, muscles: false, nerfs: false, organes: false, peau: false, reperes: false, dermatomes: false },
+  calques: { squelette: true, muscles: false, arteres: false, veines: false, nerfs: false, organes: false, peau: false, reperes: false, dermatomes: false },
   groupe: null,                                                // pop-up : liste d'ids affichés ensemble (rachis, main, quadriceps…)
   selection: null,                                             // id d'instance : 'humerus:D', 'biceps-brachial:G', 'vertebre-L4', 'coeur'
   isolation: false,                                            // la sélection est isolée en 3D

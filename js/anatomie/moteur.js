@@ -2,23 +2,26 @@
    new MoteurAnatomie(THREE, canvas, { store, etiquettes: Element|null, mini: bool, surSelection(id) })
    Le moteur suit l'état du store : calques, sélection, isolation, pathologies, appareillage. Rendu à la demande (pas d'animation inutile).
    Contrôles : glisser = rotation 360°, molette / pincement = zoom, clic droit ou Maj + glisser ou 2 doigts = translation, double clic = focaliser. */
-import { construire, axeMembre } from './construction.js?v=2026.10.13.11';
-import { construireAppareil } from './appareils3d.js?v=2026.10.13.11';
-import { OS, VERTEBRES, REPERES, SACRUM_Y } from './donnees-os.js?v=2026.10.13.11';
-import { MUSCLES } from './donnees-muscles.js?v=2026.10.13.11';
-import { NERFS, ORGANES, DERMATOMES } from './donnees-nerfs-organes.js?v=2026.10.13.11';
-import { AMPUTATIONS, APPAREILLAGES, FRACTURES } from './donnees-ortho.js?v=2026.10.13.11';
-import { definition, base as baseDe, cote as coteDe, typeDe, instances, nomAffiche, musclesDe } from './registre.js?v=2026.10.13.11';
-import { COULEURS } from './registre.js?v=2026.10.13.11';
-import { chargerGLB } from './modeles-glb.js?v=2026.10.13.11';
-import { points as pointsDe, ajuster as ajusterGLB, matriceAjustement } from './ajustement.js?v=2026.10.13.11';
-import { TABLES } from './correspondance-squelette.js?v=2026.10.13.11';
-import { groupeDe } from './groupes-os.js?v=2026.10.13.11';
-import { CapsCoupe } from './coupes.js?v=2026.10.13.11';
-import { creerMateriauPBR, ajouterAOCuite } from './pbr.js?v=2026.10.13.11';
-import { studio, solOmbre, fondDegrade, environnement, pipeline, lireNiveau } from './rendu.js?v=2026.10.13.11';
+import { construire, axeMembre } from './construction.js?v=2026.10.14.1';
+import { construireAppareil } from './appareils3d.js?v=2026.10.14.1';
+import { OS, VERTEBRES, REPERES, SACRUM_Y } from './donnees-os.js?v=2026.10.14.1';
+import { MUSCLES } from './donnees-muscles.js?v=2026.10.14.1';
+import { NERFS, ORGANES, DERMATOMES } from './donnees-nerfs-organes.js?v=2026.10.14.1';
+import { AMPUTATIONS, APPAREILLAGES, FRACTURES } from './donnees-ortho.js?v=2026.10.14.1';
+import { VAISSEAUX_SCHEMA } from './donnees-corps.js?v=2026.10.14.1';
+import { definition, base as baseDe, cote as coteDe, typeDe, instances, nomAffiche, musclesDe } from './registre.js?v=2026.10.14.1';
+import { COULEURS } from './registre.js?v=2026.10.14.1';
+import { chargerGLB } from './modeles-glb.js?v=2026.10.14.1';
+import { points as pointsDe, ajuster as ajusterGLB, matriceAjustement } from './ajustement.js?v=2026.10.14.1';
+import { TABLES } from './correspondance-squelette.js?v=2026.10.14.1';
+import { groupeDe, groupeDeStructure } from './groupes-os.js?v=2026.10.14.1';
+import { CapsCoupe } from './coupes.js?v=2026.10.14.1';
+import { creerMateriauPBR, ajouterAOCuite } from './pbr.js?v=2026.10.14.1';
+import { CorpsHD } from './corps-hd.js?v=2026.10.14.1';
+import { studio, solOmbre, fondDegrade, environnement, pipeline, lireNiveau } from './rendu.js?v=2026.10.14.1';
 
-const CALQUE_DE = { cartilage: 'squelette', os: 'squelette', muscle: 'muscles', nerf: 'nerfs', organe: 'organes', repere: 'reperes', dermatome: 'dermatomes', peau: 'peau' };
+const CALQUE_DE = { cartilage: 'squelette', os: 'squelette', muscle: 'muscles', tendon: 'muscles', nerf: 'nerfs', artere: 'arteres', veine: 'veines', organe: 'organes', repere: 'reperes', dermatome: 'dermatomes', peau: 'peau' };
+const MATIERES = ['os', 'muscle', 'tendon', 'nerf', 'artere', 'veine', 'organe', 'cartilage'];     // types qui portent un matériau physique (ombres, fantôme, transparence)
 const DIST_DEFAUT = 3.5;
 export const ZONES = { tronc: { cible: [0, 1.25, 0], dist: 1.7 }, bassin: { cible: [0, .98, 0], dist: 1.5 }, 'jambe-droite': { cible: [-.05, .52, 0], dist: 2.5 }, 'jambe-gauche': { cible: [.05, .52, 0], dist: 2.5 },
   'bras-droit': { cible: [-.2, 1.1, 0], dist: 1.7 }, 'bras-gauche': { cible: [.2, 1.1, 0], dist: 1.7 }, 'pied-droit': { cible: [-.09, .06, .05], dist: .9 }, 'pied-gauche': { cible: [.09, .06, .05], dist: .9 },
@@ -29,6 +32,7 @@ export class MoteurAnatomie {
   constructor(THREE, canvas, opts = {}) {
     this.THREE = THREE; this.canvas = canvas; this.opts = opts; this.store = opts.store; this.mini = !!opts.mini;
     this.C = construire(THREE);
+    this.corps = new CorpsHD(this);       // tissus mous haute fidélité (corps-hd.js)
     this.entrees = new Map();            // sid → { sid, type, base, cote, obj, mats, membre }
     this.clip = [];                      // { mat, membre, cote }
     this.construits = {};
@@ -60,7 +64,7 @@ export class MoteurAnatomie {
       this.grille = grille;
     }
     this.calques = {};
-    ['squelette', 'muscles', 'nerfs', 'organes', 'peau', 'reperes', 'dermatomes', 'pathologie', 'appareil', 'marques'].forEach(n => { const g = new THREE.Group(); g.name = n; this.calques[n] = g; this.scene.add(g); });
+    ['squelette', 'muscles', 'arteres', 'veines', 'nerfs', 'organes', 'peau', 'reperes', 'dermatomes', 'pathologie', 'appareil', 'marques'].forEach(n => { const g = new THREE.Group(); g.name = n; this.calques[n] = g; this.scene.add(g); });
 
     this.caps = new CapsCoupe(THREE, this.scene);
     this.brancherControles();
@@ -88,7 +92,7 @@ export class MoteurAnatomie {
     const e = { sid, type, base: baseDe(sid), cote: cote || coteDe(sid), obj, mats, membre: membre || null };
     this.entrees.set(sid, e);
     if (membre) mats.forEach(m => { m.clipShadows = true; this.clip.push({ mat: m, membre, cote: e.cote }); });
-    if (this.niveau !== 'eco' && ['os', 'muscle', 'nerf', 'organe', 'cartilage'].includes(type)) obj.traverse(o => { if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; } });
+    if (this.niveau !== 'eco' && MATIERES.includes(type)) obj.traverse(o => { if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; } });
     this.surchargerGLB(e);
     return e;
   }
@@ -162,7 +166,7 @@ export class MoteurAnatomie {
       en.obj.add(pack); en.obj.updateMatrixWorld(true);
       if (meta.groupe) { if (Mg) { pack.updateMatrix(); pack.matrixAutoUpdate = false; pack.matrix.copy(Mg.clone().multiply(pack.matrix)); pack.updateMatrixWorld(true); } }
       else ajusterGLB(T, pack, forme, meta.ajuster || 'aucun');
-      en.obj.traverse(o => { o.userData.sid = en.sid; }); en.glb = true; if (this.planCoupe) this.caps.maj(this.planCoupe, this.entrees); this.demander();
+      en.pack = pack; en.tableGLB = meta.table || ''; en.obj.traverse(o => { o.userData.sid = en.sid; }); en.glb = true; if (this.planCoupe) this.caps.maj(this.planCoupe, this.entrees); this.demander();
     }).catch(e => { console.warn('[anatomie] GLB ' + en.sid + ' : ' + (e && e.message || e)); });
   }
   retirer(sid) {
@@ -177,7 +181,7 @@ export class MoteurAnatomie {
   assurer(nom) {
     if (this.construits[nom]) return;
     this.construits[nom] = true;
-    const f = { squelette: () => this.construireSquelette(), muscles: () => this.construireMuscles(), nerfs: () => this.construireNerfs(), organes: () => this.construireOrganes(), peau: () => this.construirePeau(), reperes: () => this.construireReperes(), dermatomes: () => this.construireDermatomes() }[nom];
+    const f = { squelette: () => this.construireSquelette(), muscles: () => this.construireMuscles(), arteres: () => this.construireVaisseaux('artere'), veines: () => this.construireVaisseaux('veine'), nerfs: () => this.construireNerfs(), organes: () => this.construireOrganes(), peau: () => this.construirePeau(), reperes: () => this.construireReperes(), dermatomes: () => this.construireDermatomes() }[nom];
     if (f) f();
   }
   assurerType(type) { this.assurer(CALQUE_DE[type] || 'squelette'); }
@@ -253,6 +257,20 @@ export class MoteurAnatomie {
       this.enregistrer(def.sym ? def.id + ':' + c : def.id, 'muscle', new T.Mesh(this.C.geoMuscle(def, c), m), [m], def.membre, c);
     }
     this.appliquerCoupesSiBesoin();
+    this.corps.muscles();
+  }
+  /** Troncs principaux schématiques (repli), remplacés par le réseau BodyParts3D dès qu'il se charge */
+  construireVaisseaux(type) {
+    const T = this.THREE;
+    for (const [id, t, r, sym, membre, pts] of VAISSEAUX_SCHEMA) {
+      if (t !== type) continue;
+      for (const c of (sym ? ['D', 'G'] : [null])) {
+        const m = this.corps.materiau(type, id), geo = this.C.geoNerf({ sym, trace: pts, r }, c);
+        this.enregistrer(sym ? id + ':' + c : id, type, new T.Mesh(geo, m), [m], membre, c);
+      }
+    }
+    this.appliquerCoupesSiBesoin();
+    this.corps.vaisseaux(type);
   }
   construireNerfs() {
     const T = this.THREE;
@@ -261,6 +279,7 @@ export class MoteurAnatomie {
       this.enregistrer(def.sym ? def.id + ':' + c : def.id, 'nerf', new T.Mesh(this.C.geoNerf(def, c), m), [m], def.membre, c);
     }
     this.reconstruireMoelle(); this.appliquerCoupesSiBesoin();
+    this.corps.nerfs();
   }
   reconstruireMoelle() {
     const T = this.THREE, C = this.C;
@@ -282,6 +301,7 @@ export class MoteurAnatomie {
       m.userData.base.opacity = m.opacity; m.userData.base.transparent = m.transparent;
       this.enregistrer(def.id, 'organe', new T.Mesh(this.C.geoOrgane(def), m), [m]);
     }
+    this.corps.organes();
   }
   construirePeau() {
     const T = this.THREE, g = this.C.geoPeau();
@@ -415,14 +435,14 @@ export class MoteurAnatomie {
   synchroniser(e, a) {
     if (this.mort) return;
     const d = a || {}, p = e.pathologie, pd = d.pathologie || {};
-    for (const n of ['squelette', 'muscles', 'nerfs', 'organes', 'peau', 'reperes', 'dermatomes']) if (e.calques[n]) this.assurer(n);
+    for (const n of ['squelette', 'muscles', 'arteres', 'veines', 'nerfs', 'organes', 'peau', 'reperes', 'dermatomes']) if (e.calques[n]) this.assurer(n);
     if (e.reperesAffiches.length) this.assurer('reperes');
     const sel = e.selection; if (sel) this.assurerType(typeDe(sel) || 'os');
     if (e.groupe) e.groupe.forEach(i => this.assurerType(typeDe(i) || 'os'));
     if (this.mini) this.assurer('squelette');
     let modifRachis = false;
     const rachisCle = x => JSON.stringify([x.pathologie.scoliose, x.pathologie.fracture && x.pathologie.fracture.os && x.pathologie.fracture.os.some(o => o.id.startsWith('vertebre-')) && x.pathologie.fracture, x.appareillage.actif && x.appareillage.modele, x.appareillage.correction]);
-    if (!a || rachisCle(e) !== rachisCle(a) || !this.positions) { if (this.construits.squelette) { this.reconstruireRachis(); modifRachis = true; } }
+    if (!a || rachisCle(e) !== rachisCle(a) || !this.positions) { if (this.construits.squelette) { this.reconstruireRachis(); modifRachis = true; this.corps.majActif(); } }
     if (!a || p.fracture !== pd.fracture) {
       const ids = new Set(); [p.fracture, pd.fracture].forEach(f => f && f.os && f.os.forEach(o => { if (!o.id.startsWith('vertebre-')) ids.add(o.id); }));
       if (this.construits.squelette) ids.forEach(id => { const df = OS.find(o => o.id === id); if (df) (df.sym ? ['D', 'G'] : [null]).forEach(c => this.ajouterOs(df, c)); });
@@ -464,15 +484,17 @@ export class MoteurAnatomie {
         const dedans = groupeDe(en.base) === e.isolationGroupe;
         vis = dedans || !!e.contexte; ghost = vis && !dedans;
       }
-      else if (e.isolationGroupe && !this.mini) vis = false;                                           // muscles, nerfs, organes… : masqués pendant l'isolation d'une région
+      else if (e.isolationGroupe && !this.mini) vis = !!e.calques[CALQUE_DE[en.type]] && !e.masques.includes(en.sid) && groupeDeStructure(definition(en.sid)) === e.isolationGroupe;     // tissus mous : seulement ceux de la région, si leur calque est affiché
       else {
         vis = !!e.calques[CALQUE_DE[en.type]] && !e.masques.includes(en.sid);
         if (en.type === 'repere') vis = vis || e.reperesAffiches.includes(en.sid);
         if (en.sid === 'nerfs-spinaux' && !e.calques.nerfs) vis = false;
         if (en.sid === sel) vis = true;
       }
+      if (en.remplace && this.corps.actif && en.sid !== sel) vis = false;                                              // muscle schématique remplacé par plusieurs muscles haute fidélité
+      if (en.hdSeul && !this.corps.actif) vis = false;                                               // muscle haute fidélité sans forme schématique : inutilisable sans le squelette BodyParts3D
       en.obj.visible = vis;
-      if (en.type === 'os' || en.type === 'muscle' || en.type === 'nerf' || en.type === 'organe' || en.type === 'cartilage') this.fantome(en, ghost);
+      if (MATIERES.includes(en.type)) this.fantome(en, ghost);
       this.surbrillance(en, en.sid === sel && !iso && !groupe ? 2 : en.sid === sel && groupe ? 2 : en.sid === this.survol ? 1 : 0);
     }
     this.grille && (this.grille.visible = !iso);

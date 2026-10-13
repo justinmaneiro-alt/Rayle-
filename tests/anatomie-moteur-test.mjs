@@ -194,13 +194,13 @@ t('squelette procédural : os médians détaillés, cartilages costaux, disques,
 });
 t('isolation d’une région du squelette : seuls ses os restent visibles, le contexte laisse le reste en fantôme', () => {
   S.definir({ isolationGroupe: 'crane' });
-  const vis = Array.from(M.entrees.values()).filter(e => e.obj.visible).map(e => e.sid).sort();
+  const vis = Array.from(M.entrees.values()).filter(e => e.obj.visible && (e.type === 'os' || e.type === 'cartilage')).map(e => e.sid).sort();
   assert.deepEqual(vis, ['crane', 'mandibule']);
   S.definir({ contexte: true });
   const fant = Array.from(M.entrees.values()).filter(e => e.obj.visible && e.mats[0].userData.fantome).length;
   assert.ok(fant > 80, 'os en fantôme : ' + fant); assert.equal(M.entrees.get('crane').mats[0].userData.fantome, false);
   S.definir({ contexte: false, isolationGroupe: 'membre-inferieur' });
-  const inf = Array.from(M.entrees.values()).filter(e => e.obj.visible).map(e => e.sid);
+  const inf = Array.from(M.entrees.values()).filter(e => e.obj.visible && e.type === 'os').map(e => e.sid);
   assert.ok(inf.includes('femur:D') && inf.includes('metatarsiens:G') && !inf.includes('humerus:D') && !inf.includes('crane'));
   S.definir({ isolationGroupe: null });
   assert.ok(M.entrees.get('crane').obj.visible && M.entrees.get('humerus:D').obj.visible);

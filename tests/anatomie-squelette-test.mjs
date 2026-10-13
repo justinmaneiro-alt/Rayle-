@@ -96,13 +96,13 @@ await t('table BodyParts3D : 8 os du carpe, 5 métacarpiens, 14 phalanges ; 7 os
 await t('régions du squelette : chaque os de l’application appartient à une région', () => {
   for (const d of OS) assert.ok(groupeDe(d.id), d.id);
   assert.equal(groupeDe('vertebre-L3'), 'colonne'); assert.equal(groupeDe('cote-5'), 'thorax'); assert.equal(groupeDe('disque-L5-L4'), 'colonne'); assert.equal(groupeDe('cartilages-costaux'), 'thorax');
-  assert.equal(groupeDe('biceps-brachial'), null); assert.equal(GROUPES_OS.length, 6);
+  assert.equal(groupeDe('biceps-brachial'), null); assert.equal(GROUPES_OS.length, 7);      // 6 régions osseuses + l'abdomen (tissus mous seulement)
 });
-await t('manifeste et crédits : atlas déclarés (détaillé d’abord, CC0 en repli), fichiers présents, sources et licences citées dans CREDITS.md', () => {
+await t('manifeste et crédits : atlas déclarés (axial BodyParts3D, détaillé BodyParts3D, CC0 en repli), fichiers présents, sources et licences citées dans CREDITS.md', () => {
   const m = JSON.parse(lire('ui/assets/anatomie/manifest.json')), liste = [].concat(m._atlas);
-  assert.deepEqual(liste.map(a => a.table), ['bodyparts3d', 'squelette-cc0']);
+  assert.deepEqual(liste.map(a => a.table), ['bodyparts3d-axial', 'bodyparts3d', 'squelette-cc0']);
   for (const a of liste) { assert.ok(fs.existsSync(new URL('ui/assets/anatomie/' + a.fichier, racine)), a.fichier); assert.ok(TABLES[a.table]); assert.ok(a.licence && a.auteur && a.source); }
-  assert.equal(liste[0].licence, 'CC-BY-4.0'); assert.equal(liste[1].licence, 'CC0-1.0');
+  assert.equal(liste[0].licence, 'CC-BY-4.0'); assert.equal(liste[1].licence, 'CC-BY-4.0'); assert.equal(liste[2].licence, 'CC0-1.0');
   const c = lire('CREDITS.md').toString('utf8');
   for (const s of ['cgicoffee.com/blog/2017/10/free-human-skeleton-3d-model', 'Armen Barsegyan', 'BodyParts3D', 'The Database Center for Life Science', 'dbarchive.biosciencedbc.jp/en/bodyparts3d/lic.html', 'CC BY 4.0']) assert.ok(c.includes(s), 'CREDITS.md : ' + s);
 });

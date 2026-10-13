@@ -28,7 +28,10 @@ js/anatomie/
   registre.js           recherche par nom (alias, pluriels, côtés), fiches, liens os ↔ muscles
   construction.js       géométries procédurales (repli sans GLB) : os, vertèbres, côtes, muscles, nerfs, peau, dermatomes
   modeles-glb.js        chargement des modèles GLB (atlas de squelette, entrées individuelles, cache, repli)
-  correspondance-squelette.js   table : nœuds du GLB de squelette → os de l'application
+  correspondance-squelette.js   table : nœuds du GLB de squelette → os de l'application (3 atlas : os axiaux BodyParts3D, mains/pieds/crâne BodyParts3D, CC0 en repli)
+  corps-hd.js           corps haute fidélité : muscles, tendons, vaisseaux, organes, nerfs BodyParts3D recalés sur les os affichés (ancres de peau), voir docs/anatomie-haute-fidelite.md
+  donnees-corps.js      muscles et tendons individuels (nom français, latin, concepts BodyParts3D) ; donnees-vaisseaux.js, donnees-organes-hd.js : vaisseaux, organes, nerfs
+  fiches-*.js           base de connaissances sourcée (Gray 1918, Terminologia Anatomica) : origine, terminaison, innervation, action, rapports, territoire
   coupes.js             surface de section (cap) du plan de coupe : os spongieux, tampon de pochoir
   ajustement.js         recalage de chaque os du GLB sur la forme schématique qu'il remplace (axe / boîte)
   groupes-os.js         régions du squelette (crâne, colonne, thorax, bassin, membres) : isolation et transparence
@@ -137,6 +140,7 @@ node tests/anatomie-commandes-test.mjs     # ce que Raylé comprend (sans faux p
 node tests/anatomie-executer-test.mjs      # effets sur le store et phrases dites
 node tests/anatomie-cours-test.mjs         # base de cours (IndexedDB simulée)
 node tests/anatomie-squelette-test.mjs     # GLB de squelette (structure, dimensions, nœuds), table de correspondance, crédits, ajustement
+node tests/anatomie-corps-test.mjs         # corps haute fidélité : données, registre, fiches sourcées, GLB des couches (nœuds, ancres de peau), recalage
 THREE_PATH=<dossier>/node_modules/three/build/three.module.js node tests/anatomie-moteur-test.mjs
 ```
 
@@ -144,7 +148,7 @@ Le dernier test construit toutes les structures, amputations, scolioses, fractur
 
 ## Performance
 
-- three.js n'est chargé qu'à la première ouverture ; chaque calque (muscles, nerfs, organes, peau, dermatomes, repères) n'est construit que lorsqu'on l'affiche ;
+- three.js n'est chargé qu'à la première ouverture ; chaque calque (muscles, artères, veines, nerfs, organes, peau, dermatomes, repères) n'est construit que lorsqu'on l'affiche, et son fichier GLB haute fidélité (compressé meshopt, voir `docs/anatomie-haute-fidelite.md`) n'est téléchargé qu'à ce moment, avec un indicateur dans la fenêtre ;
 - une structure = un seul `Mesh` (géométries fusionnées) ; rendu à la demande, aucune animation quand rien ne bouge ; le fond animé de l'accueil et l'entité sont mis en pause sous la fenêtre ;
 - fermer la fenêtre ou le pop-up libère le contexte WebGL ;
 - en Haute, le post-traitement coûte surtout sur grand écran : sur tablette, rester en Éco ou Standard.

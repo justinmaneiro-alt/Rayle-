@@ -5,7 +5,7 @@
 // Écriture quantifiée (KHR_mesh_quantization) : positions en entiers 16 bits normalisés (échelle et décalage portés par le nœud), normales en 8 bits, _FIBRE en 16 bits.
 import fs from 'node:fs';
 
-const COMP = { FLOAT: 5126, UINT: 5125, USHORT: 5123, SHORT: 5122, BYTE: 5120 };
+const COMP = { UBYTE: 5121, FLOAT: 5126, UINT: 5125, USHORT: 5123, SHORT: 5122, BYTE: 5120 };
 
 export function lireGLB(buf) {
   const lj = buf.readUInt32LE(12), json = JSON.parse(buf.slice(20, 20 + lj).toString('utf8'));
@@ -77,15 +77,15 @@ export function loop(pos, idx) {
     if (!adj.has(e)) adj.set(e, { a: Math.min(a, b), b: Math.max(a, b), opp: [c] }); else adj.get(e).opp.push(c);
   }
   const bord = new Uint8Array(nv); for (const e of adj.values()) if (e.opp.length !== 2) { bord[e.a] = 1; bord[e.b] = 1; }
-  const P = Array.from(pos); const milieu = new Map();
+  const P = Array.from(pos); const milieu = new Map(), parents = [];
   const g = (i, k) => pos[3 * i + k];
   for (const [e, o] of adj) {
     const m = [0, 1, 2].map(k => o.opp.length === 2 ? .375 * (g(o.a, k) + g(o.b, k)) + .125 * (g(o.opp[0], k) + g(o.opp[1], k)) : .5 * (g(o.a, k) + g(o.b, k)));
-    milieu.set(e, P.length / 3); P.push(...m);
+    milieu.set(e, P.length / 3); P.push(...m); parents.push(o.a, o.b);
   }
   for (let i = 0; i < nv; i++) {
     if (bord[i]) continue;
-    const n = voisins[i].size, beta = n === 3 ? 3 / 16 : 3 / (8 * n);
+    const n = voisins[i].size; if (!n) continue; const beta = n === 3 ? 3 / 16 : 3 / (8 * n);      // un sommet orphelin (aucun triangle) garde sa position
     for (let k = 0; k < 3; k++) { let s = 0; for (const j of voisins[i]) s += g(j, k); P[3 * i + k] = (1 - n * beta) * g(i, k) + beta * s; }
   }
   const I = [];
@@ -93,7 +93,14 @@ export function loop(pos, idx) {
     const [a, b, c] = [idx[3 * t], idx[3 * t + 1], idx[3 * t + 2]], ab = milieu.get(cle(a, b)), bc = milieu.get(cle(b, c)), ca = milieu.get(cle(c, a));
     I.push(a, ab, ca, b, bc, ab, c, ca, bc, ab, bc, ca);
   }
-  return { pos: new Float32Array(P), idx: Uint32Array.from(I) };
+  return { pos: new Float32Array(P), idx: Uint32Array.from(I), parents: Int32Array.from(parents) };      // parents : pour le k-ième sommet ajouté (indice nv + k), les deux sommets de l'arête dont il est le milieu
+}
+
+/** Interpole un attribut par sommet (n composantes) sur un maillage subdivisé par loop() : sommets d'origine inchangés, milieux = moyenne des deux extrémités */
+export function interpoler(attr, n, nv, parents) {
+  const out = new Float32Array(attr.length + parents.length / 2 * n); out.set(attr);
+  for (let k = 0; k < parents.length / 2; k++) for (let c = 0; c < n; c++) out[(nv + k) * n + c] = (attr[parents[2 * k] * n + c] + attr[parents[2 * k + 1] * n + c]) / 2;
+  return out;
 }
 
 // ───────── épiphyse et occlusion ambiante ─────────
@@ -181,7 +188,7 @@ export function cuire(noeuds, opts = {}) {
   return noeuds;
 }
 
-export function ecrireGLB(noeuds, { droits = '', generateur = 'Rayle scripts/lib-glb.mjs', quantifier = true } = {}) {
+export function ecrireGLB(noeuds, { droits = '', generateur = 'Rayle scripts/lib-glb.mjs', quantifier = true, extras = null, sansNormales = false } = {}) {
   const bin = []; let off = 0; const vues = [], acc = [], meshes = [], noeudsJ = [];
   const pousse = (typed, cible) => { const b = Buffer.from(typed.buffer, typed.byteOffset, typed.byteLength), pad = (4 - (b.length % 4)) % 4; vues.push({ buffer: 0, byteOffset: off, byteLength: b.length, target: cible }); bin.push(b, Buffer.alloc(pad)); off += b.length + pad; return vues.length - 1; };
   for (const n of noeuds) {
@@ -194,9 +201,11 @@ export function ecrireGLB(noeuds, { droits = '', generateur = 'Rayle scripts/lib
       for (let j = 0; j < nv; j++) for (let k = 0; k < 3; k++) P[4 * j + k] = Math.round((n.pos[3 * j + k] - c[k]) / s * 32767);
       const vp = pousse(P, 34962); vues[vp].byteStride = 8;
       acc.push({ bufferView: vp, componentType: COMP.SHORT, normalized: true, count: nv, type: 'VEC3' }); attrs.POSITION = acc.length - 1;
-      const N = new Int8Array(nv * 4); for (let j = 0; j < nv; j++) for (let k = 0; k < 3; k++) N[4 * j + k] = Math.round(n.nor[3 * j + k] * 127);
-      const vn = pousse(N, 34962); vues[vn].byteStride = 4;
-      acc.push({ bufferView: vn, componentType: COMP.BYTE, normalized: true, count: nv, type: 'VEC3' }); attrs.NORMAL = acc.length - 1;
+      if (!sansNormales) {
+        const N = new Int8Array(nv * 4); for (let j = 0; j < nv; j++) for (let k = 0; k < 3; k++) N[4 * j + k] = Math.round(n.nor[3 * j + k] * 127);
+        const vn = pousse(N, 34962); vues[vn].byteStride = 4;
+        acc.push({ bufferView: vn, componentType: COMP.BYTE, normalized: true, count: nv, type: 'VEC3' }); attrs.NORMAL = acc.length - 1;
+      }
       nd.translation = c; nd.scale = [s, s, s];
     } else {
       const vp = pousse(Float32Array.from(n.pos), 34962); acc.push({ bufferView: vp, componentType: COMP.FLOAT, count: nv, type: 'VEC3', min: mn, max: mx }); attrs.POSITION = acc.length - 1;
@@ -206,11 +215,15 @@ export function ecrireGLB(noeuds, { droits = '', generateur = 'Rayle scripts/lib
       const F = new Uint16Array(nv * 2); for (let j = 0; j < nv * 2; j++) F[j] = Math.round(Math.min(Math.max(n.fibre[j], 0), 1) * 65535);
       const vf = pousse(F, 34962); acc.push({ bufferView: vf, componentType: COMP.USHORT, normalized: true, count: nv, type: 'VEC2' }); attrs._FIBRE = acc.length - 1;
     }
+    if (n.peau) {       // peau : 4 ancres par sommet (indices 8 bits, poids 8 bits normalisés) → _SKI, _SKW ; voir scripts/convertir-corps-bp3d.mjs
+      const vi_ = pousse(Uint8Array.from(n.peau.idx), 34962); acc.push({ bufferView: vi_, componentType: COMP.UBYTE, count: nv, type: 'VEC4' }); attrs._SKI = acc.length - 1;
+      const vw_ = pousse(Uint8Array.from(n.peau.poids), 34962); acc.push({ bufferView: vw_, componentType: COMP.UBYTE, normalized: true, count: nv, type: 'VEC4' }); attrs._SKW = acc.length - 1;
+    }
     const grand = nv > 65535, I = grand ? Uint32Array.from(n.idx) : Uint16Array.from(n.idx), vi = pousse(I, 34963);
     acc.push({ bufferView: vi, componentType: grand ? COMP.UINT : COMP.USHORT, count: I.length, type: 'SCALAR' });
     meshes.push({ name: n.nom, primitives: [{ attributes: attrs, indices: acc.length - 1, mode: 4 }] }); noeudsJ.push(nd);
   }
-  const json = { asset: { version: '2.0', generator: generateur, copyright: droits }, scene: 0, scenes: [{ nodes: noeudsJ.map((_, i) => i) }], nodes: noeudsJ, meshes, accessors: acc, bufferViews: vues, buffers: [{ byteLength: off }] };
+  const json = { asset: Object.assign({ version: '2.0', generator: generateur, copyright: droits }, extras ? { extras } : {}), scene: 0, scenes: [{ nodes: noeudsJ.map((_, i) => i) }], nodes: noeudsJ, meshes, accessors: acc, bufferViews: vues, buffers: [{ byteLength: off }] };
   if (quantifier) json.extensionsUsed = json.extensionsRequired = ['KHR_mesh_quantization'];
   let js = Buffer.from(JSON.stringify(json)); js = Buffer.concat([js, Buffer.alloc((4 - (js.length % 4)) % 4, 0x20)]);
   const corps = Buffer.concat(bin), h = Buffer.alloc(12), c1 = Buffer.alloc(8), c2 = Buffer.alloc(8);
@@ -220,3 +233,21 @@ export function ecrireGLB(noeuds, { droits = '', generateur = 'Rayle scripts/lib
 }
 
 export const lireFichier = f => lireGLB(fs.readFileSync(f));
+
+/** Simplification par regroupement de sommets : les sommets d'une même cellule cubique (côté `cellule`, en unités du modèle) sont fusionnés en leur barycentre ; les triangles dégénérés disparaissent.
+    Sert aux réseaux de vaisseaux fins (tubes de quelques millimètres) : un maillage de plusieurs centaines de milliers de triangles devient léger sans perdre le tracé. */
+export function simplifier(pos, idx, cellule) {
+  const n = pos.length / 3, nouveau = new Int32Array(n), cles = new Map(), cx = [], cy = [], cz = [], cn = [];
+  for (let i = 0; i < n; i++) {
+    const k = Math.floor(pos[3 * i] / cellule) + ',' + Math.floor(pos[3 * i + 1] / cellule) + ',' + Math.floor(pos[3 * i + 2] / cellule);
+    let j = cles.get(k); if (j === undefined) { j = cx.length; cles.set(k, j); cx.push(0); cy.push(0); cz.push(0); cn.push(0); }
+    nouveau[i] = j; cx[j] += pos[3 * i]; cy[j] += pos[3 * i + 1]; cz[j] += pos[3 * i + 2]; cn[j]++;
+  }
+  const P = new Float32Array(cx.length * 3); for (let j = 0; j < cx.length; j++) { P[3 * j] = cx[j] / cn[j]; P[3 * j + 1] = cy[j] / cn[j]; P[3 * j + 2] = cz[j] / cn[j]; }
+  const I = [], vus = new Set();
+  for (let t = 0; t < idx.length; t += 3) {
+    const a = nouveau[idx[t]], b = nouveau[idx[t + 1]], c = nouveau[idx[t + 2]]; if (a === b || b === c || a === c) continue;
+    const k = [a, b, c].sort((x, y) => x - y).join(','); if (vus.has(k)) continue; vus.add(k); I.push(a, b, c);
+  }
+  return { pos: P, idx: Uint32Array.from(I) };
+}

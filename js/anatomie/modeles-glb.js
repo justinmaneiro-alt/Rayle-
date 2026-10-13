@@ -15,16 +15,17 @@
 
    Robustesse : cache mémoire + cache du navigateur (Cache API, le fichier n'est téléchargé qu'une fois), indicateur de chargement (abonnerChargement),
    et repli automatique sur la forme procédurale en cas d'absence, d'échec réseau, de fichier invalide ou de dimensions aberrantes (le moteur compare les boîtes englobantes). */
-import { TABLES } from './correspondance-squelette.js?v=2026.10.13.11';
+import { TABLES } from './correspondance-squelette.js?v=2026.10.14.1';
 
 const cache = new Map();
 const NOM_CACHE = 'rayle-anatomie-glb-v1';
 let manifeste;
-const etat = { demandes: 0, termines: 0, echecs: 0, enCours: 0, repli: [] };
+const etat = { demandes: 0, termines: 0, echecs: 0, enCours: 0, repli: [], noms: new Set() };
+const NOMS_COUCHES = { 'muscles-bp3d.glb': 'muscles', 'tendons-bp3d.glb': 'tendons', 'arteres-bp3d.glb': 'artères', 'arteres-fin-bp3d.glb': 'artères fines', 'veines-bp3d.glb': 'veines', 'veines-fin-bp3d.glb': 'veines fines', 'organes-bp3d.glb': 'organes', 'nerfs-bp3d.glb': 'nerfs', 'os-axial-bp3d.glb': 'squelette', 'os-detail-bp3d.glb': 'mains, pieds et crâne', 'squelette-cc0.glb': 'squelette (secours)' };
 const ecouteurs = new Set();
 
 const notifier = () => { const e = lireEtatChargement(); ecouteurs.forEach(f => { try { f(e); } catch (x) { } }); };
-export function lireEtatChargement() { return { demandes: etat.demandes, termines: etat.termines, echecs: etat.echecs, enCours: etat.enCours, repli: etat.repli.slice() }; }
+export function lireEtatChargement() { return { demandes: etat.demandes, termines: etat.termines, echecs: etat.echecs, enCours: etat.enCours, repli: etat.repli.slice(), couches: Array.from(etat.noms).map(f => NOMS_COUCHES[f] || f) }; }
 /** fn(état) à chaque changement : { demandes, termines, echecs, enCours, repli:[ids restés procéduraux après un échec] } → désabonnement */
 export function abonnerChargement(fn) { ecouteurs.add(fn); return () => ecouteurs.delete(fn); }
 
@@ -74,14 +75,26 @@ export function dequantifier(THREE, scene) {
   });
 }
 
+/** GLTFLoader avec décodeur meshopt (EXT_meshopt_compression : les fichiers de l'atlas sont compressés par scripts/compresser-glb.mjs ; les fichiers non compressés se lisent aussi) → classe configurée */
+let chargeurPromesse = null;
+function chargeurGLTF() {
+  if (!chargeurPromesse) chargeurPromesse = (async () => {
+    const { GLTFLoader } = await import('three/addons/loaders/GLTFLoader.js');
+    let decodeur = null;
+    try { decodeur = (await import('three/addons/libs/meshopt_decoder.module.js')).MeshoptDecoder; } catch (e) { console.warn('[anatomie] décodeur meshopt indisponible : seuls les GLB non compressés se chargeront'); }
+    return class extends GLTFLoader { constructor(m) { super(m); if (decodeur) this.setMeshoptDecoder(decodeur); } };
+  })();
+  return chargeurPromesse;
+}
+
 /** Atlas : fichier GLB analysé une seule fois → gltf.scene (ou null) */
 function lireAtlas(atlas) {
   const cle = 'atlas:' + atlas.fichier;
   if (!cache.has(cle)) {
-    etat.demandes++; etat.enCours++; notifier();
+    etat.demandes++; etat.enCours++; etat.noms.add(atlas.fichier); notifier();
     cache.set(cle, (async () => {
       if (!normaliserEntree(atlas.fichier)) throw new Error('chemin d’atlas refusé : ' + atlas.fichier);     // relatif, .glb / .gltf, sans « .. »
-      const { GLTFLoader } = await import('three/addons/loaders/GLTFLoader.js');
+      const GLTFLoader = await chargeurGLTF();
       const url = new URL('ui/assets/anatomie/' + atlas.fichier, document.baseURI).href;
       const gltf = await new GLTFLoader().parseAsync(await octets(url), url.slice(0, url.lastIndexOf('/') + 1));
       dequantifier(await import('three'), gltf.scene);
@@ -91,7 +104,7 @@ function lireAtlas(atlas) {
       etat.echecs++; etat.repli.push(atlas.fichier);
       console.warn('[anatomie] atlas ' + atlas.fichier + ' : ' + (e && e.message || e) + ' → formes procédurales conservées');
       return null;
-    }).finally(() => { etat.enCours--; notifier(); }));
+    }).finally(() => { etat.enCours--; etat.noms.delete(atlas.fichier); notifier(); }));
   }
   return cache.get(cle);
 }
@@ -132,9 +145,9 @@ export async function chargerGLB(base, cote, options = {}) {
 
 async function chargerEntree(base, meta) {
   if (!cache.has(base)) {
-    etat.demandes++; etat.enCours++; notifier();
+    etat.demandes++; etat.enCours++; etat.noms.add(meta.fichier); notifier();
     cache.set(base, (async () => {
-      const { GLTFLoader } = await import('three/addons/loaders/GLTFLoader.js');     // import map de index.html (même instance de three.js)
+      const GLTFLoader = await chargeurGLTF();     // import map de index.html (même instance de three.js)
       const url = new URL('ui/assets/anatomie/' + meta.fichier, document.baseURI).href;
       const gltf = await new GLTFLoader().parseAsync(await octets(url), url.slice(0, url.lastIndexOf('/') + 1));
       dequantifier(await import('three'), gltf.scene);
@@ -144,14 +157,38 @@ async function chargerEntree(base, meta) {
       etat.echecs++; etat.repli.push(base);
       console.warn('[anatomie] GLB ' + base + ' : ' + (e && e.message || e) + ' → forme procédurale conservée');
       return null;
-    }).finally(() => { etat.enCours--; notifier(); }));
+    }).finally(() => { etat.enCours--; etat.noms.delete(meta.fichier); notifier(); }));
   }
   return cache.get(base);
 }
 
+/** Couche de tissus mous haute fidélité (muscles-bp3d.glb, arteres-bp3d.glb…, voir corps-hd.js) : fichier analysé une seule fois, nœuds dé-quantifiés.
+    → { scene, ancres: [identifiants d'ancres de peau] } ou null (absent, réseau, fichier invalide : l'appelant garde les formes procédurales). Le chargement alimente l'indicateur (abonnerChargement). */
+export function chargerCouche(fichier) {
+  const cle = 'couche:' + fichier;
+  if (!cache.has(cle)) {
+    etat.demandes++; etat.enCours++; etat.noms.add(fichier); notifier();
+    cache.set(cle, (async () => {
+      if (!normaliserEntree(fichier)) throw new Error('chemin de couche refusé : ' + fichier);
+      const GLTFLoader = await chargeurGLTF();
+      const url = new URL('ui/assets/anatomie/' + fichier, document.baseURI).href;
+      const gltf = await new GLTFLoader().parseAsync(await octets(url), url.slice(0, url.lastIndexOf('/') + 1));
+      dequantifier(await import('three'), gltf.scene);
+      const ex = gltf.asset && gltf.asset.extras;
+      etat.termines++;
+      return { scene: gltf.scene, ancres: ex && Array.isArray(ex.ancres) ? ex.ancres : [] };
+    })().catch(e => {
+      etat.echecs++; etat.repli.push(fichier);
+      console.warn('[anatomie] couche ' + fichier + ' : ' + (e && e.message || e) + ' → formes procédurales conservées');
+      return null;
+    }).finally(() => { etat.enCours--; etat.noms.delete(fichier); notifier(); }));
+  }
+  return cache.get(cle);
+}
+
 /** Vide les caches (mémoire et navigateur) : utile après avoir remplacé des fichiers */
 export async function viderCache() {
-  cache.clear(); manifeste = undefined; etat.demandes = etat.termines = etat.echecs = etat.enCours = 0; etat.repli = [];
+  cache.clear(); manifeste = undefined; etat.demandes = etat.termines = etat.echecs = etat.enCours = 0; etat.repli = []; etat.noms.clear();
   try { if (typeof caches !== 'undefined') await caches.delete(NOM_CACHE); } catch (e) { }
   notifier();
 }

@@ -60,7 +60,7 @@ export function creerMateriauPBR(THREE, type, couleur, options = {}) {
   }, options));
   m.userData.pbr = type;
   if (type === 'peau' || type === 'nerf') return m;            // simples : pas de shader sur mesure
-  const os = type === 'os', muscle = type === 'muscle', cart = type === 'cartilage', lig = type === 'ligament';
+  const os = type === 'os', muscle = type === 'muscle', cart = type === 'cartilage', lig = type === 'ligament', org = type === 'organe';
   m.onBeforeCompile = shader => {
     shader.vertexShader = shader.vertexShader
       .replace('#include <common>', '#include <common>\nvarying vec3 vOPos;\nvarying vec2 vFib;\n' + (muscle || os ? 'attribute vec2 aFibre;\n' : ''))
@@ -76,7 +76,7 @@ export function creerMateriauPBR(THREE, type, couleur, options = {}) {
           float tendon=smoothstep(0.16,0.06,vFib.x)+smoothstep(0.84,0.94,vFib.x);              // extrémités fibreuses, blanc nacré
           diffuseColor.rgb=mix(chair,vec3(0.90,0.86,0.78),clamp(tendon,0.0,1.0)); }` : `
         { float v=fbm3(vOPos*55.0), g=fbm3(vOPos*9.0+3.7);
-          vec3 ivoire=vec3(0.90,0.84,0.70), jaune=vec3(0.84,0.74,0.52), gris=vec3(0.70,0.68,0.62);
+          vec3 ivoire=${org ? 'diffuseColor.rgb' : 'vec3(0.90,0.84,0.70)'}, jaune=${org ? 'diffuseColor.rgb*vec3(1.0,0.93,0.9)' : 'vec3(0.84,0.74,0.52)'}, gris=${org ? 'diffuseColor.rgb*0.78' : 'vec3(0.70,0.68,0.62)'};      // organe : la couleur du matériau, avec les mêmes variations de teinte (et non l'ivoire de l'os)
           diffuseColor.rgb=mix(mix(ivoire,jaune,g),gris,smoothstep(0.55,0.9,v)*0.5)*(0.92+0.16*v);
           float epi=clamp(vFib.x,0.0,1.0);                                                       // diaphyse : ivoire plus clair ; épiphyse : plus jaune / rosé, un peu plus sombre
           diffuseColor.rgb=mix(diffuseColor.rgb*vec3(1.05,1.04,1.02),diffuseColor.rgb*vec3(1.0,0.90,0.78)+vec3(0.035,0.0,0.0),epi*0.7);

@@ -75,11 +75,34 @@ function construireDetail() {
   };
 }
 
+/* Table du GLB « os-axial-bp3d.glb » (BodyParts3D, CC BY 4.0, scripts/convertir-corps-bp3d.mjs) : os longs, scapula, clavicule, os coxal, patella, rachis, côtes, sacrum, disques.
+   C'est le MÊME corps que les muscles, vaisseaux et organes de la couche haute fidélité : leurs insertions tombent sur ces os (voir corps-hd.js). Le sternum (BodyParts3D n'a que le corps du sternum),
+   le coccyx et les cartilages costaux restent ceux du squelette CC0 (repli par priorité des atlas). */
+function construireAxial() {
+  const os = {
+    clavicule: cotes('clavicule', 'axe'), scapula: cotes('scapula'), humerus: cotes('humerus', 'axe'), radius: cotes('radius', 'axe'), ulna: cotes('ulna', 'axe'),
+    'os-coxal': cotes('os_coxal'), femur: cotes('femur', 'axe'), patella: cotes('patella'), tibia: cotes('tibia', 'axe'), fibula: cotes('fibula', 'axe'),
+    sacrum: { noeuds: ['sacrum'], rachis: true }
+  };
+  for (const v of VERTEBRES) os['vertebre-' + v] = { noeuds: ['vertebre_' + v], rachis: true };
+  for (let i = 1; i <= 12; i++) os['cote-' + i] = Object.assign(cotes('cote_' + i), { rachis: true });
+  for (let k = 1; k + 1 < VERTEBRES.length; k++) {      // « disque_<haute><basse> » : le disque situé sous la vertèbre haute (T12-L1 est absent de BodyParts3D, L5-S1 n'a pas d'équivalent dans l'application)
+    const haute = VERTEBRES[k], basse = VERTEBRES[k + 1];
+    if (haute === 'T12') continue;
+    os['disque-' + basse + '-' + haute] = { noeuds: ['disque_' + haute + basse], rachis: true };
+  }
+  return os;
+}
+
 /** Tables disponibles, par identifiant (champ « table » de l'entrée _atlas du manifeste) */
 export const TABLES = {
   'squelette-cc0': {
     licence: 'CC0-1.0', auteur: 'Armen Barsegyan (CGI Coffee)', source: 'https://cgicoffee.com/blog/2017/10/free-human-skeleton-3d-model',
     os: construire()
+  },
+  'bodyparts3d-axial': {
+    licence: 'CC-BY-4.0', auteur: 'The Database Center for Life Science (BodyParts3D)', source: 'https://dbarchive.biosciencedbc.jp/en/bodyparts3d/lic.html',
+    os: construireAxial()
   },
   'bodyparts3d': {
     licence: 'CC-BY-4.0', auteur: 'The Database Center for Life Science (BodyParts3D)', source: 'https://dbarchive.biosciencedbc.jp/en/bodyparts3d/lic.html',

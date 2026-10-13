@@ -1,20 +1,20 @@
 /* ═════════════ FENÊTRE « ANATOMIE & ORTHOPÉDIE » (vue plein écran, comme le terminal) ═════════════
    Chargée par js/commun/vues.js à la première ouverture. Exporte ouvrir() / fermer() ; tout l'état passe par le store (store.js). */
-import { useAnatomieStore as S, actions as A, CALQUES } from './store.js?v=2026.10.13.11';
-import { MoteurAnatomie, VUES } from './moteur.js?v=2026.10.13.11';
-import * as R from './registre.js?v=2026.10.13.11';
-import * as K from './cours.js?v=2026.10.13.11';
-import { AMPUTATIONS, SCOLIOSE, FRACTURES, TYPES_FRACTURE, MATERIAUX, APPAREILLAGES, appareilsCompatibles } from './donnees-ortho.js?v=2026.10.13.11';
-import { REPERES } from './donnees-os.js?v=2026.10.13.11';
-import { GROUPES_OS, nomGroupe } from './groupes-os.js?v=2026.10.13.11';
-import { chargerTHREE, webglDisponible, h, vider } from './outils.js?v=2026.10.13.11';
-import { NIVEAUX, NOMS_NIVEAUX, lireNiveau, ecrireNiveau, detecterCapacites, niveauConseille } from './rendu.js?v=2026.10.13.11';
-import { abonnerChargement, lireEtatChargement, lireManifeste, normaliserEntree, atlasListe } from './modeles-glb.js?v=2026.10.13.11';
+import { useAnatomieStore as S, actions as A, CALQUES } from './store.js?v=2026.10.14.1';
+import { MoteurAnatomie, VUES } from './moteur.js?v=2026.10.14.1';
+import * as R from './registre.js?v=2026.10.14.1';
+import * as K from './cours.js?v=2026.10.14.1';
+import { AMPUTATIONS, SCOLIOSE, FRACTURES, TYPES_FRACTURE, MATERIAUX, APPAREILLAGES, appareilsCompatibles } from './donnees-ortho.js?v=2026.10.14.1';
+import { REPERES } from './donnees-os.js?v=2026.10.14.1';
+import { GROUPES_OS, nomGroupe } from './groupes-os.js?v=2026.10.14.1';
+import { chargerTHREE, webglDisponible, h, vider } from './outils.js?v=2026.10.14.1';
+import { NIVEAUX, NOMS_NIVEAUX, lireNiveau, ecrireNiveau, detecterCapacites, niveauConseille } from './rendu.js?v=2026.10.14.1';
+import { abonnerChargement, lireEtatChargement, lireManifeste, normaliserEntree, atlasListe } from './modeles-glb.js?v=2026.10.14.1';
 
-const NOMS_CALQUES = { squelette: 'Squelette', muscles: 'Muscles', nerfs: 'Nerfs', organes: 'Organes', peau: 'Peau', reperes: 'Repères', dermatomes: 'Dermatomes' };
-const COMBOS = [['Squelette + Muscles', ['squelette', 'muscles']], ['Muscles + Nerfs', ['muscles', 'nerfs']], ['Squelette + Nerfs', ['squelette', 'nerfs']], ['Tout', ['squelette', 'muscles', 'nerfs', 'organes']]];
+const NOMS_CALQUES = { squelette: 'Squelette', muscles: 'Muscles', arteres: 'Artères', veines: 'Veines', nerfs: 'Nerfs', organes: 'Organes', peau: 'Peau', reperes: 'Repères', dermatomes: 'Dermatomes' };
+const COMBOS = [['Squelette + Muscles', ['squelette', 'muscles']], ['Muscles + Nerfs', ['muscles', 'nerfs']], ['Squelette + Nerfs', ['squelette', 'nerfs']], ['Vaisseaux', ['arteres', 'veines']], ['Tout', ['squelette', 'muscles', 'arteres', 'veines', 'nerfs', 'organes']]];
 const ONGLETS = [['structures', 'Structures'], ['amputations', 'Amputations'], ['deformations', 'Déformations'], ['fractures', 'Fractures'], ['appareillage', 'Appareillage'], ['reperes', 'Repères'], ['affichage', 'Affichage'], ['cours', 'Cours']];
-const CALQUE_DE_TYPE = { os: 'squelette', muscle: 'muscles', nerf: 'nerfs', organe: 'organes', repere: 'reperes', dermatome: 'dermatomes' };
+const CALQUE_DE_TYPE = { os: 'squelette', muscle: 'muscles', tendon: 'muscles', artere: 'arteres', veine: 'veines', nerf: 'nerfs', organe: 'organes', repere: 'reperes', dermatome: 'dermatomes' };
 
 let desabonneGLB = null;
 let racine = null, moteur = null, desabonne = null, monte = false, ouvert = false, tokenOuverture = 0;
@@ -265,7 +265,7 @@ function majChargement(c) {
   const actif = c.enCours > 0;
   el.chargement.hidden = !actif && !c.echecs;
   el.chargement.classList.toggle('an-charge-echec', !actif && c.echecs > 0);
-  el.chargement.textContent = actif ? 'Chargement des modèles 3D… ' + c.termines + ' / ' + c.demandes
+  el.chargement.textContent = actif ? 'Chargement des modèles 3D' + (c.couches && c.couches.length ? ' (' + c.couches.join(', ') + ')' : '') + '… ' + c.termines + ' / ' + c.demandes
     : c.echecs ? 'Modèles 3D : ' + c.echecs + ' indisponible(s), formes schématiques utilisées' : '';
 }
 
@@ -361,7 +361,7 @@ function rendreFiche(e) {
   const actions = h('div', { class: 'an-chips' },
     bouton(e.isolation ? '↩ Tout réafficher' : '◎ Isoler', () => e.isolation ? A.quitterIsolation() : A.isoler(sid), e.isolation),
     bouton(e.masques.includes(sid) ? 'Réafficher' : 'Masquer', () => A.masquer(sid)),
-    bouton('Pop-up 3D', () => import('./index.js?v=2026.10.13.11').then(m => m.afficherQuick(sid))),
+    bouton('Pop-up 3D', () => import('./index.js?v=2026.10.14.1').then(m => m.afficherQuick(sid))),
     bouton('🔊 Raylé lit', () => window.RayleBus && RayleBus.demander('anatomie:parler', f.resume)));
   el.fiche.append(actions);
   f.champs.forEach(c => el.fiche.append(h('div', { class: 'an-champ-fiche' }, h('h4', null, c.label), Array.isArray(c.valeur) ? h('ul', null, c.valeur.map(v => h('li', null, v))) : h('p', null, c.valeur))));

@@ -1,9 +1,11 @@
-/* ═════════════ SURFACE DE SECTION (« cap ») DU PLAN DE COUPE ═════════════
+/* ═════════════ SURFACE DE SECTION (« cap ») DU PLAN DE COUPE : os compact et os spongieux ═════════════
    Sans cap, un os coupé par le plan de coupe est une coquille vide : on voit l'intérieur des faces arrière. Méthode du tampon de pochoir (stencil) :
-     1. chaque maillage d'os reçoit deux fantômes qui n'écrivent que dans le pochoir (faces arrière : +1, faces avant : −1, coupés par le plan global du moteur) ;
+     1. chaque maillage d'os reçoit des fantômes qui n'écrivent que dans le pochoir (faces arrière : +1, faces avant : −1, coupés par le plan global du moteur) ;
         le pochoir reste non nul exactement là où le plan traverse de la matière ;
-     2. un grand carré posé sur le plan ne se dessine que là où le pochoir est non nul (puis le remet à zéro) : c'est la surface de section.
-   Matériau de la surface : os spongieux (travées d'os ivoire autour de cavités médullaires rosées) ; la fine corticale n'est pas dessinée (elle se confond avec le bord de l'os).
+     2. un grand carré posé sur le plan ne se dessine que là où le pochoir est non nul : c'est la surface de section.
+   Deux zones : chaque os reçoit deux jeux de fantômes, l'un sur sa surface (contour extérieur), l'autre rétréci vers l'intérieur le long des normales (contour de la cavité) ; la valeur du pochoir
+   vaut alors 1 dans l'anneau (os COMPACT, la corticale : ivoire dense) et 2 au centre (os SPONGIEUX : travées d'os ivoire autour de cavités médullaires rosées). Un os long a une corticale épaisse à
+   la diaphyse et fine aux épiphyses (attribut aFibre.x cuit dans le modèle) ; un os court ou plat n'est pas rétréci (toute sa section est dessinée en spongieux, sous une corticale trop fine pour se voir).
    Les fantômes sont créés à la demande (seulement tant qu'une coupe est active) et ignorés par la sélection. Nécessite un tampon de pochoir dans le canvas (stencil: true) et dans la cible du post-traitement. */
 
 const GLSL = `
@@ -13,8 +15,12 @@ float vn(vec2 p){ vec2 i=floor(p), f=fract(p); f=f*f*(3.0-2.0*f); return mix(mix
 float travees(vec2 p){ float a=1.0-abs(2.0*vn(p)-1.0), b=1.0-abs(2.0*vn(p*1.9+17.3)-1.0); return a*0.6+b*0.4; }
 `;
 
+/** Pochoir commun aux deux surfaces de section : le fragment est dessiné si le pochoir vérifie `fonction` par rapport à `ref`, puis le pochoir est remis à zéro à cet endroit */
+const pochoir = (THREE, fonction, ref) => ({ stencilWrite: true, stencilRef: ref, stencilFunc: fonction, stencilFail: THREE.KeepStencilOp, stencilZFail: THREE.KeepStencilOp, stencilZPass: THREE.ZeroStencilOp });
+
+/** Os spongieux : au centre de la section (pochoir ≥ 2) */
 export function materielCap(THREE) {
-  const m = new THREE.MeshStandardMaterial({ color: 0xe6d5b4, roughness: .78, metalness: 0, side: THREE.DoubleSide, stencilWrite: true, stencilRef: 0, stencilFunc: THREE.NotEqualStencilFunc, stencilFail: THREE.ReplaceStencilOp, stencilZFail: THREE.ReplaceStencilOp, stencilZPass: THREE.ReplaceStencilOp });
+  const m = new THREE.MeshStandardMaterial(Object.assign({ color: 0xe6d5b4, roughness: .78, metalness: 0, side: THREE.DoubleSide }, pochoir(THREE, THREE.GreaterStencilFunc, 1)));
   m.onBeforeCompile = shader => {
     shader.vertexShader = shader.vertexShader.replace('#include <common>', '#include <common>\nvarying vec2 vCap;').replace('#include <begin_vertex>', '#include <begin_vertex>\nvCap=position.xy;');
     shader.fragmentShader = shader.fragmentShader.replace('#include <common>', '#include <common>\nvarying vec2 vCap;\n' + GLSL)
@@ -30,12 +36,46 @@ export function materielCap(THREE) {
   return m;
 }
 
+/** Os compact : l'anneau de la section (pochoir = 1) : ivoire dense, grain très fin, presque sans cavités */
+export function materielCorticale(THREE) {
+  const m = new THREE.MeshStandardMaterial(Object.assign({ color: 0xeadfc6, roughness: .6, metalness: 0, side: THREE.DoubleSide }, pochoir(THREE, THREE.EqualStencilFunc, 1)));
+  m.onBeforeCompile = shader => {
+    shader.vertexShader = shader.vertexShader.replace('#include <common>', '#include <common>\nvarying vec2 vCap;').replace('#include <begin_vertex>', '#include <begin_vertex>\nvCap=position.xy;');
+    shader.fragmentShader = shader.fragmentShader.replace('#include <common>', '#include <common>\nvarying vec2 vCap;\n' + GLSL)
+      .replace('#include <color_fragment>', `#include <color_fragment>
+        { float g=vn(vCap*900.0), l=vn(vCap*140.0); diffuseColor.rgb=mix(vec3(0.90,0.84,0.70),vec3(0.96,0.92,0.82),g)*(0.93+0.1*l); }`)
+      .replace('#include <emissivemap_fragment>', '#include <emissivemap_fragment>\ntotalEmissiveRadiance+=diffuseColor.rgb*0.5;');
+  };
+  m.customProgramCacheKey = () => 'cap-corticale';
+  return m;
+}
+
+/** Fantôme de pochoir : n'écrit que dans le pochoir ; `epaisseur` (uniforme, en mètres) rétrécit le maillage le long de ses normales (contour de la cavité), atténuée vers les épiphyses */
+function fantome(THREE, cote, operation, epaisseur) {
+  const m = new THREE.MeshBasicMaterial({ colorWrite: false, depthWrite: false, depthTest: false, side: cote, stencilWrite: true, stencilFunc: THREE.AlwaysStencilFunc, stencilFail: operation, stencilZFail: operation, stencilZPass: operation });
+  const u = { valeur: epaisseur };
+  m.onBeforeCompile = shader => {
+    shader.uniforms.uEpaisseur = u;
+    shader.vertexShader = shader.vertexShader.replace('#include <common>', '#include <common>\nuniform float uEpaisseur;\n#ifdef USE_FIBRE\nattribute vec2 aFibre;\n#endif')
+      .replace('#include <begin_vertex>', '#include <begin_vertex>\n#ifdef USE_FIBRE\ntransformed -= normal * uEpaisseur * (1.0 - 0.75 * clamp(aFibre.x, 0.0, 1.0));\n#else\ntransformed -= normal * uEpaisseur;\n#endif');
+  };
+  m.defines = { USE_FIBRE: '' };
+  m.customProgramCacheKey = () => 'cap-fantome-' + (epaisseur > 0 ? 'rétréci' : 'plein') + '-' + cote + '-' + operation;
+  m.userData.u = u;
+  return m;
+}
+
 export class CapsCoupe {
   constructor(THREE, parent) {
-    this.THREE = THREE; this.parent = parent; this.fantomes = []; this.cap = null; this.cle = '';
-    this.matAvant = new THREE.MeshBasicMaterial({ colorWrite: false, depthWrite: false, depthTest: false, side: THREE.FrontSide, stencilWrite: true, stencilFunc: THREE.AlwaysStencilFunc, stencilFail: THREE.DecrementWrapStencilOp, stencilZFail: THREE.DecrementWrapStencilOp, stencilZPass: THREE.DecrementWrapStencilOp });
-    this.matArriere = new THREE.MeshBasicMaterial({ colorWrite: false, depthWrite: false, depthTest: false, side: THREE.BackSide, stencilWrite: true, stencilFunc: THREE.AlwaysStencilFunc, stencilFail: THREE.IncrementWrapStencilOp, stencilZFail: THREE.IncrementWrapStencilOp, stencilZPass: THREE.IncrementWrapStencilOp });
-    this.matCap = materielCap(THREE);
+    this.THREE = THREE; this.parent = parent; this.fantomes = []; this.cap = null; this.corticale = null; this.cle = '';
+    this.matCap = materielCap(THREE); this.matCorticale = materielCorticale(THREE);
+    this.mats = [];                // matériaux des fantômes (libérés avec eux)
+  }
+  /** Épaisseur de la corticale d'un maillage : os long (étroit et allongé) → 20 % de sa plus petite dimension, au plus 4 mm ; os court ou plat → 0 (section entièrement spongieuse) */
+  epaisseurCorticale(geo) {
+    if (!geo.boundingBox) geo.computeBoundingBox();
+    const s = geo.boundingBox.getSize(new this.THREE.Vector3()), d = [s.x, s.y, s.z].sort((a, b) => a - b);
+    return d[2] > .05 && d[2] > 4 * d[1] ? Math.min(.004, .2 * d[0]) : 0;
   }
   /** plan : THREE.Plane du moteur (ou null : tout retirer) ; entrees : Map des structures du moteur. À rappeler quand un modèle change (GLB chargé) ou quand la coupe bouge. */
   maj(plan, entrees) {
@@ -47,25 +87,31 @@ export class CapsCoupe {
       this.retirerFantomes(); this.cle = cle;
       for (const e of os) e.obj.traverse(o => {
         if (!o.isMesh || o.userData.capFantome || !o.geometry || !o.geometry.attributes.position) return;
-        for (const [mat, ordre] of [[this.matArriere, 1], [this.matAvant, 1]]) {
-          const f = new T.Mesh(o.geometry, mat); f.renderOrder = ordre; f.userData.capFantome = true; f.raycast = () => { }; f.frustumCulled = false;
+        const ep = this.epaisseurCorticale(o.geometry);
+        for (const [cote, operation] of [[T.BackSide, T.IncrementWrapStencilOp], [T.FrontSide, T.DecrementWrapStencilOp]]) for (const rayon of [0, ep]) {      // contour extérieur, puis contour de la cavité (identique si l'os n'est pas rétréci)
+          const m = fantome(T, cote, operation, rayon); this.mats.push(m);
+          const f = new T.Mesh(o.geometry, m); f.renderOrder = 1; f.userData.capFantome = true; f.raycast = () => { }; f.frustumCulled = false;
           o.add(f); this.fantomes.push(f);
         }
       });
     }
     if (!this.cap) {
-      this.cap = new T.Mesh(new T.PlaneGeometry(3, 3), this.matCap); this.cap.renderOrder = 2; this.cap.raycast = () => { }; this.cap.frustumCulled = false; this.cap.userData.capFantome = true;
-      this.cap.onAfterRender = r => { try { r.clearStencil(); } catch (x) { } };
-      this.parent.add(this.cap);
+      const plan3 = () => new T.PlaneGeometry(3, 3);
+      this.corticale = new T.Mesh(plan3(), this.matCorticale); this.corticale.renderOrder = 2;
+      this.cap = new T.Mesh(plan3(), this.matCap); this.cap.renderOrder = 3;
+      for (const q of [this.corticale, this.cap]) { q.raycast = () => { }; q.frustumCulled = false; q.userData.capFantome = true; this.parent.add(q); }
+      this.cap.onAfterRender = r => { try { r.clearStencil(); } catch (x) { } };        // dernière surface dessinée : on nettoie le pochoir pour l'image suivante
     }
-    // le carré se pose sur le plan (légèrement du côté conservé pour ne pas être lui-même coupé)
+    // les carrés se posent sur le plan (légèrement du côté conservé pour ne pas être eux-mêmes coupés)
     const n = plan.normal;
-    this.cap.position.copy(n).multiplyScalar(-plan.constant + .0004);
-    this.cap.lookAt(this.cap.position.clone().add(n));
-    this.cap.visible = true;
+    for (const q of [this.corticale, this.cap]) { q.position.copy(n).multiplyScalar(-plan.constant + .0004); q.lookAt(q.position.clone().add(n)); q.visible = true; }
     return this.fantomes.length;
   }
-  retirerFantomes() { this.fantomes.forEach(f => f.parent && f.parent.remove(f)); this.fantomes = []; this.cle = ''; }
-  vider() { this.retirerFantomes(); if (this.cap) this.cap.visible = false; }
-  dispose() { this.vider(); if (this.cap) { this.parent.remove(this.cap); this.cap.geometry.dispose(); this.cap = null; } this.matAvant.dispose(); this.matArriere.dispose(); this.matCap.dispose(); }
+  retirerFantomes() { this.fantomes.forEach(f => f.parent && f.parent.remove(f)); this.fantomes = []; this.mats.forEach(m => m.dispose()); this.mats = []; this.cle = ''; }
+  vider() { this.retirerFantomes(); [this.cap, this.corticale].forEach(q => { if (q) q.visible = false; }); }
+  dispose() {
+    this.vider();
+    [this.cap, this.corticale].forEach(q => { if (q) { this.parent.remove(q); q.geometry.dispose(); } }); this.cap = this.corticale = null;
+    this.matCap.dispose(); this.matCorticale.dispose();
+  }
 }

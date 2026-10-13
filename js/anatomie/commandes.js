@@ -3,10 +3,10 @@
    executer(commande)       → phrase que Raylé dit (promesse), ou null
    Déclencheurs : « décris-moi l'humérus », « où s'insère le biceps ? » (pop-up 3D), « ouvre l'anatomie », « affiche les muscles et les nerfs »,
    « amputation trans-tibiale à droite », « scoliose de 40 degrés », « fracture du col du fémur », « mets une prothèse », « mets l'emboîture en carbone »… */
-import { useAnatomieStore as S, actions as A } from './store.js?v=2026.10.13.11';
-import * as R from './registre.js?v=2026.10.13.11';
-import * as K from './cours.js?v=2026.10.13.11';
-import { AMPUTATIONS, SCOLIOSE, FRACTURES, MATERIAUX, APPAREILLAGES, appareilsCompatibles } from './donnees-ortho.js?v=2026.10.13.11';
+import { useAnatomieStore as S, actions as A } from './store.js?v=2026.10.14.1';
+import * as R from './registre.js?v=2026.10.14.1';
+import * as K from './cours.js?v=2026.10.14.1';
+import { AMPUTATIONS, SCOLIOSE, FRACTURES, MATERIAUX, APPAREILLAGES, appareilsCompatibles } from './donnees-ortho.js?v=2026.10.14.1';
 
 const norm = R.norm;
 const COUP = /\b(?:et|plus|avec|puis)\b|[+,&]/;
@@ -15,7 +15,7 @@ const COUP = /\b(?:et|plus|avec|puis)\b|[+,&]/;
 const VERBES_MONTRER = /^(?:affiche|afficher|montre|montrer|mets|met|mettre|ajoute|ajouter|active|activer|superpose|superposer|visualise|visualiser|simule|simuler|vois|voir|passe|passer|lance|lancer|ouvre|ouvrir|donne|je veux voir|fais|fait)\b/;
 const VERBES_CACHER = /^(?:enleve|enlever|cache|cacher|retire|retirer|desactive|desactiver|masque|masquer|supprime|supprimer|efface|effacer|sans)\b/;
 const CALQUES_MOTS = [
-  ['squelette', /\b(?:squelette|os|osseux|osseuse|osseuses|systeme osseux|ossature)\b/], ['muscles', /\b(?:muscles?|musculaire|musculature|systeme musculaire)\b/], ['nerfs', /\b(?:nerfs?|nerveux|nerveuse|systeme nerveux|plexus)\b/],
+  ['squelette', /\b(?:squelette|os|osseux|osseuse|osseuses|systeme osseux|ossature)\b/], ['muscles', /\b(?:muscles?|musculaire|musculature|systeme musculaire)\b/], ['arteres', /\b(?:arteres?|arteriel|arterielle|reseau arteriel|systeme arteriel)\b/], ['veines', /\b(?:veines?|veineux|veineuse|reseau veineux|systeme veineux)\b/], ['nerfs', /\b(?:nerfs?|nerveux|nerveuse|systeme nerveux|plexus)\b/],
   ['organes', /\b(?:organes?|visceres?|viscerale?s?|organes internes)\b/], ['peau', /\b(?:peau|silhouette|enveloppe)\b/], ['dermatomes', /\b(?:dermatomes?)\b/], ['reperes', /\b(?:reperes?(?: osseux| anatomiques?)?|palpation)\b/]
 ];
 const INTENT_DECRIRE = /\b(?:decris|decrire|description|explique|expliquer|parle|parler|presente|presenter|montre|montrer|affiche|afficher|isole|isoler|zoome?|vois|voir|reperer|ou (?:est|se trouve|se situe|sont|se placent?)|situe|localise|localiser|c est quoi|qu est ce|qui est|fiche|insere|inserent|insertion|terminaison|origine|innerve|innervation|action|role|fonction|sert|a quoi|rotation|trajet|attaches?|se fixe|se termine|palper|palpe|repere|dis moi|raconte|detaille|apercu|3d|vue 3d)\b/;
@@ -119,7 +119,7 @@ function trouverRepere(brut) {
   return null;
 }
 function analyserCalques(t) {
-  const retire = VERBES_CACHER.test(t), montre = VERBES_MONTRER.test(t) || /^(?:les |le |la |l )?(?:squelette|muscles?|nerfs?|organes?|peau|dermatomes?)/.test(t);
+  const retire = VERBES_CACHER.test(t), montre = VERBES_MONTRER.test(t) || /^(?:les |le |la |l )?(?:squelette|muscles?|arteres?|veines?|nerfs?|organes?|peau|dermatomes?)/.test(t);
   if (!retire && !montre) return null;
   let objet = t.replace(VERBES_MONTRER, ' ').replace(VERBES_CACHER, ' ').replace(/\b(?:moi|donc|aussi|encore|uniquement|seulement|juste|que|le|la|les|l|un|une|des|du|de|d|au|aux|mon|ma|mes|systemes?|calques?|couches?|en plus|par dessus|dessus)\b/g, ' ').replace(/\s+/g, ' ').trim();
   const seul = /\b(?:uniquement|seulement|juste|que)\b/.test(t) || /^(?:affiche|montre|passe|mets)(?: moi)?(?: en| sur)? (?:mode )?/.test(t) && /\bseul\w*\b/.test(t);
@@ -138,7 +138,7 @@ function analyserCalques(t) {
 }
 
 // ───────────────────────── exécution ─────────────────────────
-const NOMS_CALQUES = { squelette: 'le squelette', muscles: 'les muscles', nerfs: 'les nerfs', organes: 'les organes', peau: 'la peau', reperes: 'les repères', dermatomes: 'les dermatomes' };
+const NOMS_CALQUES = { squelette: 'le squelette', muscles: 'les muscles', arteres: 'les artères', veines: 'les veines', nerfs: 'les nerfs', organes: 'les organes', peau: 'la peau', reperes: 'les repères', dermatomes: 'les dermatomes' };
 const liste = a => a.length <= 1 ? a[0] || '' : a.slice(0, -1).join(', ') + ' et ' + a[a.length - 1];
 const attendre = ms => new Promise(r => setTimeout(r, ms));
 const vueCourante = () => (window.RayleBus && RayleBus.demander('vue')) || 'rayle';
@@ -168,7 +168,7 @@ export async function executer(c) {
   switch (c.type) {
     case 'ouvrir': await ouvrirFenetre(c.onglet); return "Voici la fenêtre Anatomie et Orthopédie. Touchez une structure pour la décrire, ou dites par exemple « affiche les muscles » ou « amputation trans-tibiale ».";
     case 'fermer-fenetre': RayleBus.demander('vue:fermer'); return 'Retour à l’accueil.';
-    case 'fermer-quick': { const q = await import('./quickview.js?v=2026.10.13.11'); if (!q.quickOuvert()) return null; q.fermerQuick(); return 'Fenêtre 3D fermée.'; }
+    case 'fermer-quick': { const q = await import('./quickview.js?v=2026.10.14.1'); if (!q.quickOuvert()) return null; q.fermerQuick(); return 'Fenêtre 3D fermée.'; }
     case 'normal': await ouvrirFenetre(); A.toutNormal(); A.selectionner(null); A.toutAfficher(); setTimeout(() => { const m = window.RayleAnatomieMoteur; m && m.vue('face'); }, 60); return 'Anatomie normale rétablie.';
     case 'retirer': {
       const e = S.obtenir();
@@ -239,7 +239,7 @@ export async function executer(c) {
       const cible = c.cible;
       const id = cible.ids[0]; if (!id) return null;
       const texte = cible.groupe ? cible.nom + ' : ' + cible.ids.length + ' pièces affichées, touchez-en une pour la décrire.' : R.resume(id, c.question);
-      if (!appliquerDecrire(c)) { const q = await import('./quickview.js?v=2026.10.13.11'); await q.afficherQuick(cible.groupe ? cible : (typeof cible === 'string' ? cible : { base: cible.base, ids: cible.ids, cote: cible.cote, nom: cible.nom, groupe: !!cible.groupe })); }
+      if (!appliquerDecrire(c)) { const q = await import('./quickview.js?v=2026.10.14.1'); await q.afficherQuick(cible.groupe ? cible : (typeof cible === 'string' ? cible : { base: cible.base, ids: cible.ids, cote: cible.cote, nom: cible.nom, groupe: !!cible.groupe })); }
       const cours = cible.groupe ? '' : await extraitCours(R.nomAffiche(id).replace(/ (droit|gauche|droite)$/, '') + ' ' + c.question, []);
       return texte + cours;
     }

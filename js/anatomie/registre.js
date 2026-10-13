@@ -1,9 +1,11 @@
 /* ═════════════ REGISTRE DES STRUCTURES : recherche, fiches, liens os ↔ muscles ═════════════
    Identifiants d'instance : 'humerus:D' (os, muscle, nerf symétriques : D = droite, G = gauche du patient),
    'vertebre-L4', 'cote-5:G', 'coeur', 'moelle'. Les repères palpables sont 'repere:eias:D'. */
-import { OS, VERTEBRES, REPERES, ficheVertebre, ficheCote } from './donnees-os.js?v=2026.10.13.11';
-import { MUSCLES } from './donnees-muscles.js?v=2026.10.13.11';
-import { NERFS, MOELLE, NERFS_SPINAUX, ORGANES, DERMATOMES } from './donnees-nerfs-organes.js?v=2026.10.13.11';
+import { OS, VERTEBRES, REPERES, ficheVertebre, ficheCote } from './donnees-os.js?v=2026.10.14.1';
+import { MUSCLES } from './donnees-muscles.js?v=2026.10.14.1';
+import { NERFS, MOELLE, NERFS_SPINAUX, ORGANES, DERMATOMES } from './donnees-nerfs-organes.js?v=2026.10.14.1';
+import { MUSCLES_HD, TENDONS_HD, VAISSEAUX_HD, ORGANES_HD, NERFS_HD } from './donnees-corps.js?v=2026.10.14.1';
+import { FICHES_CORPS } from './fiches-corps.js?v=2026.10.14.1';
 
 export const norm = t => String(t == null ? '' : t).normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/[œ]/g, 'oe').replace(/[’']/g, ' ').replace(/[^a-z0-9]+/g, ' ').trim();
 
@@ -17,6 +19,20 @@ MUSCLES.forEach(o => ajoute(o.id, 'muscle', o));
 NERFS.forEach(o => ajoute(o.id, 'nerf', o));
 ajoute(MOELLE.id, 'nerf', MOELLE); ajoute(NERFS_SPINAUX.id, 'nerf', NERFS_SPINAUX);
 ORGANES.forEach(o => ajoute(o.id, 'organe', o));
+/** Structures haute fidélité (corps BodyParts3D) : ligne [id, nom, latin, région, concepts…] + fiche sourcée (fiches-corps.js). Un muscle qui a déjà une forme schématique garde sa définition (et sa fiche) ;
+    on lui ajoute seulement le nom latin. Un champ absent des sources reste vide : la fiche l'affiche comme « non renseigné ». */
+export const NON_RENSEIGNE = 'Non renseigné dans les sources retenues.';
+function defCorps(r, type, symDefaut) {
+  const f = FICHES_CORPS[r[0]] || {}, sym = symDefaut !== undefined ? symDefaut : ((r[4] || []).length ? r[4].some(x => String(x).includes('{c}')) : true);     // sans concept : structure reconstituée ou fusionnée, toujours droite et gauche
+  return { id: r[0], nom: r[1], latin: r[2], region: r[3], sym, membre: (type === 'artere' || type === 'veine' ? r[6] : r[5]) !== undefined ? (type === 'artere' || type === 'veine' ? r[6] : r[5]) : null, hd: true, racines: f.racines || '', territoire: f.territoire || '',
+    origine: { os: f.origine && f.origine.os || null, txt: f.origine && f.origine.txt || '' }, insertion: { os: f.insertion && f.insertion.os || null, txt: f.insertion && f.insertion.txt || '' },
+    action: f.action || '', innervation: f.innervation || '', vascularisation: f.vascularisation || '', trajet: f.rapports || '', clinique: f.clinique || '', source: f.source || '', description: f.description || '', role: f.role || '' };
+}
+for (const r of MUSCLES_HD) { const ex = REG.get(r[0]); if (ex) { if (!ex.def.latin) ex.def.latin = r[2]; ex.def.hd = true; const fc = FICHES_CORPS[r[0]]; if (fc && fc.source && !ex.def.source) ex.def.source = fc.source; } else ajoute(r[0], 'muscle', defCorps(r, 'muscle')); }
+for (const r of TENDONS_HD) ajoute(r[0], 'tendon', defCorps(r, 'tendon'));
+for (const r of VAISSEAUX_HD) ajoute(r[0], r[5] === 'veine' ? 'veine' : 'artere', defCorps(r, r[5]));
+for (const r of NERFS_HD) { const ex = REG.get(r[0]), fc = FICHES_CORPS[r[0]] || {}; if (!ex) ajoute(r[0], 'nerf', defCorps(r, 'nerf')); else { if (!ex.def.latin) ex.def.latin = r[2]; if (fc.source && !ex.def.source) ex.def.source = fc.source; ex.def.hd = true; } }
+for (const r of ORGANES_HD) { const ex = REG.get(r[0]); if (ex) { if (!ex.def.latin) ex.def.latin = r[2]; ex.def.hd = true; } else ajoute(r[0], 'organe', defCorps(r, 'organe')); }
 REPERES.forEach(o => ajoute('repere:' + o.id, 'repere', Object.assign({ sym: o.sym !== false }, o)));
 DERMATOMES.forEach(o => ajoute('dermatome:' + o.id, 'dermatome', Object.assign({ sym: true }, o)));
 
@@ -141,7 +157,7 @@ export function trouver(texte) {
 const MUSCLES_PAR_OS = (() => {
   const m = new Map();
   const add = (os, muscle, role) => { if (!os) return; if (!m.has(os)) m.set(os, []); const l = m.get(os); if (!l.some(x => x.muscle === muscle && x.role === role)) l.push({ muscle, role }); };
-  MUSCLES.forEach(u => { add(u.origine && u.origine.os, u.id, 'origine'); add(u.insertion && u.insertion.os, u.id, 'insertion'); });
+  for (const r of REG.values()) if (r.type === 'muscle') { const u = r.def; add(u.origine && u.origine.os, u.id, 'origine'); add(u.insertion && u.insertion.os, u.id, 'insertion'); }
   return m;
 })();
 export const musclesDe = osBase => MUSCLES_PAR_OS.get(osBase) || [];
@@ -157,15 +173,19 @@ export function fiche(id) {
     sous = (d.latin ? d.latin + ' · ' : '') + (d.region || '');
     const mus = musclesDe(base(id)).map(x => { const u = definition(x.muscle); return u.nom + ' (' + x.role + ')'; });
     champs = [L('Description', d.description), L('Repères palpables', d.reperes), L('Articulations', d.articulations), L('Rôle', d.role), L('Muscles liés', mus), L('Intérêt orthopédique', d.ortho)];
-  } else if (type === 'muscle') {
-    sous = 'Muscle' + (c ? ' · côté ' + NOM_COTE[c] : '');
-    champs = [L('Origine', d.origine && d.origine.txt), L('Terminaison (insertion)', d.insertion && d.insertion.txt), L('Trajet', d.trajet), L('Action', d.action), L('Innervation', d.innervation), L('Clinique', d.clinique)];
+  } else if (type === 'muscle' || type === 'tendon' || type === 'artere' || type === 'veine') {
+    sous = (type === 'muscle' ? 'Muscle' : type === 'tendon' ? 'Tendon, fascia ou membrane' : type === 'artere' ? 'Artère' : 'Veine') + (d.latin ? ' · ' + d.latin : '') + (d.region ? ' · ' + d.region : '') + (c ? ' · côté ' + NOM_COTE[c] : '');
+    const vide = x => x && String(x).trim() ? x : (d.hd ? NON_RENSEIGNE : '');
+    champs = type === 'muscle' || type === 'tendon'
+      ? [L('Origine', vide(d.origine && d.origine.txt)), L('Terminaison (insertion)', vide(d.insertion && d.insertion.txt)), L('Trajet et rapports', vide(d.trajet)), L('Action', vide(d.action)), L('Innervation', vide(d.innervation)), L('Vascularisation', d.hd ? vide(d.vascularisation) : d.vascularisation), L('Clinique', d.clinique), L('Source', d.source)]
+      : [L('Origine', vide(d.origine && d.origine.txt)), L('Trajet et terminaison', vide(d.trajet)), L(type === 'artere' ? 'Branches et territoire irrigué' : 'Affluents et territoire drainé', vide(d.vascularisation)), L('Clinique', d.clinique), L('Source', d.source)];
   } else if (type === 'nerf') {
     sous = 'Nerf' + (c ? ' · côté ' + NOM_COTE[c] : '') + (d.racines ? ' · ' + d.racines : '');
-    champs = [L('Description', d.description), L('Territoire', d.territoire), L('Clinique', d.clinique)];
+    champs = [L('Description', d.description), L('Territoire', d.territoire), L('Clinique', d.clinique), L('Remarque', d.hd && /^(plexus|nerf)-(?!optique|trochleaire|ophtalmique)/.test(d.id) ? "Tracé schématique reconstitué d'après Gray (1918) et posé sur les os, muscles et artères du modèle : BodyParts3D ne contient pas de nerf périphérique." : ''), L('Source', d.source)];
   } else if (type === 'organe') {
-    sous = d.region || 'Organe';
-    champs = [L('Description', d.description), L('Rôle', d.role), L('Situation', d.situation), L('Clinique', d.clinique)];
+    sous = (d.latin ? d.latin + ' · ' : '') + (d.region || 'Organe');
+    const vide = x => x && String(x).trim() ? x : (d.hd && !d.description ? NON_RENSEIGNE : '');
+    champs = [L('Description', vide(d.description)), L('Rôle', d.role || (d.hd && !d.description ? NON_RENSEIGNE : '')), L('Situation', d.situation), L('Clinique', d.clinique), L('Source', d.source || (d.hd ? 'Forme : BodyParts3D (DBCLS, CC BY 4.0)' : ''))];
   } else if (type === 'repere') {
     sous = 'Repère palpable' + (c ? ' · côté ' + NOM_COTE[c] : '');
     champs = [L('Comment le palper', d.palpation), L('Intérêt', d.utilite)];
@@ -199,4 +219,4 @@ export function resume(id, question) {
 }
 
 /** Tout ce qui est visible par défaut pour un id d'os : instances D et G des os symétriques */
-export const COULEURS = { os: 0xe8dcc0, muscle: 0xb23a3a, nerf: 0xffd24d, organe: 0xe0a0a0, repere: 0x4de3ff };
+export const COULEURS = { os: 0xe8dcc0, muscle: 0xb23a3a, tendon: 0xe9e3d2, nerf: 0xffd24d, artere: 0xc0392b, veine: 0x3f6fcf, organe: 0xe0a0a0, repere: 0x4de3ff };

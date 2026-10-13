@@ -1,5 +1,11 @@
 # Modèles 3D anatomiques
 
+## Couches haute fidélité (BodyParts3D)
+`os-axial-bp3d.glb`, `os-detail-bp3d.glb` (os) puis `muscles-bp3d.glb`, `tendons-bp3d.glb`, `arteres-bp3d.glb`, `veines-bp3d.glb`, `arteres-fin-bp3d.glb`, `veines-fin-bp3d.glb`, `organes-bp3d.glb`, `nerfs-bp3d.glb` viennent **du même corps** et sont produits par `node scripts/convertir-corps-bp3d.mjs` puis `scripts/compresser-glb.mjs` (voir `docs/anatomie-haute-fidelite.md`). Les os sont déclarés dans `manifest.json` (`_atlas`, dans l'ordre de priorité) ; les couches de tissus mous sont chargées par `js/anatomie/corps-hd.js` quand on affiche le calque correspondant. Chaque fichier a un repli : sans lui, l'application garde ses formes procédurales.
+Nœuds des tissus mous : `<identifiant>__<G|D|M>__<n>` (G / D : côté du patient, M : médian, n : tête ou partie). Attributs : `_FIBRE` (fibres des muscles), `_SKI` / `_SKW` (4 ancres osseuses et leurs poids), `asset.extras.ancres` (liste des ancres).
+Pour ajouter une structure : une ligne dans `js/anatomie/donnees-corps.js` (ou `donnees-vaisseaux.js`, `donnees-organes-hd.js`), une fiche dans `js/anatomie/fiches-*.js`, puis relancer la conversion.
+
+
 **Installé** : `squelette-cc0.glb` (squelette humain complet, CC0, voir `CREDITS.md`), déclaré dans le manifeste par l'entrée `_atlas`. La table `js/anatomie/correspondance-squelette.js` dit quel nœud du fichier habille quel os.
 Pour **remplacer le squelette par un autre** : donnez à vos nœuds les mêmes noms que ceux du GLB actuel (liste dans la table), ou ajoutez une table dans `correspondance-squelette.js` et pointez `"table"` dessus ; sinon utilisez les entrées individuelles ci-dessous (qui ont priorité sur l'atlas).
 
