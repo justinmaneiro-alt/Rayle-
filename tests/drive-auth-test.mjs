@@ -20,10 +20,9 @@ function monde({ config = { clientId: CLIENT, appId: '123456789012', apiKey: '' 
   return { auth, stock, journal, G, avancer: ms => { maintenant += ms; } };
 }
 
-await t('config-drive.js livré VIDE : aucun identifiant, aucun secret dans le dépôt', () => {
+await t('config-drive.js : identifiant public bien formé, clé d’API vide, aucun secret dans le dépôt', () => {
   const src = fs.readFileSync(new URL('../js/config-drive.js', import.meta.url), 'utf8');
-  assert.match(src, /clientId: ''/); assert.match(src, /appId: ''/); assert.match(src, /apiKey: ''/);
-  assert.ok(!/apps\.googleusercontent\.com['"]/.test(src.replace(/«[^»]*»/g, '')), 'pas d’identifiant client réel');
+  assert.match(src, /clientId: '(?:|\d+-[\w-]+\.apps\.googleusercontent\.com)'/); assert.match(src, /appId: '(?:|\d+)'/); assert.match(src, /apiKey: ''/);
   assert.ok(!/GOCSPX|client_secret|ya29\.|AIza/.test(src), 'aucun secret');
   for (const dir of ['js', 'css', 'docs']) for (const f of fs.readdirSync(new URL('../' + dir + '/', import.meta.url), { recursive: true })) {
     if (!/\.(js|css|md|html)$/.test(f)) continue;

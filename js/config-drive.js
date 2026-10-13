@@ -8,7 +8,7 @@
    apiKey   : OPTIONNEL. Clé d'API « navigateur » restreinte à ton adresse GitHub Pages ; seulement si le sélecteur affiche
               une erreur de clé de développeur. Par défaut vide.                                                              */
 window.RAYLE_DRIVE_CONFIG = {
-  clientId: '',
-  appId: '',
+  clientId: '124510359283-kgoa0f52gjec3ri0t86jpp1j203ui2kn.apps.googleusercontent.com',
+  appId: '124510359283',
   apiKey: ''
 };
