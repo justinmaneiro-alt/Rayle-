@@ -16,9 +16,10 @@ Ce fichier recense ce que Raylé utilise qui n'a pas été écrit par son auteur
 |---|---|---|
 | `ui/assets/terre-jour-*.jpg`, `terre-nuit-*.jpg`, `nuages-2048.jpg` | NASA Earth Observatory / Visible Earth (Blue Marble, Black Marble, Blue Marble Clouds) | domaine public (NASA) |
 | `ui/assets/espace/*` (planètes, Lune, anneaux, masque des océans) | Solar System Scope, d'après des données NASA | CC BY 4.0 |
+| `ui/assets/espace/ciel-2k.webp`, `ciel-4k.webp` (carte du ciel : étoiles et Voie lactée, coordonnées galactiques) | Solar System Scope (`8k_stars_milky_way`, redimensionnée à 4096 et 2048 px, recompressée en WebP) ; **mention : « Textures : Solar System Scope, CC BY 4.0 »** | CC BY 4.0 |
 | `ui/assets/espace/terre-relief-2k.webp` | calculé par Raylé d'après NASA Visible Earth « Topography » (GEBCO 2008) | domaine public |
 | `ui/assets/ville-*.mp4` | Pexels, vidéo n° 13246966 | licence Pexels |
-| Soleil, petites lunes, astéroïdes, Voie lactée, nébuleuses, matériaux anatomiques (os, muscles, cartilages, organes), environnement d'éclairage | dessinés par le code (shaders et canvas), aucun fichier | — |
+| Soleil, petites lunes, astéroïdes, Voie lactée de secours (hors ligne), nébuleuses, matériaux anatomiques (os, muscles, cartilages, organes), environnement d'éclairage | dessinés par le code (shaders et canvas), aucun fichier | — |
 
 ## Modèles 3D du module Anatomie (GLB)
 | Structures | Fichier | Auteur | Licence | Source |
@@ -42,6 +43,14 @@ Autres modèles : aucun. Pour en ajouter, voir `ui/assets/anatomie/LISEZMOI.md` 
 
 Pistes examinées et écartées : « Human Skeleton » de NIH 3D (CC BY 4.0, mais le téléchargement direct est refusé sans passer par le site), le dépôt `lucgrn3/anatomy-models` et Z-Anatomy (CC BY-SA : licence à partage dans les mêmes conditions, incompatible avec la règle « CC0 ou CC BY » retenue), un dépôt GitHub sans licence déclarée. BodyParts3D, écarté lors d'une première passe à cause de sa licence BY-SA 2.1, est retenu depuis que son éditeur le publie sous CC BY 4.0 (voir ci-dessus).
 
-## Modèles 3D du fond Espace (ISS, rovers, GLB optionnels)
-Les formes procédurales sont utilisées par défaut. Si vous ajoutez des GLB dans `ui/assets/espace/modeles/` (voir `docs/espace.md`), notez-les ici. Les modèles 3D
-publiés par la NASA (ISS, Curiosity, Perseverance) sont en général du domaine public, mais vérifiez la mention sur la page de téléchargement.
+## Modèles 3D du fond Espace (NASA)
+| Modèle | Fichier | Source | Licence |
+|---|---|---|---|
+| Station spatiale internationale (ISS) (B) | `ui/assets/espace/modeles/iss.glb` | NASA 3D Resources, dépôt https://github.com/nasa/NASA-3D-Resources (« International Space Station (ISS) (B) », NASA / Ames Research Center) | domaine public (« free and without copyright », README du dépôt NASA) |
+| Rover Perseverance (Mars 2020) | `ui/assets/espace/modeles/perseverance.glb` | NASA 3D Resources, même dépôt (« Mars 2020 Perseverance Rover », NASA / JPL-Caltech) | idem |
+
+**Modifications faites par Raylé** (`scripts/optimiser-glb.mjs`, paquets @gltf-transform et meshoptimizer installés hors du dépôt) : décompression Draco, retrait des animations et des extensions de matériau coûteuses (transmission, vernis, brillance), soudure et simplification des maillages (ISS : 172 200 → 31 600 triangles ; Perseverance : 199 500 → 37 900), textures réduites à 512 px en WebP (Perseverance), compression meshopt (ISS 0,27 Mo, Perseverance 0,87 Mo, contre 0,48 et 4,99 Mo). ISS : 7 pièces égarées (« bendedtru*, pCylinder* », dont la place était donnée par une animation) retirées, modèle réorienté (poutre le long de x, modules le long de z). Ces modèles remplacent les formes procédurales du code quand ils se chargent ; sans eux (hors ligne, fichier absent), les formes procédurales prennent le relais.
+**Curiosity** : la NASA ne publie ce modèle qu'au format Blender (`.blend`, 5,8 Mo) ; aucun GLB n'est installé, le rover Curiosity reste la forme procédurale. Hubble (GLB de 150 Ko après optimisation) a été préparé mais n'est pas affiché.
+
+## Autres éléments du fond Espace
+Soleil, petites lunes, astéroïdes, nébuleuses, atmosphères de Rayleigh / Mie, trou noir : dessinés par le code (aucun fichier). Positions des astres : formules de Paul Schlyter (domaine public).

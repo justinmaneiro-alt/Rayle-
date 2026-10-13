@@ -67,7 +67,8 @@ void main(){
       const m=await lireManifeste(); if(!m||!m[nom]) return false;
       try{
         const { GLTFLoader }=await import('three/addons/loaders/GLTFLoader.js');
-        const g=await new GLTFLoader().loadAsync(new URL('ui/assets/espace/modeles/'+m[nom],document.baseURI).href);
+        const { MeshoptDecoder }=await import('three/addons/libs/meshopt_decoder.module.js');      // les GLB sont allégés puis compressés par scripts/optimiser-glb.mjs
+        const g=await new GLTFLoader().setMeshoptDecoder(MeshoptDecoder).loadAsync(new URL('ui/assets/espace/modeles/'+m[nom],document.baseURI).href);
         const o=g.scene, b=new THREE.Box3().setFromObject(o), c=b.getCenter(V3(0,0,0)), t=b.getSize(V3(0,0,0)), k=taille/Math.max(t.x,t.y,t.z,1e-6);
         const w=new THREE.Group(); o.position.sub(c); w.add(o); w.scale.setScalar(k);
         if(viderAvant) while(groupe.children.length) groupe.remove(groupe.children[0]);

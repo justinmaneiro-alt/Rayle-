@@ -19,6 +19,10 @@
   const clamp=(x,a,b)=>x<a?a:x>b?b:x;
   const lisse=(a,b,x)=>{ const t=clamp((x-a)/(b-a),0,1); return t*t*(3-2*t); };
   const DIST_PLANETES=40, DIST_SOLEIL=70, DIST_LUNE=3.6, R_LUNE=.2727, R_SOLEIL=3.6, DIST_CIEL=230;
+  /* échelle « réaliste » : la Terre vaut 1 ; la Lune est à 60,3 rayons terrestres (384 400 km) ; le Soleil, vu de la Terre, mesure 0,53° (à DIST_SOLEIL : rayon 0,324, soit 0,09 × R_SOLEIL) ;
+     les planètes prennent leur diamètre apparent réel (rayon moyen en km, distance en UA), mais jamais moins de ANG_POINT degrés : en dessous, un disque de moins de 3 pixels scintille et disparaît */
+  const DIST_LUNE_REELLE=60.3, K_SOLEIL_REEL=.09, ANG_POINT=.11, UA_KM=149597870.7;
+  const RAYON_KM={mercure:2440,venus:6052,mars:3390,jupiter:69911,saturne:58232,uranus:25362,neptune:24622};
 
   // ───── shaders ─────  (corps, anneaux, Soleil, Terre : ui/espace-astres.js)
   const AST=UI.espaceAstres;
@@ -40,7 +44,7 @@ uniform float u_k; varying vec3 v_c; varying float v_a;
 void main(){ float d=length(gl_PointCoord-0.5); float a=smoothstep(0.5,0.0,d); gl_FragColor=vec4(v_c*a*v_a*u_k,a*v_a*u_k); }`;
   const VS_CIEL=`varying vec3 v_d; void main(){ v_d=position; gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.0); }`;
   const FS_CIEL=`
-uniform sampler2D u_ciel; uniform mat3 u_gal; uniform vec3 u_c0,u_c1,u_c2; uniform float u_fade,u_neb,u_mw; varying vec3 v_d;
+uniform sampler2D u_ciel, u_carte; uniform mat3 u_gal; uniform vec3 u_c0,u_c1,u_c2; uniform float u_fade,u_neb,u_mw,u_real; varying vec3 v_d;
 void main(){
   vec3 g=u_gal*normalize(v_d);
   vec2 uv=vec2(atan(g.y,g.x)/6.2831853+0.5,asin(clamp(g.z,-1.0,1.0))/3.14159265+0.5);
@@ -48,7 +52,9 @@ void main(){
   vec3 p=normalize(v_d)*900.0, cell=floor(p), fr=p-cell-0.5;
   float h=fract(sin(dot(cell,vec3(12.9898,78.233,37.719)))*43758.5453), h2=fract(h*91.7);
   float poussiere=step(0.90,h)*smoothstep(0.5,0.12,length(fr))*(0.3+0.7*h2)*t.a*2.0;      // poussière d'étoiles dans la Voie lactée
-  vec3 c=vec3(1.0,0.94,0.86)*(pow(t.a,1.5)*0.30+poussiere*0.85)*u_mw+(u_c0*t.r+u_c1*t.g+u_c2*t.b)*0.42*u_neb;
+  vec3 mw=vec3(1.0,0.94,0.86)*(pow(t.a,1.5)*0.30+poussiere*0.85);
+  vec3 reel=texture2D(u_carte,vec2(1.0-uv.x,1.0-uv.y)).rgb*1.7;                              // vraie carte du ciel (étoiles et Voie lactée, coordonnées galactiques ; l'image est tournée de 180° par rapport à notre repère)
+  vec3 c=mix(mw,reel,u_real)*u_mw+(u_c0*t.r+u_c1*t.g+u_c2*t.b)*0.42*u_neb;
   gl_FragColor=vec4(c*u_fade,1.0);
 }`;
   const VS_AURORE=`
@@ -348,9 +354,11 @@ void main(){
       const gc=vec(A.direction(266.405,-28.936)), ngp=vec(A.direction(192.859,27.128)), yg=new THREE.Vector3().crossVectors(ngp,gc).normalize();
       const gal=new THREE.Matrix3(); gal.set(gc.x,gc.y,gc.z, yg.x,yg.y,yg.z, ngp.x,ngp.y,ngp.z);
       cielTex=new THREE.DataTexture(cielBake.donnees,cielBake.w,cielBake.h,THREE.RGBAFormat); cielTex.wrapS=THREE.RepeatWrapping; cielTex.wrapT=THREE.ClampToEdgeWrapping; cielTex.minFilter=cielTex.magFilter=THREE.LinearFilter; cielTex.generateMipmaps=false; textures.push(cielTex);
-      ciel=new THREE.Mesh(new THREE.SphereGeometry(DIST_CIEL*1.05,32,16),new THREE.ShaderMaterial({uniforms:{u_ciel:{value:cielTex},u_gal:{value:gal},u_c0:{value:new THREE.Color()},u_c1:{value:new THREE.Color()},u_c2:{value:new THREE.Color()},u_fade:{value:0},u_neb:{value:1},u_mw:{value:1}},
+      ciel=new THREE.Mesh(new THREE.SphereGeometry(DIST_CIEL*1.05,32,16),new THREE.ShaderMaterial({uniforms:{u_ciel:{value:cielTex},u_gal:{value:gal},u_c0:{value:new THREE.Color()},u_c1:{value:new THREE.Color()},u_c2:{value:new THREE.Color()},u_fade:{value:0},u_neb:{value:1},u_mw:{value:1},u_carte:{value:noir},u_real:{value:0}},
         vertexShader:VS_CIEL,fragmentShader:FS_CIEL,side:THREE.BackSide,depthWrite:false,depthTest:false}));
       ciel.renderOrder=-10; ciel.visible=false; ciel.frustumCulled=false; scene.add(ciel);
+      // vraie carte du ciel (ui/assets/espace/ciel-2k|4k.webp, Solar System Scope, CC BY 4.0) : 4k au palier 0 sur appareil capable, 2k sinon ; échec ou palier 2 : Voie lactée dessinée par le code
+      if(q<2){ const res=capable2k()?'4k':'2k'; CH.tex('ciel',res).then(t=>{ if(q>=2||!ciel){ CH.liberer('ciel',res); return; } ciel.material.uniforms.u_carte.value=t; ciel.material.uniforms.u_real.value=1; },()=>{}); }
     }
     // comètes (rares) et étoiles filantes
     const COM=64; let comete=null, prochaineComete=0, filantes=[], prochaineFilante=0;
@@ -426,13 +434,14 @@ void main(){
 
     /* ───── astres : positions du jour ───── */
     const sunDir=new THREE.Vector3(1,0,0), moonDir=new THREE.Vector3(0,0,1);
+    let ech=(ESP.echelle&&ESP.echelle())||'pedagogique', dLune=DIST_LUNE, kSoleil=1;
     let tAstres=-1e9;
     function majAstres(force){
       const now=Date.now(); if(!force && now-tAstres<2000) return; tAstres=now;
       const s=A.soleilEq(now), m=A.luneEq(now);
       sunDir.set(...A.direction(s.ra,s.dec)); moonDir.set(...A.direction(m.ra,m.dec));
       U.u_soleil.value.copy(sunDir); SUNPOS.value.copy(sunDir).multiplyScalar(DIST_SOLEIL); soleil.position.copy(SUNPOS.value);
-      lune.position.copy(moonDir).multiplyScalar(DIST_LUNE); sunLune.value.copy(lune.position).addScaledVector(sunDir,1000);
+      lune.position.copy(moonDir).multiplyScalar(dLune); sunLune.value.copy(lune.position).addScaledVector(sunDir,1000);
       const X=moonDir.clone().negate(), Y=POLE_ECL.clone().sub(X.clone().multiplyScalar(POLE_ECL.dot(X))).normalize(), Z=new THREE.Vector3().crossVectors(X,Y);
       lune.quaternion.setFromRotationMatrix(new THREE.Matrix4().makeBasis(X,Y,Z));
       const jj=(now-946728000000)/864e5;                             // libération : la Lune se balance un peu (≈ 8° en longitude, 6,7° en latitude), on voit un peu plus que la moitié
@@ -514,8 +523,24 @@ void main(){
       if(h){ if(cible===h&&!vol) return; return vers(h); }
       if(cible===null&&!vol) return; demarrerVol(null);
     }
+    /* échelle : tout glisse doucement d'un mode à l'autre (la Lune s'éloigne, les planètes rétrécissent) ; l'astre visité reprend sa taille d'affichage pendant le vol */
+    function majEchelle(dt){
+      const reel=ech==='realiste', k=1-Math.exp(-dt*2.2);
+      const cd=reel?DIST_LUNE_REELLE:DIST_LUNE;
+      if(Math.abs(dLune-cd)>.01){ dLune+=(cd-dLune)*k; lune.position.copy(moonDir).multiplyScalar(dLune); sunLune.value.copy(lune.position).addScaledVector(sunDir,1000); }
+      const cs=(reel&&cible!=='soleil')?K_SOLEIL_REEL:1;
+      if(Math.abs(kSoleil-cs)>.002){ kSoleil+=(cs-kSoleil)*k; soleil.scale.setScalar(kSoleil); }
+      for(const nom in planetes){
+        const o=planetes[nom]; if(!o.dist) continue;
+        const reelAng=2*Math.atan(RAYON_KM[nom]/(o.dist*UA_KM))/RAD, ct=(reel&&cible!==nom)?clamp(Math.max(reelAng,ANG_POINT)/o.d.ang,.002,1):1;
+        const kc=o.ke===undefined?1:o.ke; if(Math.abs(kc-ct)<.002 && o.ke!==undefined) continue;
+        const kn=o.ke===undefined&&ct===1?1:kc+(ct-kc)*k; o.ke=kn; o.g.scale.setScalar(kn);
+        if(o.lunes){ const vis=kn>.5; o.lunes.forEach(l=>{ l.m.visible=vis; }); }                // les lunes d'une planète réduite à un point ne se distinguent plus
+        if(o.ring){ const u=o.ring.material.uniforms; u.u_R.value=o.R*kn; u.u_in.value=o.R*AST.RING.in*kn; u.u_out.value=o.R*AST.RING.out*kn; o.m.material.uniforms.u_ringR.value.set(o.R*AST.RING.in*kn,o.R*AST.RING.out*kn); }
+      }
+    }
     function majCamera(dt){
-      tOrbite+=dt;
+      tOrbite+=dt; majEchelle(dt);
       // cadrage de la Terre (derrière l'entité) : distance et décalage de l'image, glissés doucement
       const k=1-Math.exp(-dt*4);
       cad.dist+=(cad.tdist-cad.dist)*k; cad.ox+=(cad.tox-cad.ox)*k; cad.oy+=(cad.toy-cad.oy)*k;
@@ -589,6 +614,7 @@ void main(){
       const dm=ciel&&ciel.visible; void dm;
     }
     abonnements.push(RayleBus.on('espace:elements',()=>{ appliquerElements(); assurer(); }));
+    abonnements.push(RayleBus.on('espace:echelle',m=>{ ech=m==='realiste'?'realiste':'pedagogique'; }));
 
     /* ───── image ───── */
     let derniereMarches=0, tPlus=0, nuagesDec=0; const tmpV=new THREE.Vector3();

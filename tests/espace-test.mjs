@@ -162,4 +162,17 @@ await t('caméra : choisit une vue où la Terre est bien éclairée, avec la Lun
   assert.ok(v.score > mauvais, 'meilleur que la face nuit');
   const w = E.choisirVue(ctxe, { loinDe: v.yaw, ecartMin: 60 }); assert.ok(Math.abs(((w.yaw - v.yaw + 540) % 360) - 180) >= 60, 'la dérive change vraiment de vue');
 });
+await t('échelle : « échelle réaliste », « mode pédagogique », « passe en tailles réelles » ; pas de faux positifs', () => {
+  for (const [phrase, mode] of [['échelle réaliste', 'realiste'], ['mode réaliste', 'realiste'], ['passe en échelle réaliste', 'realiste'], ['mets les tailles réelles', 'realiste'], ['active l’échelle réelle', 'realiste'],
+    ['échelle pédagogique', 'pedagogique'], ['mode pédagogique', 'pedagogique'], ['repasse en mode pédagogique', 'pedagogique'], ['passe en vue éducative', 'pedagogique']]) {
+    const a = E.analyser(phrase); assert.ok(a && a.type === 'echelle' && a.mode === mode, phrase + ' → ' + JSON.stringify(a));
+  }
+  for (const phrase of ['montre-moi Mars', 'désactive les planètes', 'reviens sur la Terre', 'quelle est la taille de Mars', 'mode éco', 'je suis réaliste']) { const a = E.analyser(phrase); assert.ok(!a || a.type !== 'echelle', phrase + ' → ' + JSON.stringify(a)); }
+});
+await t('échelle : exécution, mémorisation et valeur par défaut pédagogique', () => {
+  assert.equal(E.echelle(), 'pedagogique');
+  const r = E.executer({ type: 'echelle', mode: 'realiste' }); assert.match(r, /réaliste/); assert.equal(E.echelle(), 'realiste');
+  assert.equal(E.reglerEchelle('n’importe quoi'), false); assert.equal(E.echelle(), 'realiste');
+  assert.match(E.executer({ type: 'echelle', mode: 'pedagogique' }), /pédagogique/); assert.equal(E.echelle(), 'pedagogique');
+});
 console.log(ok + ' groupes réussis');

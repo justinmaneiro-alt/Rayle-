@@ -2,21 +2,21 @@
    new MoteurAnatomie(THREE, canvas, { store, etiquettes: Element|null, mini: bool, surSelection(id) })
    Le moteur suit l'état du store : calques, sélection, isolation, pathologies, appareillage. Rendu à la demande (pas d'animation inutile).
    Contrôles : glisser = rotation 360°, molette / pincement = zoom, clic droit ou Maj + glisser ou 2 doigts = translation, double clic = focaliser. */
-import { construire, axeMembre } from './construction.js?v=2026.10.13.5';
-import { construireAppareil } from './appareils3d.js?v=2026.10.13.5';
-import { OS, VERTEBRES, REPERES, SACRUM_Y } from './donnees-os.js?v=2026.10.13.5';
-import { MUSCLES } from './donnees-muscles.js?v=2026.10.13.5';
-import { NERFS, ORGANES, DERMATOMES } from './donnees-nerfs-organes.js?v=2026.10.13.5';
-import { AMPUTATIONS, APPAREILLAGES, FRACTURES } from './donnees-ortho.js?v=2026.10.13.5';
-import { definition, base as baseDe, cote as coteDe, typeDe, instances, nomAffiche, musclesDe } from './registre.js?v=2026.10.13.5';
-import { COULEURS } from './registre.js?v=2026.10.13.5';
-import { chargerGLB } from './modeles-glb.js?v=2026.10.13.5';
-import { points as pointsDe, ajuster as ajusterGLB, matriceAjustement } from './ajustement.js?v=2026.10.13.5';
-import { TABLES } from './correspondance-squelette.js?v=2026.10.13.5';
-import { groupeDe } from './groupes-os.js?v=2026.10.13.5';
-import { CapsCoupe } from './coupes.js?v=2026.10.13.5';
-import { creerMateriauPBR, ajouterAOCuite } from './pbr.js?v=2026.10.13.5';
-import { studio, solOmbre, fondDegrade, environnement, pipeline, lireNiveau } from './rendu.js?v=2026.10.13.5';
+import { construire, axeMembre } from './construction.js?v=2026.10.13.6';
+import { construireAppareil } from './appareils3d.js?v=2026.10.13.6';
+import { OS, VERTEBRES, REPERES, SACRUM_Y } from './donnees-os.js?v=2026.10.13.6';
+import { MUSCLES } from './donnees-muscles.js?v=2026.10.13.6';
+import { NERFS, ORGANES, DERMATOMES } from './donnees-nerfs-organes.js?v=2026.10.13.6';
+import { AMPUTATIONS, APPAREILLAGES, FRACTURES } from './donnees-ortho.js?v=2026.10.13.6';
+import { definition, base as baseDe, cote as coteDe, typeDe, instances, nomAffiche, musclesDe } from './registre.js?v=2026.10.13.6';
+import { COULEURS } from './registre.js?v=2026.10.13.6';
+import { chargerGLB } from './modeles-glb.js?v=2026.10.13.6';
+import { points as pointsDe, ajuster as ajusterGLB, matriceAjustement } from './ajustement.js?v=2026.10.13.6';
+import { TABLES } from './correspondance-squelette.js?v=2026.10.13.6';
+import { groupeDe } from './groupes-os.js?v=2026.10.13.6';
+import { CapsCoupe } from './coupes.js?v=2026.10.13.6';
+import { creerMateriauPBR, ajouterAOCuite } from './pbr.js?v=2026.10.13.6';
+import { studio, solOmbre, fondDegrade, environnement, pipeline, lireNiveau } from './rendu.js?v=2026.10.13.6';
 
 const CALQUE_DE = { cartilage: 'squelette', os: 'squelette', muscle: 'muscles', nerf: 'nerfs', organe: 'organes', repere: 'reperes', dermatome: 'dermatomes', peau: 'peau' };
 const DIST_DEFAUT = 3.5;

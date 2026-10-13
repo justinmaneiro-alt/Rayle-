@@ -33,7 +33,25 @@
     taille:(v=>isFinite(v)&&v>=70&&v<=150 ? v : 100)(parseInt(lire(CLE.taille),10)),   // taille de l'entité, en %
     contraste:(v=>isFinite(v)&&v>=0&&v<=100 ? v : 60)(parseInt(lire(CLE.contraste),10))   // contraste de l'entité sur un fond, en %
   };
-  let palierAuto=(mobile || (typeof navigator!=='undefined' && (navigator.hardwareConcurrency||4)<=4)) ? 1 : 0;
+  /* ───── Sonde de l'appareil : WebGL (version, taille de texture maximale), mémoire annoncée, cœurs, densité de pixels. Elle ne sert qu'à choisir le palier de DÉPART en Auto :
+     pas de WebGL → éco (image fixe) ; WebGL 1, texture max < 4096, ≤ 2 Go, mobile ou ≤ 4 cœurs → allégé ; sinon complet. La mesure des images/s prend ensuite le relais. ───── */
+  function sonde(){
+    const c={webgl:0,texMax:0,memoire:null,coeurs:null,dpr:1,mobile};
+    try{
+      c.memoire=navigator.deviceMemory||null; c.coeurs=navigator.hardwareConcurrency||null; c.dpr=window.devicePixelRatio||1;
+      const cv=document.createElement('canvas'); let gl=cv.getContext('webgl2'); c.webgl=gl?2:0;
+      if(!gl){ gl=cv.getContext('webgl')||cv.getContext('experimental-webgl'); c.webgl=gl?1:0; }
+      if(gl){ c.texMax=gl.getParameter(gl.MAX_TEXTURE_SIZE)||0; const e=gl.getExtension('WEBGL_lose_context'); if(e) e.loseContext(); }
+    }catch(e){}
+    return c;
+  }
+  const APPAREIL=(typeof document!=='undefined')?sonde():{webgl:2,texMax:8192,memoire:null,coeurs:null,dpr:1,mobile};
+  function palierDepart(){
+    const c=APPAREIL;
+    if(!c.webgl) return 2;
+    return (mobile || c.webgl<2 || (c.texMax&&c.texMax<4096) || (c.memoire&&c.memoire<=2) || (c.coeurs||4)<=4) ? 1 : 0;
+  }
+  let palierAuto=palierDepart();
   let ecoForce=false;            // mini-vue (#mini) : Éco imposé et fond coupé, sans toucher aux réglages enregistrés
   const palier=()=>(reduit()||ecoForce) ? 2 : R.anim==='max' ? 0 : R.anim==='eco' ? 2 : palierAuto;
   const NOM_PALIER=['complet','allégé','éco'];
@@ -65,11 +83,11 @@
     if(k==='anim'){
       // L'entité suit le niveau choisi (Éco : 800 points en WebGL, plus léger que le canvas 2D)
       try{ Entite.qualite(v==='max'?0:v==='eco'?2:'auto'); }catch(e){}
-      palierAuto=(mobile || (navigator.hardwareConcurrency||4)<=4) ? 1 : 0; mauvais=0;
+      palierAuto=palierDepart(); mauvais=0;
     }
     appliquer();
   }
-  UI.reglages=()=>({theme:R.theme,fond:ecoForce?'aucun':R.fond,anim:R.anim,palier:palier(),micro:R.micro,mobile,entite:R.entite,taille:R.taille,contraste:R.contraste,ecoForce});
+  UI.reglages=()=>({appareil:Object.assign({},APPAREIL),theme:R.theme,fond:ecoForce?'aucun':R.fond,anim:R.anim,palier:palier(),micro:R.micro,mobile,entite:R.entite,taille:R.taille,contraste:R.contraste,ecoForce});
   UI.changer=changer;
   UI.themeManuelDepuis=()=>Number(lire('rayle_ui_theme_manuel'))||0;
   UI.forcerEco=oui=>{ oui=!!oui; if(oui===ecoForce) return; ecoForce=oui; appliquer(); };
@@ -132,7 +150,7 @@
       const ct=b.querySelector('input[data-k="contraste"]'); if(+ct.value!==R.contraste) ct.value=String(R.contraste);
       b.querySelector('.ui-contraste-val').textContent=R.contraste+' %';
       b.querySelector('.ui-info').textContent='Rendu actuel : '+NOM_PALIER[p]+(R.anim==='auto'?' (choisi automatiquement)':'')
-        +(reduit()?' · « réduire les animations » est activé sur cet appareil':'')+' · environ '+fpsVu+' images/s.';
+        +(reduit()?' · « réduire les animations » est activé sur cet appareil':'')+' · environ '+fpsVu+' images/s · appareil : '+(APPAREIL.webgl?'WebGL'+APPAREIL.webgl+(APPAREIL.texMax?', textures '+APPAREIL.texMax+' px':''):'sans WebGL')+(APPAREIL.memoire?', '+APPAREIL.memoire+' Go':'')+(APPAREIL.coeurs?', '+APPAREIL.coeurs+' cœurs':'')+', écran ×'+(Math.round(APPAREIL.dpr*10)/10)+'.';
     });
   }
 

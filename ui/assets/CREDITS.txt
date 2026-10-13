@@ -19,6 +19,9 @@ Fond Espace, textures réelles (ui/assets/espace/, chargées à la demande, ~2,6
 - lune-*, mercure-*, venus-* (atmosphère), mars-*, jupiter-*, saturne-*, uranus-*, neptune-*, saturne-anneaux : « Solar System Scope » (https://www.solarsystemscope.com/textures/),
   licence Creative Commons Attribution 4.0 (CC BY 4.0), construites à partir de données NASA (Lunar Reconnaissance Orbiter, MESSENGER, Viking, Cassini, Voyager, Hubble…).
   Redimensionnées (1024 et 2048 px) et recompressées en WebP pour Raylé.
+- ciel-2k.webp, ciel-4k.webp : carte du ciel (étoiles et Voie lactée, coordonnées galactiques) : « Solar System Scope » (8k_stars_milky_way), CC BY 4.0 ; redimensionnée en 4096 et 2048 px, recompressée en WebP.
 - terre-ocean-1k.webp : masque des océans (reflet du Soleil), dérivé de « 2k_earth_specular_map » de Solar System Scope (CC BY 4.0).
 - terre-relief-2k.webp : carte de relief de la Terre (normales) calculée par Raylé à partir de l'image d'altitude NASA Visible Earth « Topography » (GEBCO 2008, NASA / domaine public, https://visibleearth.nasa.gov/images/73934).
 Soleil, petites lunes (Io, Europe, Ganymède, Callisto, Titan), astéroïdes, Voie lactée, nébuleuses et textures de secours (hors ligne) : dessinés par le code (aucun fichier). Positions du Soleil, de la Lune et des planètes : calcul avec les éléments orbitaux simplifiés de Paul Schlyter (« How to compute planetary positions », domaine public, formules sans service externe). ISS : API publique gratuite sans clé wheretheiss.at (position, avec orbite simulée de secours).
+
+Modèles 3D (ui/assets/espace/modeles/ : iss.glb, perseverance.glb) : NASA 3D Resources (https://github.com/nasa/NASA-3D-Resources), « free and without copyright » ; allégés et compressés par scripts/optimiser-glb.mjs. Détails dans CREDITS.md.

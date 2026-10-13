@@ -29,6 +29,17 @@
     return true;
   }
 
+  /* ═════ échelle : « pédagogique » (défaut : distances resserrées, astres agrandis, tout se voit) ou « réaliste » (vraies tailles apparentes et vraie distance de la Lune :
+     le Soleil et la Lune ≈ 0,5°, les planètes de simples points lumineux) ; mémorisée, RayleBus 'espace:echelle' ═════ */
+  const ECHELLES={pedagogique:'Pédagogique',realiste:'Réaliste'};
+  let echelle=ECHELLES[lireLS('rayle_esp_echelle')]?lireLS('rayle_esp_echelle'):'pedagogique';
+  function reglerEchelle(mode){
+    if(!ECHELLES[mode]) return false;
+    echelle=mode; ecrireLS('rayle_esp_echelle',mode);
+    try{ RayleBus.emit('espace:echelle',mode); }catch(e){}
+    return true;
+  }
+
   /* ═════ les astres : noms, couleurs, faits ═════ */
   const ASTRES={
     soleil:{nom:'le Soleil',court:'Soleil'}, lune:{nom:'la Lune',court:'Lune'}, iss:{nom:'la Station spatiale internationale',court:'ISS'}, terre:{nom:'la Terre',court:'Terre'},
@@ -176,6 +187,9 @@
     }
     if(!t || t.split(' ').length>10 || QUESTION.test(t)) return null;
     if(/\b(?:graphique|graphe|chart|bougies?|rsi|terminal|carte|courbe|bitcoin|nasdaq|calendrier|mois)\b/.test(t)) return null;
+    // échelle : « échelle réaliste », « mode pédagogique », « passe en tailles réelles »
+    { const e=t.match(/^(?:(?:passe|passer|mets|met|mettre|active|activer|utilise|utiliser|reviens|revenir|repasse|repasser) (?:moi )?)?(?:(?:en|a|au|sur|l|la|le|les) )*(?:echelle|mode|vue|tailles?|distances?|proportions?)?(?: (?:en|a|au|sur))? ?(reelles?|realistes?|pedagogiques?|educatives?|didactiques?)$/);
+      if(e && /(?:echelle|mode|tailles?|distances?|proportions?|vue|^(?:passe|mets|met|active|utilise|reviens|repasse))/.test(t)) return {type:'echelle',mode:/^reel|^realis/.test(e[1])?'realiste':'pedagogique'}; }
     // retour sur la Terre
     if(/^(?:reviens|revenir|retourne|retourner|retour|ramene moi|ramene|rentre|rentrer|repars|recentre|recentrer)\b/.test(t) && /\b(?:terre|vue d ensemble|vue generale|orbite)\b/.test(t)) return {type:'retour'};
     // allumer / éteindre des éléments : « désactive les astéroïdes »
@@ -314,6 +328,12 @@
       if(bascule && r.fond!=='espace') return (a.valeur?'Activé':'Désactivé')+' : '+ELEMENTS[a.cle].toLowerCase()+'. Cela se verra avec le fond Espace.';
       return (a.valeur?'J’affiche':'Je retire')+' : '+ELEMENTS[a.cle].toLowerCase()+'.';
     }
+    if(a.type==='echelle'){
+      reglerEchelle(a.mode);
+      return a.mode==='realiste'
+        ? 'Échelle réaliste : la Lune à sa vraie distance (environ 384 000 kilomètres), le Soleil et la Lune à leur vraie taille apparente, un demi-degré, et les planètes réduites à de simples points lumineux. Elles reprennent leur taille quand on les visite.'
+        : 'Échelle pédagogique : distances resserrées et astres agrandis pour qu’on les voie bien.';
+    }
     if(a.type==='retour'){
       const sc=UI.fondScene&&UI.fondScene(); attente=null;
       if(sc && sc.retour && r.fond==='espace') sc.retour(true);                  // explicite : la Terre, même si une autre vue est mémorisée par défaut
@@ -354,6 +374,6 @@
     try{ RayleBus.on('espace:pret',()=>{ if(attente){ const c=attente; attente=null; const sc=UI.fondScene&&UI.fondScene(); if(sc&&sc.vers) setTimeout(()=>sc.vers(c),1500); } }); }catch(e){}
   }
 
-  UI.espace={accueil,definirAccueil,publier,fiche,nomCible,cibleDe,lieuDe,geoDe,estRover,ELEMENTS,elements:()=>Object.assign({},elements),regler,ASTRES,faits,analyser,executer,creerISS,choisirVue,evaluerVue,vueVecteur,DIST_CAM,DIST_LUNE,FOV_V,INCL,PERIODE_S,TTL_ISS};
+  UI.espace={accueil,definirAccueil,publier,fiche,nomCible,cibleDe,lieuDe,geoDe,estRover,ELEMENTS,elements:()=>Object.assign({},elements),regler,ECHELLES,echelle:()=>echelle,reglerEchelle,ASTRES,faits,analyser,executer,creerISS,choisirVue,evaluerVue,vueVecteur,DIST_CAM,DIST_LUNE,FOV_V,INCL,PERIODE_S,TTL_ISS};
   if(typeof document!=='undefined') UI.espace.iss=creerISS();
 })();

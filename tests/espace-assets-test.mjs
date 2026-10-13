@@ -61,4 +61,28 @@ t('l’orchestrateur ne casse rien : mêmes fonds d’avant, mêmes paliers', ()
   const b = lire('ui/background.js');
   assert.match(b, /jarvis/); assert.match(b, /video/); assert.match(b, /UI\.fondsReels\[fond\]\(c,\{q,hd\}\)/); assert.match(b, /palier>=2\?'fixe':'3d'/);
 });
+t('modèles NASA : manifeste, fichiers GLB (meshopt), poids raisonnable pour une tablette, crédits et licence citées', () => {
+  const m = JSON.parse(lire('ui/assets/espace/modeles/manifest.json')), cred = lire('CREDITS.md'), tout = lire('ui/assets/CREDITS.txt');
+  assert.deepEqual(Object.keys(m).sort(), ['iss', 'perseverance']);
+  for (const [cle, fic] of Object.entries(m)) {
+    assert.ok(/^[\w.-]+\.glb$/.test(fic), 'nom de fichier : ' + fic);
+    const buf = fs.readFileSync(new URL('../ui/assets/espace/modeles/' + fic, import.meta.url)), lj = buf.readUInt32LE(12), j = JSON.parse(buf.subarray(20, 20 + lj).toString('utf8'));
+    assert.equal(buf.toString('latin1', 0, 4), 'glTF'); assert.ok(buf.length < 2 * 1024 * 1024, cle + ' : ' + buf.length + ' octets');
+    assert.ok(j.extensionsRequired.includes('EXT_meshopt_compression'), cle + ' : maillages compressés');
+    assert.ok(!(j.animations || []).length, cle + ' : animations retirées');
+    assert.ok(!(j.extensionsUsed || []).some(e => /transmission|draco/i.test(e)), cle + ' : extensions coûteuses retirées');
+  }
+  assert.match(cred, /NASA-3D-Resources/); assert.match(cred, /Curiosity/); assert.match(tout, /NASA 3D Resources/);
+  assert.match(lire('ui/espace-extras.js'), /meshopt_decoder/);
+});
+t('carte du ciel réelle : 2k et 4k présentes, légères, crédit CC BY 4.0 (Solar System Scope) ; le repli dessiné par le code reste', () => {
+  for (const r of ['2k', '4k']) assert.ok(taille('ui/assets/espace/ciel-' + r + '.webp') > 10000 && taille('ui/assets/espace/ciel-' + r + '.webp') < 1.5 * 1024 * 1024, r);
+  assert.match(lire('CREDITS.md'), /ciel-2k\.webp[\s\S]*CC BY 4\.0/); assert.match(lire('ui/assets/CREDITS.txt'), /ciel-4k\.webp/);
+  const fe = lire('ui/fond-espace.js'); assert.match(fe, /u_real/); assert.match(fe, /TEX\.ciel\(/);
+});
+t('poids total des fichiers ajoutés : aucun fichier de plus de 25 Mo dans le dépôt (GitHub Pages)', () => {
+  const marche = d => fs.readdirSync(d, { withFileTypes: true }).flatMap(e => e.name === '.git' || e.name === 'node_modules' ? [] : e.isDirectory() ? marche(d + '/' + e.name) : [[d + '/' + e.name, fs.statSync(d + '/' + e.name).size]]);
+  const gros = marche(new URL('../', import.meta.url).pathname.replace(/^\/([A-Za-z]:)/, '$1').replace(/\/$/, '')).filter(([, n]) => n > 25 * 1024 * 1024);
+  assert.deepEqual(gros, [], 'fichiers > 25 Mo : ' + gros.map(g => g[0]).join(', '));
+});
 console.log(ok + ' tests réussis');
