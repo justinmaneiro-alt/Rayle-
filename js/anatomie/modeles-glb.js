@@ -15,7 +15,7 @@
 
    Robustesse : cache mémoire + cache du navigateur (Cache API, le fichier n'est téléchargé qu'une fois), indicateur de chargement (abonnerChargement),
    et repli automatique sur la forme procédurale en cas d'absence, d'échec réseau, de fichier invalide ou de dimensions aberrantes (le moteur compare les boîtes englobantes). */
-import { TABLES } from './correspondance-squelette.js?v=2026.10.13.7';
+import { TABLES } from './correspondance-squelette.js?v=2026.10.13.8';
 
 const cache = new Map();
 const NOM_CACHE = 'rayle-anatomie-glb-v1';

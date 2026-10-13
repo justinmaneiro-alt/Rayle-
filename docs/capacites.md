@@ -47,6 +47,15 @@ décrire une structure du corps (os, muscles, nerfs, organes) dans une fenêtre 
 - **Exemples** : « décris-moi l’humérus », « où s’insère le biceps », « ouvre l’anatomie », « affiche les muscles et les nerfs », « montre une fracture du col du fémur », « scoliose de 40 degrés ».
 - **Vérification automatique** : oui (les exemples sont passés dans l’analyseur réel par `tests/capacites-test.mjs`).
 
+## Documents du Drive (Google)
+
+ouvrir, lire, résumer, chercher et modifier (aperçu avant/après, annulation) les Google Docs, PDF, Word, textes, Sheets et Slides que Justin a choisis · fenêtre flottante, plein écran.
+
+- **Paramètres (lus dans le code)** : outils : drive:ouvrir (nom approximatif accepté), drive:lire-passage (paragraphe, titre, page, mot-clé, suite), drive:resumer, drive:chercher, drive:lister, drive:modifier (corriger, remplacer, ajouter, supprimer), drive:enregistrer, drive:annuler · documents autorisés : aucun pour l’instant · connexion : à établir par le bouton « Se connecter à Google ».
+- **Cas limites** : je ne vois que les documents choisis avec le sélecteur Google (portée drive.file) ; un document non autorisé : je propose d’ouvrir le sélecteur ; PDF, Sheets et Slides : lecture seule ; toute modification passe par un aperçu avant/après que Justin valide (sauf « applique directement »), puis je relis le document pour vérifier ; « annule la dernière modification » revient en arrière ; je ne dis jamais avoir lu ou modifié un document si l’opération a échoué, et je ne cite que le texte réel du document ; pas de recherche web pour un document de Justin : j’utilise ces outils (ou « commande_drive » avec une phrase simple).
+- **Exemples** : « ouvre le cours d’anatomie », « lis le 2e paragraphe », « lis-moi la suite », « résume le document », « cherche l’humérus dans le document », « corrige la faute dans le 2e paragraphe », « ajoute ce paragraphe sous le titre Introduction : voici le texte », « annule la dernière modification », « plein écran », « liste mes documents », « ajoute un document du drive ».
+- **Vérification automatique** : oui (les exemples sont passés dans l’analyseur réel par `tests/capacites-test.mjs`).
+
 ## Cartes et itinéraires
 
 montrer une ville ou un lieu sur une carte, calculer un itinéraire (voiture, vélo, à pied).

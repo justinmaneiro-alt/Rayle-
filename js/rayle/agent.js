@@ -49,6 +49,10 @@
           // action de l'Espace décidée par l'IA (js/rayle/commandes-espace.js) : la page rend compte du résultat réel, un échec remplace la réponse
           const r=await espaceAgent(a);
           if(r) plus+=' '+r;
+        }else if(a.type==='drive' && typeof driveAgent==='function'){
+          // document du Drive décidé par l'IA (js/rayle/commandes-drive.js) : la page exécute et rend compte du résultat réel, un échec remplace la réponse
+          const r=await driveAgent(a);
+          if(r) plus+=' '+r;
         }else if(a.type==='ambiance' && window.RayleUI && window.RayleUI.ambiance && window.RayleUI.ambiance.executerAgent){
           // ambiance, thème, fond, entité (ui/ambiance.js) : l'IA règle l'apparence seule ; ce qui est fait s'ajoute à ce qu'elle dit
           const r=window.RayleUI.ambiance.executerAgent(a);

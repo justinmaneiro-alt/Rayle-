@@ -65,3 +65,6 @@ Pistes examinées et écartées : « Human Skeleton » de NIH 3D (CC BY 4.0, mai
 
 ## Autres éléments du fond Espace
 Soleil, petites lunes, astéroïdes, nébuleuses, atmosphères de Rayleigh / Mie, trou noir : dessinés par le code (aucun fichier). Positions des astres : formules de Paul Schlyter (domaine public).
+
+## Documents Drive (lecture et édition)
+Chargés à la demande depuis cdnjs (jamais copiés dans le dépôt) : **JSZip 3.10.1** (MIT ou GPLv3, Stuart Knightley et contributeurs) pour lire et réécrire les fichiers Word (.docx), et **PDF.js 3.11.174** (Apache 2.0, Mozilla) pour lire le texte des PDF. Connexion et sélecteur : Google Identity Services et Google Picker (scripts fournis par Google, soumis à ses conditions). Aucun secret n'est stocké dans le dépôt : seul l'identifiant client OAuth public se place dans `js/config-drive.js` (voir `docs/drive.md`).

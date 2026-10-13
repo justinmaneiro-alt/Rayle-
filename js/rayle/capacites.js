@@ -53,6 +53,14 @@
         verif:'anatomie',mots:/\b(?:anatomi|os|muscle|nerf|organe|humerus|femur|biceps|prothese|orthese|scoliose|fracture|amputation|squelette|vertebre)\w*/,
         params:()=>'os, muscles, nerfs, organes, calques, pathologies et appareillages du module Anatomie ; les cours enregistrés par Justin complètent les réponses',
         limites:['usage éducatif : ce n’est pas un avis médical']},
+      {id:'drive',nom:'Documents du Drive (Google)',
+        court:'ouvrir, lire, résumer, chercher et modifier (aperçu avant/après, annulation) les Google Docs, PDF, Word, textes, Sheets et Slides que Justin a choisis ; fenêtre flottante, plein écran',
+        outils:['drive:ouvrir','drive:lire-passage','drive:resumer','drive:chercher','drive:lister','drive:modifier','drive:enregistrer','drive:annuler'],
+        ex:['ouvre le cours d’anatomie','lis le 2e paragraphe','lis-moi la suite','résume le document','cherche l’humérus dans le document','corrige la faute dans le 2e paragraphe','ajoute ce paragraphe sous le titre Introduction : voici le texte','annule la dernière modification','plein écran','liste mes documents','ajoute un document du drive'],
+        verif:'drive',mots:/\b(?:drive|documents?|fichiers?|pdf|docx|word|cours|paragraphes?|google|passage|resume\w*|lis|lire|corrige\w*|surligne\w*|plein ecran)\b/,
+        params:()=>{ const fich=sur(()=>JSON.parse(G.localStorage.getItem('rayle_drive_fichiers')||'[]'),[]); const e=sur(()=>G.RayleBus.etat('drive'),null)||{};
+          return 'outils : drive:ouvrir (nom approximatif accepté), drive:lire-passage (paragraphe, titre, page, mot-clé, suite), drive:resumer, drive:chercher, drive:lister, drive:modifier (corriger, remplacer, ajouter, supprimer), drive:enregistrer, drive:annuler · documents autorisés : '+(fich.length?liste(fich.slice(0,8).map(f=>f.name)):'aucun pour l’instant')+' · connexion : '+(e.configure===false?'non configurée (js/config-drive.js)':e.connecte?'active':'à établir par le bouton « Se connecter à Google »'); },
+        limites:['je ne vois que les documents choisis avec le sélecteur Google (portée drive.file) ; un document non autorisé : je propose d’ouvrir le sélecteur','PDF, Sheets et Slides : lecture seule','toute modification passe par un aperçu avant/après que Justin valide (sauf « applique directement »), puis je relis le document pour vérifier ; « annule la dernière modification » revient en arrière','je ne dis jamais avoir lu ou modifié un document si l’opération a échoué, et je ne cite que le texte réel du document','pas de recherche web pour un document de Justin : j’utilise ces outils (ou « commande_drive » avec une phrase simple)']},
       {id:'carte',nom:'Cartes et itinéraires',
         court:'montrer une ville ou un lieu sur une carte, calculer un itinéraire (voiture, vélo, à pied)',
         ex:['montre-moi Bordeaux','itinéraire de Bordeaux à Toulouse à pied'],verif:null,mots:/\b(?:carte|itineraire|trajet|route|ou est|ville)\b/,
@@ -97,6 +105,7 @@
     function etat(){
       const e=sur(()=>UI().espace.etat(),null), s={ecran:'rayle',espace:null,historique:journal.slice()};
       s.ecran=sur(()=>RayleBus.demander('vue')||'rayle','rayle');
+      s.drive=sur(()=>G.RayleBus.etat('drive'),null);
       if(e){ s.ecran=e.vue||s.ecran; s.espace={fond:e.fond,cible:e.cible,nom:e.nom,accueil:e.accueil,echelle:e.echelle,zoom:e.zoom,vol:e.vol,palier:e.palier}; }
       return s;
     }
@@ -109,6 +118,10 @@
         p.push(e.cible?'astre affiché = '+e.nom+(e.vol?' (vol en cours)':'')+(Math.abs((e.zoom||1)-1)>.02?', zoom ×'+e.zoom:''):'astre affiché = aucun (vue d’ensemble de la Terre)');
         p.push('vue sauvegardée par défaut = '+(e.accueil?UI().espace.nomCible(e.accueil):'la Terre'));
         p.push('mode d’échelle = '+ech);
+      }
+      if(s.drive && s.drive.ouvert){
+        const d=s.drive, f=d.fenetre||{};
+        p.push('DRIVE : document ouvert = « '+d.nom+' » ('+d.type+(d.lectureSeule?', lecture seule':f.edition?', en édition':', en lecture')+(f.plein?', plein écran':f.reduit?', réduit':'')+')'+(d.passage&&d.passage.intitule?' ; dernier passage lu = '+d.passage.intitule:'')+(d.titreVisible?' ; partie affichée = « '+d.titreVisible+' »':'')+(d.enAttente?' ; un changement attend la validation de Justin':'')+(f.modifie?' ; modifications non enregistrées':''));
       }
       if(s.historique.length) p.push('derniers échanges : '+s.historique.map((h,i)=>(i+1)+') « '+h.u+' »'+(h.r?' → '+h.r:'')).join(' ; '));
       return p.join(' ; ')+'.';

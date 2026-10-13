@@ -24,6 +24,9 @@
     if(my!==epoch) return;
     if(cmdA && typeof cmdA==='object') text=cmdA.texte;            // c'était cet appareil : on continue avec la phrase sans son nom
     else if(cmdA){ diagAction('commande vers un autre appareil'); addLine('ray',cmdA); await speak(cmdA); return; }
+    const cmdD=typeof commandeDrive==='function' ? await commandeDrive(text) : null;   // documents du Drive (js/rayle/commandes-drive.js) : « ouvre le cours d'anatomie », « lis la suite »…
+    if(my!==epoch) return;
+    if(cmdD){ diagAction('documents Drive'); addLine('ray',cmdD); await speak(cmdD); return; }
     const cmdM=typeof commandeMonde==='function' ? await commandeMonde(text) : null;   // page Monde : « montre-moi le Japon », « affiche l'inflation sur la carte »…
     if(my!==epoch) return;
     if(cmdM){ diagAction('commande de la page Monde'); addLine('ray',cmdM); await speak(cmdM); return; }

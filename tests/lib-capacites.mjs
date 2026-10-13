@@ -23,6 +23,7 @@ export async function chargerRegistre() {
   charger('js/rayle/pays-donnees.js'); charger('js/rayle/commandes-monde.js'); charger('js/rayle/commandes-terminal.js');
   vm.runInContext(lire('js/rayle/capacites.js') + '\nthis.RayleCapacites=RayleCapacites;', ctx, { filename: 'js/rayle/capacites.js' });
   const { analyser: anatomie } = await import(new URL('js/anatomie/commandes.js', racine).href);
+  const { analyser: drive } = await import(new URL('js/drive/commandes.js', racine).href);
   const E = ctx.RayleUI.espace, S = ctx.RayleUI.savoir;
   const verifiers = {
     espace: p => E.chaine(p) || E.analyser(p),
@@ -30,6 +31,7 @@ export async function chargerRegistre() {
     terminal: p => ctx.analyserCommandeTerminal ? ctx.analyserCommandeTerminal(p, { ouvert: true }) : vm.runInContext('analyserCommandeTerminal', ctx)(p, { ouvert: true }),
     monde: p => vm.runInContext('RayleMonde', ctx).analyser(p),
     anatomie: p => anatomie(p, { vue: 'rayle' }),
+    drive: p => drive(p, { fichiers: [{ id: '1', name: 'Cours d’anatomie – UE2' }, { id: '2', name: 'Rapport de stage' }], ouverte: true, configure: true, attente: false }),
     apparence: p => ctx.RayleUI.analyserCommande(cmdNorm(norm(p)))
   };
   const verifier = async (famille, phrase) => {
