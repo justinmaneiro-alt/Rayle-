@@ -1,5 +1,5 @@
 /* ═════════════ CERVEAU : recherche d'une zone ou d'un réseau par son nom, fiche et résumé parlé (pur, testable sans navigateur) ═════════════ */
-import { ZONES_CERVEAU, ZONE_PAR_ID, RESEAUX_CERVEAU, RESEAU_PAR_ID, SOURCES_CERVEAU, STRUCTURE_PAR_ID, FAISCEAU_PAR_ID, MENTION_CEREBRALE, NON_RENSEIGNE_CERVEAU } from './donnees-cerveau.js?v=2026.10.14.4';
+import { ZONES_CERVEAU, ZONE_PAR_ID, RESEAUX_CERVEAU, RESEAU_PAR_ID, SOURCES_CERVEAU, STRUCTURE_PAR_ID, FAISCEAU_PAR_ID, MENTION_CEREBRALE, NON_RENSEIGNE_CERVEAU } from './donnees-cerveau.js?v=2026.10.14.5';
 
 export const norm = t => String(t == null ? '' : t).normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/[œ]/g, 'oe').replace(/[’']/g, ' ').replace(/[^a-z0-9]+/g, ' ').trim();
 const contient = (t, m) => (' ' + t + ' ').includes(' ' + m + ' ');

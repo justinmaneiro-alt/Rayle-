@@ -2,13 +2,13 @@
    Chargée par js/commun/vues.js à la première ouverture. Exporte ouvrir(options) et fermer().
    Modèle 3D : cerveau-bp3d.glb (BodyParts3D) · données : donnees-cerveau.js · moteur : cerveau-moteur.js · présentations : lecteur.js.
    Pilotage depuis Raylé (voix, texte) : window.RayleCerveau = { zone, reseau, vue, calque, niveau, visite, presenter, etat }. */
-import { chargerTHREE, webglDisponible, h, vider } from './outils.js?v=2026.10.14.4';
-import { MoteurCerveau, NIVEAUX_CERVEAU, NOMS_NIVEAUX_CERVEAU, CALQUES_CERVEAU, NOMS_CALQUES_CERVEAU } from './cerveau-moteur.js?v=2026.10.14.4';
-import * as D from './donnees-cerveau.js?v=2026.10.14.4';
-import * as C from './cerveau-recherche.js?v=2026.10.14.4';
-import { niveauConseille, detecterCapacites } from './rendu.js?v=2026.10.14.4';
-import { Lecteur } from './lecteur.js?v=2026.10.14.4';
-import { scriptZoneCerveau, scriptReseauCerveau, scriptTourCerveau } from './presentation.js?v=2026.10.14.4';
+import { chargerTHREE, webglDisponible, h, vider } from './outils.js?v=2026.10.14.5';
+import { MoteurCerveau, NIVEAUX_CERVEAU, NOMS_NIVEAUX_CERVEAU, CALQUES_CERVEAU, NOMS_CALQUES_CERVEAU } from './cerveau-moteur.js?v=2026.10.14.5';
+import * as D from './donnees-cerveau.js?v=2026.10.14.5';
+import * as C from './cerveau-recherche.js?v=2026.10.14.5';
+import { niveauConseille, detecterCapacites } from './rendu.js?v=2026.10.14.5';
+import { Lecteur } from './lecteur.js?v=2026.10.14.5';
+import { scriptZoneCerveau, scriptReseauCerveau, scriptTourCerveau } from './presentation.js?v=2026.10.14.5';
 
 const CLE_QUALITE = 'rayle_cerveau_qualite';
 let racine = null, moteur = null, monte = false, ouvert = false, jeton = 0, lecteur = null, noticeT = 0;

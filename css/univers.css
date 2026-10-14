@@ -1,0 +1,104 @@
+/* ═════════════ UNIVERS 3D : vue plein écran des thèmes (Espace, Bataille navale…) — js/univers/noyau.js ═════════════ */
+#vueUnivers{position:fixed;inset:0;z-index:0;background:#02030a;overflow:hidden;touch-action:none;user-select:none;-webkit-user-select:none}
+#vueUnivers[hidden]{display:none}
+#vueUnivers canvas.univ-canvas{position:absolute;inset:0;width:100%;height:100%;display:block;outline:none;touch-action:none;cursor:grab}
+#vueUnivers canvas.univ-canvas:active{cursor:grabbing}
+.univ-labels{position:absolute;inset:0;pointer-events:none;overflow:hidden}
+.univ-lab{position:absolute;left:0;top:0;white-space:nowrap;font:600 12px/1 var(--mono,monospace);color:#fff;text-shadow:0 0 4px #000,0 0 8px #000,0 1px 2px #000;pointer-events:none;will-change:transform,opacity;letter-spacing:.04em}
+.univ-lab.pays{font-size:13px;letter-spacing:.08em;text-transform:uppercase;color:#fff3d6}
+.univ-lab.ocean{font-size:15px;font-style:italic;letter-spacing:.28em;text-transform:uppercase;color:#a8dcff;opacity:.9}
+.univ-lab.mer{font-size:12px;font-style:italic;letter-spacing:.18em;color:#9fd0f2}
+.univ-lab.ville{font-size:11px;color:#ffe6a8;font-weight:500}
+.univ-lab.actu,.univ-lab.appareil{pointer-events:auto;cursor:pointer}
+.univ-pastille{display:inline-flex;align-items:center;gap:5px;padding:3px 8px 3px 5px;border-radius:14px;background:rgba(255,64,96,.92);color:#fff;font:700 11px var(--mono,monospace);box-shadow:0 0 0 2px rgba(255,255,255,.75),0 0 14px rgba(255,64,96,.7);animation:univ-pulse 2.2s ease-in-out infinite}
+.univ-pastille i{font-style:normal;font-size:12px}
+.univ-pastille.appareil{background:rgba(24,190,230,.94);box-shadow:0 0 0 2px #fff,0 0 14px rgba(24,190,230,.8)}
+@keyframes univ-pulse{50%{transform:scale(1.12)}}
+
+.univ-hud{position:absolute;inset:0;pointer-events:none;font-family:var(--mono,monospace);color:#e9f2ff;padding:max(10px,env(safe-area-inset-top)) max(12px,env(safe-area-inset-right)) max(10px,env(safe-area-inset-bottom)) max(12px,env(safe-area-inset-left))}
+.univ-hud button,.univ-hud select,.univ-hud .univ-carte,.univ-hud .univ-sous{pointer-events:auto}
+.univ-haut{display:flex;justify-content:space-between;align-items:flex-start;gap:8px}
+.univ-haut>div:first-child{flex:1 1 0;min-width:0}
+.univ-haut>.univ-groupe{flex:none;justify-content:flex-end}
+@media (max-width:760px){.univ-haut{flex-direction:column}.univ-haut>.univ-groupe{justify-content:flex-start}}
+.univ-groupe{display:flex;gap:6px;flex-wrap:wrap;align-items:center}
+.univ-b{font:600 12px var(--mono,monospace);letter-spacing:.06em;color:#dff0ff;background:rgba(8,14,30,.72);border:1px solid rgba(120,190,255,.45);border-radius:999px;padding:7px 13px;min-height:36px;cursor:pointer;backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);transition:background .15s,border-color .15s}
+.univ-b:hover{background:rgba(30,60,110,.8)}
+.univ-b[aria-pressed="true"],.univ-b.actif{background:rgba(40,110,200,.85);border-color:#9fd3ff;color:#fff}
+.univ-b.danger{border-color:rgba(255,120,140,.6)}
+.univ-b:focus-visible{outline:2px solid #fff;outline-offset:2px}
+.univ-select{font:600 12px var(--mono,monospace);color:#dff0ff;background:rgba(8,14,30,.78);border:1px solid rgba(120,190,255,.45);border-radius:999px;padding:7px 10px;min-height:36px}
+.univ-sous{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px}
+.univ-bas{position:absolute;left:max(12px,env(safe-area-inset-left));right:max(12px,env(safe-area-inset-right));bottom:max(12px,calc(env(safe-area-inset-bottom) + 4px));display:flex;flex-direction:column;align-items:flex-start;gap:8px}
+body.univers-actif:not(.rayle-rangee) .univ-bas{bottom:max(92px,calc(env(safe-area-inset-bottom) + 84px))}
+.univ-legende{max-width:min(92vw,720px);padding:8px 14px;border-radius:12px;background:rgba(4,8,20,.74);border:1px solid rgba(140,200,255,.35);font-size:13px;line-height:1.45;opacity:0;transform:translateY(6px);transition:opacity .35s,transform .35s;backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px)}
+.univ-legende.vu{opacity:1;transform:none}
+.univ-carte{width:min(94vw,430px);max-height:min(46vh,380px);overflow:auto;padding:12px 14px 10px;border-radius:14px;background:rgba(4,9,24,.86);border:1px solid rgba(140,200,255,.45);box-shadow:0 8px 30px rgba(0,0,0,.5);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);font-size:13px;line-height:1.5}
+.univ-carte[hidden]{display:none}
+.univ-carte h3{margin:0 0 6px;font-size:15px;letter-spacing:.06em;color:#fff}
+.univ-carte p{margin:6px 0}
+.univ-carte small{color:#9db8d8}
+.univ-carte a{color:#8fd0ff}
+.univ-carte .univ-x{position:absolute;right:8px;top:6px;background:none;border:0;color:#bcd;font-size:16px;cursor:pointer;padding:6px}
+.univ-carte{position:relative}
+.univ-carte .univ-liste{margin:6px 0 0;padding:0;list-style:none;display:flex;flex-direction:column;gap:7px}
+.univ-carte .univ-liste li{padding-left:10px;border-left:2px solid rgba(255,100,130,.8)}
+.univ-carte .univ-actions{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px}
+.univ-passer{position:absolute;right:max(14px,env(safe-area-inset-right));bottom:max(96px,calc(env(safe-area-inset-bottom) + 90px));pointer-events:auto}
+.univ-passer[hidden]{display:none}
+.univ-charge{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;background:radial-gradient(ellipse at center,#0a1630 0,#02030a 70%);color:#cfe6ff;font:600 14px var(--mono,monospace);letter-spacing:.12em;transition:opacity .6s;z-index:3;pointer-events:none}
+.univ-charge.fin{opacity:0}
+.univ-charge progress{width:min(60vw,320px);height:6px;accent-color:#6cb6ff}
+.univ-fondu{position:absolute;inset:0;background:#000;opacity:0;pointer-events:none;transition:opacity .5s;z-index:2}
+.univ-fondu.vu{opacity:1}
+.univ-info-fps{position:absolute;left:max(10px,env(safe-area-inset-left));top:60px;font:10px var(--mono,monospace);color:#7fa;opacity:.8;pointer-events:none}
+
+/* Le reste de l'interface par-dessus l'Univers : Raylé en petite bulle, barre compacte, rien ne bloque la scène */
+body.univers-actif .ui-fond,body.univers-actif .ui-voile,body.univers-actif .ui-fond-fixe,body.univers-actif .ui-fond-video,body.univers-actif .ui-teinte,body.univers-actif .ui-amb{visibility:hidden}
+body.univers-actif{background:#02030a}
+body.univers-actif .ui-bouton,body.univers-actif .ui-pop{display:none!important}
+body.univers-actif .scene,body.univers-actif .barre{pointer-events:none}
+body.univers-actif .titre,body.univers-actif .bridge,body.univers-actif .state,body.univers-actif .soustitre{display:none}
+body.univers-actif .reactor{position:fixed;left:auto;right:max(10px,env(safe-area-inset-right));top:max(56px,calc(env(safe-area-inset-top) + 48px));width:76px!important;z-index:40;opacity:.95;pointer-events:auto;margin:0}
+body.univers-actif .barre{position:fixed;left:50%;transform:translateX(-50%);bottom:max(8px,env(safe-area-inset-bottom));width:min(760px,96vw);grid-template-columns:2fr repeat(6,1fr);gap:5px;padding:0;margin:0;z-index:30}
+body.univers-actif .barre button{pointer-events:auto;min-height:44px;background:rgba(8,14,30,.78)}
+body.univers-actif .barre .mic small{display:none}
+body.univers-actif .barre .gros{font-size:9px;letter-spacing:.06em;min-height:44px}
+body.univers-actif .barre .gros i{font-size:17px}
+body.univers-actif.rayle-rangee .reactor{top:auto}
+@media (max-width:640px){
+  body.univers-actif .barre{grid-template-columns:repeat(4,1fr)}
+  body.univers-actif .barre .mic{grid-column:1/-1;min-height:40px}
+  .univ-b{padding:6px 10px;font-size:11px}
+  .univ-bas{bottom:max(10px,env(safe-area-inset-bottom))}
+  body.univers-actif:not(.rayle-rangee) .univ-bas{bottom:max(140px,calc(env(safe-area-inset-bottom) + 130px))}
+}
+@media (prefers-reduced-motion:reduce){.univ-pastille{animation:none}.univ-legende{transition:none}}
+
+/* Bataille navale : style dessin animé (légende, étiquettes de navires) */
+.univ-lab.navire{font-size:12px;color:#fff6dc;text-shadow:0 0 3px #3a2410,0 0 6px #3a2410,0 2px 0 #3a2410;font-weight:700}
+.univ-lab.navire .nat{display:inline-block;width:11px;height:8px;margin-right:4px;border:1px solid #2b1a0a;vertical-align:baseline}
+.univ-barre-vie{display:inline-block;width:46px;height:5px;margin-left:5px;background:#3a1f0c;border:1px solid #1d0f05;border-radius:2px;vertical-align:middle;overflow:hidden}
+.univ-barre-vie>i{display:block;height:100%;background:#7bd34a}
+.univ-viseur{position:absolute;left:50%;top:50%;width:14px;height:14px;margin:-7px 0 0 -7px;border:2px solid rgba(255,255,255,.7);border-radius:50%;pointer-events:none;box-shadow:0 0 6px #000}
+
+/* Atterrissage sur Mars : télémétrie (altitude, vitesse, phase) */
+.univ-tele{position:absolute;left:50%;top:max(14px,env(safe-area-inset-top));transform:translateX(-50%);display:flex;gap:18px;padding:8px 18px;border-radius:12px;background:rgba(4,9,24,.74);border:1px solid rgba(255,170,90,.55);font:600 12px var(--mono,monospace);letter-spacing:.08em;pointer-events:none;z-index:2;backdrop-filter:blur(6px)}
+.univ-tele[hidden]{display:none}
+.univ-tele small{display:block;font-size:9px;color:#f0b98a;letter-spacing:.2em}
+.univ-tele b{font-size:15px;color:#fff;font-weight:700;white-space:nowrap}
+@media (max-width:640px){.univ-tele{gap:10px;padding:6px 10px;top:70px}.univ-tele b{font-size:12px}}
+
+/* ── visite de l'intérieur d'un navire ── */
+.univ-int{position:absolute;inset:0;pointer-events:none;z-index:6}
+.univ-int-nom{position:absolute;right:max(14px,env(safe-area-inset-right));top:max(108px,calc(env(safe-area-inset-top) + 100px));background:rgba(26,14,6,.78);color:#ffe6b0;border:2px solid #c9974a;border-radius:10px;padding:6px 12px;font:700 14px var(--mono,monospace);max-width:58vw}
+.univ-int-act{position:absolute;left:50%;bottom:max(130px,calc(env(safe-area-inset-bottom) + 118px));transform:translateX(-50%);display:flex;gap:10px;pointer-events:auto}
+.univ-int-act .univ-b{font-size:15px;min-height:46px;padding:10px 20px;background:rgba(40,22,8,.88);border-color:#e0b040;color:#ffe6b0}
+.univ-int-aide{position:absolute;left:50%;bottom:max(96px,calc(env(safe-area-inset-bottom) + 90px));transform:translateX(-50%);font-size:11px;color:#ffe6b0;opacity:.8;text-shadow:0 1px 3px #000;text-align:center;width:min(92vw,640px)}
+.univ-joy{position:absolute;left:max(22px,env(safe-area-inset-left));bottom:max(150px,calc(env(safe-area-inset-bottom) + 140px));width:120px;height:120px;border-radius:50%;border:2px solid rgba(255,230,176,.55);background:rgba(26,14,6,.28);touch-action:none;pointer-events:auto}
+.univ-joy[hidden]{display:none}
+.univ-joy i{position:absolute;left:38px;top:38px;width:44px;height:44px;border-radius:50%;background:rgba(255,230,176,.6)}
+
+/* ── transition Espace ↔ navale : fondu vers un blanc de nuage ── */
+#vueUnivers.transition-nuage .univ-fondu{background:#e4edf7}
+#vueUnivers.transition-nuage .univ-charge{background:radial-gradient(ellipse at center,#f4f8fc 0,#cfdcec 75%);color:#274560}

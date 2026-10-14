@@ -1,5 +1,5 @@
 /* Fiches : cou, dos, thorax, abdomen, périnée. Source : Gray's Anatomy 1918, Myologie (voir fiches-corps.js). */
-import { f, SOURCE_GRAY } from './fiches-outils.js?v=2026.10.14.4';
+import { f, SOURCE_GRAY } from './fiches-outils.js?v=2026.10.14.5';
 
 const COU = SOURCE_GRAY + ', Myologie : muscles du cou et de la tête';
 const DOS = SOURCE_GRAY + ', Myologie : muscles du dos';

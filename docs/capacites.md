@@ -118,6 +118,15 @@ données de marché et bougies, calendrier économique, alertes et rappels, agen
 - **Exemples** : « quel est le prix du Bitcoin », « mets une alerte à 70 000 », « quelles sont les actualités ».
 - **Vérification automatique** : non (décidé par l’IA ou une API en ligne).
 
+## Univers 3D : globe, système solaire, Mars, bataille navale
+
+Univers 🌌 : globe, système solaire, ISS, Mars et rovers, bataille navale 1700 avec visite des navires, qualité Basse/Moyenne/Haute.
+
+- **Paramètres (lus dans le code)** : thèmes Espace et Bataille navale ; navires : voilier, brick, frégate, vaisseau ; nations : France, Espagne, Angleterre, Portugal ; scénarios : balade, duo, escarmouche, bataille ; salles : pont, cabine, batteries, cuisine, hamacs, infirmerie, soute, cale.
+- **Cas limites** : positions des astres et éclipses approximatives, actualités selon franceinfo et le Worker, rendu allégé en qualité Basse.
+- **Exemples** : « présente la France », « va sur Mars », « montre le système solaire », « atterris sur Mars », « bascule sur la bataille navale », « lance une escarmouche », « montre l’intérieur de la frégate », « mets la qualité en basse », « passe l’animation », « réduis-toi », « où sont mes appareils ».
+- **Vérification automatique** : non (décidé par l’IA ou une API en ligne).
+
 ## Autres appareils, messages et appels
 
 commander le PC, la tablette ou le téléphone (relais), préparer un message ou un appel (c’est Justin qui envoie), gérer le répertoire.

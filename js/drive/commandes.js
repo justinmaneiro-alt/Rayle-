@@ -4,7 +4,7 @@
    Règle : on ne s'empare d'une phrase que si elle parle clairement d'un document (mot « document », « Drive », « PDF »… ou nom d'un fichier autorisé)
    ou si la fenêtre est ouverte (« lis-moi la suite », « surligne ce passage »). « ouvre le terminal » ne doit jamais arriver ici.
    Les opérations : lister · connecter · deconnecter · selecteur · etat · ouvrir · lire · resumer · chercher · modifier · valider · refuser · enregistrer · annuler · fenetre. */
-import { norm, evoqueFichier, scoreNom, nombre, MOT_NOMBRE } from './texte.js?v=2026.10.14.4';
+import { norm, evoqueFichier, scoreNom, nombre, MOT_NOMBRE } from './texte.js?v=2026.10.14.5';
 
 /** même longueur que l'original (accents retirés, minuscules) : permet de retrouver le texte exact à dire/écrire */
 export const plier = t => String(t == null ? '' : t).split('').map(c => { const d = c.normalize('NFD')[0]; return (d === '’' || d === '‘' || d === '`' || d === '´' ? "'" : d).toLowerCase(); }).join('');

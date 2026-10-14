@@ -2,7 +2,7 @@
    Un .docx est un zip dont word/document.xml contient les paragraphes <w:p>. On ne touche QU'AUX paragraphes modifiés : tout le reste du fichier
    (styles, images, en-têtes, commentaires, mise en page) reste octet pour octet. Dans un paragraphe corrigé, seuls les caractères changés sont remplacés
    (le gras, l'italique et les polices des mots voisins sont conservés). Fonctions pures sur le texte XML (testables sans zip). */
-import { changementMinimal } from './modele.js?v=2026.10.14.4';
+import { changementMinimal } from './modele.js?v=2026.10.14.5';
 
 const ENTITES = { amp: '&', lt: '<', gt: '>', quot: '"', apos: "'" };
 const deXml = s => String(s).replace(/&(#x[0-9a-f]+|#\d+|amp|lt|gt|quot|apos);/gi, (m, e) => {

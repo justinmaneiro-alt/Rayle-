@@ -5,9 +5,9 @@
    Services : 'vue' (vue courante) · 'vue:ouvrir' (terminal) · 'vue:ouvrir-anatomie'(options) · 'vue:ouvrir-cerveau'(options) · 'vue:fermer' (ferme la vue ouverte, quelle qu'elle soit). */
 (function(){
   const PLEINES={
-    terminal:{ el:'vueTerminal', url:'js/terminal/terminal.js?v=2026.10.14.4', hash:'#terminal', classe:'vue-terminal', erreur:'Terminal impossible à charger : ', bus:'terminal' },
-    anatomie:{ el:'vueAnatomie', url:'js/anatomie/fenetre.js?v=2026.10.14.4', hash:'#anatomie', classe:'vue-anatomie', erreur:'Anatomie impossible à charger : ', bus:'anatomie' },
-    cerveau:{ el:'vueCerveau', url:'js/anatomie/cerveau-fenetre.js?v=2026.10.14.4', hash:'#cerveau', classe:'vue-cerveau', erreur:'Cerveau impossible à charger : ', bus:'cerveau' }
+    terminal:{ el:'vueTerminal', url:'js/terminal/terminal.js?v=2026.10.14.5', hash:'#terminal', classe:'vue-terminal', erreur:'Terminal impossible à charger : ', bus:'terminal' },
+    anatomie:{ el:'vueAnatomie', url:'js/anatomie/fenetre.js?v=2026.10.14.5', hash:'#anatomie', classe:'vue-anatomie', erreur:'Anatomie impossible à charger : ', bus:'anatomie' },
+    cerveau:{ el:'vueCerveau', url:'js/anatomie/cerveau-fenetre.js?v=2026.10.14.5', hash:'#cerveau', classe:'vue-cerveau', erreur:'Cerveau impossible à charger : ', bus:'cerveau' }
   };
   let vue='rayle', pousse=false;
   const modules={}, chargements={};

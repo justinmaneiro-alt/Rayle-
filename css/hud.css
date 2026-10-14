@@ -170,3 +170,14 @@ body.secu-capture #interim{visibility:hidden}
 /* Raylé se fait discrète : petite bulle dans le coin pendant qu'un contenu (planète, modèle 3D, panneau) s'affiche (js/rayle/discretion.js) */
 body.rayle-discrete .reactor{position:fixed;top:max(10px,env(safe-area-inset-top));right:max(10px,env(safe-area-inset-right));width:76px!important;z-index:40;opacity:.92}
 body.rayle-discrete .state{display:none}
+
+/* Raylé rangée : l'interface se vide, Raylé devient une bulle déplaçable (js/rayle/rangement.js). La scène (Espace, Univers) garde tout l'écran. */
+body.rayle-rangee .titre,body.rayle-rangee .bridge,body.rayle-rangee .state,body.rayle-rangee .soustitre,body.rayle-rangee .barre,body.rayle-rangee .ui-bouton,body.rayle-rangee .tv-badge,
+body.rayle-rangee #panneaux .pn:not([data-type="securite"]){display:none!important}
+body.rayle-rangee .reactor{position:fixed;width:76px!important;z-index:200;opacity:.95;cursor:grab;touch-action:none;margin:0;border-radius:50%;
+  box-shadow:0 0 0 2px color-mix(in srgb,var(--t1,#ff4fd8) 55%,transparent),0 6px 22px rgba(0,0,0,.55);transition:box-shadow .2s ease}
+body.rayle-rangee .reactor:active{cursor:grabbing}
+body.rayle-rangee .reactor::after{content:"";position:absolute;right:2px;top:2px;width:10px;height:10px;border-radius:50%;background:#17d98a;box-shadow:0 0 8px #17d98a;pointer-events:none}   /* témoin : elle écoute encore */
+body.rayle-rangee .reactor.veille::after,body.rayle-rangee .reactor.idle::after{background:#7a6bff;box-shadow:0 0 8px #7a6bff}
+body.rayle-rangee .reactor.speaking::after{background:#ff4fd8;box-shadow:0 0 8px #ff4fd8}
+#btnRanger[aria-pressed="true"]{outline:2px solid var(--t1,#ff4fd8)}

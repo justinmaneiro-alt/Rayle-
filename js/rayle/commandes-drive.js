@@ -11,7 +11,7 @@
   let driveModule=null, driveChargement=null;
   function chargerDrive(){
     if(driveModule) return Promise.resolve(driveModule);
-    if(!driveChargement) driveChargement=import(new URL('js/drive/index.js?v=2026.10.14.4',document.baseURI).href).then(m=>{ driveModule=m; return m; }).catch(e=>{ driveChargement=null; throw e; });
+    if(!driveChargement) driveChargement=import(new URL('js/drive/index.js?v=2026.10.14.5',document.baseURI).href).then(m=>{ driveModule=m; return m; }).catch(e=>{ driveChargement=null; throw e; });
     return driveChargement;
   }
   function driveFichiersConnus(){ try{ return JSON.parse(localStorage.getItem('rayle_drive_fichiers')||'[]'); }catch(e){ return []; } }

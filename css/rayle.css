@@ -33,7 +33,7 @@
   body:not(.avec-soustitres) .soustitre{display:none}
 
   /* ───── Barre de gros boutons ───── */
-  .barre{flex:none;display:grid;grid-template-columns:2.6fr 1fr 1fr 1fr 1fr;gap:10px;width:min(980px,100%);margin:0 auto;padding-top:8px;position:relative;z-index:5}
+  .barre{flex:none;display:grid;grid-template-columns:2.2fr repeat(6,1fr);gap:8px;width:min(1100px,100%);margin:0 auto;padding-top:8px;position:relative;z-index:5}
   .barre button{font-family:var(--mono);cursor:pointer;color:var(--pink);background:rgba(255,0,127,.07);border:2px solid var(--pink);
     box-shadow:0 0 16px rgba(255,0,127,.28);transition:background .2s,box-shadow .2s;min-height:68px;
     clip-path:polygon(12px 0,100% 0,100% calc(100% - 12px),calc(100% - 12px) 100%,0 100%,0 12px)}
@@ -85,7 +85,7 @@
 
   /* ───── Téléphone et tablette ───── */
   @media (max-width:640px){
-    .barre{grid-template-columns:repeat(4,1fr);gap:6px}
+    .barre{grid-template-columns:repeat(3,1fr);gap:6px}
     .barre .mic{grid-column:1 / -1;min-height:64px}
     .barre .gros{min-height:60px}
     .reactor{width:min(92vw,50vh)}

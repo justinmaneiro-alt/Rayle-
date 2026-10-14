@@ -18,3 +18,8 @@ ecrire('js/rayle/commandes-anatomie.js', s => s.replace(/(js\/anatomie\/index\.j
 for (const f of fs.readdirSync('js/drive').filter(x => x.endsWith('.js')).map(x => 'js/drive/' + x))
   ecrire(f, s => s.replace(/(from\s+'\.\/[\w-]+\.js)(?:\?v=[^']*)?'/g, `$1?v=${v}'`).replace(/(import\('\.\/[\w-]+\.js)(?:\?v=[^']*)?'\)/g, `$1?v=${v}')`));
 ecrire('js/rayle/commandes-drive.js', s => s.replace(/(js\/drive\/index\.js)(?:\?v=[^']*)?'/, `$1?v=${v}'`));
+// Univers 3D (Espace, Mars, Bataille navale…) : imports statiques et dynamiques de tous les fichiers de js/univers/ (récursif), constante VERSION du noyau, puis son chargement depuis Raylé
+const fichiersUnivers = d => fs.readdirSync(d, { withFileTypes: true }).flatMap(e => e.isDirectory() ? fichiersUnivers(d + '/' + e.name) : e.name.endsWith('.js') ? [d + '/' + e.name] : []);
+for (const f of fichiersUnivers('js/univers'))
+  ecrire(f, s => s.replace(/(from\s+'\.{1,2}\/[\w\-./]+\.js)(?:\?v=[^']*)?'/g, `$1?v=${v}'`).replace(/(import\('\.{1,2}\/[\w\-./]+\.js)(?:\?v=[^']*)?'\)/g, `$1?v=${v}')`).replace(/(const VERSION = ')[^']*'/, `$1${v}'`));
+ecrire('js/rayle/commandes-univers.js', s => s.replace(/(js\/univers\/noyau\.js)(?:\?v=[^']*)?'/, `$1?v=${v}'`));

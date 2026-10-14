@@ -10,6 +10,10 @@
     const cmdS=await commandeSecurite(text);    // « déverrouille », « verrouille », « journal de sécurité »…
     if(my!==epoch) return;
     if(cmdS){ diagAction('commande de sécurité'); addLine('ray',cmdS); await speak(cmdS); return; }
+    // Nouveaux modes (js/rayle/commandes-univers.js) : ranger Raylé, localiser les appareils, l'Univers 3D
+    const cmdU=typeof commandeUnivers==='function' ? await commandeUnivers(text) : null;
+    if(my!==epoch) return;
+    if(cmdU){ diagAction('commande Univers / rangement / localisation'); if(cmdU!=='__deja_dit__'){ addLine('ray',cmdU); await speak(cmdU); } return; }   // « __deja_dit__ » : l'Univers a parlé lui-même (présentation)
     // Répertoire, messages et appels préparés (js/rayle/repertoire.js) : avant les autres appareils, pour « … sur le téléphone »
     const cmdR=typeof commandeMessages==='function' ? await commandeMessages(text) : null;
     if(my!==epoch) return;

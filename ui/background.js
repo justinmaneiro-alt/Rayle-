@@ -39,7 +39,7 @@
     cv.replaceWith(c); cv=c; transfo='';
     return c;
   }
-  const masque=()=>document.hidden || ['terminal','anatomie'].includes(RayleBus.demander('vue')) || document.getElementById('cfg').classList.contains('open');
+  const masque=()=>document.hidden || document.body.classList.contains('univers-actif') || ['terminal','anatomie'].includes(RayleBus.demander('vue')) || document.getElementById('cfg').classList.contains('open');
   const fpsMax=()=>q===0?(anim==='ultra'?60:30):24;
   const actif=()=>rendu==='3d'?cv:rendu==='fixe'?fixe:rendu==='video'?boiteVideo:null;
 
