@@ -1,5 +1,5 @@
 /* Fiches : langue, palais, orbite, larynx, pharynx, périnée. Source : Gray's Anatomy 1918, Myologie (voir fiches-corps.js). */
-import { f, SOURCE_GRAY } from './fiches-outils.js?v=2026.10.14.3';
+import { f, SOURCE_GRAY } from './fiches-outils.js?v=2026.10.14.4';
 
 const TET = SOURCE_GRAY + ', Myologie : muscles de la tête, de la langue, du palais et du pharynx';
 const ORB = SOURCE_GRAY + ', Myologie : muscles de l\'orbite';

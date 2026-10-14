@@ -4,7 +4,7 @@
    • Le jeton d'accès vit uniquement en mémoire de la page (1 heure). Un simple repère « déjà connecté » est gardé dans localStorage pour tenter
      une reconnexion silencieuse quand le jeton expire ; si Google exige un geste de ta part, on affiche « Se connecter à Google ».
    • Tablette : la fenêtre de connexion de Google s'ouvre en popup (c'est le seul mode sans serveur) ; elle doit être déclenchée par un toucher. */
-import { ErreurDrive } from './api.js?v=2026.10.14.3';
+import { ErreurDrive } from './api.js?v=2026.10.14.4';
 
 export const PORTEE = 'https://www.googleapis.com/auth/drive.file';
 export const PORTEE_LECTURE = 'https://www.googleapis.com/auth/drive.readonly';      // optionnelle (config « lectureComplete ») : voir le contenu des dossiers choisis

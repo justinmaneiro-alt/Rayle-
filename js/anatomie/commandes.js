@@ -3,12 +3,12 @@
    executer(commande)       → phrase que Raylé dit (promesse), ou null
    Déclencheurs : « décris-moi l'humérus », « où s'insère le biceps ? » (pop-up 3D), « ouvre l'anatomie », « affiche les muscles et les nerfs »,
    « amputation trans-tibiale à droite », « scoliose de 40 degrés », « fracture du col du fémur », « mets une prothèse », « mets l'emboîture en carbone »… */
-import { useAnatomieStore as S, actions as A } from './store.js?v=2026.10.14.3';
-import * as R from './registre.js?v=2026.10.14.3';
-import * as K from './cours.js?v=2026.10.14.3';
-import * as P from './presentation.js?v=2026.10.14.3';
-import * as CV from './cerveau-recherche.js?v=2026.10.14.3';
-import { AMPUTATIONS, SCOLIOSE, FRACTURES, MATERIAUX, APPAREILLAGES, appareilsCompatibles } from './donnees-ortho.js?v=2026.10.14.3';
+import { useAnatomieStore as S, actions as A } from './store.js?v=2026.10.14.4';
+import * as R from './registre.js?v=2026.10.14.4';
+import * as K from './cours.js?v=2026.10.14.4';
+import * as P from './presentation.js?v=2026.10.14.4';
+import * as CV from './cerveau-recherche.js?v=2026.10.14.4';
+import { AMPUTATIONS, SCOLIOSE, FRACTURES, MATERIAUX, APPAREILLAGES, appareilsCompatibles } from './donnees-ortho.js?v=2026.10.14.4';
 
 const norm = R.norm;
 const COUP = /\b(?:et|plus|avec|puis)\b|[+,&]/;
@@ -217,7 +217,7 @@ async function presenterScript(c) {
   const cerveau = /^cerveau/.test(script.type);
   try {
     if (cerveau) { const cv = await ouvrirCerveau(); await cv.presenter(script); }
-    else { await ouvrirFenetre(); const m = await import('./lecteur-anatomie.js?v=2026.10.14.3'); await m.lancerPresentation(script); }
+    else { await ouvrirFenetre(); const m = await import('./lecteur-anatomie.js?v=2026.10.14.4'); await m.lancerPresentation(script); }
   } catch (e) { return 'Je ne peux pas lancer l’animation 3D (' + (e && e.message || e) + ') ; voici le début : ' + phraseSecours(script); }
   const cible = script.titre.toLowerCase();
   return 'Je lance la présentation : ' + cible + '. ' + script.etapes.length + ' étapes, avec sous-titres ; touchez pause, suivant ou la vitesse quand vous voulez.';
@@ -236,7 +236,7 @@ export async function executer(c) {
     case 'cerveau-reinit': { const cv = await ouvrirCerveau(); cv.zone(null); cv.reseau(null); return 'Sélection effacée.'; }
     case 'ouvrir': await ouvrirFenetre(c.onglet); return "Voici la fenêtre Anatomie et Orthopédie. Touchez une structure pour la décrire, ou dites par exemple « affiche les muscles » ou « amputation trans-tibiale ».";
     case 'fermer-fenetre': if (window.RayleLecteur) { try { window.RayleLecteur.fermer(); } catch (e) { } } RayleBus.demander('vue:fermer'); return 'Retour à l’accueil.';
-    case 'fermer-quick': { const q = await import('./quickview.js?v=2026.10.14.3'); if (!q.quickOuvert()) return null; q.fermerQuick(); return 'Fenêtre 3D fermée.'; }
+    case 'fermer-quick': { const q = await import('./quickview.js?v=2026.10.14.4'); if (!q.quickOuvert()) return null; q.fermerQuick(); return 'Fenêtre 3D fermée.'; }
     case 'normal': await ouvrirFenetre(); A.toutNormal(); A.selectionner(null); A.toutAfficher(); setTimeout(() => { const m = window.RayleAnatomieMoteur; m && m.vue('face'); }, 60); return 'Anatomie normale rétablie.';
     case 'retirer': {
       const e = S.obtenir();
@@ -307,7 +307,7 @@ export async function executer(c) {
       const cible = c.cible;
       const id = cible.ids[0]; if (!id) return null;
       const texte = cible.groupe ? cible.nom + ' : ' + cible.ids.length + ' pièces affichées, touchez-en une pour la décrire.' : R.resume(id, c.question);
-      if (!appliquerDecrire(c)) { const q = await import('./quickview.js?v=2026.10.14.3'); await q.afficherQuick(cible.groupe ? cible : (typeof cible === 'string' ? cible : { base: cible.base, ids: cible.ids, cote: cible.cote, nom: cible.nom, groupe: !!cible.groupe })); }
+      if (!appliquerDecrire(c)) { const q = await import('./quickview.js?v=2026.10.14.4'); await q.afficherQuick(cible.groupe ? cible : (typeof cible === 'string' ? cible : { base: cible.base, ids: cible.ids, cote: cible.cote, nom: cible.nom, groupe: !!cible.groupe })); }
       const cours = cible.groupe ? '' : await extraitCours(R.nomAffiche(id).replace(/ (droit|gauche|droite)$/, '') + ' ' + c.question, []);
       return texte + cours;
     }
