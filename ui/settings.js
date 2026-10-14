@@ -12,7 +12,7 @@
   const THEMES=UI.THEMES||{};
   const FONDS={aucun:'Aucun',espace:'Espace',jarvis:'Jarvis',video:'Ville réelle'};
   const ENTITES={sphere:'Sphère',neurones:'Neurones'};
-  const ANIMS={max:'Max',auto:'Auto',eco:'Éco'};
+  const ANIMS={max:'Max',auto:'Auto',eco:'Éco',ultra:'Ultra'};      // Ultra : choix manuel seulement, jamais automatique
   const CLE={theme:'rayle_ui_theme',fond:'rayle_ui_fond',anim:'rayle_ui_anim',micro:'rayle_ui_micro',entite:'rayle_ui_entite',taille:'rayle_ui_taille',contraste:'rayle_ui_contraste'};
   const lire=k=>{ try{ return localStorage.getItem(k); }catch(e){ return null; } };
   const ecrire=(k,v)=>{ try{ localStorage.setItem(k,v); }catch(e){} };
@@ -53,7 +53,7 @@
   }
   let palierAuto=palierDepart();
   let ecoForce=false;            // mini-vue (#mini) : Éco imposé et fond coupé, sans toucher aux réglages enregistrés
-  const palier=()=>(reduit()||ecoForce) ? 2 : R.anim==='max' ? 0 : R.anim==='eco' ? 2 : palierAuto;
+  const palier=()=>(reduit()||ecoForce) ? 2 : (R.anim==='max'||R.anim==='ultra') ? 0 : R.anim==='eco' ? 2 : palierAuto;
   const NOM_PALIER=['complet','allégé','éco'];
 
   let premier=true;
@@ -75,6 +75,11 @@
   }
   // changer(k, v, {auto:true}) : réglage fait par l'ambiance (thème automatique) ; il n'est ni enregistré ni compté comme un choix de l'utilisateur.
   // Tout autre changement de thème est un choix manuel : horodaté, l'ambiance le respecte pendant N heures (Réglages → Ambiance).
+  /** Ultra : avertissement honnête selon l'appareil (jamais bloquant : c'est un choix de l'utilisateur) */
+  function avertirUltra(){
+    const c=APPAREIL, limites=[]; if(mobile) limites.push('appareil mobile'); if(c.texMax&&c.texMax<8192) limites.push('textures limitées à '+c.texMax+' px (la Terre restera en 4k)'); if(c.memoire&&c.memoire<4) limites.push(c.memoire+' Go de mémoire'); if(c.coeurs&&c.coeurs<=4) limites.push(c.coeurs+' cœurs');
+    try{ addLine('sys','⚠ Qualité Ultra : très gourmande (batterie, chaleur, mémoire graphique)'+(limites.length?' — cet appareil semble limité : '+limites.join(', '):'')+'. Si l’écran rame, je repasse toute seule au palier Max.'); }catch(e){}
+  }
   function changer(k,v,opt){
     if(k==='theme' && opt && opt.auto){ if(R.theme!==v){ R.theme=v; appliquer(); } return; }
     if(k==='theme'){ ecrire(CLE.theme,v); ecrire('rayle_ui_theme_manuel',String(Date.now())); }   // même si c'est déjà le thème affiché : c'est bien un choix
@@ -82,12 +87,13 @@
     R[k]=v; if(k!=='theme') ecrire(CLE[k],typeof v==='boolean'?(v?'1':'0'):v);
     if(k==='anim'){
       // L'entité suit le niveau choisi (Éco : 800 points en WebGL, plus léger que le canvas 2D)
-      try{ Entite.qualite(v==='max'?0:v==='eco'?2:'auto'); }catch(e){}
+      try{ Entite.qualite((v==='max'||v==='ultra')?0:v==='eco'?2:'auto'); }catch(e){}
+      if(v==='ultra') avertirUltra();
       palierAuto=palierDepart(); mauvais=0;
     }
     appliquer();
   }
-  UI.reglages=()=>({appareil:Object.assign({},APPAREIL),theme:R.theme,fond:ecoForce?'aucun':R.fond,anim:R.anim,palier:palier(),micro:R.micro,mobile,entite:R.entite,taille:R.taille,contraste:R.contraste,ecoForce});
+  UI.reglages=()=>({appareil:Object.assign({},APPAREIL),theme:R.theme,fond:ecoForce?'aucun':R.fond,anim:R.anim,ultra:R.anim==='ultra'&&!ecoForce&&!reduit(),palier:palier(),micro:R.micro,mobile,entite:R.entite,taille:R.taille,contraste:R.contraste,ecoForce});
   UI.changer=changer;
   UI.themeManuelDepuis=()=>Number(lire('rayle_ui_theme_manuel'))||0;
   UI.forcerEco=oui=>{ oui=!!oui; if(oui===ecoForce) return; ecoForce=oui; appliquer(); };
@@ -149,7 +155,7 @@
       b.querySelector('.ui-taille-val').textContent=R.taille+' %';
       const ct=b.querySelector('input[data-k="contraste"]'); if(+ct.value!==R.contraste) ct.value=String(R.contraste);
       b.querySelector('.ui-contraste-val').textContent=R.contraste+' %';
-      b.querySelector('.ui-info').textContent='Rendu actuel : '+NOM_PALIER[p]+(R.anim==='auto'?' (choisi automatiquement)':'')
+      b.querySelector('.ui-info').textContent='Rendu actuel : '+NOM_PALIER[p]+(R.anim==='auto'?' (choisi automatiquement)':'')+(R.anim==='ultra'?' · Ultra : textures 8k, bloom HDR, atmosphère haute qualité, anticrénelage (très gourmand : retour automatique au palier Max si l’écran rame)':'')
         +(reduit()?' · « réduire les animations » est activé sur cet appareil':'')+' · environ '+fpsVu+' images/s · appareil : '+(APPAREIL.webgl?'WebGL'+APPAREIL.webgl+(APPAREIL.texMax?', textures '+APPAREIL.texMax+' px':''):'sans WebGL')+(APPAREIL.memoire?', '+APPAREIL.memoire+' Go':'')+(APPAREIL.coeurs?', '+APPAREIL.coeurs+' cœurs':'')+', écran ×'+(Math.round(APPAREIL.dpr*10)/10)+'.';
     });
   }
@@ -206,7 +212,7 @@
   const FOND_RE=new RegExp('^(?:('+VERBES.slice(3,-1)+'|enleve|enlever|retire|retirer|coupe|couper|desactive|desactiver|supprime|eteins|pas de|sans)(?: moi)? )?(?:(?:le|un|du|de|mon|ton) )?(?:fond|arriere plan|decor)(?: d ecran| anime| animee)?((?: (?:en|sur|a|au|avec|de|du|la|le|l|une))*)(?: (jarvis|holographique|hologramme|hud|ville reelle|vraie ville|ville video|video|ville en 3d|ville 3d|ville|cite|city|espace|cosmos|univers|galaxie|systeme solaire|globe|terre|planete|monde|aucun|rien|noir|vide|neutre|sobre))?$');
   const ENTITE_RE=new RegExp('^(?:'+VERBES+' )?(?:(?:l|une|mon|ton|la|en) )?(?:entite|avatar)(?: (?:en|sur|a|au|de))? (neurones?|neuronale?s?|reseau de neurones|cerveau|sphere|particules|normale|classique|actuelle|originale?)$');
   const ENTITE_COURT=new RegExp('^'+VERBES+' (?:en |sur )?(?:mode )?(neurones|reseau de neurones|sphere)$');
-  const ANIM_RE=new RegExp('^(?:'+VERBES+'(?: moi)? )?(?:(?:en|le|la|au|les) )?(?:mode|animations?|niveau d animation|qualite|graphismes?)(?: (?:en|au|a|sur))? (eco|economie|economique|economie d energie|leger|legere|max|maximum|maximal|maximale|auto|automatique|normal|normale)$');
+  const ANIM_RE=new RegExp('^(?:'+VERBES+'(?: moi)? )?(?:(?:en|le|la|au|les) )?(?:mode|animations?|niveau d animation|qualite|graphismes?)(?: (?:en|au|a|sur))? (ultra|eco|economie|economique|economie d energie|leger|legere|max|maximum|maximal|maximale|auto|automatique|normal|normale)$');
 
   const JARVIS_RE=new RegExp('^(?:'+VERBES+'(?: moi)? (?:(?:en|sur|le|un|au|a) )*)?(?:mode|fond|decor) (?:(?:en|de|d) )?(?:jarvis|holographique|hologramme|holographiques|hud holographique)(?: stp| svp| s il te plait)?$');
   const JARVIS_RE2=new RegExp('^'+VERBES+'(?: moi)? (?:(?:en|sur|le|un|au|a) )*(?:jarvis|holographique|hologramme)$');
@@ -232,7 +238,7 @@
       return null;
     }
     const a=t.match(ANIM_RE);
-    if(a) return {type:'anim',valeur:/^(?:eco|econom|leger)/.test(a[1])?'eco':/^max/.test(a[1])?'max':'auto'};
+    if(a) return {type:'anim',valeur:/^ultra/.test(a[1])?'ultra':/^(?:eco|econom|leger)/.test(a[1])?'eco':/^max/.test(a[1])?'max':'auto'};
     return null;
   }
   function executer(a){
@@ -253,7 +259,7 @@
     }
     if(a.type==='anim'){
       changer('anim',a.valeur);
-      return a.valeur==='eco'?'Mode éco : animations allégées.':a.valeur==='max'?'Animations au maximum.':'Animations en automatique : je m\'allège toute seule si l\'écran rame.';
+      return a.valeur==='ultra'?'Qualité Ultra : textures 8k, bloom et atmosphère haute qualité. C’est très gourmand : si l’écran rame, je repasse toute seule au palier Max.':a.valeur==='eco'?'Mode éco : animations allégées.':a.valeur==='max'?'Animations au maximum.':'Animations en automatique : je m\'allège toute seule si l\'écran rame.';
     }
     return null;
   }

@@ -27,3 +27,7 @@ Soleil, petites lunes (Io, Europe, Ganymède, Callisto, Titan), astéroïdes, Vo
 Modèles 3D (ui/assets/espace/modeles/ : iss.glb, perseverance.glb) : NASA 3D Resources (https://github.com/nasa/NASA-3D-Resources), « free and without copyright » ; allégés et compressés par scripts/optimiser-glb.mjs. Détails dans CREDITS.md.
 
 Données orbitales de l’ISS : TLE CelesTrak (https://celestrak.org) propagé par SGP4 (ui/sgp4.js) ; position de contrôle : api.wheretheiss.at. Chiffres des fiches Espace : NASA, NASA/JPL, ESA (docs/espace-sources.md). L’ISS affichée est un modèle dessiné par le code ; le modèle NASA (iss.glb) n’est utilisé que sur demande (rayle_esp_iss_modele = nasa).
+
+Palier Ultra (textures 8k, réduites par Raylé) :
+- terre-jour-8192.jpg : NASA Earth Observatory, « Blue Marble: Next Generation » (décembre 2004), Reto Stöckli, NASA Goddard Space Flight Center. https://visibleearth.nasa.gov/images/74218 (domaine public ; original 21600×10800).
+- terre-nuit-8192.jpg : NASA Earth Observatory, « Earth at Night (Black Marble) 2016 », Joshua Stevens, données Suomi NPP VIIRS. https://earthobservatory.nasa.gov/images/144898 (domaine public ; original 13500×6750).

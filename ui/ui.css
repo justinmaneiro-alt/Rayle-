@@ -270,3 +270,22 @@ html.ui-fond-espace .ui-voile{background:
   radial-gradient(ellipse 78% 72% at 50% 45%,rgba(3,1,6,0) 56%,rgba(3,1,6,.55) 100%)}
 html.ui-fond-espace .state,html.ui-fond-espace .soustitre{background:rgba(3,1,8,.5);border-radius:10px;padding-left:12px;padding-right:12px;box-shadow:0 0 14px 6px rgba(3,1,8,.5)}
 .esp-reglages .esp-vers{display:flex;flex-wrap:wrap;gap:6px;margin-top:4px}.esp-reglages .esp-vers button{min-height:40px;padding:0 10px}.esp-reglages .hint{margin-bottom:6px}
+
+/* ═════════════ TERRE VIVANTE : bouton, panneau, rotation à la main, badge « simulé » ═════════════ */
+.ui-seg[data-k="anim"]{grid-template-columns:repeat(4,1fr)}
+.ui-bouton.ui-terre{top:44px;font-size:20px}
+@media (max-width:640px){ .ui-bouton.ui-terre{top:38px} }
+.tv-pop{max-width:min(360px,calc(100vw - 24px))}
+.tv-corps .ui-lbl{margin:10px 0 6px;font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:var(--pink2)}
+.tv-heure{font:700 13px var(--mono);letter-spacing:.04em;color:var(--tx);padding:6px 8px;border:1px solid var(--a1-25);background:rgba(0,0,0,.25)}
+.tv-chips{display:flex;flex-wrap:wrap;gap:6px}
+.tv-chip{min-height:38px;padding:4px 10px;background:transparent;border:1px solid var(--a1-35);color:var(--tx);font:700 12px var(--mono);letter-spacing:.06em;cursor:pointer;touch-action:manipulation}
+.tv-chip:hover{background:var(--a1-16)}
+.tv-chip[aria-pressed="true"]{background:var(--t1);color:#0b0410;border-color:transparent}
+.tv-large{width:100%;margin-bottom:6px}
+.tv-info{margin:8px 0 0;font-size:11.5px;line-height:1.45;color:var(--tx2,#b6a7c6)}
+.tv-badge{position:fixed;left:max(10px,env(safe-area-inset-left));top:calc(max(8px,env(safe-area-inset-top)) + 52px);z-index:5;max-width:min(70vw,520px);padding:3px 8px;font:11px var(--mono);letter-spacing:.04em;color:rgba(255,255,255,.72);background:rgba(5,3,9,.55);border:1px solid var(--a1-25);pointer-events:none}
+.tv-main{position:fixed;inset:0;z-index:8;cursor:grab;touch-action:none}
+.tv-main:active{cursor:grabbing}
+.tv-main-bandeau{position:absolute;left:50%;top:calc(max(10px,env(safe-area-inset-top)) + 8px);transform:translateX(-50%);display:flex;gap:10px;align-items:center;padding:6px 12px;background:rgba(5,3,9,.82);border:1px solid var(--a1-50);font:700 12px var(--mono);letter-spacing:.08em;white-space:nowrap}
+@media (prefers-reduced-motion:reduce){ .tv-main{cursor:default} }

@@ -82,7 +82,7 @@ void main(){
   UI.espaceMonter=function(X){
     const {THREE,canvas,rendu,scene,camera,groupe,terre,U,matNuages,couche,matAtmo,arcsMesh,placesPts,UA,UP}=X, sphereTerre=X.sphere;
     const TEX=UI.espaceTex, ESP=UI.espace, A=UI.astro;
-    let q=X.q|0, W=1, H=1;
+    let q=X.q|0, W=1, H=1; const ultra=!!X.ultra;       // ultra : palier « Ultra » (réglage manuel, jamais automatique) : textures 8k, bloom plein écran HDR, atmosphère à 28 pas, ombres de nuages douces, anticrénelage
     const vec=(a,k)=>new THREE.Vector3(a[0]*(k||1),a[1]*(k||1),a[2]*(k||1));
     const abonnements=[], minuteries=[];
     const elements=()=>ESP.elements();
@@ -93,6 +93,7 @@ void main(){
     const SUNPOS={value:new THREE.Vector3(0,0,DIST_SOLEIL)};          // position du Soleil dans le monde (éclaire les corps lointains)
     const POLE_ECL=vec(A.direction(270,66.56));                       // pôle nord de l'écliptique
     const pxr=()=>rendu.getPixelRatio();
+    const HOR=()=>UI.horloge?UI.horloge.maintenant():HOR();           // heure du globe : réelle, ou accélérée / figée / décalée par l'utilisateur (ui/espace-temps.js)
 
     /* ───── étoiles (plusieurs couches qui scintillent) ───── */
     const UT={u_t:{value:0}};                                        // temps partagé
@@ -126,12 +127,12 @@ void main(){
     const CH=AST.chargeur(THREE);
     const plat=new THREE.DataTexture(new Uint8Array([128,128,255,255]),1,1,THREE.RGBAFormat), noir=new THREE.DataTexture(new Uint8Array([0,0,0,255]),1,1,THREE.RGBAFormat); plat.needsUpdate=noir.needsUpdate=true;
     const matTerre2=new THREE.ShaderMaterial({uniforms:Object.assign({u_jour:{value:X.jour},u_nuit:{value:X.nuit},u_nuages:{value:X.nuages},u_relief:{value:plat},u_ocean:{value:noir},u_texel:{value:new THREE.Vector2(1/2048,1/1024)},
-      u_det:{value:q===0?1:0},u_relK:{value:.8},u_hasOcean:{value:0},u_dec:matNuages.uniforms.u_dec,u_couv:matNuages.uniforms.u_couv},U),vertexShader:AST.VS_TERRE,fragmentShader:AST.FS_TERRE});
+      u_det:{value:q===0?1:0},u_relK:{value:.8},u_hasOcean:{value:0},u_dec:matNuages.uniforms.u_dec,u_couv:matNuages.uniforms.u_couv,u_villes:{value:1},u_t:UT.u_t,u_ultra:{value:ultra?1:0}},U),vertexShader:AST.VS_TERRE,fragmentShader:AST.FS_TERRE});
     sphereTerre.material=matTerre2;
     matNuages.vertexShader=AST.VS_TERRE; matNuages.fragmentShader=AST.FS_NUAGES; matNuages.needsUpdate=true;     // nuages plus fins
     matAtmo.vertexShader=AST.VS_TERRE; matAtmo.fragmentShader=AST.FS_ATMO; matAtmo.needsUpdate=true;              // atmosphère : liseré, teinte orangée au crépuscule
     // atmosphère de la Terre : diffusion de Rayleigh / Mie au palier 0, simple liseré aux paliers suivants
-    const donneurRayleigh=AST.rayleigh(THREE,Object.assign({},AST.ATMO_RAYLEIGH.terre,{Rp:1,sunVec:U.u_soleil,dirMode:1}));
+    const donneurRayleigh=AST.rayleigh(THREE,Object.assign({},AST.ATMO_RAYLEIGH.terre,{Rp:1,sunVec:U.u_soleil,dirMode:1,pas:ultra?28:10}));      // Ultra : 28 pas d'intégration au lieu de 10
     function atmoTerre(){
       if(q===0){ matAtmo.uniforms=donneurRayleigh.uniforms; matAtmo.defines=donneurRayleigh.defines; matAtmo.vertexShader=donneurRayleigh.vertexShader; matAtmo.fragmentShader=donneurRayleigh.fragmentShader; }
       else { matAtmo.uniforms=U; matAtmo.defines={}; matAtmo.vertexShader=AST.VS_TERRE; matAtmo.fragmentShader=AST.FS_ATMO; }
@@ -260,7 +261,7 @@ void main(){
           });
           if(!o.axe) o.axe=p0.clone();                                // les lunes tournent dans le plan équatorial de leur planète
         }
-        { const p=A.planete(nom,Date.now()), d0=vec(A.direction(p.ra,p.dec),DIST_PLANETES); g.position.copy(d0); o.dir=d0.clone().normalize(); o.dist=p.dist; }
+        { const p=A.planete(nom,HOR()), d0=vec(A.direction(p.ra,p.dec),DIST_PLANETES); g.position.copy(d0); o.dir=d0.clone().normalize(); o.dist=p.dist; }
         g.visible=false;                                              // invisible tant que tout n'est pas en place (jamais une planète au centre de la Terre)
         planetes[nom]=o; scene.add(g);
         await pause();
@@ -437,7 +438,7 @@ void main(){
     let ech=(ESP.echelle&&ESP.echelle())||'pedagogique', dLune=DIST_LUNE, kSoleil=1;
     let tAstres=-1e9;
     function majAstres(force){
-      const now=Date.now(); if(!force && now-tAstres<2000) return; tAstres=now;
+      const reelT=Date.now(), now=HOR(); if(!force && reelT-tAstres<((UI.horloge&&!UI.horloge.estReel())?60:2000)) return; tAstres=reelT;      // temps accéléré : positions recalculées presque à chaque image
       const s=A.soleilEq(now), m=A.luneEq(now);
       sunDir.set(...A.direction(s.ra,s.dec)); moonDir.set(...A.direction(m.ra,m.dec));
       U.u_soleil.value.copy(sunDir); SUNPOS.value.copy(sunDir).multiplyScalar(DIST_SOLEIL); soleil.position.copy(SUNPOS.value);
@@ -460,7 +461,7 @@ void main(){
       }
     }
     function majLunes(){                                              // lunes de Jupiter (plan de l'écliptique ≈ équateur de Jupiter) et Titan (plan des anneaux), vraies périodes
-      const j=(Date.now()-946728000000)/864e5;
+      const j=(HOR()-946728000000)/864e5;
       for(const nom in planetes){
         const o=planetes[nom]; if(!o.lunes) continue; const n=(o.axe||POLE_ECL).clone().normalize();
         const u=new THREE.Vector3(1,0,0).sub(n.clone().multiplyScalar(n.x)).normalize(), v=new THREE.Vector3().crossVectors(n,u);
@@ -494,7 +495,7 @@ void main(){
       const up=new THREE.Vector3(0,1,0);
       if(nom==='soleil'){ const S=SUNPOS.value, perp=new THREE.Vector3().crossVectors(sunDir,up).normalize(); return {pos:S.clone().addScaledVector(sunDir,-R_SOLEIL*7.5).addScaledVector(perp,R_SOLEIL*1.6).addScaledVector(up,R_SOLEIL*1.1),look:S.clone()}; }
       if(nom==='lune'){ const M=lune.position, perp=new THREE.Vector3().crossVectors(moonDir,up).normalize(); return {pos:M.clone().addScaledVector(moonDir,-.55).addScaledVector(perp,1.95).addScaledVector(up,.4),look:M.clone()}; }
-      if(nom==='iss'){ const e=ESP.iss.position(Date.now()), d=vec(A.direction(e.ra,e.dec)), P=d.clone().multiplyScalar(e.r), e2=ESP.iss.position(Date.now()+30000), P2=vec(A.direction(e2.ra,e2.dec)).multiplyScalar(e2.r), av=P2.clone().sub(P).normalize();
+      if(nom==='iss'){ const e=ESP.iss.position(HOR()), d=vec(A.direction(e.ra,e.dec)), P=d.clone().multiplyScalar(e.r), e2=ESP.iss.position(HOR()+30000), P2=vec(A.direction(e2.ra,e2.dec)).multiplyScalar(e2.r), av=P2.clone().sub(P).normalize();
         return {pos:P.clone().addScaledVector(d,.2).addScaledVector(av,-.3).addScaledVector(new THREE.Vector3().crossVectors(d,av),.3),look:P}; }
       const o=planetes[nom]; if(!o||!o.dir) return poseOrbite();
       const tanH=Math.tan(camera.fov*RAD/2)*camera.aspect, etendue=o.R*(o.d.anneaux?2.5:1.12);
@@ -588,7 +589,7 @@ void main(){
       }catch(e){ cad.tdist=6.4; cad.tox=cad.toy=cad.tvx=cad.tvy=0; }
     }
     function appliquerQualite(){
-      rendu.setPixelRatio([Math.min(window.devicePixelRatio||1,1.5),.9,.65][q]);
+      rendu.setPixelRatio(q===0&&ultra?Math.min(window.devicePixelRatio||1,2.5):[Math.min(window.devicePixelRatio||1,1.5),.9,.65][q]);
       if(W>1) rendu.setSize(W,H,false);
       const px=pxr(); for(const m of [etoiles.material,brillantes.material]) m.uniforms.u_px.value=px*1.0;
       for(const o of [ceinture,debris,issPts,train,geos,comete&&comete.pts]) if(o&&o.material.uniforms.u_px) o.material.uniforms.u_px.value=px;
@@ -627,7 +628,7 @@ void main(){
       const c=UI.couleurs?UI.couleurs():[[255,255,255],[200,200,255],[230,230,255],[150,150,255]];
       UT.u_t.value+=dt; tPlus+=dt;
       majAstres(false); majLunes();
-      const gm=A.gmst(Date.now()); terre.rotation.y=gm*RAD;
+      const gm=A.gmst(HOR()); terre.rotation.y=gm*RAD+(UI.terreMain?UI.terreMain.maj(dt):0);      // vraie rotation (+ ce que l'utilisateur a fait tourner à la main)
       let L=null; try{ L=UI.ambiance&&UI.ambiance.lisse(); }catch(e){}
       const nuages=L?L.nuages:.35, vent=L?L.vent:.1, jourAmb=L?L.jour:1;
       // Terre : couleurs du thème, nuages selon la météo réelle, vent
@@ -651,13 +652,13 @@ void main(){
       }
       // satellites
       if(satGroupe&&satGroupe.visible){
-        const e=ESP.iss.position(Date.now()), d=A.direction(e.ra,e.dec), P=[d[0]*e.r,d[1]*e.r,d[2]*e.r], pa=issPts.geometry.attributes.position;
+        const e=ESP.iss.position(HOR()), d=A.direction(e.ra,e.dec), P=[d[0]*e.r,d[1]*e.r,d[2]*e.r], pa=issPts.geometry.attributes.position;
         pa.setXYZ(0,P[0],P[1],P[2]); pa.needsUpdate=true; issGroupe.position.set(P[0],P[1],P[2]);
-        const e2=ESP.iss.position(Date.now()+20000), d2=A.direction(e2.ra,e2.dec), av=new THREE.Vector3(d2[0]*e2.r-P[0],d2[1]*e2.r-P[1],d2[2]*e2.r-P[2]).normalize(), rad=new THREE.Vector3(d[0],d[1],d[2]);
+        const e2=ESP.iss.position(HOR()+20000), d2=A.direction(e2.ra,e2.dec), av=new THREE.Vector3(d2[0]*e2.r-P[0],d2[1]*e2.r-P[1],d2[2]*e2.r-P[2]).normalize(), rad=new THREE.Vector3(d[0],d[1],d[2]);
         issGroupe.matrixAutoUpdate=true; issGroupe.up.copy(rad); issGroupe.lookAt(issGroupe.position.clone().add(av));
         if(tPlus-(majISS.t||0)>1.5){ majISS.t=tPlus; majISS(); }
-        const u=((Date.now()/1000)*2*Math.PI/5740)%(2*Math.PI), tp=train.geometry.attributes.position;
-        for(let i=0;i<16;i++){ const p=orb(53*RAD,(Date.now()/864e5*7.3+40)%360,u-i*.0075,1.086); tp.setXYZ(i,p[0],p[1],p[2]); } tp.needsUpdate=true;
+        const u=((HOR()/1000)*2*Math.PI/5740)%(2*Math.PI), tp=train.geometry.attributes.position;
+        for(let i=0;i<16;i++){ const p=orb(53*RAD,(HOR()/864e5*7.3+40)%360,u-i*.0075,1.086); tp.setXYZ(i,p[0],p[1],p[2]); } tp.needsUpdate=true;
         issPts.material.uniforms.u_px.value=pxr();
       }
       if(aurore&&aurore.visible){ aurore.material.uniforms.u_k.value=.55+.75*(1-jourAmb); aurore.material.uniforms.u_c1.value.setRGB(.15+.25*c[2][0]/255*0,1,.55); }
@@ -678,16 +679,16 @@ void main(){
       }
       majComete(dt,aste); majFilantes(dt,aste);
       if(EXT) EXT.maj(dt,cible);
+      if(TER) TER.maj(dt);
       majCamera(dt);
       if(solo) for(const c of scene.children) if(c!==camera&&c!==groupe) c.visible=false;      // outil des images fixes : la Terre seule
       // rendu
-      rendu.clear();
-      rendu.render(scene,camera);
+      if(compo){ compo.render(); } else { rendu.clear(); rendu.render(scene,camera); }
       if(q===0&&el.flare){ majFlare(1); if(flare.groupe.visible){ rendu.clearDepth(); rendu.render(scene2,cam2); } }
     }
     // traînée de l'ISS (positions passées → futures, plus vive près de la station)
     function majISS(){
-      const tr=ESP.iss.trace(Date.now(),50,6,50/63*1.0), pa=issTrace.geometry.attributes.position, ca=issTrace.geometry.attributes.color, n=Math.min(64,tr.length);
+      const tr=ESP.iss.trace(HOR(),50,6,50/63*1.0), pa=issTrace.geometry.attributes.position, ca=issTrace.geometry.attributes.color, n=Math.min(64,tr.length);
       for(let i=0;i<64;i++){ const p=tr[Math.min(i,n-1)], d=A.direction(p.ra,p.dec); pa.setXYZ(i,d[0]*p.r,d[1]*p.r,d[2]*p.r); const f=i/63, b=f<.9?Math.pow(f/.9,1.6)*.8:.35; ca.setXYZ(i,.9*b,.95*b,1*b); }
       pa.needsUpdate=true; ca.needsUpdate=true;
     }
@@ -697,11 +698,11 @@ void main(){
       W=Math.max(2,Math.round(innerWidth*1.06)); H=Math.max(2,Math.round(innerHeight*1.06));
       camera.aspect=W/H; camera.updateProjectionMatrix();
       cam2.left=-W/2; cam2.right=W/2; cam2.top=H/2; cam2.bottom=-H/2; cam2.updateProjectionMatrix();
-      appliquerQualite(); recadrer();
+      appliquerQualite(); recadrer(); if(compo) compo.setSize(W,H);
     }
-    function qualite(n){ q=Math.max(0,Math.min(2,n|0)); appliquerQualite(); appliquerElements(); appliquerCorps(); appliquerTerre(); assurer(); }
+    function qualite(n){ q=Math.max(0,Math.min(2,n|0)); appliquerQualite(); appliquerElements(); appliquerCorps(); appliquerTerre(); assurer(); if(TER) TER.qualite(q,ultra); }
     function detruire(){
-      try{ EXT&&EXT.liberer(); }catch(e){}
+      try{ EXT&&EXT.liberer(); }catch(e){} try{ TER&&TER.liberer(); }catch(e){} try{ compo&&compo.dispose(); }catch(e){}
       abonnements.forEach(f=>{ try{ f(); }catch(e){} }); minuteries.forEach(id=>{ clearTimeout(id); clearInterval(id); });
       scene.traverse(x=>{ if(x.geometry) x.geometry.dispose(); if(x.material){ (Array.isArray(x.material)?x.material:[x.material]).forEach(m=>m.dispose&&m.dispose()); } });
       scene2.traverse(x=>{ if(x.material) x.material.dispose(); });
@@ -713,10 +714,28 @@ void main(){
       cadre:{ox:cad.ox,oy:cad.oy},lune:moonDir.toArray(),soleil:sunDir.toArray(),camera:camera.position.toArray(),
       comete:!!(comete&&comete.actif),filantes:filantes.filter(f=>f.actif).length,arrivee,textures:corpsListe.map(c=>c.nom+':'+(c.res||'-')).join(' '),terreRelief:terreRes.rel,terreOcean:terreRes.oc});
 
+    /* ───── Terre vivante : trafic simulé, épingles, tracés, panneau de commande (ui/espace-terre-3d.js) ───── */
+    const TER=UI.espaceTerre3D?(()=>{ try{ return UI.espaceTerre3D.monter({THREE,terre,scene,camera,rendu,q,ultra,sunDir:()=>sunDir,rayonPx:()=>(H/2)/(Math.tan(camera.fov*RAD/2)*Math.max(.5,cad.dist)),mode:()=>ech,villes:oui=>{ matTerre2.uniforms.u_villes.value=oui?1:0; }}); }catch(e){ console.warn('[terre vivante]',e&&e.message||e); return null; } })():null;
+    /* ───── palier Ultra : rendu HDR (demi-flottants) avec anticrénelage matériel (MSAA 4×) et bloom plein écran ; sans les modules de post-traitement (hors ligne), le rendu simple continue ───── */
+    let compo=null;
+    async function preparerUltra(){
+      if(!ultra) return;
+      try{
+        const [{EffectComposer},{RenderPass},{UnrealBloomPass},{ShaderPass}]=await Promise.all([import('three/addons/postprocessing/EffectComposer.js'),import('three/addons/postprocessing/RenderPass.js'),import('three/addons/postprocessing/UnrealBloomPass.js'),import('three/addons/postprocessing/ShaderPass.js')]);
+        const pr=rendu.getPixelRatio(); let cible; try{ if(rendu.capabilities.isWebGL2) cible=new THREE.WebGLRenderTarget(Math.max(2,W*pr),Math.max(2,H*pr),{type:THREE.HalfFloatType,samples:4}); }catch(e){ cible=undefined; }
+        const c=new EffectComposer(rendu,cible); c.setPixelRatio(pr); c.setSize(W,H);
+        const rp=new RenderPass(scene,camera); c.addPass(rp);
+        c.addPass(new UnrealBloomPass(new THREE.Vector2(W,H),.5,.55,.9));          // halo des villes, du Soleil, des aurores et de l'atmosphère
+        c.addPass(new ShaderPass({uniforms:{tDiffuse:{value:null}},vertexShader:'varying vec2 v_uv; void main(){ v_uv=uv; gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.0); }',
+          fragmentShader:'uniform sampler2D tDiffuse; varying vec2 v_uv; void main(){ vec4 c=texture2D(tDiffuse,v_uv); vec3 x=max(c.rgb-0.9,0.0); c.rgb=min(c.rgb,vec3(0.9))+x/(1.0+x*1.6)*0.9; gl_FragColor=vec4(c.rgb,1.0); }'}));       // HDR → écran : les hautes lumières sont compressées en douceur (pas d'écrêtage brutal)
+        rendu.setClearColor(0x02030a,1); compo=c;
+      }catch(e){ console.warn('[espace] post-traitement Ultra indisponible : rendu simple',e&&e.message||e); compo=null; }
+    }
     // démarrage : positions du jour, vue de départ, puis le reste par étapes
     majAstres(true); recadrer(); choisirBase(true); initialise=true; appliquerQualite(); appliquerElements(); appliquerTerre();
     camera.position.copy(poseOrbite().pos); regard.set(0,0,0); posCam.copy(camera.position);
     minuteries.push(setTimeout(()=>{ assurer(); RayleBus.emit('espace:pret',{}); },30));
+    preparerUltra();
     { const h=ESP.accueil&&ESP.accueil(); if(h) minuteries.push(setTimeout(()=>vers(h),1400)); }          // la vue par défaut mémorisée (planète, ISS, lieu…) : pas de retour forcé sur la Terre au rechargement
     prochaineComete=45+Math.random()*30; prochaineFilante=8+Math.random()*8;
     return {taille,image,qualite,detruire,vers,retour,zoom,etat,THREE,planetes,test:{figer:(oui,dist)=>{ figee=!!oui; figDist=oui&&dist?dist:0; if(figDist){ cad.dist=cad.tdist=dist; cad.ox=cad.tox=cad.oy=cad.toy=0; offMix=1; } },dureeVisite:t=>{ DUREE_VISITE=t; },objets:()=>({couche,sphereTerre,matTerre2,matAtmo,aurore,terre,scene,arcsMesh,placesPts}),saut:(nom,t)=>{ vers(nom); vol=null; arrivee=t||0; },sansTerre:b=>{ groupe.visible=!b; },soloTerre:b=>{ solo=!!b; },fixerTemps:t=>{ UT.u_t.value=t; },comete:lancerComete,filante:lancerFilante,vue:(y,p)=>{ base.yaw=base.tyaw=y; base.pitch=base.tpitch=p; }}};

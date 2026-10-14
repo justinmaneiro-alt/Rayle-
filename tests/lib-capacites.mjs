@@ -21,6 +21,7 @@ export async function chargerRegistre() {
   const charger = f => vm.runInContext(lire(f), ctx, { filename: f });
   for (const f of ['ui/themes.js', 'ui/settings.js', 'ui/astro.js', 'ui/ambiance.js', 'ui/espace-lieux.js', 'ui/espace-savoir.js', 'ui/espace.js']) charger(f);
   charger('js/rayle/pays-donnees.js'); charger('js/rayle/commandes-monde.js'); charger('js/rayle/commandes-terminal.js');
+  for (const f of ['ui/espace-pays-centres.js', 'ui/espace-temps.js', 'ui/espace-terre-donnees.js', 'ui/espace-terre.js']) charger(f);
   vm.runInContext(lire('js/rayle/capacites.js') + '\nthis.RayleCapacites=RayleCapacites;', ctx, { filename: 'js/rayle/capacites.js' });
   const { analyser: anatomie } = await import(new URL('js/anatomie/commandes.js', racine).href);
   const { analyser: drive } = await import(new URL('js/drive/commandes.js', racine).href);

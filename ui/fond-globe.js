@@ -137,14 +137,17 @@ void main(){ float d=length(gl_PointCoord-0.5); float a=smoothstep(0.5,0.1,d)*v_
   UI.fondsReels.globe=async function(canvas,o){
     o=o||{};
     const THREE=await UI.three();
-    const rendu=new THREE.WebGLRenderer({canvas,alpha:true,antialias:false,powerPreference:'low-power'});
+    const rendu=new THREE.WebGLRenderer({canvas,alpha:true,antialias:!!o.ultra,powerPreference:o.ultra?'high-performance':'low-power'});
     rendu.setClearColor(0x000000,0);
     const scene=new THREE.Scene();
     const camera=new THREE.PerspectiveCamera(35,1,.1,200); camera.position.set(0,0,3.4);
     const chargeur=new THREE.TextureLoader();
-    const tex=nom=>new Promise((ok,ko)=>chargeur.load(BASE+nom,t=>{ t.anisotropy=2; ok(t); },undefined,()=>ko(new Error('texture '+nom))));
-    const taillePx=o.hd?4096:2048;
-    const [jour,nuit,nuages]=await Promise.all([tex('terre-jour-'+taillePx+'.jpg'),tex('terre-nuit-'+taillePx+'.jpg'),tex('nuages-2048.jpg')]);
+    const tex=nom=>new Promise((ok,ko)=>chargeur.load(BASE+nom,t=>{ t.anisotropy=o.ultra?Math.min(8,rendu.capabilities.getMaxAnisotropy()):2; ok(t); },undefined,()=>ko(new Error('texture '+nom))));
+    let taillePx=o.ultra?8192:o.hd?4096:2048, jour, nuit, nuages;
+    if(taillePx===8192 && rendu.capabilities.maxTextureSize<8192) taillePx=4096;                     // GPU sans textures 8k : 4k
+    const charger=px=>Promise.all([tex('terre-jour-'+px+'.jpg'),tex('terre-nuit-'+px+'.jpg'),tex('nuages-2048.jpg')]);
+    try{ [jour,nuit,nuages]=await charger(taillePx); }
+    catch(e){ if(taillePx===8192){ console.warn('[globe] textures 8k indisponibles (fichier absent ou mémoire) : 4k'); taillePx=4096; [jour,nuit,nuages]=await charger(taillePx); } else throw e; }
 
     const inter=!!o.interactif;
     const groupe=new THREE.Group(); if(!inter) groupe.rotation.z=23.44*Math.PI/180*.6; scene.add(groupe);   // axe légèrement incliné (fond)
@@ -199,7 +202,7 @@ void main(){ float d=length(gl_PointCoord-0.5); float a=smoothstep(0.5,0.1,d)*v_
     // fond « Espace » : la scène complète (soleil, lune, planètes, satellites…) est montée par ui/fond-espace.js autour de cette même Terre
     if(o.espace){
       if(!UI.espaceMonter) throw new Error('fond Espace indisponible (ui/fond-espace.js manquant)');
-      return UI.espaceMonter({THREE,canvas,rendu,scene,camera,groupe,terre,sphere,U,UA,UP,matTerre,matNuages,couche,matAtmo,arcsMesh,placesPts,q,hd:!!o.hd,
+      return UI.espaceMonter({THREE,canvas,rendu,scene,camera,groupe,terre,sphere,U,UA,UP,matTerre,matNuages,couche,matAtmo,arcsMesh,placesPts,q,hd:!!o.hd,ultra:!!o.ultra,
         jour:jour,nuit:nuit,nuages:nuages,marches:marches});
     }
     // étoiles

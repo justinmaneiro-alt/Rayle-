@@ -32,7 +32,7 @@
 
   let fond='aucun', palier=1, anim='auto', cle='', scene=null, rendu='aucun', q=1, gen=0;
   let tPrec=0, dernier=0, aRedessiner=true, px=0, py=0, cx=0, cy=0, transfo='', videoEnPause=false;
-  let ema=16.7, nMes=0, tMes=0, tEval=0;
+  let ema=16.7, nMes=0, tMes=0, tEval=0, mauvaisU=0;
 
   function nouveauCanvas(){   // un canvas ne change pas de type de contexte : on le remplace à chaque fond 3D
     const c=document.createElement('canvas'); c.id='uiFond'; c.className='ui-fond'; c.setAttribute('aria-hidden','true');
@@ -40,7 +40,7 @@
     return c;
   }
   const masque=()=>document.hidden || ['terminal','anatomie'].includes(RayleBus.demander('vue')) || document.getElementById('cfg').classList.contains('open');
-  const fpsMax=()=>q===0?30:24;
+  const fpsMax=()=>q===0?(anim==='ultra'?60:30):24;
   const actif=()=>rendu==='3d'?cv:rendu==='fixe'?fixe:rendu==='video'?boiteVideo:null;
 
   function boucle(now){
@@ -65,6 +65,10 @@
   function mesurer(now){
     if(tMes){ const d=Math.min(250,now-tMes); ema+=(d-ema)*.05; nMes++; }
     tMes=now;
+    if(anim==='ultra'){                                              // Ultra n'est jamais choisi seul ; s'il rame (sous ~22 images/s deux fois de suite), retour au palier Max
+      if(nMes>=3 && now-tEval>=4000){ tEval=now; nMes=0; if(ema>46){ if(++mauvaisU>=2){ mauvaisU=0; const fps=Math.round(1000/ema); setTimeout(()=>{ try{ UI.changer('anim','max'); }catch(e){} try{ addLine('sys','Qualité Ultra trop lente sur cet appareil (environ '+fps+' images/s) : retour au palier Max.'); }catch(e){} },0); /* hors de la boucle de rendu : le fond est recréé juste après */ } } else mauvaisU=0; }
+      return;
+    }
     if(anim!=='auto' || nMes<20 || now-tEval<2500) return;
     tEval=now; nMes=0;
     if(ema>40 && q<2){
@@ -105,8 +109,8 @@
   let videoSignalee=false;
   async function appliquer(){
     const r=fond==='aucun'?'aucun' : fond==='video'?'video' : palier>=2?'fixe':'3d';
-    const hd=anim==='max';
-    const k=fond+':'+r+(fond==='espace'&&r==='3d'&&hd?':hd':'')+(fond==='video'?(innerHeight>innerWidth?':portrait':':paysage'):'');   // vidéo : version selon l'orientation de l'écran
+    const hd=anim==='max'||anim==='ultra', ultra=anim==='ultra';
+    const k=fond+':'+r+(fond==='espace'&&r==='3d'&&hd?(ultra?':ultra':':hd'):'')+(fond==='video'?(innerHeight>innerWidth?':portrait':':paysage'):'');   // vidéo : version selon l'orientation de l'écran
     if(k===cle) return;
     cle=k; arreter(); rendu='aucun';
     const g=++gen;
@@ -123,7 +127,7 @@
       q=palier===0?0:1; ema=16.7; nMes=0; tEval=performance.now();
       if(anim==='auto'){ try{ Entite.geler && Entite.geler(15000); }catch(e){} }   // pendant le chargement et les premières mesures, l'entité attend
       const c=nouveauCanvas();
-      const s=await UI.fondsReels[fond](c,{q,hd});
+      const s=await UI.fondsReels[fond](c,{q,hd,ultra});
       if(g!==gen){ s.detruire(); return; }
       scene=s; rendu='3d'; s.taille(); aRedessiner=true;
       requestAnimationFrame(()=>c.classList.add('vu'));

@@ -36,7 +36,7 @@ await t('Worker et agent : le fond « jarvis » est connu (l’IA peut le choisi
 await t('orchestrateur : image fixe Jarvis portrait / paysage + cœur pré-rendu, Auto dégrade le fond, Éco = image', () => {
   const b = lire('ui/background.js');
   assert.match(b, /jarvis:\(\)=>'fond-jarvis-'\+\(innerHeight>innerWidth\?'portrait':'paysage'\)\+'\.webp'/); assert.match(b, /COEUR='fond-jarvis-coeur\.webp'/);
-  assert.match(b, /jarvisNoyau/); assert.match(b, /palier>=2\?'fixe':'3d'/); assert.match(b, /if\(ema>40 && q<2\)/); assert.match(b, /UI\.fondsReels\[fond\]\(c,\{q,hd\}\)/);
+  assert.match(b, /jarvisNoyau/); assert.match(b, /palier>=2\?'fixe':'3d'/); assert.match(b, /if\(ema>40 && q<2\)/); assert.match(b, /UI\.fondsReels\[fond\]\(c,\{q,hd(?:,ultra)?\}\)/);
 });
 
 // ───── fond-jarvis.js sous node (sans WebGL) : disposition pure ─────

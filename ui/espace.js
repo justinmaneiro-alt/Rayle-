@@ -112,7 +112,7 @@
   const sansArticle=s=>s.replace(/^(?:le|la|les|l|un|une) /,'');
   function lieux(){ if(indexLieux) return indexLieux; indexLieux=new Map(); LX().LIEUX.forEach(l=>{ const k=sansArticle(norm(l.nom)); if(!indexLieux.has(k)) indexLieux.set(k,l); }); return indexLieux; }
   function lieuDe(id){ return LX().LIEUX.find(l=>l.id===id)||null; }
-  function geoDe(cible){ const m=/^geo:(-?[\d.]+),(-?[\d.]+)(?:,(.*))?$/.exec(cible||''); return m?{lat:+m[1],lon:+m[2],nom:m[3]||'ce point',zoom:1.5}:null; }
+  function geoDe(cible){ const m=/^geo:(-?[\d.]+),(-?[\d.]+)(?:,([^,]*))?(?:,([\d.]+))?$/.exec(cible||''); return m?{lat:+m[1],lon:+m[2],nom:m[3]||'ce point',zoom:m[4]?Math.max(1.1,Math.min(3,+m[4])):1.5}:null; }
   /** Texte normalisé → { cible, genre:'astre'|'rover'|'lieu', lieu? } ou null */
   function cibleDe(r){
     r=String(r||'').replace(/ (?:stp|svp|s il te plait|maintenant|sur le globe|sur la terre|sur terre)$/,'').trim();
@@ -218,6 +218,7 @@
   const NOMS_HM={europa:'Europe',enceladus:'Encelade',ceres:'Cérès',eris:'Éris',pluton:'Pluton',deimos:'Déimos','telescope hubble':'Hubble','james webb':'Webb','telescope james webb':'Webb','voyager':'Voyager','ceinture d asteroides':'la ceinture d’astéroïdes','la ceinture d asteroides':'la ceinture d’astéroïdes'};
   function analyser(texte){
     let t=norm(texte);
+    { const x=UI.espaceTerre&&UI.espaceTerre.analyser(texte,{lieuAffiche:!!(UI.espaceTerre.etat&&UI.espaceTerre.etat.dernierLieu)}); if(x) return x; }      // Terre vivante : points, trajets, frontières, temps, rotation, trafic, actualités d'un pays
     // commandes qui dépendent de ce qui est affiché : « zoome dessus », « et sa lune ? », « garde cette vue », « et Mars ? », « reviens »
     if(t && t.split(' ').length<=8){
       if(/^(?:zoome|zoom|zoomer|rapproche|rapprocher|approche|approcher|avance|avancer|plus pres|va plus pres)(?: toi)?(?: (?:dessus|dedans|la|ici|un peu|encore|plus|davantage|plus pres))*$/.test(t)) return {type:'zoom',facteur:.65};
@@ -418,6 +419,13 @@
   function executer(a,ctx){
     if(!a) return null;
     dernier={ok:true};
+    if(a.type==='terre'){
+      const r0=UI.reglages();
+      if(r0.palier>=2 && a.action!=='effacer'){ dernier={ok:false}; return 'En mode Éco le fond Espace reste une image fixe : passe en Auto, Max ou Ultra pour utiliser la Terre vivante.'; }
+      if(r0.fond!=='espace' && a.action!=='effacer'){ try{ UI.changer('fond','espace'); }catch(e){} }
+      const res=UI.espaceTerre.executer(a,{vers:c=>allerVers(c),scene:()=>UI.espaceTerre.scene&&UI.espaceTerre.scene(),actus:(nom,l)=>{ try{ RayleBus.demander('espace:actus',{nom,lieu:l}); }catch(e){} }});
+      dernier={ok:res.ok}; return res.texte;
+    }
     const r=UI.reglages?UI.reglages():{fond:'aucun',palier:0};
     const iss=UI.espace&&UI.espace.iss;
     if(a.type==='elements'){
@@ -491,7 +499,7 @@
     const acts=[];
     for(const p of parts){
       let a=analyser(p)||(/^(?:reviens|revenir|retour|retourne|retourner|rentre|ramene moi)(?: .*)?$/.test(p)?{type:'retour'}:analyser('montre moi '+p));
-      if(!a || !['vers','retour','zoom','lunes','elements','echelle'].includes(a.type)) return null;
+      if(!a || !['vers','retour','zoom','lunes','elements','echelle','terre'].includes(a.type)) return null;
       acts.push(a);
     }
     return acts;

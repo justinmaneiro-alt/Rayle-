@@ -5,8 +5,8 @@
    d'un muscle) reçoit presque tout son poids de cet os : l'insertion reste sur l'os, où qu'il ait été recalé ; entre deux os (ventre musculaire), la transition est douce.
    Repli : sans le squelette BodyParts3D (fichier absent, hors ligne, scoliose, fracture vertébrale), ou sans le fichier de la couche, l'application garde ses formes procédurales.
    Une couche ne se charge que lorsqu'on l'affiche (chargement progressif) ; les couches « fines » (branches vasculaires) ne se chargent qu'en qualité Haute et Ultra. */
-import { chargerCouche, lireManifeste } from './modeles-glb.js?v=2026.10.14.2';
-import { MUSCLES_HD, TENDONS_HD, VAISSEAUX_HD, ORGANES_HD, NERFS_HD, REMPLACE, BLEUS, ROUGES } from './donnees-corps.js?v=2026.10.14.2';
+import { chargerCouche, lireManifeste } from './modeles-glb.js?v=2026.10.14.3';
+import { MUSCLES_HD, TENDONS_HD, VAISSEAUX_HD, ORGANES_HD, NERFS_HD, REMPLACE, BLEUS, ROUGES } from './donnees-corps.js?v=2026.10.14.3';
 
 const COULEURS_ORGANE = { oesophage: 0xd68a86, 'vesicule-biliaire': 0x6e9a3c, 'voies-biliaires': 0x8fb04a, 'surrenale-droite': 0xe0b25c, 'surrenale-gauche': 0xe0b25c, langue: 0xc4636b, 'larynx-cartilages': 0xcfe0e6, hypophyse: 0xe6c7b8, 'corps-calleux': 0xf2e8de, thalamus: 0xcfa3b3 };
 const sidDeAncre = id => id.startsWith('main:') ? 'carpe:' + id.slice(5) : id.startsWith('pied:') ? 'talus:' + id.slice(5) : id;

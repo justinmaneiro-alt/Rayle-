@@ -20,6 +20,15 @@ répondre sans IA, avec des fiches sourcées NASA/ESA, aux questions chiffrées 
 - **Exemples** : « quelle est la taille de Mars », « compare Mars et la Terre », « parle-moi de l’ISS », « combien de lunes a Saturne », « Mars est-elle plus grosse que la Terre », « quand Voyager 1 a été lancé ».
 - **Vérification automatique** : oui (les exemples sont passés dans l’analyseur réel par `tests/capacites-test.mjs`).
 
+## Terre vivante (outils du globe)
+
+sur le globe : placer des points (couleur au choix), tracer un trajet ou les frontières d’un pays, tout effacer, zoomer sur une ville ou un pays · accélérer, figer ou décaler le temps · faire tourner la Terre à la main · vols et bateaux SIMULÉS · lumières des villes · actualité d’un pays (sources citées).
+
+- **Paramètres (lus dans le code)** : 170 pays, 150 villes, capitales et monuments ; couleurs : rouge, bleu, vert, jaune, orange, violet, rose, blanc, cyan ; vitesses du temps : ×60, ×600, 1 heure, 6 heures, 1 jour par seconde ; jusqu’à 60 points et 12 tracés ; trafic : environ 420 avions et 160 bateaux simulés (900 et 360 en Ultra).
+- **Cas limites** : le trafic est SIMULÉ (routes plausibles, vitesses accélérées ×240 pour les avions et ×1 800 pour les bateaux en mode pédagogique) et l’écran l’écrit ; le temps réel des vols n’existe que si le Worker fournit la route /vols ; les frontières viennent d’un jeu à l’échelle 1:110 millions : un repère, pas une frontière juridique ; l’actualité d’un pays vient uniquement des sources du Worker, citées ; sans elles, je dis que je n’ai rien de fiable et je n’invente rien ; en mode Éco le fond est une image fixe : ces outils demandent Auto, Max ou Ultra.
+- **Exemples** : « place un point à Tokyo », « trace un trajet de Paris à Tokyo », « trace les frontières du Japon », « efface les points », « zoome sur Lyon », « accélère le temps », « une heure par seconde », « remets l’heure réelle », « fais tourner la Terre à la main », « affiche les vols », « masque les lumières des villes », « montre les actualités du Japon sur le globe ».
+- **Vérification automatique** : oui (les exemples sont passés dans l’analyseur réel par `tests/capacites-test.mjs`).
+
 ## Terminal de trading
 
 ouvrir ou fermer le terminal, changer d’actif, d’unité de temps, de page, afficher des panneaux, régler le graphique (RSI, supports, moyenne mobile), annoter.
@@ -85,10 +94,10 @@ montrer une ville ou un lieu sur une carte, calculer un itinéraire (voiture, v�
 
 ## Apparence
 
-changer le thème de couleurs, le fond (Espace, Jarvis, vidéo, aucun), l’entité, l’ambiance météo et lumineuse, la qualité graphique.
+changer le thème de couleurs, le fond (Espace, Jarvis, vidéo, aucun), l’entité, l’ambiance météo et lumineuse, la qualité graphique (Éco, Auto, Max ou Ultra : l’Ultra est très gourmand et jamais choisi seul).
 
 - **Paramètres (lus dans le code)** : thèmes : originel, arc, rouge, aurore, ambre, nébuleuse · fonds : aucun, espace, jarvis, vidéo · entités : sphère, neurones.
-- **Exemples** : « passe en thème Aurore », « fond espace », « mode éco ».
+- **Exemples** : « passe en thème Aurore », « fond espace », « mode éco », « passe en qualité ultra ».
 - **Vérification automatique** : oui (les exemples sont passés dans l’analyseur réel par `tests/capacites-test.mjs`).
 
 ## Mémoire et notes

@@ -1,7 +1,7 @@
 /* ═════════════ CONSTRUCTION 3D : géométries procédurales (solution de repli quand aucun modèle GLB n'est fourni) ═════════════
    Tout prend THREE en paramètre (three.js est chargé à la demande par UI.three()). Les géométries sont « cuites » (transformées puis
    fusionnées) : une structure = un Mesh. Voir docs/anatomie-3d.md. */
-import { J, VERTEBRES, zRachis, profilCote } from './donnees-os.js?v=2026.10.14.2';
+import { J, VERTEBRES, zRachis, profilCote } from './donnees-os.js?v=2026.10.14.3';
 
 /** Profil du tronc (rayon latéral, y) ; la profondeur est × 0,72 */
 export const PROFIL_TRONC = [[.001, .88], [.12, .88], [.152, .93], [.158, 1.0], [.148, 1.08], [.138, 1.14], [.142, 1.21], [.156, 1.3], [.162, 1.37], [.145, 1.44], [.085, 1.49], [.056, 1.515], [.001, 1.515]];

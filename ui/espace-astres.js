@@ -173,7 +173,7 @@ void main(){
   const VS_TERRE=VS_CORPS;
   const FS_TERRE=BRUIT+`
 uniform sampler2D u_jour,u_nuit,u_relief,u_ocean,u_nuages; uniform vec3 u_soleil,u_atmo; uniform vec2 u_texel;
-uniform float u_nuitForce,u_det,u_relK,u_hasOcean,u_dec,u_couv;
+uniform float u_nuitForce,u_det,u_relK,u_hasOcean,u_dec,u_couv,u_villes,u_t,u_ultra;
 varying vec2 v_uv; varying vec3 v_n; varying vec3 v_w; varying vec3 v_vue; varying vec3 v_loc; varying vec3 v_E; varying vec3 v_Nn;
 void main(){
   vec3 Ng=normalize(v_n), V=normalize(v_vue), N=Ng;
@@ -187,12 +187,20 @@ void main(){
   if(u_det>0.5){                                                // ombre portée des nuages : on lit les nuages un peu décalés vers le Soleil
     float cl=max(length(v_loc.xz)/length(v_loc),0.3);
     vec2 off=vec2(dot(u_soleil,E)/cl,dot(u_soleil,Nn))*vec2(0.0046,0.0092);
-    float ca=texture2D(u_nuages,vec2(fract(v_uv.x+u_dec-off.x),v_uv.y-off.y)).r;
+    vec2 cu=vec2(fract(v_uv.x+u_dec-off.x),v_uv.y-off.y);
+    float ca=texture2D(u_nuages,cu).r;
+    if(u_ultra>0.5){ ca=ca*0.36+0.16*(texture2D(u_nuages,cu+vec2(0.0018,0.0)).r+texture2D(u_nuages,cu-vec2(0.0018,0.0)).r+texture2D(u_nuages,cu+vec2(0.0,0.0036)).r+texture2D(u_nuages,cu-vec2(0.0,0.0036)).r); }      // ombres douces (Ultra) : cinq lectures
     nuage=smoothstep(0.30,0.95,ca)*u_couv;
   }
   vec3 jour=tj*(0.30+0.85*shade)*(1.0-0.30*nuage*jourK);
-  vec3 nuit=texture2D(u_nuit,v_uv).rgb;
-  nuit=nuit*nuit*u_nuitForce+nuit*0.25;
+  vec3 nuit0=texture2D(u_nuit,v_uv).rgb;
+  float ln=dot(nuit0,vec3(0.299,0.587,0.114));
+  vec3 nuit=nuit0*nuit0*u_nuitForce+nuit0*0.25;
+  vec3 chaud=mix(vec3(1.0,0.66,0.34),vec3(1.0,0.95,0.82),smoothstep(0.25,0.9,ln));       // lampes au sodium (orangé) ; centres très denses : blanc chaud
+  nuit*=mix(vec3(1.0),chaud*1.25,0.55);
+  { vec3 halo=texture2D(u_nuit,v_uv,3.5).rgb; nuit+=halo*halo*(u_ultra>0.5?1.25:0.7)*chaud; }      // halo diffus des grandes agglomérations (lecture floue de la carte NASA des lumières nocturnes)
+  if(u_det>0.5) nuit*=1.0+0.05*sin(u_t*1.7+ln*60.0+v_uv.x*700.0);      // scintillement discret
+  nuit*=u_villes*(1.0-0.55*nuage);
   vec3 c=mix(nuit,jour,jourK);
   c+=vec3(1.0,0.45,0.15)*0.05*exp(-pow(sg*9.0,2.0))*(0.35+0.65*lum3(tj)*2.0);   // lueur orangée sur la ligne du crépuscule, plus discrète et modulée par le sol
   // reflet du Soleil sur les océans : masque réel (palier 0), sinon estimation par la couleur

@@ -59,7 +59,7 @@ t('crédits : les nouveaux assets sont déclarés', () => {
 });
 t('l’orchestrateur ne casse rien : mêmes fonds d’avant, mêmes paliers', () => {
   const b = lire('ui/background.js');
-  assert.match(b, /jarvis/); assert.match(b, /video/); assert.match(b, /UI\.fondsReels\[fond\]\(c,\{q,hd\}\)/); assert.match(b, /palier>=2\?'fixe':'3d'/);
+  assert.match(b, /jarvis/); assert.match(b, /video/); assert.match(b, /UI\.fondsReels\[fond\]\(c,\{q,hd(?:,ultra)?\}\)/); assert.match(b, /palier>=2\?'fixe':'3d'/);
 });
 t('modèles NASA : manifeste, fichiers GLB (meshopt), poids raisonnable pour une tablette, crédits et licence citées', () => {
   const m = JSON.parse(lire('ui/assets/espace/modeles/manifest.json')), cred = lire('CREDITS.md'), tout = lire('ui/assets/CREDITS.txt');

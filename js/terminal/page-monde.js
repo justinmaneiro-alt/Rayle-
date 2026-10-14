@@ -6,7 +6,7 @@
    - Données : Worker /monde (zones, indicateur, pays) et /calendar ; contours des pays : js/vendor/world-110m.json (Natural Earth).
    - Raylé : service du bus 'monde:commande' ; ce qui est affiché part dans le pont du terminal (contexte de l'IA).
    - Éco : la vue Terre est désactivée (carte TradingView seule). */
-import { appelWorker, esc, nombre } from './hud.js?v=2026.10.14.2';
+import { appelWorker, esc, nombre } from './hud.js?v=2026.10.14.3';
 
 const UI = window.RayleUI || {};
 const REGIONS = {

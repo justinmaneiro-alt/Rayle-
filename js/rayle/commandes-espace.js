@@ -33,3 +33,21 @@
     if(!r.ok){ echecsActions.push(r.texte||'L’action sur l’Espace a échoué.'); return ''; }
     return r.texte||'';
   }
+
+  /* ═════════════ ACTUALITÉ D'UN PAYS (Terre vivante) ═════════════
+     « montre les actualités du Japon sur le globe » : l'actualité vient UNIQUEMENT des sources du Worker (/actus : flux ouverts cités un par un). Sans Worker, ou sans article, Raylé le dit et n'invente rien.
+     Un panneau s'ouvre avec les titres, leurs sources et leurs liens ; Raylé en lit trois en citant la source. */
+  async function actusPays(nom,lieu){
+    const dire=t=>{ try{ addLine('ray',t); speak(t); }catch(e){} };
+    try{
+      if(!workerReady()){ dire('Je n’ai pas d’actualité fiable sur '+nom+' : le Worker n’est pas relié, et je préfère ne rien inventer.'); return; }
+      const requete=(lieu&&lieu.type==='pays'?nom+' actualités':nom+' actualité');
+      const d=await wjson('/actus?q='+encodeURIComponent(requete),20000);
+      const items=(d.items||[]).slice(0,6);
+      if(!items.length){ dire('Je n’ai trouvé aucune actualité fiable sur '+nom+' dans les sources disponibles ; je ne la remplace pas par une supposition.'); return; }
+      try{ pn(montrerActus,'Actualités · '+nom,d); }catch(e){}
+      const sources=(d.sources&&d.sources.length?d.sources:[...new Set(items.map(x=>x.source).filter(Boolean))]).slice(0,3);
+      dire('À la une sur '+nom+(sources.length?', d’après '+sources.join(', '):'')+' : '+items.slice(0,3).map(x=>x.titre+(x.source?' ('+x.source+')':'')).join(' ; ')+'.');
+    }catch(e){ dire('Je n’ai pas pu lire l’actualité de '+nom+' ('+errMsg(e)+'). Je n’invente rien.'); }
+  }
+  try{ RayleBus.fournir('espace:actus',d=>{ actusPays(String(d&&d.nom||'ce pays'),d&&d.lieu); return true; }); }catch(e){}
