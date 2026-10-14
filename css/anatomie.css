@@ -1,17 +1,17 @@
 /* ═════════════ ANATOMIE & ORTHOPÉDIE : fenêtre plein écran (#vueAnatomie) et pop-up 3D (#anQuick) ═════════════
    Même langage visuel que le terminal (cadres HUD de css/hud.css, néon rose, accents cyan pour la 3D). */
-#vueAnatomie,#anQuick{
+#vueAnatomie,#vueCerveau,#anQuick{
   --an-bg:#05050a; --an-ligne:rgba(255,0,127,.28); --an-ink:#f2e9f4; --an-doux:#a995b8; --an-neon:#ff3399; --an-cyan:#4de3ff; --an-appui:#ff8a3d; --an-decharge:#4da8ff; --an-ok:#39d98a;
   --an-mono:"Courier New",Courier,monospace; color:var(--an-ink); font-family:var(--an-mono); box-sizing:border-box;
 }
-#vueAnatomie *,#anQuick *{box-sizing:border-box}
-#vueAnatomie{position:fixed;inset:0;z-index:40;display:flex;flex-direction:column;overflow:hidden;
+#vueAnatomie *,#vueCerveau *,#anQuick *{box-sizing:border-box}
+#vueAnatomie,#vueCerveau{position:fixed;inset:0;z-index:40;display:flex;flex-direction:column;overflow:hidden;
   background:radial-gradient(70vw 50vh at 85% -10%,rgba(255,0,127,.10),transparent 60%),radial-gradient(55vw 45vh at 0% 110%,rgba(77,227,255,.07),transparent 60%),var(--an-bg)}
-#vueAnatomie[hidden]{display:none}
-#vueAnatomie:not([hidden]){animation:an-in .45s ease both}
+#vueAnatomie[hidden],#vueCerveau[hidden]{display:none}
+#vueAnatomie:not([hidden]),#vueCerveau:not([hidden]){animation:an-in .45s ease both}
 @keyframes an-in{from{opacity:0}to{opacity:1}}
-body.vue-anatomie{overflow:hidden}
-body.vue-anatomie .ui-fond,body.vue-anatomie .ui-voile,body.vue-anatomie .ui-fond-fixe,body.vue-anatomie .ui-fond-video,body.vue-anatomie .ui-teinte,body.vue-anatomie .ui-amb{visibility:hidden}
+body.vue-anatomie,body.vue-cerveau{overflow:hidden}
+body.vue-anatomie .ui-fond,body.vue-anatomie .ui-voile,body.vue-anatomie .ui-fond-fixe,body.vue-anatomie .ui-fond-video,body.vue-anatomie .ui-teinte,body.vue-anatomie .ui-amb,body.vue-cerveau .ui-fond,body.vue-cerveau .ui-voile,body.vue-cerveau .ui-fond-fixe,body.vue-cerveau .ui-fond-video,body.vue-cerveau .ui-teinte,body.vue-cerveau .ui-amb{visibility:hidden}
 
 /* barre du haut */
 .an-barre{display:flex;align-items:center;gap:12px;flex-wrap:wrap;padding:max(10px,env(safe-area-inset-top)) max(14px,env(safe-area-inset-right)) 8px max(14px,env(safe-area-inset-left));position:relative;background:rgba(5,3,9,.82);border-bottom:1px solid var(--an-ligne)}
@@ -153,7 +153,7 @@ body.vue-anatomie .ui-fond,body.vue-anatomie .ui-voile,body.vue-anatomie .ui-fon
   .anq-scene{border-right:0;border-bottom:1px solid var(--an-ligne)}
   .an-question{max-width:none}
 }
-@media (prefers-reduced-motion:reduce){#vueAnatomie:not([hidden]){animation:none}}
+@media (prefers-reduced-motion:reduce){#vueAnatomie:not([hidden]),#vueCerveau:not([hidden]){animation:none}}
 
 /* indicateur de chargement des modèles GLB, onglet Affichage */
 .an-chargement{position:absolute;right:12px;top:10px;padding:5px 9px;background:rgba(5,3,9,.85);border:1px solid var(--an-cyan);font-size:11.5px;z-index:3;pointer-events:none}
@@ -166,3 +166,52 @@ body.vue-anatomie .ui-fond,body.vue-anatomie .ui-voile,body.vue-anatomie .ui-fon
 .an-opacites .an-curseur{grid-template-columns:78px 1fr 46px;gap:0 8px;min-height:30px}
 .an-opacites .an-curseur input{grid-column:auto;min-height:22px}
 .an-opacites .an-val{text-align:right}
+
+/* ═════════════ PRÉSENTATIONS ANIMÉES (lecteur cinématique) ═════════════ */
+.pr-lecteur{position:absolute;inset:0;pointer-events:none;z-index:6;display:flex;flex-direction:column;justify-content:flex-end;align-items:center;padding:10px 10px 12px;font-family:var(--an-mono)}
+.pr-lecteur>*{pointer-events:auto}
+.pr-titre{position:absolute;left:12px;top:12px;max-width:min(60%,520px);padding:6px 10px;background:rgba(5,3,9,.78);border:1px solid var(--an-neon);border-left-width:4px;font-size:13px;letter-spacing:.06em;animation:pr-glisse .5s ease both}
+.pr-titre small{display:block;color:var(--an-doux);font-size:10.5px;letter-spacing:.04em;margin-top:2px}
+.pr-etape{position:absolute;right:12px;top:12px;padding:4px 9px;background:rgba(5,3,9,.78);border:1px solid var(--an-ligne);font-size:11px;color:var(--an-doux)}
+.pr-soustitre{max-width:min(92%,860px);margin:0 0 8px;padding:8px 14px;background:rgba(3,2,8,.82);border:1px solid var(--an-ligne);border-bottom:2px solid var(--an-neon);font-size:clamp(13px,1.9vw,17px);line-height:1.45;text-align:center;color:#fff;text-shadow:0 1px 2px #000;animation:pr-monte .45s ease both}
+.pr-soustitre:empty{display:none}
+.pr-soustitre mark{background:none;color:var(--an-cyan);font-weight:700}
+.pr-barre{display:flex;align-items:center;gap:5px;flex-wrap:nowrap;justify-content:center;max-width:100%;padding:6px 8px;background:rgba(5,3,9,.86);border:1px solid var(--an-ligne);backdrop-filter:blur(4px)}
+.pr-btn{font-family:var(--an-mono);font-size:15px;min-width:38px;min-height:40px;padding:4px 8px;color:var(--an-ink);background:rgba(255,0,127,.1);border:1px solid var(--an-ligne);cursor:pointer;touch-action:manipulation}
+.pr-btn:hover{border-color:var(--an-neon);background:rgba(255,0,127,.22)}
+.pr-btn.actif{background:var(--an-neon);color:#0a0008;border-color:transparent}
+.pr-vitesse{font-size:12px;min-width:54px}
+.pr-progres{flex:1 1 60px;min-width:50px;height:6px;background:rgba(255,255,255,.12);position:relative;cursor:pointer}
+.pr-progres i{position:absolute;left:0;top:0;bottom:0;background:linear-gradient(90deg,var(--an-neon),var(--an-cyan));width:0;transition:width .3s linear}
+.pr-source{position:absolute;left:12px;bottom:92px;max-width:min(70%,640px);padding:5px 9px;background:rgba(5,3,9,.78);border:1px solid var(--an-ligne);font-size:10.5px;line-height:1.4;color:var(--an-doux)}
+.pr-source:empty{display:none}
+.pr-ar-pro{position:absolute;left:50%;top:48%;transform:translate(-50%,-50%);font-size:12px;color:var(--an-doux)}
+@keyframes pr-glisse{from{opacity:0;transform:translateX(-14px)}to{opacity:1;transform:none}}
+@keyframes pr-monte{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+.an-note.pres,.ce-note.pres{border-color:var(--an-cyan);background:rgba(8,20,34,.92);color:#fff;font-weight:700;animation:pr-pop .45s cubic-bezier(.2,1.3,.4,1) both}
+.an-note.pres::after,.ce-note.pres::after{content:"";position:absolute;left:50%;top:100%;width:2px;height:14px;margin-left:-1px;background:var(--an-cyan)}
+.an-note.pres.rouge,.ce-note.pres.rouge{border-color:#ff5b6e}.an-note.pres.rouge::after,.ce-note.pres.rouge::after{background:#ff5b6e}
+.an-note.pres.vert,.ce-note.pres.vert{border-color:var(--an-ok)}.an-note.pres.vert::after,.ce-note.pres.vert::after{background:var(--an-ok)}
+@keyframes pr-pop{from{opacity:0;scale:.6}to{opacity:1;scale:1}}
+.pr-plein .an-barre,.pr-plein .an-sous-barre,.pr-plein .an-pied,.pr-plein .an-gauche,.pr-plein .an-droite{display:none}
+.pr-plein .an-corps{display:block;padding:0}
+.pr-plein .an-centre{position:absolute;inset:0;border:0}
+@media (prefers-reduced-motion:reduce){.pr-titre,.pr-soustitre,.an-note.pres,.ce-note.pres{animation:none}}
+
+/* ═════════════ FENÊTRE CERVEAU ═════════════ */
+.ce-note{position:absolute;left:0;top:0;font-size:10.5px;line-height:1.2;white-space:nowrap;padding:2px 6px;background:rgba(5,3,9,.82);border:1px solid var(--an-ligne);color:var(--an-ink);will-change:transform}
+.ce-note.zone{border-color:var(--an-cyan);background:rgba(8,20,34,.9);color:#fff;font-weight:700}
+.ce-note.brodmann{border-color:#f0a030;color:#f0c070}
+.ce-legende{position:absolute;right:8px;bottom:8px;max-width:230px;max-height:46%;overflow:auto;padding:6px 8px;background:rgba(5,3,9,.85);border:1px solid var(--an-ligne);font-size:10.5px;line-height:1.55;z-index:3}
+.ce-legende[hidden]{display:none}
+.ce-legende b{display:block;margin-bottom:2px;color:var(--an-cyan);letter-spacing:.06em}
+.ce-legende i{display:inline-block;width:10px;height:10px;margin-right:5px;vertical-align:-1px;border:1px solid rgba(255,255,255,.3)}
+.ce-etat{position:absolute;left:10px;top:10px;padding:5px 9px;background:rgba(5,3,9,.85);border:1px solid var(--an-cyan);font-size:11.5px;z-index:3;max-width:60%}
+.ce-etat[hidden]{display:none}
+.ce-source{font-size:10.5px;color:var(--an-doux);line-height:1.5;margin:6px 0 0}
+.ce-certitude{margin:8px 0;padding:6px 9px;border-left:3px solid #f0a030;background:rgba(240,160,48,.08);font-size:11.5px;line-height:1.45}
+.ce-reseaux{display:flex;flex-wrap:wrap;gap:6px}
+.ce-avert{margin:8px 0 0;font-size:10.5px;color:var(--an-doux);line-height:1.4}
+.ce-ultra{border-color:#f0a030;color:#f0c070}
+
+@media (max-width:560px){.pr-barre{flex-wrap:wrap}.pr-progres{order:9;flex:1 1 100%}}

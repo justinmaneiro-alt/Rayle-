@@ -35,7 +35,7 @@ await t('contexte pour l’IA : toutes les familles, règles, état ; détail ci
   for (const f of reg.FAMILLES) assert.ok(c.includes(f.nom), f.nom);
   assert.match(c, /ne dis jamais « je ne peux pas »/); assert.match(c, /ÉTAT :/); assert.match(c, /DÉTAIL « Espace en 3D »/);
   assert.match(c, /ne lance jamais de recherche web quand un outil local existe/); assert.match(c, /Ne dis jamais qu’une action est faite si le résultat de l’outil dit qu’elle a échoué/);
-  assert.ok(c.length < 6000, 'contexte de ' + c.length + ' caractères');
+  assert.ok(c.length < 6500, 'contexte de ' + c.length + ' caractères');      // 6000 avant l'ajout des familles « Présentations animées » et « Cerveau 3D »
   assert.ok(!/DÉTAIL « Terminal/.test(reg.contexte('montre-moi Mars')), 'le détail ne concerne que les familles pertinentes');
 });
 await t('état : écran actif, astre affiché, vue sauvegardée, mode d’échelle, historique récent', () => {

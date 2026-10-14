@@ -3,10 +3,12 @@
    executer(commande)       → phrase que Raylé dit (promesse), ou null
    Déclencheurs : « décris-moi l'humérus », « où s'insère le biceps ? » (pop-up 3D), « ouvre l'anatomie », « affiche les muscles et les nerfs »,
    « amputation trans-tibiale à droite », « scoliose de 40 degrés », « fracture du col du fémur », « mets une prothèse », « mets l'emboîture en carbone »… */
-import { useAnatomieStore as S, actions as A } from './store.js?v=2026.10.14.1';
-import * as R from './registre.js?v=2026.10.14.1';
-import * as K from './cours.js?v=2026.10.14.1';
-import { AMPUTATIONS, SCOLIOSE, FRACTURES, MATERIAUX, APPAREILLAGES, appareilsCompatibles } from './donnees-ortho.js?v=2026.10.14.1';
+import { useAnatomieStore as S, actions as A } from './store.js?v=2026.10.14.2';
+import * as R from './registre.js?v=2026.10.14.2';
+import * as K from './cours.js?v=2026.10.14.2';
+import * as P from './presentation.js?v=2026.10.14.2';
+import * as CV from './cerveau-recherche.js?v=2026.10.14.2';
+import { AMPUTATIONS, SCOLIOSE, FRACTURES, MATERIAUX, APPAREILLAGES, appareilsCompatibles } from './donnees-ortho.js?v=2026.10.14.2';
 
 const norm = R.norm;
 const COUP = /\b(?:et|plus|avec|puis)\b|[+,&]/;
@@ -65,6 +67,10 @@ export function analyser(texte, ctx = {}) {
   if (retire && /\bfracture\b/.test(t)) return { type: 'retirer', quoi: 'fracture' };
   if (retire && /\b(?:prothese|orthese|corset|attelle|platre|appareil\w*|botte|ecarpe|echarpe)\b/.test(t)) return { type: 'retirer', quoi: 'appareil' };
 
+  // 2 bis. fenêtre Cerveau, présentations animées
+  { const c = analyserCerveau(t, brut, vue); if (c) return c; }
+  { const c = analyserPresentation(t, brut, vue); if (c) return c; }
+
   // 3. pathologies et appareillages
   const verbeMontrer = VERBES_MONTRER.test(t) || /\bsimul\w+|\bvisualis\w+|\bmodelis\w+|\bmontre|\baffiche|\bmets\b|\bajoute|\bapplique|\bavec une\b|\bavec un\b/.test(t);
   if (/\bscoliose\b/.test(t) && (verbeMontrer || /\d/.test(t) || /\b(?:cobb|gibbosite|courbure|degres)\b/.test(t)) && !/^(?:c est quoi|qu est ce|explique)/.test(t)) {
@@ -118,6 +124,40 @@ function trouverRepere(brut) {
   if (c && c.type === 'os') { const r = R.tous('repere').find(d => norm(d.nom).includes(norm(R.definition(c.base).nom).split(' ')[0]) && (d.os === c.base)); if (r) { const co = R.coteDans(brut) || 'D'; return { type: 'repere', base: 'repere:' + r.id, ids: ['repere:' + r.id + (r.sym === false ? '' : ':' + co)], cote: co, nom: r.nom }; } }
   return null;
 }
+// ───────────────────────── présentations animées et fenêtre Cerveau ─────────────────────────
+const PRESENTER = /^(?:presente|presenter|presentez|presentation|fais moi une presentation|fais une presentation|lance une presentation|donne moi une presentation|je veux une presentation|anime|animer|explique en animation|montre moi en animation)\b/;
+const EXPLIQUER = /^(?:explique|expliquer|detaille|detailler|raconte|parle moi de|parle de)\b/;
+const MOTS_CERVEAU_CMD = /\b(?:cerveau|encephale|cerebral\w*|cortex|neurones?|cervelet|hippocampes?|amygdales?|thalamus|hypothalamus|aires? (?:de )?(?:broca|wernicke|brodmann)|corps calleux|tronc cerebral|noyaux gris|substance blanche|insula|brodmann|lobes? (?:frontal|parietal|temporal|occipital)|ventricules?)\b/;
+const CALQUES_CERV = [['brodmann', /\bbrodmann\b/], ['neurones', /\b(?:neurones?|impulsions?|synapses?)\b/], ['faisceaux', /\b(?:faisceaux|fibres|connexions)\b/], ['blanche', /\bsubstance blanche\b/], ['profond', /\b(?:noyaux profonds|structures profondes)\b/], ['liquide', /\bliquide cerebro ?spinal\b/]];
+const VUES_CERV = [['mediane', /\b(?:mediane?|sagittale?)\b/], ['coronale', /\b(?:coronale?|frontale)\b/], ['axiale', /\b(?:axiale?|horizontale?|transversale?)\b/], ['dessous', /\b(?:de dessous|par dessous|face inferieure|inferieure)\b/], ['dessus', /\b(?:de dessus|par dessus|face superieure|superieure)\b/], ['arriere', /\b(?:arriere|de dos|posterieure)\b/], ['avant', /\b(?:de face|avant|anterieure)\b/], ['laterale', /\b(?:laterale?|de profil|de cote)\b/]];
+function analyserCerveau(t, brut, vue) {
+  const dedans = vue === 'cerveau', parle = MOTS_CERVEAU_CMD.test(t);
+  if (!dedans && !parle) return null;
+  if (!dedans && /\b(?:entite|fond|theme|ambiance|couleur|combien|pourquoi|comment)\b/.test(t)) return null;      // « passe en entité cerveau », questions de culture générale : pas pour la fenêtre
+  if (dedans && /^(?:ferme|fermer|quitte|quitter|sors|sortir|retour|reviens|revenir|retourne|retourner)(?: moi)?(?: de| a| sur| vers| au| du| de la| de l)*(?: la| le| l| mon| ma| les)* ?(?:fenetre )*(?:cerveau|rayle|accueil|menu|ecran principal|principal)?$/.test(t)) return { type: 'fermer-fenetre' };
+  if (/^(?:ouvre|ouvrir|lance|lancer|affiche|afficher|montre|montrer|va|aller|passe|passer)(?: moi)?(?: sur| dans| vers| a| au| en)?(?: la| le| l| mon| ma| les| un| une)* ?(?:fenetre |page |module |vue |atlas )*(?:du )?(?:cerveau|encephale|cerveau en 3d|cerveau 3d|modele 3d du cerveau|3d du cerveau|neuro ?anatomie)$/.test(t)) return { type: 'cerveau-ouvrir' };
+  if (/\b(?:tour|visite|parcours)\b.*\bcerveau\b|\bcerveau\b.*\b(?:tour|visite guidee)\b/.test(t)) return { type: 'presenter', requete: 'tour du cerveau', ctx: { vue: 'cerveau' } };
+  const q = t.match(/\bqualite\b.*\b(eco|standard|haute|ultra)\b|\b(?:mode|niveau) (eco|standard|haute|ultra)\b/);
+  if (q && (dedans || parle)) return { type: 'cerveau-qualite', niveau: q[1] || q[2] };
+  const retire = VERBES_CACHER.test(t);
+  // vues et coupes (hors verbes de présentation)
+  if (!PRESENTER.test(t) && /\b(?:coupe|vue|section|plan)\b/.test(t)) { const v = VUES_CERV.find(([id, re]) => re.test(t)); if (v) { const nom = /\bcoupe|section/.test(t) && v[0] === 'laterale' ? 'mediane' : v[0]; return { type: 'cerveau-vue', vue: nom, cote: /\b(?:hemisphere )?droit\b/.test(t) ? 'droit' : /\b(?:hemisphere )?gauche\b/.test(t) ? 'gauche' : null }; } }
+  const cal = CALQUES_CERV.find(([id, re]) => re.test(t));
+  if (cal && (dedans || parle) && (retire || VERBES_MONTRER.test(t) || /\b(?:active|desactive)\w*/.test(t)) && !CV.trouverReseau(t)) return { type: 'cerveau-calque', calque: cal[0], oui: !retire && !/\bdesactive/.test(t) };
+  const reseau = CV.trouverReseau(t);
+  if (reseau && /\b(?:reseau|neurones?|activite|impulsions?|circuit)\b/.test(t) && !PRESENTER.test(t) && !EXPLIQUER.test(t)) return { type: 'cerveau-reseau', id: reseau.id };
+  if (retire && /\b(?:neurones?|reseau|zone|selection)\b/.test(t)) return { type: 'cerveau-reinit' };
+  const zone = CV.trouverZone(brut, { strict: !(dedans || /\b(?:cerveau|encephale|cerebral\w*|cortex)\b/.test(t)) });
+  if (zone && !PRESENTER.test(t) && !EXPLIQUER.test(t) && (INTENT_DECRIRE.test(t) || VERBES_MONTRER.test(t) || /\?\s*$/.test(brut.trim()))) return { type: 'cerveau-zone', id: zone.id, question: t, vue: /\b(?:medial\w*|mediane?|interne)\b/.test(t) ? 'mediane' : null };
+  if (zone && (EXPLIQUER.test(t) || PRESENTER.test(t))) return { type: 'presenter', requete: brut, ctx: { vue: 'cerveau' } };
+  return null;
+}
+function analyserPresentation(t, brut, vue) {
+  const veut = PRESENTER.test(t) || EXPLIQUER.test(t) && /\bcouche par couche\b|\ben animation\b/.test(t) || /\bcouche par couche\b/.test(t) && VERBES_MONTRER.test(t) || /\b(?:presentation|animation) (?:anime\w* )?(?:de|du|des|de la|de l)\b/.test(t);
+  if (!veut) return null;
+  const r = P.resoudre(brut, { vue }); if (!r) return null;
+  return { type: 'presenter', requete: brut, famille: r.famille, ctx: { vue } };
+}
 function analyserCalques(t) {
   const retire = VERBES_CACHER.test(t), montre = VERBES_MONTRER.test(t) || /^(?:les |le |la |l )?(?:squelette|muscles?|arteres?|veines?|nerfs?|organes?|peau|dermatomes?)/.test(t);
   if (!retire && !montre) return null;
@@ -163,12 +203,40 @@ function appliquerDecrire(c) {
   return false;
 }
 
+async function ouvrirCerveau(options) {
+  if (vueCourante() !== 'cerveau') await RayleBus.demander('vue:ouvrir-cerveau', options || null);
+  for (let i = 0; i < 80 && !(window.RayleCerveau && window.RayleCerveau.etat().ouvert); i++) await attendre(50);
+  const c = window.RayleCerveau; if (!c) throw new Error('fenêtre Cerveau indisponible');
+  if (options === undefined || options === null) await new Promise(r => setTimeout(r, 0));
+  return c;
+}
+const phraseSecours = (script) => script && script.etapes ? script.etapes.slice(0, 3).map(e => e.narration).join(' ') : '';
+async function presenterScript(c) {
+  const script = P.scriptPour(c.requete, c.ctx || { vue: vueCourante() });
+  if (!script) return null;
+  const cerveau = /^cerveau/.test(script.type);
+  try {
+    if (cerveau) { const cv = await ouvrirCerveau(); await cv.presenter(script); }
+    else { await ouvrirFenetre(); const m = await import('./lecteur-anatomie.js?v=2026.10.14.2'); await m.lancerPresentation(script); }
+  } catch (e) { return 'Je ne peux pas lancer l’animation 3D (' + (e && e.message || e) + ') ; voici le début : ' + phraseSecours(script); }
+  const cible = script.titre.toLowerCase();
+  return 'Je lance la présentation : ' + cible + '. ' + script.etapes.length + ' étapes, avec sous-titres ; touchez pause, suivant ou la vitesse quand vous voulez.';
+}
+
 export async function executer(c) {
   if (!c) return null;
   switch (c.type) {
+    case 'presenter': return await presenterScript(c);
+    case 'cerveau-ouvrir': await ouvrirCerveau(); return 'Voici le cerveau en 3D. Touchez une zone pour la décrire, ou dites par exemple « montre l’hippocampe » ou « fais-moi un tour du cerveau ».';
+    case 'cerveau-zone': { const cv = await ouvrirCerveau(); const z = CV.ZONE_PAR_ID[c.id]; if (!z) return null; cv.zone(c.id, { vue: c.vue || undefined }); return CV.resumeZone(c.id, c.question); }
+    case 'cerveau-reseau': { const cv = await ouvrirCerveau(); const r = CV.RESEAU_PAR_ID[c.id]; if (!r) return null; cv.reseau(c.id); return r.nom + ' : ' + r.description; }
+    case 'cerveau-vue': { const cv = await ouvrirCerveau(); if (c.cote) cv.cote(c.cote); cv.vue(c.vue); return 'Vue ' + ({ laterale: 'latérale', mediane: 'médiane, en coupe sagittale', coronale: 'en coupe coronale', axiale: 'en coupe axiale', dessus: 'de dessus', dessous: 'de dessous', avant: 'de face', arriere: 'de l’arrière' }[c.vue] || c.vue) + '.' + (/mediane|coronale|axiale/.test(c.vue) ? ' Le curseur « Position de la coupe » la déplace.' : ''); }
+    case 'cerveau-calque': { const cv = await ouvrirCerveau(); cv.calque(c.calque, c.oui); const noms = { brodmann: 'les aires de Brodmann', neurones: 'les neurones animés', faisceaux: 'les faisceaux de substance blanche', blanche: 'la substance blanche', profond: 'les noyaux profonds', liquide: 'le liquide cérébro-spinal' }; return (c.oui ? 'J’affiche ' : 'Je masque ') + noms[c.calque] + (c.calque === 'brodmann' && c.oui ? ' ; la carte est approximative' : '') + '.'; }
+    case 'cerveau-qualite': { const cv = await ouvrirCerveau(); await cv.niveau(c.niveau); return 'Qualité ' + c.niveau + ' pour le cerveau.' + (c.niveau === 'ultra' ? ' C’est très gourmand : si l’image devient trop lente, je repasse au palier inférieur.' : ''); }
+    case 'cerveau-reinit': { const cv = await ouvrirCerveau(); cv.zone(null); cv.reseau(null); return 'Sélection effacée.'; }
     case 'ouvrir': await ouvrirFenetre(c.onglet); return "Voici la fenêtre Anatomie et Orthopédie. Touchez une structure pour la décrire, ou dites par exemple « affiche les muscles » ou « amputation trans-tibiale ».";
-    case 'fermer-fenetre': RayleBus.demander('vue:fermer'); return 'Retour à l’accueil.';
-    case 'fermer-quick': { const q = await import('./quickview.js?v=2026.10.14.1'); if (!q.quickOuvert()) return null; q.fermerQuick(); return 'Fenêtre 3D fermée.'; }
+    case 'fermer-fenetre': if (window.RayleLecteur) { try { window.RayleLecteur.fermer(); } catch (e) { } } RayleBus.demander('vue:fermer'); return 'Retour à l’accueil.';
+    case 'fermer-quick': { const q = await import('./quickview.js?v=2026.10.14.2'); if (!q.quickOuvert()) return null; q.fermerQuick(); return 'Fenêtre 3D fermée.'; }
     case 'normal': await ouvrirFenetre(); A.toutNormal(); A.selectionner(null); A.toutAfficher(); setTimeout(() => { const m = window.RayleAnatomieMoteur; m && m.vue('face'); }, 60); return 'Anatomie normale rétablie.';
     case 'retirer': {
       const e = S.obtenir();
@@ -239,7 +307,7 @@ export async function executer(c) {
       const cible = c.cible;
       const id = cible.ids[0]; if (!id) return null;
       const texte = cible.groupe ? cible.nom + ' : ' + cible.ids.length + ' pièces affichées, touchez-en une pour la décrire.' : R.resume(id, c.question);
-      if (!appliquerDecrire(c)) { const q = await import('./quickview.js?v=2026.10.14.1'); await q.afficherQuick(cible.groupe ? cible : (typeof cible === 'string' ? cible : { base: cible.base, ids: cible.ids, cote: cible.cote, nom: cible.nom, groupe: !!cible.groupe })); }
+      if (!appliquerDecrire(c)) { const q = await import('./quickview.js?v=2026.10.14.2'); await q.afficherQuick(cible.groupe ? cible : (typeof cible === 'string' ? cible : { base: cible.base, ids: cible.ids, cote: cible.cote, nom: cible.nom, groupe: !!cible.groupe })); }
       const cours = cible.groupe ? '' : await extraitCours(R.nomAffiche(id).replace(/ (droit|gauche|droite)$/, '') + ' ' + c.question, []);
       return texte + cours;
     }

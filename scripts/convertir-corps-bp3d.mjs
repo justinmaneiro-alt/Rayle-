@@ -122,6 +122,7 @@ function lisser(m) { return m.pos.length / 3 < SEUIL_LOOP ? loop(m.pos, m.idx) :
 /** Réduit un maillage trop dense jusqu'à `max` sommets. Avec les paquets d'outils (variable OUTILS, voir compresser-glb.mjs) : simplification par contraction d'arêtes (meshoptimizer), qui garde les bords nets des muscles
     plats (oblique externe, intercostaux, diaphragme) ; sans eux : regroupement de sommets (cellule de 1,5 mm agrandie de 30 % tant qu'il dépasse `max`), plus grossier. */
 let SIMPLIFIER = undefined;
+let ERREUR_DEPART = .01;      // erreur de simplification de départ, en mètres (0,01 pour les muscles ; bien moins pour un cerveau de 15 cm)
 async function chargerSimplifier() {
   if (SIMPLIFIER !== undefined) return SIMPLIFIER;
   SIMPLIFIER = null;
@@ -132,7 +133,7 @@ function reduire(n, max) {
   if (n.pos.length / 3 <= max) return;
   const avant = n.pos.length / 3;
   if (SIMPLIFIER) {
-    const S = SIMPLIFIER; let erreur = .01, m = null;
+    const S = SIMPLIFIER; let erreur = ERREUR_DEPART, m = null;
     for (let essai = 0; essai < 6; essai++) {
       const [idx2] = S.simplify(Uint32Array.from(n.idx), n.pos, 3, Math.floor(max * 2 / 3) * 3, erreur, ['ErrorAbsolute']);
       const [remap, unique] = S.compactMesh(idx2), pos = new Float32Array(unique * 3);
@@ -246,5 +247,16 @@ async function nerfs() {
   await couche('nerfs-bp3d.glb', noeuds, { lisse: false, label: 'nerfs' });
 }
 if (quoi === 'arteres' || quoi === 'veines' || quoi === 'vaisseaux' || quoi === 'tout') await vaisseaux();
+/** Cerveau détaillé (fenêtre « Cerveau ») : lobes, gyri, noyaux profonds, ventricules, tronc, cervelet, substance blanche — liste dans js/anatomie/donnees-cerveau.js */
+async function cerveau() {
+  const { STRUCTURES_CERVEAU } = await import('../js/anatomie/donnees-cerveau.js');
+  const noeuds = []; ajouteRangees(noeuds, STRUCTURES_CERVEAU.map(s => [s[0], null, null, null, s[3]]));
+  await chargerSimplifier();
+  ERREUR_DEPART = .0004;
+  const cibles = { cervelet: 21000, 'corps-calleux': 12000, 'substance-blanche': 15000, pont: 9000 };      // « max » = 3 × le nombre de sommets visé (voir reduire)
+  for (const n of noeuds) { const c = cibles[n.nom.split('__')[0]]; if (c) reduire(n, c); }
+  await couche('cerveau-bp3d.glb', noeuds, { lisse: false, label: 'cerveau', maxSommets: 40000 });
+}
+if (quoi === 'cerveau' || quoi === 'tout') await cerveau();
 if (quoi === 'organes' || quoi === 'tout') await organes();
 if (quoi === 'nerfs' || quoi === 'tout') await nerfs();

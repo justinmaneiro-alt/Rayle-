@@ -2,23 +2,23 @@
    new MoteurAnatomie(THREE, canvas, { store, etiquettes: Element|null, mini: bool, surSelection(id) })
    Le moteur suit l'état du store : calques, sélection, isolation, pathologies, appareillage. Rendu à la demande (pas d'animation inutile).
    Contrôles : glisser = rotation 360°, molette / pincement = zoom, clic droit ou Maj + glisser ou 2 doigts = translation, double clic = focaliser. */
-import { construire, axeMembre } from './construction.js?v=2026.10.14.1';
-import { construireAppareil } from './appareils3d.js?v=2026.10.14.1';
-import { OS, VERTEBRES, REPERES, SACRUM_Y } from './donnees-os.js?v=2026.10.14.1';
-import { MUSCLES } from './donnees-muscles.js?v=2026.10.14.1';
-import { NERFS, ORGANES, DERMATOMES } from './donnees-nerfs-organes.js?v=2026.10.14.1';
-import { AMPUTATIONS, APPAREILLAGES, FRACTURES } from './donnees-ortho.js?v=2026.10.14.1';
-import { VAISSEAUX_SCHEMA } from './donnees-corps.js?v=2026.10.14.1';
-import { definition, base as baseDe, cote as coteDe, typeDe, instances, nomAffiche, musclesDe } from './registre.js?v=2026.10.14.1';
-import { COULEURS } from './registre.js?v=2026.10.14.1';
-import { chargerGLB } from './modeles-glb.js?v=2026.10.14.1';
-import { points as pointsDe, ajuster as ajusterGLB, matriceAjustement } from './ajustement.js?v=2026.10.14.1';
-import { TABLES } from './correspondance-squelette.js?v=2026.10.14.1';
-import { groupeDe, groupeDeStructure } from './groupes-os.js?v=2026.10.14.1';
-import { CapsCoupe } from './coupes.js?v=2026.10.14.1';
-import { creerMateriauPBR, ajouterAOCuite } from './pbr.js?v=2026.10.14.1';
-import { CorpsHD } from './corps-hd.js?v=2026.10.14.1';
-import { studio, solOmbre, fondDegrade, environnement, pipeline, lireNiveau } from './rendu.js?v=2026.10.14.1';
+import { construire, axeMembre } from './construction.js?v=2026.10.14.2';
+import { construireAppareil } from './appareils3d.js?v=2026.10.14.2';
+import { OS, VERTEBRES, REPERES, SACRUM_Y } from './donnees-os.js?v=2026.10.14.2';
+import { MUSCLES } from './donnees-muscles.js?v=2026.10.14.2';
+import { NERFS, ORGANES, DERMATOMES } from './donnees-nerfs-organes.js?v=2026.10.14.2';
+import { AMPUTATIONS, APPAREILLAGES, FRACTURES } from './donnees-ortho.js?v=2026.10.14.2';
+import { VAISSEAUX_SCHEMA } from './donnees-corps.js?v=2026.10.14.2';
+import { definition, base as baseDe, cote as coteDe, typeDe, instances, nomAffiche, musclesDe } from './registre.js?v=2026.10.14.2';
+import { COULEURS } from './registre.js?v=2026.10.14.2';
+import { chargerGLB } from './modeles-glb.js?v=2026.10.14.2';
+import { points as pointsDe, ajuster as ajusterGLB, matriceAjustement } from './ajustement.js?v=2026.10.14.2';
+import { TABLES } from './correspondance-squelette.js?v=2026.10.14.2';
+import { groupeDe, groupeDeStructure } from './groupes-os.js?v=2026.10.14.2';
+import { CapsCoupe } from './coupes.js?v=2026.10.14.2';
+import { creerMateriauPBR, ajouterAOCuite } from './pbr.js?v=2026.10.14.2';
+import { CorpsHD } from './corps-hd.js?v=2026.10.14.2';
+import { studio, solOmbre, fondDegrade, environnement, pipeline, lireNiveau } from './rendu.js?v=2026.10.14.2';
 
 const CALQUE_DE = { cartilage: 'squelette', os: 'squelette', muscle: 'muscles', tendon: 'muscles', nerf: 'nerfs', artere: 'arteres', veine: 'veines', organe: 'organes', repere: 'reperes', dermatome: 'dermatomes', peau: 'peau' };
 const MATIERES = ['os', 'muscle', 'tendon', 'nerf', 'artere', 'veine', 'organe', 'cartilage'];     // types qui portent un matériau physique (ombres, fantôme, transparence)
@@ -506,6 +506,7 @@ export class MoteurAnatomie {
   appliquerAffichage(e) {
     const T = this.THREE, af = e.affichage || {}, ops = af.opacites || {}, opsOs = af.opacitesOs || {};
     for (const en of this.entrees.values()) {
+      if (this.pres && en.presVers !== undefined) continue;      // en présentation, le fondu gère la transparence
       const kc = ops[CALQUE_DE[en.type]], kg = en.type === 'os' || en.type === 'cartilage' ? opsOs[groupeDe(en.base)] : undefined;
       const k = kc === undefined && kg === undefined ? undefined : (kc === undefined ? 1 : kc) * (kg === undefined ? 1 : kg);       // calque × région
       if (k !== undefined && k <= .02) en.obj.visible = false;
@@ -526,6 +527,7 @@ export class MoteurAnatomie {
       this.rendu.clippingPlanes = [this.planCoupe];
     } else { this.planCoupe = null; this.rendu.clippingPlanes = []; }
     this.caps.maj(this.planCoupe, this.entrees);
+    if (this.pres) this.appliquerPresentation();
     this.majPasses();
   }
   /** SSAO et profondeur de champ n'aiment pas les plans de coupe (leurs passes de profondeur les ignorent) : désactivés tant qu'une coupe est active */
@@ -550,6 +552,97 @@ export class MoteurAnatomie {
       else if (niveau === 1) { m.emissive.setHex(0x1e7fff); m.emissiveIntensity = .3; }
       else { m.emissive.setHex(b.emissive); m.emissiveIntensity = b.ei; }
     });
+  }
+
+
+  // ───────────────────────── présentations animées (voir lecteur.js) ─────────────────────────
+  /** Mode présentation : p = { visibles: Set|null (ids d'instance ; null = ce que les calques affichent), fantomes: Set, accent: Set } ; null pour en sortir. Les structures fondent en ms millisecondes. */
+  presenter(p, ms = 650) {
+    this.pres = p || null; const maintenant = performance.now();
+    if (!p) {
+      for (const en of this.entrees.values()) if (en.presVers !== undefined) { en.presVers = undefined; en.presA = undefined; en.fade = null; this.fixerOpacite(en, 1); this.surbrillance(en, 0); }
+      this.notesPres && this.notesPres.forEach(n => n.el.remove()); this.notesPres = []; this.orbite = 0;
+      this.appliquerVisibilite(this.store.obtenir()); this.appliquerAffichage(this.store.obtenir()); this.demander(); return;
+    }
+    for (const en of this.entrees.values()) {
+      const vers = p.fantomes && p.fantomes.has(en.sid) ? .14 : p.visibles ? (p.visibles.has(en.sid) ? 1 : 0) : (en.presVers === undefined ? (en.obj.visible ? 1 : 0) : en.presVers);
+      if (en.presVers === vers && !en.fade) continue;
+      const de = en.presA === undefined ? (en.obj.visible ? 1 : 0) : en.presA;
+      en.presVers = vers; en.fade = { de, vers, t0: maintenant, ms }; if (vers > 0) en.obj.visible = true;
+      this.surbrillance(en, p.accent && p.accent.has(en.sid) ? 2 : 0);
+    }
+    this.demander();
+  }
+  appliquerPresentation() {
+    // appelé après un changement d'état (calques…) : on réapplique l'état courant du fondu sans le relancer
+    const p = this.pres; if (!p) return;
+    for (const en of this.entrees.values()) {
+      if (en.presVers === undefined) { this.presenter(p, 0); return; }
+      if (!en.fade) this.fixerOpacite(en, en.presA === undefined ? en.presVers : en.presA);
+    }
+  }
+  avancerPresentation(maintenant) {
+    let actif = false;
+    for (const en of this.entrees.values()) {
+      const f = en.fade; if (!f) continue;
+      const k = f.ms <= 0 ? 1 : Math.min(1, (maintenant - f.t0) / f.ms), s = k * k * (3 - 2 * k), a = f.de + (f.vers - f.de) * s;
+      en.presA = a; this.fixerOpacite(en, a); if (k >= 1) en.fade = null; else actif = true;
+    }
+    return actif;
+  }
+  fixerOpacite(en, a) {
+    en.obj.visible = a > .01;
+    en.mats.forEach(m => {
+      const b = m.userData.base; if (!b || !m.emissive) return;
+      if (a >= .999) { m.userData.fantome = false; m.transparent = b.transparent; m.opacity = b.opacity; m.depthWrite = b.depthWrite; }
+      else { m.userData.fantome = false; m.transparent = true; m.opacity = a * (b.opacity == null ? 1 : b.opacity); m.depthWrite = a > .6; }
+      m.needsUpdate = true;
+    });
+  }
+  /** Étiquette animée (apparition en fondu) reliée à un point du monde ; cle regroupe les étiquettes d'une même étape */
+  etiquetteAnim(cle, point, texte, classe) {
+    if (!this.etiquettes) return; const el = document.createElement('div'); el.className = 'an-note pres ' + (classe || ''); el.textContent = texte; this.etiquettes.appendChild(el);
+    (this.notesPres = this.notesPres || []).push({ p: point.clone(), el, cle }); this.demander();
+  }
+  retirerEtiquettesAnim(cle) {
+    this.notesPres = (this.notesPres || []).filter(n => { if (cle == null || n.cle === cle) { n.el.remove(); return false; } return true; });
+  }
+  /** Sommets (échantillon, repère du monde) d'une structure, même masquée */
+  sommetsStructure(sid, max = 1800) {
+    const en = this.entrees.get(sid); if (!en) return [];
+    const T = this.THREE, out = []; en.obj.updateWorldMatrix(true, true);
+    en.obj.traverse(o => {
+      if (!o.isMesh || !o.geometry || !o.geometry.attributes.position) return;
+      const p = o.geometry.attributes.position, pas = Math.max(1, Math.floor(p.count / max));
+      for (let i = 0; i < p.count; i += pas) out.push(new T.Vector3(p.getX(i), p.getY(i), p.getZ(i)).applyMatrix4(o.matrixWorld));
+    });
+    return out;
+  }
+  /** Centre et extrémités (axe principal) d'une structure : { centre, bouts: [A, B] (A = le plus haut), axe } ou null */
+  geometrieStructure(sid) {
+    const T = this.THREE, v = this.sommetsStructure(sid); if (!v.length) return null;
+    const c = new T.Vector3(); v.forEach(p => c.add(p)); c.divideScalar(v.length);
+    let ax = new T.Vector3(.3, 1, .2).normalize();
+    for (let k = 0; k < 14; k++) { const n = new T.Vector3(); for (const p of v) { const d = p.clone().sub(c); n.addScaledVector(d, d.dot(ax)); } if (n.lengthSq() < 1e-14) break; ax = n.normalize(); }
+    const proj = v.map(p => p.clone().sub(c).dot(ax)), idx = proj.map((x, i) => i).sort((a, b) => proj[a] - proj[b]), m = Math.max(1, Math.floor(v.length * .03));
+    const moy = liste => { const q = new T.Vector3(); liste.forEach(i => q.add(v[i])); return q.divideScalar(liste.length); };
+    let a = moy(idx.slice(-m)), b = moy(idx.slice(0, m)); if (b.y > a.y) [a, b] = [b, a];
+    return { centre: c, bouts: [a, b], axe: ax, taille: Math.abs(Math.max(...proj) - Math.min(...proj)) };
+  }
+  /** Point de la structure A le plus proche de la structure B (et inversement) : lieu d'une insertion ou d'une articulation → { a, b, d } ou null */
+  contactStructures(sidA, sidB) {
+    const A = this.sommetsStructure(sidA, 700), B = this.sommetsStructure(sidB, 700); if (!A.length || !B.length) return null;
+    let best = null, bd = Infinity;
+    for (const p of A) for (const q of B) { const d = p.distanceToSquared(q); if (d < bd) { bd = d; best = [p, q]; } }
+    return { a: best[0], b: best[1], d: Math.sqrt(bd) };
+  }
+  /** Cadre la caméra sur des structures même cachées (la présentation les fait apparaître ensuite) */
+  cadrerStructures(ids, { facteur = 2.6, az = null, el = null, ms = 1100, minDist = .3 } = {}) {
+    const T = this.THREE, box = new T.Box3();
+    [].concat(ids).forEach(i => { const en = this.entrees.get(i); if (en) box.expandByObject(en.obj); });
+    if (box.isEmpty()) return false;
+    const c = box.getCenter(new T.Vector3()), t = box.getSize(new T.Vector3()), taille = Math.max(t.x, t.y, t.z * .8, .05);
+    this.anim = null; this.allerA({ cible: c, dist: Math.min(Math.max(taille * facteur, minDist), 5), az: az == null ? null : this.plusProche(az), el }, ms); return true;
   }
 
   // ───────────────────────── caméra et contrôles ─────────────────────────
@@ -683,15 +776,17 @@ export class MoteurAnatomie {
       if (k >= 1) this.anim = null; else continuer = true;
     }
     if (this.auto) { this.az += .006; this.placerCamera(); continuer = true; }
+    if (this.pres && this.avancerPresentation(performance.now())) continuer = true;
+    if (this.orbite) { this.az += this.orbite; this.placerCamera(); continuer = true; }
     if (!document.hidden) { if (this.pipeline) { this.pipeline.focus(this.dist); this.pipeline.render(); } else this.rendu.render(this.scene, this.camera); this.placerNotes(); }
     this.dirty = false;
     if (continuer) this.raf = requestAnimationFrame(t2 => this.image(t2));
   }
   placerNotes() {
-    if (!this.notes.length) return;
+    if (!this.notes.length && !(this.notesPres && this.notesPres.length)) return;
     const T = this.THREE, w = this.largeur, h = this.hauteur, v = new T.Vector3(), places = [];
     // les étiquettes prioritaires (sélection, survol) se placent d'abord ; les autres sont décalées vers le haut tant qu'elles en recouvrent une autre
-    const ordre = this.notes.slice().sort((a, b) => (b.cle ? 1 : 0) - (a.cle ? 1 : 0));
+    const ordre = this.notes.concat(this.notesPres || []).sort((a, b) => (b.cle ? 1 : 0) - (a.cle ? 1 : 0));
     for (const n of ordre) {
       v.copy(n.p).project(this.camera);
       const visible = v.z < 1 && Math.abs(v.x) < 1.05 && Math.abs(v.y) < 1.05;

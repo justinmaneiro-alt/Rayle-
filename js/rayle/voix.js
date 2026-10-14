@@ -71,7 +71,8 @@
   }
   async function fetchAudio(t){
     const body={text:t}; const v=prefs.vitesse();
-    if(v!=null && isFinite(v)) body.vitesse=v;
+    if(Number(window.RAYLE_VIT_DELTA)) body.vitesse=vitesseCourante();
+    else if(v!=null && isFinite(v)) body.vitesse=v;
     const res=await wfetch('/tts',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)},25000);
     if(!res.ok) throw await workerError(res);
     return {src:res.headers.get('X-Rayle-Voix')||'', blob:await res.blob()};

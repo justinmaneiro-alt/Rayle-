@@ -95,3 +95,9 @@ Soleil, petites lunes, astéroïdes, nébuleuses, atmosphères de Rayleigh / Mie
 
 ## Documents Drive (lecture et édition)
 Chargés à la demande depuis cdnjs (jamais copiés dans le dépôt) : **JSZip 3.10.1** (MIT ou GPLv3, Stuart Knightley et contributeurs) pour lire et réécrire les fichiers Word (.docx), et **PDF.js 3.11.174** (Apache 2.0, Mozilla) pour lire le texte des PDF. Connexion et sélecteur : Google Identity Services et Google Picker (scripts fournis par Google, soumis à ses conditions). Aucun secret n'est stocké dans le dépôt : seul l'identifiant client OAuth public se place dans `js/config-drive.js` (voir `docs/drive.md`).
+
+## Cerveau 3D et présentations animées (mission 2)
+| Élément | Fichier | Auteur / source | Licence |
+|---|---|---|---|
+| 44 formes du cerveau (lobes, gyri, noyaux, ventricules, tronc, cervelet, substance blanche…) | `ui/assets/anatomie/cerveau-bp3d.glb` | **The Database Center for Life Science** (BodyParts3D, version 4.0) | **CC BY 4.0** (même point de vigilance sur le partage à l'identique que pour le corps, voir plus haut) |
+Textes des fiches du cerveau : rédigés par Raylé, d'après des références classiques citées dans chaque fiche (Terminologia Anatomica, Gray 1918 — domaine public —, Purves et al. *Neuroscience*, Kandel et al. *Principles of Neural Science*, Brodmann 1909, Penfield et Boldrey 1937, Scoville et Milner 1957, Hickok et Poeppel 2007, Papez 1937, Alexander et al. 1986, Schmahmann et Sherman 1998, Sperry 1968) : aucun texte ni figure n'est recopié, ces ouvrages ne sont pas dans le dépôt. Faisceaux, neurones animés et aires de Brodmann : dessinés par le code d'après des coordonnées moyennes de la littérature (schématique). Détail : `docs/anatomie-presentations-cerveau.md`.

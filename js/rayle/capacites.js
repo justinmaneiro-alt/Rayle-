@@ -53,6 +53,18 @@
         verif:'anatomie',mots:/\b(?:anatomi|os|muscle|nerf|organe|humerus|femur|biceps|prothese|orthese|scoliose|fracture|amputation|squelette|vertebre)\w*/,
         params:()=>'os, muscles, nerfs, organes, calques, pathologies et appareillages du module Anatomie ; les cours enregistrés par Justin complètent les réponses',
         limites:['usage éducatif : ce n’est pas un avis médical']},
+      {id:'presentations',nom:'Présentations animées du corps',
+        court:'présenter en animation 3D un os, un muscle, un nerf, un vaisseau ou un organe (caméra, étiquettes, narration, sous-titres) ; présenter un membre, le tronc, la tête ou le corps entier couche par couche ; pause, suivant, vitesse, plein écran',
+        ex:['présente le fémur','présente-moi le biceps brachial','présente le nerf médian','présente tout le bras couche par couche','présente la jambe couche par couche','présente le corps entier'],
+        verif:'anatomie',mots:/\b(?:presente\w*|presentation|couche par couche|animation|anime)\b/,
+        params:()=>'cibles : toute structure de la base d’anatomie (os, muscles, nerfs, artères, veines, organes), les groupes (quadriceps, rachis, main…) et les régions jambe, bras, tronc, tête, corps entier ; le texte vient des fiches sourcées (Gray 1918, Terminologia Anatomica), les références sont dites à la fin',
+        limites:['aucun fait inventé : une information absente des fiches est dite absente','la peau n’a pas de fiche détaillée : seule l’enveloppe est montrée','la voix suit le réglage de Raylé ; sans voix, les sous-titres défilent seuls','« décris-moi l’humérus » garde le petit aperçu 3D, « présente l’humérus » lance l’animation']},
+      {id:'cerveau',nom:'Cerveau 3D',
+        court:'ouvrir la fenêtre Cerveau 3D : montrer et expliquer une zone (lobes, hippocampe, amygdale, thalamus, cervelet…) ; réseaux de neurones animés (vision, langage, mouvement…) ; vues et coupes, aires de Brodmann, tour guidé, qualité Éco à Ultra',
+        ex:['montre l’hippocampe','explique le lobe frontal','fais-moi un tour du cerveau','coupe sagittale du cerveau','affiche les aires de Brodmann','montre le réseau de la vision dans le cerveau','qualité ultra pour le cerveau'],
+        verif:'anatomie',mots:/\b(?:cerveau|encephale|cortex|neurones?|cervelet|hippocampe|amygdale|thalamus|lobe|brodmann|sagittale|coronale|axiale)\b/,
+        params:()=>'zones : lobes frontal, pariétal, temporal, occipital, insula, cortex moteur, somesthésique, visuel, auditif, préfrontal, aires de Broca et de Wernicke, gyrus cingulaire, hippocampe, amygdale, thalamus, hypothalamus, noyaux gris centraux, cervelet, tronc cérébral, ventricules, corps calleux, substance blanche · réseaux : vision, langage, mouvement, sensibilité, audition, mémoire, émotion, attention, fonctions exécutives · vues : latérale, médiane, coronale, axiale, dessus, dessous',
+        limites:['les faisceaux de substance blanche et les impulsions des neurones sont schématiques (aucune tractographie de ce cerveau)','les aires de Brodmann sont approximatives (centres moyens de la littérature)','les fiches sont rédigées d’après Gray 1918, Purves et Kandel, sans relecture clinique : ce n’est pas un avis médical','Ultra est très gourmand : je repasse au palier inférieur si l’image devient trop lente, et je ne le choisis jamais seule']},
       {id:'drive',nom:'Documents du Drive (Google)',
         court:'ouvrir, lire, résumer, chercher et modifier (aperçu avant/après, annulation) les Google Docs, PDF, Word, textes, Sheets et Slides que Justin a choisis ; fenêtre flottante, plein écran',
         outils:['drive:ouvrir','drive:lire-passage','drive:resumer','drive:chercher','drive:lister','drive:modifier','drive:enregistrer','drive:annuler'],
@@ -109,7 +121,7 @@
       if(e){ s.ecran=e.vue||s.ecran; s.espace={fond:e.fond,cible:e.cible,nom:e.nom,accueil:e.accueil,echelle:e.echelle,zoom:e.zoom,vol:e.vol,palier:e.palier}; }
       return s;
     }
-    const NOM_ECRAN={rayle:'accueil de Raylé (entité au centre)',terminal:'terminal de trading',anatomie:'module Anatomie'};
+    const NOM_ECRAN={rayle:'accueil de Raylé (entité au centre)',terminal:'terminal de trading',anatomie:'module Anatomie',cerveau:'fenêtre Cerveau 3D'};
     function etatTexte(){
       const s=etat(), p=['ÉTAT : écran actif = '+(NOM_ECRAN[s.ecran]||s.ecran)];
       if(s.espace){

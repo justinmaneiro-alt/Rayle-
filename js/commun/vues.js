@@ -1,12 +1,13 @@
 "use strict";
 /* ═════════════ VUES : Raylé (par défaut), terminal et Anatomie & Orthopédie, dans la même page ═════════════
-   Le terminal et la fenêtre Anatomie sont des vues plein écran (#vueTerminal, #vueAnatomie) chargées à la première ouverture.
+   Le terminal et les fenêtres Anatomie et Cerveau sont des vues plein écran (#vueTerminal, #vueAnatomie, #vueCerveau) chargées à la première ouverture.
    Demandes par le bus : emit('vue:demande',{vue:'terminal'|'anatomie'|'rayle', options}). Réponse : emit('vue:changee',{vue}).
-   Services : 'vue' (vue courante) · 'vue:ouvrir' (terminal) · 'vue:ouvrir-anatomie'(options) · 'vue:fermer' (ferme la vue ouverte, quelle qu'elle soit). */
+   Services : 'vue' (vue courante) · 'vue:ouvrir' (terminal) · 'vue:ouvrir-anatomie'(options) · 'vue:ouvrir-cerveau'(options) · 'vue:fermer' (ferme la vue ouverte, quelle qu'elle soit). */
 (function(){
   const PLEINES={
-    terminal:{ el:'vueTerminal', url:'js/terminal/terminal.js?v=2026.10.14.1', hash:'#terminal', classe:'vue-terminal', erreur:'Terminal impossible à charger : ', bus:'terminal' },
-    anatomie:{ el:'vueAnatomie', url:'js/anatomie/fenetre.js?v=2026.10.14.1', hash:'#anatomie', classe:'vue-anatomie', erreur:'Anatomie impossible à charger : ', bus:'anatomie' }
+    terminal:{ el:'vueTerminal', url:'js/terminal/terminal.js?v=2026.10.14.2', hash:'#terminal', classe:'vue-terminal', erreur:'Terminal impossible à charger : ', bus:'terminal' },
+    anatomie:{ el:'vueAnatomie', url:'js/anatomie/fenetre.js?v=2026.10.14.2', hash:'#anatomie', classe:'vue-anatomie', erreur:'Anatomie impossible à charger : ', bus:'anatomie' },
+    cerveau:{ el:'vueCerveau', url:'js/anatomie/cerveau-fenetre.js?v=2026.10.14.2', hash:'#cerveau', classe:'vue-cerveau', erreur:'Cerveau impossible à charger : ', bus:'cerveau' }
   };
   let vue='rayle', pousse=false;
   const modules={}, chargements={};
@@ -23,8 +24,8 @@
     RayleBus.fusion(p.bus,{ouvert:false});
   }
   async function afficher(v,options){
-    if(v===vue && !(v==='anatomie' && options)) return;
-    if(v==='terminal' || v==='anatomie'){
+    if(v===vue && !((v==='anatomie' || v==='cerveau') && options)) return;
+    if(PLEINES[v]){
       const p=PLEINES[v]; let m;
       try{ m=await charger(v); }
       catch(e){ RayleBus.emit('vue:erreur',{message:p.erreur+(e&&e.message||e)}); return; }
@@ -37,6 +38,7 @@
     }
     RayleBus.fusion('terminal',{ouvert:vue==='terminal'});
     RayleBus.fusion('anatomie',{ouvert:vue==='anatomie'});
+    RayleBus.fusion('cerveau',{ouvert:vue==='cerveau'});
     RayleBus.emit('vue:changee',{vue});
   }
   function ouvrirVue(nom,options){
@@ -47,6 +49,7 @@
   }
   const ouvrirTerminal=()=>ouvrirVue('terminal');
   const ouvrirAnatomie=options=>ouvrirVue('anatomie',options||null);
+  const ouvrirCerveau=options=>ouvrirVue('cerveau',options||null);
   function retour(){
     if(vue==='rayle') return;
     const hash=PLEINES[vue].hash;
@@ -55,12 +58,13 @@
     if(pousse){ pousse=false; if(location.hash===hash){ try{ history.back(); }catch(e){} } return; }
     try{ history.replaceState(null,'',location.pathname+location.search); }catch(e){}
   }
-  const depuisAdresse=()=>location.hash==='#terminal'?'terminal':location.hash==='#anatomie'?'anatomie':'rayle';
+  const depuisAdresse=()=>location.hash==='#terminal'?'terminal':location.hash==='#anatomie'?'anatomie':location.hash==='#cerveau'?'cerveau':'rayle';
   window.addEventListener('popstate',()=>afficher(depuisAdresse()));
   RayleBus.on('vue:demande',d=>{ if(d&&PLEINES[d.vue]) ouvrirVue(d.vue,d.options||null); else retour(); });
   RayleBus.fournir('vue',()=>vue);
   RayleBus.fournir('vue:ouvrir',ouvrirTerminal);
   RayleBus.fournir('vue:ouvrir-anatomie',ouvrirAnatomie);
+  RayleBus.fournir('vue:ouvrir-cerveau',ouvrirCerveau);
   RayleBus.fournir('vue:fermer',retour);
 
   document.addEventListener('DOMContentLoaded',()=>{

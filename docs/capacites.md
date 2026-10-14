@@ -47,6 +47,24 @@ décrire une structure du corps (os, muscles, nerfs, organes) dans une fenêtre 
 - **Exemples** : « décris-moi l’humérus », « où s’insère le biceps », « ouvre l’anatomie », « affiche les muscles et les nerfs », « montre une fracture du col du fémur », « scoliose de 40 degrés ».
 - **Vérification automatique** : oui (les exemples sont passés dans l’analyseur réel par `tests/capacites-test.mjs`).
 
+## Présentations animées du corps
+
+présenter en animation 3D un os, un muscle, un nerf, un vaisseau ou un organe (caméra, étiquettes, narration, sous-titres) · présenter un membre, le tronc, la tête ou le corps entier couche par couche · pause, suivant, vitesse, plein écran.
+
+- **Paramètres (lus dans le code)** : cibles : toute structure de la base d’anatomie (os, muscles, nerfs, artères, veines, organes), les groupes (quadriceps, rachis, main…) et les régions jambe, bras, tronc, tête, corps entier ; le texte vient des fiches sourcées (Gray 1918, Terminologia Anatomica), les références sont dites à la fin.
+- **Cas limites** : aucun fait inventé : une information absente des fiches est dite absente ; la peau n’a pas de fiche détaillée : seule l’enveloppe est montrée ; la voix suit le réglage de Raylé ; sans voix, les sous-titres défilent seuls ; « décris-moi l’humérus » garde le petit aperçu 3D, « présente l’humérus » lance l’animation.
+- **Exemples** : « présente le fémur », « présente-moi le biceps brachial », « présente le nerf médian », « présente tout le bras couche par couche », « présente la jambe couche par couche », « présente le corps entier ».
+- **Vérification automatique** : oui (les exemples sont passés dans l’analyseur réel par `tests/capacites-test.mjs`).
+
+## Cerveau 3D
+
+ouvrir la fenêtre Cerveau 3D : montrer et expliquer une zone (lobes, hippocampe, amygdale, thalamus, cervelet…) · réseaux de neurones animés (vision, langage, mouvement…) · vues et coupes, aires de Brodmann, tour guidé, qualité Éco à Ultra.
+
+- **Paramètres (lus dans le code)** : zones : lobes frontal, pariétal, temporal, occipital, insula, cortex moteur, somesthésique, visuel, auditif, préfrontal, aires de Broca et de Wernicke, gyrus cingulaire, hippocampe, amygdale, thalamus, hypothalamus, noyaux gris centraux, cervelet, tronc cérébral, ventricules, corps calleux, substance blanche · réseaux : vision, langage, mouvement, sensibilité, audition, mémoire, émotion, attention, fonctions exécutives · vues : latérale, médiane, coronale, axiale, dessus, dessous.
+- **Cas limites** : les faisceaux de substance blanche et les impulsions des neurones sont schématiques (aucune tractographie de ce cerveau) ; les aires de Brodmann sont approximatives (centres moyens de la littérature) ; les fiches sont rédigées d’après Gray 1918, Purves et Kandel, sans relecture clinique : ce n’est pas un avis médical ; Ultra est très gourmand : je repasse au palier inférieur si l’image devient trop lente, et je ne le choisis jamais seule.
+- **Exemples** : « montre l’hippocampe », « explique le lobe frontal », « fais-moi un tour du cerveau », « coupe sagittale du cerveau », « affiche les aires de Brodmann », « montre le réseau de la vision dans le cerveau », « qualité ultra pour le cerveau ».
+- **Vérification automatique** : oui (les exemples sont passés dans l’analyseur réel par `tests/capacites-test.mjs`).
+
 ## Documents du Drive (Google)
 
 ouvrir, lire, résumer, chercher et modifier (aperçu avant/après, annulation) les Google Docs, PDF, Word, textes, Sheets et Slides que Justin a choisis · fenêtre flottante, plein écran.

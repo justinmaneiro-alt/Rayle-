@@ -38,7 +38,7 @@
   try{ const p=JSON.parse(localStorage.getItem('rayle_persona')||'null'); if(p) persona=Object.assign(persona,p); }catch(e){}
   const fx=(vous,tu)=>persona.adresse==='tu'?tu:vous;
   const fem=(m,f)=>persona.feminin?f:m;
-  const vitesseCourante=()=>{ const v=prefs.vitesse(); return (v!=null && isFinite(v)) ? v : (isFinite(persona.vitesse)?persona.vitesse:-8); };
+  const vitesseCourante=()=>{ const v=prefs.vitesse(), b=(v!=null && isFinite(v)) ? v : (isFinite(persona.vitesse)?persona.vitesse:-8), d=Number(window.RAYLE_VIT_DELTA)||0; return d ? Math.max(-40,Math.min(20,b+d)) : b; };      // RAYLE_VIT_DELTA : écart temporaire réglé par le lecteur de présentations
   const pick=a=>a[Math.floor(Math.random()*a.length)];
 
   /* ═════════════ ÉTAT & JOURNAL ═════════════ */
