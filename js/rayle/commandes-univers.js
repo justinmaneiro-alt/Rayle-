@@ -5,7 +5,7 @@
      • commandeUnivers(texte) : exécute (localisation, rangement, Univers 3D) et renvoie la phrase à dire, ou null si ce n'est pas pour nous.
      • window.RayleUniversPont : ce que l'Univers (modules ES, js/univers/) peut demander à la page classique : parler, savoir si on l'a coupée, Worker.
      • window.RayleUnivers : ouvrir / fermer / commander l'Univers (chargé à la première utilisation, js/univers/noyau.js). */
-  const UNIVERS_URL='js/univers/noyau.js?v=2026.10.14.5';
+  const UNIVERS_URL='js/univers/noyau.js?v=2026.10.15.1';
   let universModule=null, universPromesse=null;
   function universCharger(){
     if(universModule) return Promise.resolve(universModule);

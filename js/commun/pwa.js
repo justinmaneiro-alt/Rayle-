@@ -11,7 +11,7 @@
   function proposerMiseAJour(nouvelle){
     if(banniere) return;
     banniere=document.createElement('div'); banniere.className='maj-banniere'; banniere.setAttribute('role','status');
-    const t=document.createElement('span'); t.textContent='Nouvelle version de Raylé'+(nouvelle?' ('+nouvelle+')':'')+' disponible.';
+    const t=document.createElement('span'); t.textContent='Nouvelle version d’Écosystème Rayle'+(nouvelle?' ('+nouvelle+')':'')+' disponible.';
     const b=document.createElement('button'); b.type='button'; b.textContent='Mettre à jour';
     b.addEventListener('click',()=>location.reload());
     const x=document.createElement('button'); x.type='button'; x.className='ghost'; x.textContent='Plus tard';
@@ -46,12 +46,12 @@
   const btnInstall=$('cfgInstaller'), infoInstall=$('installInfo');
   function majInstall(){
     if(!btnInstall) return;
-    if(enAppli()){ btnInstall.hidden=true; infoInstall.textContent="Raylé est installée sur cet appareil (elle s'ouvre déjà sans barre de navigateur)."; return; }
+    if(enAppli()){ btnInstall.hidden=true; infoInstall.textContent="Écosystème Rayle est installé sur cet appareil (il s'ouvre déjà sans barre de navigateur)."; return; }
     btnInstall.hidden=!invite;
-    infoInstall.textContent=invite?"Installer Raylé : icône sur l'écran d'accueil et ouverture en plein écran.":"Pour l'installer : menu ⋮ de Chrome, puis « Installer l'application » (ou « Ajouter à l'écran d'accueil »).";
+    infoInstall.textContent=invite?"Installer Écosystème Rayle : icône sur l'écran d'accueil et ouverture en plein écran.":"Pour l'installer : menu ⋮ de Chrome, puis « Installer l'application » (ou « Ajouter à l'écran d'accueil »).";
   }
   window.addEventListener('beforeinstallprompt',e=>{ e.preventDefault(); invite=e; majInstall(); });
-  window.addEventListener('appinstalled',()=>{ invite=null; majInstall(); try{ addLine('sys','Raylé est installée.'); }catch(e){} });
+  window.addEventListener('appinstalled',()=>{ invite=null; majInstall(); try{ addLine('sys','Écosystème Rayle est installé.'); }catch(e){} });
   if(btnInstall) btnInstall.addEventListener('click',async()=>{ if(!invite) return; invite.prompt(); try{ await invite.userChoice; }catch(e){} invite=null; majInstall(); });
   const btnMaj=$('cfgMaj');
   if(btnMaj) btnMaj.addEventListener('click',async()=>{
@@ -59,7 +59,7 @@
     try{
       const v=await versionServeur();
       if(v && v!==VERSION){ msg.textContent='Nouvelle version '+v+' trouvée (vous avez '+VERSION+').'; proposerMiseAJour(v); }
-      else msg.textContent='✔ Raylé est à jour (version '+VERSION+').';
+      else msg.textContent='✔ Écosystème Rayle est à jour (version '+VERSION+').';
     }catch(e){ msg.textContent='✖ Impossible de vérifier (hors ligne ?).'; }
   });
   majInstall();

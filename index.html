@@ -5,31 +5,31 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content">
 <meta name="theme-color" content="#030103">
 <meta name="mobile-web-app-capable" content="yes">
-<meta name="application-name" content="Raylé">
+<meta name="application-name" content="Écosystème Rayle">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="apple-mobile-web-app-title" content="Raylé">
-<title>RAYLÉ // Market &amp; Neural Core</title>
+<meta name="apple-mobile-web-app-title" content="Écosystème Rayle">
+<title>Écosystème Rayle</title>
 <script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.min.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"}}</script>
 <link rel="icon" type="image/svg+xml" href="favicon.svg">
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="apple-touch-icon" href="icones/apple-touch-icon.png">
-<link rel="stylesheet" href="css/rayle.css?v=2026.10.14.5">
-<link rel="stylesheet" href="css/hud.css?v=2026.10.14.5">
-<link rel="stylesheet" href="css/terminal.css?v=2026.10.14.5">
-<link rel="stylesheet" href="css/terminal-pro.css?v=2026.10.14.5">
-<link rel="stylesheet" href="ui/ui.css?v=2026.10.14.5">
-<link rel="stylesheet" href="css/monde.css?v=2026.10.14.5">
-<link rel="stylesheet" href="css/appareils.css?v=2026.10.14.5">
-<link rel="stylesheet" href="css/messages.css?v=2026.10.14.5">
-<link rel="stylesheet" href="css/anatomie.css?v=2026.10.14.5">
-<link rel="stylesheet" href="css/drive.css?v=2026.10.14.5">
-<link rel="stylesheet" href="css/univers.css?v=2026.10.14.5">
+<link rel="stylesheet" href="css/rayle.css?v=2026.10.15.1">
+<link rel="stylesheet" href="css/hud.css?v=2026.10.15.1">
+<link rel="stylesheet" href="css/terminal.css?v=2026.10.15.1">
+<link rel="stylesheet" href="css/terminal-pro.css?v=2026.10.15.1">
+<link rel="stylesheet" href="ui/ui.css?v=2026.10.15.1">
+<link rel="stylesheet" href="css/monde.css?v=2026.10.15.1">
+<link rel="stylesheet" href="css/appareils.css?v=2026.10.15.1">
+<link rel="stylesheet" href="css/messages.css?v=2026.10.15.1">
+<link rel="stylesheet" href="css/anatomie.css?v=2026.10.15.1">
+<link rel="stylesheet" href="css/drive.css?v=2026.10.15.1">
+<link rel="stylesheet" href="css/univers.css?v=2026.10.15.1">
 </head>
 <body>
   <canvas class="ui-fond" id="uiFond" aria-hidden="true"></canvas>
   <main class="scene" id="scene">
-    <div class="titre"><b>R A Y L É</b><span>Market &amp; Neural Core</span></div>
+    <div class="titre"><b>ÉCOSYSTÈME RAYLE</b><span>Neural Core</span></div>
     <div class="bridge off" id="bridgeStatus">TERMINAL · …</div>
     <div class="reactor idle" id="reactor" title="Toucher : réveiller Raylé ou la couper"></div>
     <div class="state" id="state">MICRO COUPÉ</div>
@@ -64,7 +64,7 @@
       <h3>Application</h3>
       <label class="chk"><input type="checkbox" id="kEcran"> Garder l'écran allumé pendant que Raylé est ouverte</label>
       <div class="row">
-        <button type="button" id="cfgInstaller" hidden>Installer Raylé</button>
+        <button type="button" id="cfgInstaller" hidden>Installer Écosystème Rayle</button>
         <button type="button" class="ghost" id="cfgMaj">Chercher une mise à jour</button>
         <button type="button" class="ghost" id="cfgMini">Ouvrir la mini-vue</button>
       </div>
@@ -260,7 +260,7 @@
     <div class="pagepro" id="pageAnalyse" data-pro="analyse"></div>
     <div class="pagepro" id="pageMonde" data-pro="monde"></div>
 
-    <div class="foot"><span id="versionPage">Version 2026.10.14.5</span> · Données via le Worker Raylé (Yahoo Finance, Twelve Data, CNBC, CFTC, Binance) · Carnet Bitstamp · Graphique Raylé : <a href="https://www.tradingview.com/" target="_blank" rel="noopener" style="color:inherit">TradingView</a> Lightweight Charts™ (Apache 2.0) et widgets TradingView — outil personnel. Raylé reste à l’écoute : dis « ferme le terminal » ou « retour ».</div>
+    <div class="foot"><span id="versionPage">Version 2026.10.15.1</span> · Données via le Worker Raylé (Yahoo Finance, Twelve Data, CNBC, CFTC, Binance) · Carnet Bitstamp · Graphique Raylé : <a href="https://www.tradingview.com/" target="_blank" rel="noopener" style="color:inherit">TradingView</a> Lightweight Charts™ (Apache 2.0) et widgets TradingView — outil personnel. Raylé reste à l’écoute : dis « ferme le terminal » ou « retour ».</div>
   </div>
   <div class="mini">
     <div class="mini-dit" id="miniDit"></div>
@@ -270,85 +270,85 @@
   </div>
 </div>
 
-<script>window.RAYLE_VERSION='2026.10.14.5';</script>
-<script src="js/commun/bus.js?v=2026.10.14.5"></script>
-<script src="js/commun/vues.js?v=2026.10.14.5"></script>
-<script src="js/commun/entite.js?v=2026.10.14.5"></script>
-<script src="js/commun/panneaux.js?v=2026.10.14.5"></script>
-<script src="js/rayle/base.js?v=2026.10.14.5"></script>
-<script src="js/rayle/pont-terminal.js?v=2026.10.14.5"></script>
-<script src="js/rayle/commandes-terminal.js?v=2026.10.14.5"></script>
-<script src="js/rayle/pays-donnees.js?v=2026.10.14.5"></script>
-<script src="js/rayle/commandes-monde.js?v=2026.10.14.5"></script>
-<script src="js/rayle/commandes-anatomie.js?v=2026.10.14.5"></script>
-<script src="js/rayle/commandes-espace.js?v=2026.10.14.5"></script>
-<script src="js/config-drive.js?v=2026.10.14.5"></script>
-<script src="js/rayle/capacites.js?v=2026.10.14.5"></script>
-<script src="js/rayle/commandes-drive.js?v=2026.10.14.5"></script>
-<script src="js/rayle/nettoyage-voix.js?v=2026.10.14.5"></script>
-<script src="js/rayle/worker.js?v=2026.10.14.5"></script>
-<script src="js/rayle/voix.js?v=2026.10.14.5"></script>
-<script src="js/rayle/ia.js?v=2026.10.14.5"></script>
-<script src="js/rayle/phrase.js?v=2026.10.14.5"></script>
-<script src="js/rayle/agent.js?v=2026.10.14.5"></script>
-<script src="js/rayle/modes.js?v=2026.10.14.5"></script>
-<script src="js/rayle/coupure.js?v=2026.10.14.5"></script>
-<script src="js/rayle/marche.js?v=2026.10.14.5"></script>
-<script src="js/rayle/calendrier.js?v=2026.10.14.5"></script>
-<script src="js/rayle/calcul.js?v=2026.10.14.5"></script>
-<script src="js/rayle/panneaux-contenus.js?v=2026.10.14.5"></script>
-<script src="js/rayle/panneau-donnees.js?v=2026.10.14.5"></script>
-<script src="js/rayle/carte.js?v=2026.10.14.5"></script>
-<script src="js/rayle/savoirs.js?v=2026.10.14.5"></script>
-<script src="js/rayle/memoire.js?v=2026.10.14.5"></script>
-<script src="js/rayle/medias.js?v=2026.10.14.5"></script>
-<script src="js/rayle/lecture.js?v=2026.10.14.5"></script>
-<script src="js/rayle/reconnaissance.js?v=2026.10.14.5"></script>
-<script src="js/rayle/reglages.js?v=2026.10.14.5"></script>
-<script src="js/rayle/affichage.js?v=2026.10.14.5"></script>
-<script src="js/rayle/evenements.js?v=2026.10.14.5"></script>
-<script src="js/rayle/discretion.js?v=2026.10.14.5"></script>
-<script src="js/rayle/reponse-hud.js?v=2026.10.14.5"></script>
-<script src="js/rayle/securite.js?v=2026.10.14.5"></script>
-<script src="js/rayle/clap.js?v=2026.10.14.5"></script>
-<script src="js/rayle/ecoute-naturelle.js?v=2026.10.14.5"></script>
-<script src="js/rayle/initiative.js?v=2026.10.14.5"></script>
-<script src="js/rayle/appareils.js?v=2026.10.14.5"></script>
-<script src="js/rayle/localisation.js?v=2026.10.14.5"></script>
-<script src="js/rayle/rangement.js?v=2026.10.14.5"></script>
-<script src="js/rayle/commandes-univers.js?v=2026.10.14.5"></script>
-<script src="js/rayle/repertoire.js?v=2026.10.14.5"></script>
-<script src="js/rayle/relais.js?v=2026.10.14.5"></script>
-<script src="js/commun/pwa.js?v=2026.10.14.5"></script>
-<script src="js/rayle/demarrage.js?v=2026.10.14.5"></script>
-<script src="ui/themes.js?v=2026.10.14.5"></script>
-<script src="ui/astro.js?v=2026.10.14.5"></script>
-<script src="ui/sgp4.js?v=2026.10.14.5"></script>
-<script src="ui/cadrage.js?v=2026.10.14.5"></script>
-<script src="ui/settings.js?v=2026.10.14.5"></script>
-<script src="ui/ambiance.js?v=2026.10.14.5"></script>
-<script src="ui/ambiance-reglages.js?v=2026.10.14.5"></script>
-<script src="ui/fond-globe.js?v=2026.10.14.5"></script>
-<script src="ui/fond-jarvis.js?v=2026.10.14.5"></script>
-<script src="ui/espace-lieux.js?v=2026.10.14.5"></script>
-<script src="ui/espace-pays-centres.js?v=2026.10.14.5"></script>
-<script src="ui/espace-temps.js?v=2026.10.14.5"></script>
-<script src="ui/espace-terre-donnees.js?v=2026.10.14.5"></script>
-<script src="ui/espace-terre.js?v=2026.10.14.5"></script>
-<script src="ui/espace-savoir.js?v=2026.10.14.5"></script>
-<script src="ui/espace.js?v=2026.10.14.5"></script>
-<script src="ui/espace-textures.js?v=2026.10.14.5"></script>
-<script src="ui/espace-astres.js?v=2026.10.14.5"></script>
-<script src="ui/espace-iss.js?v=2026.10.14.5"></script>
-<script src="ui/espace-extras.js?v=2026.10.14.5"></script>
-<script src="ui/espace-terre-3d.js?v=2026.10.14.5"></script>
-<script src="ui/fond-espace.js?v=2026.10.14.5"></script>
-<script src="ui/espace-reglages.js?v=2026.10.14.5"></script>
-<script src="ui/background.js?v=2026.10.14.5"></script>
-<script src="ui/ambiance-fx.js?v=2026.10.14.5"></script>
-<script src="ui/entity.js?v=2026.10.14.5"></script>
-<script src="ui/entity-neurones.js?v=2026.10.14.5"></script>
-<script src="ui/panels.js?v=2026.10.14.5"></script>
-<script src="js/rayle/raccourcis.js?v=2026.10.14.5"></script>
+<script>window.RAYLE_VERSION='2026.10.15.1';</script>
+<script src="js/commun/bus.js?v=2026.10.15.1"></script>
+<script src="js/commun/vues.js?v=2026.10.15.1"></script>
+<script src="js/commun/entite.js?v=2026.10.15.1"></script>
+<script src="js/commun/panneaux.js?v=2026.10.15.1"></script>
+<script src="js/rayle/base.js?v=2026.10.15.1"></script>
+<script src="js/rayle/pont-terminal.js?v=2026.10.15.1"></script>
+<script src="js/rayle/commandes-terminal.js?v=2026.10.15.1"></script>
+<script src="js/rayle/pays-donnees.js?v=2026.10.15.1"></script>
+<script src="js/rayle/commandes-monde.js?v=2026.10.15.1"></script>
+<script src="js/rayle/commandes-anatomie.js?v=2026.10.15.1"></script>
+<script src="js/rayle/commandes-espace.js?v=2026.10.15.1"></script>
+<script src="js/config-drive.js?v=2026.10.15.1"></script>
+<script src="js/rayle/capacites.js?v=2026.10.15.1"></script>
+<script src="js/rayle/commandes-drive.js?v=2026.10.15.1"></script>
+<script src="js/rayle/nettoyage-voix.js?v=2026.10.15.1"></script>
+<script src="js/rayle/worker.js?v=2026.10.15.1"></script>
+<script src="js/rayle/voix.js?v=2026.10.15.1"></script>
+<script src="js/rayle/ia.js?v=2026.10.15.1"></script>
+<script src="js/rayle/phrase.js?v=2026.10.15.1"></script>
+<script src="js/rayle/agent.js?v=2026.10.15.1"></script>
+<script src="js/rayle/modes.js?v=2026.10.15.1"></script>
+<script src="js/rayle/coupure.js?v=2026.10.15.1"></script>
+<script src="js/rayle/marche.js?v=2026.10.15.1"></script>
+<script src="js/rayle/calendrier.js?v=2026.10.15.1"></script>
+<script src="js/rayle/calcul.js?v=2026.10.15.1"></script>
+<script src="js/rayle/panneaux-contenus.js?v=2026.10.15.1"></script>
+<script src="js/rayle/panneau-donnees.js?v=2026.10.15.1"></script>
+<script src="js/rayle/carte.js?v=2026.10.15.1"></script>
+<script src="js/rayle/savoirs.js?v=2026.10.15.1"></script>
+<script src="js/rayle/memoire.js?v=2026.10.15.1"></script>
+<script src="js/rayle/medias.js?v=2026.10.15.1"></script>
+<script src="js/rayle/lecture.js?v=2026.10.15.1"></script>
+<script src="js/rayle/reconnaissance.js?v=2026.10.15.1"></script>
+<script src="js/rayle/reglages.js?v=2026.10.15.1"></script>
+<script src="js/rayle/affichage.js?v=2026.10.15.1"></script>
+<script src="js/rayle/evenements.js?v=2026.10.15.1"></script>
+<script src="js/rayle/discretion.js?v=2026.10.15.1"></script>
+<script src="js/rayle/reponse-hud.js?v=2026.10.15.1"></script>
+<script src="js/rayle/securite.js?v=2026.10.15.1"></script>
+<script src="js/rayle/clap.js?v=2026.10.15.1"></script>
+<script src="js/rayle/ecoute-naturelle.js?v=2026.10.15.1"></script>
+<script src="js/rayle/initiative.js?v=2026.10.15.1"></script>
+<script src="js/rayle/appareils.js?v=2026.10.15.1"></script>
+<script src="js/rayle/localisation.js?v=2026.10.15.1"></script>
+<script src="js/rayle/rangement.js?v=2026.10.15.1"></script>
+<script src="js/rayle/commandes-univers.js?v=2026.10.15.1"></script>
+<script src="js/rayle/repertoire.js?v=2026.10.15.1"></script>
+<script src="js/rayle/relais.js?v=2026.10.15.1"></script>
+<script src="js/commun/pwa.js?v=2026.10.15.1"></script>
+<script src="js/rayle/demarrage.js?v=2026.10.15.1"></script>
+<script src="ui/themes.js?v=2026.10.15.1"></script>
+<script src="ui/astro.js?v=2026.10.15.1"></script>
+<script src="ui/sgp4.js?v=2026.10.15.1"></script>
+<script src="ui/cadrage.js?v=2026.10.15.1"></script>
+<script src="ui/settings.js?v=2026.10.15.1"></script>
+<script src="ui/ambiance.js?v=2026.10.15.1"></script>
+<script src="ui/ambiance-reglages.js?v=2026.10.15.1"></script>
+<script src="ui/fond-globe.js?v=2026.10.15.1"></script>
+<script src="ui/fond-jarvis.js?v=2026.10.15.1"></script>
+<script src="ui/espace-lieux.js?v=2026.10.15.1"></script>
+<script src="ui/espace-pays-centres.js?v=2026.10.15.1"></script>
+<script src="ui/espace-temps.js?v=2026.10.15.1"></script>
+<script src="ui/espace-terre-donnees.js?v=2026.10.15.1"></script>
+<script src="ui/espace-terre.js?v=2026.10.15.1"></script>
+<script src="ui/espace-savoir.js?v=2026.10.15.1"></script>
+<script src="ui/espace.js?v=2026.10.15.1"></script>
+<script src="ui/espace-textures.js?v=2026.10.15.1"></script>
+<script src="ui/espace-astres.js?v=2026.10.15.1"></script>
+<script src="ui/espace-iss.js?v=2026.10.15.1"></script>
+<script src="ui/espace-extras.js?v=2026.10.15.1"></script>
+<script src="ui/espace-terre-3d.js?v=2026.10.15.1"></script>
+<script src="ui/fond-espace.js?v=2026.10.15.1"></script>
+<script src="ui/espace-reglages.js?v=2026.10.15.1"></script>
+<script src="ui/background.js?v=2026.10.15.1"></script>
+<script src="ui/ambiance-fx.js?v=2026.10.15.1"></script>
+<script src="ui/entity.js?v=2026.10.15.1"></script>
+<script src="ui/entity-neurones.js?v=2026.10.15.1"></script>
+<script src="ui/panels.js?v=2026.10.15.1"></script>
+<script src="js/rayle/raccourcis.js?v=2026.10.15.1"></script>
 </body>
 </html>

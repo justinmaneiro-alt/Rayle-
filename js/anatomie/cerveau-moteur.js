@@ -4,9 +4,9 @@
    Neurones animés : impulsions lumineuses qui parcourent les faisceaux et des réseaux locaux sous le cortex ; leur nombre et leur intensité suivent la zone ou le réseau choisi.
    Qualité : eco · standard · haute · ultra (jamais choisi automatiquement) ; si l'image devient trop lente le moteur le signale (surDegrade) pour redescendre d'un palier.
    Repère du modèle : mètres, y vers le haut, face vers +z, côté gauche du sujet vers +x (comme tout le module Anatomie). */
-import { chargerCouche } from './modeles-glb.js?v=2026.10.14.5';
-import * as D from './donnees-cerveau.js?v=2026.10.14.5';
-import { zoneDeStructure } from './cerveau-recherche.js?v=2026.10.14.5';
+import { chargerCouche } from './modeles-glb.js?v=2026.10.15.1';
+import * as D from './donnees-cerveau.js?v=2026.10.15.1';
+import { zoneDeStructure } from './cerveau-recherche.js?v=2026.10.15.1';
 
 export const NIVEAUX_CERVEAU = ['eco', 'standard', 'haute', 'ultra'];
 export const NOMS_NIVEAUX_CERVEAU = { eco: 'Éco', standard: 'Standard', haute: 'Haute', ultra: 'Ultra' };

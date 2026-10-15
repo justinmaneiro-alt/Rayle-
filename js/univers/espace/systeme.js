@@ -3,8 +3,8 @@
 // Échelles : « didactique » (défaut) = distances vraies (1 UA = 60 unités), planètes agrandies d'un MÊME facteur (×390 : leurs tailles relatives sont exactes), Soleil réduit à 9 unités ;
 //            « réelle » = tout à la vraie échelle (les planètes sont alors de simples points : zoomer pour les trouver).
 // creerSysteme(ctx) → { groupe, maj(dt, t, ts, tSim, camera), positionMonde(id), rayon(id), pick(camera, x, y, w, h), echelle(mode), nommes, detruire() }
-import { ASTRES, ORDRE_PLANETES, LUNES, UA_KM, positionHelio, pointsOrbite } from '../donnees/planetes.js?v=2026.10.14.5';
-import { creerCeinture, textureRoche, geometrieRocher } from './asteroides.js?v=2026.10.14.5';
+import { ASTRES, ORDRE_PLANETES, LUNES, UA_KM, positionHelio, pointsOrbite } from '../donnees/planetes.js?v=2026.10.15.1';
+import { creerCeinture, textureRoche, geometrieRocher } from './asteroides.js?v=2026.10.15.1';
 
 export const UA_U = 60;                                     // unités par UA
 const BOOST = 390, RAD = Math.PI / 180;

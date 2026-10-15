@@ -2,7 +2,7 @@
    Lecture : documents.get → paragraphes avec leur position (deb/fin) dans le document.
    Écriture : documents.batchUpdate avec le plus petit changement possible (on ne supprime/insère que ce qui change : le gras, les liens, les tailles autour sont gardés).
    Un objet qui n'est pas du texte (image, saut de page, équation) est représenté par « ￼ » pour que les positions restent exactes. */
-import { changementMinimal } from './modele.js?v=2026.10.14.5';
+import { changementMinimal } from './modele.js?v=2026.10.15.1';
 
 export const OBJET = '￼';
 const NIVEAUX = { TITLE: 1, SUBTITLE: 2, HEADING_1: 1, HEADING_2: 2, HEADING_3: 3, HEADING_4: 4, HEADING_5: 5, HEADING_6: 6 };

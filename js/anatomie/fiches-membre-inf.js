@@ -1,5 +1,5 @@
 /* Fiches : bassin, cuisse, jambe, pied. Source : Gray's Anatomy 1918, Myologie (voir fiches-corps.js). */
-import { f, SOURCE_GRAY } from './fiches-outils.js?v=2026.10.14.5';
+import { f, SOURCE_GRAY } from './fiches-outils.js?v=2026.10.15.1';
 
 const MI = SOURCE_GRAY + ', Myologie : muscles du bassin, de la cuisse, de la jambe et du pied';
 

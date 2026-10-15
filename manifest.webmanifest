@@ -1,7 +1,7 @@
 {
-  "name": "Raylé — Market & Neural Core",
-  "short_name": "Raylé",
-  "description": "Raylé, assistante vocale et terminal de trading.",
+  "name": "Écosystème Rayle",
+  "short_name": "Écosystème Rayle",
+  "description": "Écosystème Rayle : Rayle, assistante vocale, avec ses outils (terminal, anatomie, espace).",
   "lang": "fr",
   "id": "./",
   "start_url": "./index.html",
