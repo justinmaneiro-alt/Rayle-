@@ -7,7 +7,7 @@
 //   • sous D_PLEIN la carte seule : elle reçoit les gestes (glisser, pincer, molette) et le globe cesse d'être dessiné ;
 //   • en dézoomant dans la carte, le fondu repart dans l'autre sens et le globe reprend la main.
 // MapLibre est chargé à la demande (js/vendor/maplibre/, UMD) : rien n'est téléchargé tant qu'on reste loin du sol.
-import { construireStyle, zoomPourDistance, distancePourZoom, opaciteCarte, D_OUVRE, D_PLEIN, ZOOM_MIN_CARTE, ZOOM_MAX_CARTE, distanceKm, zoomDepuisNiveau, zoomPourBoite, zoomPourLieu, nomDuZoom, cerclePoly } from './carte-style.js?v=2026.10.15.5';
+import { construireStyle, zoomPourDistance, distancePourZoom, opaciteCarte, D_OUVRE, D_PLEIN, ZOOM_MIN_CARTE, ZOOM_MAX_CARTE, distanceKm, zoomDepuisNiveau, zoomPourBoite, zoomPourLieu, nomDuZoom, cerclePoly } from './carte-style.js?v=2026.10.15.6';
 
 const BASE_LIB = new URL('../../vendor/maplibre/', import.meta.url).href;
 const URL_REGIONS = new URL('../../../ui/assets/geo/france-regions.json', import.meta.url).href;

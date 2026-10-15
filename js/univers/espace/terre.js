@@ -5,7 +5,7 @@
 //   • Lune : vraie position et vraie distance (astro.luneEq), phases par l'éclairage du vrai Soleil, face visible tournée vers la Terre, éclipses de Soleil (ombre de la
 //     Lune sur la Terre) et de Lune (ombre de la Terre sur la Lune, teinte cuivrée) calculées par géométrie de cône (rayon angulaire du Soleil : 0,2666°).
 //   • Soleil : disque, couronne, éclat (lens flare). Distances en rayons terrestres (R⊕ = 1) : Lune ≈ 60 R⊕ (réelle), Soleil placé à 400 (taille apparente réelle 0,53°).
-import { prochaineEclipse as chercherEclipse } from './eclipses.js?v=2026.10.15.5';
+import { prochaineEclipse as chercherEclipse } from './eclipses.js?v=2026.10.15.6';
 const K_SOLEIL = 0.004653;                 // tan(0,2666°) : demi-angle apparent du Soleil
 const R_LUNE = 0.2727;                     // rayon de la Lune en R⊕
 const D_SOLEIL = 400;                      // distance de dessin du Soleil

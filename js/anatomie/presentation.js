@@ -6,10 +6,10 @@
      calques:[…]  visibles:[ids]|null  fantomes:[ids]  contexte:['os']  accent:[ids]  cadrer:[ids]  az/el/facteur  orbite:bool
      etiquettes:[{ phrase:n, texte, classe, ancre:{ bout:0|1, sid } | { centre:sid } | { contact:[sidA, sidB], cote:0|1 } }]
    Corps entier : ids d'instance ('femur:D'). Cerveau : scene = { zone, reseau, vue, coupe, calques }. */
-import * as R from './registre.js?v=2026.10.15.5';
-import { SOURCE_GRAY } from './fiches-outils.js?v=2026.10.15.5';
-import { ZONES_CERVEAU, ZONE_PAR_ID, RESEAU_PAR_ID, RESEAUX_CERVEAU, SOURCES_CERVEAU, FAISCEAU_PAR_ID, MENTION_CEREBRALE } from './donnees-cerveau.js?v=2026.10.15.5';
-import { trouverZone, trouverReseau, nomLatin } from './cerveau-recherche.js?v=2026.10.15.5';
+import * as R from './registre.js?v=2026.10.15.6';
+import { SOURCE_GRAY } from './fiches-outils.js?v=2026.10.15.6';
+import { ZONES_CERVEAU, ZONE_PAR_ID, RESEAU_PAR_ID, RESEAUX_CERVEAU, SOURCES_CERVEAU, FAISCEAU_PAR_ID, MENTION_CEREBRALE } from './donnees-cerveau.js?v=2026.10.15.6';
+import { trouverZone, trouverReseau, nomLatin } from './cerveau-recherche.js?v=2026.10.15.6';
 
 export const MANQUE = "Cette information n'est pas renseignée dans les sources que Raylé utilise.";
 export const REFERENCES_CORPS = [

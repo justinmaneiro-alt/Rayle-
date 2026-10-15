@@ -1,9 +1,9 @@
 /* ═════════════ APPAREILLAGES EN 3D : prothèses, corsets, orthèses, zones d'appui et de décharge ═════════════
    construireAppareil(THREE, C, ctx) → { group, notes:[{p,texte,classe}], mats:[] }
    ctx : { etat, amp (définition d'amputation) | null, modele (catalogue), positions (rachis effectif), courbes (effectives), pos(repèreId, cote) → [x,y,z]|null } */
-import { MATERIAUX } from './donnees-ortho.js?v=2026.10.15.5';
-import { rayonTronc, PROFONDEUR_TRONC, axeMembre } from './construction.js?v=2026.10.15.5';
-import { J, VERTEBRES } from './donnees-os.js?v=2026.10.15.5';
+import { MATERIAUX } from './donnees-ortho.js?v=2026.10.15.6';
+import { rayonTronc, PROFONDEUR_TRONC, axeMembre } from './construction.js?v=2026.10.15.6';
+import { J, VERTEBRES } from './donnees-os.js?v=2026.10.15.6';
 
 export const materiau = id => MATERIAUX.find(m => m.id === id) || MATERIAUX[0];
 const COULEUR_APPUI = 0xff8a3d, COULEUR_DECHARGE = 0x4da8ff, COULEUR_FORCE = 0xff3d6e;

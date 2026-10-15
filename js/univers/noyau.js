@@ -10,7 +10,7 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 
-const VERSION = '2026.10.15.5';
+const VERSION = '2026.10.15.6';
 const ASSETS = new URL('../../ui/assets/', import.meta.url).href;
 export const THEMES = {
   espace: { nom: 'Espace', icone: '🌍', url: './theme-espace.js?v=' + VERSION },
@@ -49,11 +49,13 @@ function construireVue() {
   const v = el('div'); v.id = 'vueUnivers'; v.hidden = true;
   v.innerHTML = '<canvas class="univ-canvas" tabindex="0" aria-label="Scène 3D : glisser pour tourner, pincer ou molette pour zoomer"></canvas>'
     + '<div class="univ-labels"></div><div class="univ-fondu"></div>'
-    + '<div class="univ-hud"><div class="univ-haut"><div><div class="univ-groupe univ-themes" role="group" aria-label="Thème"></div><div class="univ-sous" aria-label="Modes du thème"></div></div>'
-    + '<div class="univ-groupe"><button type="button" class="univ-b" data-a="ranger" title="Réduire Raylé en petite bulle : toute la scène est à toi">🫧 Ranger Raylé</button>'
+    + '<div class="univ-hud"><div class="univ-haut"><div class="univ-menu">'
+    + '<button type="button" class="univ-b univ-burger" data-a="panneau" aria-expanded="false" aria-controls="univPanneau" aria-label="Menu de l’Univers" title="Menu : vues, outils, qualité…">☰</button>'
+    + '<div class="univ-panneau" id="univPanneau" hidden><section class="univ-cat"><h4>Thème</h4><div class="univ-groupe univ-themes" role="group" aria-label="Thème"></div></section><div class="univ-sous" aria-label="Modes du thème"></div>'
+    + '<section class="univ-cat"><h4>Raylé et affichage</h4><div class="univ-groupe"><button type="button" class="univ-b" data-a="ranger" title="Réduire Raylé en petite bulle : toute la scène est à toi">🫧 Ranger Raylé</button>'
     + '<select class="univ-select" data-a="entite" aria-label="Position de l’entité Raylé" title="Où placer Raylé : petite dans un coin, grande au centre ou sur le côté"></select>'
     + '<select class="univ-select" data-a="qualite" aria-label="Qualité"><option value="auto">Qualité : auto</option><option value="basse">Basse</option><option value="moyenne">Moyenne</option><option value="haute">Haute</option></select>'
-    + '<button type="button" class="univ-b danger" data-a="quitter" title="Retour à Raylé">✕ Quitter</button></div></div>'
+    + '<button type="button" class="univ-b danger" data-a="quitter" title="Retour à Raylé">✕ Quitter</button></div></section></div></div></div>'
     + '<div class="univ-bas"><div class="univ-carte" hidden><button type="button" class="univ-x" aria-label="Fermer la fiche">✕</button><div class="univ-carte-c"></div></div><div class="univ-legende" role="status" aria-live="polite"></div></div>'
     + '<button type="button" class="univ-b univ-passer" hidden>⏭ Passer l’animation</button></div>'
     + '<div class="univ-charge"><div class="univ-charge-t">Chargement de l’Univers…</div><progress max="1" value="0"></progress></div>';
@@ -62,6 +64,10 @@ function construireVue() {
   E.vue = v; E.canvas = $('canvas', v); E.labels = $('.univ-labels', v);
   const themes = $('.univ-themes');
   for (const [id, t] of Object.entries(THEMES)) { const b = el('button', 'univ-b', t.icone + ' ' + t.nom); b.type = 'button'; b.dataset.theme = id; b.addEventListener('click', () => changerTheme(id)); themes.appendChild(b); }
+  const burger = v.querySelector('[data-a="panneau"]'), panneau = v.querySelector('#univPanneau');     // un seul panneau repliable (fermé par défaut) pour tous les boutons du haut
+  const panneauOuvert = oui => { panneau.hidden = !oui; burger.setAttribute('aria-expanded', oui ? 'true' : 'false'); burger.textContent = oui ? '✕' : '☰'; };
+  burger.addEventListener('click', () => panneauOuvert(panneau.hidden));
+  document.addEventListener('keydown', e => { if (e.key === 'Escape' && !panneau.hidden && !E.enCine) panneauOuvert(false); });
   v.querySelector('[data-a="quitter"]').addEventListener('click', () => fermer());
   v.querySelector('[data-a="ranger"]').addEventListener('click', () => { try { RayleRangement.basculer(); } catch (e) {} });
   const sel = v.querySelector('[data-a="qualite"]'); sel.value = choixQualite; sel.addEventListener('change', () => reglerQualite(sel.value));
@@ -94,7 +100,13 @@ export const hud = {
   },
   sousMenu(items) {
     const s = $('.univ-sous'); if (!s) return; s.textContent = '';
-    for (const it of items || []) { const b = el('button', 'univ-b', it.texte); b.type = 'button'; if (it.id) b.dataset.id = it.id; b.title = it.titre || ''; b.addEventListener('click', () => { try { it.clic(b); } catch (e) { console.warn(e); } }); if (it.actif) b.classList.add('actif'); s.appendChild(b); }
+    const cats = new Map();                                            // rangées par catégorie (it.cat), dans l'ordre de première apparition
+    for (const it of items || []) { const c = it.cat || 'Outils'; if (!cats.has(c)) cats.set(c, []); cats.get(c).push(it); }
+    for (const [nom, liste] of cats) {
+      const sec = el('section', 'univ-cat'), g = el('div', 'univ-groupe'); sec.appendChild(el('h4', '', nom));
+      for (const it of liste) { const b = el('button', 'univ-b', it.texte); b.type = 'button'; if (it.id) b.dataset.id = it.id; b.title = it.titre || ''; b.addEventListener('click', () => { try { it.clic(b); } catch (e) { console.warn(e); } }); if (it.actif) b.classList.add('actif'); g.appendChild(b); }
+      sec.appendChild(g); s.appendChild(sec);
+    }
   },
   charge(texte, p) {
     const c = $('.univ-charge'); if (!c) return;

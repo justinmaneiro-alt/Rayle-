@@ -7,7 +7,7 @@
      • window.RayleUnivers : ouvrir (plein écran) / fermer / fond / commander l'Univers (chargé à la première utilisation, js/univers/noyau.js).
      • Fond Univers : quand Réglages → Fond = Univers, la scène 3D de l'Univers tourne DERRIÈRE l'accueil (mode « fond », sans menu) et ces commandes la déplacent en direct :
        « montre-moi Mars », « retour au système solaire », « vue d'ensemble », « Terre-Lune », « la Lune de près », « l'ISS », « les satellites », « la prochaine éclipse », « les actualités », « où sont mes appareils », « temps réel », « ciel réel »… */
-  const UNIVERS_URL='js/univers/noyau.js?v=2026.10.15.5';
+  const UNIVERS_URL='js/univers/noyau.js?v=2026.10.15.6';
   let universModule=null, universPromesse=null;
   function universCharger(){
     if(universModule) return Promise.resolve(universModule);

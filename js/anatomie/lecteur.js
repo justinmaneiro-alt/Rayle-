@@ -3,7 +3,7 @@
    Raylé dit les phrases une par une (sous-titres synchronisés) ; barre tactile : précédent · pause/reprise · suivant · passer la phrase · vitesse · plein écran · fermer.
    Le lecteur ne connaît ni three.js ni le registre : tout passe par l'adaptateur { appliquer(etape, ctx), etiquette(etape, lab, i, ctx), retirerEtiquettes(), nettoyer() }.
    Voix : services du bus « anatomie:narrer » (promesse résolue à la fin de la phrase), « anatomie:silence », « anatomie:vitesse-voix » ; sans voix, la durée des sous-titres suit la longueur du texte. */
-import { h } from './outils.js?v=2026.10.15.5';
+import { h } from './outils.js?v=2026.10.15.6';
 
 export const VITESSES = [0.75, 1, 1.25, 1.5, 2];
 const attente = ms => new Promise(r => setTimeout(r, Math.max(0, ms)));

@@ -1,10 +1,10 @@
 // VUE « SYSTÈME SOLAIRE » du thème Espace : planètes, Soleil, lunes, Cérès, Vesta, ceinture d'astéroïdes ; sélection, vol de caméra, fiches, présentation animée.
 // Contrat d'une vue : creerVue(P) → { id, entrer(opts), sortir(), maj(dt, t, ts, tSim), tap(x, y), menu(), commande(nom, args), etat(), near(camera), ctrlAvant(c), detruire() }
 // P = contexte partagé du thème (voir theme-espace.js) : THREE, noyau, q, ctx, hud, scene, camera, ctrl, ts(), H, pont(), suivreTerre(), esc, vec.
-import { creerSysteme, UA_U } from './systeme.js?v=2026.10.15.5';
-import { ASTRES, ORDRE_PLANETES, comparaisons } from '../donnees/planetes.js?v=2026.10.15.5';
-import { composerAstre, ANGLES_LIBELLES, choisir } from '../donnees/presentation.js?v=2026.10.15.5';
-import * as Reg from '../planetes/registre.js?v=2026.10.15.5';
+import { creerSysteme, UA_U } from './systeme.js?v=2026.10.15.6';
+import { ASTRES, ORDRE_PLANETES, comparaisons } from '../donnees/planetes.js?v=2026.10.15.6';
+import { composerAstre, ANGLES_LIBELLES, choisir } from '../donnees/presentation.js?v=2026.10.15.6';
+import * as Reg from '../planetes/registre.js?v=2026.10.15.6';
 
 const RAD = Math.PI / 180;
 const ICONES = { mercure: '☿', venus: '♀', terre: '🌍', mars: '♂', jupiter: '♃', saturne: '♄', uranus: '⛢', neptune: '♆', soleil: '☀', ceres: '⚪', vesta: '🪨', asteroides: '☄' };
@@ -72,8 +72,8 @@ export default async function creerVue(P) {
     if (a.rotationH) l.push('Jour (rotation) : ' + (Math.abs(a.rotationH) > 72 ? fmt(Math.abs(a.rotationH) / 24, 1) + ' jours' : fmt(Math.abs(a.rotationH), 1) + ' h') + (a.rotationH < 0 ? ' (sens inverse)' : ''));
     if (a.lunes) l.push('Lunes connues : ' + (a.lunes > 20 ? 'plus de ' + Math.floor(a.lunes / 10) * 10 : a.lunes));
     if (a.temp) l.push('Température : ' + esc(a.temp));
-    const reg = Reg.PLANETES[id];                                                // monde intérieur : scène installée, ou « prêt à recevoir un thème »
-    if (reg) l.push('Monde intérieur : ' + (reg.themeInterieur ? '<b>' + esc(reg.themeInterieur.nom) + '</b>' : esc(reg.etatLibelle) + (reg.themePrevu ? ' <small>(prévu : ' + esc(reg.themePrevu) + ')</small>' : '')));
+    const reg = Reg.PLANETES[id];                                                // monde intérieur : scène installée, ou « bientôt »
+    if (reg) l.push('Monde intérieur : ' + (reg.themeInterieur ? '<b>' + esc(reg.themeInterieur.nom) + '</b>' : 'bientôt' + (reg.themePrevu ? ' <small>(prévu : ' + esc(reg.themePrevu) + ')</small>' : '')));
     const un = choisir([...(a.records || []), ...(a.anecdotes || []), ...(a.composition || [])], 'fiche:' + id);
     const actions = [{ texte: '🎬 Présenter', clic: () => presenter(id) }, { texte: '🎯 Zoom', clic: () => allerAstre(id) }];
     if (S.nommes.planetes.has(id)) actions.push({ texte: S.tourne() === id ? '⏸ Arrêter la rotation' : '🔄 Faire tourner', clic: () => { tournerAutour(id, S.tourne() !== id); ficheAstre(id); P.majMenu(); } });
@@ -140,7 +140,14 @@ export default async function creerVue(P) {
   }
   function sortir() { actif = false; S.groupe.visible = false; suivi = null; presEnCours++; ctrl.c.autoRotate = false; S.tourner(null); }
   function maj(dt, t, ts, tSim) { S.maj(dt, t, ts, tSim, camera); suit(); }
-  function tap(x, y) { const { w, h } = noyau.dims(); const id = S.pick(camera, x, y, w, h); if (id) { ficheAstre(id); if (suivi !== id) volerVers(id); } }
+  // la Terre est la maison de Rayle : la toucher ramène sur la Terre ; toucher deux fois dans le vide ramène aussi (vue d'ensemble → Terre)
+  let dernierVide = 0;
+  function tap(x, y) {
+    const { w, h } = noyau.dims(); const id = S.pick(camera, x, y, w, h);
+    if (id === 'terre') { P.allerVue('terre'); return; }
+    if (id) { dernierVide = 0; ficheAstre(id); if (suivi !== id) volerVers(id); return; }
+    const t = performance.now(); if (t - dernierVide < 600) { dernierVide = 0; P.allerVue('terre'); } else dernierVide = t;
+  }
   const menu = () => {
     const it = [{ id: 'interne', texte: '☀ Système interne', titre: 'Mercure à Mars, et la ceinture d’astéroïdes', clic: () => vueEnsemble('interne') }, { id: 'complet', texte: '🔭 Système complet', titre: 'Jusqu’à Neptune', clic: () => vueEnsemble('complet') }];
     for (const id of ['soleil', ...ORDRE_PLANETES]) it.push({ id: 'p-' + id, texte: (ICONES[id] || '') + ' ' + ASTRES[id].nom, titre: ASTRES[id].nom, actif: suivi === id, clic: () => { ficheAstre(id); volerVers(id).then(() => P.majMenu()); } });
