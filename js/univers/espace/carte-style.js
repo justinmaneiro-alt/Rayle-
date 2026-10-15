@@ -1,7 +1,7 @@
 // Style de la CARTE DE LA TERRE (MapLibre) et calculs purs globe ↔ carte. Aucun accès réseau, aucun DOM : testé par tests/terre-carte-test.mjs.
 // Tuiles : OpenFreeMap (vectorielles, schéma OpenMapTiles, gratuites, sans clé, faites pour un usage applicatif) — données © OpenStreetMap.
 // Détail PROGRESSIF : chaque couche a un minzoom/maxzoom (voir NIVEAUX) ; les étiquettes naissent et disparaissent avec le zoom, jamais toutes ensemble.
-// France : régions et départements viennent des contours officiels (IGN Admin Express via data.gouv.fr, ui/assets/geo/) ; les communes, villages et lieux-dits des tuiles.
+// France : régions et départements viennent des contours officiels (IGN Admin Express via data.gouv.fr, assets/geo/) ; les communes, villages et lieux-dits des tuiles.
 
 export const R_TERRE = 6371008.8;                 // rayon moyen de la Terre (m)
 export const FOV_CAMERA = 42;                     // champ vertical de la caméra du globe (degrés), voir theme-espace.js

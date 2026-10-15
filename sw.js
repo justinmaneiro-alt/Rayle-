@@ -1,21 +1,15 @@
 /* Service worker de Raylé : PRUDENT.
-   - Réseau d'abord pour tout (page, CSS, JS versionnés) : une version fraîche gagne toujours.
+   - Réseau d'abord pour tout (page, JS versionnés) : une version fraîche gagne toujours.
    - Le cache ne sert qu'EN SECOURS, quand le réseau échoue ou met plus de 8 s à répondre.
-   - Ne touche jamais aux autres origines (Worker, TradingView, Bitstamp…) ni aux requêtes non GET.
+   - Ne touche jamais aux autres origines (CDN three.js, tuiles de carte…) ni aux requêtes non GET.
    - Un cache par version ; les anciens sont supprimés à l'activation.
-   - Raccourcis d'appli (appui long sur l'icône : Parler, Terminal, Briefing, Monde) et mini-vue : ce sont des ouvertures de
-     index.html avec un #repère (#parler, #terminal, #briefing, #monde, #mini). Le repère reste dans la page (js/rayle/raccourcis.js) ;
-     ici, ce sont des navigations comme les autres : réseau d'abord, copie de secours si le réseau manque (le raccourci marche hors ligne).
-     Leurs icônes sont mises de côté à l'installation.
-   - Textures réelles du fond Espace (ui/assets/espace/, ~2,5 Mo en tout, chargées à la demande) : cache d'abord, dans un cache À PART qui survit aux
-     changements de version (elles ne sont ni retéléchargées à chaque mise à jour, ni perdues hors ligne). Si une image change, changer CACHE_TEX. */
+   - Textures du système solaire (assets/espace/, ~2,5 Mo en tout, chargées à la demande) : cache d'abord, dans un cache À PART qui survit aux
+     changements de version (ni retéléchargées à chaque mise à jour, ni perdues hors ligne). Si une image change, changer CACHE_TEX. */
 const VERSION = new URL(self.location.href).searchParams.get('v') || 'dev';
 const CACHE = 'rayle-' + VERSION;
 const DELAI_MS = 8000;
 const CACHE_TEX = 'rayle-tex-1';
-const DE_COTE = ['./index.html', './manifest.webmanifest', './icones/icone-192.png',
-  './ui/assets/fond-globe-planete.webp', './ui/assets/fond-espace-paysage.webp', './ui/assets/fond-espace-portrait.webp', './ui/assets/fond-jarvis-paysage.webp', './ui/assets/fond-jarvis-portrait.webp', './ui/assets/fond-jarvis-coeur.webp',   // images fixes de l'Espace (mode Éco) : disponibles hors ligne
-  './icones/raccourci-parler.png', './icones/raccourci-terminal.png', './icones/raccourci-briefing.png', './icones/raccourci-monde.png'];
+const DE_COTE = ['./index.html', './manifest.webmanifest', './icones/icone-192.png'];
 
 self.addEventListener('install', e => {
   self.skipWaiting();
@@ -64,6 +58,6 @@ self.addEventListener('fetch', e => {
   const u = new URL(req.url);
   if (u.origin !== self.location.origin) return;
   if (u.pathname.endsWith('/sw.js')) return;
-  if (u.pathname.includes('/ui/assets/espace/')) { e.respondWith(texturesCacheDabord(req)); return; }
+  if (u.pathname.includes('/assets/espace/')) { e.respondWith(texturesCacheDabord(req)); return; }
   e.respondWith(reseauPuisSecours(req));
 });

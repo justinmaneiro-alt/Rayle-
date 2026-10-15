@@ -7,11 +7,11 @@
 //   • sous D_PLEIN la carte seule : elle reçoit les gestes (glisser, pincer, molette) et le globe cesse d'être dessiné ;
 //   • en dézoomant dans la carte, le fondu repart dans l'autre sens et le globe reprend la main.
 // MapLibre est chargé à la demande (js/vendor/maplibre/, UMD) : rien n'est téléchargé tant qu'on reste loin du sol.
-import { construireStyle, zoomPourDistance, distancePourZoom, opaciteCarte, D_OUVRE, D_PLEIN, ZOOM_MIN_CARTE, ZOOM_MAX_CARTE, distanceKm, zoomDepuisNiveau, zoomPourBoite, zoomPourLieu, nomDuZoom, cerclePoly } from './carte-style.js?v=2026.10.15.6';
+import { construireStyle, zoomPourDistance, distancePourZoom, opaciteCarte, D_OUVRE, D_PLEIN, ZOOM_MIN_CARTE, ZOOM_MAX_CARTE, distanceKm, zoomDepuisNiveau, zoomPourBoite, zoomPourLieu, nomDuZoom, cerclePoly } from './carte-style.js?v=2026.10.15.7';
 
 const BASE_LIB = new URL('../../vendor/maplibre/', import.meta.url).href;
-const URL_REGIONS = new URL('../../../ui/assets/geo/france-regions.json', import.meta.url).href;
-const URL_DEPARTEMENTS = new URL('../../../ui/assets/geo/france-departements.json', import.meta.url).href;
+const URL_REGIONS = new URL('../../../assets/geo/france-regions.json', import.meta.url).href;
+const URL_DEPARTEMENTS = new URL('../../../assets/geo/france-departements.json', import.meta.url).href;
 export const Z_SORTIE = 6.35;                           // sous ce zoom, le globe reprend les gestes
 const D_PRECHARGE = 1.32;                        // à cette distance du centre de la Terre, on charge MapLibre et le style en avance
 const clamp = (x, a, b) => Math.max(a, Math.min(b, x));

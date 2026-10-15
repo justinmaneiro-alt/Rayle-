@@ -103,7 +103,7 @@ export const LUNES = {
   neptune: [{ nom: 'Triton', rayonKm: 1353.4, distRp: 14.3, periodeJ: -5.877, couleur: 0xd8cfc4 }, { nom: 'Protée', rayonKm: 210, distRp: 4.75, periodeJ: 1.122, couleur: 0x6a6764 }],
 };
 
-// éléments orbitaux (Paul Schlyter, domaine public) : valeur + pente par jour depuis le 0 janvier 2000 ; mêmes que ui/astro.js
+// éléments orbitaux (Paul Schlyter, domaine public) : valeur + pente par jour depuis le 0 janvier 2000 ; mêmes que js/univers/support/astro.js
 export const ELEMENTS = {
   mercure: { N: [48.3313, 3.24587e-5], i: [7.0047, 5.00e-8], w: [29.1241, 1.01444e-5], a: [.387098, 0], e: [.205635, 5.59e-10], M: [168.6562, 4.0923344368] },
   venus: { N: [76.6799, 2.46590e-5], i: [3.3946, 2.75e-8], w: [54.8910, 1.38374e-5], a: [.723330, 0], e: [.006773, -1.302e-9], M: [48.0052, 1.6021302244] },

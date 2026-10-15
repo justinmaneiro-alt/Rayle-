@@ -1,25 +1,19 @@
 {
-  "name": "Écosystème Rayle",
-  "short_name": "Écosystème Rayle",
-  "description": "Écosystème Rayle : Rayle, assistante vocale, avec ses outils (terminal, anatomie, espace).",
+  "name": "Rayle",
+  "short_name": "Rayle",
+  "description": "Rayle : le système solaire, plein écran.",
   "lang": "fr",
   "id": "./",
   "start_url": "./index.html",
   "scope": "./",
-  "display": "standalone",
+  "display": "fullscreen",
+  "display_override": ["fullscreen", "standalone"],
   "orientation": "any",
-  "background_color": "#030106",
-  "theme_color": "#030106",
-  "categories": ["productivity", "finance"],
+  "background_color": "#02030a",
+  "theme_color": "#02030a",
   "icons": [
     { "src": "icones/icone-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
     { "src": "icones/icone-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
     { "src": "icones/icone-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
-  ],
-  "shortcuts": [
-    { "name": "Parler à Raylé", "short_name": "Parler", "description": "Ouvre Raylé et lance l'écoute tout de suite", "url": "./index.html#parler", "icons": [{ "src": "icones/raccourci-parler.png", "sizes": "192x192", "type": "image/png" }] },
-    { "name": "Terminal", "short_name": "Terminal", "description": "Ouvre le terminal de trading", "url": "./index.html#terminal", "icons": [{ "src": "icones/raccourci-terminal.png", "sizes": "192x192", "type": "image/png" }] },
-    { "name": "Briefing du jour", "short_name": "Briefing", "description": "Raylé fait le briefing du jour", "url": "./index.html#briefing", "icons": [{ "src": "icones/raccourci-briefing.png", "sizes": "192x192", "type": "image/png" }] },
-    { "name": "Monde", "short_name": "Monde", "description": "Ouvre la carte du monde du terminal", "url": "./index.html#monde", "icons": [{ "src": "icones/raccourci-monde.png", "sizes": "192x192", "type": "image/png" }] }
   ]
 }

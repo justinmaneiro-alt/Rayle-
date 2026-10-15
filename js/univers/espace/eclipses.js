@@ -1,7 +1,7 @@
 // Éclipses : recherche de la prochaine éclipse de Soleil ou de Lune par la géométrie réelle Soleil–Terre–Lune (module pur, testé sous node).
 // On cherche, heure par heure, un minimum de la séparation angulaire Lune–Soleil (éclipse de Soleil) ou Lune–anti-Soleil (éclipse de Lune).
 // Une éclipse de Soleil exige une séparation < ~1,5° vue du centre de la Terre (totale ou annulaire sous ~0,9°) ; une éclipse de Lune, < ~1,5° (pénombre), < ~1° (partielle), < ~0,45° (totale).
-// Précision : celle des éléments orbitaux de ui/astro.js (≈ 0,1° sur la Lune) : le jour est juste, l'heure à une demi-heure près environ.
+// Précision : celle des éléments orbitaux de js/univers/support/astro.js (≈ 0,1° sur la Lune) : le jour est juste, l'heure à une demi-heure près environ.
 // prochaineEclipse(A, ts0, jours, seul?) → { type:'soleil'|'lune', ts, sep, nature:'totale'|'annulaire'|'partielle'|'par la pénombre' } ou null
 export function prochaineEclipse(A, ts0, jours = 800, seul) {
   const pas = 3600e3;

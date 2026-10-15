@@ -2,7 +2,7 @@
 // à leur vraie direction vue de la Terre (Mercure → Neptune), pour que le fond de l'accueil contienne tout l'écosystème.
 // Les disques sont volontairement agrandis (une planète vraie ferait moins d'un pixel) ; pour s'en approcher, Raylé bascule sur la vue Système solaire.
 // creerFondEcosysteme(ctx) → { groupe, maj(ts), directions(), detruire() }
-import { ASTRES, ORDRE_PLANETES, positionHelio } from '../donnees/planetes.js?v=2026.10.15.6';
+import { ASTRES, ORDRE_PLANETES, positionHelio } from '../donnees/planetes.js?v=2026.10.15.7';
 
 const RAD = Math.PI / 180, OBLIQUITE = 23.4393 * RAD;
 const DIST = 2200;                                                  // distance de dessin (la caméra voit jusqu'à 4000)
@@ -10,7 +10,7 @@ const DIST = 2200;                                                  // distance 
 const ANGLE = { mercure: .17, venus: .34, mars: .3, jupiter: .46, saturne: .38, uranus: .22, neptune: .2 };
 const TEX = { mercure: 'espace/mercure-', venus: 'espace/venus-', mars: 'espace/mars-', jupiter: 'espace/jupiter-', saturne: 'espace/saturne-', uranus: 'espace/uranus-', neptune: 'espace/neptune-' };
 
-// repère de l'écliptique (UA) → repère de la scène Terre (y = pôle nord céleste, voir ui/astro.js : direction)
+// repère de l'écliptique (UA) → repère de la scène Terre (y = pôle nord céleste, voir js/univers/support/astro.js : direction)
 export function versScene(p) {
   const c = Math.cos(OBLIQUITE), s = Math.sin(OBLIQUITE);
   return { x: p.x, y: p.y * s + p.z * c, z: -(p.y * c - p.z * s) };

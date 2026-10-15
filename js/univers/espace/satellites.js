@@ -1,4 +1,4 @@
-// Satellites réels et ISS : positions calculées par SGP4 (ui/sgp4.js) à partir des éléments publics de CelesTrak (stations + « visual » : les ~170 satellites les plus brillants),
+// Satellites réels et ISS : positions calculées par SGP4 (js/univers/support/sgp4.js) à partir des éléments publics de CelesTrak (stations + « visual » : les ~170 satellites les plus brillants),
 // rafraîchis toutes les 6 h (cache local), avec TLE de secours embarqué pour l'ISS. L'ISS est dessinée avec le modèle détaillé de ui/espace-iss.js (modules, 8 ailes solaires articulées,
 // radiateurs, Soyouz, Progress, Crew Dragon, Canadarm2) orienté comme la vraie station (treillis perpendiculaire à la trajectoire), ses ailes suivent le Soleil.
 // Rien n'est inventé : si CelesTrak est injoignable et sans cache, seule l'ISS (TLE de secours, précision dégradée avec l'âge) est affichée, et le dit.

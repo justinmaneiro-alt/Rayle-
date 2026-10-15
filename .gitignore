@@ -3,8 +3,8 @@ worker/
 .serena/
 CLAUDE.md
 docs/
-ui/assets/ville-source.*
-relais-pc/config.json
-relais-pc/relais.log
-relais-pc/relais.log.ancien
-relais-pc/relais.pid
+ui/
+modules/terminal-trading/relais-pc/config.json
+modules/terminal-trading/relais-pc/relais.log
+modules/terminal-trading/relais-pc/relais.log.ancien
+modules/terminal-trading/relais-pc/relais.pid

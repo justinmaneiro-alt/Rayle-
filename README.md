@@ -1,56 +1,38 @@
-# Écosystème Rayle
+# Rayle
 
-Écosystème Rayle est une application web installable (PWA) autour de **Rayle**, une assistante vocale en français. Rayle écoute, répond à voix haute, se souvient, et pilote les outils de l'écosystème : univers 3D, terminal de trading, anatomie, documents Google Drive, appareils connectés.
+Base neutre : au lancement, **Rayle ouvre directement l'univers** (un seul thème, « système solaire »), plein écran, sans bouton, sans menu et sans texte d'interface. Glisser = tourner, pincer ou molette = zoomer.
 
-L'IA garde le nom **Rayle** : c'est elle qui parle. « Écosystème Rayle » est le nom de l'application.
-
-- **Adresse (GitHub Pages)** : inchangée, le dépôt et l'URL restent les mêmes pour que la PWA déjà installée continue de se mettre à jour.
-- **Version courante** : voir `window.RAYLE_VERSION` dans `index.html`.
-
-## Thèmes
-
-| Thème | Rôle |
-|---|---|
-| **Univers** | Thème principal et thème par défaut : le fond animé est la scène 3D du bouton 🌌 Univers (Terre, Lune, système solaire, Mars, ISS, satellites, éclipses, ciel réel), affichée derrière l'accueil et pilotée par Raylé (« montre-moi Mars », « retour au système solaire », « vue d'ensemble », « Terre-Lune »…) sans ouvrir le menu ; le bouton la passe en plein écran. |
-| **Jarvis** | Thème « soft » holographique, conservé mais non prioritaire. |
-
-Identifiants internes conservés pour ne pas perdre les réglages déjà enregistrés : fond `espace` = Univers, palette `originel` = Univers, palette `arc` = Jarvis.
+Page unique : `index.html`. JavaScript natif, aucun outil de build. Adresse GitHub Pages inchangée.
 
 ## Organisation
 
 ```
-index.html            page unique (scène Rayle + vues Terminal, Anatomie, Univers)
-manifest.webmanifest  PWA
-sw.js                 service worker (réseau d'abord)
-css/  js/  ui/        interface et logique (JavaScript natif, sans bundler)
-js/rayle/             cerveau de Rayle : voix, écoute, IA, mémoire, commandes, appareils, sécurité
-js/univers/           scène Univers 3D
-js/univers/planetes/   une planète = un module (registre central, un sous-dossier par planète, contrat d'agent) : docs/planetes.md
-js/rayle/position-entite.js   position de l'entité : petite dans un coin, grande au centre ou sur le côté
-js/anatomie/  js/terminal/  js/drive/
-relais-pc/            relais Windows (actions autorisées sur le PC)
-scripts/  tests/      outils de développement et tests Node (sans framework)
-docs/                 documentation (audit : docs/AUDIT.md)
+index.html            seul point d'entrée
+js/demarrage.js       ouvre l'univers (système solaire) et enregistre le service worker
+js/univers/           la scène 3D : noyau, thème « espace », planètes (un module chacune), données
+js/univers/support/   petites bibliothèques utilisées par la scène (astro, SGP4, pays, villes, bus)
+js/vendor/            MapLibre (Terre en carte), contours des pays (topojson, world-atlas)
+css/base.css          écran noir plein cadre + interface de l'univers masquée
+css/univers.css       styles de la scène (HUD conservé dans le code, masqué par base.css)
+assets/               textures et modèles (planètes, Terre, ciel, ISS, rover)
+manifest.webmanifest  PWA plein écran       sw.js  service worker (réseau d'abord)
+modules/              modules rangés, NON chargés au lancement (voir ci-dessous)
 ```
 
-Le Worker Cloudflare (`worker/worker.js`, IA, voix, mémoire, alertes) n'est pas versionné dans ce dépôt.
+## Modules rangés (non affichés, non liés)
 
-## Planètes et entité
+| Dossier | Contenu | Réactivation |
+|---|---|---|
+| `modules/terminal-trading/` | terminal de trading (pages Terminal, Marchés, COT, Analyse, Monde), relais PC | `modules/terminal-trading/README.md` |
+| `modules/anatomie/` | Anatomie & Orthopédie 3D, Cerveau, modèles GLB, scripts de conversion | `modules/anatomie/README.md` |
+| `modules/commun/` | bus d'événements, gestionnaire de vues, styles de base partagés par les deux modules | idem |
 
-Chaque planète du système solaire est un module indépendant (`js/univers/planetes/`) : le registre donne son rôle, sa texture, sa taille, son orbite, son thème intérieur (Terre = carte du monde, Mars = base ; Saturne, Jupiter et les autres sont « prêtes à recevoir un thème »), son agent (contrat vide pour l'instant) et charge sa scène seulement quand on y entre. À la voix : « va sur Mars », « fais tourner Jupiter », « entre dans Mars », « retour au système solaire ».
+Chaque module a une page de test (`terminal.html`, `anatomie.html`) qu'on ouvre à la main (serveur local) ; elles ne sont liées à rien.
 
-L'entité Rayle se place où l'on veut, dans toutes les vues : « mets-toi dans le coin », « au centre », « sur le côté gauche », ou en la faisant glisser (réglage dans ◐ Apparence, ⚙ Réglages et la barre de l'Univers). Détails, fichiers et tests : `docs/planetes.md`.
+## Ancienne version
 
-## La Terre, base de Raylé
+Tout l'ancien Rayle (voix, entité, Drive, thèmes Jarvis/Globe, tests, docs…) est conservé :
+`git checkout backup-avant-reset` (branche et tag du même nom), ou `git checkout -b restauration backup-avant-reset`.
+Le Worker Cloudflare (`worker/`) n'est pas versionné ici et n'a pas été touché.
 
-Quand Raylé doit montrer un lieu, la Terre sert de carte : le globe 3D descend en continu vers une carte détaillée (MapLibre GL JS, tuiles gratuites OpenFreeMap), pose un repère et commente. Pays et océans de loin ; régions et départements de France (contours officiels) ; villes, villages, communes, routes principales puis secondaires, rivières, forêts ; rues et lieux-dits en zoomant. À la voix : « montre-moi Castres », « montre le Mont-Blanc », « itinéraire jusqu'à Toulouse », « où est mon téléphone ? », « zoome niveau rue ». Quatre outils sont donnés au cerveau : `earth.show_place(query)`, `earth.show_route(from, to)`, `earth.show_devices()`, `earth.set_zoom(level)`. Détails, sources, licences et branchement du Worker : `docs/terre-carte.md`.
-
-## Développement
-
-```
-for f in tests/*-test.mjs; do node $f; done     # tous les tests
-node scripts/versionner.mjs AAAA.MM.JJ.N        # change la version avant de publier (cache-busting)
-node scripts/capacites.mjs                      # régénère docs/capacites.md
-```
-
-Crédits des données et modèles : `CREDITS.md`.
+Crédits des données, textures et modèles : `CREDITS.md`.

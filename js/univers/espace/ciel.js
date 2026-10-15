@@ -1,7 +1,7 @@
 // Ciel de l'Espace : carte du ciel réelle (Voie lactée, étoiles) + étoiles scintillantes + fonds de galaxies / nébuleuses sélectionnables.
 // creerCiel(ctx) → { groupe, maj(dt, t, camera), style(id), styles, courant(), detruire() }
 // Les styles « galaxie » sont dessinés par le code (aucun fichier) : spirale bleue, nébuleuse rose-violette, Voie lactée dorée, émeraude, rouge ardent.
-// Le style « realiste » (par défaut) utilise ui/assets/espace/ciel-*.webp (Solar System Scope, CC BY 4.0, vraies étoiles).
+// Le style « realiste » (par défaut) utilise assets/espace/ciel-*.webp (Solar System Scope, CC BY 4.0, vraies étoiles).
 
 export const STYLES_CIEL = {
   realiste: { nom: 'Ciel réel', icone: '✨', desc: 'la vraie carte du ciel' },
