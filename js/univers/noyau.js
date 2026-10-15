@@ -10,7 +10,7 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 
-const VERSION = '2026.10.15.8';
+const VERSION = '2026.10.15.9';
 const ASSETS = new URL('../../assets/', import.meta.url).href;
 export const THEMES = {
   espace: { nom: 'Espace', icone: '🌍', url: './theme-espace.js?v=' + VERSION },

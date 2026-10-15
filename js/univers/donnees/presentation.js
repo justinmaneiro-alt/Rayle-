@@ -3,8 +3,8 @@
 // (2) angles choisis et ordonnés au hasard (géographie, chiffres, histoire, culture, économie, anecdote, actualités…), (3) contenu tiré au hasard dans des listes
 // (faits de donnees/mers.js, paragraphes Wikipédia de donnees/pays.js). Un fait absent n'est jamais inventé : l'angle est simplement sauté.
 // Fonctions pures (testées) : composerPays(infos, options) · composerMer(mer, options) · art(nom) · chiffre(n) · … ; le hasard est injectable (rnd).
-import { phrases } from './pays.js?v=2026.10.15.8';
-import { comparaisons } from './planetes.js?v=2026.10.15.8';
+import { phrases } from './pays.js?v=2026.10.15.9';
+import { comparaisons } from './planetes.js?v=2026.10.15.9';
 
 /* ───── hasard sans répétition ───── */
 const memoire = new Map();                                      // clé → derniers indices choisis

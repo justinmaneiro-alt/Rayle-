@@ -9,7 +9,7 @@
 //   5. tout le reste du monde → Nominatim (1 requête par seconde au plus, file d'attente, résultats gardés) ;
 //   6. repli : si Nominatim est injoignable, l'API Adresse pour un nom de France.
 // Itinéraires : routing.openstreetmap.de (voiture, vélo, à pied), secours OSRM de démonstration (voiture), en usage léger.
-import { zoomPourLieu } from './carte-style.js?v=2026.10.15.8';
+import { zoomPourLieu } from './carte-style.js?v=2026.10.15.9';
 
 export const SERVICES = {
   nominatim: 'https://nominatim.openstreetmap.org/search',

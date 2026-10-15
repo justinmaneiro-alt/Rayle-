@@ -1,9 +1,9 @@
-worker/
+/worker/
 .claude/
 .serena/
 CLAUDE.md
-docs/
-ui/
+/docs/
+/ui/
 modules/terminal-trading/relais-pc/config.json
 modules/terminal-trading/relais-pc/relais.log
 modules/terminal-trading/relais-pc/relais.log.ancien

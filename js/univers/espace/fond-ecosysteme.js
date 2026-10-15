@@ -2,7 +2,7 @@
 // à leur vraie direction vue de la Terre (Mercure → Neptune), pour que le fond de l'accueil contienne tout l'écosystème.
 // Les disques sont volontairement agrandis (une planète vraie ferait moins d'un pixel) ; pour s'en approcher, Raylé bascule sur la vue Système solaire.
 // creerFondEcosysteme(ctx) → { groupe, maj(ts), directions(), detruire() }
-import { ASTRES, ORDRE_PLANETES, positionHelio } from '../donnees/planetes.js?v=2026.10.15.8';
+import { ASTRES, ORDRE_PLANETES, positionHelio } from '../donnees/planetes.js?v=2026.10.15.9';
 
 const RAD = Math.PI / 180, OBLIQUITE = 23.4393 * RAD;
 const DIST = 2200;                                                  // distance de dessin (la caméra voit jusqu'à 4000)

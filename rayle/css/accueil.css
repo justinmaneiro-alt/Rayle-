@@ -16,3 +16,7 @@ body{padding:0!important;font-family:"Courier New",Courier,monospace}
 #menuPlanetes.ouvert .mp-liste{opacity:1;transform:translate(0,-50%);pointer-events:auto}
 #menuPlanetes li{padding:11px 22px 11px 16px;font-size:15px;letter-spacing:.08em;color:#d6e8ff;cursor:pointer;-webkit-tap-highlight-color:transparent;min-width:130px}
 #menuPlanetes li:active{background:rgba(120,170,255,.16)}
+/* point d'état minuscule près de l'entité : gris attend un toucher · vert écoute · rouge refus/erreur */
+#pointEtat{position:fixed;right:max(10px,env(safe-area-inset-right));bottom:max(6px,env(safe-area-inset-bottom));width:7px;height:7px;border-radius:50%;z-index:41;pointer-events:none;opacity:.8;background:#7c8494;transition:background .3s}
+#pointEtat.etat-ecoute{background:#3ddc84;box-shadow:0 0 6px #3ddc84}
+#pointEtat.etat-erreur{background:#ff4d4d;box-shadow:0 0 6px #ff4d4d}

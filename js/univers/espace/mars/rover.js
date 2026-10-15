@@ -2,7 +2,7 @@
 // et Curiosity (modèle procédural : châssis, six roues et suspension rocker-bogie, mât, bras, générateur, antenne, caméras). Pièces cliquables avec légendes (donnees/rovers.js).
 // creerRover(ctx, id) → { groupe, pret (Promise), pieces:[{id, nom, texte, centre, noeuds}], surligner(id|null), echelle, longueur, detruire(), source }
 //   Repère : sol en y = 0, avant du rover vers −z, taille normalisée à la vraie longueur (Perseverance 3,0 m ; Curiosity 2,9 m).
-import { ROVERS } from '../../donnees/rovers.js?v=2026.10.15.8';
+import { ROVERS } from '../../donnees/rovers.js?v=2026.10.15.9';
 
 export async function creerRover(ctx, id) {
   const { THREE, noyau } = ctx, def = ROVERS[id]; if (!def) throw new Error('rover inconnu : ' + id);
