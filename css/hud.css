@@ -102,15 +102,6 @@ i.hausse,i.baisse{font-style:normal}
 .pn-iframe{display:block;width:100%;height:min(46vh,420px);margin-top:10px;border:1px solid rgba(255,0,127,.4);background:#fff}
 .pn-zone:empty{display:none}
 
-/* ───── carte (Leaflet) : tuiles OSM assombries pour coller au HUD ───── */
-.pn-carte{height:min(40vh,340px);margin-top:8px;border:1px solid rgba(255,0,127,.4);background:#0b0612}
-.pn-carte .leaflet-tile-pane{filter:invert(1) hue-rotate(185deg) saturate(.75) brightness(.86) contrast(.95)}
-.pn-carte .leaflet-control-attribution{background:rgba(5,3,9,.85);color:#a995b8;font-size:10px}
-.pn-carte .leaflet-control-attribution a{color:#4de3ff}
-.pn-carte .leaflet-bar a{background:#150b22;color:#4de3ff;border-color:rgba(255,0,127,.4)}
-.pn-carte .leaflet-tooltip{background:#150b22;color:#fff;border:1px solid #ff3399;box-shadow:none}
-.pn-carte .leaflet-tooltip-top:before{border-top-color:#ff3399}
-
 /* ───── Sécurité : pastille d'accès, pavé PIN, phrase secrète ───── */
 #badgeAcces{position:fixed;top:max(8px,env(safe-area-inset-top));left:50%;transform:translateX(-50%);z-index:60;font:700 11px "Courier New",Courier,monospace;letter-spacing:.14em;
   text-transform:uppercase;padding:5px 12px;min-height:30px;cursor:pointer;touch-action:manipulation;background:rgba(10,4,20,.82);border:1px solid rgba(169,149,184,.6);color:var(--hud-doux)}

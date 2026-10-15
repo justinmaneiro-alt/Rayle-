@@ -5,7 +5,7 @@
      • commandeUnivers(texte) : exécute (localisation, rangement, Univers 3D) et renvoie la phrase à dire, ou null si ce n'est pas pour nous.
      • window.RayleUniversPont : ce que l'Univers (modules ES, js/univers/) peut demander à la page classique : parler, savoir si on l'a coupée, Worker.
      • window.RayleUnivers : ouvrir / fermer / commander l'Univers (chargé à la première utilisation, js/univers/noyau.js). */
-  const UNIVERS_URL='js/univers/noyau.js?v=2026.10.15.3';
+  const UNIVERS_URL='js/univers/noyau.js?v=2026.10.15.4';
   let universModule=null, universPromesse=null;
   function universCharger(){
     if(universModule) return Promise.resolve(universModule);
@@ -56,6 +56,11 @@
     if((m=new RegExp('^(?:sors|sortir|ressors|quitte|quitter)(?: moi)?(?: (?:de|d|du))?(?: (?:la|le|l|cette))?(?: planete '+PL+'| '+PL+'| planete)$').exec(t))) return {type:'espace',action:'sortir'};
     if((m=new RegExp('^(?:fais|fait)(?: moi)? (?:tourner|pivoter|tournoyer)(?: (?:la|le|l|cette))?(?: planete)?(?: '+PL+')?(?: sur elle meme)?$').exec(t))) return {type:'espace',action:'tourner',nom:m[1]||''};
     if((m=new RegExp('^(?:arrete|stoppe|cesse|coupe)(?: moi)?(?: (?:de|d|la|le|l))? (?:tourner|rotation|faire tourner)(?: (?:la|le|l|cette))?(?: planete)?(?: '+PL+')?$').exec(t))) return {type:'espace',action:'tourner',nom:m[1]||'',oui:false};
+    // — carte de la Terre : zoom par niveau (« zoome niveau rue », « zoom 12 », « zoome sur les villes ») et repères —
+    if((m=/^(?:zoome|zoomer|zoom|regle le zoom|mets le zoom|passe)(?: en| au| a| sur| vers)? ?(?:le )?(?:niveau|zoom|echelle) (?:(?:de|du|des|d|la|le|les|l) )*(\d{1,2}(?:[.,]\d)?|monde|planete|continent|pays|regions?|departements?|villes?|communes?|quartiers?|rues?|batiments?|immeubles?|maximum)$/.exec(t))
+     ||(m=/^(?:zoome|zoomer|zoom|passe)(?: en| au| a| sur| vers)? (?:la |le |les |l |au niveau |en vue )?(monde|pays|regions?|departements?|villes?|quartiers?|rues?|batiments?)$/.exec(t)))
+      return {type:'espace',action:'zoom-carte',niveau:m[1]};
+    if(/^(?:efface|enleve|retire|supprime|vide|nettoie)(?: moi)?(?: tous)? (?:le |les |la |l )?(?:marqueurs?|reperes?|points?|epingles?|itineraire|trace|carte)(?: de la carte| sur la carte| de la terre| du globe)?$/.test(t)) return {type:'espace',action:'effacer-carte'};
     if(/^(?:zoome|zoomer|zoom avant|rapproche toi|approche toi)(?: (?:encore|un peu|plus|beaucoup))?$/.test(t)) return {type:'espace',action:'zoom',facteur:.6};
     if(/^(?:dezoome|dezoomer|zoom arriere|recule|eloigne toi)(?: (?:encore|un peu|plus|beaucoup))?$/.test(t)) return {type:'espace',action:'zoom',facteur:1.7};
     // — système solaire, astres, Mars, ISS, satellites —
@@ -155,7 +160,7 @@
       }
       if(a.type==='espace'){
         if(a.action==='terre' && !RayleUnivers.estOuvert()) return null;
-        if(['retour','sortir','zoom'].includes(a.action) && !RayleUnivers.estOuvert()) return null;                     // rien à quitter ni à zoomer : la suite du traitement s'en occupe
+        if(['retour','sortir','zoom','zoom-carte','effacer-carte'].includes(a.action) && !RayleUnivers.estOuvert()) return null;                    // rien à quitter ni à zoomer : la suite du traitement s'en occupe
         if(a.action==='tourner' && !RayleUnivers.estOuvert() && (a.oui===false || !a.nom || a.nom==='terre')) return null;   // « fais tourner la Terre » : le fond Espace s'en charge
         if(a.action==='entrer' && !a.nom && !RayleUnivers.estOuvert()) return null;
         if(a.action==='piece-rover'){ const e=RayleUnivers.etat(); if(!(e.ouvert&&e.scene&&e.scene.vue==='mars')) return null; a.action='piece'; }       // « reviens sur la Terre » appartient au fond Espace tant que l'Univers est fermé
@@ -164,9 +169,10 @@
           if(!RayleUnivers.estOuvert()) return null;
           const N=await RayleUnivers.charger(), inst=N.instance(); const I=inst&&inst._; if(th()!=='espace'||!I) return null; if(!(I.connait?I.connait(a.nom):(I.geo&&I.geo.centre(a.nom)))) return null;
         }else if(!RayleUnivers.estOuvert()){ await RayleUnivers.ouvrir('espace'); }
-        const args={nom:a.nom,oui:a.oui,type:a.typeEclipse,vitesse:a.vitesse,pause:a.pause,reelle:a.reelle,presenter:a.presenter,rover:a.rover,facteur:a.facteur};
+        const args={nom:a.nom,oui:a.oui,type:a.typeEclipse,vitesse:a.vitesse,pause:a.pause,reelle:a.reelle,presenter:a.presenter,rover:a.rover,facteur:a.facteur,niveau:a.niveau};
+        if(a.action==='effacer-carte'){ const sc=(RayleUnivers.etat().scene)||{}; if(!(sc.carte&&sc.carte.marqueurs&&sc.carte.marqueurs.length)) return null; }       // rien à effacer : les autres commandes (points du globe…) s'en occupent
         if(a.action==='ciel'){ const st=Object.keys(STYLES_CIEL_VOIX).find(k=>STYLES_CIEL_VOIX[k].test(normU(a.style))); args.style=st; }
-        const nomCmd={presenter:'presenter',aller:'aller',actus:'actus',lune:'lune',terre:'terre',eclipse:'eclipse',surprise:'surprise',ciel:'ciel',temps:'temps',systeme:'systeme',echelle:'echelle',iss:'iss',satellites:'satellites',atterrir:'atterrir',rover:'rover','autre-rover':'autre-rover',piece:'piece','mars-orbite':'mars-orbite',retour:'retour',entrer:'entrer',sortir:'sortir',tourner:'tourner',zoom:'zoom'}[a.action];
+        const nomCmd={presenter:'presenter',aller:'aller',actus:'actus',lune:'lune',terre:'terre',eclipse:'eclipse',surprise:'surprise',ciel:'ciel',temps:'temps',systeme:'systeme',echelle:'echelle',iss:'iss',satellites:'satellites',atterrir:'atterrir',rover:'rover','autre-rover':'autre-rover',piece:'piece','mars-orbite':'mars-orbite',retour:'retour',entrer:'entrer',sortir:'sortir',tourner:'tourner',zoom:'zoom','zoom-carte':'zoom-carte','effacer-carte':'effacer-carte'}[a.action];
         const r=await RayleUnivers.commande(nomCmd,args);
         if(a.action==='presenter'||a.action==='surprise'||(a.action==='iss'&&a.presenter)) return r&&r.ok?'__deja_dit__':(r&&r.texte)||null;      // la présentation parle elle-même
         return (r&&r.texte)||null;

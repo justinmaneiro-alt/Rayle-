@@ -7,9 +7,22 @@ Ce fichier recense ce que Raylé utilise qui n'a pas été écrit par son auteur
 | Élément | Version | Licence | Où |
 |---|---|---|---|
 | three.js (+ `three/addons` : GLTFLoader, EffectComposer, SSAOPass, UnrealBloomPass, OutputPass, ShaderPass, FXAAShader, BokehPass, RoomEnvironment) | 0.160.0 | MIT | chargé depuis `cdn.jsdelivr.net` (import map de `index.html`) |
-| Leaflet | voir `js/vendor/leaflet/` | BSD-2-Clause | `js/vendor/leaflet/` |
+| MapLibre GL JS | 5.24.0 | BSD-3-Clause | `js/vendor/maplibre/` (chargé à la demande, seulement quand la Terre devient une carte) |
 | Lightweight Charts | voir `js/vendor/lightweight-charts.LICENSE` | Apache-2.0 | `js/vendor/` |
 | world-atlas / topojson-client | voir `js/vendor/world-atlas.LICENSE` | ISC | `js/vendor/` |
+
+## Carte de la Terre (globe → carte détaillée)
+| Élément | Source | Licence / conditions | Où |
+|---|---|---|---|
+| Tuiles vectorielles de la carte, polices (glyphes) | **OpenFreeMap** (https://openfreemap.org), schéma **OpenMapTiles** | gratuit, sans clé, conçu pour un usage applicatif ; attribution affichée sur la carte | `js/univers/espace/carte-style.js` |
+| Données cartographiques (routes, villes, rivières, forêts, communes…) | © contributeurs **OpenStreetMap** | ODbL ; attribution affichée sur la carte | tuiles ci-dessus |
+| Contours des régions et départements de France | **IGN Admin Express**, publié sur data.gouv.fr (jeu « france-geojson », simplifié et arrondi par `scripts/generer-france-geojson.mjs`) | Licence Ouverte Etalab 2.0 | `ui/assets/geo/france-regions.json`, `france-departements.json` |
+| Communes, populations, départements d'une ville de France | **geo.api.gouv.fr** (API Découpage administratif) | Licence Ouverte Etalab 2.0 | `js/univers/espace/lieux.js` |
+| Adresses de France | **API Adresse** (Géoplateforme, data.geopf.fr ; repli api-adresse.data.gouv.fr) | Licence Ouverte Etalab 2.0 | `js/univers/espace/lieux.js` |
+| Recherche de lieux dans le monde | **Nominatim** (nominatim.openstreetmap.org) | une requête par seconde au plus, file d'attente et cache (30 jours) ; jamais en rafale | `js/univers/espace/lieux.js` |
+| Itinéraires | routing.openstreetmap.de (FOSSGIS), secours router.project-osrm.org | usage léger, attribution dans le panneau | `js/univers/espace/lieux.js` |
+
+Les tuiles de tile.openstreetmap.org ne sont **jamais** demandées (conditions d'usage), un test le vérifie (`tests/terre-carte-test.mjs`).
 
 ## Images et textures (fond Espace, Terre)
 | Fichier(s) | Source | Licence |

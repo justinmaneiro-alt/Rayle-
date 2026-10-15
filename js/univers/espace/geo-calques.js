@@ -1,7 +1,7 @@
 // Géographie de la Terre : frontières, zone surlignée, recherche du pays sous un point, étiquettes (pays, villes, océans, mers) qui apparaissent selon le zoom.
 // Données : contours world-atlas 1:110m (js/vendor/world-110m.json, ISC) en local ; 1:50m (plus fin, ≈ 0,75 Mo) chargé à la demande depuis jsDelivr quand on s'approche.
 // creerGeo(ctx, terre) → { pret, bordures(), pays(lat, lon), paysParNum(num), surlignerPays(num), surlignerZone(zone), effacerSurbrillance(), etiquettes(), maj(camera), centre(nom), … }
-import { OCEANS_MERS } from '../donnees/mers.js?v=2026.10.15.3';
+import { OCEANS_MERS } from '../donnees/mers.js?v=2026.10.15.4';
 
 const RAD = Math.PI / 180;
 const norm = t => String(t == null ? '' : t).normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/['’\-]/g, ' ').replace(/[^a-z0-9 ]/g, ' ').replace(/\s+/g, ' ').trim();

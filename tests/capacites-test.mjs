@@ -19,7 +19,7 @@ await t('chaque exemple de chaque famille « vérifiée » déclenche vraiment u
 });
 await t('les familles sans analyseur local sont déclarées comme telles (verif:null), jamais « vérifiées » à tort', () => {
   const sans = reg.FAMILLES.filter(f => !f.verif).map(f => f.id).sort();
-  assert.deepEqual([...sans], ['agent', 'appareils', 'carte', 'memoire', 'univers', 'voix']);
+  assert.deepEqual([...sans], ['agent', 'appareils', 'memoire', 'univers', 'voix']);
   for (const f of reg.FAMILLES) { assert.ok(f.nom && f.court && f.ex.length >= 2, f.id); assert.equal(typeof f.params(), 'string'); assert.ok(Array.isArray(f.limites)); }
 });
 await t('paramètres lus dans le code : tous les astres, rovers et actifs apparaissent ; un astre ajouté apparaît tout seul', () => {
@@ -35,7 +35,7 @@ await t('contexte pour l’IA : toutes les familles, règles, état ; détail ci
   for (const f of reg.FAMILLES) assert.ok(c.includes(f.nom), f.nom);
   assert.match(c, /ne dis jamais « je ne peux pas »/); assert.match(c, /ÉTAT :/); assert.match(c, /DÉTAIL « Espace en 3D »/);
   assert.match(c, /ne lance jamais de recherche web quand un outil local existe/); assert.match(c, /Ne dis jamais qu’une action est faite si le résultat de l’outil dit qu’elle a échoué/);
-  assert.ok(c.length < 7400, 'contexte de ' + c.length + ' caractères');      // 6000 avant les familles « Présentations animées », « Cerveau 3D » et « Terre vivante », 7000 avant « Univers 3D »
+  assert.ok(c.length < 8200, 'contexte de ' + c.length + ' caractères');      // 6000 avant les familles « Présentations animées », « Cerveau 3D » et « Terre vivante », 7000 avant « Univers 3D »
   assert.ok(!/DÉTAIL « Terminal/.test(reg.contexte('montre-moi Mars')), 'le détail ne concerne que les familles pertinentes');
 });
 await t('état : écran actif, astre affiché, vue sauvegardée, mode d’échelle, historique récent', () => {

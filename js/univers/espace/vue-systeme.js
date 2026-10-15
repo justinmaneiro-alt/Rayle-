@@ -1,10 +1,10 @@
 // VUE « SYSTÈME SOLAIRE » du thème Espace : planètes, Soleil, lunes, Cérès, Vesta, ceinture d'astéroïdes ; sélection, vol de caméra, fiches, présentation animée.
 // Contrat d'une vue : creerVue(P) → { id, entrer(opts), sortir(), maj(dt, t, ts, tSim), tap(x, y), menu(), commande(nom, args), etat(), near(camera), ctrlAvant(c), detruire() }
 // P = contexte partagé du thème (voir theme-espace.js) : THREE, noyau, q, ctx, hud, scene, camera, ctrl, ts(), H, pont(), suivreTerre(), esc, vec.
-import { creerSysteme, UA_U } from './systeme.js?v=2026.10.15.3';
-import { ASTRES, ORDRE_PLANETES, comparaisons } from '../donnees/planetes.js?v=2026.10.15.3';
-import { composerAstre, ANGLES_LIBELLES, choisir } from '../donnees/presentation.js?v=2026.10.15.3';
-import * as Reg from '../planetes/registre.js?v=2026.10.15.3';
+import { creerSysteme, UA_U } from './systeme.js?v=2026.10.15.4';
+import { ASTRES, ORDRE_PLANETES, comparaisons } from '../donnees/planetes.js?v=2026.10.15.4';
+import { composerAstre, ANGLES_LIBELLES, choisir } from '../donnees/presentation.js?v=2026.10.15.4';
+import * as Reg from '../planetes/registre.js?v=2026.10.15.4';
 
 const RAD = Math.PI / 180;
 const ICONES = { mercure: '☿', venus: '♀', terre: '🌍', mars: '♂', jupiter: '♃', saturne: '♄', uranus: '⛢', neptune: '♆', soleil: '☀', ceres: '⚪', vesta: '🪨', asteroides: '☄' };

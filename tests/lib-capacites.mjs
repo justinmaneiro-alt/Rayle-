@@ -21,6 +21,9 @@ export async function chargerRegistre() {
   const charger = f => vm.runInContext(lire(f), ctx, { filename: f });
   for (const f of ['ui/themes.js', 'ui/settings.js', 'ui/astro.js', 'ui/ambiance.js', 'ui/espace-lieux.js', 'ui/espace-savoir.js', 'ui/espace.js']) charger(f);
   charger('js/rayle/pays-donnees.js'); charger('js/rayle/commandes-monde.js'); charger('js/rayle/commandes-terminal.js');
+  // la Terre sert de carte : phrases de lieux (carte.js), d'appareils (localisation.js), de zoom et de repères (commandes-univers.js)
+  Object.assign(ctx, { epoch: 0, errMsg: e => String(e && e.message || e), store: { get: () => '' }, KEY_WDEV: 'k1', KEY_WDEVNOM: 'k2', workerReady: () => false, matchMedia: () => ({ matches: false }), screen: { width: 1920, height: 1080 }, navigator: {}, document: { hidden: false, addEventListener() {}, getElementById: () => null, baseURI: 'http://x/' }, RayleRangement: { estRange: () => false }, commandeLocalisation: () => null });
+  charger('js/rayle/carte.js'); charger('js/rayle/localisation.js'); charger('js/rayle/commandes-univers.js');
   for (const f of ['ui/espace-pays-centres.js', 'ui/espace-temps.js', 'ui/espace-terre-donnees.js', 'ui/espace-terre.js']) charger(f);
   vm.runInContext(lire('js/rayle/capacites.js') + '\nthis.RayleCapacites=RayleCapacites;', ctx, { filename: 'js/rayle/capacites.js' });
   const { analyser: anatomie } = await import(new URL('js/anatomie/commandes.js', racine).href);
@@ -33,7 +36,8 @@ export async function chargerRegistre() {
     monde: p => vm.runInContext('RayleMonde', ctx).analyser(p),
     anatomie: p => anatomie(p, { vue: 'rayle' }),
     drive: p => drive(p, { fichiers: [{ id: '1', name: 'Cours d’anatomie – UE2' }, { id: '2', name: 'Rapport de stage' }], ouverte: true, configure: true, attente: false }),
-    apparence: p => ctx.RayleUI.analyserCommande(cmdNorm(norm(p)))
+    apparence: p => ctx.RayleUI.analyserCommande(cmdNorm(norm(p))),
+    carte: p => ctx.analyserCarte(p) || vm.runInContext('RayleLocalisation', ctx).analyser(p) || (a => a && ['zoom-carte', 'effacer-carte'].includes(a.action) ? a : null)(ctx.analyserUnivers(p))
   };
   const verifier = async (famille, phrase) => {
     let r = verifiers[famille](phrase);

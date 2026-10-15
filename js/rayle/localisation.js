@@ -127,7 +127,7 @@
       lsSet(CLE_LISTE,JSON.stringify(out.map(a=>({nom:a.nom,position:a.position,vu:a.vu}))));
       return out;
     }
-    function reperes(l){ return (l||[]).filter(a=>a.position).map(a=>({nom:a.nom,lat:a.position.lat,lon:a.position.lon,genre:a.genre,moi:!!a.moi})); }
+    function reperes(l){ return (l||[]).filter(a=>a.position).map(a=>({nom:a.nom,lat:a.position.lat,lon:a.position.lon,prec:a.position.prec||0,t:a.position.t||0,genre:a.genre,moi:!!a.moi})); }
 
     let derniereListe=[];
     async function emettre(){
@@ -173,7 +173,7 @@
       const t=n2(texte).replace(/^(?:hey |ok |dis )?rayle /,'');
       if(/^(?:arrete|stoppe|coupe|desactive|efface)\b.*\b(?:partage|localisation|geolocalisation|position)\b/.test(t)||/^(?:ne )?(?:partage|localise) plus\b/.test(t)) return {action:'arreter'};
       if(/\b(?:localise|geolocalise|trouve|partage)\b.*\b(?:cet appareil|ma position|tablette|telephone|pc|mon ordinateur|ou je suis)\b|\bactive\b.*\b(?:localisation|geolocalisation)\b/.test(t)) return {action:'autoriser'};
-      if(/\bou (?:sont|est|se trouve|se trouvent)\b.*\b(?:appareils?|tablette|telephone|pc|ordinateur)\b|\b(?:localisation|position) (?:de |des )?(?:mes )?(?:appareils?|tablette|telephone|pc)\b|^(?:affiche|montre|ouvre) (?:moi )?(?:le panneau |la liste )?(?:des |mes |les )?appareils$/.test(t)) return {action:'afficher'};
+      if(/\bou (?:sont|est|se trouve|se trouvent)\b.*\b(?:appareils?|tablette|telephone|pc|ordinateur)\b|\b(?:localisation|position) (?:de |des )?(?:mes )?(?:appareils?|tablette|telephone|pc)\b|^(?:affiche|montre|ouvre) (?:moi )?(?:le panneau |la liste )?(?:des |mes |les )?appareils$/.test(t)) return {action:'afficher',appareil:(t.match(/\b(telephone|tablette|pc|ordinateur)\b/)||[])[1]||''};
       return null;
     }
     async function commande(texte){
@@ -183,13 +183,17 @@
       const l=await afficher();
       const avec=l.filter(x=>x.position);
       if(!avec.length) return 'Voici tes appareils, mais aucun ne partage sa position pour l’instant. Dis « localise cet appareil » pour activer le partage sur celui-ci.';
-      return 'Voici où sont tes appareils : '+avec.map(x=>x.nom+' ('+(lieuProche(x.position)||coordTexte(x.position.lat,x.position.lon))+')').join(', ')+'.';
+      // la Terre sert de carte : le globe descend vers l'appareil demandé (ou vers tous) pendant que la phrase est dite (js/rayle/terre-outils.js, earth.show_devices)
+      try{ if(typeof RayleTerre!=='undefined') RayleTerre.executer('earth.show_devices',{device:a.appareil||''}).catch(()=>{}); }catch(e){}
+      const voulu=a.appareil?avec.filter(x=>genre(x.nom)===(/telephone/.test(a.appareil)?'telephone':/tablette/.test(a.appareil)?'tablette':'pc')):[];
+      const cible=voulu.length?voulu:avec;
+      return 'Voici où '+(cible.length>1?'sont ':'est ')+cible.map(x=>x.nom+' ('+(lieuProche(x.position)||coordTexte(x.position.lat,x.position.lon))+')').join(', ')+'.';
     }
 
     if(consentement()) setTimeout(()=>{ actualiser().then(planifier).catch(()=>{}); },4000);
     try{ RayleBus.fournir('appareils:positions',()=>derniereListe); RayleBus.on('espace:pret',emettre); }catch(e){}
 
-    return {consentement,autoriser,arreter,maPosition,liste,afficher,reperes,analyser,commande,distanceKm,coordTexte,ilYa,precisionTexte,propre,genre,n2};
+    return {consentement,autoriser,arreter,maPosition,liste,afficher,reperes,analyser,commande,distanceKm,coordTexte,ilYa,precisionTexte,propre,genre,n2,lieuProche};
   })();
   function commandeLocalisation(texte){ return RayleLocalisation.commande(texte); }
   // Réglages : boutons et ligne d'état

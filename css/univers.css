@@ -81,3 +81,30 @@ body.univers-actif.rayle-rangee .reactor{top:auto}
 .univ-tele small{display:block;font-size:9px;color:#f0b98a;letter-spacing:.2em}
 .univ-tele b{font-size:15px;color:#fff;font-weight:700;white-space:nowrap}
 @media (max-width:640px){.univ-tele{gap:10px;padding:6px 10px;top:70px}.univ-tele b{font-size:12px}}
+
+/* ───── La Terre sert de carte (js/univers/espace/carte-terre.js) : MapLibre par-dessus le globe, en fondu ───── */
+#vueUnivers .univ-terre-carte,#vueUnivers .univ-terre-carte.maplibregl-map{position:absolute;inset:0;width:100%;height:100%;opacity:0;visibility:hidden;pointer-events:none;background:#0a1424;touch-action:none}
+.univ-terre-carte .maplibregl-canvas{outline:none;cursor:grab}
+.univ-terre-carte .maplibregl-canvas:active{cursor:grabbing}
+#vueUnivers.terre-carte-pleine .univ-labels .univ-lab:not(.terre-pin){display:none}
+.univ-terre-carte .maplibregl-ctrl-attrib{background:rgba(2,6,15,.72);color:#9fc6dd;font:10px/1.4 var(--mono,monospace);border-radius:8px 0 0 0}
+.univ-terre-carte .maplibregl-ctrl-attrib a{color:#7fe3ff}
+.univ-terre-carte .maplibregl-ctrl-attrib-button{background-color:rgba(2,6,15,.72)}
+.terre-marque{position:relative;width:0;height:0;pointer-events:none}
+.terre-marque .tm-p{position:absolute;left:-8px;top:-8px;width:16px;height:16px;border-radius:50%;box-sizing:border-box;border:2px solid #fff;background:var(--tm,#ff007f);box-shadow:0 0 0 3px rgba(255,0,127,.25),0 0 14px var(--tm,#ff007f);font:normal 9px/12px sans-serif;text-align:center;animation:terre-pulse 2.4s ease-in-out infinite}
+.terre-marque.appareil .tm-p{width:20px;height:20px;left:-10px;top:-10px;font-size:11px;line-height:16px;background:rgba(10,20,36,.92);border-color:#18bee6;box-shadow:0 0 0 3px rgba(24,190,230,.2),0 0 12px #18bee6}
+.terre-marque.moi .tm-p{border-color:#fff;box-shadow:0 0 0 3px rgba(24,190,230,.45),0 0 14px #18bee6}
+.terre-marque .tm-n{position:absolute;left:14px;top:-9px;white-space:nowrap;padding:2px 8px;border-radius:10px;background:rgba(2,6,15,.82);border:1px solid rgba(90,200,255,.5);color:#e6f7ff;font:600 11px/1.3 var(--mono,monospace);letter-spacing:.03em;text-shadow:0 0 4px #000}
+.terre-marque.appareil .tm-n{display:none}
+.univ-terre-carte.tm-noms .terre-marque.appareil .tm-n{display:block}
+@keyframes terre-pulse{0%,100%{transform:scale(1)}50%{transform:scale(1.18)}}
+@media (prefers-reduced-motion:reduce){.terre-marque .tm-p{animation:none}}
+
+/* l'attribution (obligatoire : OpenStreetMap, OpenFreeMap, IGN) reste visible au-dessus de la barre de Raylé */
+#vueUnivers .univ-terre-carte .maplibregl-ctrl-bottom-right{bottom:max(76px,calc(env(safe-area-inset-bottom) + 68px))}
+@media (max-width:640px){#vueUnivers .univ-terre-carte .maplibregl-ctrl-bottom-right{bottom:max(138px,calc(env(safe-area-inset-bottom) + 130px))}}
+body.univers-actif.rayle-rangee #vueUnivers .univ-terre-carte .maplibregl-ctrl-bottom-right{bottom:0}
+#vueUnivers .univ-terre-carte .maplibregl-ctrl.maplibregl-ctrl-attrib,#vueUnivers .univ-terre-carte .maplibregl-ctrl-attrib.maplibregl-compact{background:rgba(2,6,15,.8)!important;color:#9fc6dd!important;border-radius:10px 0 0 0;box-shadow:none}
+#vueUnivers .univ-terre-carte .maplibregl-ctrl-attrib.maplibregl-compact-show{background:rgba(2,6,15,.92)!important;border-radius:12px}
+#vueUnivers .univ-terre-carte .maplibregl-ctrl-attrib a{color:#7fe3ff!important}
+#vueUnivers .univ-terre-carte .maplibregl-ctrl-attrib-button{background-color:transparent!important;filter:invert(1) hue-rotate(160deg)}

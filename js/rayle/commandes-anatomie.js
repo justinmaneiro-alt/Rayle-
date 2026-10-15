@@ -10,7 +10,7 @@
   let anatomieModule=null, anatomieChargement=null;
   function chargerAnatomie(){
     if(anatomieModule) return Promise.resolve(anatomieModule);
-    if(!anatomieChargement) anatomieChargement=import(new URL('js/anatomie/index.js?v=2026.10.15.3',document.baseURI).href).then(m=>{ anatomieModule=m; return m; }).catch(e=>{ anatomieChargement=null; throw e; });
+    if(!anatomieChargement) anatomieChargement=import(new URL('js/anatomie/index.js?v=2026.10.15.4',document.baseURI).href).then(m=>{ anatomieModule=m; return m; }).catch(e=>{ anatomieChargement=null; throw e; });
     return anatomieChargement;
   }
   // Renvoie la phrase à dire, ou null si ce n'est pas une commande d'anatomie (la suite du traitement prend le relais)

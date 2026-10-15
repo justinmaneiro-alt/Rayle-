@@ -2,7 +2,7 @@
   /* ═════════════ COMMANDES VOCALES DE LA PAGE « MONDE » (terminal) ═════════════
      « ouvre la carte du monde », « montre-moi le Japon », « zoom sur l'Europe », « qu'est-ce qui se passe en Chine ? »,
      « affiche l'inflation sur la carte », « carte TradingView », « vue Terre », « masque les actualités ».
-     Seuls les PAYS et les RÉGIONS vont vers la page Monde : « montre-moi Toulouse » reste sur la carte Leaflet (js/rayle/carte.js).
+     Seuls les PAYS et les RÉGIONS vont vers la page Monde : « montre-moi Toulouse » va sur la Terre qui sert de carte (js/rayle/carte.js → js/rayle/terre-outils.js).
      La page répond par le bus ('monde:commande', js/terminal/page-monde.js). */
   const RayleMonde=(function(){
     const n2=t=>String(t||'').normalize('NFD').replace(/[̀-ͯ]/g,'').toLowerCase().replace(/['’-]/g,' ').replace(/[?!.,;:«»"]/g,' ').replace(/\s+/g,' ').trim();

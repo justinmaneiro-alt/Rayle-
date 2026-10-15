@@ -43,7 +43,7 @@ ouvrir ou fermer le terminal, changer d’actif, d’unité de temps, de page, a
 ouvrir la page Monde du terminal, montrer un pays ou une région, afficher l’inflation, le chômage, la croissance, le PIB ou les taux sur la carte, couches (bourses, actualités, calendrier).
 
 - **Paramètres (lus dans le code)** : pays et régions de la carte du monde ; indicateurs : inflation, chômage, croissance, PIB, taux directeurs.
-- **Cas limites** : les villes et adresses vont sur la carte Leaflet, pas sur la page Monde.
+- **Cas limites** : les villes, adresses et lieux vont sur la carte de la Terre (globe → carte détaillée), pas sur la page Monde.
 - **Exemples** : « ouvre la carte du monde », « montre-moi le Japon », « zoom sur l’Europe », « affiche l’inflation sur la carte », « vue Terre ».
 - **Vérification automatique** : oui (les exemples sont passés dans l’analyseur réel par `tests/capacites-test.mjs`).
 
@@ -83,14 +83,14 @@ ouvrir, lire, résumer, chercher et modifier (aperçu avant/après, annulation) 
 - **Exemples** : « ouvre le cours d’anatomie », « lis le 2e paragraphe », « lis-moi la suite », « résume le document », « cherche l’humérus dans le document », « corrige la faute dans le 2e paragraphe », « ajoute ce paragraphe sous le titre Introduction : voici le texte », « annule la dernière modification », « plein écran », « liste mes documents », « ajoute un document du drive ».
 - **Vérification automatique** : oui (les exemples sont passés dans l’analyseur réel par `tests/capacites-test.mjs`).
 
-## Cartes et itinéraires
+## La Terre = carte (lieux, itinéraires, appareils)
 
-montrer une ville ou un lieu sur une carte, calculer un itinéraire (voiture, vélo, à pied).
+quand je dois montrer un lieu, la Terre sert de carte : le globe 3D descend en continu vers une carte détaillée (pays et océans de loin, régions et départements de France, villes, routes, rues et lieux-dits en zoomant), pose un repère et je commente · tracer un itinéraire (voiture, vélo, à pied) · montrer où sont mes appareils, avec la précision de leur position · régler le zoom · effacer les repères.
 
-- **Paramètres (lus dans le code)** : lieux du monde entier (OpenStreetMap), itinéraires voiture, vélo, à pied.
-- **Cas limites** : les pays et régions vont sur la page Monde.
-- **Exemples** : « montre-moi Bordeaux », « itinéraire de Bordeaux à Toulouse à pied ».
-- **Vérification automatique** : non (décidé par l’IA ou une API en ligne).
+- **Paramètres (lus dans le code)** : outils : earth.show_place(query, zoom?), earth.show_route(from?, to, mode?), earth.show_devices(device?), earth.set_zoom(level) · niveaux de zoom : 0 à 19, ou monde, pays, région, département, ville, quartier, rue, bâtiment · lieux : adresses et communes de France (API Adresse, geo.api.gouv.fr), monde entier (OpenStreetMap) · itinéraires : voiture, vélo, à pied.
+- **Cas limites** : les pays, les mers et les océans restent sur le globe (fiche, présentation) ; la carte détaillée commence à l’échelle d’un pays comme la France ; le géocodage hors de France passe par Nominatim : une recherche par seconde au plus, les réponses sont gardées en mémoire ; un appareil n’apparaît que s’il partage lui-même sa position (Réglages) ; sa précision est affichée, jamais inventée ; sans WebGL ou sans réseau, je le dis et je donne le lien OpenStreetMap : je n’invente jamais un lieu ; les noms des lieux viennent d’OpenStreetMap, parfois dans la langue locale hors de France.
+- **Exemples** : « montre-moi Castres », « montre le Mont-Blanc », « où est la gare de Lyon », « itinéraire jusqu’à Toulouse », « itinéraire de Bordeaux à Toulouse à pied », « où est mon téléphone », « zoome niveau rue », « efface les repères ».
+- **Vérification automatique** : oui (les exemples sont passés dans l’analyseur réel par `tests/capacites-test.mjs`).
 
 ## Apparence
 

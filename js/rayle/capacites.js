@@ -52,7 +52,7 @@
         ex:['ouvre la carte du monde','montre-moi le Japon','zoom sur l’Europe','affiche l’inflation sur la carte','vue Terre'],
         verif:'monde',mots:/\b(?:carte du monde|pays|japon|chine|europe|inflation|chomage|croissance|pib|taux|region)\b/,
         params:()=>'pays et régions de la carte du monde ; indicateurs : inflation, chômage, croissance, PIB, taux directeurs',
-        limites:['les villes et adresses vont sur la carte Leaflet, pas sur la page Monde']},
+        limites:['les villes, adresses et lieux vont sur la carte de la Terre (globe → carte détaillée), pas sur la page Monde']},
       {id:'anatomie',nom:'Anatomie et orthopédie 3D',
         court:'décrire une structure du corps (os, muscles, nerfs, organes) dans une fenêtre 3D, ouvrir le module anatomie, afficher des calques, simuler des pathologies (scoliose, fracture, amputation) et des appareillages (prothèse, orthèse)',
         ex:['décris-moi l’humérus','où s’insère le biceps','ouvre l’anatomie','affiche les muscles et les nerfs','montre une fracture du col du fémur','scoliose de 40 degrés'],
@@ -79,10 +79,13 @@
         params:()=>{ const fich=sur(()=>JSON.parse(G.localStorage.getItem('rayle_drive_fichiers')||'[]'),[]); const e=sur(()=>G.RayleBus.etat('drive'),null)||{};
           return 'outils : drive:ouvrir (nom approximatif accepté), drive:lire-passage (paragraphe, titre, page, mot-clé, suite), drive:resumer, drive:chercher, drive:lister, drive:modifier (corriger, remplacer, ajouter, supprimer), drive:enregistrer, drive:annuler · documents autorisés : '+(fich.length?liste(fich.slice(0,8).map(f=>f.name)):'aucun pour l’instant')+' · connexion : '+(e.configure===false?'non configurée (js/config-drive.js)':e.connecte?'active':'à établir par le bouton « Se connecter à Google »'); },
         limites:['je ne vois que les documents choisis avec le sélecteur Google (portée drive.file) ; un document non autorisé : je propose d’ouvrir le sélecteur','PDF, Sheets et Slides : lecture seule','toute modification passe par un aperçu avant/après que Justin valide (sauf « applique directement »), puis je relis le document pour vérifier ; « annule la dernière modification » revient en arrière','je ne dis jamais avoir lu ou modifié un document si l’opération a échoué, et je ne cite que le texte réel du document','pas de recherche web pour un document de Justin : j’utilise ces outils (ou « commande_drive » avec une phrase simple)']},
-      {id:'carte',nom:'Cartes et itinéraires',
-        court:'montrer une ville ou un lieu sur une carte, calculer un itinéraire (voiture, vélo, à pied)',
-        ex:['montre-moi Bordeaux','itinéraire de Bordeaux à Toulouse à pied'],verif:null,mots:/\b(?:carte|itineraire|trajet|route|ou est|ville)\b/,
-        params:()=>'lieux du monde entier (OpenStreetMap), itinéraires voiture, vélo, à pied',limites:['les pays et régions vont sur la page Monde']},
+      {id:'carte',nom:'La Terre = carte (lieux, itinéraires, appareils)',
+        court:'quand je dois montrer un lieu, la Terre sert de carte : le globe 3D descend en continu vers une carte détaillée (pays et océans de loin, régions et départements de France, villes, routes, rues et lieux-dits en zoomant), pose un repère et je commente ; tracer un itinéraire (voiture, vélo, à pied) ; montrer où sont mes appareils, avec la précision de leur position ; régler le zoom ; effacer les repères',
+        outils:['earth.show_place','earth.show_route','earth.show_devices','earth.set_zoom'],
+        ex:['montre-moi Castres','montre le Mont-Blanc','où est la gare de Lyon','itinéraire jusqu’à Toulouse','itinéraire de Bordeaux à Toulouse à pied','où est mon téléphone','zoome niveau rue','efface les repères'],
+        verif:'carte',mots:/\b(?:carte|itineraire|trajet|route|ou est|ville|zoom\w*|niveau|rue|village|commune|adresse|telephone|tablette|appareils?|repere|marqueur|mont|montagne|gps)\b/,
+        params:()=>{ const c=sur(()=>G.RayleUnivers.etat().scene.carte,null); return 'outils : earth.show_place(query, zoom?), earth.show_route(from?, to, mode?), earth.show_devices(device?), earth.set_zoom(level) · niveaux de zoom : 0 à 19, ou monde, pays, région, département, ville, quartier, rue, bâtiment · lieux : adresses et communes de France (API Adresse, geo.api.gouv.fr), monde entier (OpenStreetMap) · itinéraires : voiture, vélo, à pied'+(c&&c.zoom?' · carte détaillée active (zoom '+c.zoom+')':''); },
+        limites:['les pays, les mers et les océans restent sur le globe (fiche, présentation) ; la carte détaillée commence à l’échelle d’un pays comme la France','le géocodage hors de France passe par Nominatim : une recherche par seconde au plus, les réponses sont gardées en mémoire','un appareil n’apparaît que s’il partage lui-même sa position (Réglages) ; sa précision est affichée, jamais inventée','sans WebGL ou sans réseau, je le dis et je donne le lien OpenStreetMap : je n’invente jamais un lieu','les noms des lieux viennent d’OpenStreetMap, parfois dans la langue locale hors de France']},
       {id:'apparence',nom:'Apparence',
         court:'changer le thème de couleurs, le fond (Espace, Jarvis, vidéo, aucun), l’entité, l’ambiance météo et lumineuse, la qualité graphique (Éco, Auto, Max ou Ultra : l’Ultra est très gourmand et jamais choisi seul)',
         ex:['passe en thème Jarvis','fond univers','mode éco','passe en qualité ultra'],verif:'apparence',mots:/\b(?:theme|fond|ambiance|entite|couleur|eco|qualite|nuit|pluie|neige)\b/,
@@ -144,6 +147,8 @@
       }
       const univ=sur(()=>G.RayleBus.etat('univers'),null), pla=sur(()=>G.RayleBus.etat('planete'),null), ent=sur(()=>G.RayleBus.etat('entite'),null);
       if(univ && univ.ouvert) p.push('Univers ouvert'+(pla && pla.interieur?', à l’intérieur de la planète « '+pla.interieur+' »':''));
+      const car=sur(()=>G.RayleUnivers.etat().scene.carte,null);
+      if(car && car.actif) p.push('carte détaillée de la Terre active : zoom '+car.zoom+' ('+car.niveau+'), centre '+car.centre.lat+', '+car.centre.lon+(car.marqueurs&&car.marqueurs.length?', repères : '+car.marqueurs.length:''));
       if(ent && ent.valeur) p.push('position de Raylé = '+ent.valeur+(ent.memorisee?' (mémorisée pour cette vue)':''));
       if(s.drive && s.drive.ouvert){
         const d=s.drive, f=d.fenetre||{};

@@ -2,23 +2,23 @@
    new MoteurAnatomie(THREE, canvas, { store, etiquettes: Element|null, mini: bool, surSelection(id) })
    Le moteur suit l'état du store : calques, sélection, isolation, pathologies, appareillage. Rendu à la demande (pas d'animation inutile).
    Contrôles : glisser = rotation 360°, molette / pincement = zoom, clic droit ou Maj + glisser ou 2 doigts = translation, double clic = focaliser. */
-import { construire, axeMembre } from './construction.js?v=2026.10.15.3';
-import { construireAppareil } from './appareils3d.js?v=2026.10.15.3';
-import { OS, VERTEBRES, REPERES, SACRUM_Y } from './donnees-os.js?v=2026.10.15.3';
-import { MUSCLES } from './donnees-muscles.js?v=2026.10.15.3';
-import { NERFS, ORGANES, DERMATOMES } from './donnees-nerfs-organes.js?v=2026.10.15.3';
-import { AMPUTATIONS, APPAREILLAGES, FRACTURES } from './donnees-ortho.js?v=2026.10.15.3';
-import { VAISSEAUX_SCHEMA } from './donnees-corps.js?v=2026.10.15.3';
-import { definition, base as baseDe, cote as coteDe, typeDe, instances, nomAffiche, musclesDe } from './registre.js?v=2026.10.15.3';
-import { COULEURS } from './registre.js?v=2026.10.15.3';
-import { chargerGLB } from './modeles-glb.js?v=2026.10.15.3';
-import { points as pointsDe, ajuster as ajusterGLB, matriceAjustement } from './ajustement.js?v=2026.10.15.3';
-import { TABLES } from './correspondance-squelette.js?v=2026.10.15.3';
-import { groupeDe, groupeDeStructure } from './groupes-os.js?v=2026.10.15.3';
-import { CapsCoupe } from './coupes.js?v=2026.10.15.3';
-import { creerMateriauPBR, ajouterAOCuite } from './pbr.js?v=2026.10.15.3';
-import { CorpsHD } from './corps-hd.js?v=2026.10.15.3';
-import { studio, solOmbre, fondDegrade, environnement, pipeline, lireNiveau } from './rendu.js?v=2026.10.15.3';
+import { construire, axeMembre } from './construction.js?v=2026.10.15.4';
+import { construireAppareil } from './appareils3d.js?v=2026.10.15.4';
+import { OS, VERTEBRES, REPERES, SACRUM_Y } from './donnees-os.js?v=2026.10.15.4';
+import { MUSCLES } from './donnees-muscles.js?v=2026.10.15.4';
+import { NERFS, ORGANES, DERMATOMES } from './donnees-nerfs-organes.js?v=2026.10.15.4';
+import { AMPUTATIONS, APPAREILLAGES, FRACTURES } from './donnees-ortho.js?v=2026.10.15.4';
+import { VAISSEAUX_SCHEMA } from './donnees-corps.js?v=2026.10.15.4';
+import { definition, base as baseDe, cote as coteDe, typeDe, instances, nomAffiche, musclesDe } from './registre.js?v=2026.10.15.4';
+import { COULEURS } from './registre.js?v=2026.10.15.4';
+import { chargerGLB } from './modeles-glb.js?v=2026.10.15.4';
+import { points as pointsDe, ajuster as ajusterGLB, matriceAjustement } from './ajustement.js?v=2026.10.15.4';
+import { TABLES } from './correspondance-squelette.js?v=2026.10.15.4';
+import { groupeDe, groupeDeStructure } from './groupes-os.js?v=2026.10.15.4';
+import { CapsCoupe } from './coupes.js?v=2026.10.15.4';
+import { creerMateriauPBR, ajouterAOCuite } from './pbr.js?v=2026.10.15.4';
+import { CorpsHD } from './corps-hd.js?v=2026.10.15.4';
+import { studio, solOmbre, fondDegrade, environnement, pipeline, lireNiveau } from './rendu.js?v=2026.10.15.4';
 
 const CALQUE_DE = { cartilage: 'squelette', os: 'squelette', muscle: 'muscles', tendon: 'muscles', nerf: 'nerfs', artere: 'arteres', veine: 'veines', organe: 'organes', repere: 'reperes', dermatome: 'dermatomes', peau: 'peau' };
 const MATIERES = ['os', 'muscle', 'tendon', 'nerf', 'artere', 'veine', 'organe', 'cartilage'];     // types qui portent un matériau physique (ombres, fantôme, transparence)

@@ -2,12 +2,12 @@
    Tout est injecté (api, auth, ui, correcteur, stockage) : les tests branchent une FAUSSE API Drive, la page branche les vraies.
    Principes : (1) Raylé ne dit « lu » ou « modifié » que si l'opération a réussi — et après une écriture, elle RELIT le document pour vérifier ;
    (2) elle ne cite que le texte réel du document ; (3) toute modification passe par un aperçu avant/après que Justin valide, sauf « applique directement ». */
-import { ErreurDrive, estErreurDrive } from './api.js?v=2026.10.15.3';
-import { adaptateur, typeDe, verifierEcriture, MIMES_ACCEPTES } from './formats.js?v=2026.10.15.3';
-import { trouverFichier } from './texte.js?v=2026.10.15.3';
-import { passage, texteLecture, resumer as resumerModele, chercher as chercherModele, trouverTitre, titreDe, appliquerOps, changementMinimal, estTitre, estVide, plan } from './modele.js?v=2026.10.15.3';
-import { distance, norm } from './texte.js?v=2026.10.15.3';
-import { plier } from './commandes.js?v=2026.10.15.3';
+import { ErreurDrive, estErreurDrive } from './api.js?v=2026.10.15.4';
+import { adaptateur, typeDe, verifierEcriture, MIMES_ACCEPTES } from './formats.js?v=2026.10.15.4';
+import { trouverFichier } from './texte.js?v=2026.10.15.4';
+import { passage, texteLecture, resumer as resumerModele, chercher as chercherModele, trouverTitre, titreDe, appliquerOps, changementMinimal, estTitre, estVide, plan } from './modele.js?v=2026.10.15.4';
+import { distance, norm } from './texte.js?v=2026.10.15.4';
+import { plier } from './commandes.js?v=2026.10.15.4';
 
 const CLE_FICHIERS = 'rayle_drive_fichiers', CLE_HISTO = 'rayle_drive_historique';
 const MAX_FICHIERS = 200, MAX_HISTO = 8;

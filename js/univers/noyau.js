@@ -10,7 +10,7 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 
-const VERSION = '2026.10.15.3';
+const VERSION = '2026.10.15.4';
 const ASSETS = new URL('../../ui/assets/', import.meta.url).href;
 export const THEMES = {
   espace: { nom: 'Espace', icone: '🌍', url: './theme-espace.js?v=' + VERSION },
@@ -347,9 +347,10 @@ export const commande = async (nom, args = {}) => {
 };
 export const etat = () => ({ decalage: E.decalCible, ouvert: E.ouvert, theme: E.themeId, fps: Math.round(E.fps), qualite: q.id, choixQualite, enCinematique: E.enCine, scene: E.inst && E.inst.etat ? E.inst.etat() : null });
 export const instance = () => E.inst;
+export const decalage = () => E.decal;                 // décalage horizontal (px) actuellement appliqué à la scène : la carte détaillée le suit
 export const dims = () => ({ w: E.w, h: E.h });
 export const rendu = () => E.renderer;
 export const temps = () => E.t;
 
-const API = { THREE, q, hud, decalerVue, fondu, vitesseAnimation, tween, attendre, cinematique, passerAnimation, enCinematique, orbite, texture, assets, creerEtiquettes, projeter, EASE, ouvrir, fermer, changerTheme, changerThemeBrut, commande, etat, instance, reglerQualite, dims, rendu, temps, THEMES, QUALITES };
+const API = { THREE, q, hud, decalerVue, decalage, fondu, vitesseAnimation, tween, attendre, cinematique, passerAnimation, enCinematique, orbite, texture, assets, creerEtiquettes, projeter, EASE, ouvrir, fermer, changerTheme, changerThemeBrut, commande, etat, instance, reglerQualite, dims, rendu, temps, THEMES, QUALITES };
 export default API;

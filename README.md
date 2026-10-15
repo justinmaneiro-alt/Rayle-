@@ -41,6 +41,10 @@ Chaque planète du système solaire est un module indépendant (`js/univers/plan
 
 L'entité Rayle se place où l'on veut, dans toutes les vues : « mets-toi dans le coin », « au centre », « sur le côté gauche », ou en la faisant glisser (réglage dans ◐ Apparence, ⚙ Réglages et la barre de l'Univers). Détails, fichiers et tests : `docs/planetes.md`.
 
+## La Terre, base de Raylé
+
+Quand Raylé doit montrer un lieu, la Terre sert de carte : le globe 3D descend en continu vers une carte détaillée (MapLibre GL JS, tuiles gratuites OpenFreeMap), pose un repère et commente. Pays et océans de loin ; régions et départements de France (contours officiels) ; villes, villages, communes, routes principales puis secondaires, rivières, forêts ; rues et lieux-dits en zoomant. À la voix : « montre-moi Castres », « montre le Mont-Blanc », « itinéraire jusqu'à Toulouse », « où est mon téléphone ? », « zoome niveau rue ». Quatre outils sont donnés au cerveau : `earth.show_place(query)`, `earth.show_route(from, to)`, `earth.show_devices()`, `earth.set_zoom(level)`. Détails, sources, licences et branchement du Worker : `docs/terre-carte.md`.
+
 ## Développement
 
 ```

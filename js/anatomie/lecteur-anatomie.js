@@ -1,10 +1,10 @@
 /* ═════════════ PRÉSENTATIONS ANIMÉES DU CORPS : adaptateur du lecteur pour la fenêtre Anatomie ═════════════
    Traduit chaque étape d'un script (presentation.js) en actions sur le moteur 3D (moteur.js : presenter, cadrerStructures, étiquettes animées) et sur le store.
    Sauvegarde l'état de la fenêtre (calques, sélection, pathologies) au départ et le rétablit à la fin. */
-import { useAnatomieStore as S, actions as A } from './store.js?v=2026.10.15.3';
-import { ZONES } from './moteur.js?v=2026.10.15.3';
-import { Lecteur } from './lecteur.js?v=2026.10.15.3';
-import { lireEtatChargement } from './modeles-glb.js?v=2026.10.15.3';
+import { useAnatomieStore as S, actions as A } from './store.js?v=2026.10.15.4';
+import { ZONES } from './moteur.js?v=2026.10.15.4';
+import { Lecteur } from './lecteur.js?v=2026.10.15.4';
+import { lireEtatChargement } from './modeles-glb.js?v=2026.10.15.4';
 
 const attente = ms => new Promise(r => setTimeout(r, ms));
 const CADRES = {

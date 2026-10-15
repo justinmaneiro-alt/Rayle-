@@ -29,7 +29,7 @@ Réalisé le 2026-10-15 sur la version 2026.10.14.5 (commit `4063dbd`). Point de
 | **Univers 3D** (globe interactif, système solaire, Mars + rovers, éclipses, actualités, **bataille navale**, intérieur des navires, transitions) | `js/univers/**`, `css/univers.css`, `js/rayle/commandes-univers.js`, `docs/univers.md` |
 | **Anatomie & Orthopédie** (3D, GLB BodyParts3D, cerveau, présentations animées) | `js/anatomie/**`, `css/anatomie.css`, `js/rayle/commandes-anatomie.js`, `ui/assets/anatomie/` (26 Mo) |
 | **Terminal de trading** (graphique Lightweight Charts, marchés, COT, analyse, Monde) | `js/terminal/**`, `css/terminal*.css`, `css/monde.css`, `js/rayle/commandes-terminal.js`, `commandes-monde.js`, `marche.js`, `calendrier.js` |
-| **Cartes / lieux / itinéraires** | `js/rayle/carte.js` (Leaflet, Nominatim, OSRM) |
+| **Cartes / lieux / itinéraires** | `js/rayle/carte.js` + `js/univers/espace/carte-terre.js` (la Terre sert de carte : MapLibre, OpenFreeMap, geo.api.gouv.fr, Nominatim, OSRM ; voir docs/terre-carte.md) |
 | **Savoirs** (météo, actus, Wikipédia, MDN, études, médicaments) | `savoirs.js`, `panneau-donnees.js`, `panneaux-contenus.js` |
 | **Drive** (Google Drive/Docs/Sheets/Slides : lecture, modification vérifiée, mémoire des cours) | `js/drive/**` (15 fichiers), `js/config-drive.js`, `css/drive.css`, `js/rayle/commandes-drive.js`, `docs/drive.md` |
 | **Multi-appareils** (appairage, commandes entre appareils, localisation, mini-vue, raccourcis) | `appareils.js`, `localisation.js`, `raccourcis.js`, `css/appareils.css` |

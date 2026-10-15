@@ -45,6 +45,10 @@
           // contrôle d'un appareil par son relais (js/rayle/relais.js) : même liste blanche et même confirmation que la voix
           const r=await relaisAgent(a.cible,a.phrase);
           if(r) plus+=' '+r;
+        }else if(a.type==='terre' && typeof terreAgent==='function'){
+          // la Terre sert de carte (js/rayle/terre-outils.js) : earth.show_place / show_route / show_devices / set_zoom ; la page rend compte du résultat réel
+          const r=await terreAgent(a);
+          if(r) plus+=' '+r;
         }else if(a.type==='espace' && typeof espaceAgent==='function'){
           // action de l'Espace décidée par l'IA (js/rayle/commandes-espace.js) : la page rend compte du résultat réel, un échec remplace la réponse
           const r=await espaceAgent(a);

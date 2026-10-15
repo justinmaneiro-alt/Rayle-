@@ -1,6 +1,6 @@
 /* Fiches : nerfs et plexus. Source : Gray's Anatomy 1918, Névrologie (voir fiches-corps.js). Les nerfs de ce fichier ont un TRACÉ SCHÉMATIQUE (tube) reconstitué d'après les descriptions de Gray et posé sur les os,
    muscles et artères de BodyParts3D (scripts/traces-nerfs.mjs) : BodyParts3D ne contient aucun nerf périphérique. Les nerfs de l'orbite, eux, viennent du modèle. */
-import { SOURCE_GRAY } from './fiches-outils.js?v=2026.10.15.3';
+import { SOURCE_GRAY } from './fiches-outils.js?v=2026.10.15.4';
 
 const NE = SOURCE_GRAY + ', Névrologie : nerfs spinaux et crâniens';
 const nerf = (racines, description, territoire, extra) => Object.assign({ racines, description, territoire: territoire || '', source: NE }, extra || {});
