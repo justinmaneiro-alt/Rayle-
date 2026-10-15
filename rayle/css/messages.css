@@ -1,0 +1,17 @@
+/* ═════════════ PHASE 4A : messages et appels préparés, répertoire (réglages) ═════════════ */
+
+/* ───── Panneau « Message pour … » : le texte bien lisible, le destinataire en dessous ───── */
+.msg-texte{font-size:17px;line-height:1.5;color:#fff;margin:4px 0 10px;padding:10px 12px;border-left:3px solid var(--pink,#ff007f);background:rgba(255,0,127,.07);white-space:normal;word-break:break-word}
+.msg-dest{font:12px var(--mono);letter-spacing:.06em;color:var(--cyan,#4de3ff);margin:4px 0}
+.msg-dest.msg-gros{font-size:17px;color:#fff;letter-spacing:.04em}
+.msg-note{font-size:12px;line-height:1.45;opacity:.75;margin:6px 0 0}
+.msg-liste{margin:0;padding-left:18px;line-height:1.7}
+.msg-liste small{opacity:.7}
+
+/* ───── Réglages : liste du répertoire ───── */
+.rep-liste{display:flex;flex-direction:column;gap:4px;margin:6px 0}
+.rep-ligne{display:flex;align-items:center;gap:6px;flex-wrap:wrap;padding:4px 0;border-bottom:1px solid rgba(255,255,255,.08)}
+.rep-nom{flex:1 1 220px;min-width:0;font-size:13px;overflow-wrap:anywhere}
+.rep-ligne button{padding:4px 10px;font-size:12px}
+.rep-form{display:grid;grid-template-columns:1fr;gap:2px}
+#kWidgetUrl{width:100%;margin-top:6px;font:12px var(--mono)}

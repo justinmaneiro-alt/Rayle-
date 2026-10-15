@@ -9,24 +9,24 @@
 //   etat            'actif' (scène intérieure installée) | 'pret' (« prêt à recevoir un thème »)        etatLibelle
 //   mount(P, opts)  charge et entre dans la scène intérieure       unmount(P, opts)  en sort et la libère
 // Ajouter un thème intérieur à une planète : écrire sa scène dans son dossier (ex. saturne/index.js), puis renseigner `interieur` ci-dessous. Rien d'autre.
-import { ASTRES, ORDRE_PLANETES } from '../donnees/planetes.js?v=2026.10.15.7';
-import { agentVide, validerAgent, estBranche } from './agent.js?v=2026.10.15.7';
+import { ASTRES, ORDRE_PLANETES } from '../donnees/planetes.js?v=2026.10.15.8';
+import { agentVide, validerAgent, estBranche } from './agent.js?v=2026.10.15.8';
 
 const norm = t => String(t == null ? '' : t).normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/['’\-]/g, ' ').replace(/[^a-z0-9 ]/g, ' ').replace(/\s+/g, ' ').trim();
 const TERRE_KM = 6371;
 
 // Définitions : seul ce qui n'est pas déjà dans les fiches ASTRES (donnees/planetes.js) est écrit ici. Les imports littéraux permettent le versionnage (?v=) et le chargement à la demande.
 const DEF = {
-  soleil:  { alias: ['soleil', 'sun', 'etoile'], role: null, texture: null, interieur: null, prevu: null, charger: () => import('./soleil/index.js?v=2026.10.15.7') },
-  mercure: { alias: ['mercure', 'mercury'], role: null, texture: 'espace/mercure-{res}.webp', interieur: null, prevu: null, charger: () => import('./mercure/index.js?v=2026.10.15.7') },
-  venus:   { alias: ['venus'], role: null, texture: 'espace/venus-{res}.webp', interieur: null, prevu: null, charger: () => import('./venus/index.js?v=2026.10.15.7') },
-  terre:   { alias: ['terre', 'earth', 'planete terre', 'globe'], role: 'Carte du monde', texture: 'terre-jour-2048.jpg', interieur: { id: 'carte', nom: 'Carte du monde', vue: 'terre' }, prevu: null, charger: () => import('./terre/index.js?v=2026.10.15.7') },
-  lune:    { alias: ['lune', 'moon'], role: null, texture: 'espace/lune-{res}.webp', interieur: null, prevu: null, autour: 'terre', charger: () => import('./lune/index.js?v=2026.10.15.7') },
-  mars:    { alias: ['mars', 'planete mars'], role: 'Base martienne', texture: 'espace/mars-{res}.webp', interieur: { id: 'base', nom: 'Base martienne (atterrissage, rovers)', vue: 'mars' }, prevu: null, charger: () => import('./mars/index.js?v=2026.10.15.7') },
-  jupiter: { alias: ['jupiter'], role: 'Base de code', texture: 'espace/jupiter-{res}.webp', interieur: null, prevu: 'base de code', charger: () => import('./jupiter/index.js?v=2026.10.15.7') },
-  saturne: { alias: ['saturne', 'saturn'], role: 'Vaisseau', texture: 'espace/saturne-{res}.webp', interieur: null, prevu: 'vaisseau', charger: () => import('./saturne/index.js?v=2026.10.15.7') },
-  uranus:  { alias: ['uranus'], role: null, texture: 'espace/uranus-{res}.webp', interieur: null, prevu: null, charger: () => import('./uranus/index.js?v=2026.10.15.7') },
-  neptune: { alias: ['neptune'], role: null, texture: 'espace/neptune-{res}.webp', interieur: null, prevu: null, charger: () => import('./neptune/index.js?v=2026.10.15.7') },
+  soleil:  { alias: ['soleil', 'sun', 'etoile'], role: null, texture: null, interieur: null, prevu: null, charger: () => import('./soleil/index.js?v=2026.10.15.8') },
+  mercure: { alias: ['mercure', 'mercury'], role: null, texture: 'espace/mercure-{res}.webp', interieur: null, prevu: null, charger: () => import('./mercure/index.js?v=2026.10.15.8') },
+  venus:   { alias: ['venus'], role: null, texture: 'espace/venus-{res}.webp', interieur: null, prevu: null, charger: () => import('./venus/index.js?v=2026.10.15.8') },
+  terre:   { alias: ['terre', 'earth', 'planete terre', 'globe'], role: 'Carte du monde', texture: 'terre-jour-2048.jpg', interieur: { id: 'carte', nom: 'Carte du monde', vue: 'terre' }, prevu: null, charger: () => import('./terre/index.js?v=2026.10.15.8') },
+  lune:    { alias: ['lune', 'moon'], role: null, texture: 'espace/lune-{res}.webp', interieur: null, prevu: null, autour: 'terre', charger: () => import('./lune/index.js?v=2026.10.15.8') },
+  mars:    { alias: ['mars', 'planete mars'], role: 'Base martienne', texture: 'espace/mars-{res}.webp', interieur: { id: 'base', nom: 'Base martienne (atterrissage, rovers)', vue: 'mars' }, prevu: null, charger: () => import('./mars/index.js?v=2026.10.15.8') },
+  jupiter: { alias: ['jupiter'], role: 'Base de code', texture: 'espace/jupiter-{res}.webp', interieur: null, prevu: 'base de code', charger: () => import('./jupiter/index.js?v=2026.10.15.8') },
+  saturne: { alias: ['saturne', 'saturn'], role: 'Vaisseau', texture: 'espace/saturne-{res}.webp', interieur: null, prevu: 'vaisseau', charger: () => import('./saturne/index.js?v=2026.10.15.8') },
+  uranus:  { alias: ['uranus'], role: null, texture: 'espace/uranus-{res}.webp', interieur: null, prevu: null, charger: () => import('./uranus/index.js?v=2026.10.15.8') },
+  neptune: { alias: ['neptune'], role: null, texture: 'espace/neptune-{res}.webp', interieur: null, prevu: null, charger: () => import('./neptune/index.js?v=2026.10.15.8') },
 };
 export const ORDRE = ['soleil', 'mercure', 'venus', 'terre', 'lune', 'mars', 'jupiter', 'saturne', 'uranus', 'neptune'];
 export const ETATS = { actif: 'actif', pret: 'prêt à recevoir un thème' };

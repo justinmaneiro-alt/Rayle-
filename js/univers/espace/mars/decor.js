@@ -2,7 +2,7 @@
 // Terrain procédural (aucun relevé d'altitude gratuit sans clé n'a la finesse voulue à l'échelle du rover) : plaine de cratère avec dunes, cailloux, bords de cratère lointains.
 // L'altitude vient de hauteur(x, z) : fonction pure partagée par le terrain, les rochers et les roues du rover (testée).
 // creerDecor(THREE, {q, texRoche, geoRocher}) → { groupe, ciel, soleil, lunes, hauteur, majCiel(t, camera), poussiere:{emettre,maj}, qualite(q), detruire() }
-import { geometrieRocher, textureRoche } from '../asteroides.js?v=2026.10.15.7';
+import { geometrieRocher, textureRoche } from '../asteroides.js?v=2026.10.15.8';
 
 // bruit de valeur lissé, déterministe
 function h2(x, y) { const n = Math.sin(x * 127.1 + y * 311.7) * 43758.5453; return n - Math.floor(n); }

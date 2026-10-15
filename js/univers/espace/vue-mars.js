@@ -1,11 +1,11 @@
 // VUE « MARS » du thème Espace : « Atterrir sur Mars » (approche, entrée atmosphérique avec flammes, parachute, rétrofusées, grue céleste, poussière, ciel rosé et deux lunes),
 // puis la maquette 3D du rover (Perseverance : modèle NASA ; Curiosity : modèle procédural) avec pièces cliquables, légendes et présentation parlée.
 // Contrat d'une vue : voir vue-systeme.js. Commandes : 'atterrir' · 'rover' ({nom}) · 'presenter' ({nom: 'perseverance'|'curiosity'|'mars'}) · 'piece' ({nom}) · 'orbite' · 'autre-rover'.
-import { creerDecor, hauteur } from './mars/decor.js?v=2026.10.15.7';
-import { creerEDL } from './mars/edl.js?v=2026.10.15.7';
-import { creerRover } from './mars/rover.js?v=2026.10.15.7';
-import { ROVERS, composerRover, NOM_ANGLE, reponseRover } from '../donnees/rovers.js?v=2026.10.15.7';
-import { ASTRES } from '../donnees/planetes.js?v=2026.10.15.7';
+import { creerDecor, hauteur } from './mars/decor.js?v=2026.10.15.8';
+import { creerEDL } from './mars/edl.js?v=2026.10.15.8';
+import { creerRover } from './mars/rover.js?v=2026.10.15.8';
+import { ROVERS, composerRover, NOM_ANGLE, reponseRover } from '../donnees/rovers.js?v=2026.10.15.8';
+import { ASTRES } from '../donnees/planetes.js?v=2026.10.15.8';
 
 const RAD = Math.PI / 180;
 const norm = t => String(t == null ? '' : t).normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/['’\-]/g, ' ').replace(/[^a-z0-9 ]/g, ' ').replace(/\s+/g, ' ').trim();

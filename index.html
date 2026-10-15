@@ -14,17 +14,66 @@
 <link rel="icon" type="image/svg+xml" href="favicon.svg">
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="apple-touch-icon" href="icones/apple-touch-icon.png">
-<link rel="stylesheet" href="css/base.css?v=2026.10.15.7">
-<link rel="stylesheet" href="css/univers.css?v=2026.10.15.7">
+<link rel="stylesheet" href="css/base.css?v=2026.10.15.8">
+<link rel="stylesheet" href="css/univers.css?v=2026.10.15.8">
+<link rel="stylesheet" href="rayle/css/ui.css?v=2026.10.15.8">
+<link rel="stylesheet" href="rayle/css/accueil.css?v=2026.10.15.8">
 </head>
 <body>
-<script src="js/univers/support/bus.js?v=2026.10.15.7"></script>
-<script src="js/univers/support/pays-donnees.js?v=2026.10.15.7"></script>
-<script src="js/univers/support/astro.js?v=2026.10.15.7"></script>
-<script src="js/univers/support/sgp4.js?v=2026.10.15.7"></script>
-<script src="js/univers/support/espace-pays-centres.js?v=2026.10.15.7"></script>
-<script src="js/univers/support/espace-terre-donnees.js?v=2026.10.15.7"></script>
-<script src="js/univers/support/espace-terre.js?v=2026.10.15.7"></script>
-<script type="module" src="js/demarrage.js?v=2026.10.15.7"></script>
+<!-- Rayle : aucune interface. L'entité (neurone) vit dans #reactor ; le reste de #echafaudage sert seulement de support au noyau d'origine et reste caché. -->
+<div id="reactor" class="reactor idle"></div>
+<div id="panneaux" aria-live="polite"></div>
+<div id="echafaudage" hidden>
+  <div id="log"></div><div id="state"></div><div id="interim"></div><div id="soustitre"></div><div id="bridgeStatus"></div><div id="voiceName"></div>
+  <button id="btn"><span id="btnTxt"></span><small id="btnSub"></small></button>
+  <form id="form"><input id="txt"></form>
+  <button id="gear"></button><button id="btnCouper"></button><div id="cfg"></div><input id="kSousTitres" type="checkbox"><select id="kQualite"></select><div id="infoEntite"></div><div id="anQuick"></div>
+  <div id="miniReactor" class="reactor"></div><div id="miniEtat"></div><div id="miniDit"></div>
+</div>
+
+<script>window.RAYLE_VERSION='2026.10.15.8';</script>
+<script src="js/univers/support/bus.js?v=2026.10.15.8"></script>
+<script src="js/univers/support/pays-donnees.js?v=2026.10.15.8"></script>
+<script src="js/univers/support/astro.js?v=2026.10.15.8"></script>
+<script src="js/univers/support/sgp4.js?v=2026.10.15.8"></script>
+<script src="js/univers/support/espace-pays-centres.js?v=2026.10.15.8"></script>
+<script src="js/univers/support/espace-terre-donnees.js?v=2026.10.15.8"></script>
+<script src="js/univers/support/espace-terre.js?v=2026.10.15.8"></script>
+<!-- Rayle : voix, écoute, personnalité, mémoire, entité neurone (code d'origine, rangé dans rayle/) -->
+<script src="rayle/noyau/modules-absents.js?v=2026.10.15.8"></script>
+<script src="rayle/entree.js?v=2026.10.15.8"></script>
+<script src="rayle/commun/entite.js?v=2026.10.15.8"></script>
+<script src="rayle/commun/panneaux.js?v=2026.10.15.8"></script>
+<script src="rayle/noyau/base.js?v=2026.10.15.8"></script>
+<script src="rayle/noyau/worker.js?v=2026.10.15.8"></script>
+<script src="rayle/noyau/nettoyage-voix.js?v=2026.10.15.8"></script>
+<script src="rayle/noyau/voix.js?v=2026.10.15.8"></script>
+<script src="rayle/noyau/ia.js?v=2026.10.15.8"></script>
+<script src="rayle/noyau/phrase.js?v=2026.10.15.8"></script>
+<script src="rayle/noyau/agent.js?v=2026.10.15.8"></script>
+<script src="rayle/noyau/modes.js?v=2026.10.15.8"></script>
+<script src="rayle/noyau/coupure.js?v=2026.10.15.8"></script>
+<script src="rayle/noyau/calcul.js?v=2026.10.15.8"></script>
+<script src="rayle/noyau/calendrier.js?v=2026.10.15.8"></script>
+<script src="rayle/noyau/savoirs.js?v=2026.10.15.8"></script>
+<script src="rayle/noyau/memoire.js?v=2026.10.15.8"></script>
+<script src="rayle/noyau/medias.js?v=2026.10.15.8"></script>
+<script src="rayle/noyau/lecture.js?v=2026.10.15.8"></script>
+<script src="rayle/noyau/reconnaissance.js?v=2026.10.15.8"></script>
+<script src="rayle/noyau/affichage.js?v=2026.10.15.8"></script>
+<script src="rayle/noyau/evenements.js?v=2026.10.15.8"></script>
+<script src="rayle/noyau/discretion.js?v=2026.10.15.8"></script>
+<script src="rayle/noyau/clap.js?v=2026.10.15.8"></script>
+<script src="rayle/noyau/ecoute-naturelle.js?v=2026.10.15.8"></script>
+<script src="rayle/noyau/initiative.js?v=2026.10.15.8"></script>
+<script src="rayle/noyau/repertoire.js?v=2026.10.15.8"></script>
+<script src="rayle/univers-voix.js?v=2026.10.15.8"></script>
+<script src="rayle/menu-planetes.js?v=2026.10.15.8"></script>
+<script src="rayle/ui/themes.js?v=2026.10.15.8"></script>
+<script src="rayle/ui/reglages-fixes.js?v=2026.10.15.8"></script>
+<script src="rayle/ui/entity.js?v=2026.10.15.8"></script>
+<script src="rayle/ui/entity-neurones.js?v=2026.10.15.8"></script>
+<script src="rayle/demarrage-rayle.js?v=2026.10.15.8"></script>
+<script type="module" src="js/demarrage.js?v=2026.10.15.8"></script>
 </body>
 </html>

@@ -1,6 +1,6 @@
 # Rayle
 
-Base neutre : au lancement, **Rayle ouvre directement l'univers** (un seul thème, « système solaire »), plein écran, sans bouton, sans menu et sans texte d'interface. Glisser = tourner, pincer ou molette = zoomer.
+Au lancement, **Rayle ouvre directement l'univers** (un seul thème, « système solaire »), plein écran, sans bouton ni texte d'interface. Rayle (voix, écoute, entité neurone) vit dans `rayle/` : un toucher n'importe où au premier lancement débloque le micro et le son, puis elle écoute en continu (« Rayle, va sur Mars », « retour au système solaire », « zoome », « ouvre le menu »…). Seule interface : une poignée presque invisible sur le bord gauche qui ouvre le petit menu des planètes. Glisser = tourner, pincer ou molette = zoomer.
 
 Page unique : `index.html`. JavaScript natif, aucun outil de build. Adresse GitHub Pages inchangée.
 
@@ -8,7 +8,11 @@ Page unique : `index.html`. JavaScript natif, aucun outil de build. Adresse GitH
 
 ```
 index.html            seul point d'entrée
-js/demarrage.js       ouvre l'univers (système solaire) et enregistre le service worker
+js/demarrage.js       ouvre l'univers (système solaire), expose window.RayleMonde, enregistre le service worker
+rayle/noyau/          cerveau de Rayle d'origine (voix, reconnaissance, personnalité, mémoire, commandes) — code repris tel quel
+rayle/commun/         bus, entité (sphère de particules), panneaux ; rayle/ui/ : entité Neurones et thème
+rayle/univers-voix.js commandes vocales de l'univers (planètes, vue d'ensemble, zoom, menu) ; rayle/menu-planetes.js : le petit menu
+rayle/demarrage-rayle.js, entree.js   premier toucher, écoute continue ; rayle/noyau/modules-absents.js : neutralise les modules rangés
 js/univers/           la scène 3D : noyau, thème « espace », planètes (un module chacune), données
 js/univers/support/   petites bibliothèques utilisées par la scène (astro, SGP4, pays, villes, bus)
 js/vendor/            MapLibre (Terre en carte), contours des pays (topojson, world-atlas)
