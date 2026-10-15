@@ -1,5 +1,5 @@
 /* Fiches : épaule, paroi du thorax (muscles du membre supérieur), bras, avant-bras, main. Source : Gray's Anatomy 1918, Myologie (voir fiches-corps.js). */
-import { f, SOURCE_GRAY } from './fiches-outils.js?v=2026.10.15.2';
+import { f, SOURCE_GRAY } from './fiches-outils.js?v=2026.10.15.3';
 
 const MS = SOURCE_GRAY + ", Myologie : muscles de l'épaule, du bras, de l'avant-bras et de la main";
 

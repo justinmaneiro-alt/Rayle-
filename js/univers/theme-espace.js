@@ -1,17 +1,17 @@
 // ═════════════ THÈME « ESPACE » : Terre interactive, Lune, Soleil, actualités, présentations ═════════════
 // (Les planètes, les galaxies, l'ISS et l'atterrissage sur Mars s'ajoutent comme « vues » de ce même thème : voir VUES plus bas.)
 // Interaction : un doigt / la souris = tourner ; pincer / molette = zoomer en continu (de l'espace jusqu'aux pays) ; toucher un pays ou une mer = sa fiche.
-import { creerCiel, STYLES_CIEL } from './espace/ciel.js?v=2026.10.15.2';
-import { creerTerre } from './espace/terre.js?v=2026.10.15.2';
-import { creerGeo } from './espace/geo-calques.js?v=2026.10.15.2';
-import { creerRayons } from './espace/effets.js?v=2026.10.15.2';
-import { actusMonde, actusDe, indexerLieux, norm } from './espace/actualites.js?v=2026.10.15.2';
-import { infosPays } from './donnees/pays.js?v=2026.10.15.2';
-import { composerPays, composerMer, ANGLES_LIBELLES, melanger, art, designation } from './donnees/presentation.js?v=2026.10.15.2';
-import { OCEANS_MERS } from './donnees/mers.js?v=2026.10.15.2';
-import { ASTRES } from './donnees/planetes.js?v=2026.10.15.2';
-import { composerAstre } from './donnees/presentation.js?v=2026.10.15.2';
-import * as Reg from './planetes/registre.js?v=2026.10.15.2';          // registre des planètes (métadonnées légères ; les scènes intérieures se chargent à l'entrée)
+import { creerCiel, STYLES_CIEL } from './espace/ciel.js?v=2026.10.15.3';
+import { creerTerre } from './espace/terre.js?v=2026.10.15.3';
+import { creerGeo } from './espace/geo-calques.js?v=2026.10.15.3';
+import { creerRayons } from './espace/effets.js?v=2026.10.15.3';
+import { actusMonde, actusDe, indexerLieux, norm } from './espace/actualites.js?v=2026.10.15.3';
+import { infosPays } from './donnees/pays.js?v=2026.10.15.3';
+import { composerPays, composerMer, ANGLES_LIBELLES, melanger, art, designation } from './donnees/presentation.js?v=2026.10.15.3';
+import { OCEANS_MERS } from './donnees/mers.js?v=2026.10.15.3';
+import { ASTRES } from './donnees/planetes.js?v=2026.10.15.3';
+import { composerAstre } from './donnees/presentation.js?v=2026.10.15.3';
+import * as Reg from './planetes/registre.js?v=2026.10.15.3';          // registre des planètes (métadonnées légères ; les scènes intérieures se chargent à l'entrée)
 
 const RAD = Math.PI / 180;
 const esc = t => String(t == null ? '' : t).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -194,7 +194,7 @@ export default {
     async function chargerSat() {
       if (SAT) return SAT;
       hud.legende('Satellites : éléments orbitaux de CelesTrak…', 0);
-      const m = await import('./espace/satellites.js?v=2026.10.15.2'); SAT = await m.creerSatellites(ctx, G); scene.add(SAT.groupe); SAT.visible(satOn);
+      const m = await import('./espace/satellites.js?v=2026.10.15.3'); SAT = await m.creerSatellites(ctx, G); scene.add(SAT.groupe); SAT.visible(satOn);
       orbISS = new THREE.Line(new THREE.BufferGeometry(), new THREE.LineBasicMaterial({ color: 0x66e6ff, transparent: true, opacity: .55, depthWrite: false })); orbISS.frustumCulled = false; orbISS.visible = false; scene.add(orbISS);
       const wp = vec(0, 0, 0);
       ctx.etiquettes.ajouter({ id: 'sat:iss', texte: '🛰 ISS', classe: 'pays', position: () => { const I = SAT.iss(ts()); return I ? wp.copy(I.pos) : wp.set(0, 0, 0); }, visible: (w, cam) => vueNom === 'terre' && satOn && G.visible(w, cam), alpha: () => { const I = SAT.iss(ts()); if (!I) return 0; return camera.getWorldPosition(vec(0, 0, 0)).distanceTo(I.pos) > .06 ? 1 : 0; }, onClick: () => voirISS() });
@@ -397,7 +397,7 @@ export default {
       // Mars : atterrissage, rovers (maquette 3D, pièces), questions sur les rovers
       if (['atterrir', 'rover', 'piece', 'autre-rover', 'question', 'mars-orbite'].includes(nom) || ((nom === 'presenter' || nom === 'aller') && a.nom && /perseverance|perseverence|curiosity|curiosite/.test(String(a.nom).normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase()))) {
         const mode = nom === 'atterrir' ? 'atterrir' : nom === 'mars-orbite' ? 'orbite' : 'rover';
-        if (vueNom !== 'mars') { const m = await import('./espace/vue-mars.js?v=2026.10.15.2'); await allerVue('mars', { mode, rover: m.trouverRover(a.nom || a.rover || '') || undefined, force: true }); if (nom === 'atterrir') return { ok: true, texte: 'Je m’installe pour l’atterrissage : l’approche de Mars, l’entrée dans l’atmosphère, le parachute, la grue céleste. Dis « passe l’animation » pour aller directement au rover.' }; if (nom === 'rover' || nom === 'aller') return { ok: true, texte: 'Voici le rover.' }; if (nom === 'mars-orbite') return { ok: true, texte: 'Voici Mars.' }; }
+        if (vueNom !== 'mars') { const m = await import('./espace/vue-mars.js?v=2026.10.15.3'); await allerVue('mars', { mode, rover: m.trouverRover(a.nom || a.rover || '') || undefined, force: true }); if (nom === 'atterrir') return { ok: true, texte: 'Je m’installe pour l’atterrissage : l’approche de Mars, l’entrée dans l’atmosphère, le parachute, la grue céleste. Dis « passe l’animation » pour aller directement au rover.' }; if (nom === 'rover' || nom === 'aller') return { ok: true, texte: 'Voici le rover.' }; if (nom === 'mars-orbite') return { ok: true, texte: 'Voici Mars.' }; }
         return vueObj.commande(nom === 'mars-orbite' ? 'orbite' : nom === 'aller' ? 'rover' : nom, a);
       }
       // planètes : entrer, sortir, retour au système, tourner (hors vue Système ; dans la vue Système, la vue s'en charge)
@@ -410,7 +410,7 @@ export default {
         const r = await Reg.entrer(cible, partage); return r.texte ? r : Object.assign(r, { texte: 'C’est fait.' });
       }
       if (nom === 'tourner' && vueNom !== 'systeme') {
-        const m = await import('./espace/vue-systeme.js?v=2026.10.15.2'), id = a.nom ? m.trouverAstre(a.nom) : null;
+        const m = await import('./espace/vue-systeme.js?v=2026.10.15.3'), id = a.nom ? m.trouverAstre(a.nom) : null;
         if (vueNom === 'terre' && (!a.nom || id === 'terre')) { ctrl.c.autoRotate = a.oui !== false; ctrl.c.autoRotateSpeed = 1.2; return { ok: true, texte: a.oui === false ? 'J’ai arrêté la rotation.' : 'La Terre tourne devant toi.' }; }
         if (!id) return { ok: false, texte: 'Dis quelle planète faire tourner, par exemple « fais tourner Jupiter ».' };
         await allerVue('systeme'); return vueObj.commande('tourner', a);
@@ -418,7 +418,7 @@ export default {
       if (nom === 'vue') { const r = await allerVue(a.nom, a); return Object.assign({ ok: true, texte: a.nom === 'terre' ? 'Voici la Terre.' : a.nom === 'systeme' ? 'Voici le système solaire.' : 'C’est fait.' }, r.texte ? r : {}); }
       if (vueNom !== 'terre' && vueObj) { const r = await vueObj.commande(nom, a); if (r !== undefined) return r; }
       // astres du système solaire demandés depuis la vue Terre (planète, Soleil, astéroïdes…) : on bascule d'abord
-      if ((nom === 'aller' || nom === 'presenter') && a.nom && vueNom !== 'systeme') { const m = await import('./espace/vue-systeme.js?v=2026.10.15.2'); const id = m.trouverAstre(a.nom); if (id && id !== 'terre' && id !== 'lune') { await allerVue('systeme'); return vueObj.commande(nom, a); } }
+      if ((nom === 'aller' || nom === 'presenter') && a.nom && vueNom !== 'systeme') { const m = await import('./espace/vue-systeme.js?v=2026.10.15.3'); const id = m.trouverAstre(a.nom); if (id && id !== 'terre' && id !== 'lune') { await allerVue('systeme'); return vueObj.commande(nom, a); } }
       if (['systeme', 'echelle'].includes(nom)) { await allerVue('systeme'); return vueObj.commande(nom, a); }
       switch (nom) {
         case 'aller': return aller(a.nom);

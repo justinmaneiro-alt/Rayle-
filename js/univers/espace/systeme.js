@@ -3,8 +3,8 @@
 // Échelles : « didactique » (défaut) = distances vraies (1 UA = 60 unités), planètes agrandies d'un MÊME facteur (×390 : leurs tailles relatives sont exactes), Soleil réduit à 9 unités ;
 //            « réelle » = tout à la vraie échelle (les planètes sont alors de simples points : zoomer pour les trouver).
 // creerSysteme(ctx) → { groupe, maj(dt, t, ts, tSim, camera), positionMonde(id), rayon(id), pick(camera, x, y, w, h), echelle(mode), nommes, detruire() }
-import { ASTRES, ORDRE_PLANETES, LUNES, UA_KM, positionHelio, pointsOrbite } from '../donnees/planetes.js?v=2026.10.15.2';
-import { creerCeinture, textureRoche, geometrieRocher } from './asteroides.js?v=2026.10.15.2';
+import { ASTRES, ORDRE_PLANETES, LUNES, UA_KM, positionHelio, pointsOrbite } from '../donnees/planetes.js?v=2026.10.15.3';
+import { creerCeinture, textureRoche, geometrieRocher } from './asteroides.js?v=2026.10.15.3';
 
 export const UA_U = 60;                                     // unités par UA
 const BOOST = 390, RAD = Math.PI / 180;
@@ -26,7 +26,11 @@ export async function creerSysteme(ctx) {
 
   /* ───── Soleil ───── */
   const soleil = new THREE.Group(); groupe.add(soleil);
-  const disque = new THREE.Mesh(new THREE.SphereGeometry(1, 48, 32), new THREE.MeshBasicMaterial({ color: new THREE.Color(1.7, 1.45, 1.05), toneMapped: false })); soleil.add(disque);
+  // Soleil : shader d'émission (granulation, taches, assombrissement du bord, lente rotation) + couronne qui ondule + halos ; aucune texture à télécharger
+  const uSoleil = { uT: { value: 0 } };
+  const disque = new THREE.Mesh(new THREE.SphereGeometry(1, 64, 48), new THREE.ShaderMaterial({ uniforms: uSoleil, vertexShader: "varying vec3 vP; varying vec3 vN; varying vec3 vV;\nvoid main(){ vP = position; vN = normalize(normalMatrix * normal); vec4 mv = modelViewMatrix * vec4(position, 1.0); vV = normalize(-mv.xyz); gl_Position = projectionMatrix * mv; }", fragmentShader: "precision highp float;\nuniform float uT; varying vec3 vP; varying vec3 vN; varying vec3 vV;\nfloat h(vec3 p){ p = fract(p * .3183099 + .1); p *= 17.0; return fract(p.x * p.y * p.z * (p.x + p.y + p.z)); }\nfloat bruit(vec3 x){ vec3 i = floor(x), f = fract(x); f = f * f * (3.0 - 2.0 * f);\n  return mix(mix(mix(h(i), h(i + vec3(1,0,0)), f.x), mix(h(i + vec3(0,1,0)), h(i + vec3(1,1,0)), f.x), f.y),\n             mix(mix(h(i + vec3(0,0,1)), h(i + vec3(1,0,1)), f.x), mix(h(i + vec3(0,1,1)), h(i + vec3(1,1,1)), f.x), f.y), f.z); }\nfloat fbm(vec3 p){ float s = 0.0, a = .5; for (int k = 0; k < 4; k++){ s += a * bruit(p); p = p * 2.03 + 11.7; a *= .5; } return s; }\nvoid main(){\n  vec3 p = normalize(vP);\n  float gran = fbm(p * 7.0 + vec3(0.0, uT * .06, 0.0));                    // granulation : cellules qui bouillonnent\n  float fin = fbm(p * 19.0 - vec3(uT * .09, 0.0, 0.0));\n  float tache = smoothstep(.62, .78, fbm(p * 2.4 + 3.0 + vec3(0.0, 0.0, uT * .004)));   // taches sombres, très lentes\n  float mu = clamp(dot(normalize(vN), normalize(vV)), 0.0, 1.0);          // assombrissement du bord\n  float bord = pow(mu, .55);\n  vec3 chaud = vec3(1.0, .93, .70), orange = vec3(1.0, .52, .12), sombre = vec3(.35, .10, .02);\n  vec3 c = mix(orange, chaud, smoothstep(.42, .88, gran * .75 + fin * .25));\n  c = mix(c, sombre, tache * .85);\n  c *= .55 + .9 * bord;\n  c += vec3(.35, .22, .08) * pow(1.0 - mu, 3.0) * .6;                    // fine lueur du limbe\n  gl_FragColor = vec4(c * 1.12, 1.0);\n}", toneMapped: false })); soleil.add(disque);
+  const couronne = new THREE.Mesh(new THREE.SphereGeometry(1, 48, 32), new THREE.ShaderMaterial({ uniforms: uSoleil, vertexShader: "varying vec3 vP; varying vec3 vN; varying vec3 vV;\nvoid main(){ vP = position; vN = normalize(normalMatrix * normal); vec4 mv = modelViewMatrix * vec4(position, 1.0); vV = normalize(-mv.xyz); gl_Position = projectionMatrix * mv; }", fragmentShader: "precision highp float;\nuniform float uT; varying vec3 vP; varying vec3 vN; varying vec3 vV;\nfloat h(vec3 p){ p = fract(p * .3183099 + .1); p *= 17.0; return fract(p.x * p.y * p.z * (p.x + p.y + p.z)); }\nfloat bruit(vec3 x){ vec3 i = floor(x), f = fract(x); f = f * f * (3.0 - 2.0 * f);\n  return mix(mix(mix(h(i), h(i + vec3(1,0,0)), f.x), mix(h(i + vec3(0,1,0)), h(i + vec3(1,1,0)), f.x), f.y),\n             mix(mix(h(i + vec3(0,0,1)), h(i + vec3(1,0,1)), f.x), mix(h(i + vec3(0,1,1)), h(i + vec3(1,1,1)), f.x), f.y), f.z); }\nvoid main(){\n  float mu = abs(dot(normalize(vN), normalize(vV)));\n  float k = pow(clamp(1.0 - mu, 0.0, 1.0), 3.4);                          // la lueur est plus forte près du disque\n  float jet = .65 + .7 * bruit(normalize(vP) * 5.0 + vec3(uT * .05, 0.0, uT * .03));   // jets qui ondulent\n  gl_FragColor = vec4(vec3(1.0, .62, .22) * k * jet * 1.0, k * jet * .8);\n}", transparent: true, side: THREE.BackSide, depthWrite: false, blending: THREE.AdditiveBlending, toneMapped: false })); soleil.add(couronne);
+  libres.push(disque.geometry, disque.material, couronne.geometry, couronne.material);
   const cv = document.createElement('canvas'); cv.width = cv.height = 256; { const g = cv.getContext('2d'), gr = g.createRadialGradient(128, 128, 0, 128, 128, 128); gr.addColorStop(0, 'rgba(255,245,210,1)'); gr.addColorStop(.12, 'rgba(255,225,150,.8)'); gr.addColorStop(.35, 'rgba(255,170,70,.28)'); gr.addColorStop(1, 'rgba(255,120,30,0)'); g.fillStyle = gr; g.fillRect(0, 0, 256, 256); }
   const texHalo = new THREE.CanvasTexture(cv); texHalo.colorSpace = THREE.SRGBColorSpace; libres.push(texHalo);
   const halo1 = new THREE.Sprite(new THREE.SpriteMaterial({ map: texHalo, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending })), halo2 = new THREE.Sprite(new THREE.SpriteMaterial({ map: texHalo, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, opacity: .5 }));
@@ -48,11 +52,13 @@ export async function creerSysteme(ctx) {
     if (id === 'terre') {
       const nuages = await texCharge('nuages-2048.jpg', false);
       if (nuages) { const mn = new THREE.MeshStandardMaterial({ alphaMap: nuages, color: 0xffffff, transparent: true, opacity: .85, depthWrite: false, roughness: 1 }); libres.push(mn); const c = new THREE.Mesh(geo, mn); c.scale.setScalar(r * 1.012); incl.add(c); P.nuages = c; }
-      const atmo = new THREE.Mesh(new THREE.SphereGeometry(1, 48, 24), new THREE.MeshBasicMaterial({ color: 0x5aa0ff, transparent: true, opacity: .16, side: THREE.BackSide, depthWrite: false, blending: THREE.AdditiveBlending })); libres.push(atmo.geometry, atmo.material); atmo.scale.setScalar(r * 1.09); incl.add(atmo); P.atmo = atmo;
+      const atmo = new THREE.Mesh(new THREE.SphereGeometry(1, 48, 24), new THREE.MeshBasicMaterial({ color: 0x5aa0ff, transparent: true, opacity: .16, side: THREE.BackSide, depthWrite: false, blending: THREE.AdditiveBlending })); libres.push(atmo.geometry, atmo.material); atmo.scale.setScalar(r * 1.09); incl.add(atmo); P.atmo = atmo; P.atmoK = 1.09;
     } else if (id === 'venus') {
       const atmo = new THREE.Mesh(new THREE.SphereGeometry(1, 48, 24), new THREE.MeshBasicMaterial({ color: 0xffd9a0, transparent: true, opacity: .13, side: THREE.BackSide, depthWrite: false, blending: THREE.AdditiveBlending })); libres.push(atmo.geometry, atmo.material); atmo.scale.setScalar(r * 1.06); incl.add(atmo); P.atmo = atmo;
     } else if (id === 'mars') {
-      const atmo = new THREE.Mesh(new THREE.SphereGeometry(1, 48, 24), new THREE.MeshBasicMaterial({ color: 0xffb38a, transparent: true, opacity: .09, side: THREE.BackSide, depthWrite: false, blending: THREE.AdditiveBlending })); libres.push(atmo.geometry, atmo.material); atmo.scale.setScalar(r * 1.04); incl.add(atmo);
+      const atmo = new THREE.Mesh(new THREE.SphereGeometry(1, 48, 24), new THREE.MeshBasicMaterial({ color: 0xffb38a, transparent: true, opacity: .09, side: THREE.BackSide, depthWrite: false, blending: THREE.AdditiveBlending })); libres.push(atmo.geometry, atmo.material); atmo.scale.setScalar(r * 1.04); incl.add(atmo); P.atmo = atmo; P.atmoK = 1.04;
+    } else if (id === 'neptune') {
+      const atmo = new THREE.Mesh(new THREE.SphereGeometry(1, 48, 24), new THREE.MeshBasicMaterial({ color: 0x5f8cff, transparent: true, opacity: .13, side: THREE.BackSide, depthWrite: false, blending: THREE.AdditiveBlending })); libres.push(atmo.geometry, atmo.material); atmo.scale.setScalar(r * 1.05); incl.add(atmo); P.atmo = atmo; P.atmoK = 1.05;
     }
     // anneaux
     if (id === 'saturne') {
@@ -60,6 +66,16 @@ export async function creerSysteme(ctx) {
       for (let i = 0; i < pos.count; i++) { v.fromBufferAttribute(pos, i); uv.setXY(i, (v.length() - ri) / (ro - ri), .5); }
       const m = new THREE.MeshStandardMaterial({ map: tr, transparent: true, side: THREE.DoubleSide, roughness: .9, depthWrite: false, color: tr ? 0xffffff : 0xcdbb94, opacity: .95 }); libres.push(g, m);
       const an = new THREE.Mesh(g, m); an.rotation.x = -Math.PI / 2; an.scale.setScalar(r); incl.add(an); P.anneaux = an;
+      // Ombres (calcul analytique, sans carte d'ombre) : le Soleil est à l'origine ; centre de la planète, rayon et normale du plan des anneaux sont mis à jour à chaque image
+      const U = { uPC: { value: new THREE.Vector3() }, uPR: { value: r }, uRN: { value: new THREE.Vector3(0, 1, 0) }, uRi: { value: ri }, uRo: { value: ro } }; P.ombres = U;
+      const ajoutFrag = (shader, code) => { Object.assign(shader.uniforms, U);
+        shader.vertexShader = 'varying vec3 vWP;\n' + shader.vertexShader.replace('#include <project_vertex>', '#include <project_vertex>\n vWP = (modelMatrix * vec4(transformed, 1.0)).xyz;');
+        shader.fragmentShader = 'varying vec3 vWP; uniform vec3 uPC; uniform float uPR; uniform vec3 uRN; uniform float uRi; uniform float uRo;\n' + shader.fragmentShader.replace('#include <opaque_fragment>', '#include <opaque_fragment>\n' + code); };
+      // anneaux : dans l'ombre du globe, ils s'assombrissent (bord adouci)
+      m.onBeforeCompile = sh => ajoutFrag(sh, 'vec3 s = normalize(-vWP); vec3 oc = vWP - uPC; float b = dot(oc, s); float d2 = dot(oc, oc) - b * b; float ombre = (b < 0.0) ? 1.0 - smoothstep(uPR * .96, uPR * 1.04, sqrt(max(d2, 0.0))) : 0.0; gl_FragColor.rgb *= 1.0 - .88 * ombre;');
+      // globe : la bande d'ombre des anneaux (le rayon vers le Soleil traverse le plan des anneaux entre leurs rayons intérieur et extérieur)
+      mat.onBeforeCompile = sh => ajoutFrag(sh, 'vec3 s = normalize(-vWP); float dn = dot(s, uRN); float ombre = 0.0; if (abs(dn) > .02) { float t = dot(uPC - vWP, uRN) / dn; if (t > 0.0) { float rho = length(vWP + s * t - uPC) / uPR; ombre = smoothstep(uRi - .02, uRi + .03, rho) * (1.0 - smoothstep(uRo - .05, uRo, rho)); } } gl_FragColor.rgb *= 1.0 - .55 * ombre;');
+      mat.needsUpdate = true;
     } else if (id === 'uranus') {
       const g = new THREE.RingGeometry(1.64, 2.0, 96), m = new THREE.MeshBasicMaterial({ color: 0x9fb4b8, transparent: true, opacity: .22, side: THREE.DoubleSide, depthWrite: false }); libres.push(g, m);
       const an = new THREE.Mesh(g, m); an.rotation.x = -Math.PI / 2; an.scale.setScalar(r); incl.add(an); P.anneaux = an;
@@ -96,7 +112,7 @@ export async function creerSysteme(ctx) {
   const ceinture = creerCeinture(THREE, { nb: q.asteroides, uaUnites: UA_U, taille: 4 }); groupe.add(ceinture.groupe); libres.push({ dispose: ceinture.detruire });
 
   /* ───── mise à jour ───── */
-  const tmp = vec(0, 0, 0);
+  const tmp = vec(0, 0, 0), qTmp = new THREE.Quaternion();
   function placer(ts, tSim, tReel, camPos) {
     for (const [id, P] of planetes) {
       const h = positionHelio(id, ts); if (!h) continue; P.pivot.position.copy(ecl(h));
@@ -120,16 +136,19 @@ export async function creerSysteme(ctx) {
     }
   }
   function maj(dt, t, ts, tSim, camera) {
-    soleil.position.set(0, 0, 0); disque.scale.setScalar(rSoleil());
+    soleil.position.set(0, 0, 0); disque.scale.setScalar(rSoleil()); couronne.scale.setScalar(rSoleil() * 1.4); uSoleil.uT.value = t; disque.rotation.y = t * .015;
     const c = camera.getWorldPosition(tmp).length(); const k = Math.max(1, c / 160);
     halo1.scale.setScalar(rSoleil() * 4.2 * Math.min(k, 6)); halo2.scale.setScalar(rSoleil() * 12 * Math.min(k, 6));
     for (const P of planetes.values()) if (P.spinV) P.spinAngle = (P.spinAngle || 0) + P.spinV * dt;
     placer(ts, tSim, t, camera.getWorldPosition(vec(0, 0, 0))); ceinture.maj(tSim, t);
-    for (const [id, P] of planetes) { P.corps.scale.setScalar(P.rayon); }
+    for (const [id, P] of planetes) {
+      P.corps.scale.setScalar(P.rayon);
+      if (P.ombres) { P.pivot.getWorldPosition(P.ombres.uPC.value); P.ombres.uPR.value = P.rayon; P.ombres.uRN.value.set(0, 1, 0).applyQuaternion(P.incl.getWorldQuaternion(qTmp)); }
+    }
   }
   function echelle(m) {
     if (m !== 'reelle' && m !== 'didactique') return false; mode = m; ceinture.reglerTaille(m === 'reelle' ? .02 : 4); ceinture.poussiere.visible = m !== 'reelle';
-    for (const [id, P] of planetes) { P.rayon = aff(id); P.corps.scale.setScalar(P.rayon); if (P.atmo) P.atmo.scale.setScalar(P.rayon * (id === 'terre' ? 1.09 : 1.06)); if (P.anneau) { /* à l'échelle du corps */ } if (P.anneaux) P.anneaux.scale.setScalar(P.rayon); if (P.nuages) P.nuages.scale.setScalar(P.rayon * 1.012); for (const l of P.lunes) l.mesh.scale.setScalar(Math.max(l.L.rayonKm / UA_KM * UA_U * (mode === 'reelle' ? 1 : BOOST), P.rayon * .018)); P.marqueur.scale.setScalar(mode === 'reelle' ? .02 : .026); }
+    for (const [id, P] of planetes) { P.rayon = aff(id); P.corps.scale.setScalar(P.rayon); if (P.atmo) P.atmo.scale.setScalar(P.rayon * (P.atmoK || 1.06)); if (P.anneau) { /* à l'échelle du corps */ } if (P.anneaux) P.anneaux.scale.setScalar(P.rayon); if (P.nuages) P.nuages.scale.setScalar(P.rayon * 1.012); for (const l of P.lunes) l.mesh.scale.setScalar(Math.max(l.L.rayonKm / UA_KM * UA_U * (mode === 'reelle' ? 1 : BOOST), P.rayon * .018)); P.marqueur.scale.setScalar(mode === 'reelle' ? .02 : .026); }
     return true;
   }
   const positionMonde = id => { if (id === 'soleil') return vec(0, 0, 0); const P = planetes.get(id); if (P) return P.pivot.getWorldPosition(vec(0, 0, 0)); const p = petits.get(id); return p ? p.mesh.position.clone() : null; };
