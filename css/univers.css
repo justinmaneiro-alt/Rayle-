@@ -1,4 +1,4 @@
-/* ═════════════ UNIVERS 3D : vue plein écran des thèmes (Espace, Bataille navale…) — js/univers/noyau.js ═════════════ */
+/* ═════════════ UNIVERS 3D : vue plein écran des thèmes (Espace…) — js/univers/noyau.js ═════════════ */
 #vueUnivers{position:fixed;inset:0;z-index:0;background:#02030a;overflow:hidden;touch-action:none;user-select:none;-webkit-user-select:none}
 #vueUnivers[hidden]{display:none}
 #vueUnivers canvas.univ-canvas{position:absolute;inset:0;width:100%;height:100%;display:block;outline:none;touch-action:none;cursor:grab}
@@ -75,30 +75,9 @@ body.univers-actif.rayle-rangee .reactor{top:auto}
 }
 @media (prefers-reduced-motion:reduce){.univ-pastille{animation:none}.univ-legende{transition:none}}
 
-/* Bataille navale : style dessin animé (légende, étiquettes de navires) */
-.univ-lab.navire{font-size:12px;color:#fff6dc;text-shadow:0 0 3px #3a2410,0 0 6px #3a2410,0 2px 0 #3a2410;font-weight:700}
-.univ-lab.navire .nat{display:inline-block;width:11px;height:8px;margin-right:4px;border:1px solid #2b1a0a;vertical-align:baseline}
-.univ-barre-vie{display:inline-block;width:46px;height:5px;margin-left:5px;background:#3a1f0c;border:1px solid #1d0f05;border-radius:2px;vertical-align:middle;overflow:hidden}
-.univ-barre-vie>i{display:block;height:100%;background:#7bd34a}
-.univ-viseur{position:absolute;left:50%;top:50%;width:14px;height:14px;margin:-7px 0 0 -7px;border:2px solid rgba(255,255,255,.7);border-radius:50%;pointer-events:none;box-shadow:0 0 6px #000}
-
 /* Atterrissage sur Mars : télémétrie (altitude, vitesse, phase) */
 .univ-tele{position:absolute;left:50%;top:max(14px,env(safe-area-inset-top));transform:translateX(-50%);display:flex;gap:18px;padding:8px 18px;border-radius:12px;background:rgba(4,9,24,.74);border:1px solid rgba(255,170,90,.55);font:600 12px var(--mono,monospace);letter-spacing:.08em;pointer-events:none;z-index:2;backdrop-filter:blur(6px)}
 .univ-tele[hidden]{display:none}
 .univ-tele small{display:block;font-size:9px;color:#f0b98a;letter-spacing:.2em}
 .univ-tele b{font-size:15px;color:#fff;font-weight:700;white-space:nowrap}
 @media (max-width:640px){.univ-tele{gap:10px;padding:6px 10px;top:70px}.univ-tele b{font-size:12px}}
-
-/* ── visite de l'intérieur d'un navire ── */
-.univ-int{position:absolute;inset:0;pointer-events:none;z-index:6}
-.univ-int-nom{position:absolute;right:max(14px,env(safe-area-inset-right));top:max(108px,calc(env(safe-area-inset-top) + 100px));background:rgba(26,14,6,.78);color:#ffe6b0;border:2px solid #c9974a;border-radius:10px;padding:6px 12px;font:700 14px var(--mono,monospace);max-width:58vw}
-.univ-int-act{position:absolute;left:50%;bottom:max(130px,calc(env(safe-area-inset-bottom) + 118px));transform:translateX(-50%);display:flex;gap:10px;pointer-events:auto}
-.univ-int-act .univ-b{font-size:15px;min-height:46px;padding:10px 20px;background:rgba(40,22,8,.88);border-color:#e0b040;color:#ffe6b0}
-.univ-int-aide{position:absolute;left:50%;bottom:max(96px,calc(env(safe-area-inset-bottom) + 90px));transform:translateX(-50%);font-size:11px;color:#ffe6b0;opacity:.8;text-shadow:0 1px 3px #000;text-align:center;width:min(92vw,640px)}
-.univ-joy{position:absolute;left:max(22px,env(safe-area-inset-left));bottom:max(150px,calc(env(safe-area-inset-bottom) + 140px));width:120px;height:120px;border-radius:50%;border:2px solid rgba(255,230,176,.55);background:rgba(26,14,6,.28);touch-action:none;pointer-events:auto}
-.univ-joy[hidden]{display:none}
-.univ-joy i{position:absolute;left:38px;top:38px;width:44px;height:44px;border-radius:50%;background:rgba(255,230,176,.6)}
-
-/* ── transition Espace ↔ navale : fondu vers un blanc de nuage ── */
-#vueUnivers.transition-nuage .univ-fondu{background:#e4edf7}
-#vueUnivers.transition-nuage .univ-charge{background:radial-gradient(ellipse at center,#f4f8fc 0,#cfdcec 75%);color:#274560}

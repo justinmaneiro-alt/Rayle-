@@ -407,7 +407,6 @@ export default {
         case 'ciel': { const id = a.style && STYLES_CIEL[a.style] ? a.style : ids[(ids.indexOf(ciel.courant()) + 1) % ids.length]; await ciel.style(id); majMenu(); return { ok: true, texte: 'Fond : ' + STYLES_CIEL[id].desc + '.' }; }
         case 'temps': regler(a.vitesse || 1, !!a.pause); return { ok: true, texte: a.pause ? 'Temps figé.' : a.vitesse > 1 ? 'Temps accéléré.' : 'Heure réelle.' };
         case 'zoom': { const d = distCam(); await noyau.tween(.9, e => { const r = Math.max(1.02, d * Math.pow(a.facteur || .6, e)); camera.position.setLength(r); ctrl.c.update(); }); return { ok: true, texte: 'Voilà.' }; }
-        case 'navale': { noyau.changerTheme('navale', { lieu: a.lieu, lat: a.lat, lon: a.lon, scenario: a.scenario }).catch(e => console.warn('[espace] navale', e)); return { ok: true, texte: 'Direction la bataille navale.' }; }
         case 'options': return { ok: true };
         default: return { ok: false, texte: 'Commande inconnue : ' + nom };
       }
@@ -442,11 +441,6 @@ export default {
     ctx.canvas.addEventListener('wheel', e => e.preventDefault(), { passive: false });
     majMenu(); hud.charge(null);
     G.regler({ bord: 1 });
-    // arrivée depuis la Bataille navale : on est à quelques kilomètres au-dessus de l'océan, la caméra remonte jusqu'à l'orbite
-    if (ctx.options && ctx.options.depuis === 'navale' && ctx.options.lat != null) {
-      const lat = +ctx.options.lat, lon = +ctx.options.lon; camera.position.copy(latLonVec(lat, lon, 1.0006)); camera.lookAt(0, 0, 0); ctrl.c.update();
-      setTimeout(() => { noyau.cinematique(api => vol(api, { lat, lon, dist: 3.4, duree: 6 })).catch(e => console.warn('[espace] arrivée', e)); }, 150);
-    }
     // les appareils déjà localisés arrivent d'eux-mêmes si le panneau a été ouvert ; sinon à la demande (chip 📍)
     return {
       scene, camera, maj, tap, menu, commande, rig, ctrl, rendre,

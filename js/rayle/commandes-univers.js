@@ -40,41 +40,13 @@
   const normU=t=>String(t==null?'':t).normalize('NFD').replace(/[̀-ͯ]/g,'').toLowerCase().replace(/['’\-]/g,' ').replace(/[^a-z0-9 ?]/g,' ').replace(/\s+/g,' ').trim()
       .replace(/^(?:hey |ok |dis )?rayle ?,? ?/,'').replace(/\?$/,'').trim();
   const DET='(?:(?:le|la|les|l|un|une|du|de la|de l|des|d|au|aux|a la|a l)\\s+)?';
-  /* ───── vocabulaire des navires, des salles, des astres ───── */
-  const NAV='(voilier|sloop|brick|fregate|vaisseau de ligne|vaisseau|navire de guerre|navire|bateau)', NATION='(francais|francaise|anglais|anglaise|espagnol|espagnole|portugais|portugaise)';
-  const typeNav=s=>/vaisseau/.test(s)?'vaisseau':/fregate/.test(s)?'fregate':/brick/.test(s)?'brick':/voilier|sloop/.test(s)?'voilier':undefined;
-  const nationNav=s=>!s?undefined:/franc/.test(s)?'france':/anglais|anglet|britann/.test(s)?'angleterre':/espagn/.test(s)?'espagne':/portug/.test(s)?'portugal':undefined;
-  const PIECES=[['soute',/soute|poudre|munitions/],['infirmerie',/infirmerie|chirurgien|hopital/],['cuisine',/cuisine|cambuse|fourneau/],['hamacs',/hamacs?|dortoir|couchettes/],['cabine',/cabine|capitaine/],['batterie',/batterie|canons|entrepont/],['cale',/cale/],['pont',/pont/]];
-  const pieceNav=s=>{ for(const [id,re] of PIECES) if(re.test(s)) return id; return undefined; };
-  const PIECE_RE='(pont superieur|pont|cabine du capitaine|cabine|chambre du capitaine|batteries?|batterie des canons|canons|cuisine|cambuse|hamacs?|dortoir|infirmerie|soute a poudre|soute|cale)';
-  /* Phrases des nouveaux modes (système solaire, Mars, ISS, bataille navale, qualité…). PURE : renvoie {type, action, …} ou null. Les actions « dans le thème » (tirer, caméra, météo…)
-     ne sont exécutées que si le thème concerné est ouvert (voir commandeUnivers). */
+  /* Phrases des nouveaux modes (système solaire, Mars, ISS, qualité…). PURE : renvoie {type, action, …} ou null.  */
   function analyserNouveau(t){
     let m;
     // — passer l'animation, qualité —
     if(/^(?:passe|passer|saute|sauter|skip|ignore|coupe|stoppe|arrete) (?:moi )?(?:l |cette |la |le |l intro )?(?:animation|cinematique|intro|sequence|video|film)$/.test(t)) return {type:'univers',action:'passer'};
     if((m=/^(?:mets|passe|regle|change|utilise|selectionne) (?:la |en )?(?:qualite graphique|qualite|graphismes?|details?) (?:en |sur |a )?(basse|moyenne|haute|automatique|auto|maximum|minimum|elevee|standard|ultra|faible)$/.exec(t))||(m=/^qualite (?:graphique )?(basse|moyenne|haute|automatique|auto|maximum|minimum|elevee|standard|ultra|faible)$/.exec(t))||(m=/^(?:mets|passe) (?:en |le mode )?(basse|moyenne|haute) qualite$/.exec(t)))
       return {type:'univers',action:'qualite',niveau:/basse|minimum|faible/.test(m[1])?'basse':/moyenne|standard/.test(m[1])?'moyenne':/haute|maximum|elevee|ultra/.test(m[1])?'haute':'auto'};
-    // — bataille navale : ouvrir, scénarios, retour dans l'espace —
-    if((m=/^(?:bascule|basculer|passe|passer|va|vas|retourne|reviens|mets|lance|ouvre|demarre|active|emmene moi|envoie moi|affiche|montre) (?:moi )?(?:sur|en|dans|a|au|vers|mode|le mode|le theme)? ?(?:la |le |l |une |un |mon |ma |les )?(?:bataille navale|batailles navales|combat naval|combats navals|mode bataille navale|theme bataille navale|bataille de navires|navires de guerre|vaisseaux de guerre|navires|vaisseaux|bateaux)(?: (?:dans|sur|pres de|pres du|pres de la|au large de|au large du|a|en|au|vers) (?:l |la |le |les )?(.{2,40}))?$/.exec(t))) return {type:'navale',action:'ouvrir',lieu:m[1]};
-    if((m=/^(?:lance|demarre|fais|mets|genere|cree|montre|organise|prepare) (?:moi )?(?:une |un |la |le )?(escarmouche|bataille|duo|balade|combat|promenade|petite bataille|grande bataille|navire seul)(?: navale| en mer)?(?: (?:dans|sur|pres de|pres du|au large de|a|en|au|vers) (?:l |la |le |les )?(.{2,40}))?$/.exec(t)))
-      return {type:'navale',action:'scenario',scenario:/escarmouche|petite/.test(m[1])?'escarmouche':/bataille|combat/.test(m[1])?'bataille':/duo/.test(m[1])?'duo':'balade',lieu:m[2]};
-    if(/^(?:quitte|quitter) (?:la )?bataille navale(?: et (?:retourne|reviens|va) (?:sur|dans|vers|a)? ?(?:l |la )?(?:terre|espace))?$/.test(t)) return {type:'navale',action:'espace'};
-    // — intérieur du navire —
-    if((m=new RegExp('^(?:montre|affiche|fais|emmene|amene|donne) (?:moi )?(?:l |les |la |une |un )?(?:interieur|visite|visite guidee|visite interieure|tour)(?: guidee)? (?:de |du |d |des |dans )?(?:l |la |le |les )?(?:'+NAV+')?(?: '+NATION+')?$').exec(t))) return {type:'navale',action:'interieur',navire:typeNav(m[1]||''),nation:nationNav(m[2]),visite:/guide/.test(t)};
-    if((m=new RegExp('^(?:visite|visiter|monte dans|monte a bord de|monte a bord|entre dans|entre a bord de|descends dans|va dans|va a bord de|embarque sur|embarque dans|embarque a bord de|montre moi) (?:moi )?(?:l |la |le |les |un |une )?'+NAV+'(?: '+NATION+')?$').exec(t))&&/visite|monte|entre|descends|embarque|va dans|va a bord/.test(t)) return {type:'navale',action:'interieur',navire:typeNav(m[1]),nation:nationNav(m[2]),visite:/^visit/.test(t)};
-    if(/^(?:(?:fais moi |lance |commence |demarre )?(?:la |une |ma )?visite guidee(?: du navire| du bateau| complete)?|guide moi dans le navire|raconte moi le navire)$/.test(t)) return {type:'navale',action:'visite'};
-    if(new RegExp('^(?:va|vas|descends|monte|emmene moi|amene moi|montre moi|montre|entre|retourne|conduis moi|rends toi) (?:moi )?(?:dans|a|vers|sur|jusqu a|jusque dans|en bas dans)? ?(?:l |la |le |les |au |aux )?'+PIECE_RE+'(?: du capitaine| de poudre| a poudre| des canons| de l equipage| principale| du navire| du bateau)?$').test(t)){ m=new RegExp(PIECE_RE).exec(t); return {type:'navale',action:'piece',piece:pieceNav(m[1])}; }
-    if(/^(?:sors|sortir|sortez|quitte|quitter|ressors|remonte|retourne|reviens|va) (?:moi )?(?:de |du |dans |a |sur |vers |d |hors de |hors du )?(?:l |la |le )?(?:interieur|navire|bateau|fregate|vaisseau|voilier|brick|exterieur|dehors)(?: du navire)?$/.test(t)) return {type:'navale',action:'sortir'};
-    // — dans la bataille : tirer, caméra, suivre, météo, heure, son —
-    if(/^(?:tire|tirez|feu|fais feu|feu a volonte|tire une bordee|une bordee|bordee|lance une bordee|ordonne une bordee|charge et tire|canons feu|a vos canons|aux canons)$/.test(t)) return {type:'navale',action:'tirer'};
-    if((m=/^(?:vue|camera|mets la camera|passe en vue|passe en camera|passe en mode camera|mets la vue|montre la vue|change la vue) ?(?:en |sur |du |de |d |a la )?(?:l |la |le )?(pont|ensemble|generale|libre|suivi|suivre|poursuite)$/.exec(t))) return {type:'navale',action:'camera',mode:/pont/.test(m[1])?'pont':/ensemble|generale/.test(m[1])?'ensemble':/libre/.test(m[1])?'libre':'suivre'};
-    if(/^(?:vue d ensemble|vue generale)$/.test(t)) return {type:'navale',action:'camera',mode:'ensemble'};
-    if((m=new RegExp('^(?:suis|suivre|suit|poursuis|regarde|zoome sur|focus sur) (?:moi )?(?:l |la |le |un |une )?'+NAV+'(?: '+NATION+')?$').exec(t))) return {type:'navale',action:'suivre',navire:typeNav(m[1]),nation:nationNav(m[2])};
-    if((m=/^(?:mets|passe en|fais|fais venir|lance|change en|cree|ajoute) (?:moi )?(?:une |un |la |le |l |du |de la )?(tempete|orage|pluie|brouillard|calme plat|calme|beau temps|ciel clair|ciel degage|grand soleil)(?: sur la mer| en mer| sur les navires| maintenant)?$/.exec(t))) return {type:'navale',action:'meteo',meteo:/tempete|orage/.test(m[1])?'tempete':/pluie/.test(m[1])?'pluie':/brouillard/.test(m[1])?'brouillard':/calme/.test(m[1])?'calme':'clair'};
-    if((m=/^(?:mets|passe en|fais|passe a|change en|mets moi) (?:la |le |l |une |un )?(nuit|minuit|jour|plein jour|aube|crepuscule|soir|matin|coucher de soleil|lever de soleil)(?: sur la mer| en mer| maintenant)?$/.exec(t))) return {type:'navale',action:'heure',moment:/nuit|minuit/.test(m[1])?'nuit':/aube|matin|lever/.test(m[1])?'aube':/crepuscule|soir|coucher/.test(m[1])?'crepuscule':'jour'};
-    if(/^(?:quel temps fait il|quelle est la meteo|quelle meteo|comment est la mer|comment est le vent|quelle est la force du vent|decris la meteo|donne la meteo) ?(?:en mer|sur la mer|ici|a bord|sur place|sur les navires)?$/.test(t)) return {type:'navale',action:'infometeo'};
-    if((m=/^(?:coupe|mets|remets|active|desactive|reactive) (?:le |les )?(son|sons|bruitages?|bruits?)(?: des navires| de la bataille)?$/.exec(t))) return {type:'navale',action:'son',muet:/^(?:coupe|desactive)/.test(t)};
     // — système solaire, astres, Mars, ISS, satellites —
     if(/^(?:montre|affiche|va dans|va sur|ouvre|passe sur|passe dans|retourne dans|emmene moi dans|emmene moi sur|reviens dans|reviens sur|va voir) (?:moi )?(?:le |l |les |tout )?(?:systeme solaire|systeme planetaire|planetes|toutes les planetes|soleil et les planetes)$/.test(t)) return {type:'espace',action:'systeme'};
     if((m=/^(?:montre|affiche|passe a|passe en|mets|mets en|utilise) (?:moi )?(?:l |la |les |en )?(echelle reelle|vraie echelle|vraies distances|vraies tailles|vraies proportions|echelle didactique|echelle simplifiee|tailles agrandies|distances reelles)$/.exec(t))) return {type:'espace',action:'echelle',reelle:/reelle|vrai/.test(m[1])};
@@ -130,44 +102,20 @@
     try{
       const th=()=>{ const e=RayleUnivers.etat(); return e.ouvert?e.theme:null; };
       const dire=t=>(window.RayleUniversPont&&RayleUniversPont.dire)?RayleUniversPont.dire(t):Promise.resolve(true);
-      // « présente la frégate » : le nom d'un navire va vers la bataille navale
-      if(a.type==='espace'&&a.action==='presenter'&&new RegExp('^'+NAV+'(?: '+NATION+')?$').test(a.nom||'')){ const mm=new RegExp('^'+NAV+'(?: '+NATION+')?$').exec(a.nom); a={type:'navale',action:'presenter',navire:typeNav(mm[1]),nation:nationNav(mm[2])}; }
       if(a.type==='univers'&&a.action==='passer'){ if(!RayleUnivers.estOuvert()) return null; const r=await RayleUnivers.commande('passer',{}); return r&&r.texte||null; }
       if(a.type==='univers'&&a.action==='qualite'){ if(!RayleUnivers.estOuvert()) return null; const r=await RayleUnivers.commande('qualite',{niveau:a.niveau}); return r&&r.texte||null; }
-      if(a.type==='navale'){
-        const dans=th()==='navale';
-        if(a.action==='ouvrir'||a.action==='scenario'){
-          if(dans&&a.action==='ouvrir'&&!a.lieu) return 'Nous sommes déjà en pleine bataille navale. Dis « lance une escarmouche » ou « tire ».';
-          if(dans){ const r=await RayleUnivers.commande('scenario',{nom:a.scenario||'bataille'}); return r&&r.texte||null; }
-          await dire(a.lieu?'Direction la bataille navale, '+a.lieu+'.':'Direction la bataille navale. Accroche-toi, on plonge !');
-          await RayleUnivers.ouvrir('navale',{lieu:a.lieu,scenario:a.scenario||'bataille'}); return '__deja_dit__';
-        }
-        if(a.action==='interieur'||a.action==='visite'){
-          if(!dans){ await dire('Je t’emmène à bord.'); await RayleUnivers.ouvrir('navale',{scenario:'balade',navires:a.navire?[{type:a.navire,nation:a.nation||['france','angleterre','espagne','portugal'][Math.floor(Math.random()*4)]}]:undefined}); }
-          const r=await RayleUnivers.commande(a.action==='visite'||a.visite?'visite-interieur':'interieur',{type:a.navire,nation:a.nation});
-          return a.action==='visite'||a.visite?'__deja_dit__':(r&&r.texte)||null;
-        }
-        if(!dans) return null;                                          // les autres ordres n'ont de sens que dans la bataille navale
-        const cmd={tirer:'tirer',camera:'camera',suivre:'suivre',meteo:'meteo',heure:'meteo',infometeo:'info-meteo',son:'son',piece:'piece',sortir:'sortir-interieur',espace:'espace',presenter:'presenter'}[a.action];
-        if(a.action==='espace'){ await dire('Je remonte vers l’espace.'); await RayleUnivers.commande('espace',{}); return '__deja_dit__'; }
-        const r=await RayleUnivers.commande(cmd,{type:a.navire,nation:a.nation,mode:a.mode,meteo:a.meteo,moment:a.moment,muet:a.muet,piece:a.piece});
-        if(a.action==='presenter') return r&&r.ok?'__deja_dit__':(r&&r.texte)||null;
-        return r&&r.texte||null;
-      }
       if(a.type==='univers'){
         if(a.action==='fermer'){ if(!RayleUnivers.estOuvert()) return null; await RayleUnivers.fermer(); return 'J’ai quitté l’Univers.'; }
         await RayleUnivers.ouvrir(a.theme); return 'L’Univers est ouvert : glisse pour tourner la Terre, pince ou utilise la molette pour zoomer. Dis « présente la France » ou « montre l’océan Pacifique ».';
       }
       if(a.type==='espace'){
         if(a.action==='terre' && !RayleUnivers.estOuvert()) return null;
-        if(a.action==='terre' && th()==='navale'){ await dire('Je remonte vers l’espace.'); await RayleUnivers.commande('espace',{}); return '__deja_dit__'; }
         if(a.action==='piece-rover'){ const e=RayleUnivers.etat(); if(!(e.ouvert&&e.scene&&e.scene.vue==='mars')) return null; a.action='piece'; }       // « reviens sur la Terre » appartient au fond Espace tant que l'Univers est fermé
         // phrases larges (« montre … », « parle-moi de … ») : seulement si l'Univers est ouvert et que le nom est connu, pour ne pas voler les autres commandes (planètes, ISS, cartes…)
         if(a.souple){
           if(!RayleUnivers.estOuvert()) return null;
           const N=await RayleUnivers.charger(), inst=N.instance(); const I=inst&&inst._; if(th()!=='espace'||!I) return null; if(!(I.connait?I.connait(a.nom):(I.geo&&I.geo.centre(a.nom)))) return null;
         }else if(!RayleUnivers.estOuvert()){ await RayleUnivers.ouvrir('espace'); }
-        else if(th()!=='espace'){ await RayleUnivers.ouvrir('espace'); }                 // depuis la bataille navale : on remonte d'abord dans l'espace
         const args={nom:a.nom,oui:a.oui,type:a.typeEclipse,vitesse:a.vitesse,pause:a.pause,reelle:a.reelle,presenter:a.presenter,rover:a.rover};
         if(a.action==='ciel'){ const st=Object.keys(STYLES_CIEL_VOIX).find(k=>STYLES_CIEL_VOIX[k].test(normU(a.style))); args.style=st; }
         const nomCmd={presenter:'presenter',aller:'aller',actus:'actus',lune:'lune',terre:'terre',eclipse:'eclipse',surprise:'surprise',ciel:'ciel',temps:'temps',systeme:'systeme',echelle:'echelle',iss:'iss',satellites:'satellites',atterrir:'atterrir',rover:'rover','autre-rover':'autre-rover',piece:'piece','mars-orbite':'mars-orbite'}[a.action];

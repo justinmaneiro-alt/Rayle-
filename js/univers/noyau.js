@@ -14,14 +14,13 @@ const VERSION = '2026.10.14.5';
 const ASSETS = new URL('../../ui/assets/', import.meta.url).href;
 export const THEMES = {
   espace: { nom: 'Espace', icone: '🌍', url: './theme-espace.js?v=' + VERSION },
-  navale: { nom: 'Bataille navale', icone: '⚓', url: './theme-navale.js?v=' + VERSION },
 };
 
 /* ───── qualité ───── */
 export const QUALITES = {
-  basse:   { id: 'basse',   nom: 'Basse',   dpr: .75, tex: 2048, segs: 64,  aa: false, nuages: true,  eclairs: false, etoiles: 1500, asteroides: 260,  mer: 48,  equipage: 0.4, fumee: .35, lod: 2, reflets: false, bordsPays: 'proches', relief: false },
-  moyenne: { id: 'moyenne', nom: 'Moyenne', dpr: 1,   tex: 4096, segs: 96,  aa: true,  nuages: true,  eclairs: true,  etoiles: 3200, asteroides: 700,  mer: 96,  equipage: 0.75, fumee: .7, lod: 1, reflets: true,  bordsPays: 'tous', relief: true },
-  haute:   { id: 'haute',   nom: 'Haute',   dpr: 1.5, tex: 8192, segs: 160, aa: true,  nuages: true,  eclairs: true,  etoiles: 6000, asteroides: 1600, mer: 160, equipage: 1,   fumee: 1,  lod: 0, reflets: true,  bordsPays: 'tous', relief: true },
+  basse:   { id: 'basse',   nom: 'Basse',   dpr: .75, tex: 2048, segs: 64,  aa: false, nuages: true,  eclairs: false, etoiles: 1500, asteroides: 260,  fumee: .35, lod: 2, reflets: false, bordsPays: 'proches', relief: false },
+  moyenne: { id: 'moyenne', nom: 'Moyenne', dpr: 1,   tex: 4096, segs: 96,  aa: true,  nuages: true,  eclairs: true,  etoiles: 3200, asteroides: 700,  fumee: .7, lod: 1, reflets: true,  bordsPays: 'tous', relief: true },
+  haute:   { id: 'haute',   nom: 'Haute',   dpr: 1.5, tex: 8192, segs: 160, aa: true,  nuages: true,  eclairs: true,  etoiles: 6000, asteroides: 1600, fumee: 1,  lod: 0, reflets: true,  bordsPays: 'tous', relief: true },
 };
 const CLE_Q = 'rayle_univers_qualite';
 const lsGet = k => { try { return localStorage.getItem(k); } catch (e) { return null; } };
@@ -301,7 +300,7 @@ function wirerCanvas() {
     if (bouge < 8 && duree < 500 && E.inst && E.inst.tap) { const r = E.canvas.getBoundingClientRect(); try { E.inst.tap(e.clientX - r.left, e.clientY - r.top, e); } catch (er) { console.warn('[univers] tap', er); } }
   });
 }
-// changement brut : fondu au noir, démontage, montage (les transitions continues Espace ↔ navale passent par transitions.js)
+// changement brut : fondu au noir, démontage, montage
 export async function changerThemeBrut(id, options) {
   if (!E.ouvert) return ouvrir(id, options);
   if (E.themeId === id) return E.inst;
@@ -312,8 +311,7 @@ export async function changerThemeBrut(id, options) {
 export async function changerTheme(id, options) {
   if (!E.ouvert) return ouvrir(id, options);
   if (E.themeId === id) return E.inst;
-  try { const v = import.meta.url.split('?')[1], T = await import(/* @vite-ignore */ new URL('./transitions.js', import.meta.url).href.split('?')[0] + (v ? '?' + v : '')); return await T.basculer(API, id, options || {}); }
-  catch (e) { console.warn('[univers] transition', e); return changerThemeBrut(id, options); }
+  return changerThemeBrut(id, options);
 }
 // fondu au noir (0,5 s) pour passer d'une vue à l'autre sans coupure brutale
 export const fondu = oui => new Promise(ok => { const f = E.vue && $('.univ-fondu'); if (!f) return ok(); f.classList.toggle('vu', !!oui); setTimeout(ok, 520); });
