@@ -48,7 +48,7 @@ t('service worker : l’image fixe de l’Espace est mise de côté pour le hors
 });
 t('réglages : le fond s’appelle « Espace » (l’ancien « globe » enregistré est migré) et la Terre de la page Monde reste inchangée', () => {
   const s = lire('ui/settings.js');
-  assert.match(s, /espace:'Espace'/); assert.ok(!/globe:'Globe'/.test(s)); assert.match(s, /f==='globe' \? 'espace'/);
+  assert.match(s, /espace:'Univers'/); assert.ok(!/globe:'Globe'/.test(s)); assert.match(s, /f==='globe' \? 'espace'/);
   const g = lire('ui/fond-globe.js');
   assert.match(g, /UI\.fondsReels\.espace=/); assert.match(g, /UI\.fondsReels\.globe=async function/); assert.match(g, /interactif/, 'mode interactif de la page Monde conservé');
 });
@@ -59,7 +59,7 @@ t('crédits : les nouveaux assets sont déclarés', () => {
 });
 t('l’orchestrateur ne casse rien : mêmes fonds d’avant, mêmes paliers', () => {
   const b = lire('ui/background.js');
-  assert.match(b, /jarvis/); assert.match(b, /video/); assert.match(b, /UI\.fondsReels\[fond\]\(c,\{q,hd(?:,ultra)?\}\)/); assert.match(b, /palier>=2\?'fixe':'3d'/);
+  assert.match(b, /jarvis/); assert.ok(!/video/.test(b), 'plus de fond vidéo'); assert.match(b, /UI\.fondsReels\[fond\]\(c,\{q,hd(?:,ultra)?\}\)/); assert.match(b, /palier>=2\?'fixe':'3d'/);
 });
 t('modèles NASA : manifeste, fichiers GLB (meshopt), poids raisonnable pour une tablette, crédits et licence citées', () => {
   const m = JSON.parse(lire('ui/assets/espace/modeles/manifest.json')), cred = lire('CREDITS.md'), tout = lire('ui/assets/CREDITS.txt');

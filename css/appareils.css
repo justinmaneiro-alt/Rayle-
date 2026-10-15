@@ -27,7 +27,7 @@ body.racc-invite #btn,body.racc-invite .mv-micro{animation:racc-invite 1s ease-i
 .mv{display:none}
 body.vue-mini{padding:max(6px,env(safe-area-inset-top)) max(8px,env(safe-area-inset-right)) max(6px,env(safe-area-inset-bottom)) max(8px,env(safe-area-inset-left));gap:6px}
 body.vue-mini .titre,body.vue-mini .bridge,body.vue-mini .barre,body.vue-mini .soustitre,body.vue-mini #badgeAcces,body.vue-mini .ui-bouton,body.vue-mini .ui-pop,
-body.vue-mini .ui-fond,body.vue-mini .ui-fond-fixe,body.vue-mini .ui-fond-video,body.vue-mini .ui-teinte,body.vue-mini .ui-voile{display:none!important}
+body.vue-mini .ui-fond,body.vue-mini .ui-fond-fixe,body.vue-mini .ui-teinte,body.vue-mini .ui-voile{display:none!important}
 body.vue-mini .pn:not([data-type="appareil"]){display:none}
 body.vue-mini .scene{flex:1 1 auto;min-height:0;justify-content:center}
 body.vue-mini .reactor{width:min(52vmin,60vh,240px)}

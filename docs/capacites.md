@@ -97,7 +97,7 @@ montrer une ville ou un lieu sur une carte, calculer un itinéraire (voiture, v�
 changer le thème de couleurs, le fond (Espace, Jarvis, vidéo, aucun), l’entité, l’ambiance météo et lumineuse, la qualité graphique (Éco, Auto, Max ou Ultra : l’Ultra est très gourmand et jamais choisi seul).
 
 - **Paramètres (lus dans le code)** : thèmes : originel, arc, rouge, aurore, ambre, nébuleuse · fonds : aucun, espace, jarvis, vidéo · entités : sphère, neurones.
-- **Exemples** : « passe en thème Aurore », « fond espace », « mode éco », « passe en qualité ultra ».
+- **Exemples** : « passe en thème Jarvis », « fond univers », « mode éco », « passe en qualité ultra ».
 - **Vérification automatique** : oui (les exemples sont passés dans l’analyseur réel par `tests/capacites-test.mjs`).
 
 ## Mémoire et notes

@@ -74,34 +74,35 @@ await t('codes météo Open-Meteo → météo visuelle', () => {
   assert.equal(c(63).meteo, 'pluie'); assert.equal(c(81).meteo, 'pluie'); assert.equal(c(75).meteo, 'neige'); assert.equal(c(86).meteo, 'neige'); assert.equal(c(95).meteo, 'orage'); assert.equal(c(99).intensite, 1);
   assert.ok(c(65).intensite > c(61).intensite, 'plus fort = plus intense'); assert.equal(c(42).meteo, 'clair', 'code inconnu → ciel clair');
 });
-await t('thème automatique : table par défaut (matin dégagé → Ambre, nuit → Nébuleuse, orage → Arc…) et priorité de la météo', () => {
+await t('thème automatique : table par défaut (tout en Univers) et priorité de la météo', () => {
   const e = (moment, meteo = 'clair', intensite = 0) => ({ moment, meteo, intensite });
   const map = A.MAPPING_DEFAUT;
-  assert.equal(map[A.themeCle(e('aube'))], 'ambre'); assert.equal(map[A.themeCle(e('nuit'))], 'nebuleuse'); assert.equal(map[A.themeCle(e('crepuscule'))], 'originel');
-  assert.equal(map[A.themeCle(e('jour'))], 'arc'); assert.equal(map[A.themeCle(e('nuit', 'orage', .8))], 'arc');
+  for (const m of ['aube', 'jour', 'crepuscule', 'nuit']) assert.equal(map[A.themeCle(e(m))], 'originel', m);
+  assert.equal(map[A.themeCle(e('nuit', 'orage', .8))], 'originel');
+  assert.equal(A.THEMES_IDS.join(), 'originel,arc', 'deux thèmes seulement : Univers et Jarvis'); assert.equal(moteur().m.reglages().themeAuto, false, 'le thème automatique est coupé par défaut');
   assert.equal(A.themeCle(e('jour', 'pluie', .6)), 'pluie'); assert.equal(A.themeCle(e('jour', 'bruine', .4)), 'pluie'); assert.equal(A.themeCle(e('nuit', 'neige', .5)), 'neige');
   assert.equal(A.themeCle(e('jour', 'pluie', .1)), 'jour', 'une pluie à peine marquée ne change pas le thème');
   assert.equal(A.themeCle(e('jour', 'nuageux', .9)), 'jour');
   assert.ok(Object.values(map).every(id => A.THEMES_IDS.includes(id)), 'tous les thèmes existent');
 });
 await t('thème automatique : s’applique, mais le choix manuel reste prioritaire N heures, puis l’auto reprend', async () => {
-  const x = moteur({ now: utc(2026, 6, 21, 0, 30) });                          // nuit à Castres
+  const x = moteur({ now: utc(2026, 6, 21, 0, 30), stock: { rayle_amb_reglages: JSON.stringify({ themeAuto: true, mapping: { nuit: 'arc' } }) } });   // nuit à Castres
   assert.equal(x.m.etat().moment, 'nuit');
-  x.m.appliquerThemeAuto(); assert.deepEqual(x.themes, ['nebuleuse']);
+  x.m.appliquerThemeAuto(); assert.deepEqual(x.themes, ['arc']);
   x.mem.set('rayle_ui_theme_manuel', String(x.now()));                          // l'utilisateur vient de choisir un thème
   x.set(utc(2026, 6, 21, 10)); x.m.recalculer();
   x.mem.set('rayle_ui_theme_manuel', String(x.now() - 3600000));               // choisi il y a 1 h
   assert.equal(x.m.appliquerThemeAuto(), null, 'pas de changement pendant la période de priorité');
-  assert.deepEqual(x.themes, ['nebuleuse']);
+  assert.deepEqual(x.themes, ['arc']);
   x.mem.set('rayle_ui_theme_manuel', String(utc(2026, 6, 21, 10) - 4 * 3600000)); // il y a 4 h (réglage : 3 h)
-  x.m.appliquerThemeAuto(); assert.deepEqual(x.themes, ['nebuleuse', 'arc']);
+  x.m.appliquerThemeAuto(); assert.deepEqual(x.themes, ['arc', 'originel']);
   x.m.regler('themeHeures', 6); x.set(utc(2026, 6, 22, 0, 30)); x.mem.set('rayle_ui_theme_manuel', String(x.now() - 4 * 3600000)); x.m.recalculer();
   assert.equal(x.m.appliquerThemeAuto(), null, 'avec 6 h de priorité, 4 h ne suffisent pas');
 });
 await t('thème automatique coupé : rien ne change ; mapping modifiable', () => {
   const x = moteur({ now: utc(2026, 6, 21, 0, 30) });
   x.m.regler('themeAuto', false); assert.equal(x.m.appliquerThemeAuto(), null); assert.deepEqual(x.themes, []);
-  x.m.regler('themeAuto', true); x.m.regler('mapping', { nuit: 'rouge' }); assert.equal(x.themes.at(-1), 'rouge');
+  x.m.regler('themeAuto', true); x.m.regler('mapping', { nuit: 'arc' }); assert.equal(x.themes.at(-1), 'arc');
   const y = moteur({ now: utc(2026, 6, 21, 0, 30) }); y.m.regler('mode', 'off'); assert.equal(y.m.appliquerThemeAuto(), null, 'mode off : aucun thème automatique');
 });
 await t('mode manuel : force le moment et la météo, durée facultative, puis retour automatique', () => {
@@ -219,9 +220,9 @@ await t('exécution : phrases de confirmation, durée, retour auto', () => {
 await t('outil « ambiance » de l’IA : règle ambiance, vent, thème, fond et entité d’un coup', () => {
   const calls = []; UI.changer = (k, v, o) => calls.push([k, v, o]);
   const x = moteur({ now: utc(2026, 6, 21, 10) });
-  const r = x.m.executerAgent({ type: 'ambiance', ambiance: 'detente', vent: 'leger', theme: 'ambre', fond: 'globe', entite: 'neurones', duree_minutes: 45 });
-  assert.match(r, /ambiance détente/); assert.match(r, /thème ambre/); assert.match(r, /fond espace/, 'l’ancien « globe » devient l’Espace'); assert.match(r, /entité neurones/);
-  assert.deepEqual(calls.map(c => c.slice(0, 2).join('=')), ['theme=ambre', 'fond=espace', 'entite=neurones']);
+  const r = x.m.executerAgent({ type: 'ambiance', ambiance: 'detente', vent: 'leger', theme: 'arc', fond: 'globe', entite: 'neurones', duree_minutes: 45 });
+  assert.match(r, /ambiance détente/); assert.match(r, /thème arc/); assert.match(r, /fond espace/, 'l’ancien « globe » devient l’Espace'); assert.match(r, /entité neurones/);
+  assert.deepEqual(calls.map(c => c.slice(0, 2).join('=')), ['theme=arc', 'fond=espace', 'entite=neurones']);
   assert.equal(calls[0][2], undefined, 'le thème demandé par l’IA est un choix explicite (priorité manuelle)');
   const e = x.m.etat(); assert.equal(e.moment, 'crepuscule'); assert.equal(e.vent.vitesse, .25); assert.equal(x.m.manuel().fin, x.now() + 45 * 60000);
   assert.match(x.m.executerAgent({ ambiance: 'auto', theme: 'auto' }), /ambiance automatique.*thème automatique/); assert.equal(x.m.etat().source, 'auto');

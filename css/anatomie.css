@@ -11,7 +11,7 @@
 #vueAnatomie:not([hidden]),#vueCerveau:not([hidden]){animation:an-in .45s ease both}
 @keyframes an-in{from{opacity:0}to{opacity:1}}
 body.vue-anatomie,body.vue-cerveau{overflow:hidden}
-body.vue-anatomie .ui-fond,body.vue-anatomie .ui-voile,body.vue-anatomie .ui-fond-fixe,body.vue-anatomie .ui-fond-video,body.vue-anatomie .ui-teinte,body.vue-anatomie .ui-amb,body.vue-cerveau .ui-fond,body.vue-cerveau .ui-voile,body.vue-cerveau .ui-fond-fixe,body.vue-cerveau .ui-fond-video,body.vue-cerveau .ui-teinte,body.vue-cerveau .ui-amb{visibility:hidden}
+body.vue-anatomie .ui-fond,body.vue-anatomie .ui-voile,body.vue-anatomie .ui-fond-fixe,body.vue-anatomie .ui-teinte,body.vue-anatomie .ui-amb,body.vue-cerveau .ui-fond,body.vue-cerveau .ui-voile,body.vue-cerveau .ui-fond-fixe,body.vue-cerveau .ui-teinte,body.vue-cerveau .ui-amb{visibility:hidden}
 
 /* barre du haut */
 .an-barre{display:flex;align-items:center;gap:12px;flex-wrap:wrap;padding:max(10px,env(safe-area-inset-top)) max(14px,env(safe-area-inset-right)) 8px max(14px,env(safe-area-inset-left));position:relative;background:rgba(5,3,9,.82);border-bottom:1px solid var(--an-ligne)}

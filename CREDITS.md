@@ -18,7 +18,6 @@ Ce fichier recense ce que Raylé utilise qui n'a pas été écrit par son auteur
 | `ui/assets/espace/*` (planètes, Lune, anneaux, masque des océans) | Solar System Scope, d'après des données NASA | CC BY 4.0 |
 | `ui/assets/espace/ciel-2k.webp`, `ciel-4k.webp` (carte du ciel : étoiles et Voie lactée, coordonnées galactiques) | Solar System Scope (`8k_stars_milky_way`, redimensionnée à 4096 et 2048 px, recompressée en WebP) ; **mention : « Textures : Solar System Scope, CC BY 4.0 »** | CC BY 4.0 |
 | `ui/assets/espace/terre-relief-2k.webp` | calculé par Raylé d'après NASA Visible Earth « Topography » (GEBCO 2008) | domaine public |
-| `ui/assets/ville-*.mp4` | Pexels, vidéo n° 13246966 | licence Pexels |
 | Soleil, petites lunes, astéroïdes, Voie lactée de secours (hors ligne), nébuleuses, matériaux anatomiques (os, muscles, cartilages, organes), environnement d'éclairage | dessinés par le code (shaders et canvas), aucun fichier | — |
 
 ## Données scientifiques et orbitales

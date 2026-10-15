@@ -10,9 +10,6 @@ Redimensionnées (2048 et 4096 px) et recompressées pour Raylé.
 fond-jarvis-paysage.webp, fond-jarvis-portrait.webp, fond-jarvis-coeur.webp : images fixes du fond Jarvis (mode Éco), pré-rendues par le code de Raylé (aucune source externe).
 Fond Jarvis : interface holographique dessinée entièrement par le code (shaders, géométries, textes) ; aucun logo, aucune image ni marque tierce.
 
-Vidéo de ville de nuit (ville-paysage.mp4, ville-portrait.mp4) : Pexels, vidéo n° 13246966, licence Pexels (utilisation gratuite).
-  https://www.pexels.com/video/13246966/
-  Recompressée en H.264 (720×1280 et recadrage 1280×720), boucle sans coupure par fondu enchaîné de 1,2 s.
 fond-globe-planete.webp : Terre pré-rendue (image fixe du mode Éco du fond Espace), générée par Raylé à partir des textures NASA ci-dessus (domaine public).
 fond-espace-paysage.webp, fond-espace-portrait.webp : ciel pré-rendu (étoiles, Voie lactée, Soleil, Lune) pour le mode Éco du fond Espace, générés par le code de Raylé (aucune source externe).
 Fond Espace, textures réelles (ui/assets/espace/, chargées à la demande, ~2,6 Mo en tout) :

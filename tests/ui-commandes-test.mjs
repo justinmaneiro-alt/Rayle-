@@ -13,27 +13,18 @@ const analyser = txt => { const r = ctx.RayleUI.analyserCommande(cmdNorm(norm(tx
 
 let ok = 0; const t = (n, f) => { try { f(); ok++; console.log('  ✔', n); } catch (e) { console.log('  ✘', n, '\n   ', e.message); process.exitCode = 1; } };
 
-t('thèmes', () => {
-  assert.equal(analyser('Raylé, passe en thème Aurore'), 'theme:aurore');
-  assert.equal(analyser('mets le thème Arc Reactor'), 'theme:arc');
-  assert.equal(analyser('thème arc réacteur'), 'theme:arc');
-  assert.equal(analyser('Passe en thème Mark Rouge.'), 'theme:rouge');
-  assert.equal(analyser('thème ambre solaire'), 'theme:ambre');
-  assert.equal(analyser('active le thème nébuleuse'), 'theme:nebuleuse');
+t('thèmes : seulement Univers (défaut) et Jarvis', () => {
+  assert.equal(analyser('Raylé, passe en thème Jarvis'), 'theme:arc');
+  assert.equal(analyser('mets le thème Univers'), 'theme:originel');
   assert.equal(analyser('remets le thème Raylé originel'), 'theme:originel');
-  assert.equal(analyser('passe en Aurore'), 'theme:aurore');
   assert.equal(analyser('change de thème'), 'theme:+');
   assert.equal(analyser('thème suivant'), 'theme:+');
+  for (const p of ['passe en thème Aurore', 'thème ambre solaire', 'active le thème nébuleuse', 'Passe en thème Mark Rouge.']) assert.equal(analyser(p), null, p);
 });
-t('fonds', () => {
-  assert.equal(analyser('Raylé, fond espace'), 'fond:espace'); assert.equal(analyser('fond globe'), 'fond:espace'); assert.equal(analyser('mets le fond cosmos'), 'fond:espace'); assert.equal(analyser('fond système solaire'), 'fond:espace');
-  assert.equal(analyser('mets le fond en ville'), 'fond:video');   // la Ville 3D n'existe plus : « ville » désigne la ville réelle
-  assert.equal(analyser('fond ville 3D'), 'fond:video');
-  assert.equal(analyser('fond ville réelle'), 'fond:video');
-  assert.equal(analyser('mets le fond vidéo'), 'fond:video');
-  assert.equal(analyser('fond vraie ville'), 'fond:video');
+t('fonds : Aucun, Univers, Jarvis (la Ville réelle est supprimée)', () => {
+  assert.equal(analyser('Raylé, fond espace'), 'fond:espace'); assert.equal(analyser('fond univers'), 'fond:espace'); assert.equal(analyser('fond globe'), 'fond:espace'); assert.equal(analyser('mets le fond cosmos'), 'fond:espace'); assert.equal(analyser('fond système solaire'), 'fond:espace');
+  for (const p of ['mets le fond en ville', 'fond ville 3D', 'fond ville réelle', 'mets le fond vidéo', 'fond vraie ville', 'fond ville']) assert.equal(analyser(p), null, p);
   assert.equal(analyser("passe sur l'arrière-plan globe"), null);   // trop tordu : pas reconnu, c'est voulu (passe à l'IA)
-  assert.equal(analyser('fond ville'), 'fond:video');
   assert.equal(analyser('enlève le fond'), 'fond:aucun');
   assert.equal(analyser('pas de fond'), 'fond:aucun');
   assert.equal(analyser('fond noir'), 'fond:aucun');
@@ -42,7 +33,7 @@ t('fond Jarvis : « mets le fond Jarvis », « mode Jarvis », « passe en mode 
   for (const p of ['mets le fond Jarvis', 'fond jarvis', 'Raylé, mode Jarvis', 'mode jarvis', 'passe en mode holographique', 'mets le mode holographique', 'active le mode jarvis', 'mets le fond holographique', 'fond hologramme', 'passe en Jarvis', 'mets jarvis', 'change le fond en jarvis', 'mode hologramme', 'bascule sur le fond Jarvis'])
     assert.equal(analyser(p), 'fond:jarvis', p);
   for (const p of ['pourquoi le mode jarvis', 'quel est le fond jarvis', 'jarvis', 'ouvre le terminal en mode holographique', 'mode eco', 'fond espace']) assert.notEqual(analyser(p), 'fond:jarvis', p);
-  assert.equal(analyser('fond ville réelle'), 'fond:video'); assert.equal(analyser('enlève le fond'), 'fond:aucun');
+  assert.equal(analyser('enlève le fond'), 'fond:aucun');
 });
 t('niveau d’animation', () => {
   assert.equal(analyser('Raylé, mode éco'), 'anim:eco');

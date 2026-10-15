@@ -5,12 +5,12 @@
    - Niveau d'animation : Max / Auto / Éco. Palier effectif : 0 complet, 1 allégé, 2 éco (fond figé, sans halos animés).
      En Auto, on mesure les images/s : si ça rame, on baisse d'un palier (le fond et les halos d'abord ; l'entité a sa propre auto-qualité).
      « Réduire les animations » du système impose le palier 2.
-   - Commandes vocales : « Raylé, passe en thème Aurore », « fond espace », « mode éco » (service du bus 'ui:commande', appelé par coupure.js).
+   - Commandes vocales : « Raylé, passe en thème Jarvis », « fond univers », « mode éco » (service du bus 'ui:commande', appelé par coupure.js).
    Bus : emit('ui:reglages',{theme,fond,anim,palier,micro}) à chaque changement ; RayleUI.reglages() pour lire l'état. */
 (function(){
   const UI=window.RayleUI=window.RayleUI||{};
   const THEMES=UI.THEMES||{};
-  const FONDS={aucun:'Aucun',espace:'Espace',jarvis:'Jarvis',video:'Ville réelle'};
+  const FONDS={aucun:'Aucun',espace:'Univers',jarvis:'Jarvis'};   // « espace » est l'identifiant historique du fond Univers
   const ENTITES={sphere:'Sphère',neurones:'Neurones'};
   const ANIMS={max:'Max',auto:'Auto',eco:'Éco',ultra:'Ultra'};      // Ultra : choix manuel seulement, jamais automatique
   const CLE={theme:'rayle_ui_theme',fond:'rayle_ui_fond',anim:'rayle_ui_anim',micro:'rayle_ui_micro',entite:'rayle_ui_entite',taille:'rayle_ui_taille',contraste:'rayle_ui_contraste'};
@@ -26,7 +26,7 @@
 
   const R={
     theme:THEMES[lire(CLE.theme)] ? lire(CLE.theme) : 'originel',
-    fond:(f=>FONDS[f] ? f : f==='globe' ? 'espace' : (f==='ville'||f==='ville3d') ? 'jarvis' : (mobile?'aucun':'jarvis'))(lire(CLE.fond)),   // l'ancien « Globe » devient l'Espace ; l'ancienne « ville » devient la Ville 3D
+    fond:(f=>FONDS[f] ? f : f==='globe' ? 'espace' : (f==='ville'||f==='ville3d'||f==='video') ? 'jarvis' : (mobile?'aucun':'espace'))(lire(CLE.fond)),   // l'ancien « Globe » devient l'Univers (id « espace ») ; la Ville (3D ou réelle, supprimée) devient Jarvis
     anim:ANIMS[lire(CLE.anim)] ? lire(CLE.anim) : 'auto',
     entite:ENTITES[lire(CLE.entite)] ? lire(CLE.entite) : 'sphere',
     micro:lire(CLE.micro)==null ? !mobile : lire(CLE.micro)==='1',
@@ -208,8 +208,7 @@
   /* ───── Commandes vocales (texte déjà normalisé : minuscules, sans accents ni ponctuation, sans « Raylé ») ───── */
   const QUESTION=/\b(?:pourquoi|comment|quel|quelle|quels|quelles|combien|c est quoi|qu est ce|est ce que)\b/;
   const VERBES='(?:passe|passer|repasse|mets|met|mettre|remets|change|changer|bascule|basculer|active|activer|applique|appliquer|prends|choisis|affiche|afficher|je veux|on passe)';
-  const NOMS_SEULS=/^(?:aurore|nebuleuse|(?:arcs?|ark) (?:reactor|reacteur)|ambre solaire|(?:mark|marc) rouge)$/;
-  const FOND_RE=new RegExp('^(?:('+VERBES.slice(3,-1)+'|enleve|enlever|retire|retirer|coupe|couper|desactive|desactiver|supprime|eteins|pas de|sans)(?: moi)? )?(?:(?:le|un|du|de|mon|ton) )?(?:fond|arriere plan|decor)(?: d ecran| anime| animee)?((?: (?:en|sur|a|au|avec|de|du|la|le|l|une))*)(?: (jarvis|holographique|hologramme|hud|ville reelle|vraie ville|ville video|video|ville en 3d|ville 3d|ville|cite|city|espace|cosmos|univers|galaxie|systeme solaire|globe|terre|planete|monde|aucun|rien|noir|vide|neutre|sobre))?$');
+  const FOND_RE=new RegExp('^(?:('+VERBES.slice(3,-1)+'|enleve|enlever|retire|retirer|coupe|couper|desactive|desactiver|supprime|eteins|pas de|sans)(?: moi)? )?(?:(?:le|un|du|de|mon|ton) )?(?:fond|arriere plan|decor)(?: d ecran| anime| animee)?((?: (?:en|sur|a|au|avec|de|du|la|le|l|une))*)(?: (jarvis|holographique|hologramme|hud|espace|cosmos|univers|galaxie|systeme solaire|globe|terre|planete|monde|aucun|rien|noir|vide|neutre|sobre))?$');
   const ENTITE_RE=new RegExp('^(?:'+VERBES+' )?(?:(?:l|une|mon|ton|la|en) )?(?:entite|avatar)(?: (?:en|sur|a|au|de))? (neurones?|neuronale?s?|reseau de neurones|cerveau|sphere|particules|normale|classique|actuelle|originale?)$');
   const ENTITE_COURT=new RegExp('^'+VERBES+' (?:en |sur )?(?:mode )?(neurones|reseau de neurones|sphere)$');
   const ANIM_RE=new RegExp('^(?:'+VERBES+'(?: moi)? )?(?:(?:en|le|la|au|les) )?(?:mode|animations?|niveau d animation|qualite|graphismes?)(?: (?:en|au|a|sur))? (ultra|eco|economie|economique|economie d energie|leger|legere|max|maximum|maximal|maximale|auto|automatique|normal|normale)$');
@@ -227,13 +226,11 @@
     }
     const en=t.match(ENTITE_RE)||t.match(ENTITE_COURT);
     if(en) return {type:'entite',valeur:/neuron|cerveau/.test(en[1])?'neurones':'sphere'};
-    const m=t.match(new RegExp('^(?:'+VERBES+' )?(?:en |sur |le |la |l )?(?:mode )?(.+)$'));
-    if(m && NOMS_SEULS.test(m[1])){ for(const id of Object.keys(THEMES)) if(THEMES[id].alias.test(m[1])) return {type:'theme',valeur:id}; }
     if(JARVIS_RE.test(t)||JARVIS_RE2.test(t)) return {type:'fond',valeur:'jarvis'};   // « mode Jarvis », « passe en mode holographique »
     const f=t.match(FOND_RE);
     if(f){
       const v=f[3], negatif=/^(?:enleve|enlever|retire|retirer|coupe|couper|desactive|desactiver|supprime|eteins|pas de|sans)$/.test(f[1]||'');
-      if(v) return {type:'fond',valeur:/jarvis|holo|hud/.test(v)?'jarvis':/reelle|vraie|video|ville|cite|city/.test(v)?'video':/espace|cosmos|univers|galaxie|systeme|globe|terre|planete|monde/.test(v)?'espace':'aucun'};
+      if(v) return {type:'fond',valeur:/jarvis|holo|hud/.test(v)?'jarvis':/espace|cosmos|univers|galaxie|systeme|globe|terre|planete|monde/.test(v)?'espace':'aucun'};
       if(negatif) return {type:'fond',valeur:'aucun'};
       return null;
     }

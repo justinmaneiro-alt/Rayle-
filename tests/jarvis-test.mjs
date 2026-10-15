@@ -9,12 +9,12 @@ const existe = f => fs.existsSync(new URL(f, racine));
 const taille = f => fs.statSync(new URL(f, racine)).size;
 let ok = 0; const t = async (n, f) => { try { await f(); ok++; console.log('  ✔', n); } catch (e) { console.log('  ✘', n, '\n   ', e.message); process.exitCode = 1; } };
 
-await t('la Ville 3D est supprimée : fichier, image fixe et toute référence ; la Ville réelle (vidéo) reste', () => {
+await t('la Ville 3D et la Ville réelle (vidéo) sont supprimées : fichiers, images et références', () => {
   assert.ok(!existe('ui/fond-ville3d.js') && !existe('ui/assets/fond-ville3d-fixe.jpg'));
   for (const f of ['index.html', 'ui/settings.js', 'ui/background.js', 'ui/ambiance.js', 'ui/fond-jarvis.js', 'sw.js', 'ui/assets/CREDITS.txt'])
     assert.ok(!/ville3d|fond-ville3d/i.test(lire(f).replace(/(?:f|a.fond)==='ville3d'/g, '')), f + ' mentionne encore la Ville 3D');
-  assert.ok(existe('ui/fond-video.js') && existe('ui/assets/ville-paysage.mp4') && existe('ui/assets/ville-portrait.mp4'));
-  assert.match(lire('ui/settings.js'), /video:'Ville réelle'/);
+  assert.ok(!existe('ui/fond-video.js') && !existe('ui/assets/ville-paysage.mp4') && !existe('ui/assets/ville-portrait.mp4'));
+  assert.ok(!/Ville réelle|fond-video/.test(lire('ui/settings.js') + lire('index.html') + lire('ui/background.js')));
 });
 await t('index.html : fond-jarvis.js chargé après fond-globe.js et avant background.js, même version que le reste', () => {
   const h = lire('index.html'), ordre = [...h.matchAll(/<script src="((?:ui|js)\/[^"?]+)/g)].map(m => m[1]);
@@ -22,15 +22,15 @@ await t('index.html : fond-jarvis.js chargé après fond-globe.js et avant backg
   assert.ok(p('ui/fond-globe.js') < p('ui/fond-jarvis.js') && p('ui/fond-jarvis.js') < p('ui/background.js'));
   assert.equal(new Set([...h.matchAll(/(?:ui|js|css)\/[^"?]+\?v=([\w.-]+)/g)].map(m => m[1])).size, 1);
 });
-await t('réglage « Jarvis » : fonds proposés, ancien « ville3d » enregistré migré, défaut = Jarvis', () => {
+await t('réglage : fonds Aucun / Univers / Jarvis, anciens « ville3d » et « video » migrés vers Jarvis, défaut = Univers', () => {
   const s = lire('ui/settings.js');
-  assert.match(s, /FONDS=\{aucun:'Aucun',espace:'Espace',jarvis:'Jarvis',video:'Ville réelle'\}/);
-  assert.match(s, /f==='ville3d'\)\s*\?\s*'jarvis'/); assert.match(s, /\(mobile\?'aucun':'jarvis'\)/);
+  assert.match(s, /FONDS=\{aucun:'Aucun',espace:'Univers',jarvis:'Jarvis'\}/);
+  assert.match(s, /f==='video'\)\s*\?\s*'jarvis'/); assert.match(s, /\(mobile\?'aucun':'espace'\)/);
 });
 await t('Worker et agent : le fond « jarvis » est connu (l’IA peut le choisir), « ville3d » n’existe plus', () => {
-  const a = lire('ui/ambiance.js'); assert.match(a, /\['aucun','espace','jarvis','video'\]\.includes\(a\.fond\)/); assert.match(a, /a\.fond==='ville3d'\) a\.fond='jarvis'/);
+  const a = lire('ui/ambiance.js'); assert.match(a, /\['aucun','espace','jarvis'\]\.includes\(a\.fond\)/); assert.match(a, /a\.fond==='ville3d'\|\|a\.fond==='video'\) a\.fond='jarvis'/);
   if (existe('worker/worker.js')) {                                  // le Worker n'est pas versionné : testé s'il est là
-    const w = lire('worker/worker.js'); assert.match(w, /enum: \["aucun", "espace", "jarvis", "video"\]/); assert.ok(!/ville3d/.test(w)); assert.match(w, /jarvis\|holograph/);
+    const w = lire('worker/worker.js'); assert.match(w, /enum: \["aucun", "espace", "jarvis"\]/); assert.ok(!/ville3d/.test(w)); assert.match(w, /jarvis\|holograph/);
   }
 });
 await t('orchestrateur : image fixe Jarvis portrait / paysage + cœur pré-rendu, Auto dégrade le fond, Éco = image', () => {

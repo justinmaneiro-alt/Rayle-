@@ -85,7 +85,7 @@
         params:()=>'lieux du monde entier (OpenStreetMap), itinéraires voiture, vélo, à pied',limites:['les pays et régions vont sur la page Monde']},
       {id:'apparence',nom:'Apparence',
         court:'changer le thème de couleurs, le fond (Espace, Jarvis, vidéo, aucun), l’entité, l’ambiance météo et lumineuse, la qualité graphique (Éco, Auto, Max ou Ultra : l’Ultra est très gourmand et jamais choisi seul)',
-        ex:['passe en thème Aurore','fond espace','mode éco','passe en qualité ultra'],verif:'apparence',mots:/\b(?:theme|fond|ambiance|entite|couleur|eco|qualite|nuit|pluie|neige)\b/,
+        ex:['passe en thème Jarvis','fond univers','mode éco','passe en qualité ultra'],verif:'apparence',mots:/\b(?:theme|fond|ambiance|entite|couleur|eco|qualite|nuit|pluie|neige)\b/,
         params:()=>'thèmes : originel, arc, rouge, aurore, ambre, nébuleuse · fonds : aucun, espace, jarvis, vidéo · entités : sphère, neurones',
         limites:[]},
       {id:'memoire',nom:'Mémoire et notes',

@@ -54,7 +54,7 @@ body.univers-actif:not(.rayle-rangee) .univ-bas{bottom:max(92px,calc(env(safe-ar
 .univ-info-fps{position:absolute;left:max(10px,env(safe-area-inset-left));top:60px;font:10px var(--mono,monospace);color:#7fa;opacity:.8;pointer-events:none}
 
 /* Le reste de l'interface par-dessus l'Univers : Raylé en petite bulle, barre compacte, rien ne bloque la scène */
-body.univers-actif .ui-fond,body.univers-actif .ui-voile,body.univers-actif .ui-fond-fixe,body.univers-actif .ui-fond-video,body.univers-actif .ui-teinte,body.univers-actif .ui-amb{visibility:hidden}
+body.univers-actif .ui-fond,body.univers-actif .ui-voile,body.univers-actif .ui-fond-fixe,body.univers-actif .ui-teinte,body.univers-actif .ui-amb{visibility:hidden}
 body.univers-actif{background:#02030a}
 body.univers-actif .ui-bouton,body.univers-actif .ui-pop{display:none!important}
 body.univers-actif .scene,body.univers-actif .barre{pointer-events:none}

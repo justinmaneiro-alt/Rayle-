@@ -1,24 +1,20 @@
 "use strict";
-/* ═════════════ THÈMES : 6 packs de couleurs ═════════════
+/* ═════════════ THÈMES : 2 packs de couleurs (Univers par défaut, Jarvis) ═════════════
    Le CSS (ui/ui.css) lit l'attribut <html data-theme="…"> : variables --t1 (accent), --t2 (second), --t3 (clair), --t4 (profond), --tx (texte),
    avec un fondu d'environ 1 s. Ici, les mêmes couleurs en chiffres pour ce qui se dessine en JS (entité, anneaux, fond animé).
    API (window.RayleUI) :
-     THEMES                     {id:{nom,c:[4 couleurs],tourne?}}
+     THEMES                     {id:{nom,c:[4 couleurs]}}
      appliquerTheme(id,direct)  change de thème (fondu de 1 s, sauf direct)
      theme()                    id du thème actuel
-     couleurs()                 [[r,g,b]×4] (0..255) à l'instant présent : fondu en cours, Nébuleuse qui tourne
+     couleurs()                 [[r,g,b]×4] (0..255) à l'instant présent : fondu en cours
      rgba([r,g,b],a)            chaîne CSS */
 (function(){
   const UI=window.RayleUI=window.RayleUI||{};
+  // « originel » est l'identifiant historique du thème Univers (conservé pour que les réglages déjà enregistrés restent valables) ; « arc » est Jarvis.
   const THEMES={
-    originel: {nom:'Raylé Originel',c:['#ff4fd8','#9b5cff','#ff9ef0','#6a3cff'],alias:/\b(?:originel(?:le)?|original(?:e)?|origine|defaut|rose)\b/},
-    arc:      {nom:'Arc Reactor',  c:['#00e5ff','#4fc3ff','#b8f6ff','#1f6bff'],alias:/\b(?:arcs?|ark) ?(?:reactor|reacteur|reactors)?\b|\barc\b|\bcyan\b|\bbleu\b/},
-    rouge:    {nom:'Mark Rouge',   c:['#ff2e4d','#ffb300','#ff7a2e','#b0122c'],alias:/\b(?:mark|marc|marque) rouge\b|\bmark\b|\brouge\b|\biron ?man\b/},
-    aurore:   {nom:'Aurore',       c:['#00ffa3','#00d4c8','#8a5cff','#00876a'],alias:/\baurore\b|\bemeraude\b|\bvert\b/},
-    ambre:    {nom:'Ambre Solaire',c:['#ff9500','#ffc845','#ff5e3a','#b35400'],alias:/\bambre(?: solaire)?\b|\bsolaire\b|\borange\b/},
-    nebuleuse:{nom:'Nébuleuse',    c:['#ff4fd8','#4f7cff','#00e5ff','#6a3cff'],alias:/\bnebuleuse\b|\bnebula\b/,tourne:true}
+    originel: {nom:'Univers',c:['#ff4fd8','#9b5cff','#ff9ef0','#6a3cff'],alias:/\b(?:univers|originel(?:le)?|original(?:e)?|origine|defaut|rose)\b/},
+    arc:      {nom:'Jarvis', c:['#00e5ff','#4fc3ff','#b8f6ff','#1f6bff'],alias:/\b(?:jarvis|arcs?|ark|cyan|bleu)\b/}
   };
-  const PERIODE_NEB=36;   // secondes pour un tour complet de la Nébuleuse (même durée que l'animation CSS)
   const hex=h=>[parseInt(h.slice(1,3),16),parseInt(h.slice(3,5),16),parseInt(h.slice(5,7),16)];
   Object.keys(THEMES).forEach(k=>{ THEMES[k].rgb=THEMES[k].c.map(hex); });
 
@@ -26,16 +22,11 @@
   let actuel='originel', depuis=null, t0=0, cache=null, tCache=-1;
   const mix=(a,b,k)=>[a[0]+(b[0]-a[0])*k,a[1]+(b[1]-a[1])*k,a[2]+(b[2]-a[2])*k];
 
-  function base(id,now){
-    const th=THEMES[id];
-    if(!th.tourne || (typeof document!=='undefined' && document.documentElement.classList.contains('ui-eco'))) return th.rgb;
-    const ph=((now/1000)/PERIODE_NEB%1)*3, i=Math.floor(ph), f=ph-i, c=th.rgb;
-    return [mix(c[i%3],c[(i+1)%3],f),mix(c[(i+1)%3],c[(i+2)%3],f),mix(c[(i+2)%3],c[i%3],f),c[3]];
-  }
+  const base=id=>THEMES[id].rgb;
   function couleurs(){
     const now=maintenant();
     if(cache && now-tCache<33) return cache;          // recalcul au plus ~30 fois par seconde
-    let c=base(actuel,now);
+    let c=base(actuel);
     if(depuis){
       const k=Math.min(1,(now-t0)/1000);
       if(k>=1) depuis=null;

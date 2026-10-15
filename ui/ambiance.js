@@ -40,8 +40,8 @@
   const TTL_METEO=15*60000;
   const CLE={reglages:'rayle_amb_reglages',meteo:'rayle_amb_meteo',geo:'rayle_amb_geo',manuel:'rayle_amb_manuel',dit:'rayle_amb_dit',themeManuel:'rayle_ui_theme_manuel'};
   // thème par défaut selon le moment ; la météo marquée (pluie, orage, neige, brouillard) passe avant le moment
-  const MAPPING_DEFAUT={aube:'ambre',jour:'arc',crepuscule:'originel',nuit:'nebuleuse',pluie:'aurore',orage:'arc',neige:'arc',brouillard:'originel'};
-  const THEMES_IDS=['originel','arc','rouge','aurore','ambre','nebuleuse'];
+  const MAPPING_DEFAUT={aube:'originel',jour:'originel',crepuscule:'originel',nuit:'originel',pluie:'originel',orage:'originel',neige:'originel',brouillard:'originel'};   // un seul thème par défaut (Univers) ; on peut en associer un autre (Jarvis) à un moment dans les Réglages
+  const THEMES_IDS=['originel','arc'];
   const PRESETS={
     detente:{moment:'crepuscule',meteo:'clair',intensite:0,vent:.12},
     focus:{moment:'nuit',meteo:'clair',intensite:0,vent:0},
@@ -210,7 +210,7 @@
     const setJSON=(k,v)=>stock.set(k,v==null?null:JSON.stringify(v));
     const doFetch=deps.fetch||(typeof fetch==='function'?(u,o)=>fetch(u,o):null);
 
-    const R=Object.assign({mode:'auto',themeAuto:true,themeHeures:3,lieu:null,fx:70,respectReduit:true,mapping:{}},getJSON(CLE.reglages)||{});
+    const R=Object.assign({mode:'auto',themeAuto:false,themeHeures:3,lieu:null,fx:70,respectReduit:true,mapping:{}},getJSON(CLE.reglages)||{});
     if(!['auto','manuel','off'].includes(R.mode)) R.mode='auto';
     R.mapping=Object.assign({},MAPPING_DEFAUT,R.mapping||{});
     let manuel=getJSON(CLE.manuel);                      // {patch:{…}, fin:ms|null}
@@ -378,8 +378,8 @@
         if(a.theme==='auto'){ R.themeAuto=true; sauverReglages(); stock.set(CLE.themeManuel,null); appliquerThemeAuto(true); fait.push('thème automatique'); }
         else if(THEMES_IDS.includes(a.theme) && UI.changer){ UI.changer('theme',a.theme); fait.push('thème '+a.theme); }
       }
-      if(a.fond==='globe') a.fond='espace'; if(a.fond==='ville3d') a.fond='jarvis';                              // l'ancien « Globe » est devenu l'Espace
-      if(a.fond && UI.changer && ['aucun','espace','jarvis','video'].includes(a.fond)){ UI.changer('fond',a.fond); fait.push('fond '+a.fond); }
+      if(a.fond==='globe'||a.fond==='univers') a.fond='espace'; if(a.fond==='ville3d'||a.fond==='video') a.fond='jarvis';                              // l'ancien « Globe » est devenu l'Espace
+      if(a.fond && UI.changer && ['aucun','espace','jarvis'].includes(a.fond)){ UI.changer('fond',a.fond); fait.push('fond '+a.fond); }
       if(a.entite && UI.changer && ['sphere','neurones'].includes(a.entite)){ UI.changer('entite',a.entite); fait.push('entité '+a.entite); }
       // « emmène-moi voir Saturne » : vol de la caméra du fond Espace + faits (ui/espace.js)
       let phrase='';

@@ -1,7 +1,7 @@
 "use strict";
 /* ═════════════ FOND « JARVIS » : interface holographique, version pro (three.js, chargé à la demande) ═════════════
    Esthétique générique d'interface holographique de science-fiction (aucun logo, aucune marque) : fond très sombre, tout est lumière additive
-   aux couleurs du THÈME ACTIF (UI.couleurs(), fondu quand le thème change : Arc → cyan/bleu, Mark Rouge → rouge/or, etc.).
+   aux couleurs du THÈME ACTIF (UI.couleurs(), fondu quand le thème change : Univers → rose/violet, Jarvis → cyan/bleu).
 
    Repère : le monde est en PIXELS CSS (caméra en perspective placée pour que 1 unité = 1 px dans le plan z = 0) ; l'origine est le centre du canvas
    (qui déborde de 3 % de l'écran, voir ui.css). Les éléments 3D (globe, molécule, pièce technique) sont posés dans ce plan et tournent en perspective.

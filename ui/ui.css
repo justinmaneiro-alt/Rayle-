@@ -1,4 +1,4 @@
-/* ═════════════ RAYLÉ « JARVIS » : thèmes, fond animé, halos, panneaux holographiques, réglages d'apparence ═════════════
+/* ═════════════ ÉCOSYSTÈME RAYLÉ : thèmes (Univers, Jarvis), fond animé, halos, panneaux holographiques, réglages d'apparence ═════════════
    Chargé après les autres feuilles : il remplace les couleurs écrites en dur par celles du thème (variables --t1…--t4, --tx).
    Le terminal garde ses propres couleurs de marché ; seuls les cadres HUD communs suivent le thème. */
 
@@ -21,17 +21,6 @@
   --a2-25:color-mix(in srgb,var(--t2) 25%,transparent); --a2-50:color-mix(in srgb,var(--t2) 50%,transparent);
 }
 :root[data-theme="arc"]      {--t1:#00e5ff;--t2:#4fc3ff;--t3:#b8f6ff;--t4:#1f6bff;--tx:#d9fbff}
-:root[data-theme="rouge"]    {--t1:#ff2e4d;--t2:#ffb300;--t3:#ff7a2e;--t4:#b0122c;--tx:#ffe3c2}
-:root[data-theme="aurore"]   {--t1:#00ffa3;--t2:#00d4c8;--t3:#8a5cff;--t4:#00876a;--tx:#cfffee}
-:root[data-theme="ambre"]    {--t1:#ff9500;--t2:#ffc845;--t3:#ff5e3a;--t4:#b35400;--tx:#ffe8c4}
-:root[data-theme="nebuleuse"]{--t1:#ff4fd8;--t2:#4f7cff;--t3:#00e5ff;--t4:#6a3cff;--tx:#e6e0ff}
-/* Nébuleuse : les couleurs tournent en continu (par petits pas, 2 fois par seconde : presque rien à recalculer) */
-:root[data-theme="nebuleuse"]:not(.ui-eco){animation:ui-nebuleuse 36s steps(72) infinite}
-@keyframes ui-nebuleuse{
-  0%,100%{--t1:#ff4fd8;--t2:#4f7cff;--t3:#00e5ff}
-  33.33%{--t1:#4f7cff;--t2:#00e5ff;--t3:#ff4fd8}
-  66.66%{--t1:#00e5ff;--t2:#ff4fd8;--t3:#4f7cff}
-}
 
 /* ───── couleurs de Raylé (rayle.css) ───── */
 body{background:radial-gradient(ellipse 70% 55% at 50% 38%,color-mix(in srgb,var(--t2) 18%,transparent),color-mix(in srgb,var(--t1) 6%,transparent) 50%,transparent 75%),var(--bg)}
@@ -76,28 +65,21 @@ body.depot{box-shadow:inset 0 0 0 3px var(--pink2),inset 0 0 40px var(--a1-50)}
 /* ───── fond animé ───── */
 .ui-fond{position:fixed;left:-3vw;top:-3vh;width:106vw;height:106vh;z-index:0;pointer-events:none;opacity:0;transition:opacity 1.2s ease;will-change:transform}
 .ui-fond.vu{opacity:.82}
-/* image fixe (Éco) et vidéo (Ville réelle), avec une teinte du thème par-dessus */
-.ui-fond-fixe,.ui-fond-video{position:fixed;left:-3vw;top:-3vh;width:106vw;height:106vh;z-index:0;pointer-events:none;opacity:0;transition:opacity 1.2s ease;will-change:transform}
+/* image fixe (Éco), avec une teinte du thème par-dessus */
+.ui-fond-fixe{position:fixed;left:-3vw;top:-3vh;width:106vw;height:106vh;z-index:0;pointer-events:none;opacity:0;transition:opacity 1.2s ease;will-change:transform}
 .ui-fond-fixe{background:#030106 center/cover no-repeat}
 .ui-fond-fixe.vu{opacity:.85}
-.ui-fond-video.vu{opacity:.6}
-.ui-fond-video video{display:block;width:100%;height:100%;object-fit:cover}
 .ui-teinte{position:fixed;inset:0;z-index:0;pointer-events:none;opacity:0;transition:opacity 1.2s ease;mix-blend-mode:soft-light;
   background:linear-gradient(160deg,var(--t2),var(--t4) 55%,var(--t1))}
 .ui-teinte.vu{opacity:.6}
 .ui-voile{position:fixed;inset:0;z-index:0;pointer-events:none;
   background:radial-gradient(ellipse 60% 55% at 50% 42%,rgba(3,1,6,.55),rgba(3,1,6,.1) 60%,rgba(3,1,6,.55) 100%)}
 .scene{z-index:1}
-body.vue-terminal .ui-fond,body.vue-terminal .ui-voile,body.vue-terminal .ui-fond-fixe,body.vue-terminal .ui-fond-video,body.vue-terminal .ui-teinte{visibility:hidden}
+body.vue-terminal .ui-fond,body.vue-terminal .ui-voile,body.vue-terminal .ui-fond-fixe,body.vue-terminal .ui-teinte{visibility:hidden}
 /* fonds plus visibles : la vignette assombrit le centre (entité, texte) et les bords */
 .ui-voile{background:
   radial-gradient(ellipse 34% 40% at 50% 42%,rgba(3,1,6,.62),rgba(3,1,6,.34) 60%,rgba(3,1,6,0) 100%),
   radial-gradient(ellipse 75% 70% at 50% 45%,rgba(3,1,6,0) 55%,rgba(3,1,6,.7) 100%)}
-/* la vidéo est le fond le plus lumineux : vignette plus marquée pour garder l'entité et le texte lisibles */
-.ui-fond-video.vu~.ui-voile{background:
-  radial-gradient(ellipse 46% 42% at 50% 45%,rgba(3,1,6,.72),rgba(3,1,6,.45) 65%,rgba(3,1,6,.2) 100%),
-  radial-gradient(ellipse 75% 70% at 50% 45%,rgba(3,1,6,0) 50%,rgba(3,1,6,.72) 100%)}
-.ui-seg[data-k="fond"]{grid-template-columns:repeat(2,1fr)}
 .ui-seg[data-k="fond"] button:nth-child(-n+2){border-bottom:1px solid var(--a1-25)}
 .ui-seg[data-k="fond"] button:nth-child(2n){border-right:0}
 @media (min-width:560px){ .cfg .ui-seg[data-k="fond"]{grid-template-columns:repeat(4,1fr)} .cfg .ui-seg[data-k="fond"] button{border-bottom:0;border-right:1px solid var(--a1-25)} .cfg .ui-seg[data-k="fond"] button:last-child{border-right:0} }
@@ -183,11 +165,10 @@ html.ui-eco .pn.hud-in{animation:hud-fondu .3s both}
 .ui-pop-corps{overflow-y:auto;padding:10px 14px 14px;-webkit-overflow-scrolling:touch}
 .ui-reglages .ui-lbl{margin:12px 0 6px;font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:var(--pink2)}
 .ui-reglages .ui-lbl:first-child{margin-top:2px}
-.ui-themes{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.ui-themes{display:grid;grid-template-columns:repeat(2,1fr);gap:8px}
 .ui-theme{display:flex;flex-direction:column;align-items:center;gap:6px;min-height:72px;padding:8px 4px;cursor:pointer;
   background:rgba(0,0,0,.3);border:1px solid rgba(255,255,255,.12);color:var(--tx);font:11px var(--mono);letter-spacing:.04em;text-transform:none}
 .ui-theme i{display:block;width:34px;height:34px;border-radius:50%;background:conic-gradient(var(--s1),var(--s2),var(--s3),var(--s1));box-shadow:0 0 12px var(--s1)}
-.ui-theme[data-theme-id="nebuleuse"] i{animation:ui-tourne 9s linear infinite}
 .ui-theme[aria-pressed="true"]{border-color:var(--t1);background:var(--a1-16);box-shadow:0 0 12px var(--a1-35)}
 .ui-seg{display:grid;grid-template-columns:repeat(3,1fr);gap:0;border:1px solid var(--a1-35)}
 .ui-seg button{min-height:44px;background:transparent;border:0;border-right:1px solid var(--a1-25);color:var(--tx);font:700 12px var(--mono);letter-spacing:.1em;text-transform:uppercase;cursor:pointer}
@@ -202,7 +183,6 @@ html.ui-eco .pn.hud-in{animation:hud-fondu .3s both}
 .cfg .ui-theme{text-transform:none;font-weight:400}
 .cfg .ui-reglages .ui-seg button[aria-pressed="true"],.cfg .ui-reglages .ui-theme[aria-pressed="true"]{background:var(--a1-16)}
 .cfg .ui-reglages .ui-seg button[aria-pressed="true"]{background:var(--t1);color:#0b0410}
-@keyframes ui-tourne{to{transform:rotate(360deg)}}
 @media (min-width:560px){ .cfg .ui-themes{grid-template-columns:repeat(6,1fr)} }
 @media (max-width:640px){ .ui-bouton{top:-6px;width:40px;height:40px} .bridge{right:48px;max-width:calc(100vw - 230px)} }
 @media (max-height:520px){ .ui-bouton{top:0;right:0} }
