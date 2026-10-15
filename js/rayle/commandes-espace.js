@@ -7,7 +7,7 @@
   const echecsActions=[];                 // lus par respond() (js/rayle/phrase.js) : si non vide, ils remplacent la réponse de l'IA
   const espaceUI=()=>window.RayleUI&&window.RayleUI.espace;
   const savoirUI=()=>window.RayleUI&&window.RayleUI.savoir;
-  function cibleAffichee(){ try{ const e=espaceUI(); return e&&e.etat().cible||null; }catch(err){ return null; } }
+  function cibleAffichee(){ try{ const e=espaceUI(); return e&&e.etat().cible||null; }catch(err){ return null; } }       // l'astre affiché dans l'Univers (fond ou plein écran), pour « et sa taille ? »
   // Renvoie la phrase à dire, ou null si ce n'est pas une question de savoir sur l'espace (la suite du traitement prend le relais)
   function commandeEspaceSavoir(texte){
     const S=savoirUI(); if(!S) return null;
@@ -18,20 +18,23 @@
     const S=savoirUI(); if(!S) return '';
     try{ return S.contexte(texte); }catch(err){ return ''; }
   }
-  /** Action décidée par l'agent : { type:'espace', phrases:[…] } → texte à ajouter à la réponse. Un échec est mis dans echecsActions. */
+  /** Action décidée par l'agent : { type:'espace', phrases:[…] } → texte à ajouter à la réponse. Un échec est mis dans echecsActions.
+      Chaque phrase est passée à l'analyseur de l'Univers (js/rayle/commandes-univers.js) : la scène de l'accueil (ou le plein écran) bouge réellement, étape par étape. */
   async function espaceAgent(a){
-    const E=espaceUI(); if(!E||!E.commandeDetaillee){ echecsActions.push('Je n’ai pas pu agir sur l’Espace : le module n’est pas chargé.'); return ''; }
+    if(typeof commandeUnivers!=='function'){ echecsActions.push('Je n’ai pas pu agir sur l’Espace : le module n’est pas chargé.'); return ''; }
     const phrases=(Array.isArray(a.phrases)?a.phrases:[a.phrase]).map(x=>String(x||'').trim()).filter(Boolean).slice(0,6);
     if(!phrases.length){ echecsActions.push('Je n’ai pas pu agir sur l’Espace : la demande est vide.'); return ''; }
-    let r=null;
-    try{ r=E.commandeDetaillee(phrases.join(' puis ')); }catch(err){ r=null; }
-    if(!r){                                                           // une étape n'est pas comprise : on dit laquelle au lieu de faire semblant
-      const pas=phrases.filter(p=>{ try{ return !(E.chaine(p)||E.analyser(p)); }catch(err){ return true; } });
-      echecsActions.push('Je n’ai pas compris cette demande pour l’Espace'+(pas.length?' : « '+pas[0]+' »':'')+'. Dis-moi par exemple « montre-moi Mars », « zoome dessus » ou « reviens sur la Terre ».');
-      return '';
+    const dits=[];
+    for(const p of phrases){
+      let r=null;
+      try{ r=await commandeUnivers(p); }catch(err){ echecsActions.push('Je n’ai pas pu agir sur l’Espace : '+errMsg(err)+'.'); return dits.join(' '); }
+      if(r==null){                                                    // une étape n'est pas comprise : on dit laquelle au lieu de faire semblant
+        echecsActions.push('Je n’ai pas compris cette demande pour l’Espace : « '+p+' ». Dis-moi par exemple « montre-moi Mars », « retour au système solaire » ou « vue d’ensemble ».');
+        return dits.join(' ');
+      }
+      if(r!=='__deja_dit__') dits.push(r);
     }
-    if(!r.ok){ echecsActions.push(r.texte||'L’action sur l’Espace a échoué.'); return ''; }
-    return r.texte||'';
+    return dits.join(' ');
   }
 
   /* ═════════════ ACTUALITÉ D'UN PAYS (Terre vivante) ═════════════

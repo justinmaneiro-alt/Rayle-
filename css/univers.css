@@ -108,3 +108,10 @@ body.univers-actif.rayle-rangee #vueUnivers .univ-terre-carte .maplibregl-ctrl-b
 #vueUnivers .univ-terre-carte .maplibregl-ctrl-attrib.maplibregl-compact-show{background:rgba(2,6,15,.92)!important;border-radius:12px}
 #vueUnivers .univ-terre-carte .maplibregl-ctrl-attrib a{color:#7fe3ff!important}
 #vueUnivers .univ-terre-carte .maplibregl-ctrl-attrib-button{background-color:transparent!important;filter:invert(1) hue-rotate(160deg)}
+
+/* Mode « fond » : la même scène, derrière l'accueil, sans menu ni HUD ; Raylé la pilote par la voix (js/univers/noyau.js, ouvrirFond) */
+#vueUnivers.univ-fond{pointer-events:none;opacity:0;transition:opacity 1.4s ease}
+#vueUnivers.univ-fond.pret{opacity:.97}
+#vueUnivers.univ-fond *{pointer-events:none!important}
+#vueUnivers.univ-fond .univ-hud,#vueUnivers.univ-fond .univ-charge,#vueUnivers.univ-fond .univ-labels{display:none}
+#vueUnivers.univ-fond canvas.univ-canvas{cursor:default}

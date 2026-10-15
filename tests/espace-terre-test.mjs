@@ -103,11 +103,11 @@ await t('trafic : routes et voies valides, positions déterministes, aller-retou
   const bat = T.creerNavires(100, 3); for (let s = 0; s < 20; s++) { const p = T.positionNavire(bat[s], T0 + s * 3.7e6, 'pedagogique'); assert.ok(Math.abs(Math.hypot(...p.v) - 1) < 1e-6 && p.alt > 1); }
   const L = vers => T.vers(vers); const suez = T.voies().find(w => w.id === 'mediterranee-suez'); const p = suez.poly[Math.floor(suez.poly.length / 2)], g = L(p); assert.ok(Math.abs(g.lat) < 40 && g.lon > -10 && g.lon < 70, 'la voie Suez traverse bien la région attendue');
 });
-await t('textures et Ultra : fichiers 8k présents et légers, réglage Ultra manuel seulement, palier Ultra câblé dans le fond', () => {
+await t('textures et Ultra : fichiers 8k présents et légers, réglage Ultra manuel seulement, textures 8k utilisées par la scène Univers en qualité Haute', () => {
   for (const f of ['terre-jour-8192.jpg', 'terre-nuit-8192.jpg']) { const b = fs.readFileSync(new URL('ui/assets/' + f, racine)); assert.equal(b[0], 0xff); assert.equal(b[1], 0xd8); let w = 0, h = 0; for (let i = 2; i < b.length;) { if (b[i] !== 0xff) { i++; continue; } const m = b[i + 1]; if (m >= 0xc0 && m <= 0xc3) { h = b.readUInt16BE(i + 5); w = b.readUInt16BE(i + 7); break; } i += 2 + b.readUInt16BE(i + 2); } assert.deepEqual([w, h], [8192, 4096], f); assert.ok(b.length < 6e6, f + ' : ' + b.length); }
-  const settings = lire('ui/settings.js'), fond = lire('ui/fond-espace.js'), glo = lire('ui/fond-globe.js'), bg = lire('ui/background.js');
+  const settings = lire('ui/settings.js'), glo = lire('ui/fond-globe.js'), bg = lire('ui/background.js');
   assert.match(settings, /ANIMS=\{max:'Max',auto:'Auto',eco:'Éco',ultra:'Ultra'\}/); assert.ok(!/palierAuto\s*=\s*[^;]*ultra/.test(settings), 'le palier automatique ne choisit jamais Ultra');
-  assert.match(settings, /function avertirUltra/); assert.match(bg, /UI\.changer\('anim','max'\)/, 'repli automatique si trop lent'); assert.match(glo, /terre-jour-'\+px/); assert.match(glo, /textures 8k indisponibles/); assert.match(fond, /pas:ultra\?28:10/); assert.match(fond, /UnrealBloomPass/); assert.match(fond, /HalfFloatType/);
+  assert.match(settings, /function avertirUltra/); assert.match(bg, /UI\.changer\('anim','max'\)/, 'repli automatique si trop lent'); assert.match(glo, /terre-jour-'\+px/); assert.match(glo, /textures 8k indisponibles/); assert.match(lire('js/univers/espace/terre.js'), /8192/, 'la scène Univers charge les textures 8k en qualité Haute');
   const c = new Function('window', lire('ui/themes.js') + ';' + lire('ui/settings.js') + ';return window.RayleUI;');
   void c;
 });

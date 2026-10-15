@@ -2,11 +2,11 @@
    lire(api, meta, env)  → { paragraphes, avertissements, lectureSeule, etat }
    ecrire(api, meta, ops, env, etatLu) → { paragraphes } (le contenu RELU après l'écriture, pour vérification)
    env = { zip(): Promise<JSZip>, pdf(): Promise<pdfjsLib> } (chargés à la demande depuis un CDN ; remplaçables dans les tests). */
-import { MIME, estErreurDrive } from './api.js?v=2026.10.15.4';
-import { lireGdoc, ecrireGdoc } from './fmt-gdoc.js?v=2026.10.15.4';
-import { lireDocx, modifierDocx, lireZipDocx, ecrireZipDocx } from './fmt-docx.js?v=2026.10.15.4';
-import { lireTexte, ecrireTexte, paragraphesPdf, paragraphesFeuille, paragraphesDiapos } from './fmt-autres.js?v=2026.10.15.4';
-import { appliquerOps } from './modele.js?v=2026.10.15.4';
+import { MIME, estErreurDrive } from './api.js?v=2026.10.15.5';
+import { lireGdoc, ecrireGdoc } from './fmt-gdoc.js?v=2026.10.15.5';
+import { lireDocx, modifierDocx, lireZipDocx, ecrireZipDocx } from './fmt-docx.js?v=2026.10.15.5';
+import { lireTexte, ecrireTexte, paragraphesPdf, paragraphesFeuille, paragraphesDiapos } from './fmt-autres.js?v=2026.10.15.5';
+import { appliquerOps } from './modele.js?v=2026.10.15.5';
 
 const MAX_LIGNES_FEUILLE = 400, MAX_FEUILLES = 8;
 

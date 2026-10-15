@@ -32,7 +32,7 @@
     async function themeCommande(nom,args){
       if(typeof RayleUnivers==='undefined') return {ok:false,texte:'L’Univers n’est pas disponible.'};
       try{
-        if(!RayleUnivers.estOuvert()) await RayleUnivers.ouvrir('espace');
+        await RayleUnivers.assurer();                    // déjà ouvert (fond ou plein écran) ; sinon en fond si c'est le fond choisi, sinon en plein écran
         const r=await RayleUnivers.commande(nom,args);
         return r||{ok:false,texte:'La Terre n’a pas répondu.'};
       }catch(e){

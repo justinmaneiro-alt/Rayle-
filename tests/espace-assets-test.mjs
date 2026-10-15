@@ -1,4 +1,4 @@
-// Fond « Espace » : fichiers, ordre de chargement, images fixes du mode Éco, poids des ajouts, service worker.   node tests/espace-assets-test.mjs
+// Fond « Univers » : fichiers, ordre de chargement, images fixes du mode Éco, poids des ajouts, service worker.   node tests/espace-assets-test.mjs
 import fs from 'node:fs';
 import assert from 'node:assert/strict';
 
@@ -10,14 +10,13 @@ const html = lire('index.html');
 const ordre = [...html.matchAll(/<script src="((?:ui|js)\/[^"?]+)/g)].map(m => m[1]);
 const pos = f => { const i = ordre.indexOf(f); assert.ok(i >= 0, f + ' absent de index.html'); return i; };
 
-t('scripts de l’Espace chargés dans le bon ordre (astro → cadrage → réglages → ambiance → fonds → espace → fond-espace → orchestrateur → réglages Espace)', () => {
+t('scripts de l’Espace chargés dans le bon ordre (astro → cadrage → réglages → ambiance → fonds → espace → orchestrateur) ; l’ancien fond (astéroïdes, planètes dessinées) n’existe plus', () => {
   assert.ok(pos('ui/astro.js') < pos('ui/cadrage.js') && pos('ui/cadrage.js') < pos('ui/settings.js'));
   assert.ok(pos('ui/settings.js') < pos('ui/ambiance.js') && pos('ui/ambiance.js') < pos('ui/ambiance-reglages.js'));
-  assert.ok(pos('ui/fond-globe.js') < pos('ui/espace.js') && pos('ui/espace.js') < pos('ui/espace-textures.js') && pos('ui/espace-textures.js') < pos('ui/fond-espace.js'));
-  assert.ok(pos('ui/fond-espace.js') < pos('ui/background.js'), 'le fond Espace est prêt avant l’orchestrateur');
-  assert.ok(pos('ui/ambiance-reglages.js') < pos('ui/espace-reglages.js'), 'la section Espace vient après la section Ambiance');
-  assert.ok(pos('ui/espace.js') < pos('ui/espace-reglages.js'), 'la section Espace a besoin de RayleUI.espace');
+  assert.ok(pos('ui/fond-globe.js') < pos('ui/espace.js') && pos('ui/espace.js') < pos('ui/background.js'), 'RayleUI.espace est prêt avant l’orchestrateur');
+  assert.ok(pos('js/rayle/commandes-univers.js') < pos('ui/background.js'), 'RayleUnivers (le fond Univers) est prêt avant l’orchestrateur');
   for (const f of ordre.filter(x => x.startsWith('ui/'))) assert.ok(fs.existsSync(new URL('../' + f, import.meta.url)), f + ' introuvable');
+  for (const f of ['fond-espace', 'espace-astres', 'espace-textures', 'espace-extras', 'espace-terre-3d', 'espace-reglages']) { assert.ok(!fs.existsSync(new URL('../ui/' + f + '.js', import.meta.url)), f + '.js devrait être supprimé'); assert.ok(!html.includes(f + '.js'), f + '.js encore dans index.html'); }
 });
 t('toutes les balises <script> et <link> de l’interface portent la même version', () => {
   const versions = new Set([...html.matchAll(/(?:ui|js|css)\/[^"?]+\?v=([\w.-]+)/g)].map(m => m[1]));
@@ -36,30 +35,31 @@ t('images fixes du mode Éco : ciel en portrait et en paysage + Terre pré-rendu
   assert.ok(ajouts < 4 * 1024 * 1024, 'poids total des ajouts : ' + ajouts);
   assert.ok(!fs.existsSync(new URL('../ui/assets/fond-etoiles.webp', import.meta.url)), 'l’ancienne tuile d’étoiles n’est plus utilisée : supprimée');
 });
-t('textures de secours dessinées par le code, et fond-espace.js ne nomme aucune image (les vraies textures passent par ui/espace-astres.js)', () => {
-  const tex = lire('ui/espace-textures.js');
-  assert.match(tex, /function lune\(/); assert.match(tex, /function planete\(/); assert.match(tex, /function ciel\(/); assert.match(tex, /function anneaux\(/);
-  assert.ok(!/\.(?:jpg|png|webp|mp4)['"]/.test(lire('ui/fond-espace.js')), 'fond-espace.js ne charge aucune image');
+t('l’ancien fond n’a laissé aucune trace : plus d’astéroïdes dessinés dans ui/, plus de UI.espaceMonter', () => {
+  for (const f of fs.readdirSync(new URL('../ui/', import.meta.url)).filter(x => x.endsWith('.js'))) { const c = lire('ui/' + f).replace(/\/\*[\s\S]*?\*\//g, ''); assert.ok(!/espaceMonter|espaceAstres|espaceTex\b|espaceExtras|espaceTerre3D/.test(c), f + ' référence l’ancien fond'); }
+  assert.ok(!/fondsReels\.espace\b(?!Cadrage)/.test(lire('ui/background.js')), 'background.js ne demande plus de scène à fondsReels.espace');
 });
 t('service worker : l’image fixe de l’Espace est mise de côté pour le hors ligne', () => {
   const sw = lire('sw.js');
   for (const f of ['fond-espace-paysage.webp', 'fond-espace-portrait.webp', 'fond-globe-planete.webp']) assert.ok(sw.includes(f), f);
   assert.ok(!sw.includes('fond-etoiles'));
 });
-t('réglages : le fond s’appelle « Espace » (l’ancien « globe » enregistré est migré) et la Terre de la page Monde reste inchangée', () => {
+t('réglages : le fond s’appelle « Univers » (l’ancien « globe » enregistré est migré) et la Terre de la page Monde reste inchangée', () => {
   const s = lire('ui/settings.js');
   assert.match(s, /espace:'Univers'/); assert.ok(!/globe:'Globe'/.test(s)); assert.match(s, /f==='globe' \? 'espace'/);
   const g = lire('ui/fond-globe.js');
-  assert.match(g, /UI\.fondsReels\.espace=/); assert.match(g, /UI\.fondsReels\.globe=async function/); assert.match(g, /interactif/, 'mode interactif de la page Monde conservé');
+  assert.ok(!/UI\.fondsReels\.espace=/.test(g), 'plus de fond « espace » dans fond-globe.js'); assert.match(g, /UI\.fondsReels\.globe=async function/); assert.match(g, /interactif/, 'mode interactif de la page Monde conservé');
 });
 t('crédits : les nouveaux assets sont déclarés', () => {
   const c = lire('ui/assets/CREDITS.txt');
   assert.match(c, /fond-espace-paysage\.webp/); assert.match(c, /fond-espace-portrait\.webp/); assert.match(c, /fond-globe-planete\.webp/);
   assert.match(c, /Schlyter|éléments orbitaux/i);
 });
-t('l’orchestrateur ne casse rien : mêmes fonds d’avant, mêmes paliers', () => {
+t('l’orchestrateur : le fond Univers est la scène 3D du bouton Univers (mode « fond »), Jarvis garde son canvas, l’Éco reste une image fixe', () => {
   const b = lire('ui/background.js');
   assert.match(b, /jarvis/); assert.ok(!/video/.test(b), 'plus de fond vidéo'); assert.match(b, /UI\.fondsReels\[fond\]\(c,\{q,hd(?:,ultra)?\}\)/); assert.match(b, /palier>=2\?'fixe':'3d'/);
+  assert.match(b, /RayleUnivers\.fond\(true\)/, 'le fond Univers demande la scène au noyau'); assert.match(b, /RayleUnivers\.fond\(false\)/, 'et la rend en changeant de fond');
+  assert.match(b, /montrerFixe\(fond\)/, 'repli : image fixe si three.js ou WebGL manque');
 });
 t('modèles NASA : manifeste, fichiers GLB (meshopt), poids raisonnable pour une tablette, crédits et licence citées', () => {
   const m = JSON.parse(lire('ui/assets/espace/modeles/manifest.json')), cred = lire('CREDITS.md'), tout = lire('ui/assets/CREDITS.txt');
@@ -73,12 +73,12 @@ t('modèles NASA : manifeste, fichiers GLB (meshopt), poids raisonnable pour une
     assert.ok(!(j.extensionsUsed || []).some(e => /transmission|draco/i.test(e)), cle + ' : extensions coûteuses retirées');
   }
   assert.match(cred, /NASA-3D-Resources/); assert.match(cred, /Curiosity/); assert.match(tout, /NASA 3D Resources/);
-  assert.match(lire('ui/espace-extras.js'), /meshopt_decoder/);
+  assert.match(lire('js/univers/espace/mars/rover.js'), /meshopt/i);
 });
 t('carte du ciel réelle : 2k et 4k présentes, légères, crédit CC BY 4.0 (Solar System Scope) ; le repli dessiné par le code reste', () => {
   for (const r of ['2k', '4k']) assert.ok(taille('ui/assets/espace/ciel-' + r + '.webp') > 10000 && taille('ui/assets/espace/ciel-' + r + '.webp') < 1.5 * 1024 * 1024, r);
   assert.match(lire('CREDITS.md'), /ciel-2k\.webp[\s\S]*CC BY 4\.0/); assert.match(lire('ui/assets/CREDITS.txt'), /ciel-4k\.webp/);
-  const fe = lire('ui/fond-espace.js'); assert.match(fe, /u_real/); assert.match(fe, /TEX\.ciel\(/);
+  assert.match(lire('js/univers/espace/ciel.js'), /espace\/ciel-4k\.webp/);
 });
 t('poids total des fichiers ajoutés : aucun fichier de plus de 25 Mo dans le dépôt (GitHub Pages)', () => {
   const marche = d => fs.readdirSync(d, { withFileTypes: true }).flatMap(e => e.name === '.git' || e.name === 'node_modules' ? [] : e.isDirectory() ? marche(d + '/' + e.name) : [[d + '/' + e.name, fs.statSync(d + '/' + e.name).size]]);

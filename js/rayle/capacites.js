@@ -16,31 +16,23 @@
     const liste=a=>a.join(', ');
 
     const FAMILLES=[
-      {id:'espace',nom:'Espace en 3D',
-        court:'montrer ou visiter un astre, un rover, le trou noir, l’ISS, un pays ou un monument sur la Terre (la caméra y vole, une fiche s’affiche, je dis un ou deux faits) ; zoomer ; revenir sur la Terre ; garder une vue par défaut ; échelle réaliste ou pédagogique ; afficher ou masquer planètes, astéroïdes, comètes, satellites, aurores, Lune, Voie lactée ; enchaîner plusieurs étapes',
-        ex:['montre-moi Mars','emmène-moi voir Saturne','montre Perseverance','montre-moi le trou noir','où est Curiosity','zoome dessus','et sa lune','reviens sur la Terre','garde cette vue','échelle réaliste','mode pédagogique','désactive les astéroïdes','montre Mars puis Perseverance'],
-        verif:'espace',mots:/\b(?:espace|planete|mars|jupiter|saturne|venus|mercure|uranus|neptune|lune|soleil|iss|station|rover|perseverance|curiosity|trou noir|asteroide|comete|aurore|zoom|echelle|vue par defaut|orbite|galaxie|cosmos|astre|montre|emmene|reviens)\b/,
+      {id:'espace',nom:'Univers : scène 3D en fond (Terre, Lune, système solaire, Mars, ISS)',
+        court:'quand le fond est « Univers », la scène 3D du bouton Univers tourne derrière l’accueil et je la pilote en direct, sans ouvrir le menu : montrer un astre, la Terre, la Lune (de près ou avec la Terre), le système solaire, Mars, un rover, l’ISS, les satellites, la prochaine éclipse ; vue d’ensemble ; retour au système solaire ; accélérer le temps ou revenir au temps réel ; changer de ciel (ciel réel) ; zoomer ; enchaîner plusieurs étapes',
+        ex:['montre-moi Mars','va sur Saturne','montre l’ISS','retour au système solaire','vue d’ensemble','Terre-Lune','la Lune de près','montre les satellites','la prochaine éclipse','temps réel','ciel réel','montre Perseverance','zoome','montre Mars puis Saturne'],
+        verif:'espace',mots:/\b(?:univers|espace|planete|mars|jupiter|saturne|venus|mercure|uranus|neptune|lune|soleil|iss|station|satellites?|rover|perseverance|curiosity|eclipse|ciel|zoom\w*|systeme|ensemble|orbite|cosmos|astre|montre|emmene|reviens|retour)\b/,
         params:()=>{
           const E=UI().espace, L=UI().espaceLieux||{};
           const astres=sur(()=>Object.keys(E.ASTRES).map(k=>E.ASTRES[k].court),[]);
           const rovers=sur(()=>Object.keys(L.ROVERS).map(k=>L.ROVERS[k].court+' ('+L.ROVERS[k].site+')'),[]);
-          const lieux=sur(()=>L.LIEUX.length,0);
-          const elems=sur(()=>Object.values(E.ELEMENTS).map(x=>x.toLowerCase()),[]);
-          return 'cibles : '+liste(astres)+' · rovers : '+liste(rovers)+' · trou noir · '+lieux+' lieux de la Terre (pays, capitales, monuments) · éléments : '+liste(elems)+' · échelles : réaliste, pédagogique';
+          return 'cibles : '+liste(astres)+' · rovers : '+liste(rovers)+' · vues : Terre, Terre–Lune, Lune de près, système solaire, Mars (orbite, atterrissage, rover), vue d’ensemble · satellites réels (CelesTrak), éclipses calculées · temps : réel ou accéléré · ciels : réel, spirale, nébuleuse, doré, émeraude, braise';
         },
-        limites:['les lunes autres que la Lune (Io, Titan…) ne sont pas des cibles de vol : j’en parle, je ne les survole pas','en qualité Éco le fond est une image fixe : pas de vol ni de zoom (je le dis)','un nom mal écrit (« perseverence ») est corrigé tout seul','le fond Espace s’active automatiquement quand on me demande un astre']},
+        limites:['les lunes autres que la Lune (Io, Titan…) sont des cibles de vol dans la vue du système solaire seulement','en qualité Éco le fond est une image fixe : aucune scène à piloter, j’ouvre alors l’Univers en plein écran','un nom mal écrit (« perseverence ») est corrigé tout seul','le menu Univers reste disponible : le bouton ouvre la même scène en plein écran, et « ferme l’Univers » me rend l’accueil avec la scène en fond']},
       {id:'savoir',nom:'Savoir sur l’espace',
         court:'répondre sans IA, avec des fiches sourcées NASA/ESA, aux questions chiffrées sur le Soleil, la Lune, les huit planètes, les lunes majeures, la ceinture d’astéroïdes, les comètes (Halley, Tchouri), le trou noir, l’ISS, Hubble, Webb, Curiosity, Perseverance et les grandes missions ; expliquer, comparer deux astres point par point ; dire « je n’ai pas cette donnée » plutôt qu’inventer',
         ex:['quelle est la taille de Mars','compare Mars et la Terre','parle-moi de l’ISS','combien de lunes a Saturne','Mars est-elle plus grosse que la Terre','quand Voyager 1 a été lancé'],
         verif:'savoir',mots:/\b(?:taille|masse|distance|gravite|temperature|atmosphere|lunes?|compar\w*|difference|explique|parle|c est quoi|combien|quand|decouvert|mission)\b/,
         params:()=>'fiches : '+sur(()=>Object.values(UI().savoir.fiches).map(f=>f.nom.replace(/^(?:le |la |l’)/,'')).join(', '),'aucune (module non chargé)'),
         limites:['seules les données de la fiche sont dites : si un chiffre manque, je le dis','les valeurs « du jour » (distance de Mars aujourd’hui, position de l’ISS) sont calculées, pas lues dans les fiches']},
-      {id:'terre',nom:'Terre vivante (outils du globe)',
-        court:'sur le globe : placer des points (couleur au choix), tracer un trajet ou les frontières d’un pays, tout effacer, zoomer sur une ville ou un pays ; accélérer, figer ou décaler le temps ; faire tourner la Terre à la main ; vols et bateaux SIMULÉS ; lumières des villes ; actualité d’un pays (sources citées)',
-        ex:['place un point à Tokyo','trace un trajet de Paris à Tokyo','trace les frontières du Japon','efface les points','zoome sur Lyon','accélère le temps','une heure par seconde','remets l’heure réelle','fais tourner la Terre à la main','affiche les vols','masque les lumières des villes','montre les actualités du Japon sur le globe'],
-        verif:'espace',mots:/\b(?:point|points|marqueur|epingle|trajet|itineraire|frontieres?|contours?|efface\w*|temps|heure|tourner|rotation|vols?|avions?|bateaux|navires?|trafic|villes lumineuses|lumieres|actualites?|globe|zoome\w*)\b/,
-        params:()=>'170 pays, 150 villes, capitales et monuments ; couleurs : rouge, bleu, vert, jaune, orange, violet, rose, blanc, cyan ; vitesses du temps : ×60, ×600, 1 heure, 6 heures, 1 jour par seconde ; jusqu’à 60 points et 12 tracés ; trafic : environ 420 avions et 160 bateaux simulés (900 et 360 en Ultra)',
-        limites:['le trafic est SIMULÉ (routes plausibles, vitesses accélérées ×240 pour les avions et ×1 800 pour les bateaux en mode pédagogique) et l’écran l’écrit ; le temps réel des vols n’existe que si le Worker fournit la route /vols','les frontières viennent d’un jeu à l’échelle 1:110 millions : un repère, pas une frontière juridique','l’actualité d’un pays vient uniquement des sources du Worker, citées ; sans elles, je dis que je n’ai rien de fiable et je n’invente rien','en mode Éco le fond est une image fixe : ces outils demandent Auto, Max ou Ultra']},
       {id:'terminal',nom:'Terminal de trading',
         court:'ouvrir ou fermer le terminal, changer d’actif, d’unité de temps, de page, afficher des panneaux, régler le graphique (RSI, supports, moyenne mobile), annoter',
         ex:['ouvre le terminal','passe sur le Bitcoin','mets M15','ajoute le RSI','ouvre la page marchés','ferme le terminal'],
@@ -132,21 +124,19 @@
       const e=sur(()=>UI().espace.etat(),null), s={ecran:'rayle',espace:null,historique:journal.slice()};
       s.ecran=sur(()=>RayleBus.demander('vue')||'rayle','rayle');
       s.drive=sur(()=>G.RayleBus.etat('drive'),null);
-      if(e){ s.ecran=e.vue||s.ecran; s.espace={fond:e.fond,cible:e.cible,nom:e.nom,accueil:e.accueil,echelle:e.echelle,zoom:e.zoom,vol:e.vol,palier:e.palier}; }
+      if(e){ s.ecran=e.vue||s.ecran; s.espace={fond:e.fond,univers:e.univers,vue:e.scene&&e.scene.vue||null,cible:e.cible,nom:e.nom,temps:e.scene&&e.scene.temps||null,ciel:e.scene&&e.scene.ciel||null,palier:e.palier}; }
       return s;
     }
     const NOM_ECRAN={rayle:'accueil de Raylé (entité au centre)',terminal:'terminal de trading',anatomie:'module Anatomie',cerveau:'fenêtre Cerveau 3D'};
     function etatTexte(){
       const s=etat(), p=['ÉTAT : écran actif = '+(NOM_ECRAN[s.ecran]||s.ecran)];
       if(s.espace){
-        const e=s.espace, ech=e.echelle==='realiste'?'RÉALISTE (distances et tailles vraies, planètes réduites à des points)':'PÉDAGOGIQUE (distances resserrées, astres agrandis)';
-        p.push('fond = '+(e.fond||'inconnu')+(e.palier>=2?' (Éco : image fixe)':''));
-        p.push(e.cible?'astre affiché = '+e.nom+(e.vol?' (vol en cours)':'')+(Math.abs((e.zoom||1)-1)>.02?', zoom ×'+e.zoom:''):'astre affiché = aucun (vue d’ensemble de la Terre)');
-        p.push('vue sauvegardée par défaut = '+(e.accueil?UI().espace.nomCible(e.accueil):'la Terre'));
-        p.push('mode d’échelle = '+ech);
+        const e=s.espace, tps=e.temps&&(e.temps.pause?'figé':e.temps.vitesse>1?'accéléré ×'+e.temps.vitesse:'réel');
+        p.push('fond = '+(e.fond||'inconnu')+(e.palier>=2?' (Éco : image fixe, aucune scène à piloter)':''));
+        if(e.univers) p.push('scène de l’Univers '+(e.univers==='fond'?'EN FOND derrière l’accueil (je la pilote par la voix, sans menu)':'en plein écran')+' : vue = '+(e.vue||'Terre')+(e.cible?', astre affiché = '+e.nom:'')+(tps?', temps '+tps:'')+(e.ciel?', ciel '+e.ciel:''));
       }
       const univ=sur(()=>G.RayleBus.etat('univers'),null), pla=sur(()=>G.RayleBus.etat('planete'),null), ent=sur(()=>G.RayleBus.etat('entite'),null);
-      if(univ && univ.ouvert) p.push('Univers ouvert'+(pla && pla.interieur?', à l’intérieur de la planète « '+pla.interieur+' »':''));
+      if(univ && univ.ouvert) p.push('Univers ouvert en plein écran'+(pla && pla.interieur?', à l’intérieur de la planète « '+pla.interieur+' »':''));
       const car=sur(()=>G.RayleUnivers.etat().scene.carte,null);
       if(car && car.actif) p.push('carte détaillée de la Terre active : zoom '+car.zoom+' ('+car.niveau+'), centre '+car.centre.lat+', '+car.centre.lon+(car.marqueurs&&car.marqueurs.length?', repères : '+car.marqueurs.length:''));
       if(ent && ent.valeur) p.push('position de Raylé = '+ent.valeur+(ent.memorisee?' (mémorisée pour cette vue)':''));

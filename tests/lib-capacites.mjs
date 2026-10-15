@@ -28,9 +28,9 @@ export async function chargerRegistre() {
   vm.runInContext(lire('js/rayle/capacites.js') + '\nthis.RayleCapacites=RayleCapacites;', ctx, { filename: 'js/rayle/capacites.js' });
   const { analyser: anatomie } = await import(new URL('js/anatomie/commandes.js', racine).href);
   const { analyser: drive } = await import(new URL('js/drive/commandes.js', racine).href);
-  const E = ctx.RayleUI.espace, S = ctx.RayleUI.savoir;
+  const S = ctx.RayleUI.savoir;
   const verifiers = {
-    espace: p => E.chaine(p) || E.analyser(p),
+    espace: p => ctx.analyserChaine(p) || ctx.analyserUnivers(p),            // la scène de l'Univers (fond ou plein écran) : js/rayle/commandes-univers.js
     savoir: p => S.repondre(p, { alea: () => 0 }),
     terminal: p => ctx.analyserCommandeTerminal ? ctx.analyserCommandeTerminal(p, { ouvert: true }) : vm.runInContext('analyserCommandeTerminal', ctx)(p, { ouvert: true }),
     monde: p => vm.runInContext('RayleMonde', ctx).analyser(p),

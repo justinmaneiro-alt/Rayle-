@@ -7,8 +7,8 @@
      etat()                              → { documents, caracteres, octets, derniere, racines }
    La progression est { etape:'exploration'|'lecture', i, n, nom }. Une erreur de connexion Google interrompt tout (rien de faux n'est enregistré) ;
    une erreur sur UN document est notée dans `echecs` et la suite continue. Raylé n'affirme « mémorisé » que pour ce qui est réellement dans la base. */
-import { estErreurDrive } from './api.js?v=2026.10.15.4';
-import { adaptateur } from './formats.js?v=2026.10.15.4';
+import { estErreurDrive } from './api.js?v=2026.10.15.5';
+import { adaptateur } from './formats.js?v=2026.10.15.5';
 
 export const MIME_DOSSIER = 'application/vnd.google-apps.folder';
 const MAX_DOCUMENTS = 1000, MAX_PROFONDEUR = 12, MAX_CARACTERES = 3_000_000;

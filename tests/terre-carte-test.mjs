@@ -224,7 +224,7 @@ await t('formats : durée, kilomètres, liens externes', () => {
 
 /* ═════════ outils earth.* exposés au cerveau (js/rayle/terre-outils.js) ═════════ */
 const appels = []; let reponseTheme = { ok: true, texte: 'Voici Castres.' }, ouvert = true;
-const ctx = { console, echecsActions: [], RayleUnivers: { estOuvert: () => ouvert, ouvrir: async () => { appels.push(['ouvrir']); ouvert = true; }, commande: async (nom, a) => { appels.push([nom, plat(a)]); return reponseTheme; } } };
+const ctx = { console, echecsActions: [], RayleUnivers: { estOuvert: () => ouvert, ouvrir: async () => { appels.push(['ouvrir']); ouvert = true; }, assurer: async () => { if (!ouvert) { appels.push(['ouvrir']); ouvert = true; } }, commande: async (nom, a) => { appels.push([nom, plat(a)]); return reponseTheme; } } };
 ctx.window = ctx; vm.createContext(ctx);
 vm.runInContext(fs.readFileSync(new URL('../js/rayle/terre-outils.js', import.meta.url), 'utf8') + '\nglobalThis.T=RayleTerre; globalThis.AGENT=terreAgent;', ctx);
 const T = ctx.T;

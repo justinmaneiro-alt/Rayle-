@@ -10,7 +10,7 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 
-const VERSION = '2026.10.15.4';
+const VERSION = '2026.10.15.5';
 const ASSETS = new URL('../../ui/assets/', import.meta.url).href;
 export const THEMES = {
   espace: { nom: 'Espace', icone: '🌍', url: './theme-espace.js?v=' + VERSION },
@@ -37,7 +37,8 @@ if (!['auto', 'basse', 'moyenne', 'haute'].includes(choixQualite)) choixQualite 
 export const q = Object.assign({}, QUALITES[choixQualite === 'auto' ? detecter() : choixQualite]);   // objet vivant lu par les thèmes
 
 /* ───── état ───── */
-const E = { ouvert: false, vue: null, canvas: null, renderer: null, themeId: null, inst: null, raf: 0, tPrec: 0, t: 0, fps: 60, ema: 16.7, mesures: 0, mauvais: 0, ctx: null, ouverture: 0, labels: null, passer: null, ctrls: [], tweens: new Set(), enCine: false, kDt: 1, decal: 0, decalCible: 0, decalActif: false };
+// mode : 'plein' (vue plein écran avec menu, HUD et contrôles) · 'fond' (la même scène, sans HUD, derrière l'accueil : Raylé la pilote par la voix) · null (fermé)
+const E = { mode: null, fondVoulu: false, montage: null, tFond: 0, ouvert: false, vue: null, canvas: null, renderer: null, themeId: null, inst: null, raf: 0, tPrec: 0, t: 0, fps: 60, ema: 16.7, mesures: 0, mauvais: 0, ctx: null, ouverture: 0, labels: null, passer: null, ctrls: [], tweens: new Set(), enCine: false, kDt: 1, decal: 0, decalCible: 0, decalActif: false };
 const bus = (n, d) => { try { window.RayleBus && RayleBus.emit(n, d); } catch (e) {} };
 const $ = (s, r) => (r || E.vue).querySelector(s);
 const el = (tag, cls, txt) => { const e = document.createElement(tag); if (cls) e.className = cls; if (txt != null) e.textContent = txt; return e; };
@@ -164,15 +165,21 @@ function creerRenderer() {
 function appliquerTaille() {
   if (!E.renderer) return;
   const w = E.vue.clientWidth || innerWidth, h = E.vue.clientHeight || innerHeight;
-  E.renderer.setPixelRatio(Math.min(devicePixelRatio || 1, q.dpr)); E.renderer.setSize(w, h, false);
+  E.renderer.setPixelRatio(Math.min(devicePixelRatio || 1, E.mode === 'fond' ? Math.min(q.dpr, 1) : q.dpr)); E.renderer.setSize(w, h, false);   // en fond, la scène se contente de 1 pixel par pixel CSS
   E.w = w; E.h = h;
   if (E.inst) { const c = E.inst.camera; if (c && c.isPerspectiveCamera) { c.aspect = w / h; c.updateProjectionMatrix(); } if (E.inst.redim) E.inst.redim(w, h); }
 }
 function redimensionner() { if (E.ouvert) appliquerTaille(); }
 
+// En fond, la scène se met en pause quand l'accueil n'est plus à l'écran (onglet caché, terminal, anatomie, réglages) et se limite à ~30 images/s
+const FOND_FPS = 30;
+function fondMasque() {
+  try { if (document.hidden) return true; const v = window.RayleBus && RayleBus.demander('vue'); if (v === 'terminal' || v === 'anatomie') return true; const cfg = document.getElementById('cfg'); return !!(cfg && cfg.classList.contains('open')); } catch (e) { return false; }
+}
 function boucle(now) {
   if (!E.ouvert) return;
   E.raf = requestAnimationFrame(boucle);
+  if (E.mode === 'fond') { if (fondMasque()) { E.tPrec = 0; return; } if (now - E.tFond < 1000 / FOND_FPS - 2 && !E.enCine) return; E.tFond = now; }
   if (document.hidden) { E.tPrec = 0; return; }
   const dt = E.tPrec ? Math.min(.1, (now - E.tPrec) / 1000) : 0; E.tPrec = now; E.t += dt;
   if (dt > 0) { E.ema += (dt * 1000 - E.ema) * .06; E.fps = 1000 / E.ema; mesurerQualite(dt); }
@@ -269,6 +276,7 @@ async function monterTheme(id, options) {
   const inst = await (mod.default || mod).creer(ctx);
   E.inst = inst; E.themeId = id; E.ctx = ctx;
   hud.themeActif(id); appliquerTaille();
+  try { if (inst.mode) inst.mode(E.mode); } catch (e) { console.warn('[univers] mode', e); }
   const menu = inst.menu ? inst.menu() : []; hud.sousMenu(menu);
   hud.charge(null);
   bus('univers:theme', { theme: id });
@@ -283,15 +291,48 @@ function demonterTheme() {
   hud.carte(null); hud.legende(null); hud.sousMenu([]);
   E.themeId = null;
 }
+// Bascule entre le plein écran et le fond. L'état partagé « univers.ouvert » ne vaut vrai qu'en plein écran (c'est ce qui place l'entité en petite bulle) ;
+// « univers.fond » dit que la scène tourne derrière l'accueil.
+function definirMode(m) {
+  E.mode = m;
+  if (E.vue) { E.vue.classList.toggle('univ-fond', m === 'fond'); if (m === 'fond') requestAnimationFrame(() => E.vue && E.vue.classList.add('pret')); else E.vue.classList.remove('pret'); }
+  document.body.classList.toggle('univers-actif', m === 'plein');
+  document.body.classList.toggle('univers-fond', m === 'fond');
+  if (m !== 'plein') { E.decal = E.decalCible = 0; E.decalActif = false; try { E.inst && E.inst.camera && E.inst.camera.clearViewOffset && E.inst.camera.clearViewOffset(); } catch (e) {} }
+  if (E.renderer) appliquerTaille();
+  try { E.inst && E.inst.mode && E.inst.mode(m); } catch (e) { console.warn('[univers] mode', e); }
+  bus('univers:etat', { ouvert: m === 'plein', fond: m === 'fond', mode: m });
+  try { RayleBus.fusion('univers', { ouvert: m === 'plein', fond: m === 'fond', mode: m }); } catch (e) {}
+}
+function demarrer(m) {
+  construireVue();
+  E.vue.hidden = false; E.ouvert = true; E.tPrec = 0; E.tFond = 0;
+  creerRenderer(); definirMode(m);
+  E.raf = requestAnimationFrame(boucle);
+}
+// Le fond de l'accueil : la scène de l'Univers sans menu ni HUD, que Raylé pilote par la voix (commande(…)). Sans effet si elle tourne déjà (en fond ou en plein écran).
+export async function ouvrirFond(themeId = 'espace', options = {}) {
+  E.fondVoulu = true;
+  if (E.montage) return E.montage;
+  if (E.ouvert) return E.inst;
+  const n = ++E.ouverture;
+  demarrer('fond');
+  E.montage = (async () => {
+    try {
+      const inst = await monterTheme(themeId, options);
+      if (n !== E.ouverture) { if (E.inst === inst) { try { demonterTheme(); } catch (e) {} } return null; }   // fermé pendant le chargement
+      return inst;
+    } catch (e) { if (n === E.ouverture) arreter(); throw e; }
+    finally { E.montage = null; }
+  })();
+  return E.montage;
+}
 export async function ouvrir(themeId = 'espace', options = {}) {
+  if (E.montage) { try { await E.montage; } catch (e) { /* on retente en plein écran */ } }
   const n = ++E.ouverture;
   construireVue();
-  if (!E.ouvert) {
-    E.vue.hidden = false; document.body.classList.add('univers-actif'); E.ouvert = true; E.tPrec = 0;
-    creerRenderer(); appliquerTaille();
-    bus('univers:etat', { ouvert: true }); try { RayleBus.fusion('univers', { ouvert: true }); } catch (e) {}
-    E.raf = requestAnimationFrame(boucle);
-  }
+  if (E.ouvert && E.mode === 'fond') definirMode('plein');
+  else if (!E.ouvert) demarrer('plein');
   if (E.inst && E.themeId && E.themeId !== themeId && THEMES[themeId]) return changerTheme(themeId, options);
   if (E.themeId === themeId && E.inst) { if (options && Object.keys(options).length && E.inst.commande) await E.inst.commande('options', options); return E.inst; }
   hud.charge('Chargement…', .05);
@@ -305,13 +346,27 @@ export async function ouvrir(themeId = 'espace', options = {}) {
     throw e;
   }
 }
+// quitte le plein écran ; si le fond Univers est voulu, la scène reste en fond derrière l'accueil (même scène, même vue)
 export function fermer() {
   if (!E.ouvert) return;
-  E.ouvert = false; cancelAnimationFrame(E.raf); E.ouverture++; E.decal = E.decalCible = 0; E.decalActif = false;
+  if (E.mode === 'plein' && E.fondVoulu) { definirMode('fond'); return; }
+  arreter();
+}
+// libère tout : scène, rendu, contexte WebGL
+export function arreter() {
+  if (!E.ouvert) return;
+  E.ouvert = false; E.mode = null; cancelAnimationFrame(E.raf); E.ouverture++; E.decal = E.decalCible = 0; E.decalActif = false;
   demonterTheme();
   if (E.renderer) { try { E.renderer.dispose(); E.renderer.forceContextLoss(); } catch (e) {} E.renderer = null; E.canvas.replaceWith(E.canvas.cloneNode(false)); E.canvas = $('canvas', E.vue); wirerCanvas(); }
-  E.vue.hidden = true; document.body.classList.remove('univers-actif');
-  bus('univers:etat', { ouvert: false }); try { RayleBus.fusion('univers', { ouvert: false, theme: null }); } catch (e) {}
+  E.vue.hidden = true; E.vue.classList.remove('univ-fond', 'pret'); document.body.classList.remove('univers-actif', 'univers-fond');
+  bus('univers:etat', { ouvert: false, fond: false, mode: null }); try { RayleBus.fusion('univers', { ouvert: false, fond: false, mode: null, theme: null }); } catch (e) {}
+}
+// le fond Univers est-il voulu (réglage Fond = Univers) ? false : la scène se ferme dès qu'on quitte le plein écran
+export async function fond(oui) {
+  E.fondVoulu = !!oui;
+  if (oui) return ouvrirFond();
+  if (E.ouvert && E.mode === 'fond') arreter();
+  return null;
 }
 // tap sur la scène (appelé à chaque nouveau canvas : un canvas ne change pas de contexte, il est recréé à la fermeture)
 function wirerCanvas() {
@@ -345,12 +400,12 @@ export const commande = async (nom, args = {}) => {
   if (nom === 'theme') { if (!THEMES[args.theme]) return { ok: false, texte: 'Thème inconnu.' }; await changerTheme(args.theme, args); return { ok: true, texte: 'C’est fait.' }; }
   return E.inst && E.inst.commande ? E.inst.commande(nom, args) : { ok: false, texte: 'Aucune scène ouverte.' };
 };
-export const etat = () => ({ decalage: E.decalCible, ouvert: E.ouvert, theme: E.themeId, fps: Math.round(E.fps), qualite: q.id, choixQualite, enCinematique: E.enCine, scene: E.inst && E.inst.etat ? E.inst.etat() : null });
+export const etat = () => ({ decalage: E.decalCible, ouvert: E.ouvert, plein: E.mode === 'plein', fond: E.mode === 'fond', fondVoulu: E.fondVoulu, theme: E.themeId, fps: Math.round(E.fps), qualite: q.id, choixQualite, enCinematique: E.enCine, scene: E.inst && E.inst.etat ? E.inst.etat() : null });
 export const instance = () => E.inst;
 export const decalage = () => E.decal;                 // décalage horizontal (px) actuellement appliqué à la scène : la carte détaillée le suit
 export const dims = () => ({ w: E.w, h: E.h });
 export const rendu = () => E.renderer;
 export const temps = () => E.t;
 
-const API = { THREE, q, hud, decalerVue, decalage, fondu, vitesseAnimation, tween, attendre, cinematique, passerAnimation, enCinematique, orbite, texture, assets, creerEtiquettes, projeter, EASE, ouvrir, fermer, changerTheme, changerThemeBrut, commande, etat, instance, reglerQualite, dims, rendu, temps, THEMES, QUALITES };
+const API = { THREE, q, hud, decalerVue, decalage, fondu, vitesseAnimation, tween, attendre, cinematique, passerAnimation, enCinematique, orbite, texture, assets, creerEtiquettes, projeter, EASE, ouvrir, ouvrirFond, fond, arreter, fermer, changerTheme, changerThemeBrut, commande, etat, instance, reglerQualite, dims, rendu, temps, THEMES, QUALITES };
 export default API;

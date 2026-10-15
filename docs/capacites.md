@@ -2,13 +2,13 @@
 
 Généré depuis le code par `node scripts/capacites.mjs` (registre : `js/rayle/capacites.js`). Ne pas modifier à la main.
 
-## Espace en 3D
+## Univers : scène 3D en fond (Terre, Lune, système solaire, Mars, ISS)
 
-montrer ou visiter un astre, un rover, le trou noir, l’ISS, un pays ou un monument sur la Terre (la caméra y vole, une fiche s’affiche, je dis un ou deux faits) · zoomer · revenir sur la Terre · garder une vue par défaut · échelle réaliste ou pédagogique · afficher ou masquer planètes, astéroïdes, comètes, satellites, aurores, Lune, Voie lactée · enchaîner plusieurs étapes.
+quand le fond est « Univers », la scène 3D du bouton Univers tourne derrière l’accueil et je la pilote en direct, sans ouvrir le menu : montrer un astre, la Terre, la Lune (de près ou avec la Terre), le système solaire, Mars, un rover, l’ISS, les satellites, la prochaine éclipse · vue d’ensemble · retour au système solaire · accélérer le temps ou revenir au temps réel · changer de ciel (ciel réel) · zoomer · enchaîner plusieurs étapes.
 
-- **Paramètres (lus dans le code)** : cibles : Soleil, Lune, ISS, Terre, Mercure, Vénus, Mars, Jupiter, Saturne, Uranus, Neptune · rovers : Perseverance (le cratère Jezero), Curiosity (le cratère Gale) · trou noir · 127 lieux de la Terre (pays, capitales, monuments) · éléments : planètes, astéroïdes, comètes et étoiles filantes, satellites et iss, lune, aurores polaires, voie lactée et nébuleuses, éclat du soleil (lens-flare) · échelles : réaliste, pédagogique.
-- **Cas limites** : les lunes autres que la Lune (Io, Titan…) ne sont pas des cibles de vol : j’en parle, je ne les survole pas ; en qualité Éco le fond est une image fixe : pas de vol ni de zoom (je le dis) ; un nom mal écrit (« perseverence ») est corrigé tout seul ; le fond Espace s’active automatiquement quand on me demande un astre.
-- **Exemples** : « montre-moi Mars », « emmène-moi voir Saturne », « montre Perseverance », « montre-moi le trou noir », « où est Curiosity », « zoome dessus », « et sa lune », « reviens sur la Terre », « garde cette vue », « échelle réaliste », « mode pédagogique », « désactive les astéroïdes », « montre Mars puis Perseverance ».
+- **Paramètres (lus dans le code)** : cibles : Soleil, Lune, ISS, Terre, Mercure, Vénus, Mars, Jupiter, Saturne, Uranus, Neptune · rovers : Perseverance (le cratère Jezero), Curiosity (le cratère Gale) · vues : Terre, Terre–Lune, Lune de près, système solaire, Mars (orbite, atterrissage, rover), vue d’ensemble · satellites réels (CelesTrak), éclipses calculées · temps : réel ou accéléré · ciels : réel, spirale, nébuleuse, doré, émeraude, braise.
+- **Cas limites** : les lunes autres que la Lune (Io, Titan…) sont des cibles de vol dans la vue du système solaire seulement ; en qualité Éco le fond est une image fixe : aucune scène à piloter, j’ouvre alors l’Univers en plein écran ; un nom mal écrit (« perseverence ») est corrigé tout seul ; le menu Univers reste disponible : le bouton ouvre la même scène en plein écran, et « ferme l’Univers » me rend l’accueil avec la scène en fond.
+- **Exemples** : « montre-moi Mars », « va sur Saturne », « montre l’ISS », « retour au système solaire », « vue d’ensemble », « Terre-Lune », « la Lune de près », « montre les satellites », « la prochaine éclipse », « temps réel », « ciel réel », « montre Perseverance », « zoome », « montre Mars puis Saturne ».
 - **Vérification automatique** : oui (les exemples sont passés dans l’analyseur réel par `tests/capacites-test.mjs`).
 
 ## Savoir sur l’espace
@@ -18,15 +18,6 @@ répondre sans IA, avec des fiches sourcées NASA/ESA, aux questions chiffrées 
 - **Paramètres (lus dans le code)** : fiches : Soleil, Mercure, Vénus, Terre, Lune, Mars, Jupiter, Saturne, Uranus, Neptune, Io, Europe, Ganymède, Callisto, Titan, Encelade, Triton, Phobos, Déimos, Charon, ceinture d’astéroïdes, comète de Halley, comète Tchouri, trou noir, Station spatiale internationale, télescope spatial Hubble, télescope spatial James Webb, rover Curiosity, rover Perseverance, Voyager 1, Voyager 2, Apollo 11, Cassini, New Horizons, Rosetta.
 - **Cas limites** : seules les données de la fiche sont dites : si un chiffre manque, je le dis ; les valeurs « du jour » (distance de Mars aujourd’hui, position de l’ISS) sont calculées, pas lues dans les fiches.
 - **Exemples** : « quelle est la taille de Mars », « compare Mars et la Terre », « parle-moi de l’ISS », « combien de lunes a Saturne », « Mars est-elle plus grosse que la Terre », « quand Voyager 1 a été lancé ».
-- **Vérification automatique** : oui (les exemples sont passés dans l’analyseur réel par `tests/capacites-test.mjs`).
-
-## Terre vivante (outils du globe)
-
-sur le globe : placer des points (couleur au choix), tracer un trajet ou les frontières d’un pays, tout effacer, zoomer sur une ville ou un pays · accélérer, figer ou décaler le temps · faire tourner la Terre à la main · vols et bateaux SIMULÉS · lumières des villes · actualité d’un pays (sources citées).
-
-- **Paramètres (lus dans le code)** : 170 pays, 150 villes, capitales et monuments ; couleurs : rouge, bleu, vert, jaune, orange, violet, rose, blanc, cyan ; vitesses du temps : ×60, ×600, 1 heure, 6 heures, 1 jour par seconde ; jusqu’à 60 points et 12 tracés ; trafic : environ 420 avions et 160 bateaux simulés (900 et 360 en Ultra).
-- **Cas limites** : le trafic est SIMULÉ (routes plausibles, vitesses accélérées ×240 pour les avions et ×1 800 pour les bateaux en mode pédagogique) et l’écran l’écrit ; le temps réel des vols n’existe que si le Worker fournit la route /vols ; les frontières viennent d’un jeu à l’échelle 1:110 millions : un repère, pas une frontière juridique ; l’actualité d’un pays vient uniquement des sources du Worker, citées ; sans elles, je dis que je n’ai rien de fiable et je n’invente rien ; en mode Éco le fond est une image fixe : ces outils demandent Auto, Max ou Ultra.
-- **Exemples** : « place un point à Tokyo », « trace un trajet de Paris à Tokyo », « trace les frontières du Japon », « efface les points », « zoome sur Lyon », « accélère le temps », « une heure par seconde », « remets l’heure réelle », « fais tourner la Terre à la main », « affiche les vols », « masque les lumières des villes », « montre les actualités du Japon sur le globe ».
 - **Vérification automatique** : oui (les exemples sont passés dans l’analyseur réel par `tests/capacites-test.mjs`).
 
 ## Terminal de trading

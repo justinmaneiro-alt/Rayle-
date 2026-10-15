@@ -11,7 +11,7 @@ L'IA garde le nom **Rayle** : c'est elle qui parle. « Écosystème Rayle » est
 
 | Thème | Rôle |
 |---|---|
-| **Univers** | Thème principal et thème par défaut (fond 3D de la Terre, du Soleil, de la Lune et des planètes ; scène plein écran 🌌). |
+| **Univers** | Thème principal et thème par défaut : le fond animé est la scène 3D du bouton 🌌 Univers (Terre, Lune, système solaire, Mars, ISS, satellites, éclipses, ciel réel), affichée derrière l'accueil et pilotée par Raylé (« montre-moi Mars », « retour au système solaire », « vue d'ensemble », « Terre-Lune »…) sans ouvrir le menu ; le bouton la passe en plein écran. |
 | **Jarvis** | Thème « soft » holographique, conservé mais non prioritaire. |
 
 Identifiants internes conservés pour ne pas perdre les réglages déjà enregistrés : fond `espace` = Univers, palette `originel` = Univers, palette `arc` = Jarvis.

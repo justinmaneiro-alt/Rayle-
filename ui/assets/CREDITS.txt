@@ -11,7 +11,7 @@ fond-jarvis-paysage.webp, fond-jarvis-portrait.webp, fond-jarvis-coeur.webp : im
 Fond Jarvis : interface holographique dessinée entièrement par le code (shaders, géométries, textes) ; aucun logo, aucune image ni marque tierce.
 
 fond-globe-planete.webp : Terre pré-rendue (image fixe du mode Éco du fond Espace), générée par Raylé à partir des textures NASA ci-dessus (domaine public).
-fond-espace-paysage.webp, fond-espace-portrait.webp : ciel pré-rendu (étoiles, Voie lactée, Soleil, Lune) pour le mode Éco du fond Espace, générés par le code de Raylé (aucune source externe).
+fond-espace-paysage.webp, fond-espace-portrait.webp : ciel pré-rendu (étoiles, Voie lactée, Soleil, Lune) pour le mode Éco du fond Univers, générés par le code de Raylé (aucune source externe).
 Fond Espace, textures réelles (ui/assets/espace/, chargées à la demande, ~2,6 Mo en tout) :
 - lune-*, mercure-*, venus-* (atmosphère), mars-*, jupiter-*, saturne-*, uranus-*, neptune-*, saturne-anneaux : « Solar System Scope » (https://www.solarsystemscope.com/textures/),
   licence Creative Commons Attribution 4.0 (CC BY 4.0), construites à partir de données NASA (Lunar Reconnaissance Orbiter, MESSENGER, Viking, Cassini, Voyager, Hubble…).

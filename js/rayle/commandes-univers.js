@@ -4,8 +4,10 @@
      • analyserUnivers(texte) : analyse PURE (testée) → {type, …} ou null. Aucune action, aucun réseau.
      • commandeUnivers(texte) : exécute (localisation, rangement, Univers 3D) et renvoie la phrase à dire, ou null si ce n'est pas pour nous.
      • window.RayleUniversPont : ce que l'Univers (modules ES, js/univers/) peut demander à la page classique : parler, savoir si on l'a coupée, Worker.
-     • window.RayleUnivers : ouvrir / fermer / commander l'Univers (chargé à la première utilisation, js/univers/noyau.js). */
-  const UNIVERS_URL='js/univers/noyau.js?v=2026.10.15.4';
+     • window.RayleUnivers : ouvrir (plein écran) / fermer / fond / commander l'Univers (chargé à la première utilisation, js/univers/noyau.js).
+     • Fond Univers : quand Réglages → Fond = Univers, la scène 3D de l'Univers tourne DERRIÈRE l'accueil (mode « fond », sans menu) et ces commandes la déplacent en direct :
+       « montre-moi Mars », « retour au système solaire », « vue d'ensemble », « Terre-Lune », « la Lune de près », « l'ISS », « les satellites », « la prochaine éclipse », « les actualités », « où sont mes appareils », « temps réel », « ciel réel »… */
+  const UNIVERS_URL='js/univers/noyau.js?v=2026.10.15.5';
   let universModule=null, universPromesse=null;
   function universCharger(){
     if(universModule) return Promise.resolve(universModule);
@@ -20,18 +22,30 @@
     arreter:()=>{ try{ cutAll('Présentation arrêtée'); }catch(e){} },
     ligne:(k,t)=>{ try{ addLine(k,t); }catch(e){} },
   };
+  // le fond Univers est-il celui des Réglages (et en 3D : en Éco c'est une image fixe, sans scène à piloter) ?
+  const fondUniversVoulu=()=>{ try{ const r=window.RayleUI&&RayleUI.reglages&&RayleUI.reglages(); return !!(r && r.fond==='espace' && r.palier<2); }catch(e){ return false; } };
   window.RayleUnivers={
-    async ouvrir(theme,options){ const N=await universCharger(); return N.ouvrir(theme||'espace',options||{}); },
-    async fermer(){ if(universModule) universModule.fermer(); },
-    async commande(nom,args){ const N=await universCharger(); if(!N.etat().ouvert) await N.ouvrir('espace'); return N.commande(nom,args||{}); },
-    estOuvert:()=>!!(universModule && universModule.etat().ouvert),
+    async ouvrir(theme,options){ const N=await universCharger(); return N.ouvrir(theme||'espace',options||{}); },      // plein écran (depuis le fond : même scène, même vue)
+    async fermer(){ if(universModule) universModule.fermer(); },                                                    // quitte le plein écran ; le fond reste si Réglages → Fond = Univers
+    async fond(oui){ if(oui){ const N=await universCharger(); return N.fond(true); } if(universModule) return universModule.fond(false); return null; },
+    fondVoulu:fondUniversVoulu,
+    // la scène est là pour recevoir une commande : déjà ouverte (fond ou plein écran), sinon en fond si c'est le fond choisi, sinon en plein écran
+    async assurer(){
+      if(window.RayleUnivers.estOuvert()) return;
+      if(fondUniversVoulu()){ try{ await window.RayleUnivers.fond(true); if(window.RayleUnivers.estOuvert()) return; }catch(e){ /* repli : plein écran */ } }
+      await window.RayleUnivers.ouvrir('espace');
+    },
+    async commande(nom,args){ const N=await universCharger(); if(!N.etat().ouvert) await window.RayleUnivers.assurer(); return N.commande(nom,args||{}); },
+    estOuvert:()=>!!(universModule && universModule.etat().ouvert),                                                 // la scène tourne (en fond ou en plein écran)
+    estPlein:()=>!!(universModule && universModule.etat().plein),
+    estFond:()=>!!(universModule && universModule.etat().fond),
     decaler(px){ if(universModule && universModule.decalerVue) universModule.decalerVue(px); },      // place laissée à l'entité (js/rayle/position-entite.js)
     etat:()=>universModule?universModule.etat():{ouvert:false},
     charger:universCharger,
   };
   document.addEventListener('DOMContentLoaded',()=>{
     const b=document.getElementById('btnOuvrirUnivers');
-    if(b) b.addEventListener('click',()=>{ RayleUnivers.estOuvert() ? RayleUnivers.fermer() : RayleUnivers.ouvrir('espace').catch(e=>{ try{ addLine('sys','Univers : '+(e&&e.message||e)); }catch(er){} }); });
+    if(b) b.addEventListener('click',()=>{ RayleUnivers.estPlein() ? RayleUnivers.fermer() : RayleUnivers.ouvrir('espace').catch(e=>{ try{ addLine('sys','Univers : '+(e&&e.message||e)); }catch(er){} }); });
   });
   try{ RayleBus.on('univers:demande',d=>{ RayleUnivers.ouvrir((d&&d.theme)||'espace',d||{}).catch(()=>{}); }); }catch(e){}
 
@@ -63,6 +77,15 @@
     if(/^(?:efface|enleve|retire|supprime|vide|nettoie)(?: moi)?(?: tous)? (?:le |les |la |l )?(?:marqueurs?|reperes?|points?|epingles?|itineraire|trace|carte)(?: de la carte| sur la carte| de la terre| du globe)?$/.test(t)) return {type:'espace',action:'effacer-carte'};
     if(/^(?:zoome|zoomer|zoom avant|rapproche toi|approche toi)(?: (?:encore|un peu|plus|beaucoup))?$/.test(t)) return {type:'espace',action:'zoom',facteur:.6};
     if(/^(?:dezoome|dezoomer|zoom arriere|recule|eloigne toi)(?: (?:encore|un peu|plus|beaucoup))?$/.test(t)) return {type:'espace',action:'zoom',facteur:1.7};
+    // — vues du fond Univers = les puces du menu Univers : vue d'ensemble, Terre–Lune, Lune de près, Mars, éclipse, temps réel, ciel réel —
+    if(/^(?:(?:montre|affiche|passe|mets|remets|reviens|retourne|retour|va|ouvre)(?: moi)?(?: (?:a|en|sur|dans|vers|au))* ?(?:la |le |l )?)?vue (?:d ensemble|generale|globale)$/.test(t)) return {type:'espace',action:'ensemble'};
+    if(/^(?:(?:montre|affiche|passe|mets|remets|reviens|retourne|retour|va|ouvre)(?: moi)?(?: (?:a|en|sur|dans|vers|au))* ?(?:la |le |l )?)?(?:vue )?(?:la )?terre (?:et (?:la )?)?lune(?: ensemble| a l echelle)?$/.test(t)) return {type:'espace',action:'lune'};
+    if(/^(?:(?:montre|affiche|va|vole|emmene|approche|rapproche|pose|zoome|atterris)(?: moi| toi)?(?: (?:sur|vers|pres|aupres|a|de|dans))* ?(?:la |le |l )?)?(?:la )?lune (?:de (?:tres )?pres|en gros plan)$/.test(t)||/^(?:approche|rapproche|pose|emmene|amene|va|vole)(?: moi| toi)? (?:tout )?(?:pres|aupres)(?: de| d)?(?: la| l)? lune$/.test(t)||/^(?:approche|rapproche)(?: moi| toi)? (?:de |d )?(?:la |l )?lune$/.test(t)) return {type:'espace',action:'lune',pres:true};
+    if(/^(?:(?:ouvre|montre|affiche|passe|va|mets|reviens|retourne)(?: moi)?(?: (?:sur|en|a|dans|vers))* ?(?:la |le |l )?)?(?:vue|base|mode|scene) (?:de )?mars$/.test(t)) return {type:'espace',action:'vue',nom:'mars'};
+    if(/^(?:la |l )?(?:prochaine )?eclipse$/.test(t)) return {type:'espace',action:'eclipse'};
+    if(/^(?:(?:remets|mets|passe en|passe a|repasse en|repasse a|reviens en|reviens a|retour a|retour en|active)(?: moi)?(?: le| l)? )?(?:temps reel|heure reelle|vitesse reelle|temps normal)$/.test(t)) return {type:'espace',action:'temps',vitesse:1};
+    if(/^(?:(?:montre|affiche|mets|passe en|passe sur|passe au|remets|active|reviens au|retour au|reviens sur)(?: moi)?(?: le| la| l)? )?ciel (?:reel|realiste|normal|etoile|naturel)$/.test(t)) return {type:'espace',action:'ciel',style:'reel'};
+    if(/^(?:change|change moi|autre|suivant|ciel suivant)(?: de| le)?(?: ciel)?$/.test(t) && /ciel/.test(t)) return {type:'espace',action:'ciel',style:''};
     // — système solaire, astres, Mars, ISS, satellites —
     if(/^(?:montre|affiche|va dans|va sur|ouvre|passe sur|passe dans|retourne dans|emmene moi dans|emmene moi sur|reviens dans|reviens sur|va voir) (?:moi )?(?:le |l |les |tout )?(?:systeme solaire|systeme planetaire|planetes|toutes les planetes|soleil et les planetes)$/.test(t)) return {type:'espace',action:'systeme'};
     if((m=/^(?:montre|affiche|passe a|passe en|mets|mets en|utilise) (?:moi )?(?:l |la |les |en )?(echelle reelle|vraie echelle|vraies distances|vraies tailles|vraies proportions|echelle didactique|echelle simplifiee|tailles agrandies|distances reelles)$/.exec(t))) return {type:'espace',action:'echelle',reelle:/reelle|vrai/.test(m[1])};
@@ -125,12 +148,40 @@
     return null;
   }
   const STYLES_CIEL_VOIX={spirale:/spirale|galaxie|bleu/,nebuleuse:/nebuleuse|rose|violet/,dore:/dore|or|jaune|voie lactee/,emeraude:/emeraude|vert/,braise:/braise|rouge|orange|feu/,realiste:/reel|normal|vrai|etoile/};
+  /* Enchaînements : « montre Mars puis Saturne », « va sur la Lune puis reviens au système solaire ». Chaque étape doit être une commande de la scène ; sinon null.
+     Les étapes s'exécutent l'une après l'autre : la suivante attend la fin du vol de la précédente (les commandes de la scène ne rendent la main qu'à l'arrivée). */
+  function analyserChaine(texte){
+    const t=normU(texte); if(!t || t.split(' ').length>24) return null;
+    const parts=t.split(/ (?:puis|ensuite|et ensuite|et apres|et puis|apres ca) /).map(x=>x.trim()).filter(Boolean);
+    if(parts.length<2 || parts.length>6) return null;
+    const acts=[];
+    for(const p of parts){
+      const a=analyserUnivers(p)||analyserUnivers('montre '+p);
+      if(!a || a.type!=='espace' || a.souple) return null;
+      acts.push(a);
+    }
+    return acts;
+  }
   async function commandeUnivers(texte){
     try{
       if(typeof commandeLocalisation==='function'){ const l=await commandeLocalisation(texte); if(l) return l; }
     }catch(e){ console.warn('[localisation]',e); }
-    let a=analyserUnivers(texte);
+    const ch=analyserChaine(texte);
+    if(ch){
+      const dire=t=>(window.RayleUniversPont&&RayleUniversPont.dire)?RayleUniversPont.dire(t):Promise.resolve(true);
+      for(let i=0;i<ch.length;i++){
+        const r=await executerAnalyse(ch[i]);
+        if(r==null) return i?'Je me suis arrêtée à l’étape '+(i+1)+' : je n’ai pas pu la faire.':null;
+        if(i===ch.length-1) return r;
+        if(r!=='__deja_dit__' && (await dire(r))===false) return '__deja_dit__';            // coupée entre-temps : on s'arrête
+      }
+      return null;
+    }
+    const a=analyserUnivers(texte);
     if(!a) return null;
+    return executerAnalyse(a);
+  }
+  async function executerAnalyse(a){
     if(a.type==='rangement'){
       const R=window.RayleRangement; if(!R) return null;
       if(a.action==='ranger'){ if(R.estRange()) return 'Je suis déjà rangée, je t’écoute.'; R.ranger(); return 'Je me range sur le côté, je reste à l’écoute. Dis « rouvre-toi » ou touche ma bulle pour me rappeler.'; }
@@ -155,24 +206,28 @@
       if(a.type==='univers'&&a.action==='passer'){ if(!RayleUnivers.estOuvert()) return null; const r=await RayleUnivers.commande('passer',{}); return r&&r.texte||null; }
       if(a.type==='univers'&&a.action==='qualite'){ if(!RayleUnivers.estOuvert()) return null; const r=await RayleUnivers.commande('qualite',{niveau:a.niveau}); return r&&r.texte||null; }
       if(a.type==='univers'){
-        if(a.action==='fermer'){ if(!RayleUnivers.estOuvert()) return null; await RayleUnivers.fermer(); return 'J’ai quitté l’Univers.'; }
+        if(a.action==='fermer'){
+          if(RayleUnivers.estFond()) return 'L’Univers est déjà en fond d’écran, derrière moi. Dis « fond aucun » pour l’enlever, ou « ouvre l’Univers » pour le plein écran.';
+          if(!RayleUnivers.estPlein()) return null;
+          await RayleUnivers.fermer(); return RayleUnivers.estFond() ? 'Je te rends l’accueil : l’Univers reste en fond.' : 'J’ai quitté l’Univers.';
+        }
         await RayleUnivers.ouvrir(a.theme); return 'L’Univers est ouvert : glisse pour tourner la Terre, pince ou utilise la molette pour zoomer. Dis « présente la France » ou « montre l’océan Pacifique ».';
       }
       if(a.type==='espace'){
-        if(a.action==='terre' && !RayleUnivers.estOuvert()) return null;
+        if(a.action==='terre' && !RayleUnivers.estOuvert() && !RayleUnivers.fondVoulu()) return null;
         if(['retour','sortir','zoom','zoom-carte','effacer-carte'].includes(a.action) && !RayleUnivers.estOuvert()) return null;                    // rien à quitter ni à zoomer : la suite du traitement s'en occupe
-        if(a.action==='tourner' && !RayleUnivers.estOuvert() && (a.oui===false || !a.nom || a.nom==='terre')) return null;   // « fais tourner la Terre » : le fond Espace s'en charge
+        if(a.action==='tourner' && !RayleUnivers.estOuvert() && (a.oui===false || !a.nom || a.nom==='terre')) return null;   // sans scène ouverte, « fais tourner la Terre » n'a rien à faire tourner
         if(a.action==='entrer' && !a.nom && !RayleUnivers.estOuvert()) return null;
-        if(a.action==='piece-rover'){ const e=RayleUnivers.etat(); if(!(e.ouvert&&e.scene&&e.scene.vue==='mars')) return null; a.action='piece'; }       // « reviens sur la Terre » appartient au fond Espace tant que l'Univers est fermé
+        if(a.action==='piece-rover'){ const e=RayleUnivers.etat(); if(!(e.ouvert&&e.scene&&e.scene.vue==='mars')) return null; a.action='piece'; }       // les pièces du rover n'existent que dans la vue Mars
         // phrases larges (« montre … », « parle-moi de … ») : seulement si l'Univers est ouvert et que le nom est connu, pour ne pas voler les autres commandes (planètes, ISS, cartes…)
         if(a.souple){
-          if(!RayleUnivers.estOuvert()) return null;
+          if(!RayleUnivers.estPlein()) return null;                      // en fond, « montre-moi le Japon » reste pour la page Monde ; seul le plein écran prend les noms de lieux
           const N=await RayleUnivers.charger(), inst=N.instance(); const I=inst&&inst._; if(th()!=='espace'||!I) return null; if(!(I.connait?I.connait(a.nom):(I.geo&&I.geo.centre(a.nom)))) return null;
-        }else if(!RayleUnivers.estOuvert()){ await RayleUnivers.ouvrir('espace'); }
-        const args={nom:a.nom,oui:a.oui,type:a.typeEclipse,vitesse:a.vitesse,pause:a.pause,reelle:a.reelle,presenter:a.presenter,rover:a.rover,facteur:a.facteur,niveau:a.niveau};
+        }else if(!RayleUnivers.estOuvert()){ await RayleUnivers.assurer(); }
+        const args={nom:a.nom,oui:a.oui,type:a.typeEclipse,vitesse:a.vitesse,pause:a.pause,reelle:a.reelle,presenter:a.presenter,rover:a.rover,facteur:a.facteur,niveau:a.niveau,pres:a.pres};
         if(a.action==='effacer-carte'){ const sc=(RayleUnivers.etat().scene)||{}; if(!(sc.carte&&sc.carte.marqueurs&&sc.carte.marqueurs.length)) return null; }       // rien à effacer : les autres commandes (points du globe…) s'en occupent
         if(a.action==='ciel'){ const st=Object.keys(STYLES_CIEL_VOIX).find(k=>STYLES_CIEL_VOIX[k].test(normU(a.style))); args.style=st; }
-        const nomCmd={presenter:'presenter',aller:'aller',actus:'actus',lune:'lune',terre:'terre',eclipse:'eclipse',surprise:'surprise',ciel:'ciel',temps:'temps',systeme:'systeme',echelle:'echelle',iss:'iss',satellites:'satellites',atterrir:'atterrir',rover:'rover','autre-rover':'autre-rover',piece:'piece','mars-orbite':'mars-orbite',retour:'retour',entrer:'entrer',sortir:'sortir',tourner:'tourner',zoom:'zoom','zoom-carte':'zoom-carte','effacer-carte':'effacer-carte'}[a.action];
+        const nomCmd={ensemble:'ensemble',vue:'vue',presenter:'presenter',aller:'aller',actus:'actus',lune:'lune',terre:'terre',eclipse:'eclipse',surprise:'surprise',ciel:'ciel',temps:'temps',systeme:'systeme',echelle:'echelle',iss:'iss',satellites:'satellites',atterrir:'atterrir',rover:'rover','autre-rover':'autre-rover',piece:'piece','mars-orbite':'mars-orbite',retour:'retour',entrer:'entrer',sortir:'sortir',tourner:'tourner',zoom:'zoom','zoom-carte':'zoom-carte','effacer-carte':'effacer-carte'}[a.action];
         const r=await RayleUnivers.commande(nomCmd,args);
         if(a.action==='presenter'||a.action==='surprise'||(a.action==='iss'&&a.presenter)) return r&&r.ok?'__deja_dit__':(r&&r.texte)||null;      // la présentation parle elle-même
         return (r&&r.texte)||null;

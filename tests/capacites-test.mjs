@@ -24,7 +24,7 @@ await t('les familles sans analyseur local sont déclarées comme telles (verif:
 });
 await t('paramètres lus dans le code : tous les astres, rovers et actifs apparaissent ; un astre ajouté apparaît tout seul', () => {
   const p = reg.famille('espace').params();
-  for (const m of ['Mercure', 'Vénus', 'Mars', 'Jupiter', 'Saturne', 'Uranus', 'Neptune', 'Soleil', 'Lune', 'ISS', 'Perseverance', 'Curiosity', 'cratère Gale', 'cratère Jezero', 'trou noir']) assert.ok(p.includes(m), m + ' absent de : ' + p);
+  for (const m of ['Mercure', 'Vénus', 'Mars', 'Jupiter', 'Saturne', 'Uranus', 'Neptune', 'Soleil', 'Lune', 'ISS', 'Perseverance', 'Curiosity', 'cratère Gale', 'cratère Jezero', 'Terre–Lune', 'ciels']) assert.ok(p.includes(m), m + ' absent de : ' + p);
   assert.match(reg.famille('terminal').params(), /Nasdaq.*Bitcoin.*Solana.*l'or|Nasdaq/s);
   ctx.RayleUI.espace.ASTRES.pluton = { nom: 'Pluton', court: 'Pluton' };
   assert.ok(reg.famille('espace').params().includes('Pluton'), 'un astre ajouté dans le code apparaît dans le registre');
@@ -33,25 +33,25 @@ await t('paramètres lus dans le code : tous les astres, rovers et actifs appara
 await t('contexte pour l’IA : toutes les familles, règles, état ; détail ciblé selon la phrase ; taille raisonnable (jetons)', () => {
   const c = reg.contexte('montre-moi Mars puis Perseverance');
   for (const f of reg.FAMILLES) assert.ok(c.includes(f.nom), f.nom);
-  assert.match(c, /ne dis jamais « je ne peux pas »/); assert.match(c, /ÉTAT :/); assert.match(c, /DÉTAIL « Espace en 3D »/);
+  assert.match(c, /ne dis jamais « je ne peux pas »/); assert.match(c, /ÉTAT :/); assert.match(c, /DÉTAIL « Univers : scène 3D en fond/);
   assert.match(c, /ne lance jamais de recherche web quand un outil local existe/); assert.match(c, /Ne dis jamais qu’une action est faite si le résultat de l’outil dit qu’elle a échoué/);
   assert.ok(c.length < 8200, 'contexte de ' + c.length + ' caractères');      // 6000 avant les familles « Présentations animées », « Cerveau 3D » et « Terre vivante », 7000 avant « Univers 3D »
   assert.ok(!/DÉTAIL « Terminal/.test(reg.contexte('montre-moi Mars')), 'le détail ne concerne que les familles pertinentes');
 });
-await t('état : écran actif, astre affiché, vue sauvegardée, mode d’échelle, historique récent', () => {
-  ctx.etatScene = { cible: 'mars', vol: false, zoom: 0.65 };
+await t('état : écran actif, scène de l’Univers (en fond ou en plein écran), astre affiché, temps, historique récent', () => {
   ctx.vueActive = 'rayle';
-  ctx.RayleUI.espace.definirAccueil('iss');
-  ctx.RayleUI.espace.reglerEchelle('realiste');
+  ctx.RayleUnivers = { etat: () => ({ ouvert: true, plein: false, fond: true, scene: { vue: 'systeme', suivi: 'mars', temps: { vitesse: 1, pause: false }, ciel: 'realiste' } }) };
   reg.noterEchange('user', 'montre-moi Mars'); reg.noterEchange('ray', 'Direction Mars.');
-  reg.noterEchange('user', 'zoome dessus'); reg.noterEchange('ray', 'Je me rapproche de Mars.');
-  const e = reg.etat(); assert.equal(e.ecran, 'rayle'); assert.equal(e.espace.cible, 'mars'); assert.equal(e.espace.accueil, 'iss'); assert.equal(e.espace.echelle, 'realiste');
+  reg.noterEchange('user', 'zoome'); reg.noterEchange('ray', 'Je me rapproche.');
+  const e = reg.etat(); assert.equal(e.ecran, 'rayle'); assert.equal(e.espace.cible, 'mars'); assert.equal(e.espace.univers, 'fond'); assert.equal(e.espace.vue, 'systeme');
   const s = reg.etatTexte();
-  assert.match(s, /astre affiché = Mars/); assert.match(s, /vue sauvegardée par défaut = la Station spatiale internationale/); assert.match(s, /RÉALISTE/); assert.match(s, /zoom ×0.65/);
-  assert.match(s, /« montre-moi Mars » → Direction Mars\./); assert.match(s, /« zoome dessus » → Je me rapproche de Mars\./);
+  assert.match(s, /EN FOND derrière l’accueil/); assert.match(s, /vue = systeme/); assert.match(s, /astre affiché = Mars/); assert.match(s, /temps réel/);
+  assert.match(s, /« montre-moi Mars » → Direction Mars\./); assert.match(s, /« zoome » → Je me rapproche\./);
+  ctx.RayleUnivers = { etat: () => ({ ouvert: true, plein: true, fond: false, scene: { vue: 'terre', temps: { vitesse: 3600, pause: false } } }) };
+  assert.match(reg.etatTexte(), /en plein écran : vue = terre/); assert.match(reg.etatTexte(), /accéléré ×3600/); assert.ok(!/astre affiché/.test(reg.etatTexte()), 'sur la Terre : pas d’astre');
+  ctx.RayleUnivers = { etat: () => ({ ouvert: false }) }; assert.ok(!/scène de l’Univers/.test(reg.etatTexte()), 'Univers fermé : rien');
   ctx.vueActive = 'terminal'; assert.match(reg.etatTexte(), /écran actif = terminal de trading/);
-  ctx.RayleUI.espace.reglerEchelle('pedagogique'); ctx.RayleUI.espace.definirAccueil(null); ctx.etatScene = { cible: null, vol: false, zoom: 1 }; ctx.vueActive = 'rayle';
-  assert.match(reg.etatTexte(), /astre affiché = aucun/); assert.match(reg.etatTexte(), /PÉDAGOGIQUE/);
+  ctx.vueActive = 'rayle'; delete ctx.RayleUnivers;
 });
 await t('journal borné à 6 échanges ; texte long tronqué', () => {
   for (let i = 0; i < 10; i++) { reg.noterEchange('user', 'phrase ' + i + ' ' + 'x'.repeat(300)); reg.noterEchange('ray', 'réponse ' + i); }

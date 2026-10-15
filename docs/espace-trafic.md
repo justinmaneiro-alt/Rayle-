@@ -1,3 +1,5 @@
+> **Retiré (2026-10-15)** : la Terre vivante (trafic simulé, points, trajets, frontières) vivait dans l'ancien fond « Espace », supprimé quand le fond Univers est devenu la scène 3D du bouton Univers (voir `docs/univers.md`). Ce document est conservé pour l'historique ; les données (`ui/espace-terre-donnees.js`) servent encore aux lieux et aux villes.
+
 # Espace : Terre vivante et palier Ultra
 
 Mission 3 (partie B). Tout est gratuit : textures NASA (domaine public), contours Natural Earth (domaine public), aucune clé, aucun service payant. Ce qui dépend d'un service externe est dit plus bas (« Réel ou simulé »).

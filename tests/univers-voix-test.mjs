@@ -5,24 +5,26 @@ import assert from 'node:assert/strict';
 
 let ok = 0; const t = async (nom, f) => { try { await f(); ok++; console.log('  ✔ ' + nom); } catch (e) { console.error('  ✘ ' + nom + '\n    ' + (e && e.stack || e)); process.exitCode = 1; } };
 const appels = [], dits = [];
-const etat = { ouvert: false, theme: null, scene: null };
+const etat = { ouvert: false, fond: false, fondVoulu: false, theme: null, scene: null };
 const ctx = {
   console, document: { addEventListener() {}, getElementById: () => null, baseURI: 'http://x/' }, RayleBus: { on() {}, emit() {} }, RayleRangement: { estRange: () => false }, commandeLocalisation: () => null,
   epoch: 0, addLine() {}, speak: async t => { dits.push(t); }, cutAll() {}, workerReady: () => false, wjson: async () => ({}),
   RAYLE_UNIVERS_SIMULE: {
-    estOuvert: () => etat.ouvert, etat: () => etat,
-    ouvrir: async (th, o) => { appels.push(['ouvrir', th, o]); etat.ouvert = true; etat.theme = th; },
+    estOuvert: () => etat.ouvert, estPlein: () => etat.ouvert && !etat.fond, estFond: () => etat.ouvert && etat.fond, fondVoulu: () => etat.fondVoulu, etat: () => etat,
+    ouvrir: async (th, o) => { appels.push(['ouvrir', th, o]); etat.ouvert = true; etat.fond = false; etat.theme = th; },
+    // la scène est là pour recevoir une commande : en fond si le fond Univers est choisi, sinon en plein écran
+    assurer: async () => { if (etat.ouvert) return; if (etat.fondVoulu) { appels.push(['fond']); etat.ouvert = true; etat.fond = true; etat.theme = 'espace'; } else await ctx.RAYLE_UNIVERS_SIMULE.ouvrir('espace'); },
     commande: async (nom, a) => { appels.push([nom, a]); return { ok: true, texte: 'ok ' + nom }; },
     charger: async () => ({ instance: () => ({ _: { connait: n => /^(?:mars|france|jupiter)$/.test(n) } }) }),
-    fermer: async () => { etat.ouvert = false; },
+    fermer: async () => { appels.push(['fermer']); if (etat.fondVoulu) etat.fond = true; else etat.ouvert = false; },
   },
 };
 ctx.window = ctx;
 vm.createContext(ctx);
-vm.runInContext(fs.readFileSync(new URL('../js/rayle/commandes-univers.js', import.meta.url), 'utf8') + '\nglobalThis.__a=analyserUnivers; globalThis.__c=commandeUnivers;', ctx);
+vm.runInContext(fs.readFileSync(new URL('../js/rayle/commandes-univers.js', import.meta.url), 'utf8') + '\nglobalThis.__a=analyserUnivers; globalThis.__c=commandeUnivers; globalThis.__ch=analyserChaine;', ctx);
 ctx.RayleUnivers = ctx.window.RayleUnivers = ctx.RAYLE_UNIVERS_SIMULE;
 const A = p => { const r = ctx.__a(p); return r && JSON.parse(JSON.stringify(r)); }, C = ctx.__c;
-const reset = (th = null, scene = null) => { appels.length = 0; dits.length = 0; etat.ouvert = !!th; etat.theme = th; etat.scene = scene; };
+const reset = (th = null, scene = null, mode = null) => { appels.length = 0; dits.length = 0; etat.ouvert = !!th; etat.theme = th; etat.scene = scene; etat.fond = mode === 'fond'; etat.fondVoulu = mode === 'fond' || mode === 'voulu'; };   // mode : 'fond' (scène en fond) · 'voulu' (fond Univers choisi, scène pas encore ouverte)
 
 await t('analyse : système solaire, astres, Mars, ISS, qualité', () => {
   assert.equal(A('montre le système solaire').action, 'systeme'); assert.equal(A('va dans le système solaire').action, 'systeme');
@@ -92,6 +94,60 @@ await t('voix : Univers fermé — entrer/tourner l’ouvrent ; retour, sortir, 
   reset(); assert.equal(await C('entre dedans'), null, 'sans nom ni Univers ouvert : rien à faire');
   reset(); assert.equal(await C('fais tourner la Terre'), null, '« fais tourner la Terre » reste au fond Espace tant que l’Univers est fermé'); assert.equal(appels.length, 0);
   reset(); assert.equal(await C('fais tourner Jupiter'), 'ok tourner'); assert.equal(appels[0][0], 'ouvrir');
+});
+
+/* ───── le fond Univers : les puces du menu deviennent des commandes vocales, la scène bouge sans ouvrir le menu ───── */
+await t('analyse : les puces du menu Univers (vue d’ensemble, Terre–Lune, Lune de près, Mars, éclipse, temps réel, ciel réel)', () => {
+  for (const p of ['vue d’ensemble', 'montre la vue d’ensemble', 'reviens à la vue d’ensemble', 'retour à la vue générale']) assert.equal(A(p).action, 'ensemble', p);
+  for (const p of ['Terre-Lune', 'la Terre et la Lune', 'montre-moi la Terre et la Lune', 'vue Terre-Lune']) assert.equal(A(p).action, 'lune', p);
+  for (const p of ['Terre-Lune', 'la Terre et la Lune']) assert.ok(!A(p).pres, p);
+  for (const p of ['la Lune de près', 'montre la Lune de près', 'approche-toi de la Lune', 'pose-toi près de la Lune']) { assert.equal(A(p).action, 'lune', p); assert.equal(A(p).pres, true, p); }
+  for (const p of ['montre la vue Mars', 'ouvre la base de Mars', 'passe en mode Mars']) { assert.equal(A(p).action, 'vue', p); assert.equal(A(p).nom, 'mars', p); }
+  assert.equal(A('va sur Mars').action, 'aller', 'va sur Mars = la planète dans le système solaire'); assert.equal(A('montre-moi Mars').action, 'aller');
+  assert.equal(A('la prochaine éclipse').action, 'eclipse'); assert.equal(A('éclipse').action, 'eclipse');
+  for (const p of ['temps réel', 'remets le temps réel', 'repasse en temps réel']) { assert.equal(A(p).action, 'temps', p); assert.equal(A(p).vitesse, 1, p); }
+  for (const p of ['ciel réel', 'montre le ciel réel', 'remets le ciel réel']) { assert.equal(A(p).action, 'ciel', p); assert.equal(A(p).style, 'reel', p); }
+  assert.equal(A('change le ciel').action, 'ciel'); assert.equal(A('change le ciel').style, '');
+  assert.equal(A('montre l’ISS').action, 'iss'); assert.equal(A('montre les satellites').action, 'satellites'); assert.equal(A('montre les actualités').action, 'actus');
+});
+await t('analyse : ces phrases ne volent rien (vue du jardin, temps qu’il fait, ciel de lit…)', () => {
+  for (const p of ['vue du jardin', 'quel temps fait-il', 'le temps réel du marché', 'la lune de miel', 'la terre est ronde', 'éclipse totale de mon humeur']) { const a = A(p); assert.ok(!a || a.type !== 'espace' || !['ensemble', 'lune', 'ciel', 'temps', 'vue', 'eclipse'].includes(a.action), p + ' → ' + JSON.stringify(a)); }
+});
+await t('enchaînements : « montre Mars puis Saturne » ; une étape incomprise annule l’enchaînement', () => {
+  const ch = p => { const r = ctx.__ch(p); return r && JSON.parse(JSON.stringify(r)).map(x => x.action + ':' + (x.nom || '')); };
+  assert.deepEqual(ch('montre Mars puis Saturne'), ['aller:mars', 'aller:saturne']);
+  assert.deepEqual(ch('va sur la Lune puis reviens au système solaire'), ['lune:', 'retour:']);
+  assert.deepEqual(ch('montre Mars ensuite la vue d’ensemble'), ['aller:mars', 'ensemble:']);
+  assert.equal(ch('montre Mars puis fais-moi un café'), null); assert.equal(ch('montre Mars'), null); assert.equal(ch('mets de la musique puis montre Mars'), null);
+});
+await t('fond Univers : « montre-moi Mars » ouvre la scène EN FOND (pas de plein écran) puis la déplace', async () => {
+  reset(null, null, 'voulu'); assert.equal(await C('montre-moi Mars'), 'ok aller'); assert.deepEqual(appels.map(a => a[0]), ['fond', 'aller']); assert.equal(appels[1][1].nom, 'mars');
+  assert.ok(!appels.some(a => a[0] === 'ouvrir'), 'jamais le plein écran pour une commande vocale');
+  reset('espace', { vue: 'systeme' }, 'fond');
+  for (const [p, nom] of [['retour au système solaire', 'retour'], ['vue d’ensemble', 'ensemble'], ['Terre-Lune', 'lune'], ['montre l’ISS', 'iss'], ['la prochaine éclipse', 'eclipse'], ['ciel réel', 'ciel'], ['temps réel', 'temps'], ['montre la vue Mars', 'vue'], ['montre les satellites', 'satellites']]) {
+    appels.length = 0; assert.equal(await C(p), 'ok ' + nom, p); assert.equal(appels[0][0], nom, p); assert.equal(appels.length, 1, p + ' : une seule commande, scène déjà ouverte');
+  }
+  appels.length = 0; await C('la Lune de près'); assert.equal(appels[0][1].pres, true); appels.length = 0; await C('temps réel'); assert.equal(appels[0][1].vitesse, 1);
+  appels.length = 0; await C('ciel réel'); assert.equal(appels[0][1].style, 'realiste');
+});
+await t('fond Univers : « reviens sur la Terre » et « fais tourner la Terre » marchent sur la scène en fond ; sans fond Univers, ils restent aux autres commandes', async () => {
+  reset(null, null, 'voulu'); assert.equal(await C('reviens sur la Terre'), 'ok terre'); assert.equal(appels[0][0], 'fond');
+  reset('espace', { vue: 'terre' }, 'fond'); assert.equal(await C('arrête de tourner'), 'ok tourner'); assert.equal(appels[0][1].oui, false);
+  reset(); assert.equal(await C('reviens sur la Terre'), null); assert.equal(appels.length, 0);
+});
+await t('fond Univers : les noms de lieux (« montre-moi la France ») restent pour la page Monde en fond ; le plein écran les prend', async () => {
+  reset('espace', { vue: 'terre' }, 'fond'); assert.equal(await C('montre-moi la France'), null); assert.equal(appels.length, 0);
+  reset('espace', { vue: 'terre' }); assert.equal(await C('montre-moi la France'), 'ok aller');
+});
+await t('fond Univers : « ferme l’Univers » depuis le fond ne ferme rien ; depuis le plein écran, rend l’accueil avec la scène en fond', async () => {
+  reset('espace', { vue: 'terre' }, 'fond'); assert.match(await C('quitte l’Univers'), /déjà en fond/); assert.ok(!appels.some(a => a[0] === 'fermer'));
+  reset('espace', { vue: 'terre' }, 'voulu'); etat.fond = false; assert.match(await C('quitte l’Univers'), /l’Univers reste en fond/); assert.deepEqual(appels[0], ['fermer']);
+  reset('espace', { vue: 'terre' }); assert.equal(await C('quitte l’Univers'), 'J’ai quitté l’Univers.');
+  reset('espace', { vue: 'terre' }, 'fond'); assert.match(await C('ouvre l’Univers'), /L’Univers est ouvert/); assert.equal(appels[0][0], 'ouvrir', 'depuis le fond : plein écran');
+});
+await t('enchaînement exécuté : chaque étape part après la précédente, la première est dite', async () => {
+  reset('espace', { vue: 'terre' }, 'fond'); const r = await C('montre Mars puis Saturne');
+  assert.equal(r, 'ok aller'); assert.deepEqual(appels.map(a => a[0] + ':' + a[1].nom), ['aller:mars', 'aller:saturne']); assert.deepEqual(dits, ['ok aller']);
 });
 
 /* ───── position de l'entité ───── */

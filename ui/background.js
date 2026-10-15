@@ -1,8 +1,8 @@
 "use strict";
 /* ═════════════ FOND ANIMÉ : chef d'orchestre ═════════════
-   Fonds (Réglages → Fond) : Aucun · Univers (id « espace » : ui/fond-globe.js + ui/fond-espace.js) · Jarvis (ui/fond-jarvis.js : interface holographique).
-   - Rendu : 3D (three.js, chargé à la demande) ; en Éco, Espace et Jarvis deviennent une IMAGE FIXE pré-rendue (three.js n'est même
-     pas chargé).
+   Fonds (Réglages → Fond) : Aucun · Univers (id « espace » : LA scène 3D du bouton Univers, js/univers/, affichée derrière l'accueil et pilotée par Raylé) · Jarvis (ui/fond-jarvis.js : interface holographique).
+   - Rendu : 3D (three.js, chargé à la demande) ; en Éco, Univers et Jarvis deviennent une IMAGE FIXE pré-rendue (three.js n'est même
+     pas chargé). Le fond Univers n'a pas son propre canvas : il demande au noyau (RayleUnivers.fond) la scène en mode « fond ».
    - Qualité automatique (niveau Auto) : si les images/s chutent avec un fond 3D, c'est le FOND qui baisse d'abord (qualité 0 → 1 → 2),
      et l'entité (Sphère ou Neurones) est retenue pendant ce temps (Entite.geler) ; quand le fond est au minimum, l'entité peut s'alléger.
    - Lisibilité : vignette sombre au centre et sur les bords (.ui-voile), teinte du thème sur l'image fixe (.ui-teinte).
@@ -22,12 +22,14 @@
   const FIXES={espace:()=>'fond-espace-'+(innerHeight>innerWidth?'portrait':'paysage')+'.webp',jarvis:()=>'fond-jarvis-'+(innerHeight>innerWidth?'portrait':'paysage')+'.webp'};
   const PLANETE='fond-globe-planete.webp', SPRITE_PLANETE=.92, COEUR='fond-jarvis-coeur.webp';   // sprites posés au centre : la Terre (Espace) ou le cœur holographique (Jarvis)
   let planete=null;
+  const ESPACE_CADRAGE={fov:35,dist:6.4,rayon:1.09,echelleMax:1.12,placement:'centre'};   // la Terre pré-rendue du mode Éco : posée au centre, entière, comme l'entité Raylé
 
   const fixe=document.createElement('div'); fixe.className='ui-fond-fixe'; fixe.setAttribute('aria-hidden','true');
   const teinte=document.createElement('div'); teinte.className='ui-teinte'; teinte.setAttribute('aria-hidden','true');
   const voile=document.createElement('div'); voile.className='ui-voile'; voile.setAttribute('aria-hidden','true');
   cv.after(fixe,teinte,voile);
 
+  let univers=false;                                                  // true : le fond actif est la scène de l'Univers (rendue par js/univers/noyau.js)
   let fond='aucun', palier=1, anim='auto', cle='', scene=null, rendu='aucun', q=1, gen=0;
   let tPrec=0, dernier=0, aRedessiner=true, px=0, py=0, cx=0, cy=0, transfo='';
   let ema=16.7, nMes=0, tMes=0, tEval=0, mauvaisU=0;
@@ -75,6 +77,7 @@
     }
   }
   function arreter(){
+    if(univers){ univers=false; try{ window.RayleUnivers && RayleUnivers.fond(false); }catch(e){} }
     if(scene){ try{ scene.detruire(); }catch(e){} scene=null; }
     cv.classList.remove('vu'); fixe.classList.remove('vu'); teinte.classList.remove('vu');
   }
@@ -87,7 +90,7 @@
       }catch(e){}
       return;
     }
-    const g=UI.fondsReels&&UI.fondsReels.espaceCadrage; if(!g||!UI.cadrage) return;
+    const g=ESPACE_CADRAGE; if(!UI.cadrage) return;
     try{
       const W=Math.round(innerWidth*1.06), H=Math.round(innerHeight*1.06);
       const c=UI.cadrage.cadrer({cam:{fov:g.fov,dist:g.dist},rayonBase:g.rayon,echelleMax:g.echelleMax,canvasW:W,canvasH:H,parallaxe:16,placement:g.placement}), b=c.boite;
@@ -105,12 +108,25 @@
   async function appliquer(){
     const r=fond==='aucun'?'aucun' : palier>=2?'fixe':'3d';
     const hd=anim==='max'||anim==='ultra', ultra=anim==='ultra';
-    const k=fond+':'+r+(fond==='espace'&&r==='3d'&&hd?(ultra?':ultra':':hd'):'');
+    const k=fond+':'+r;
     if(k===cle) return;
     cle=k; arreter(); rendu='aucun';
     const g=++gen;
     if(r==='aucun') return;
     if(r==='fixe'){ montrerFixe(fond); return; }
+    if(fond==='espace'){                                                // la scène de l'Univers, en fond : pas de canvas ici, le noyau s'en charge
+      try{
+        if(!window.RayleUnivers || !RayleUnivers.fond) throw new Error('Univers indisponible');
+        univers=true; rendu='univers';
+        await RayleUnivers.fond(true);
+        if(g!==gen) return;
+      }catch(e){
+        if(g!==gen) return;
+        univers=false; console.warn('[fond] Univers indisponible :',e&&e.message||e);
+        montrerFixe(fond);                                              // three.js ou WebGL indisponible : l'image fixe prend le relais
+      }
+      return;
+    }
     try{
       q=palier===0?0:1; ema=16.7; nMes=0; tEval=performance.now();
       if(anim==='auto'){ try{ Entite.geler && Entite.geler(15000); }catch(e){} }   // pendant le chargement et les premières mesures, l'entité attend

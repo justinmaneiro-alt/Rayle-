@@ -1,5 +1,5 @@
 /* Fiches : artères et veines du réseau principal. Source : Gray's Anatomy 1918, Angéiologie (voir fiches-corps.js). Les passages repris sont reformulés ; un champ absent du texte consulté reste vide. */
-import { v, SOURCE_GRAY } from './fiches-outils.js?v=2026.10.15.4';
+import { v, SOURCE_GRAY } from './fiches-outils.js?v=2026.10.15.5';
 
 const AR = SOURCE_GRAY + ', Angéiologie : artères';
 const VE = SOURCE_GRAY + ', Angéiologie : veines';

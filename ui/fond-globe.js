@@ -199,12 +199,6 @@ void main(){ float d=length(gl_PointCoord-0.5); float a=smoothstep(0.5,0.1,d)*v_
     gP.setAttribute('a_ouv',new THREE.BufferAttribute(ov,1));
     const UP={u_px:{value:22},u_c:{value:new THREE.Color()},u_temps:UA.u_temps};
     const placesPts=new THREE.Points(gP,new THREE.ShaderMaterial({uniforms:UP,vertexShader:VS_PTS,fragmentShader:FS_PTS,transparent:true,depthWrite:false,blending:THREE.AdditiveBlending})); terre.add(placesPts);
-    // fond « Espace » : la scène complète (soleil, lune, planètes, satellites…) est montée par ui/fond-espace.js autour de cette même Terre
-    if(o.espace){
-      if(!UI.espaceMonter) throw new Error('fond Espace indisponible (ui/fond-espace.js manquant)');
-      return UI.espaceMonter({THREE,canvas,rendu,scene,camera,groupe,terre,sphere,U,UA,UP,matTerre,matNuages,couche,matAtmo,arcsMesh,placesPts,q,hd:!!o.hd,ultra:!!o.ultra,
-        jour:jour,nuit:nuit,nuages:nuages,marches:marches});
-    }
     // étoiles
     const nbE=1400, ge=new THREE.BufferGeometry(), pe=[], te=[], oe=[];
     let g0=11; const rnd=()=>{ g0=(g0*1664525+1013904223)>>>0; return g0/4294967296; };
@@ -316,7 +310,6 @@ void main(){ float d=length(gl_PointCoord-0.5); float a=smoothstep(0.5,0.1,d)*v_
       }
     };
   };
-  UI.fondsReels.espace=(canvas,o)=>UI.fondsReels.globe(canvas,Object.assign({},o,{espace:true}));
   // paramètres de cadrage du Globe : partagés avec l'image fixe du mode Éco (ui/background.js), qui pose la planète pré-rendue au même endroit
   UI.fondsReels.globeCadrage={fov:35,dist:3.4,rayon:1.09,echelleMax:.8};
   UI.fondsReels._soleil=soleil; UI.fondsReels._ouverte=ouverte;   // pour les tests

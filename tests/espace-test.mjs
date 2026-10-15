@@ -1,4 +1,4 @@
-// Fond « Espace » : positions des astres (ui/astro.js), commandes vocales, faits, ISS, choix de la caméra (ui/espace.js).   node tests/espace-test.mjs
+// Espace : positions des astres (ui/astro.js), faits du jour, ISS (ui/espace.js). Les commandes vocales de la scène sont testées dans tests/univers-voix-test.mjs.   node tests/espace-test.mjs
 import vm from 'node:vm';
 import fs from 'node:fs';
 import assert from 'node:assert/strict';
@@ -56,38 +56,6 @@ await t('direction() : repère du monde de la scène (pôle nord = +y, α croiss
   const n = A.direction(123, 90); proche(n[1], 1, 1e-9);
   const e = A.direction(90, 0); proche(e[2], -1, 1e-9);
   proche(A.separation({ ra: 10, dec: 0 }, { ra: 40, dec: 0 }), 30, 1e-9);
-});
-await t('commandes vocales : « montre-moi Mars / Jupiter / Saturne / la lune / le soleil / l’ISS »', () => {
-  const a = x => { const r = E.analyser(x); return r ? r.type + ':' + (r.cible || r.cle + '=' + r.valeur || '') : null; };
-  assert.equal(a('montre-moi Mars'), 'vers:mars'); assert.equal(a('Raylé, montre-moi Jupiter'), 'vers:jupiter'); assert.equal(a('montre-moi Saturne'), 'vers:saturne');
-  assert.equal(a('montre-moi la lune'), 'vers:lune'); assert.equal(a('montre-moi le soleil'), 'vers:soleil'); assert.equal(a('montre-moi l’ISS'), 'vers:iss');
-  assert.equal(a('montre moi la station spatiale'), 'vers:iss'); assert.equal(a('emmène-moi sur Vénus'), 'vers:venus'); assert.equal(a('va sur Mercure'), 'vers:mercure');
-  assert.equal(a('affiche Neptune'), 'vers:neptune'); assert.equal(a('regarde la planète Uranus'), 'vers:uranus'); assert.equal(a('zoome sur Saturne'), 'vers:saturne'); assert.equal(a('vole vers la lune'), 'vers:lune');
-  assert.equal(a('montre-moi Mars s’il te plaît'), 'vers:mars');
-});
-await t('commandes vocales : retour sur la Terre', () => {
-  for (const p of ['reviens sur la Terre', 'retour sur la terre', 'retourne sur la Terre', 'reviens à la Terre', 'ramène-moi sur la terre', 'recentre la Terre', 'reviens en vue d’ensemble'])
-    assert.equal(E.analyser(p).type, 'retour', p);
-});
-await t('commandes vocales : activer / désactiver les éléments', () => {
-  const a = x => { const r = E.analyser(x); return r ? r.cle + '=' + r.valeur : null; };
-  assert.equal(a('désactive les planètes'), 'planetes=false'); assert.equal(a('active les planètes'), 'planetes=true'); assert.equal(a('désactive les astéroïdes'), 'asteroides=false');
-  assert.equal(a('active les astéroïdes'), 'asteroides=true'); assert.equal(a('coupe les satellites'), 'satellites=false'); assert.equal(a('active les satellites'), 'satellites=true');
-  assert.equal(a('enlève les comètes'), 'asteroides=false'); assert.equal(a('désactive les aurores'), 'aurores=false'); assert.equal(a('cache la voie lactée'), 'voielactee=false');
-  assert.equal(a('active la lune'), 'lune=true'); assert.equal(a('désactive la lune'), 'lune=false'); assert.equal(a('active les nébuleuses'), 'voielactee=true'); assert.equal(a('désactive le lens flare'), 'flare=false');
-  assert.equal(a('affiche les planètes'), 'planetes=true'); assert.equal(a('remets les satellites'), 'satellites=true');
-});
-await t('commandes vocales : ne vole ni les questions ni les autres commandes', () => {
-  for (const q of ['quelle est la distance de Mars', 'combien de lunes a Saturne', 'c’est quoi l’ISS', 'montre-moi le graphique', 'montre-moi la carte de Paris', 'affiche le bitcoin', 'ouvre le terminal',
-    'montre-moi le calendrier de mars', 'passe en thème Aurore', 'fond espace', 'mode éco', 'ambiance nuit', 'plus de vent', 'mars', 'jupiter', 'la lune', 'reviens', 'retour', 'ferme tout', 'active le micro', 'désactive le son',
-    'coupe l’écoute', 'montre-moi mon dernier message', 'affiche les panneaux', 'montre la lune de miel', 'va sur Terre-Neuve'])
-    assert.equal(E.analyser(q), null, 'ne doit pas être pris : ' + q);
-});
-await t('éléments : tous actifs par défaut, mémorisés, événement émis', () => {
-  const evts = []; ctx.RayleBus = { emit: (n, d) => evts.push([n, d]) };
-  assert.ok(Object.values(E.elements()).every(v => v === true) && Object.keys(E.elements()).length === 7);
-  assert.equal(E.regler('planetes', false), true); assert.equal(E.elements().planetes, false); assert.equal(evts.at(-1)[0], 'espace:elements');
-  assert.equal(E.regler('n’importe quoi', true), false); E.regler('planetes', true);
 });
 await t('faits : 1 ou 2 phrases courtes avec les chiffres du jour (distances calculées)', () => {
   const ts = U(2026, 10, 11, 12);
@@ -153,27 +121,17 @@ await t('ISS : traînée (suite de positions) et altitude en rayons terrestres',
   proche(x.m.position(x.now()).r, 1 + 421.5 / 6371, 1e-6);
   const a = tr[0], b = tr[1]; assert.ok(A.separation(a, b) > 3 && A.separation(a, b) < 5, 'environ 3,9° par minute');
 });
-await t('caméra : choisit une vue où la Terre est bien éclairée, avec la Lune ou une planète dans le champ', () => {
-  const ts = U(2026, 10, 11, 12), s = A.soleilEq(ts), l = A.luneEq(ts);
-  const ctxe = { soleil: A.direction(s.ra, s.dec), lune: A.direction(l.ra, l.dec), aspect: 1.78, planetes: A.PLANETES.map(n => { const q = A.planete(n, ts); return { nom: n, dir: A.direction(q.ra, q.dec), poids: 1 }; }) };
-  const v = E.choisirVue(ctxe); assert.ok(v && v.score > 3, 'score ' + (v && v.score));
-  const c = E.vueVecteur(v.yaw, v.pitch), eclairee = (1 + c.reduce((a, x, i) => a + x * ctxe.soleil[i], 0)) / 2;
-  assert.ok(eclairee > .35 && eclairee < .95, 'Terre éclairée à ' + Math.round(eclairee * 100) + ' %');
-  const mauvais = E.evaluerVue((Math.atan2(-ctxe.soleil[0], -ctxe.soleil[2]) * 180 / Math.PI + 360) % 360, 8, ctxe);   // caméra côté nuit
-  assert.ok(v.score > mauvais, 'meilleur que la face nuit');
-  const w = E.choisirVue(ctxe, { loinDe: v.yaw, ecartMin: 60 }); assert.ok(Math.abs(((w.yaw - v.yaw + 540) % 360) - 180) >= 60, 'la dérive change vraiment de vue');
+await t('envoyer la scène vers un astre (outil « ambiance » de l’IA) : commande réelle de l’Univers + faits du jour, sans inventer', async () => {
+  const vus = []; ctx.RayleUnivers = { commande: async (nom, a) => { vus.push(nom + ':' + (a.nom || '')); return { ok: true }; } };
+  const r = E.executer({ type: 'vers', cible: 'saturne' }); await Promise.resolve(); await Promise.resolve();
+  assert.match(r, /^Direction Saturne\. Saturne est à [\d\s  ,]+ millions de kilomètres/); assert.deepEqual(vus, ['aller:saturne']);
+  assert.match(E.executer({ type: 'retour' }), /^De retour sur la Terre\./); await Promise.resolve(); await Promise.resolve();
+  E.executer({ type: 'vers', cible: 'lune' }); E.executer({ type: 'vers', cible: 'iss' }); await Promise.resolve(); await Promise.resolve(); assert.deepEqual(vus, ['aller:saturne', 'terre:', 'lune:', 'iss:']);
+  assert.equal(E.executer({ type: 'vers', cible: 'pluton' }), '', 'pas de cible connue : rien'); assert.equal(E.executer(null), '');
+  delete ctx.RayleUnivers; assert.equal(E.executer({ type: 'vers', cible: 'mars' }), '', 'sans Univers : rien à piloter');
 });
-await t('échelle : « échelle réaliste », « mode pédagogique », « passe en tailles réelles » ; pas de faux positifs', () => {
-  for (const [phrase, mode] of [['échelle réaliste', 'realiste'], ['mode réaliste', 'realiste'], ['passe en échelle réaliste', 'realiste'], ['mets les tailles réelles', 'realiste'], ['active l’échelle réelle', 'realiste'],
-    ['échelle pédagogique', 'pedagogique'], ['mode pédagogique', 'pedagogique'], ['repasse en mode pédagogique', 'pedagogique'], ['passe en vue éducative', 'pedagogique']]) {
-    const a = E.analyser(phrase); assert.ok(a && a.type === 'echelle' && a.mode === mode, phrase + ' → ' + JSON.stringify(a));
-  }
-  for (const phrase of ['montre-moi Mars', 'désactive les planètes', 'reviens sur la Terre', 'quelle est la taille de Mars', 'mode éco', 'je suis réaliste']) { const a = E.analyser(phrase); assert.ok(!a || a.type !== 'echelle', phrase + ' → ' + JSON.stringify(a)); }
-});
-await t('échelle : exécution, mémorisation et valeur par défaut pédagogique', () => {
-  assert.equal(E.echelle(), 'pedagogique');
-  const r = E.executer({ type: 'echelle', mode: 'realiste' }); assert.match(r, /réaliste/); assert.equal(E.echelle(), 'realiste');
-  assert.equal(E.reglerEchelle('n’importe quoi'), false); assert.equal(E.echelle(), 'realiste');
-  assert.match(E.executer({ type: 'echelle', mode: 'pedagogique' }), /pédagogique/); assert.equal(E.echelle(), 'pedagogique');
+await t('astres : nom, rovers et lieux reconnus (cibleDe) ; état sans Univers = la Terre', () => {
+  assert.equal(E.cibleDe('mars').cible, 'mars'); assert.equal(E.cibleDe('la station spatiale internationale').cible, 'iss'); assert.equal(E.nomCible('jupiter'), 'Jupiter'); assert.equal(E.nomCible(null), 'la Terre');
+  const e = E.etat(); assert.equal(e.univers, null); assert.equal(e.cible, null); assert.equal(e.nom, 'la Terre');
 });
 console.log(ok + ' groupes réussis');

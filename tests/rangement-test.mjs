@@ -87,7 +87,7 @@ t('voix : ranger puis rouvrir', async () => {
   assert.equal(await C('rouvre-toi'), 'Me revoici.'); assert.equal(R.estRange(), false);
   assert.equal(await C('reviens'), null, 'reviens seul, Raylé ouverte : laissé aux autres commandes');
 });
-t('univers : « reviens sur la Terre » appartient au fond Espace tant que l’Univers est fermé', async () => {
-  ctx2.RayleUnivers = { estOuvert: () => false }; assert.equal(await C('reviens sur la Terre'), null);
+t('univers : « reviens sur la Terre » n’a rien à piloter tant que l’Univers est fermé et que ce n’est pas le fond choisi', async () => {
+  ctx2.RayleUnivers = { estOuvert: () => false, fondVoulu: () => false }; assert.equal(await C('reviens sur la Terre'), null);
 });
 console.log(ok + ' tests réussis');
