@@ -120,11 +120,11 @@ données de marché et bougies, calendrier économique, alertes et rappels, agen
 
 ## Univers 3D : globe, système solaire, Mars
 
-Univers 🌌 : globe, système solaire, ISS, Mars et rovers, qualité Basse/Moyenne/Haute.
+Univers 🌌 : globe, système solaire, ISS, Mars et rovers, qualité Basse/Moyenne/Haute · entrer dans une planète (Terre : carte du monde, Mars : base · Saturne, Jupiter et les autres : prêtes mais vides), retour au système solaire, faire tourner, zoomer · placer Raylé : petite dans un coin, grande au centre ou sur le côté (position mémorisable par planète).
 
-- **Paramètres (lus dans le code)** : globe, système solaire, Mars et rovers, ISS et satellites ; qualité Basse, Moyenne, Haute ou Auto.
-- **Cas limites** : positions des astres et éclipses approximatives, actualités selon franceinfo et le Worker, rendu allégé en qualité Basse.
-- **Exemples** : « présente la France », « va sur Mars », « montre le système solaire », « atterris sur Mars », « mets la qualité en basse », « passe l’animation », « réduis-toi », « où sont mes appareils ».
+- **Paramètres (lus dans le code)** : globe, système solaire, Mars et rovers, ISS et satellites ; qualité Basse, Moyenne, Haute ou Auto ; positions de Raylé : coin haut-gauche, haut-droite, bas-gauche, bas-droite, centre, côté gauche, côté droit.
+- **Cas limites** : positions des astres et éclipses approximatives, actualités selon franceinfo et le Worker, rendu allégé en qualité Basse ; seules la Terre et Mars ont un monde intérieur : pour les autres planètes je dis qu’elles sont prêtes à en recevoir un.
+- **Exemples** : « présente la France », « va sur Mars », « montre le système solaire », « atterris sur Mars », « entre dans Mars », « fais tourner Jupiter », « retour au système solaire », « mets-toi dans le coin », « au centre », « sur le côté gauche », « mets la qualité en basse », « passe l’animation », « réduis-toi », « où sont mes appareils ».
 - **Vérification automatique** : non (décidé par l’IA ou une API en ligne).
 
 ## Autres appareils, messages et appels

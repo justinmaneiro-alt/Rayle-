@@ -10,7 +10,7 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 
-const VERSION = '2026.10.15.1';
+const VERSION = '2026.10.15.2';
 const ASSETS = new URL('../../ui/assets/', import.meta.url).href;
 export const THEMES = {
   espace: { nom: 'Espace', icone: '🌍', url: './theme-espace.js?v=' + VERSION },
@@ -37,7 +37,7 @@ if (!['auto', 'basse', 'moyenne', 'haute'].includes(choixQualite)) choixQualite 
 export const q = Object.assign({}, QUALITES[choixQualite === 'auto' ? detecter() : choixQualite]);   // objet vivant lu par les thèmes
 
 /* ───── état ───── */
-const E = { ouvert: false, vue: null, canvas: null, renderer: null, themeId: null, inst: null, raf: 0, tPrec: 0, t: 0, fps: 60, ema: 16.7, mesures: 0, mauvais: 0, ctx: null, ouverture: 0, labels: null, passer: null, ctrls: [], tweens: new Set(), enCine: false, kDt: 1 };
+const E = { ouvert: false, vue: null, canvas: null, renderer: null, themeId: null, inst: null, raf: 0, tPrec: 0, t: 0, fps: 60, ema: 16.7, mesures: 0, mauvais: 0, ctx: null, ouverture: 0, labels: null, passer: null, ctrls: [], tweens: new Set(), enCine: false, kDt: 1, decal: 0, decalCible: 0, decalActif: false };
 const bus = (n, d) => { try { window.RayleBus && RayleBus.emit(n, d); } catch (e) {} };
 const $ = (s, r) => (r || E.vue).querySelector(s);
 const el = (tag, cls, txt) => { const e = document.createElement(tag); if (cls) e.className = cls; if (txt != null) e.textContent = txt; return e; };
@@ -50,6 +50,7 @@ function construireVue() {
     + '<div class="univ-labels"></div><div class="univ-fondu"></div>'
     + '<div class="univ-hud"><div class="univ-haut"><div><div class="univ-groupe univ-themes" role="group" aria-label="Thème"></div><div class="univ-sous" aria-label="Modes du thème"></div></div>'
     + '<div class="univ-groupe"><button type="button" class="univ-b" data-a="ranger" title="Réduire Raylé en petite bulle : toute la scène est à toi">🫧 Ranger Raylé</button>'
+    + '<select class="univ-select" data-a="entite" aria-label="Position de l’entité Raylé" title="Où placer Raylé : petite dans un coin, grande au centre ou sur le côté"></select>'
     + '<select class="univ-select" data-a="qualite" aria-label="Qualité"><option value="auto">Qualité : auto</option><option value="basse">Basse</option><option value="moyenne">Moyenne</option><option value="haute">Haute</option></select>'
     + '<button type="button" class="univ-b danger" data-a="quitter" title="Retour à Raylé">✕ Quitter</button></div></div>'
     + '<div class="univ-bas"><div class="univ-carte" hidden><button type="button" class="univ-x" aria-label="Fermer la fiche">✕</button><div class="univ-carte-c"></div></div><div class="univ-legende" role="status" aria-live="polite"></div></div>'
@@ -63,6 +64,7 @@ function construireVue() {
   v.querySelector('[data-a="quitter"]').addEventListener('click', () => fermer());
   v.querySelector('[data-a="ranger"]').addEventListener('click', () => { try { RayleRangement.basculer(); } catch (e) {} });
   const sel = v.querySelector('[data-a="qualite"]'); sel.value = choixQualite; sel.addEventListener('change', () => reglerQualite(sel.value));
+  brancherSelecteurEntite(v.querySelector('[data-a="entite"]'));
   $('.univ-x').addEventListener('click', () => hud.carte(null));
   $('.univ-passer').addEventListener('click', () => passerAnimation());
   document.addEventListener('keydown', e => { if (!E.ouvert) return; if (e.key === 'Escape' && E.enCine) passerAnimation(); else if (e.key === ' ' && E.enCine) { e.preventDefault(); passerAnimation(); } });
@@ -100,6 +102,26 @@ export const hud = {
   },
   themeActif(id) { for (const b of E.vue.querySelectorAll('.univ-themes .univ-b')) b.classList.toggle('actif', b.dataset.theme === id); },
 };
+
+/* ═════════ place laissée à l'entité Raylé : sélecteur et décalage de la scène ═════════ */
+// Sélecteur « position de l'entité » de la barre du haut : même liste et même réglage que ⚙ Réglages (js/rayle/position-entite.js, chargé avant l'Univers)
+function brancherSelecteurEntite(sel) {
+  const EP = window.RayleEntitePosition; if (!sel) return;
+  if (!EP) { sel.hidden = true; return; }
+  for (const o of EP.options()) { const x = el('option', '', o.court || o.libelle); x.value = o.valeur; x.title = o.libelle; sel.appendChild(x); }
+  const sync = () => { sel.value = EP.valeur(); };
+  sync(); sel.addEventListener('change', () => EP.definirValeur(sel.value));
+  try { window.RayleBus.on('entite:position', sync); } catch (e) { /* pas de bus */ }
+}
+// Décale la scène de `px` pixels vers la droite (négatif : vers la gauche) en déplaçant le centre de projection de la caméra : la planète occupe le reste de l'écran quand l'entité est grande sur un côté.
+// Le décalage est animé ; les clics (tap), les étiquettes et le lancer de rayon restent justes parce que la matrice de projection porte le décalage.
+export function decalerVue(px) { E.decalCible = Math.max(-2000, Math.min(2000, Math.round(+px || 0))); }
+function appliquerDecalage(camera, dt) {
+  if (E.decal !== E.decalCible) { const d = E.decalCible - E.decal; E.decal = Math.abs(d) < .6 ? E.decalCible : E.decal + d * Math.min(1, dt * 7); }
+  if (!camera || !camera.isPerspectiveCamera || !E.w) return;
+  if (E.decal) { camera.setViewOffset(E.w, E.h, -Math.round(E.decal), 0, E.w, E.h); E.decalActif = true; }
+  else if (E.decalActif) { camera.clearViewOffset(); E.decalActif = false; }
+}
 
 /* ═════════ étiquettes DOM accrochées à des points 3D ═════════ */
 export function creerEtiquettes() {
@@ -157,6 +179,7 @@ function boucle(now) {
   for (const tw of [...E.tweens]) tw.maj(dt * E.kDt);
   for (const c of E.ctrls) c.maj(dt);
   const inst = E.inst; if (!inst) return;
+  appliquerDecalage(inst.camera, dt);
   try { inst.maj(dt, E.t); } catch (e) { console.warn('[univers] maj', e); }
   try { if (inst.rendre) inst.rendre(E.renderer); else E.renderer.render(inst.scene, inst.camera); } catch (e) { console.warn('[univers] rendu', e); }
   if (E.etiq) E.etiq.maj(inst.camera, E.w, E.h);
@@ -252,7 +275,7 @@ async function monterTheme(id, options) {
   return inst;
 }
 function demonterTheme() {
-  const inst = E.inst; E.inst = null;
+  const inst = E.inst; E.inst = null; E.decalActif = false;
   for (const tw of [...E.tweens]) E.tweens.delete(tw);
   for (const c of [...E.ctrls]) c.detruire();
   if (inst) { try { inst.detruire(); } catch (e) { console.warn('[univers] détruire', e); } }
@@ -284,7 +307,7 @@ export async function ouvrir(themeId = 'espace', options = {}) {
 }
 export function fermer() {
   if (!E.ouvert) return;
-  E.ouvert = false; cancelAnimationFrame(E.raf); E.ouverture++;
+  E.ouvert = false; cancelAnimationFrame(E.raf); E.ouverture++; E.decal = E.decalCible = 0; E.decalActif = false;
   demonterTheme();
   if (E.renderer) { try { E.renderer.dispose(); E.renderer.forceContextLoss(); } catch (e) {} E.renderer = null; E.canvas.replaceWith(E.canvas.cloneNode(false)); E.canvas = $('canvas', E.vue); wirerCanvas(); }
   E.vue.hidden = true; document.body.classList.remove('univers-actif');
@@ -322,11 +345,11 @@ export const commande = async (nom, args = {}) => {
   if (nom === 'theme') { if (!THEMES[args.theme]) return { ok: false, texte: 'Thème inconnu.' }; await changerTheme(args.theme, args); return { ok: true, texte: 'C’est fait.' }; }
   return E.inst && E.inst.commande ? E.inst.commande(nom, args) : { ok: false, texte: 'Aucune scène ouverte.' };
 };
-export const etat = () => ({ ouvert: E.ouvert, theme: E.themeId, fps: Math.round(E.fps), qualite: q.id, choixQualite, enCinematique: E.enCine, scene: E.inst && E.inst.etat ? E.inst.etat() : null });
+export const etat = () => ({ decalage: E.decalCible, ouvert: E.ouvert, theme: E.themeId, fps: Math.round(E.fps), qualite: q.id, choixQualite, enCinematique: E.enCine, scene: E.inst && E.inst.etat ? E.inst.etat() : null });
 export const instance = () => E.inst;
 export const dims = () => ({ w: E.w, h: E.h });
 export const rendu = () => E.renderer;
 export const temps = () => E.t;
 
-const API = { THREE, q, hud, fondu, vitesseAnimation, tween, attendre, cinematique, passerAnimation, enCinematique, orbite, texture, assets, creerEtiquettes, projeter, EASE, ouvrir, fermer, changerTheme, changerThemeBrut, commande, etat, instance, reglerQualite, dims, rendu, temps, THEMES, QUALITES };
+const API = { THREE, q, hud, decalerVue, fondu, vitesseAnimation, tween, attendre, cinematique, passerAnimation, enCinematique, orbite, texture, assets, creerEtiquettes, projeter, EASE, ouvrir, fermer, changerTheme, changerThemeBrut, commande, etat, instance, reglerQualite, dims, rendu, temps, THEMES, QUALITES };
 export default API;

@@ -3,8 +3,8 @@
 // Échelles : « didactique » (défaut) = distances vraies (1 UA = 60 unités), planètes agrandies d'un MÊME facteur (×390 : leurs tailles relatives sont exactes), Soleil réduit à 9 unités ;
 //            « réelle » = tout à la vraie échelle (les planètes sont alors de simples points : zoomer pour les trouver).
 // creerSysteme(ctx) → { groupe, maj(dt, t, ts, tSim, camera), positionMonde(id), rayon(id), pick(camera, x, y, w, h), echelle(mode), nommes, detruire() }
-import { ASTRES, ORDRE_PLANETES, LUNES, UA_KM, positionHelio, pointsOrbite } from '../donnees/planetes.js?v=2026.10.15.1';
-import { creerCeinture, textureRoche, geometrieRocher } from './asteroides.js?v=2026.10.15.1';
+import { ASTRES, ORDRE_PLANETES, LUNES, UA_KM, positionHelio, pointsOrbite } from '../donnees/planetes.js?v=2026.10.15.2';
+import { creerCeinture, textureRoche, geometrieRocher } from './asteroides.js?v=2026.10.15.2';
 
 export const UA_U = 60;                                     // unités par UA
 const BOOST = 390, RAD = Math.PI / 180;
@@ -103,6 +103,7 @@ export async function creerSysteme(ctx) {
       // rotation propre : vraie période, jouée ×60 en temps réel (plus le temps accéléré)
       const periode = Math.abs(P.data.rotationH) * 3600, sens = P.data.rotationH < 0 ? -1 : 1;
       if (periode) P.corps.rotation.y = sens * 6.2832 * ((tSim + tReel * 60) / periode);
+      if (P.spinAngle) P.corps.rotation.y += P.spinAngle;                       // « fais tourner » : rotation visible en plus de la vraie
       if (P.nuages) P.nuages.rotation.y = P.corps.rotation.y * 1.03;
       for (const m of P.lunes) {
         const T = Math.abs(m.L.periodeJ) * 86400, ang = m.phase + Math.sign(m.L.periodeJ) * 6.2832 * ((tSim + tReel * 400) / T);
@@ -122,6 +123,7 @@ export async function creerSysteme(ctx) {
     soleil.position.set(0, 0, 0); disque.scale.setScalar(rSoleil());
     const c = camera.getWorldPosition(tmp).length(); const k = Math.max(1, c / 160);
     halo1.scale.setScalar(rSoleil() * 4.2 * Math.min(k, 6)); halo2.scale.setScalar(rSoleil() * 12 * Math.min(k, 6));
+    for (const P of planetes.values()) if (P.spinV) P.spinAngle = (P.spinAngle || 0) + P.spinV * dt;
     placer(ts, tSim, t, camera.getWorldPosition(vec(0, 0, 0))); ceinture.maj(tSim, t);
     for (const [id, P] of planetes) { P.corps.scale.setScalar(P.rayon); }
   }
@@ -146,6 +148,9 @@ export async function creerSysteme(ctx) {
   }
   function qualite(nq) { /* segments fixés à la création ; la ceinture garde son nombre */ }
   function detruire() { libres.forEach(x => { try { x.dispose(); } catch (e) { /* déjà libéré */ } }); }
+  // Fait tourner une planète sur elle-même (rad/s) ; tourner(null) arrête. Le Soleil et les petits corps n'ont pas de rotation visible : renvoie false.
+  let tourne = null;
+  function tourner(id, v = .6) { for (const P of planetes.values()) P.spinV = 0; tourne = null; if (!id) return true; const P = planetes.get(id); if (!P) return false; P.spinV = v; tourne = id; return true; }
   const nommes = { soleil, planetes, petits };
-  return { groupe, maj, positionMonde, rayon, pick, echelle, echelleActuelle: () => mode, nommes, detruire, ceinture, lumiere, soleilMesh: soleil, qualite, ecl };
+  return { groupe, maj, positionMonde, rayon, pick, echelle, tourner, tourne: () => tourne, echelleActuelle: () => mode, nommes, detruire, ceinture, lumiere, soleilMesh: soleil, qualite, ecl };
 }

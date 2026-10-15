@@ -1,11 +1,11 @@
 /* ═════════════ REGISTRE DES STRUCTURES : recherche, fiches, liens os ↔ muscles ═════════════
    Identifiants d'instance : 'humerus:D' (os, muscle, nerf symétriques : D = droite, G = gauche du patient),
    'vertebre-L4', 'cote-5:G', 'coeur', 'moelle'. Les repères palpables sont 'repere:eias:D'. */
-import { OS, VERTEBRES, REPERES, ficheVertebre, ficheCote } from './donnees-os.js?v=2026.10.15.1';
-import { MUSCLES } from './donnees-muscles.js?v=2026.10.15.1';
-import { NERFS, MOELLE, NERFS_SPINAUX, ORGANES, DERMATOMES } from './donnees-nerfs-organes.js?v=2026.10.15.1';
-import { MUSCLES_HD, TENDONS_HD, VAISSEAUX_HD, ORGANES_HD, NERFS_HD } from './donnees-corps.js?v=2026.10.15.1';
-import { FICHES_CORPS } from './fiches-corps.js?v=2026.10.15.1';
+import { OS, VERTEBRES, REPERES, ficheVertebre, ficheCote } from './donnees-os.js?v=2026.10.15.2';
+import { MUSCLES } from './donnees-muscles.js?v=2026.10.15.2';
+import { NERFS, MOELLE, NERFS_SPINAUX, ORGANES, DERMATOMES } from './donnees-nerfs-organes.js?v=2026.10.15.2';
+import { MUSCLES_HD, TENDONS_HD, VAISSEAUX_HD, ORGANES_HD, NERFS_HD } from './donnees-corps.js?v=2026.10.15.2';
+import { FICHES_CORPS } from './fiches-corps.js?v=2026.10.15.2';
 
 export const norm = t => String(t == null ? '' : t).normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/[œ]/g, 'oe').replace(/[’']/g, ' ').replace(/[^a-z0-9]+/g, ' ').trim();
 

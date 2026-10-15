@@ -62,4 +62,78 @@ await t('la bataille navale n’existe plus : ses phrases ne déclenchent rien',
   for (const p of ['bascule sur la bataille navale', 'lance une escarmouche', 'montre l’intérieur de la frégate', 'tire', 'va dans la cuisine', 'suis la frégate espagnole']) assert.notEqual(A(p) && A(p).type, 'navale', p);
   reset(); assert.equal(await C('bascule sur la bataille navale'), null); assert.equal(appels.length, 0);
 });
+await t('analyse : navigation entre les planètes (entrer, sortir, retour, tourner, zoomer)', () => {
+  assert.equal(A('retour au système solaire').action, 'retour'); assert.equal(A('retourne au système solaire').action, 'retour'); assert.equal(A('reviens au système').action, 'retour'); assert.equal(A('rentre dans le système solaire').action, 'retour');
+  assert.equal(A('montre le système solaire').action, 'systeme', 'les anciennes phrases gardent leur sens');
+  assert.equal(A('entre dans Mars').nom, 'mars'); assert.equal(A('entre dans la Terre').nom, 'terre'); assert.equal(A('rentre dans la planète Saturne').nom, 'saturne'); assert.equal(A('plonge dans Jupiter').nom, 'jupiter');
+  assert.equal(A('entre dedans').action, 'entrer'); assert.equal(A('entre dedans').nom, '');
+  assert.equal(A('sors de Mars').action, 'sortir'); assert.equal(A('sors de la planète').action, 'sortir'); assert.equal(A('quitte la planète').action, 'sortir');
+  assert.equal(A('fais tourner Jupiter').nom, 'jupiter'); assert.equal(A('fais tourner Jupiter').action, 'tourner'); assert.equal(A('fais tourner la planète').nom, '');
+  assert.equal(A('arrête de tourner').oui, false); assert.equal(A('arrête la rotation').oui, false); assert.equal(A('arrête de faire tourner Jupiter').nom, 'jupiter');
+  assert.equal(A('zoome').facteur, .6); assert.ok(A('dézoome').facteur > 1); assert.ok(A('recule un peu').facteur > 1);
+  assert.equal(A('va sur Mars').nom, 'mars'); assert.equal(A('montre-moi Saturne').nom, 'saturne'); assert.equal(A('zoome sur Mars').nom, 'mars', '« zoome sur X » reste un vol vers X');
+});
+await t('analyse : phrases voisines de la navigation ignorées', () => {
+  const nav = ['retour', 'entrer', 'sortir', 'tourner', 'zoom'];
+  for (const p of ['sors la poubelle', 'quitte la pièce', 'entre le code', 'entre dans la pièce', 'fais tourner la musique', 'arrête la musique', 'zoome sur le graphique', 'retour à la ligne', 'reviens à la maison']) { const a = A(p); assert.ok(!(a && nav.includes(a.action)), p + ' → ' + JSON.stringify(a)); }
+});
+await t('voix : entrer, sortir, retour, tourner, zoomer — transmis à l’Univers avec les bons arguments', async () => {
+  reset('espace'); assert.equal(await C('entre dans Mars'), 'ok entrer'); assert.equal(appels[0][1].nom, 'mars');
+  reset('espace'); assert.equal(await C('sors de la planète'), 'ok sortir');
+  reset('espace'); assert.equal(await C('retour au système solaire'), 'ok retour');
+  reset('espace'); assert.equal(await C('fais tourner Jupiter'), 'ok tourner'); assert.equal(appels[0][1].nom, 'jupiter');
+  reset('espace'); await C('arrête de tourner'); assert.equal(appels[0][0], 'tourner'); assert.equal(appels[0][1].oui, false);
+  reset('espace'); await C('zoome'); assert.equal(appels[0][0], 'zoom'); assert.equal(appels[0][1].facteur, .6);
+  reset('espace'); await C('recule'); assert.ok(appels[0][1].facteur > 1);
+});
+await t('voix : Univers fermé — entrer/tourner l’ouvrent ; retour, sortir, zoom, « arrête de tourner » ne volent pas les autres commandes', async () => {
+  reset(); assert.equal(await C('entre dans Mars'), 'ok entrer'); assert.equal(appels[0][0], 'ouvrir');
+  reset(); assert.equal(await C('retour au système solaire'), null); assert.equal(await C('sors de la planète'), null); assert.equal(await C('zoome'), null); assert.equal(await C('arrête de tourner'), null); assert.equal(appels.length, 0);
+  reset(); assert.equal(await C('entre dedans'), null, 'sans nom ni Univers ouvert : rien à faire');
+  reset(); assert.equal(await C('fais tourner la Terre'), null, '« fais tourner la Terre » reste au fond Espace tant que l’Univers est fermé'); assert.equal(appels.length, 0);
+  reset(); assert.equal(await C('fais tourner Jupiter'), 'ok tourner'); assert.equal(appels[0][0], 'ouvrir');
+});
+
+/* ───── position de l'entité ───── */
+await t('analyse : position de l’entité (coin, centre, côté) — tournures du quotidien', () => {
+  const coin = (p, c) => { const a = A(p); assert.ok(a && a.type === 'entite-position' && a.mode === 'coin', p); if (c !== undefined) assert.equal(a.coin, c, p); };
+  coin('mets-toi dans le coin'); coin('Rayle, mets-toi dans le coin', null); coin('petite dans un coin'); coin('va dans un angle');
+  coin('mets-toi en haut à gauche', 'hg'); coin('place-toi en haut à droite', 'hd'); coin('installe-toi en bas à gauche', 'bg'); coin('mets-toi en bas à droite', 'bd');
+  coin('mets-toi dans le coin en haut à droite', 'hd'); coin('va dans le coin en bas à gauche', 'bg'); coin('petite dans le coin supérieur gauche', 'hg');
+  for (const p of ['au centre', 'mets-toi au centre', 'grande au centre', 'place-toi au milieu', 'reste au centre']) assert.equal(A(p).mode, 'centre', p);
+  for (const [p, c] of [['sur le côté gauche', 'gauche'], ['mets-toi sur le côté droit', 'droite'], ['grande sur le côté gauche', 'gauche'], ['colle-toi à droite', 'droite'], ['va à gauche', 'gauche'], ['mets-toi sur le côté droit de l’écran', 'droite']]) { assert.equal(A(p).mode, 'cote', p); assert.equal(A(p).cote, c, p); }
+  assert.equal(A('épingle cette position pour cette vue').action, 'memoriser'); assert.equal(A('fixe cette position').action, 'memoriser'); assert.equal(A('verrouille cette position ici').action, 'memoriser');
+  for (const p of ['retiens cette position', 'garde cette position', 'mémorise cette position']) assert.ok(!(A(p) && A(p).type === 'entite-position'), p + ' : « retiens / garde / mémorise » appartiennent à la mémoire de notes');
+  assert.equal(A('oublie la position de cette vue').action, 'oublier'); assert.equal(A('réinitialise ta position').action, 'defaut'); assert.equal(A('oublie toutes les positions').action, 'defaut');
+});
+await t('analyse : une phrase avec d’autres mots n’est pas une position ; « mets-toi sur le côté » seul reste « ranger »', () => {
+  for (const p of ['va à gauche sur la carte', 'mets la carte au centre', 'mets le graphique à gauche', 'tourne à gauche', 'ouvre le coin cuisine', 'quel est le centre de la France', 'mets-toi au centre commercial']) assert.ok(!(A(p) && A(p).type === 'entite-position'), p);
+  assert.equal(A('mets-toi sur le côté').type, 'rangement'); assert.equal(A('range-toi').type, 'rangement'); assert.equal(A('reviens au centre').action, 'rouvrir', 'rouvrir la bulle reste prioritaire');
+});
+await t('voix : la position est appliquée à l’entité, avec une réponse claire', async () => {
+  const pos = { mode: 'centre', coin: 'bd', cote: 'droite', vue: 'systeme', memorisee: false }, journal = [];
+  const NOM = { hg: 'en haut à gauche', hd: 'en haut à droite', bg: 'en bas à gauche', bd: 'en bas à droite' };
+  ctx.RayleEntitePosition = ctx.window.RayleEntitePosition = {
+    etat: () => Object.assign({}, pos), phrase: () => pos.mode === 'coin' ? 'dans le coin ' + NOM[pos.coin] : pos.mode === 'cote' ? 'sur le côté ' + (pos.cote === 'gauche' ? 'gauche' : 'droit') : 'au centre',
+    coin: c => { pos.mode = 'coin'; pos.coin = c; journal.push(['coin', c]); }, centre: () => { pos.mode = 'centre'; journal.push(['centre']); }, cote: c => { pos.mode = 'cote'; pos.cote = c; journal.push(['cote', c]); },
+    memoriserVue: oui => { pos.memorisee = oui; journal.push(['memoriser', oui]); }, reinitialiser: () => journal.push(['defaut']),
+  };
+  reset('espace'); assert.equal(await C('Rayle, mets-toi en haut à gauche'), 'Je me mets dans le coin en haut à gauche.'); assert.deepEqual(journal.at(-1), ['coin', 'hg']);
+  assert.equal(await C('au centre'), 'Je me mets au centre.'); assert.deepEqual(journal.at(-1), ['centre']);
+  assert.equal(await C('sur le côté gauche'), 'Je me mets sur le côté gauche.'); assert.deepEqual(journal.at(-1), ['cote', 'gauche']);
+  pos.mode = 'coin'; pos.coin = 'bd'; assert.equal(await C('mets-toi dans le coin'), 'Je me mets dans le coin en bas à droite.', 'sans précision : on garde l’angle actuel'); assert.deepEqual(journal.at(-1), ['coin', 'bd']);
+  assert.equal(await C('mets-toi en haut'), null, '« haut » seul n’est pas une position');
+  assert.equal(await C('mets-toi à gauche dans le coin'), 'Je me mets dans le coin en bas à gauche.', 'seul le côté est donné : on garde haut/bas actuel'); assert.deepEqual(journal.at(-1), ['coin', 'bg']);
+});
+await t('voix : mémoriser / oublier la position d’une vue ; un ordre de position sort Raylé de sa bulle', async () => {
+  const journal = [], pos = { mode: 'coin', coin: 'hd', cote: 'droite', vue: 'mars', memorisee: false };
+  ctx.RayleEntitePosition = ctx.window.RayleEntitePosition = { etat: () => Object.assign({}, pos), phrase: () => 'dans le coin en haut à droite', coin() {}, centre() {}, cote() {}, memoriserVue: oui => { pos.memorisee = oui; journal.push(oui); }, reinitialiser: () => journal.push('defaut') };
+  reset('espace'); assert.match(await C('épingle cette position pour cette vue'), /pour Mars/); assert.deepEqual(journal, [true]);
+  assert.match(await C('oublie la position de cette vue'), /j’ai oublié la position de Mars/i); assert.deepEqual(journal, [true, false]);
+  assert.match(await C('oublie la position de cette vue'), /pas de position mémorisée/);
+  assert.match(await C('réinitialise ta position'), /par défaut/);
+  let rouvert = 0; ctx.RayleRangement = ctx.window.RayleRangement = { estRange: () => true, rouvrir: () => { rouvert++; } };
+  await C('mets-toi au centre'); assert.equal(rouvert, 1); ctx.RayleRangement = ctx.window.RayleRangement = { estRange: () => false };
+  delete ctx.RayleEntitePosition; delete ctx.window.RayleEntitePosition; assert.equal(await C('mets-toi au centre'), null, 'module absent : rien');
+});
 console.log(ok + ' tests réussis');

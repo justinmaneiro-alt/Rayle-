@@ -25,6 +25,8 @@ sw.js                 service worker (réseau d'abord)
 css/  js/  ui/        interface et logique (JavaScript natif, sans bundler)
 js/rayle/             cerveau de Rayle : voix, écoute, IA, mémoire, commandes, appareils, sécurité
 js/univers/           scène Univers 3D
+js/univers/planetes/   une planète = un module (registre central, un sous-dossier par planète, contrat d'agent) : docs/planetes.md
+js/rayle/position-entite.js   position de l'entité : petite dans un coin, grande au centre ou sur le côté
 js/anatomie/  js/terminal/  js/drive/
 relais-pc/            relais Windows (actions autorisées sur le PC)
 scripts/  tests/      outils de développement et tests Node (sans framework)
@@ -32,6 +34,12 @@ docs/                 documentation (audit : docs/AUDIT.md)
 ```
 
 Le Worker Cloudflare (`worker/worker.js`, IA, voix, mémoire, alertes) n'est pas versionné dans ce dépôt.
+
+## Planètes et entité
+
+Chaque planète du système solaire est un module indépendant (`js/univers/planetes/`) : le registre donne son rôle, sa texture, sa taille, son orbite, son thème intérieur (Terre = carte du monde, Mars = base ; Saturne, Jupiter et les autres sont « prêtes à recevoir un thème »), son agent (contrat vide pour l'instant) et charge sa scène seulement quand on y entre. À la voix : « va sur Mars », « fais tourner Jupiter », « entre dans Mars », « retour au système solaire ».
+
+L'entité Rayle se place où l'on veut, dans toutes les vues : « mets-toi dans le coin », « au centre », « sur le côté gauche », ou en la faisant glisser (réglage dans ◐ Apparence, ⚙ Réglages et la barre de l'Univers). Détails, fichiers et tests : `docs/planetes.md`.
 
 ## Développement
 

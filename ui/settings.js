@@ -127,6 +127,9 @@
       +'<div class="ui-lbl">Thème</div><div class="ui-themes">'+themes+'</div>'
       +'<div class="ui-lbl">Taille de l\'entité : <b class="ui-taille-val"></b></div><input type="range" class="ui-range" min="70" max="150" step="5" data-k="taille" aria-label="Taille de l\'entité">'
       +'<div class="ui-lbl">Contraste de l\'entité (sur un fond) : <b class="ui-contraste-val"></b></div><input type="range" class="ui-range" min="0" max="100" step="5" data-k="contraste" aria-label="Contraste de l\'entité">'
+      +'<div class="ui-lbl">Position de l\'entité</div><select class="ui-select" data-k="entite-pos" aria-label="Position de l\'entité"></select>'
+      +'<label class="ui-chk"><input type="checkbox" data-k="entite-vue"> Mémoriser cette position pour cette vue seulement (<b class="ui-vue-nom"></b>)</label>'
+      +'<div class="ui-info">Glisse l\'entité avec le doigt ou la souris : elle se cale sur l\'angle ou le côté le plus proche. À la voix : « mets-toi dans le coin », « au centre », « sur le côté gauche ».</div>'
       +'<div class="ui-lbl">Fond animé</div>'+seg('fond',FONDS)
       +'<div class="ui-lbl">Niveau d\'animation</div>'+seg('anim',ANIMS)
       +(mobile?'':'<label class="ui-chk"><input type="checkbox" data-k="micro"> Anneaux qui suivent le volume du micro pendant l\'écoute</label>')
@@ -142,6 +145,12 @@
     taille.addEventListener('input',()=>changer('taille',parseInt(taille.value,10)||100));
     const chk=b.querySelector('input[data-k="micro"]');
     if(chk) chk.addEventListener('change',()=>changer('micro',chk.checked));
+    const EP=window.RayleEntitePosition, selPos=b.querySelector('select[data-k="entite-pos"]'), chkVue=b.querySelector('input[data-k="entite-vue"]');
+    if(EP){
+      EP.options().forEach(o=>{ const x=document.createElement('option'); x.value=o.valeur; x.textContent=o.libelle; selPos.appendChild(x); });
+      selPos.addEventListener('change',()=>EP.definirValeur(selPos.value));
+      chkVue.addEventListener('change',()=>EP.memoriserVue(chkVue.checked));
+    }else{ selPos.previousElementSibling.hidden=true; selPos.hidden=true; chkVue.parentNode.hidden=true; }
     boites.push(b);
     return b;
   }
@@ -151,6 +160,9 @@
       b.querySelectorAll('.ui-theme').forEach(x=>x.setAttribute('aria-pressed',String(x.dataset.themeId===R.theme)));
       b.querySelectorAll('.ui-seg').forEach(s=>s.querySelectorAll('button').forEach(x=>x.setAttribute('aria-pressed',String(x.dataset.v===R[s.dataset.k]))));
       const chk=b.querySelector('input[data-k="micro"]'); if(chk) chk.checked=R.micro;
+      const EP=window.RayleEntitePosition;
+      if(EP){ const e=EP.etat(); b.querySelector('select[data-k="entite-pos"]').value=e.valeur; b.querySelector('input[data-k="entite-vue"]').checked=e.memorisee;
+        b.querySelector('.ui-vue-nom').textContent={accueil:'accueil',systeme:'système solaire',terre:'Terre',mars:'Mars'}[e.vue]||e.vue; }
       const tl=b.querySelector('input[data-k="taille"]'); if(+tl.value!==R.taille) tl.value=String(R.taille);
       b.querySelector('.ui-taille-val').textContent=R.taille+' %';
       const ct=b.querySelector('input[data-k="contraste"]'); if(+ct.value!==R.contraste) ct.value=String(R.contraste);
@@ -266,6 +278,7 @@
     // l'ambiance (ui/ambiance.js : « ambiance pluie », « il neige », « plus de vent »…) passe d'abord, puis l'apparence
     try{ RayleBus.fournir('ui:commande',c=>{ const r=RayleBus.demander('ambiance:commande',c)||RayleBus.demander('espace:commande',c); if(r) return r; const a=analyser(c); return a ? executer(a) : null; }); }catch(e){}
     try{ monterInterface(); }catch(e){ console.warn('[ui] réglages',e); }
+    try{ RayleBus.on('entite:position',majControles); }catch(e){}
     appliquer();
     requestAnimationFrame(mesurer);
   }

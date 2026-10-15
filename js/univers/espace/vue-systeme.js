@@ -1,9 +1,10 @@
 // VUE « SYSTÈME SOLAIRE » du thème Espace : planètes, Soleil, lunes, Cérès, Vesta, ceinture d'astéroïdes ; sélection, vol de caméra, fiches, présentation animée.
 // Contrat d'une vue : creerVue(P) → { id, entrer(opts), sortir(), maj(dt, t, ts, tSim), tap(x, y), menu(), commande(nom, args), etat(), near(camera), ctrlAvant(c), detruire() }
 // P = contexte partagé du thème (voir theme-espace.js) : THREE, noyau, q, ctx, hud, scene, camera, ctrl, ts(), H, pont(), suivreTerre(), esc, vec.
-import { creerSysteme, UA_U } from './systeme.js?v=2026.10.15.1';
-import { ASTRES, ORDRE_PLANETES, comparaisons } from '../donnees/planetes.js?v=2026.10.15.1';
-import { composerAstre, ANGLES_LIBELLES, choisir } from '../donnees/presentation.js?v=2026.10.15.1';
+import { creerSysteme, UA_U } from './systeme.js?v=2026.10.15.2';
+import { ASTRES, ORDRE_PLANETES, comparaisons } from '../donnees/planetes.js?v=2026.10.15.2';
+import { composerAstre, ANGLES_LIBELLES, choisir } from '../donnees/presentation.js?v=2026.10.15.2';
+import * as Reg from '../planetes/registre.js?v=2026.10.15.2';
 
 const RAD = Math.PI / 180;
 const ICONES = { mercure: '☿', venus: '♀', terre: '🌍', mars: '♂', jupiter: '♃', saturne: '♄', uranus: '⛢', neptune: '♆', soleil: '☀', ceres: '⚪', vesta: '🪨', asteroides: '☄' };
@@ -36,6 +37,7 @@ export default async function creerVue(P) {
   }
   async function volerVers(id) {
     P.suivreTerre(false); const c = ctrl.c; c.enabled = false; suivi = null;
+    if (S.tourne() && S.tourne() !== id) S.tourner(null);                       // on change de planète : la précédente cesse de tourner
     await noyau.cinematique(async api => {
       const c0 = camera.position.clone(), t0 = c.target.clone(), long = c0.distanceTo(S.positionMonde(id));
       await api.tween(Math.max(2.4, Math.min(6.5, 2 + Math.log10(long + 1) * 1.3)), e => { const pz = poseVers(id); camera.position.lerpVectors(c0, pz.pos, e); const r = t0.clone().lerp(pz.regard, e); camera.lookAt(r); c.target.copy(r); }, { ease: noyau.EASE.sinus });
@@ -70,8 +72,38 @@ export default async function creerVue(P) {
     if (a.rotationH) l.push('Jour (rotation) : ' + (Math.abs(a.rotationH) > 72 ? fmt(Math.abs(a.rotationH) / 24, 1) + ' jours' : fmt(Math.abs(a.rotationH), 1) + ' h') + (a.rotationH < 0 ? ' (sens inverse)' : ''));
     if (a.lunes) l.push('Lunes connues : ' + (a.lunes > 20 ? 'plus de ' + Math.floor(a.lunes / 10) * 10 : a.lunes));
     if (a.temp) l.push('Température : ' + esc(a.temp));
+    const reg = Reg.PLANETES[id];                                                // monde intérieur : scène installée, ou « prêt à recevoir un thème »
+    if (reg) l.push('Monde intérieur : ' + (reg.themeInterieur ? '<b>' + esc(reg.themeInterieur.nom) + '</b>' : esc(reg.etatLibelle) + (reg.themePrevu ? ' <small>(prévu : ' + esc(reg.themePrevu) + ')</small>' : '')));
     const un = choisir([...(a.records || []), ...(a.anecdotes || []), ...(a.composition || [])], 'fiche:' + id);
-    hud.carte({ titre: (ICONES[id] || '') + ' ' + a.nom.charAt(0).toUpperCase() + a.nom.slice(1), html: '<p>' + l.join('<br>') + '</p>' + (un ? '<p><small>' + esc(un) + '</small></p>' : ''), actions: [{ texte: '🎬 Présenter', clic: () => presenter(id) }, { texte: '🎯 Zoom', clic: () => allerAstre(id) }, { texte: '🎲 Un autre fait', clic: () => ficheAstre(id) }] });
+    const actions = [{ texte: '🎬 Présenter', clic: () => presenter(id) }, { texte: '🎯 Zoom', clic: () => allerAstre(id) }];
+    if (S.nommes.planetes.has(id)) actions.push({ texte: S.tourne() === id ? '⏸ Arrêter la rotation' : '🔄 Faire tourner', clic: () => { tournerAutour(id, S.tourne() !== id); ficheAstre(id); P.majMenu(); } });
+    if (reg) actions.push({ texte: '🚪 Entrer', clic: () => entrerDans(id) });
+    actions.push({ texte: '🎲 Un autre fait', clic: () => ficheAstre(id) });
+    hud.carte({ titre: (ICONES[id] || '') + ' ' + a.nom.charAt(0).toUpperCase() + a.nom.slice(1), html: '<p>' + l.join('<br>') + '</p>' + (un ? '<p><small>' + esc(un) + '</small></p>' : ''), actions });
+  }
+  /* ───── navigation : tourner, zoomer, entrer ───── */
+  // « fais tourner Jupiter » : on se place devant la planète (si besoin) et elle tourne sur elle-même, plus vite que la vraie ; le doigt ou la souris font tourner la vue en plus.
+  function tournerAutour(id, oui) {
+    const ok = oui ? S.tourner(id) : S.tourner(null);
+    if (oui && !ok) return false;
+    hud.legende(oui ? 'La planète tourne sur elle-même (bien plus vite qu’en vrai). Glisse pour tourner la vue, pince pour zoomer.' : 'La rotation est arrêtée.', 5000);
+    return true;
+  }
+  // zoom doux vers/depuis le point regardé (la planète suivie) ; facteur < 1 rapproche, > 1 éloigne
+  async function zoomer(facteur = .6) {
+    const c = ctrl.c, cible = c.target.clone(), dir = camera.position.clone().sub(cible), d0 = dir.length(); if (d0 < 1e-6) return false;
+    const d1 = Math.max(c.minDistance, Math.min(c.maxDistance, d0 * facteur)); dir.normalize();
+    await noyau.tween(.9, e => { camera.position.copy(cible).addScaledVector(dir, d0 + (d1 - d0) * e); c.update(); });
+    return true;
+  }
+  // « entre dedans » : le registre des planètes charge la scène intérieure à la demande (ou dit que la planète est prête à recevoir un thème)
+  async function entrerDans(nom) {
+    const p = nom ? Reg.trouver(nom) : (suivi ? Reg.PLANETES[suivi] : null);
+    if (!p) return { ok: false, texte: nom ? 'Je ne connais pas « ' + nom + ' ».' : 'Choisis d’abord une planète : dis « va sur Mars », puis « entre dedans ».' };
+    if (p.themeInterieur) hud.legende('Entrée dans ' + p.art + '…', 0);
+    const r = await Reg.entrer(p, P);
+    hud.legende(r && r.pret ? r.texte : null, r && r.pret ? 8000 : 0);
+    return r;
   }
   async function allerAstre(id) {
     if (!ASTRES[id] && id !== 'asteroides') return { ok: false, texte: 'Astre inconnu.' };
@@ -106,12 +138,14 @@ export default async function creerVue(P) {
     if (opts.cible) { camera.position.set(0, 230, 360); ctrl.c.target.set(0, 0, 0); ctrl.c.update(); await volerVers(opts.cible); ficheAstre(opts.cible); }
     else { camera.position.set(0, 230, 360); camera.lookAt(0, 0, 0); ctrl.c.target.set(0, 0, 0); ctrl.c.minDistance = 2; ctrl.c.maxDistance = 7000; ctrl.c.update(); hud.legende('Distances vraies ; planètes agrandies d’un même facteur (×390), Soleil réduit. Touche un astre pour le découvrir.', 9000); }
   }
-  function sortir() { actif = false; S.groupe.visible = false; suivi = null; presEnCours++; ctrl.c.autoRotate = false; }
+  function sortir() { actif = false; S.groupe.visible = false; suivi = null; presEnCours++; ctrl.c.autoRotate = false; S.tourner(null); }
   function maj(dt, t, ts, tSim) { S.maj(dt, t, ts, tSim, camera); suit(); }
   function tap(x, y) { const { w, h } = noyau.dims(); const id = S.pick(camera, x, y, w, h); if (id) { ficheAstre(id); if (suivi !== id) volerVers(id); } }
   const menu = () => {
     const it = [{ id: 'interne', texte: '☀ Système interne', titre: 'Mercure à Mars, et la ceinture d’astéroïdes', clic: () => vueEnsemble('interne') }, { id: 'complet', texte: '🔭 Système complet', titre: 'Jusqu’à Neptune', clic: () => vueEnsemble('complet') }];
     for (const id of ['soleil', ...ORDRE_PLANETES]) it.push({ id: 'p-' + id, texte: (ICONES[id] || '') + ' ' + ASTRES[id].nom, titre: ASTRES[id].nom, actif: suivi === id, clic: () => { ficheAstre(id); volerVers(id).then(() => P.majMenu()); } });
+    if (suivi && S.nommes.planetes.has(suivi)) it.push({ id: 'tourner', texte: S.tourne() === suivi ? '⏸ Arrêter la rotation' : '🔄 Faire tourner', titre: 'Faire tourner la planète devant toi', actif: S.tourne() === suivi, clic: () => { tournerAutour(suivi, S.tourne() !== suivi); P.majMenu(); } });
+    if (suivi && Reg.PLANETES[suivi]) it.push({ id: 'entrer', texte: '🚪 Entrer dans ' + ASTRES[suivi].art, titre: Reg.PLANETES[suivi].themeInterieur ? 'Entrer dans le monde intérieur : ' + Reg.PLANETES[suivi].themeInterieur.nom : 'Prête à recevoir un thème intérieur', clic: () => entrerDans(suivi) });
     it.push({ id: 'ast', texte: '☄ Astéroïdes', titre: 'La ceinture d’astéroïdes, Cérès et Vesta', clic: () => allerAstre('asteroides') });
     it.push({ id: 'echelle', texte: '📏 Échelle : ' + (S.echelleActuelle() === 'reelle' ? 'réelle' : 'didactique'), titre: 'Basculer entre planètes agrandies et vraie échelle (les planètes deviennent des points)', clic: () => { S.echelle(S.echelleActuelle() === 'reelle' ? 'didactique' : 'reelle'); hud.legende(S.echelleActuelle() === 'reelle' ? 'Vraie échelle : les planètes sont minuscules, zoome pour les trouver.' : 'Échelle didactique : planètes agrandies d’un même facteur.', 6000); P.majMenu(); } });
     return it;
@@ -120,13 +154,23 @@ export default async function creerVue(P) {
     switch (nom) {
       case 'aller': { const id = trouverAstre(a.nom); if (!id) return undefined; return allerAstre(id); }
       case 'presenter': { const id = trouverAstre(a.nom); if (!id) return undefined; return presenter(id, a); }
-      case 'systeme': await vueEnsemble(a.complet ? 'complet' : 'interne'); return { ok: true, texte: 'Voici le système solaire.' };
+      case 'systeme': S.tourner(null); await vueEnsemble(a.complet ? 'complet' : 'interne'); return { ok: true, texte: 'Voici le système solaire.' };
+      case 'tourner': {
+        if (a.oui === false) { tournerAutour(null, false); P.majMenu(); return { ok: true, texte: 'J’ai arrêté la rotation.' }; }
+        const id = a.nom ? trouverAstre(a.nom) : suivi;
+        if (!id) return { ok: false, texte: a.nom ? 'Je ne connais pas « ' + a.nom + ' ».' : 'Dis d’abord quelle planète, par exemple « fais tourner Jupiter ».' };
+        if (!S.nommes.planetes.has(id)) return { ok: false, texte: (ASTRES[id] ? ASTRES[id].nom : 'Cet astre') + ' ne se fait pas tourner ici : choisis une planète.' };
+        if (suivi !== id) { ficheAstre(id); await volerVers(id); }
+        tournerAutour(id, true); P.majMenu(); return { ok: true, texte: ASTRES[id].nom + ' tourne devant toi.' };
+      }
+      case 'zoom': { const ok = await zoomer(a.facteur || .6); return ok ? { ok: true, texte: a.facteur > 1 ? 'Je m’éloigne.' : 'Je me rapproche.' } : { ok: false, texte: 'Je ne peux pas zoomer ici.' }; }
+      case 'entrer': return entrerDans(a.nom ? a.nom : null);
       case 'echelle': S.echelle(a.reelle ? 'reelle' : 'didactique'); P.majMenu(); return { ok: true, texte: a.reelle ? 'Vraie échelle : les planètes sont de minuscules points.' : 'Échelle didactique : planètes agrandies.' };
       case 'surprise': { const l = ['soleil', ...ORDRE_PLANETES, 'asteroides']; return presenter(l[Math.floor(Math.random() * l.length)]); }
       default: return undefined;
     }
   }
-  const etat = () => ({ vue: 'systeme', suivi, echelle: S.echelleActuelle(), distanceSoleil: +camera.getWorldPosition(vec(0, 0, 0)).length().toFixed(1), asteroides: S.ceinture.nombre });
+  const etat = () => ({ vue: 'systeme', suivi, tourne: S.tourne(), interieur: suivi && Reg.PLANETES[suivi] ? Reg.PLANETES[suivi].etat : null, echelle: S.echelleActuelle(), distanceSoleil: +camera.getWorldPosition(vec(0, 0, 0)).length().toFixed(1), asteroides: S.ceinture.nombre });
   // plan proche de la caméra : près du corps le plus proche ; dans la ceinture, les rochers passent tout près
   function near(c) {
     const p = c.getWorldPosition(vec(0, 0, 0)); let m = 1e9;
@@ -136,5 +180,5 @@ export default async function creerVue(P) {
   }
   function ctrlAvant(c) { const d = camera.position.distanceTo(c.target); c.rotateSpeed = Math.max(.25, Math.min(.9, d / 300)); c.zoomSpeed = 1.1; }
   function detruire() { actif = false; S.detruire(); P.scene.remove(S.groupe); }
-  return { id: 'systeme', entrer, sortir, maj, tap, menu, commande, etat, near, ctrlAvant, detruire, _: { S, ficheAstre, allerAstre, vueEnsemble, presenter } };
+  return { id: 'systeme', entrer, sortir, maj, tap, menu, commande, etat, near, ctrlAvant, detruire, _: { S, ficheAstre, allerAstre, vueEnsemble, presenter, suivi: () => suivi, tournerAutour, zoomer, entrerDans } };
 }

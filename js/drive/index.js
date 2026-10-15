@@ -1,14 +1,14 @@
 /* ═════════════ DRIVE : point d'entrée du module (chargé à la demande par js/rayle/commandes-drive.js) ═════════════
    analyser(texte) → commande | null · executer(commande) → phrase à dire · etat() · connecter() · choisirDocuments() · statut()
    Le module assemble : connexion Google (auth.js) · API (api.js) · service (service.js) · fenêtre (fenetre.js). */
-import { creerAuth, choisirFichiers, chargerScript, lireConfig, MESSAGE_CONFIG } from './auth.js?v=2026.10.15.1';
-import { creerApi, estErreurDrive } from './api.js?v=2026.10.15.1';
-import { creerService, parlable } from './service.js?v=2026.10.15.1';
-import { creerFenetre } from './fenetre.js?v=2026.10.15.1';
-import { analyser as analyserPhrase } from './commandes.js?v=2026.10.15.1';
-import { URL_JSZIP } from './fmt-docx.js?v=2026.10.15.1';
-import { MIMES_ACCEPTES } from './formats.js?v=2026.10.15.1';
-import { demanderSuite } from './lot.js?v=2026.10.15.1';
+import { creerAuth, choisirFichiers, chargerScript, lireConfig, MESSAGE_CONFIG } from './auth.js?v=2026.10.15.2';
+import { creerApi, estErreurDrive } from './api.js?v=2026.10.15.2';
+import { creerService, parlable } from './service.js?v=2026.10.15.2';
+import { creerFenetre } from './fenetre.js?v=2026.10.15.2';
+import { analyser as analyserPhrase } from './commandes.js?v=2026.10.15.2';
+import { URL_JSZIP } from './fmt-docx.js?v=2026.10.15.2';
+import { MIMES_ACCEPTES } from './formats.js?v=2026.10.15.2';
+import { demanderSuite } from './lot.js?v=2026.10.15.2';
 
 const URL_PDFJS = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js';
 // empreintes SRI : le navigateur refuse le script s'il a été altéré
@@ -238,7 +238,7 @@ const coursPublier = e => { coursEtat = { ...coursEtat, ...e }; try { bus().emit
 async function laMemoire() {
   if (memoire) return memoire;
   pret();
-  const { ouvrirBase } = await import('./base-locale.js?v=2026.10.15.1'), mod = await import('./memoire.js?v=2026.10.15.1'), { creerMemoire } = mod; resumeBilan = mod.resumeBilan;
+  const { ouvrirBase } = await import('./base-locale.js?v=2026.10.15.2'), mod = await import('./memoire.js?v=2026.10.15.2'), { creerMemoire } = mod; resumeBilan = mod.resumeBilan;
   memoire = creerMemoire({ api, base: baseInjectee || await ouvrirBase(), env: envDocs });
   return memoire;
 }

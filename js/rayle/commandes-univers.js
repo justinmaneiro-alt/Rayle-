@@ -5,7 +5,7 @@
      • commandeUnivers(texte) : exécute (localisation, rangement, Univers 3D) et renvoie la phrase à dire, ou null si ce n'est pas pour nous.
      • window.RayleUniversPont : ce que l'Univers (modules ES, js/univers/) peut demander à la page classique : parler, savoir si on l'a coupée, Worker.
      • window.RayleUnivers : ouvrir / fermer / commander l'Univers (chargé à la première utilisation, js/univers/noyau.js). */
-  const UNIVERS_URL='js/univers/noyau.js?v=2026.10.15.1';
+  const UNIVERS_URL='js/univers/noyau.js?v=2026.10.15.2';
   let universModule=null, universPromesse=null;
   function universCharger(){
     if(universModule) return Promise.resolve(universModule);
@@ -25,6 +25,7 @@
     async fermer(){ if(universModule) universModule.fermer(); },
     async commande(nom,args){ const N=await universCharger(); if(!N.etat().ouvert) await N.ouvrir('espace'); return N.commande(nom,args||{}); },
     estOuvert:()=>!!(universModule && universModule.etat().ouvert),
+    decaler(px){ if(universModule && universModule.decalerVue) universModule.decalerVue(px); },      // place laissée à l'entité (js/rayle/position-entite.js)
     etat:()=>universModule?universModule.etat():{ouvert:false},
     charger:universCharger,
   };
@@ -47,6 +48,16 @@
     if(/^(?:passe|passer|saute|sauter|skip|ignore|coupe|stoppe|arrete) (?:moi )?(?:l |cette |la |le |l intro )?(?:animation|cinematique|intro|sequence|video|film)$/.test(t)) return {type:'univers',action:'passer'};
     if((m=/^(?:mets|passe|regle|change|utilise|selectionne) (?:la |en )?(?:qualite graphique|qualite|graphismes?|details?) (?:en |sur |a )?(basse|moyenne|haute|automatique|auto|maximum|minimum|elevee|standard|ultra|faible)$/.exec(t))||(m=/^qualite (?:graphique )?(basse|moyenne|haute|automatique|auto|maximum|minimum|elevee|standard|ultra|faible)$/.exec(t))||(m=/^(?:mets|passe) (?:en |le mode )?(basse|moyenne|haute) qualite$/.exec(t)))
       return {type:'univers',action:'qualite',niveau:/basse|minimum|faible/.test(m[1])?'basse':/moyenne|standard/.test(m[1])?'moyenne':/haute|maximum|elevee|ultra/.test(m[1])?'haute':'auto'};
+    // — planètes : retour au système, entrer, sortir, faire tourner, zoomer —
+    const PL='(mercure|venus|terre|mars|jupiter|saturne|uranus|neptune|soleil|lune)';
+    if(/^(?:retour|retourne|reviens|ramene moi|remonte|repars|rentre)(?: moi)?(?: (?:au|a|vers|dans|en|sur))?(?: (?:le|l))? (?:systeme solaire|systeme planetaire|systeme)$/.test(t)) return {type:'espace',action:'retour'};
+    if((m=new RegExp('^(?:entre|rentre|penetre|plonge|entrons|entrer)(?: moi)? (?:dans|a l interieur de|a l interieur d|au coeur de)(?: (?:la|le|l|les))?(?: planete)? '+PL+'$').exec(t))) return {type:'espace',action:'entrer',nom:m[1]};
+    if(/^(?:entre|rentre|penetre|plonge)(?: moi)? (?:dedans|a l interieur|dans la planete|dans cette planete|dans celle ci)$/.test(t)) return {type:'espace',action:'entrer',nom:''};
+    if((m=new RegExp('^(?:sors|sortir|ressors|quitte|quitter)(?: moi)?(?: (?:de|d|du))?(?: (?:la|le|l|cette))?(?: planete '+PL+'| '+PL+'| planete)$').exec(t))) return {type:'espace',action:'sortir'};
+    if((m=new RegExp('^(?:fais|fait)(?: moi)? (?:tourner|pivoter|tournoyer)(?: (?:la|le|l|cette))?(?: planete)?(?: '+PL+')?(?: sur elle meme)?$').exec(t))) return {type:'espace',action:'tourner',nom:m[1]||''};
+    if((m=new RegExp('^(?:arrete|stoppe|cesse|coupe)(?: moi)?(?: (?:de|d|la|le|l))? (?:tourner|rotation|faire tourner)(?: (?:la|le|l|cette))?(?: planete)?(?: '+PL+')?$').exec(t))) return {type:'espace',action:'tourner',nom:m[1]||'',oui:false};
+    if(/^(?:zoome|zoomer|zoom avant|rapproche toi|approche toi)(?: (?:encore|un peu|plus|beaucoup))?$/.test(t)) return {type:'espace',action:'zoom',facteur:.6};
+    if(/^(?:dezoome|dezoomer|zoom arriere|recule|eloigne toi)(?: (?:encore|un peu|plus|beaucoup))?$/.test(t)) return {type:'espace',action:'zoom',facteur:1.7};
     // — système solaire, astres, Mars, ISS, satellites —
     if(/^(?:montre|affiche|va dans|va sur|ouvre|passe sur|passe dans|retourne dans|emmene moi dans|emmene moi sur|reviens dans|reviens sur|va voir) (?:moi )?(?:le |l |les |tout )?(?:systeme solaire|systeme planetaire|planetes|toutes les planetes|soleil et les planetes)$/.test(t)) return {type:'espace',action:'systeme'};
     if((m=/^(?:montre|affiche|passe a|passe en|mets|mets en|utilise) (?:moi )?(?:l |la |les |en )?(echelle reelle|vraie echelle|vraies distances|vraies tailles|vraies proportions|echelle didactique|echelle simplifiee|tailles agrandies|distances reelles)$/.exec(t))) return {type:'espace',action:'echelle',reelle:/reelle|vrai/.test(m[1])};
@@ -62,8 +73,30 @@
     if((m=/^(?:va sur|va vers|va a|vole vers|emmene moi (?:sur|vers|a)|zoome sur|cap sur|direction|montre|affiche|montre moi) (?:la planete |planete |l etoile |le |la |l )?(mercure|venus|mars|jupiter|saturne|uranus|neptune|soleil|pluton|ceres|vesta|phobos|deimos|ganymede|callisto|titan|encelade|triton|ceinture d asteroides|asteroides|asteroide)$/.exec(t))) return {type:'espace',action:'aller',nom:m[1]};
     return null;
   }
+  /* Position de l'entité : « mets-toi dans le coin (en haut à gauche) », « au centre », « sur le côté gauche », « épingle cette position pour cette vue ».
+     Une phrase n'est une position que si TOUS ses mots sont du vocabulaire de position : « va à gauche » oui, « va à gauche sur la carte » non. */
+  const POS_VOC=new Set('petite petit grande grand tout toute en dans au a sur vers le la l un coin angle cote centre milieu de du ecran haut bas gauche droite droit superieur inferieur contre plein'.split(' '));
+  const POS_VERBE=/^(?:(?:s il te plait|stp) )?(?:(?:mets|met|place|installe|deplace|positionne|cale|colle|range|remets|remet|fais|passe|tiens|redeviens) toi|sois|va|vas|reste|passe|mets|met|place|deplace) ?(.*)$/;
+  function analyserPosition(t){
+    let m;
+    if(/^(?:epingle|fixe|verrouille|bloque) (?:cette |ma |ta )?position(?: (?:pour|dans|sur|ici|a))?(?: (?:cette|la|le|l|ce))?(?: (?:vue|planete|scene|ecran|endroit|ici))?$/.test(t)) return {type:'entite-position',action:'memoriser'};
+    if(/^(?:oublie|efface|supprime|retire) (?:la |ma |ta |cette )?position(?: (?:de|pour|dans|sur))?(?: (?:cette|la|le|l|ce))?(?: (?:vue|planete|scene|ecran))?$/.test(t)) return {type:'entite-position',action:'oublier'};
+    if(/^(?:reinitialise|reinitialiser) (?:ta |la |toutes les )?positions?$/.test(t) || /^oublie toutes (?:les|mes|tes) positions$/.test(t)) return {type:'entite-position',action:'defaut'};
+    m=POS_VERBE.exec(t);
+    const reste=m?m[1]:t, mots=reste.split(' ').filter(Boolean);
+    if(!mots.length || mots.length>9 || !mots.every(w=>POS_VOC.has(w))) return null;
+    const a=new Set(mots), haut=a.has('haut')||a.has('superieur'), bas=a.has('bas')||a.has('inferieur'), g=a.has('gauche'), d=a.has('droite')||a.has('droit');
+    if(!m && !['coin','angle','centre','milieu','cote','petite','petit','grande','grand'].some(w=>a.has(w))) return null;       // sans verbe, il faut un mot décisif
+    const v=haut?'h':bas?'b':null, h=g?'g':d?'d':null;
+    if(a.has('coin')||a.has('angle')) return {type:'entite-position',action:'position',mode:'coin',coin:v&&h?v+h:null,v,h};
+    if((haut||bas)&&(g||d)&&!a.has('cote')&&!a.has('centre')&&!a.has('milieu')) return {type:'entite-position',action:'position',mode:'coin',coin:v+h,v,h};
+    if(a.has('centre')||a.has('milieu')) return {type:'entite-position',action:'position',mode:'centre'};
+    if((g||d)&&!haut&&!bas) return {type:'entite-position',action:'position',mode:'cote',cote:g?'gauche':'droite'};
+    return null;
+  }
   function analyserUnivers(texte){
     const t=normU(texte);
+    const pos=analyserPosition(t); if(pos) return pos;                    // « sur le côté gauche » = position ; « mets-toi sur le côté » seul reste « ranger »
     if(UNIVERS_RANGER.test(t)) return {type:'rangement',action:'ranger'};
     if(UNIVERS_ROUVRIR.test(t)) return {type:'rangement',action:'rouvrir'};
     let m;
@@ -99,6 +132,18 @@
       if(!R.estRange()) return null;                                  // « reviens » seul : rien à rouvrir, la suite du traitement s'en occupe
       R.rouvrir(); return 'Me revoici.';
     }
+    if(a.type==='entite-position'){
+      const E=window.RayleEntitePosition; if(!E) return null;
+      const R=window.RayleRangement; if(R && R.estRange()) R.rouvrir();               // un ordre de position sort Raylé de sa bulle
+      const cur=E.etat(), nomVue={accueil:'l’accueil',systeme:'le système solaire',terre:'la Terre',mars:'Mars'}[cur.vue]||cur.vue;
+      if(a.action==='memoriser'){ E.memoriserVue(true); return 'C’est noté : je reste '+E.phrase()+' pour '+nomVue+'.'; }
+      if(a.action==='oublier'){ if(!cur.memorisee) return 'Je n’avais pas de position mémorisée pour '+nomVue+'.'; E.memoriserVue(false); return 'J’ai oublié la position de '+nomVue+' : je reprends ma position habituelle.'; }
+      if(a.action==='defaut'){ E.reinitialiser(); return 'Je reprends mes positions par défaut.'; }
+      if(a.mode==='centre') E.centre();
+      else if(a.mode==='cote') E.cote(a.cote);
+      else E.coin(a.coin||((a.v||cur.coin[0])+(a.h||cur.coin[1])));
+      return 'Je me mets '+E.phrase()+'.';
+    }
     try{
       const th=()=>{ const e=RayleUnivers.etat(); return e.ouvert?e.theme:null; };
       const dire=t=>(window.RayleUniversPont&&RayleUniversPont.dire)?RayleUniversPont.dire(t):Promise.resolve(true);
@@ -110,15 +155,18 @@
       }
       if(a.type==='espace'){
         if(a.action==='terre' && !RayleUnivers.estOuvert()) return null;
+        if(['retour','sortir','zoom'].includes(a.action) && !RayleUnivers.estOuvert()) return null;                     // rien à quitter ni à zoomer : la suite du traitement s'en occupe
+        if(a.action==='tourner' && !RayleUnivers.estOuvert() && (a.oui===false || !a.nom || a.nom==='terre')) return null;   // « fais tourner la Terre » : le fond Espace s'en charge
+        if(a.action==='entrer' && !a.nom && !RayleUnivers.estOuvert()) return null;
         if(a.action==='piece-rover'){ const e=RayleUnivers.etat(); if(!(e.ouvert&&e.scene&&e.scene.vue==='mars')) return null; a.action='piece'; }       // « reviens sur la Terre » appartient au fond Espace tant que l'Univers est fermé
         // phrases larges (« montre … », « parle-moi de … ») : seulement si l'Univers est ouvert et que le nom est connu, pour ne pas voler les autres commandes (planètes, ISS, cartes…)
         if(a.souple){
           if(!RayleUnivers.estOuvert()) return null;
           const N=await RayleUnivers.charger(), inst=N.instance(); const I=inst&&inst._; if(th()!=='espace'||!I) return null; if(!(I.connait?I.connait(a.nom):(I.geo&&I.geo.centre(a.nom)))) return null;
         }else if(!RayleUnivers.estOuvert()){ await RayleUnivers.ouvrir('espace'); }
-        const args={nom:a.nom,oui:a.oui,type:a.typeEclipse,vitesse:a.vitesse,pause:a.pause,reelle:a.reelle,presenter:a.presenter,rover:a.rover};
+        const args={nom:a.nom,oui:a.oui,type:a.typeEclipse,vitesse:a.vitesse,pause:a.pause,reelle:a.reelle,presenter:a.presenter,rover:a.rover,facteur:a.facteur};
         if(a.action==='ciel'){ const st=Object.keys(STYLES_CIEL_VOIX).find(k=>STYLES_CIEL_VOIX[k].test(normU(a.style))); args.style=st; }
-        const nomCmd={presenter:'presenter',aller:'aller',actus:'actus',lune:'lune',terre:'terre',eclipse:'eclipse',surprise:'surprise',ciel:'ciel',temps:'temps',systeme:'systeme',echelle:'echelle',iss:'iss',satellites:'satellites',atterrir:'atterrir',rover:'rover','autre-rover':'autre-rover',piece:'piece','mars-orbite':'mars-orbite'}[a.action];
+        const nomCmd={presenter:'presenter',aller:'aller',actus:'actus',lune:'lune',terre:'terre',eclipse:'eclipse',surprise:'surprise',ciel:'ciel',temps:'temps',systeme:'systeme',echelle:'echelle',iss:'iss',satellites:'satellites',atterrir:'atterrir',rover:'rover','autre-rover':'autre-rover',piece:'piece','mars-orbite':'mars-orbite',retour:'retour',entrer:'entrer',sortir:'sortir',tourner:'tourner',zoom:'zoom'}[a.action];
         const r=await RayleUnivers.commande(nomCmd,args);
         if(a.action==='presenter'||a.action==='surprise'||(a.action==='iss'&&a.presenter)) return r&&r.ok?'__deja_dit__':(r&&r.texte)||null;      // la présentation parle elle-même
         return (r&&r.texte)||null;

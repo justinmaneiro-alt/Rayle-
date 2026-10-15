@@ -98,10 +98,10 @@
         params:()=>'l’IA choisit et enchaîne ses outils (six étapes au plus) ; les chiffres viennent des outils, jamais de ma mémoire',
         limites:['pas de recherche web quand un outil local existe (Espace, anatomie, terminal, cartes)']},
       {id:'univers',nom:'Univers 3D : globe, système solaire, Mars',
-        court:'Univers 🌌 : globe, système solaire, ISS, Mars et rovers, qualité Basse/Moyenne/Haute',
-        ex:['présente la France','va sur Mars','montre le système solaire','atterris sur Mars','mets la qualité en basse','passe l’animation','réduis-toi','où sont mes appareils'],verif:null,mots:/\b(?:univers|globe|qualite|animation|rover|atterris|systeme solaire|appareils)\b/,
-        params:()=>'globe, système solaire, Mars et rovers, ISS et satellites ; qualité Basse, Moyenne, Haute ou Auto',
-        limites:['positions des astres et éclipses approximatives, actualités selon franceinfo et le Worker, rendu allégé en qualité Basse']},
+        court:'Univers 🌌 : globe, système solaire, ISS, Mars et rovers, qualité Basse/Moyenne/Haute ; entrer dans une planète (Terre : carte du monde, Mars : base ; Saturne, Jupiter et les autres : prêtes mais vides), retour au système solaire, faire tourner, zoomer ; placer Raylé : petite dans un coin, grande au centre ou sur le côté (position mémorisable par planète)',
+        ex:['présente la France','va sur Mars','montre le système solaire','atterris sur Mars','entre dans Mars','fais tourner Jupiter','retour au système solaire','mets-toi dans le coin','au centre','sur le côté gauche','mets la qualité en basse','passe l’animation','réduis-toi','où sont mes appareils'],verif:null,mots:/\b(?:univers|globe|qualite|animation|rover|atterris|systeme solaire|appareils|entre|tourner|coin|centre|cote|retour)\b/,
+        params:()=>'globe, système solaire, Mars et rovers, ISS et satellites ; qualité Basse, Moyenne, Haute ou Auto ; positions de Raylé : coin haut-gauche, haut-droite, bas-gauche, bas-droite, centre, côté gauche, côté droit',
+        limites:['positions des astres et éclipses approximatives, actualités selon franceinfo et le Worker, rendu allégé en qualité Basse','seules la Terre et Mars ont un monde intérieur : pour les autres planètes je dis qu’elles sont prêtes à en recevoir un']},
       {id:'appareils',nom:'Autres appareils, messages et appels',
         court:'commander le PC, la tablette ou le téléphone (relais), préparer un message ou un appel (c’est Justin qui envoie), gérer le répertoire',
         ex:['affiche l’or en H4 sur la tablette','envoie à Maman que je rentre vers 19 heures'],verif:null,mots:/\b(?:tablette|telephone|pc|ordinateur|message|appelle|envoie|repertoire)\b/,
@@ -142,6 +142,9 @@
         p.push('vue sauvegardée par défaut = '+(e.accueil?UI().espace.nomCible(e.accueil):'la Terre'));
         p.push('mode d’échelle = '+ech);
       }
+      const univ=sur(()=>G.RayleBus.etat('univers'),null), pla=sur(()=>G.RayleBus.etat('planete'),null), ent=sur(()=>G.RayleBus.etat('entite'),null);
+      if(univ && univ.ouvert) p.push('Univers ouvert'+(pla && pla.interieur?', à l’intérieur de la planète « '+pla.interieur+' »':''));
+      if(ent && ent.valeur) p.push('position de Raylé = '+ent.valeur+(ent.memorisee?' (mémorisée pour cette vue)':''));
       if(s.drive && s.drive.ouvert){
         const d=s.drive, f=d.fenetre||{};
         p.push('DRIVE : document ouvert = « '+d.nom+' » ('+d.type+(d.lectureSeule?', lecture seule':f.edition?', en édition':', en lecture')+(f.plein?', plein écran':f.reduit?', réduit':'')+')'+(d.passage&&d.passage.intitule?' ; dernier passage lu = '+d.passage.intitule:'')+(d.titreVisible?' ; partie affichée = « '+d.titreVisible+' »':'')+(d.enAttente?' ; un changement attend la validation de Justin':'')+(f.modifie?' ; modifications non enregistrées':''));

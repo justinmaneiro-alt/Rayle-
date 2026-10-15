@@ -211,6 +211,6 @@ export const TENDONS_HD = [
   ['membrane-interosseuse-jambe', 'Membrane interosseuse de la jambe', 'Membrana interossea cruris', 'Jambe', ['interosseous membrane of {c} leg']]
 ];
 
-export { VAISSEAUX_HD, VAISSEAUX_SCHEMA, BLEUS, ROUGES } from './donnees-vaisseaux.js?v=2026.10.15.1';
-export { ORGANES_HD, NERFS_HD } from './donnees-organes-hd.js?v=2026.10.15.1';
+export { VAISSEAUX_HD, VAISSEAUX_SCHEMA, BLEUS, ROUGES } from './donnees-vaisseaux.js?v=2026.10.15.2';
+export { ORGANES_HD, NERFS_HD } from './donnees-organes-hd.js?v=2026.10.15.2';
 export const FICHIERS_HD = {};

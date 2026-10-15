@@ -7,13 +7,13 @@
    Une information absente des sources retenues n'est PAS inventée : la fiche la laisse vide et Rayle répond « non renseigné dans les sources retenues » (voir registre.js, fiche()).
    Format : { origine: { os: id d'os de l'application | null, txt }, insertion: { os, txt }, innervation, action, vascularisation, rapports, clinique, source }.
    Les muscles de donnees-muscles.js (écrits avant cette base) ont leur propre fiche ; les fichiers fiches-*.js décrivent les structures ajoutées. */
-import { f, SOURCE_GRAY } from './fiches-outils.js?v=2026.10.15.1';
-import { FICHES_MS } from './fiches-membre-sup.js?v=2026.10.15.1';
-import { FICHES_MI } from './fiches-membre-inf.js?v=2026.10.15.1';
-import { FICHES_TRONC } from './fiches-tronc-cou.js?v=2026.10.15.1';
-import { FICHES_TETE } from './fiches-tete.js?v=2026.10.15.1';
-import { FICHES_VAISSEAUX } from './fiches-vaisseaux.js?v=2026.10.15.1';
-import { FICHES_NERFS } from './fiches-nerfs.js?v=2026.10.15.1';
+import { f, SOURCE_GRAY } from './fiches-outils.js?v=2026.10.15.2';
+import { FICHES_MS } from './fiches-membre-sup.js?v=2026.10.15.2';
+import { FICHES_MI } from './fiches-membre-inf.js?v=2026.10.15.2';
+import { FICHES_TRONC } from './fiches-tronc-cou.js?v=2026.10.15.2';
+import { FICHES_TETE } from './fiches-tete.js?v=2026.10.15.2';
+import { FICHES_VAISSEAUX } from './fiches-vaisseaux.js?v=2026.10.15.2';
+import { FICHES_NERFS } from './fiches-nerfs.js?v=2026.10.15.2';
 
 export { SOURCE_GRAY };
 export const FICHES_CORPS = Object.assign({}, FICHES_MS, FICHES_MI, FICHES_TRONC, FICHES_TETE, FICHES_VAISSEAUX, FICHES_NERFS);

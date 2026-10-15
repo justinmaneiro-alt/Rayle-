@@ -216,13 +216,14 @@
     charon:null,pluton:null,ceres:null,eris:null,haumea:null,makemake:null,hubble:null,'telescope hubble':null,webb:null,'james webb':null,'telescope james webb':null,voyager:null,'voyager 1':null,'voyager 2':null,'ceinture d asteroides':null,'la ceinture d asteroides':null};
   const SAVOIR_DE={europa:'europe',encelade:'encelade',enceladus:'encelade',deimos:'deimos','telescope hubble':'hubble','james webb':'webb','telescope james webb':'webb','voyager':'voyager1','ceinture d asteroides':'ceinture','la ceinture d asteroides':'ceinture'};
   const NOMS_HM={europa:'Europe',enceladus:'Encelade',ceres:'Cérès',eris:'Éris',pluton:'Pluton',deimos:'Déimos','telescope hubble':'Hubble','james webb':'Webb','telescope james webb':'Webb','voyager':'Voyager','ceinture d asteroides':'la ceinture d’astéroïdes','la ceinture d asteroides':'la ceinture d’astéroïdes'};
+  const universOuvert=()=>{ try{ const u=RayleBus.etat('univers'); return !!(u && u.ouvert); }catch(e){ return false; } };   // l'Univers 3D (js/univers) a son propre zoom
   function analyser(texte){
     let t=norm(texte);
     { const x=UI.espaceTerre&&UI.espaceTerre.analyser(texte,{lieuAffiche:!!(UI.espaceTerre.etat&&UI.espaceTerre.etat.dernierLieu)}); if(x) return x; }      // Terre vivante : points, trajets, frontières, temps, rotation, trafic, actualités d'un pays
     // commandes qui dépendent de ce qui est affiché : « zoome dessus », « et sa lune ? », « garde cette vue », « et Mars ? », « reviens »
     if(t && t.split(' ').length<=8){
-      if(/^(?:zoome|zoom|zoomer|rapproche|rapprocher|approche|approcher|avance|avancer|plus pres|va plus pres)(?: toi)?(?: (?:dessus|dedans|la|ici|un peu|encore|plus|davantage|plus pres))*$/.test(t)) return {type:'zoom',facteur:.65};
-      if(/^(?:dezoome|dezoomer|recule|reculer|eloigne|eloigner|eloigne toi|prends du recul|plus loin|un peu plus loin|recule un peu|dezoome un peu)$/.test(t)) return {type:'zoom',facteur:1.5};
+      if(!universOuvert() && /^(?:zoome|zoom|zoomer|rapproche|rapprocher|approche|approcher|avance|avancer|plus pres|va plus pres)(?: toi)?(?: (?:dessus|dedans|la|ici|un peu|encore|plus|davantage|plus pres))*$/.test(t)) return {type:'zoom',facteur:.65};
+      if(!universOuvert() && /^(?:dezoome|dezoomer|recule|reculer|eloigne|eloigner|eloigne toi|prends du recul|plus loin|un peu plus loin|recule un peu|dezoome un peu)$/.test(t)) return {type:'zoom',facteur:1.5};
       if(/^(?:et )?(?:sa|ses|leur|leurs|ses principales) (?:lunes?|satellites?(?: naturels?)?)$|^(?:montre|affiche)(?: moi)? (?:sa|ses) lunes?$/.test(t)) return {type:'lunes'};
       if(/^(?:garde|garder|sauvegarde|sauvegarder|enregistre|enregistrer|memorise|memoriser|retiens|retenir) (?:cette|la|ma) (?:vue|position|scene)(?: actuelle)?$/.test(t)) return {type:'accueil'};
       if(/^(?:reviens|revenir|retour|retourne|retourner|ramene moi)(?: en arriere| a la vue d ensemble| a l orbite)?$/.test(t)){ const e=etat(); if(e.cible && e.vue==='rayle') return {type:'retour'}; }
