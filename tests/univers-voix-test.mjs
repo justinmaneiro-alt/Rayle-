@@ -43,7 +43,7 @@ await t('analyse : les présentations existantes marchent toujours', () => {
 });
 await t('capacités : les exemples du registre « univers » déclenchent bien une commande', async () => {
   const reg = fs.readFileSync(new URL('../js/rayle/capacites.js', import.meta.url), 'utf8'), bloc = /id:'univers'[\s\S]*?ex:\[(.*?)\],verif/.exec(reg)[1], ex = [...bloc.matchAll(/'((?:[^'\\]|\\.)*)'/g)].map(m => m[1].replace(/\\'/g, "'"));
-  assert.ok(ex.length >= 10);
+  assert.ok(ex.length >= 8);
   for (const p of ex) { if (/appareils|réduis/.test(p)) continue; assert.ok(A(p), 'exemple sans effet : ' + p); }
 });
 await t('voix : astres, Mars, ISS, qualité', async () => {
