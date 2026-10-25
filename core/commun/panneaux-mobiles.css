@@ -1,0 +1,18 @@
+/* Fenêtres « Panneaux » manipulables (R3) : détachées dans #pm-couche, mêmes effets que le gestionnaire commun (gestes-fenetres.css) */
+#pm-couche{position:fixed;inset:0;z-index:74;pointer-events:none}
+#pm-couche>*{pointer-events:auto}
+.pn.pm-libre{position:fixed;margin:0;max-height:calc(100vh - 130px);overflow:auto;animation:none;opacity:1}
+.pn.pm-libre.hud-in{animation:none}
+.pn.pm-mobile-ok{touch-action:pan-x pan-y}
+.pn.pm-mobile-ok .pn-tete{cursor:move;touch-action:none;user-select:none;-webkit-user-select:none}
+.pn:focus-visible,.pm-mobile:focus-visible{outline:2px solid #8fd0e3;outline-offset:-3px}
+.pn.pm-deplace{user-select:none;box-shadow:0 0 28px rgba(143,208,227,.35)}
+.pn.pm-max{max-height:none;overflow:auto}
+.pn.pm-reduit .pn-corps,.pn.pm-reduit .pn-pied{display:none}
+.pn.pm-epingle{border-color:#c9b27a!important}
+.pm-pin{width:32px;height:32px;margin-right:4px;flex:none;font-size:15px;line-height:1;color:#8fd0e3;background:rgba(143,208,227,.08);border:1px solid rgba(143,208,227,.5);cursor:pointer;padding:0}
+.pm-pin:hover{background:rgba(143,208,227,.3);color:#fff}
+.pm-pin.actif,.pm-pin[aria-pressed="true"]{color:#c9b27a;border-color:#c9b27a;background:rgba(201,178,122,.18)}
+.pm-mobile{touch-action:pan-x pan-y}
+@media (pointer:coarse){.pm-pin{width:44px;height:44px}}
+@media (max-width:820px){.pm-pin{display:none}}

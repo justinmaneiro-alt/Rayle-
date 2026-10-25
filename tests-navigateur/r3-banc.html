@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="fr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Banc R3</title>
+<style>html,body{margin:0;height:100%;background:#02060a;color:#d8e8f0;font:14px system-ui}#mur{position:fixed;left:12px;top:70px;width:420px;z-index:60}#ui{position:fixed;inset:0;z-index:80;pointer-events:none}</style></head>
+<body><div id="mur"></div><div id="ui"></div>
+<script type="module">
+/* Banc d'essai de la phase 2 : le gestionnaire commun + les dossiers, sans la 3D (tests-navigateur/r3-gestes-test.mjs). Les fenêtres posées sont mémorisées comme dans Mars. */
+import { creerGestionnaire, chargerStyle } from '../core/commun/gestionnaire-fenetres.js';
+import { creerDossiers } from '../core/commun/dossiers.js';
+import { creerCalcul } from '../core/commun/fenetres-calcul.js';
+chargerStyle();
+const donnees = {
+  graphiques: ['Bitcoin', 'Or', 'US100', 'Solana'], macro: ['Taux', 'Banques', 'Calendrier'], agent: ['Agent', 'Régime']
+};
+const noms = { graphiques: 'Graphiques', macro: 'Éco et macro', agent: 'Agent IA' };
+const icones = { graphiques: '📈', macro: '🏦', agent: '🛰' };
+const dossiers = Object.entries(donnees).map(([id, l]) => ({ id, titre: noms[id], icone: icones[id], ids: l.map(t => id + '-' + t.toLowerCase()) }));
+const fenetres = Object.fromEntries(Object.entries(donnees).flatMap(([id, l]) => l.map(t => [id + '-' + t.toLowerCase(), { titre: t, icone: icones[id], apercu: 'Fenêtre de test ' + t, etat: 'reel' }])));
+const CLE = 'rayle_banc_posees';
+let posees = []; try { posees = JSON.parse(localStorage.getItem(CLE) || '[]'); } catch (e) {}
+const sauver = () => localStorage.setItem(CLE, JSON.stringify(posees));
+const calc = creerCalcul({ haut: 64, bas: 78, miniL: 260, miniH: 160 });
+const gf = creerGestionnaire({ ui: document.getElementById('ui'), calc, cle: 'banc', vue: 'Banc', rangeableParDefaut: true, surRanger: wid => D.rentrer(wid.slice(2)) });
+const poser = id => {
+  if (gf.obtenir('p-' + id)) { gf.focus('p-' + id); return true; }
+  const f = fenetres[id]; gf.ouvrir({ id: 'p-' + id, titre: f.titre, sousTitre: 'banc', genre: 'panneau', taille: { l: 380, h: 280 }, pastille: 'reel', contenu: '<p>Contenu de ' + f.titre + '</p>' + '<p>'.repeat(0) + Array.from({ length: 30 }, (_, i) => '<p>ligne ' + i + '</p>').join(''), sur: { fermer: () => { posees = posees.filter(x => x !== id); sauver(); D.majMur(); } } });
+  if (!posees.includes(id)) { posees.push(id); sauver(); } D.majMur(); return true;
+};
+const D = creerDossiers({ dossiers, fenetres, vue: 'Banc', estPosee: id => !!gf.obtenir('p-' + id), poser, ranger: id => gf.fermer('p-' + id), rectFenetre: id => { const o = gf.obtenir('p-' + id); return o ? o.rect : null; }, apresLot: () => gf.reorganiser() });
+D.rendreMur(document.getElementById('mur'));
+for (const id of posees) poser(id);
+window.banc = { gf, D, poser, posees: () => [...posees], fenetres };
+window.__pret = true;
+</script></body></html>
