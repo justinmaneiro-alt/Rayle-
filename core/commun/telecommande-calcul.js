@@ -10,7 +10,10 @@
   const FENETRES = ['meteo', 'actualites', 'marche', 'agent'];
   const SPECIAUX = ['Backspace', 'Enter', ' ', 'Tab', 'Escape'];
   const VUES = ['cockpit', 'exterieur', 'libre'];
-  const MODES = ['pave', 'clavier', 'rayle', 'pilotage'];
+  const MODES = ['pave', 'clavier', 'rayle', 'pilotage', 'carte', 'pad3d'];
+  const ACTS_FENETRE = ['focus', 'ranger', 'fermer', 'reduire', 'agrandir'];
+  const GESTES_OBJET = ['tourner', 'pan', 'zoom', 'choisir', 'fin'];
+  const idOk = v => typeof v === 'string' && v.length >= 1 && v.length <= 60 && /^[\w:.\-]+$/.test(v);
   const DELAI_MAX_MS = 5000;   // sans réponse à un ping pendant ce délai : la liaison est considérée coupée et se rétablit seule
 
   // action → validateur : renvoie le message normalisé, ou null s'il est refusé
@@ -39,7 +42,13 @@
       return { tx, ty, rx, ry, poussee: po, post: m.post === true, roulis: nb(m.roulis || 0, 1) || 0 };
     },
     vue: m => VUES.includes(m.v) ? { v: m.v } : null,
-    mode: m => MODES.includes(m.m) ? { m: m.m } : null
+    mode: m => MODES.includes(m.m) ? { m: m.m } : null,
+    // V2 phase 4 : mini-carte des fenêtres (carrés) et des objets 3D (ronds) ; les déplacements sont des FRACTIONS de l'écran du PC (−1…1), jamais des pixels
+    fenetre_deplace: m => { const dx = nb(m.dx, 1), dy = nb(m.dy, 1); return idOk(m.id) && dx !== null && dy !== null ? { id: m.id, dx, dy } : null; },
+    fenetre_taille: m => { const e = nb(m.ech, 4); return idOk(m.id) && e !== null && e > 0 ? { id: m.id, ech: Math.max(0.5, Math.min(2, e)) } : null; },
+    fenetre_act: m => idOk(m.id) && ACTS_FENETRE.includes(m.act) ? { id: m.id, act: m.act } : null,
+    objet: m => { const dx = nb(m.dx || 0, 1), dy = nb(m.dy || 0, 1), d = nb(m.delta || 0, 2000); return (m.id === undefined || idOk(m.id)) && GESTES_OBJET.includes(m.g) && dx !== null && dy !== null && d !== null ? { id: m.id, g: m.g, dx, dy, delta: d } : null; },
+    carte_demande: () => ({})
   };
 
   /* Message de la tablette { a: action, … } → { a, … normalisé } ou null (hors liste blanche, mal formé, trop gros). */
@@ -73,6 +82,36 @@
     const k = Math.exp(-friction * dtMs), nx = vx * k, ny = vy * k;
     return Math.hypot(nx, ny) < 0.02 ? { vx: 0, vy: 0, fini: true } : { vx: nx, vy: ny, fini: false };
   }
+  /* ── Mini-carte (V2 phase 4) : le PC décrit ses fenêtres et ses objets 3D, la tablette les dessine. Tout est borné et nettoyé des deux côtés (le serveur relaie seulement ce qui passe ici). ── */
+  const fr = v => (typeof v === 'number' && isFinite(v)) ? Math.max(-0.5, Math.min(1.5, Math.round(v * 10000) / 10000)) : null;
+  const txt = (v, n) => String(v == null ? '' : v).replace(/[\u0000-\u001f<>]/g, ' ').slice(0, n);
+  function normaliserCarte(c) {
+    const sortie = { fenetres: [], objets: [], ecran: { l: 1, h: 1 } };
+    if (!c || typeof c !== 'object') return sortie;
+    if (c.ecran && +c.ecran.l > 0 && +c.ecran.h > 0) sortie.ecran = { l: Math.min(20000, Math.round(+c.ecran.l)), h: Math.min(20000, Math.round(+c.ecran.h)) };
+    for (const f of (Array.isArray(c.fenetres) ? c.fenetres : []).slice(0, 40)) {
+      if (!f || !idOk(f.id)) continue; const x = fr(f.x), y = fr(f.y), l = fr(f.l), h = fr(f.h); if ([x, y, l, h].includes(null) || l <= 0 || h <= 0) continue;
+      sortie.fenetres.push({ id: f.id, titre: txt(f.titre, 48), x, y, l, h, actif: f.actif === true, reduite: f.reduite === true, genre: txt(f.genre, 16), mobile: f.mobile !== false });
+    }
+    for (const o of (Array.isArray(c.objets) ? c.objets : []).slice(0, 16)) { if (!o || !idOk(o.id)) continue; sortie.objets.push({ id: o.id, nom: txt(o.nom, 40), actif: o.actif === true }); }
+    return sortie;
+  }
+  /* Rectangle écran du PC (fractions) → rectangle dans la boîte de la tablette (pixels). */
+  const versBoite = (f, boite) => ({ x: boite.x + f.x * boite.l, y: boite.y + f.y * boite.h, l: Math.max(18, f.l * boite.l), h: Math.max(14, f.h * boite.h) });
+  /* Glisser d'un carré de dxPx, dyPx pixels dans la boîte → déplacement en FRACTIONS de l'écran du PC. */
+  const deplacementNorm = (dxPx, dyPx, boite) => ({ dx: boite.l > 0 ? dxPx / boite.l : 0, dy: boite.h > 0 ? dyPx / boite.h : 0 });
+  /* Boîte (pixels) qui contient l'écran du PC dans une zone donnée, en gardant le rapport de l'écran. */
+  function boiteDansZone(zone, ecran) {
+    const r = ecran.l / ecran.h, zr = zone.l / zone.h; let l = zone.l, h = zone.h;
+    if (r > zr) h = zone.l / r; else l = zone.h * r;
+    return { x: zone.x + (zone.l - l) / 2, y: zone.y + (zone.h - h) / 2, l, h };
+  }
+  /* Lisseur d'envoi : cumule les déplacements et ne les libère qu'au plus 30 fois par seconde. */
+  function creerLisseur(envoyer, intervalleMs = 33, horloge = () => Date.now()) {
+    let dx = 0, dy = 0, delta = 0, ech = 1, dernier = 0, id = null;
+    const vider = (force) => { const t = horloge(); if (!force && t - dernier < intervalleMs) return false; if (!dx && !dy && !delta && ech === 1) return false; dernier = t; const m = { dx, dy, delta, ech }; dx = dy = delta = 0; ech = 1; envoyer(m); return true; };
+    return { ajouter(o) { dx += o.dx || 0; dy += o.dy || 0; delta += o.delta || 0; if (o.ech) ech *= o.ech; return vider(false); }, vider: () => vider(true), attendu: () => dx || dy || delta || ech !== 1 };
+  }
   const classerLatence = ms => ms == null ? 'inconnue' : ms < 60 ? 'bonne' : ms < 200 ? 'correcte' : 'lente';
 
   /* Adresse réseau : seulement boucle locale et réseaux privés (jamais Internet). */
@@ -84,5 +123,5 @@
     return /^f[cd][0-9a-f]{2}:/.test(a) || /^fe80:/.test(a);
   }
 
-  racine.TeleCalcul = { ACTIONS, COMMANDES, RAYLE, FENETRES, MODES, DELAI_MAX_MS, valider, touchesPilote, differences, deplacementPave, pasInertie, classerLatence, estReseauLocal };
+  racine.TeleCalcul = { normaliserCarte, versBoite, deplacementNorm, boiteDansZone, creerLisseur, ACTS_FENETRE, GESTES_OBJET, ACTIONS, COMMANDES, RAYLE, FENETRES, MODES, DELAI_MAX_MS, valider, touchesPilote, differences, deplacementPave, pasInertie, classerLatence, estReseauLocal };
 })(typeof globalThis !== 'undefined' ? globalThis : window);

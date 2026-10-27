@@ -31,6 +31,7 @@
     if (!L.ws || !L.ouvert) return false;
     try { L.ws.send(JSON.stringify(msg)); return true; } catch (e) { return false; }
   }
+  window.RayleTablette = { envoyer: function (m) { return envoyer(m); }, vibrer: function (ms) { vibrer(ms); }, info: function (t) { info(t); } };   // utilisé par clavier/carte.js (mini-carte et Pad 3D)
   function fermerLiaison() { clearInterval(L.pings); clearInterval(L.garde); try { L.ws && L.ws.close(); } catch (e) {} }
   function connecter() {
     if (!L.jeton || (L.ws && L.ws.readyState <= 1)) return;
@@ -50,6 +51,7 @@
       else if (m.t === 'pc') { L.pc = !!m.connecte; majVoyants(); }
       else if (m.t === 'reponse') ajouterReponse(m.texte);
       else if (m.t === 'etat-rayle') etatRayle(m.mode, m.parole);
+      else if (m.t === 'carte') { if (window.CarteTablette) window.CarteTablette.recevoir(m.carte); }
       else if (m.t === 'surface') { L.surface = m.v; majCible(); }
       else if (m.t === 'saisie') { verrouPC = m.v ? (m.genre || 'fenetre') : ''; if (m.v) vibrer(25); }
     };
@@ -105,7 +107,7 @@
   }
 
   // ───────────── Modes ─────────────
-  var MODES = ['pave', 'clavier', 'rayle', 'pilotage'];
+  var MODES = ['pave', 'clavier', 'rayle', 'pilotage', 'carte', 'pad3d'];
   function definirMode(m, silencieux) {
     if (MODES.indexOf(m) < 0) return;
     if (reg.mode === 'pilotage' && m !== 'pilotage') lacherPilote();
@@ -113,6 +115,7 @@
     MODES.forEach(function (x) { $('v-' + x).hidden = x !== m; });
     if (m === 'clavier') { dessinerArc(); redessinerClavier(); }
     if (m === 'pave') setTimeout(tailleCv, 0);
+    if ((m === 'carte' || m === 'pad3d') && window.CarteTablette) window.CarteTablette.afficher(m);
     if (!silencieux) { vibrer(10); envoyer({ a: 'mode', m: m }); }
   }
   $('modes').addEventListener('click', function (e) { var b = e.target.closest('.mode'); if (!b || balayeRecemment()) return; definirMode(b.getAttribute('data-m')); });

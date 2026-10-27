@@ -193,6 +193,30 @@
   }
   function changerVue(v) { for (let i = 0; i < 3 && vueSaturne !== v; i++) { clavierCode('keydown', 'KeyV'); clavierCode('keyup', 'KeyV'); } }
 
+  // ── V2 phase 4 : objets 3D de la mini-carte et du Pad 3D (même geste que la souris sur le canevas) ──
+  let objetGeste = null, minuteurObjet = 0, modeTablette = '';
+  const centrerSur = cv => { const r = cv.getBoundingClientRect(); pos.x = Math.round(r.left + r.width / 2); pos.y = Math.round(r.top + r.height / 2); };
+  function finObjet() { clearTimeout(minuteurObjet); if (objetGeste) { relacher(objetGeste.bouton, objetGeste.cv); objetGeste = null; } }
+  function objet(m) {
+    const reg = m.id && window.Objets3DPad ? Objets3DPad.obtenir(m.id) : null;
+    if (m.g === 'fin') { finObjet(); return; }
+    const cv = (reg && typeof reg.canvas === 'function' && reg.canvas()) || (window.CartePad && CartePad.canevasPrincipal());
+    if (m.g === 'choisir') { if (reg && reg.choisir) reg.choisir(); else if (cv) { centrerSur(cv); clic(1, 0); } return; }
+    if (reg && typeof reg[m.g] === 'function') { reg[m.g](m.dx * innerWidth, m.dy * innerHeight, m.delta); return; }   // l'objet gère lui-même ses gestes
+    if (!cv) return;
+    if (m.g === 'zoom') { centrerSur(cv); try { cv.dispatchEvent(new WheelEvent('wheel', { bubbles: true, cancelable: true, composed: true, view: window, clientX: pos.x, clientY: pos.y, deltaY: -m.delta, deltaMode: 0 })); } catch (x) {} return; }   // directement sur le canevas : une fenêtre posée par-dessus ne prend pas la molette
+    const bouton = m.g === 'pan' ? 2 : 0;
+    if (!objetGeste || objetGeste.bouton !== bouton || objetGeste.cv !== cv) { finObjet(); centrerSur(cv); objetGeste = { cv, bouton }; appuyer(bouton, cv); }
+    const ancien = glisse; glisse = { el: cv, buttons: bouton === 2 ? 2 : 1, bouton }; bouger(m.dx * innerWidth * 0.9, m.dy * innerHeight * 0.9); glisse = ancien;
+    clearTimeout(minuteurObjet); minuteurObjet = setTimeout(finObjet, 450);   // le doigt s'est arrêté ou la liaison est tombée : le bouton est relâché
+  }
+  /* La carte (fenêtres + objets) n'est envoyée que si la tablette est en mode « carte » ou « Pad 3D », et seulement quand elle change (4 fois par seconde au plus). */
+  let derniereCarte = '';
+  function pousserCarte(force) {
+    if (!window.CartePad || !(ws && ws.readyState === 1) || !(force || modeTablette === 'carte' || modeTablette === 'pad3d')) return;
+    const c = CartePad.construire(), j = JSON.stringify(c); if (!force && j === derniereCarte) return; derniereCarte = j; envoyer({ t: 'carte', carte: c });
+  }
+
   // ── Application d'un message (seconde vérification par la liste blanche) ──
   function appliquer(brut) {
     const m = T.valider(brut); if (!m) return false;
@@ -213,7 +237,10 @@
       case 'rayle': rayle(m); break;
       case 'pilote': appliquerPilote(m); break;
       case 'vue': changerVue(m.v); break;
-      case 'mode': if (m.m !== 'pilotage') lacherPilote(); break;
+      case 'mode': if (m.m !== 'pilotage') lacherPilote(); if (m.m !== 'carte' && m.m !== 'pad3d') finObjet(); modeTablette = m.m; derniereCarte = ''; pousserCarte(false); break;
+      case 'fenetre_deplace': case 'fenetre_taille': case 'fenetre_act': if (window.CartePad && CartePad.appliquerFenetre(m)) setTimeout(() => pousserCarte(true), 60); break;
+      case 'objet': objet(m); break;
+      case 'carte_demande': derniereCarte = ''; pousserCarte(true); break;
     }
     return true;
   }
@@ -299,6 +326,7 @@
     rafraichir();
     RayleBus.on('raylé:reponse', d => envoyer({ t: 'reponse', texte: String((d && d.texte) || '').slice(0, 600) }));
     setInterval(() => { if (ws && ws.readyState === 1) pousserEtatRayle(false); }, 800);
+    setInterval(() => pousserCarte(false), 250);
     setInterval(() => { if (etat.actif && fenetre && !fenetre.hidden) rafraichir(); }, 4000);
   });
   window.Telecommande = { etat: () => etat, appliquer, rafraichir, activer: () => basculer(true), desactiver: () => basculer(false), ouvrir: () => rafraichir().then(ouvrirFenetre), position: () => ({ ...pos }), connectee: () => !!(ws && ws.readyState === 1), derniereAction: () => dernierEvenement };

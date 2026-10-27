@@ -236,6 +236,7 @@ export function creerTelecommande({ racine, dossierDonnees, port = Number(proces
   function surPC(l, m) {
     if (!m || typeof m !== 'object') return;
     if (m.t === 'reponse' && typeof m.texte === 'string') return diffuser('tablette', { t: 'reponse', texte: m.texte.slice(0, 600) });
+    if (m.t === 'carte' && m.carte && typeof m.carte === 'object') return diffuser('tablette', { t: 'carte', carte: T.normaliserCarte(m.carte) });   // V2 phase 4 : mini-carte (nettoyée et bornée ici)
     if (m.t === 'surface' && (m.v === '3d' || m.v === '2d')) return diffuser('tablette', { t: 'surface', v: m.v });
     if (m.t === 'etat-rayle' && ['ACTIF', 'VEILLE', 'COUPE'].includes(m.mode)) return diffuser('tablette', { t: 'etat-rayle', mode: m.mode, parole: m.parole === true });
   }

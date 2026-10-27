@@ -19,6 +19,8 @@ import { enregistrerSource } from './tiroir-fenetres.js';
    gf.ouvrir({ id, titre, sousTitre, genre, contenu, taille, position, pastille, sur, avertissement, epingle, rangeable, dossier }) → { id, el, corps }
    gf.fermer(id) · focus(id) · reduire(id, oui) · agrandir(id, oui) · epingler(id, oui) · ranger(id) · deplacer(id, x, y) · dimensionner(id, l, h) · reduireTout() · fermerTout()
    gf.reorganiser(mode = 'grille' | 'arc' | 'cascade' | 'carrousel') · menu(id, x, y) · aide(oui) · enregistrerTiroir({ vue, entrees }) · liste() · obtenir(id) · recouvrements() · redimensionner() · dispose() */
+/* Tous les gestionnaires vivants (Mars, accueil, anatomie…) : utilisé par la mini-carte du pad tactile (core/commun/carte-pad.js). */
+export const REGISTRE = (typeof window !== 'undefined' ? (window.RayleGestionnaires = window.RayleGestionnaires || new Set()) : new Set());
 export const CLE_STOCKAGE = 'rayle_fenetres_';
 const CLE_PREFS = 'rayle_fenetres_prefs', CLE_EFFETS = 'rayle_fenetres_effets';
 const lireMemoire = cle => { try { return JSON.parse(localStorage.getItem(CLE_STOCKAGE + cle) || '{}') || {}; } catch (e) { return {}; } };
@@ -302,7 +304,7 @@ export function creerGestionnaire({ ui, ecran = () => ({ l: window.innerWidth, h
     recouvrements: () => recouvrements([...fen.values()].filter(f => !f.reduite).map(lire)),
     /* Tiroir global : remplace la liste par défaut (les fenêtres ouvertes) par un catalogue complet de la vue. */
     enregistrerTiroir(source) { tiroirSource = source; },
-    dispose() { for (const id of [...fen.keys()]) fermer(id); fermerMenu(); aide(false); racine.remove(); barre.remove(); window.removeEventListener('resize', surRedim); window.removeEventListener('pointermove', surPointeurPar); document.removeEventListener('pointerdown', surFondMenu, true); document.removeEventListener('keydown', surF6, true); retirerTiroir(); if (dernier === api) dernier = null; }
+    dispose() { for (const id of [...fen.keys()]) fermer(id); fermerMenu(); aide(false); racine.remove(); barre.remove(); window.removeEventListener('resize', surRedim); window.removeEventListener('pointermove', surPointeurPar); document.removeEventListener('pointerdown', surFondMenu, true); document.removeEventListener('keydown', surF6, true); retirerTiroir(); if (dernier === api) dernier = null; REGISTRE.delete(api); }
   };
   const ordreClavier = () => [...fen.values()].sort((a, b) => a.ordre - b.ordre).map(f => f.id);
   barre.addEventListener('click', e => {
@@ -330,6 +332,7 @@ export function creerGestionnaire({ ui, ecran = () => ({ l: window.innerWidth, h
   /* tiroir : par défaut les fenêtres ouvertes de ce gestionnaire */
   let tiroirSource = null;
   const retirerTiroir = enregistrerSource(vue ? vue : (cle || idRacine || p + '-' + Math.random().toString(36).slice(2, 7)), { get vue() { return tiroirSource ? tiroirSource.vue : (vue || libelleBarre); }, entrees: () => (tiroirSource ? tiroirSource.entrees() : [...fen.values()].map(f => ({ id: f.id, titre: f.titre, dossier: f.dossier || 'Ouvertes', posee: true, apercu: '', afficher: () => { if (f.reduite) api.reduire(f.id, false); focus(f.id, true); } }))) });
+  REGISTRE.add(api);          // V2 phase 4 : la télécommande (mini-carte du pad) retrouve toutes les fenêtres de tous les gestionnaires
   return api;
 }
 

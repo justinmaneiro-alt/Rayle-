@@ -16,6 +16,8 @@
     <button type="button" class="mode" data-m="clavier">Clavier</button>
     <button type="button" class="mode" data-m="rayle">Raylé</button>
     <button type="button" class="mode" data-m="pilotage">Pilotage</button>
+    <button type="button" class="mode" data-m="carte">Carte</button>
+    <button type="button" class="mode" data-m="pad3d">Pad 3D</button>
   </nav>
   <div id="liaison" class="liaison" data-etat="hors" role="status"><i></i><span id="liaison-t">HORS LIAISON</span></div>
   <div id="pc" class="liaison" data-etat="hors" role="status"><i></i><span>PC</span></div>
@@ -77,6 +79,23 @@
   </div>
 </section>
 
+<section id="v-carte" class="vue" hidden>
+  <div class="carte-haut"><span id="carte-etat" class="carte-etat">…</span><span class="carte-aide">Glisser un carré : déplacer · 2 doigts : agrandir · toucher : passer devant · appui long : menu</span></div>
+  <div class="carte-corps">
+    <div class="carte-zone"><div id="carte-ecran" class="carte-ecran" aria-label="Carte des fenêtres ouvertes sur le PC"></div></div>
+    <aside id="carte-objets" class="carte-objets" aria-label="Objets 3D"></aside>
+  </div>
+  <div id="carte-menu" class="carte-menu" role="menu" hidden></div>
+</section>
+
+<section id="v-pad3d" class="vue" hidden>
+  <div id="pad3d-zone" class="pad3d" role="application" aria-label="Pad 3D">
+    <div class="pad3d-aide">1 doigt : tourner · 2 doigts : déplacer et pincer pour zoomer · toucher : clic</div>
+    <div id="pad3d-joy" class="pad3d-joy" hidden><div class="bille"></div></div>
+  </div>
+  <div class="pad3d-barre"><button type="button" id="pad3d-cible" class="bt large">Objet : scène 3D</button><button type="button" id="pad3d-joy-bt" class="bt large">Joystick</button></div>
+</section>
+
 <div id="info" class="info" role="status"></div>
 
 <section id="appairage" class="appairage" hidden>
@@ -101,5 +120,6 @@
 <div id="portrait" class="portrait">Tourne la tablette en paysage</div>
 <script src="/clavier/telecommande-calcul.js"></script>
 <script src="/clavier/clavier.js"></script>
+<script src="/clavier/carte.js"></script>
 </body>
 </html>

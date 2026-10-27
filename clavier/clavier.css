@@ -131,3 +131,40 @@ body[data-etat="veille"] .touche{opacity:.28}
 }
 @media (orientation:landscape) and (max-height:480px){:root{--hh:44px}.haut{padding:2px 6px}.champ{height:34px}}
 @media (prefers-reduced-motion:reduce){.curseur,.espace,.cad-arc,.onde{animation:none}*{transition:none!important}}
+
+/* ───── V2 phase 4 : mini-carte (carrés = fenêtres, ronds = objets 3D) et Pad 3D ───── */
+.modes .mode{padding:0 4px;font-size:clamp(11px,1.6vw,14px);letter-spacing:.04em}
+body[data-mode="carte"] .mode[data-m="carte"],body[data-mode="pad3d"] .mode[data-m="pad3d"]{color:#fff;border-color:var(--a);background:rgba(31,107,255,.28)}
+#v-carte{padding:4px 10px 10px;gap:6px}
+.carte-haut{flex:0 0 auto;display:flex;justify-content:space-between;gap:10px;align-items:baseline;color:var(--dim);font-size:12px}
+.carte-etat{color:var(--txt);font-size:13px}
+.carte-corps{flex:1;min-height:0;display:flex;gap:10px}
+.carte-zone{flex:1;min-width:0;display:flex;align-items:center;justify-content:center;position:relative}
+.carte-ecran{position:relative;border:1px solid var(--bord);border-radius:8px;background:rgba(3,10,28,.7);background-image:linear-gradient(rgba(150,225,255,.06) 1px,transparent 1px),linear-gradient(90deg,rgba(150,225,255,.06) 1px,transparent 1px);background-size:10% 10%;touch-action:none;overflow:hidden}
+.carre{position:absolute;box-sizing:border-box;border:1.5px solid rgba(155,233,255,.7);border-radius:4px;background:rgba(15,60,140,.16);color:var(--txt);display:flex;align-items:flex-start;padding:2px 4px;font-size:11px;line-height:1.15;overflow:hidden;touch-action:none;transition:background .12s,border-color .12s}
+.carre span{pointer-events:none;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:100%}
+.carre.actif{border-color:#fff;background:rgba(31,107,255,.38);box-shadow:0 0 0 1px rgba(255,255,255,.35)}
+.carre.reduite{border-style:dashed;opacity:.6}
+.carre.fixe{border-color:rgba(150,170,190,.55);background:rgba(120,140,160,.12);color:var(--dim)}
+.carre.tenu{background:rgba(31,107,255,.5);border-color:#fff;transition:none}
+.carte-objets{flex:0 0 clamp(96px,20%,150px);display:flex;flex-direction:column;gap:12px;align-items:center;justify-content:center;overflow-y:auto;touch-action:pan-y}
+.rond{width:clamp(76px,100%,118px);aspect-ratio:1;border-radius:50%;border:1.5px solid rgba(155,233,255,.7);background:rgba(15,60,140,.12);display:flex;align-items:center;justify-content:center;text-align:center;position:relative;touch-action:none}
+.rond i{position:absolute;inset:14%;border-radius:50%;border:1px dashed rgba(155,233,255,.35);pointer-events:none}
+.rond span{font-size:11px;line-height:1.1;padding:0 8px;pointer-events:none;color:var(--txt)}
+.rond.choisi{border-color:#fff;background:rgba(31,107,255,.34);box-shadow:0 0 12px rgba(155,233,255,.5)}
+.rond.tenu{background:rgba(31,107,255,.5)}
+.carte-vide{color:var(--dim);font-size:12px;text-align:center;margin:0}
+.carte-menu{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);z-index:5;display:flex;flex-direction:column;gap:8px;min-width:220px;padding:14px;border:1px solid var(--bord);border-radius:14px;background:rgba(4,14,40,.96);box-shadow:0 10px 40px rgba(0,0,0,.6)}
+.carte-menu b{font-size:14px;margin-bottom:2px;color:var(--a)}
+.carte-menu button{height:46px;border-radius:10px;border:1px solid var(--bord);background:var(--verre);color:var(--txt);font-size:15px}
+.carte-menu button.danger{border-color:rgba(255,122,106,.6);color:#ffb3a8}
+.carte-menu button.ghost{color:var(--dim)}
+#v-pad3d{padding:4px 10px 10px;gap:8px}
+.pad3d{position:relative;flex:1;min-height:0;border:1px solid var(--bord);border-radius:14px;background:radial-gradient(circle at 50% 50%,rgba(31,107,255,.16),rgba(3,10,28,.7) 70%);background-image:radial-gradient(circle at 50% 50%,rgba(31,107,255,.16),rgba(3,10,28,.7) 70%),linear-gradient(rgba(150,225,255,.05) 1px,transparent 1px),linear-gradient(90deg,rgba(150,225,255,.05) 1px,transparent 1px);background-size:auto,48px 48px,48px 48px;touch-action:none}
+.pad3d.tenu{border-color:var(--a)}
+.pad3d-aide{position:absolute;left:0;right:0;top:10px;text-align:center;color:var(--dim);font-size:12px;pointer-events:none}
+.pad3d-joy{position:absolute;left:22px;bottom:22px;width:128px;height:128px;border-radius:50%;border:1.5px solid rgba(155,233,255,.6);background:rgba(8,26,66,.5);touch-action:none}
+.pad3d-joy .bille{position:absolute;left:50%;top:50%;width:52px;height:52px;margin:-26px 0 0 -26px;border-radius:50%;background:rgba(155,233,255,.45);border:1.5px solid #fff;pointer-events:none}
+.pad3d-barre{flex:0 0 auto;display:flex;gap:10px;justify-content:center}
+.pad3d-barre .bt.large{margin-top:0;height:46px}
+.pad3d-barre .bt.actif{border-color:var(--a);color:#fff;background:rgba(31,107,255,.3)}
