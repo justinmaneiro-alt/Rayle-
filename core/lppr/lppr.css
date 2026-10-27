@@ -1,0 +1,19 @@
+/* Fenêtre LPPR : verre sombre, accent cyan (V1), texte ≥ 13 px. */
+.lp-racine{font-size:14px;line-height:1.45;color:#e6eef2;padding:10px 12px 14px;min-width:0}
+.lp-bandeau{padding:8px 10px;margin-bottom:10px;border:1px solid rgba(201,178,122,.55);background:rgba(201,178,122,.08);color:#e9dcb8;font-size:13px}
+.lp-bandeau span{color:#cfc19a}
+.lp-onglets{display:flex;gap:6px;margin-bottom:10px;flex-wrap:wrap}
+.lp-racine button{font:inherit;font-size:14px;color:#8fd0e3;background:rgba(143,208,227,.08);border:1px solid rgba(143,208,227,.5);padding:7px 11px;cursor:pointer;min-height:36px}
+.lp-racine button:hover{background:rgba(143,208,227,.22);color:#fff}
+.lp-racine button.actif{background:rgba(143,208,227,.28);color:#fff;border-color:#8fd0e3}
+.lp-q,.lp-a,.lp-b,.lp-d{font:inherit;width:100%;box-sizing:border-box;color:#e6eef2;background:#0a1220;border:1px solid rgba(143,208,227,.5);padding:8px 10px;min-height:38px;margin-bottom:8px}
+.lp-deux{display:grid;grid-template-columns:1fr 1fr auto;gap:8px;align-items:start}
+.lp-note{color:#9fb3bd;font-size:13px;margin:6px 0}
+.lp-code{padding:8px 10px;margin:8px 0;border:1px solid rgba(143,208,227,.25);background:rgba(8,13,19,.6)}
+.lp-copie{font-family:ui-monospace,Consolas,monospace!important;font-weight:600}
+.lp-int{margin:6px 0 2px;color:#fff}
+.lp-tarif{color:#cfdde3;font-size:13px}.lp-ref{color:#9fb3bd;font-size:12.5px}
+.lp-texte{margin-top:6px;color:#cfdde3;font-size:13px;white-space:normal}
+.lp-racine summary{cursor:pointer;color:#8fd0e3;margin-top:4px}
+.lp-racine h5{margin:12px 0 4px;color:#8fd0e3;font-size:14px}
+@media (max-width:640px){.lp-deux{grid-template-columns:1fr}}

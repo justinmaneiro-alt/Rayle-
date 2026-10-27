@@ -48,3 +48,6 @@ assets-lourds/*
 
 # Captures de test (gros fichiers, regénérables par les tests)
 docs/captures-*/
+
+# LPPR : le PDF officiel (18 Mo) se retelecharge, seul l index extrait est publie
+data/lppr/source/
