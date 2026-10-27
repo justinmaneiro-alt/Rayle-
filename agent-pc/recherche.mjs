@@ -16,13 +16,31 @@ import { fichiersAgent, lireJson, ecrireJson } from './etat-agent.mjs';
 
 export const CHARGES = Object.freeze({ faible: 1, normal: 2, fort: Math.max(3, Math.floor(os.cpus().length / 2)) });
 const hash = s => crypto.createHash('sha256').update(s).digest('hex').slice(0, 20);
-export const grilleDe = id => famille(id).grille(0);
+/* Grille d'une famille à la génération `gen` : 0 = grille de base ; 1 à 3 = élargie vers l'extérieur (valeurs numériques au-delà des extrémités, +25 % par génération), toujours petite et bornée.
+   La recherche épuise l'espace défini (jamais de grille infinie) puis attend de nouvelles données ou de nouvelles idées. */
+export const GENERATIONS_MAX = 2;
+export function grilleDe(id, gen = 0) {
+  const base = famille(id).grille(0); if (!gen) return base;
+  const cles = Object.keys(base).filter(k => base[k].every(x => typeof x === 'number') && base[k].length > 1), choisies = new Set();
+  for (let g = 1; g <= gen; g++) for (let q = 0; q < 2; q++) choisies.add(cles[(2 * (g - 1) + q) % Math.max(1, cles.length)]);   // 2 paramètres élargis par génération : la grille reste petite
+  const out = {};
+  for (const k of Object.keys(base)) {
+    const v = base[k]; if (!choisies.has(k)) { out[k] = v; continue; }
+    const ent = v.every(x => Number.isInteger(x)), f = 1.25, bas = Math.min(...v), haut = Math.max(...v), arr = new Set(v), b2 = bas / f, h2 = haut * f;
+    arr.add(ent ? Math.round(b2) : +b2.toFixed(3)); arr.add(ent ? Math.round(h2) : +h2.toFixed(3));
+    out[k] = [...arr].filter(x => x > 0).sort((a, b) => a - b);
+  }
+  return out;
+}
+export const tailleGrilleGen = (id, gen) => Object.values(grilleDe(id, gen)).reduce((a, v) => a * v.length, 1);
+export const cleVariante = (f, paire, p) => f + ':' + paire + ':' + Object.keys(p).sort().map(k => k + '=' + p[k]).join(',');
 /* Ordre de recherche : les familles les plus simples (plus petite grille) d'abord ; à égalité, l'ordre de la bibliothèque. */
 export const ORDRE_SIMPLICITE = Object.freeze([...ORDRE_V3].sort((a, b) => tailleGrille(a) - tailleGrille(b) || ORDRE_V3.indexOf(a) - ORDRE_V3.indexOf(b)));
+export const ORDRE_SIMPLICITE_GEN = gen => [...ORDRE_V3].sort((a, b) => tailleGrilleGen(a, gen) - tailleGrilleGen(b, gen) || ORDRE_V3.indexOf(a) - ORDRE_V3.indexOf(b));
 
 /* Grille RAFFINÉE autour de paramètres retenus : pour chaque paramètre, la valeur retenue et les milieux avec ses deux voisins de la grille d'origine. Au plus 300 variantes (sinon : on réduit). */
 export function grilleRaffinee(id, retenus, plafond = 300) {
-  const base = grilleDe(id), g = {};
+  const base = grilleDe(id, 0), g = {};
   for (const k of Object.keys(base)) {
     const vals = base[k], i = vals.indexOf(retenus[k]); if (i < 0 || typeof vals[i] !== 'number') { g[k] = [retenus[k]]; continue; }
     const c = new Set([vals[i]]); if (i > 0) c.add(+((vals[i - 1] + vals[i]) / 2).toFixed(4)); if (i < vals.length - 1) c.add(+((vals[i] + vals[i + 1]) / 2).toFixed(4));
@@ -32,15 +50,16 @@ export function grilleRaffinee(id, retenus, plafond = 300) {
   for (const k of Object.keys(g)) { if (n <= plafond) break; if (g[k].length > 1) { n /= g[k].length; g[k] = [retenus[k]]; } }   // on fige les derniers paramètres plutôt que de dépasser le plafond
   return g;
 }
-export const empreinteTache = ({ famille: f, paire, grille, debutFinal, finDonnees, type }) => hash([f, paire, type || 'exploration', JSON.stringify(grille), debutFinal, finDonnees, empreinteV3()].join('|'));
+export const empreinteTache = ({ famille: f, paire, grille, debutFinal, type }) => hash([f, paire, type || 'exploration', JSON.stringify(grille), debutFinal, empreinteV3()].join('|'));   // la zone de recherche est FIXE (coffre) : de nouvelles bougies ne changent pas le résultat
 
-/* Liste des tâches à faire (exploration), cache déjà retiré. `finDonnees` = jour (AAAA-MM-JJ) de la dernière bougie : un nouveau jour = de nouveaux calculs (les données ont changé). */
-export function planifier(etat, { paires, finDonnees, debutFinal, cache }) {
+/* Liste des tâches à faire, cache déjà retiré. Génération 0 pour toutes les familles et tous les actifs d'abord, puis la génération 1, etc. */
+export function planifier(etat, { paires, debutFinal, cache, generations = GENERATIONS_MAX }) {
   const taches = [];
-  for (const f of ORDRE_SIMPLICITE) for (const p of paires) {
-    const grille = grilleDe(f), emp = empreinteTache({ famille: f, paire: p, grille, debutFinal: debutFinal[p], finDonnees: finDonnees[p], type: 'exploration' });
+  for (let gen = 0; gen <= generations; gen++) for (const f of ORDRE_SIMPLICITE_GEN(gen)) for (const p of paires) {
+    if (!debutFinal[p]) continue;
+    const grille = grilleDe(f, gen), emp = empreinteTache({ famille: f, paire: p, grille, debutFinal: debutFinal[p], type: 'exploration' });
     if (cache.has(emp)) continue;
-    taches.push({ type: 'exploration', famille: f, paire: p, grille, empreinte: emp, debutFinal: debutFinal[p], taille: tailleGrille(f) });
+    taches.push({ type: 'exploration', gen, famille: f, paire: p, grille, empreinte: emp, debutFinal: debutFinal[p], taille: tailleGrilleGen(f, gen) });
   }
   return taches;
 }
@@ -50,9 +69,9 @@ export const ecrireCache = (dossierCache, emp, v) => ecrireJson(path.join(dossie
 /* Résumé court d'un résultat de validation (ce qui est gardé dans l'état et envoyé au Worker : jamais les listes de trades). */
 export function resumerValidation(r, tache) {
   const base = { id: tache.famille + ':' + tache.paire + ':' + tache.type, famille: tache.famille, nom: NOMS_V3[tache.famille], paire: tache.paire, type: tache.type, statut: r.statut, t: Date.now(), empreinteCriteres: r.criteres, jeuFinalOuvert: !!r.jeuFinal && r.jeuFinal.ouvert === true };
-  if (!r.ok || !r.lignes) return { ...base, raison: r.raison || null };
+  if (!r.ok || !r.lignes) return { ...base, grille: tache.grille, raison: r.raison || null };
   const st = r.wf.stats;
-  return { ...base, retenus: r.retenus, nVariantes: r.nVariantes, variantesCetteEvaluation: r.variantesDeCetteEvaluation, trades: st.n, esperance: st.esperance, tauxReussite: st.tauxReussite, factProfit: st.factProfit, ddR: st.ddR, parSemaine: st.parSemaine,
+  return { ...base, grille: tache.grille, gen: tache.gen || 0, retenus: r.retenus, nVariantes: r.nVariantes, variantesCetteEvaluation: r.variantesDeCetteEvaluation, trades: st.n, esperance: st.esperance, tauxReussite: st.tauxReussite, factProfit: st.factProfit, ddR: st.ddR, parSemaine: st.parSemaine,
     bootstrapBas: r.bootstrap.bas, dsr: r.dsr && r.dsr.dsr, propDdPct: r.prop.ddPct, propJourPct: r.prop.pireJourPct, ratees: r.ratees, actifs: r.actifs, regimes: r.regimes, zone: r.zoneRecherche, jeuFinal: r.jeuFinal || null };
 }
 /* Le résultat est-il « prometteur et stable » (donc digne d'un raffinement) ? Jamais un pic isolé : voisins majoritairement positifs. */
@@ -75,7 +94,10 @@ export function executerTache(tache, contexte) {
 /* Intègre un résultat dans l'état : backtest résumé, compteur de variantes (jamais en baisse), journal ; rend les candidates VALIDÉES (backtest + jeu final réussi). */
 export function integrerResultat(etat, resume, tache, maintenant = Date.now()) {
   etat.backtests.push(resume); if (etat.backtests.length > 400) etat.backtests.splice(0, etat.backtests.length - 400);
-  if (!resume.fromCache) etat.compteurVariantes[tache.paire] = (etat.compteurVariantes[tache.paire] || 0) + (resume.variantesCetteEvaluation || 0);
+  // le compteur ne compte une variante QU'UNE FOIS dans toute l'histoire de l'agent (rejouer le même test ne le fait pas monter) et ne baisse jamais
+  const vues = (etat.variantesVues = etat.variantesVues || {}); let nouvelles = 0;
+  if (resume.grille) for (const p of combinaisons(resume.grille)) { const k = cleVariante(resume.famille, resume.paire, p); if (!vues[k]) { vues[k] = 1; nouvelles++; } }
+  etat.compteurVariantes[tache.paire] = (etat.compteurVariantes[tache.paire] || 0) + nouvelles; resume.variantesNouvelles = nouvelles;
   const jf = resume.jeuFinal;
   if (resume.statut === 'validee_backtest' && jf && jf.ouvert) {
     const coffre = (etat.coffre = etat.coffre || {})[tache.paire] = etat.coffre[tache.paire] || { debutFinal: tache.debutFinal, ouvertures: [] };
