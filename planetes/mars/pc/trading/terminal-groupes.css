@@ -21,7 +21,7 @@
 .tm-graph-barre{display:flex;flex-wrap:wrap;gap:6px;padding:6px 8px;border-bottom:1px solid rgba(143,208,227,.18);flex:none}
 .tm-unites{display:flex;gap:4px;margin-right:auto}
 .tm-graph-info{display:flex;flex-wrap:wrap;gap:8px;align-items:baseline;padding:4px 10px;font-size:12.5px;color:#9fb6c4;flex:none}
-.tm-graph-info b{color:#fff}.tm-et{font-style:normal;font-size:10px;letter-spacing:.1em;border:1px solid rgba(47,209,139,.45);color:#2fd18b;padding:1px 6px}.tm-et.alerte{color:#ffb347;border-color:rgba(255,179,71,.5)}
+.tm-graph-info b{color:#fff}.tm-et{font-style:normal;font-size:12px;letter-spacing:.1em;border:1px solid rgba(47,209,139,.45);color:#2fd18b;padding:1px 6px}.tm-et.alerte{color:#ffb347;border-color:rgba(255,179,71,.5)}
 .tm-graph-zone{flex:1 1 auto;min-height:160px;position:relative}
 .tm-graph-zone .tg-boite{position:absolute;inset:0}
 .tm-registre,.tm-reel{display:flex;flex-direction:column;gap:8px}

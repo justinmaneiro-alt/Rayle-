@@ -13,6 +13,7 @@ export async function ouvrirGalaxieTheme({ largeur = 1600, hauteur = 900, avant 
   page.on('console', m => { if (['error', 'warning'].includes(m.type())) erreurs.push(m.text().slice(0, 240)); });
   page.on('pageerror', e => erreurs.push('pageerror: ' + e.message.slice(0, 240)));
   await page.evaluateOnNewDocument(t => { try { localStorage.setItem('rayle_entite_version', '2'); localStorage.setItem('rayle_boot', '0'); localStorage.setItem('rayle_boot_jarvis', '0'); if (!localStorage.getItem('rayle_theme')) localStorage.setItem('rayle_theme', t); } catch (e) {} }, theme);
+  if (process.env.FENETRES_V1) await page.evaluateOnNewDocument(() => { try { localStorage.setItem('rayle_fenetres_v1', '1'); } catch (e) {} });   // V2 : ancien système de fenêtres (anciens tests)
   if (avant) await avant(page);
   await page.goto(BASE + '/index.html', { waitUntil: 'load' });
   await attendre(1200);

@@ -15,9 +15,9 @@
 /* ── en-tête : titre, paires, bandeau de statut, mode ── */
 .pa-haut{padding:10px 16px;gap:8px 20px;border-bottom:1px solid var(--bord);background:transparent}
 .pa-titre b{color:var(--texte);letter-spacing:.2em;font-size:13px;font-weight:600}
-.pa-titre span{color:var(--faible);letter-spacing:.18em;font-size:10px;margin-left:10px}
+.pa-titre span{color:var(--faible);letter-spacing:.18em;font-size:12px;margin-left:10px}
 .pa-paires,.pa-mode{border:1px solid var(--bord);border-radius:3px}
-.pa-paires button,.pa-mode button{font-size:11px;letter-spacing:.12em;padding:6px 13px;color:var(--doux)}
+.pa-paires button,.pa-mode button{font-size:12px;letter-spacing:.12em;padding:6px 13px;color:var(--doux)}
 .pa-paires button.actif,.pa-mode button.actif{background:rgba(143,208,227,.14);color:#fff;font-weight:600}
 /* bandeau de statut : une seule ligne compacte, des séparateurs fins à la place des pastilles tassées */
 .pa-puces{gap:0;flex-wrap:wrap;align-items:center}
@@ -68,10 +68,10 @@
 .pa-poste select,.pa-poste input[type=text],.pa-poste input[type=number],.pa-poste input[type=date],.pa-poste input[type=time],.pa-poste textarea{font-size:13px;border-radius:3px;background:rgba(4,8,12,.85);border:1px solid var(--bord);padding:6px 9px}
 .pa-poste select:focus,.pa-poste input:focus,.pa-poste textarea:focus{outline:none;border-color:rgba(143,208,227,.6)}
 .pa-poste input[type=checkbox]{accent-color:var(--accent)}
-.pa-filtres label,.pa-form label,.pa-graph-barre label{font-size:11.5px;letter-spacing:.04em}
+.pa-filtres label,.pa-form label,.pa-graph-barre label{font-size:12px;letter-spacing:.04em}
 
 /* ── pastilles et badges : sobres ── */
-.pa-badge{font-size:10px;letter-spacing:.14em;font-weight:600;border-radius:2px;padding:2px 8px}
+.pa-badge{font-size:12px;letter-spacing:.14em;font-weight:600;border-radius:2px;padding:2px 8px}
 .pa-badge.pa-ok{color:var(--haut);border-color:rgba(47,209,139,.45);background:rgba(47,209,139,.08)}
 .pa-badge.pa-ok2{background:rgba(47,209,139,.85);color:#04070b;border-color:transparent}
 .pa-badge.pa-info{color:var(--accent);border-color:rgba(143,208,227,.4);background:rgba(143,208,227,.07)}
@@ -106,7 +106,7 @@
 .tg-espace{--tg-ambre:#8fd0e3;--tg-cyan:#8fd0e3;--tg-haut:#2fd18b;--tg-bas:#ff5d6e;--tg-fond:#05080c;--tg-bord:rgba(143,208,227,.16);
   font-family:"Segoe UI Variable","Segoe UI",system-ui,sans-serif;font-size:13.5px;background:linear-gradient(180deg,#070b10,#04070b)}
 .tg-barre{padding:9px 14px;border-bottom:1px solid var(--tg-bord);background:transparent}
-.tg-chip,.tg-unite,.tg-btn,.tg-menu summary{font-size:11.5px;letter-spacing:.07em;color:var(--texte,#e2ebef);background:rgba(143,208,227,.05);border:1px solid rgba(143,208,227,.26);border-radius:3px;padding:7px 12px;min-height:34px}
+.tg-chip,.tg-unite,.tg-btn,.tg-menu summary{font-size:12px;letter-spacing:.07em;color:var(--texte,#e2ebef);background:rgba(143,208,227,.05);border:1px solid rgba(143,208,227,.26);border-radius:3px;padding:7px 12px;min-height:34px}
 .tg-chip:hover,.tg-unite:hover,.tg-btn:hover,.tg-menu summary:hover{background:rgba(143,208,227,.18)}
 .tg-chip.actif,.tg-unite.actif{color:#fff;background:rgba(143,208,227,.2);border-color:rgba(143,208,227,.55);font-weight:600}
 .tg-menu-liste{background:#080d13;border:1px solid rgba(143,208,227,.3);border-radius:3px}
@@ -116,10 +116,10 @@
 .tg-nom{color:#e2ebef;letter-spacing:.08em;font-weight:600}
 .tg-et{border-radius:2px;letter-spacing:.12em}
 .tg-et.alerte{border-color:rgba(255,93,110,.5);color:#ffa3ad;background:rgba(255,93,110,.08)}
-.tg-legende{text-shadow:none;font-family:"Cascadia Mono",Consolas,monospace;font-size:11.5px}
+.tg-legende{text-shadow:none;font-family:"Cascadia Mono",Consolas,monospace;font-size:12px}
 .tg-legende b{color:#e2ebef}
 .tg-etat{color:#e2ebef;background:rgba(5,8,12,.88)}
-.tg-p>header{padding:7px 14px;background:rgba(14,22,32,.6);border-bottom:1px solid var(--tg-bord);font-size:10.5px;letter-spacing:.2em;color:#6e808b}
+.tg-p>header{padding:7px 14px;background:rgba(14,22,32,.6);border-bottom:1px solid var(--tg-bord);font-size:12px;letter-spacing:.2em;color:#6e808b}
 .tg-p>header b{color:#9db0bb;font-weight:600}
 .tg-p>header em{border-radius:2px;font-weight:600}
 .tg-p>header em.re{border-color:rgba(47,209,139,.45)}
@@ -127,10 +127,10 @@
 .tg-p>header em.bt{border-color:#6e808b;color:#9db0bb}
 .tg-p.focus{outline:1px solid rgba(143,208,227,.55);box-shadow:none}
 .tg-onglets{background:rgba(14,22,32,.6);border-bottom:1px solid var(--tg-bord)}
-.tg-onglet{font-size:11.5px;letter-spacing:.06em;color:#9db0bb;padding:9px 14px;min-height:36px}
+.tg-onglet{font-size:12px;letter-spacing:.06em;color:#9db0bb;padding:9px 14px;min-height:36px}
 .tg-onglet:hover{background:rgba(143,208,227,.08)}
 .tg-onglet.actif{color:#fff;background:rgba(143,208,227,.16);font-weight:600}
-.tg-wl-tete{font-size:10px;letter-spacing:.14em;color:#6e808b}
+.tg-wl-tete{font-size:12px;letter-spacing:.14em;color:#6e808b}
 .tg-wl-ligne{padding:7px 12px;color:#e2ebef}
 .tg-wl-ligne:hover{background:rgba(143,208,227,.07)}
 .tg-wl-ligne.actif{background:rgba(143,208,227,.1);box-shadow:inset 2px 0 0 var(--tg-ambre)}
@@ -139,7 +139,7 @@
 /* ── « Teste ma stratégie » ── */
 .pa-court{width:64px!important;display:inline-block}
 .pa-vals{border:0!important;padding:0!important;display:flex;flex-wrap:wrap;gap:4px 12px}
-.pa-vals legend{color:var(--faible);font-size:11px;letter-spacing:.08em;padding:0 4px 2px 0}
+.pa-vals legend{color:var(--faible);font-size:12px;letter-spacing:.08em;padding:0 4px 2px 0}
 .pa-gros{font-size:13px!important;padding:5px 14px!important;letter-spacing:.16em}
 .pa-desc{max-height:none;margin:6px 0 10px;padding:10px 14px;border-left:2px solid var(--accent);background:rgba(143,208,227,.05)}
 .pa-desc li{border-bottom:0;padding:2px 0;font-size:13.5px}
@@ -147,5 +147,5 @@
 .pa-courbe{display:block;color:var(--accent);margin-top:4px}
 .pa-cond{border-radius:3px;margin:6px 0}
 .pa-champs{display:flex;flex-wrap:wrap;gap:6px 14px;align-items:flex-end}
-.pa-champs label{display:flex;flex-direction:column;gap:3px;font-size:11.5px;color:var(--doux)}
+.pa-champs label{display:flex;flex-direction:column;gap:3px;font-size:12px;color:var(--doux)}
 details>summary{cursor:pointer;color:var(--accent);margin:6px 0}

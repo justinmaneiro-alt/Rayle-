@@ -4,16 +4,18 @@ import { creerOrbite } from './orbite.js';
 import { creerPaysage } from './paysage.js';
 import { creerSalon } from './interieur.js';
 import { creerHologrammes } from './hologrammes.js';
+import { creerPiles, compterParDossier } from './piles-table.js';
 import { afficher as afficherMarche, espaceOuvert, fermerEspace, ouvrirEspace, surEspaceFerme } from './trading/fenetre.js';
 import { obtenirClient } from './trading/session.js';
 /* R2 : le terminal par groupes (fenêtres du gestionnaire commun) est chargé au premier clic sur un panneau du mur ; l'espace de travail d'avant reste pour la voix. */
 let modTerminal = null;
 const chargerTerminal = quandFerme => import('./trading/terminal-groupes.js').then(T => { modTerminal = T; T.surTerminalFerme(quandFerme); return T; });
+const ancienSysteme = () => { try { return localStorage.getItem('rayle_fenetres_v1') === '1'; } catch (e) { return false; } };   // interrupteur de ⚙ : ancien système de fenêtres
 const terminalActif = () => !!(modTerminal && modTerminal.terminalOuvert());
 import { lireCotations } from './trading/cotations.js';
 import { UNITES_DASHBOARD, colonne, lignesContexte } from './trading/dashboard.js';
 import { INSTRUMENTS } from './trading/instruments.js';
-import { analyserDemande } from './trading/instruments.js';
+import { analyserDemande, libelleDemande } from './trading/instruments.js';
 
 /* ═════════════ MARS : MODULE PC ═════════════
    Appelé par la galaxie quand la caméra arrive sur Mars (manifeste modules.pc.entree). `entrer(G)` : fondu, la galaxie dessine la scène de Mars à la place de la sienne
@@ -63,6 +65,8 @@ async function construire(G) {
   const canvas = G.canvas, ecran = () => ({ l: canvas.clientWidth || innerWidth, h: canvas.clientHeight || innerHeight });
   const ndc = e => { const r = canvas.getBoundingClientRect(); return [(e.clientX - r.left) / r.width * 2 - 1, 1 - (e.clientY - r.top) / r.height * 2]; };
   let tailleVue = [0, 0];
+  const tactile = () => profil.niveau === 'basse' || profil.niveau === 'jeu';
+  const terminalV2 = opts => chargerTerminal(() => { if (int) int.holo.espaceFerme(); }).then(T => T.ouvrirTerminal({ tactile: tactile(), sansSelecteur: true, ouvrirEspace: d => ouvrirEspace(d, { tactile: tactile() }), ouvrirPoste: d => import('./trading/fenetre-agent.js').then(P => P.ouvrirPoste(d)), ...opts }));
 
   function construireOrbite() { if (orb) { orb.dispose(); } orb = creerOrbite({ profil, textureMars: tex.map, ciel: G.ciel }); }
   function construireInterieur() {
@@ -71,7 +75,15 @@ async function construire(G) {
     const camera = new THREE.PerspectiveCamera(72, 1, 0.05, 12000);
     const paysage = creerPaysage({ profil, ciel: G.ciel }); scene.add(paysage.groupe);
     const salon = creerSalon({ profil }); scene.add(salon.groupe);
-    const holo = creerHologrammes({ parent: salon.groupe, centreTable: [0, 0, -0.6], ouvrirEspace: o => ((o && (o.focus === 'agent' || o.dock === 'agent')) ? import('./trading/fenetre-agent.js').then(M => M.ouvrirPoste({ onglet: o.onglet, paire: o.paire })) : (() => { const tactile = profil.niveau === 'basse' || profil.niveau === 'jeu'; try { if (localStorage.getItem('rayle_mars_ancien_espace') === '1') return ouvrirEspace(o, { tactile }); } catch (e) { /* stockage interdit */ } return chargerTerminal(() => { if (int) int.holo.espaceFerme(); }).then(T => T.ouvrirTerminal({ panneau: o && o.fenetre, tactile, ouvrirEspace: d => ouvrirEspace(d, { tactile }), ouvrirPoste: d => import('./trading/fenetre-agent.js').then(P => P.ouvrirPoste(d)) })); })()), fermerEspace: () => { fermerEspace(); if (modTerminal) modTerminal.fermerTerminal(); } });
+    const ancienne = () => creerHologrammes({ parent: salon.groupe, centreTable: [0, 0, -0.6], ouvrirEspace: o => ((o && (o.focus === 'agent' || o.dock === 'agent')) ? import('./trading/fenetre-agent.js').then(M => M.ouvrirPoste({ onglet: o.onglet, paire: o.paire })) : (() => { const tactile = profil.niveau === 'basse' || profil.niveau === 'jeu'; try { if (localStorage.getItem('rayle_mars_ancien_espace') === '1') return ouvrirEspace(o, { tactile }); } catch (e) { /* stockage interdit */ } return chargerTerminal(() => { if (int) int.holo.espaceFerme(); }).then(T => T.ouvrirTerminal({ panneau: o && o.fenetre, tactile, ouvrirEspace: d => ouvrirEspace(d, { tactile }), ouvrirPoste: d => import('./trading/fenetre-agent.js').then(P => P.ouvrirPoste(d)) })); })()), fermerEspace: () => { fermerEspace(); if (modTerminal) modTerminal.fermerTerminal(); } });
+    /* V2 : les PILES sur la table (par défaut) ; l'ancien mur de 21 fenêtres (grandes fenêtres au clic) reste derrière l'interrupteur ⚙ « Utiliser l'ancien système de fenêtres ». */
+    const holo = ancienSysteme() ? ancienne() : creerPiles({
+      parent: salon.groupe, centreTable: [0, 0, -0.6],
+      ouvrirDossier: gid => { if (gid === 'ouvertes') { if (window.TiroirFenetres) window.TiroirFenetres.ouvrir(); return; } terminalV2().then(T => T.ouvrirDossier(gid)); },
+      ouvrirPanneau: id => { terminalV2({ panneau: id }); },
+      fermerTout: () => { if (modTerminal) modTerminal.fermerTerminal(); },
+      compteurs: () => (terminalActif() ? compterParDossier(modTerminal.terminal().etat().fenetres) : {}), estOuvert: terminalActif
+    });
     scene.environmentIntensity = 0.85;
     int = { scene, camera, paysage, salon, holo, pmrem: null, envTexture: null, heureEnv: -99, tEnv: -99 };
   }
@@ -411,25 +423,25 @@ async function construire(G) {
       if (!actif || transition) return mode === 'interieur';
       if (mode === 'interieur') return true;
       transition = true;
-      const ok = await volOrbite({ lon: M.BASE.lon, lat: M.BASE.lat, dist: M.R + 12.5 }, 1.2);
+      const ok = await volOrbite({ lon: M.BASE.lon, lat: M.BASE.lat, dist: M.R + 8 }, 1.5);
       if (!ok || !actif) { transition = false; return false; }
-      await fondu(true, 380);
+      await fondu(true, 240);                                   // V2 : fondu court (le vol d'approche a déjà rempli l'écran par la base), pas de pause noire
       versInterieur();
       window.dispatchEvent(new CustomEvent('mars:base', { detail: { dedans: true } }));
-      await attendre(150);
-      await fondu(false, 700);
+      await attendre(30);
+      await fondu(false, 620);
       transition = false; return true;
     },
     /* Ressort : la caméra reparaît bien plus haut que le seuil d'entrée (pas de va-et-vient). */
     async sortirBase() {
       if (!actif || transition || mode !== 'interieur') return mode !== 'interieur';
       transition = true;
-      await fondu(true, 380);
+      await fondu(true, 240);
       versOrbite({ lon: M.BASE.lon - 4, lat: M.BASE.lat + 3, dist: S.SORTIE_BASE_DIST });
       bloqueJusqua = performance.now() + S.BLOCAGE_MS; entreeVoulue = false;
       window.dispatchEvent(new CustomEvent('mars:base', { detail: { dedans: false } }));
-      await attendre(120);
-      await fondu(false, 650);
+      await attendre(30);
+      await fondu(false, 620);
       transition = false; return true;
     },
     choisirZone(zone) {
@@ -442,6 +454,10 @@ async function construire(G) {
     async afficherGraphique({ instrument, unite, source }) {
       if (!actif) return { ok: false, erreur: 'Mars n’est pas ouverte' };
       if (mode !== 'interieur') { const ok = await api.entrerBase(); if (!ok) return { ok: false, erreur: 'impossible d’entrer dans la base' }; }
+      if (!ancienSysteme() && instrument && source !== 'tv' && source !== 'rayle') {            // V2 : « montre-moi l'or en H1 » pose une fenêtre vivante sur l'écran (TradingView / Raylé : l'espace complet, comme avant)
+        try { const T = await terminalV2(); T.ouvrirGraphique(instrument, unite || 'H1'); return { ok: true, libelle: libelleDemande(instrument, unite) || instrument }; }
+        catch (e) { return { ok: false, erreur: String(e && e.message || e) }; }
+      }
       try { const libelle = await afficherMarche({ instrument, unite, source }, { tactile: profil.niveau === 'basse' || profil.niveau === 'jeu' }); if (int) int.holo.marquerOuvert('espace'); return { ok: true, libelle }; }
       catch (e) { return { ok: false, erreur: String(e && e.message || e) }; }
     },
@@ -461,6 +477,7 @@ async function construire(G) {
     definirTempsSim(h) { heureSim = Number(h) || 0; },
     lunes: () => orb ? { phobos: orb.phobos.position.toArray(), deimos: orb.deimos.position.toArray() } : null,
     auto: oui => { auto = !!oui; btnAuto.textContent = auto ? '⏸' : '⏵'; },
+    etatPlans: () => (int ? int.holo.etatPlans() : []),
     positionsEcran: () => {                                           // fenêtres holographiques en coordonnées CSS du canvas (tests : clics réels)
       if (!int || mode !== 'interieur') return [];
       const r = canvas.getBoundingClientRect(), out = [];

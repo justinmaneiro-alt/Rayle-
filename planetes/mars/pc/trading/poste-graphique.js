@@ -34,8 +34,10 @@ function primitiveZones() {
         const y1 = series.priceToCoordinate(z.p1), y2 = series.priceToCoordinate(z.p2); if (y1 == null || y2 == null) continue;
         let x1 = ts.timeToCoordinate(z.t1), x2 = z.t2 == null ? bitmapSize.width / hr : ts.timeToCoordinate(z.t2); if (x1 == null) x1 = 0; if (x2 == null) x2 = bitmapSize.width / hr;
         const x = Math.min(x1, x2) * hr, w = Math.max(2, Math.abs(x2 - x1) * hr), y = Math.min(y1, y2) * vr, h = Math.max(1, Math.abs(y2 - y1) * vr);
-        ctx.fillStyle = z.couleur; ctx.fillRect(x, y, w, h);
-        if (z.bordure) { ctx.strokeStyle = z.bordure; ctx.lineWidth = Math.max(1, hr); ctx.strokeRect(x, y, w, h); }
+        // V2 : une zone plus haute que 70 % du graphique (stop très loin du prix) ne peint JAMAIS un fond : seul le contour reste (c'était le « fond rouge » sur tout le graphique)
+        const trop = h > 0.7 * bitmapSize.height;
+        if (!trop) { ctx.fillStyle = z.couleur; ctx.fillRect(x, y, w, h); }
+        if (z.bordure || trop) { ctx.strokeStyle = z.bordure || z.couleurTexte || '#ffb3bc'; ctx.setLineDash(trop ? [6 * hr, 4 * hr] : []); ctx.lineWidth = Math.max(1, hr); ctx.strokeRect(x, y, w, h); ctx.setLineDash([]); }
         if (z.texte) { ctx.fillStyle = z.couleurTexte || '#fff'; ctx.font = Math.round(11 * vr) + 'px Consolas, monospace'; ctx.fillText(z.texte, x + 4 * hr, y + 13 * vr); }
       }
       for (const tx of textes) {                                    // étiquettes posées à (instant, prix)
@@ -45,7 +47,9 @@ function primitiveZones() {
     });
   } };
   const vue = { renderer: () => rendu, zOrder: () => 'bottom' };
-  return { attached(p) { series = p.series; chart = p.chart; demander = p.requestUpdate; }, detached() { series = null; chart = null; }, paneViews: () => [vue], updateAllViews() {}, definir(z, t = []) { zones = z; textes = t; demander(); } };
+  /* les zones entrent dans l'échelle automatique : le prix du stop et de l'objectif restent visibles, la zone est bornée par le graphique */
+  const autoscaleInfo = () => { const v = zones.flatMap(z => [z.p1, z.p2]).filter(Number.isFinite); return v.length ? { priceRange: { minValue: Math.min(...v), maxValue: Math.max(...v) } } : null; };
+  return { autoscaleInfo, attached(p) { series = p.series; chart = p.chart; demander = p.requestUpdate; }, detached() { series = null; chart = null; }, paneViews: () => [vue], updateAllViews() {}, definir(z, t = []) { zones = z; textes = t; demander(); } };
 }
 
 export async function creerGraphiquePoste({ boite, hote, surTrade = () => {}, surBougie = () => {}, surDessin = () => {}, surMessage = () => {} }) {

@@ -59,6 +59,7 @@
   }
   /* ───── inclinaison 3D au survol ───── */
   function incliner(el){
+    if(el.dataset&&/^mars-/.test(el.dataset.type||'')) return;     // V2 : les fenêtres de Mars (terminal, agent) ne s'inclinent jamais : texte droit et lisible
     if(!souris) return;
     el.addEventListener('pointermove',e=>{
       if(niveau()<0.6) return;

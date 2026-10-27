@@ -55,4 +55,9 @@ const cas = G.cascade(liste, ecran, C); ok(cas.length === 5 && cas.every(q => C.
 const car = G.carrouselFenetres(liste, ecran, C, 2); ok(car.length === 5 && car.every(q => C.dansEcran(q, ecran)) && car[2].l > car[0].l && car[2].zOrdre > car[1].zOrdre && car[0].x < car[2].x && car[4].x > car[2].x, 'carrousel de fenêtres : centrale plus grande et devant');
 ok(G.cascade([], ecran, C).length === 0 && G.carrouselFenetres([], ecran, C).length === 0, 'listes vides');
 const petit = { l: 390, h: 800 }; ok(G.carrouselFenetres(liste, petit, C, 0).every(q => Number.isFinite(q.x) && Number.isFinite(q.y)), 'carrousel sur écran étroit : valeurs finies');
+const arc = G.arcFenetres(liste, ecran, C); ok(arc.length === 5 && arc.every(q => C.dansEcran(q, ecran)), 'arc : 5 fenêtres dans l’écran');
+ok(C.recouvrements(arc).length === 0, 'arc : aucun chevauchement (5 fenêtres, 2 rangées)');
+const arc9 = G.arcFenetres(Array.from({ length: 9 }, (_, i) => ({ id: 'g' + i, l: 520, h: 400 })), ecran, C); ok(C.recouvrements(arc9).length === 0 && arc9.every(q => C.dansEcran(q, ecran)), 'arc : 9 fenêtres sans chevauchement');
+ok(G.arcFenetres([], ecran, C).length === 0 && G.arcFenetres(liste.slice(0, 1), ecran, C).length === 1, 'arc : liste vide et fenêtre seule');
+ok(G.arcFenetres(liste, petit, C).every(q => Number.isFinite(q.x) && Number.isFinite(q.y)), 'arc : écran étroit, valeurs finies');
 console.log(`R3 calculs : ${n - ko}/${n} vérifications`); process.exit(ko ? 1 : 0);

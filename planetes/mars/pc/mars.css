@@ -4,24 +4,26 @@
 #vueGalaxie #mars-ui *{box-sizing:border-box}
 #vueGalaxie #mars-ui [hidden]{display:none!important}
 #vueGalaxie #mars-ui button,#vueGalaxie #mars-ui input{pointer-events:auto;font:inherit}
+/* V2 : le titre de la galaxie (« R A Y L É Galaxie ») se superposait au titre de Mars dans le coin : il se cache tant que Mars est ouverte */
+#vueGalaxie.mars-orbite .g-titre{display:none}
 #vueGalaxie #mars-ui .m-titre{position:absolute;top:14px;left:18px}
 #vueGalaxie #mars-ui .m-titre b{font-size:clamp(15px,2vw,20px);letter-spacing:.5em;color:#fff;text-shadow:0 0 10px #c9b27a,0 0 26px rgba(255,140,80,.55)}
-#vueGalaxie #mars-ui .m-titre span{display:block;font-size:9.5px;letter-spacing:.3em;color:#c9b27a;text-transform:uppercase;margin-top:3px}
+#vueGalaxie #mars-ui .m-titre span{display:block;font-size:12px;letter-spacing:.3em;color:#c9b27a;text-transform:uppercase;margin-top:3px}
 #vueGalaxie #mars-ui .m-boutons{position:absolute;top:62px;right:18px;display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end;max-width:min(560px,calc(100vw - 36px))}
-#vueGalaxie #mars-ui .m-boutons button{font-size:11px;letter-spacing:.15em;text-transform:uppercase;color:#8fd0e3;background:rgba(6,14,24,.7);border:1.5px solid rgba(143,208,227,.7);padding:7px 12px;cursor:pointer}
+#vueGalaxie #mars-ui .m-boutons button{font-size:12px;letter-spacing:.15em;text-transform:uppercase;color:#8fd0e3;background:rgba(6,14,24,.7);border:1.5px solid rgba(143,208,227,.7);padding:7px 12px;cursor:pointer}
 #vueGalaxie #mars-ui .m-boutons button:hover{background:rgba(143,208,227,.28);color:#fff}
 #vueGalaxie #mars-ui .m-etiquettes{position:absolute;inset:0;pointer-events:none}
 #vueGalaxie #mars-ui .m-etiq{background:none;border:0;padding:0;font:inherit;position:absolute;left:0;top:0;transform:translate(-50%,-100%);display:flex;flex-direction:column;align-items:center;gap:3px;cursor:pointer;pointer-events:none;transition:opacity .25s}
 #vueGalaxie #mars-ui .m-etiq b,#vueGalaxie #mars-ui .m-etiq small{pointer-events:auto}
-#vueGalaxie #mars-ui .m-etiq b{font-size:11px;letter-spacing:.22em;text-transform:uppercase;font-weight:600;padding:5px 10px;background:rgba(6,12,22,.78);border:1px solid currentColor;white-space:nowrap}
-#vueGalaxie #mars-ui .m-etiq small{font-size:9px;letter-spacing:.2em;background:rgba(6,12,22,.78);padding:1px 6px}
+#vueGalaxie #mars-ui .m-etiq b{font-size:12px;letter-spacing:.22em;text-transform:uppercase;font-weight:600;padding:5px 10px;background:rgba(6,12,22,.78);border:1px solid currentColor;white-space:nowrap}
+#vueGalaxie #mars-ui .m-etiq small{font-size:12px;letter-spacing:.2em;background:rgba(6,12,22,.78);padding:1px 6px}
 #vueGalaxie #mars-ui .m-etiq::after{content:"";width:1px;height:26px;background:currentColor;opacity:.8}
 #vueGalaxie #mars-ui .m-etiq.terminal{color:#8fd0e3}
 #vueGalaxie #mars-ui .m-etiq.bureau{color:#c9b27a}
 #vueGalaxie #mars-ui .m-etiq:hover b{background:rgba(255,255,255,.16);color:#fff}
 #vueGalaxie #mars-ui .m-etiq[data-cache="1"]{opacity:0;pointer-events:none}
-#vueGalaxie #mars-ui .m-aide{position:absolute;left:18px;bottom:64px;max-width:min(420px,calc(100vw - 36px));font-size:10px;line-height:1.7;color:#c9a58c}
-#vueGalaxie #mars-ui .m-heure{position:absolute;left:50%;bottom:78px;transform:translateX(-50%);display:flex;align-items:center;gap:10px;background:rgba(10,8,8,.65);border:1px solid rgba(255,170,110,.45);padding:6px 12px;font-size:11px;white-space:nowrap}
+#vueGalaxie #mars-ui .m-aide{position:absolute;left:18px;bottom:64px;max-width:min(420px,calc(100vw - 36px));font-size:12px;line-height:1.7;color:#c9a58c}
+#vueGalaxie #mars-ui .m-heure{position:absolute;left:50%;bottom:78px;transform:translateX(-50%);display:flex;align-items:center;gap:10px;background:rgba(10,8,8,.65);border:1px solid rgba(255,170,110,.45);padding:6px 12px;font-size:12px;white-space:nowrap}
 #vueGalaxie #mars-ui .m-heure span{color:#c9b27a;letter-spacing:.14em}
 #vueGalaxie #mars-ui .m-heure b{color:#fff;font-weight:400;font-variant-numeric:tabular-nums;min-width:44px;text-align:right}
 #vueGalaxie #mars-ui .m-heure input[type=range]{width:min(220px,30vw);accent-color:#c9b27a}
@@ -30,13 +32,13 @@
 #vueGalaxie #mars-ui .m-fondu{position:absolute;inset:0;background:#000;opacity:0;pointer-events:none;transition:opacity .4s ease}
 #vueGalaxie #mars-ui .m-fondu.noir{opacity:1;pointer-events:auto}
 #vueGalaxie #mars-ui .m-reticule{position:absolute;left:50%;top:50%;width:6px;height:6px;margin:-3px;border-radius:50%;background:rgba(143,208,227,.7);box-shadow:0 0 8px #8fd0e3;display:none}
-#vueGalaxie #mars-ui .m-mesures{position:absolute;right:18px;bottom:64px;font-size:10px;line-height:1.6;color:#c9a58c;text-align:right}
+#vueGalaxie #mars-ui .m-mesures{position:absolute;right:18px;bottom:64px;font-size:12px;line-height:1.6;color:#c9a58c;text-align:right}
 @media (max-width:700px){
   #vueGalaxie #mars-ui .m-titre{top:112px}
   #vueGalaxie #mars-ui .m-boutons{top:150px;left:18px;right:auto;justify-content:flex-start}
   #vueGalaxie #mars-ui .m-boutons button{padding:10px 12px;min-height:38px}
   #vueGalaxie #mars-ui .m-heure button{padding:7px 12px;min-height:34px}
-  #vueGalaxie #mars-ui .m-etiq b{padding:8px 10px;white-space:normal;max-width:112px;text-align:center;font-size:10px;letter-spacing:.14em}
+  #vueGalaxie #mars-ui .m-etiq b{padding:8px 10px;white-space:normal;max-width:112px;text-align:center;font-size:12px;letter-spacing:.14em}
   #vueGalaxie #mars-ui .m-heure{bottom:150px;gap:6px;padding:5px 8px}
   #vueGalaxie #mars-ui .m-aide{display:none}
   #vueGalaxie #mars-ui .m-message{top:200px}
@@ -47,22 +49,22 @@
 .mars-ex .mars-ex-bandeau{display:flex;align-items:center;gap:8px;margin:0 0 10px;padding:6px 10px;border:1px solid #c9b27a;background:rgba(255,179,71,.12);color:#d9cdb0;font-size:12px}
 .mars-ex .mars-ex-bandeau b{background:#c9b27a;color:#1b1204;padding:2px 8px;letter-spacing:.15em}
 .mars-ex .mars-ex-barre{display:flex;gap:8px;align-items:center;margin-bottom:8px;flex-wrap:wrap}
-.mars-ex .mars-ex-btn{font:inherit;font-size:11px;letter-spacing:.1em;color:#8fd0e3;background:rgba(143,208,227,.08);border:1px solid rgba(143,208,227,.6);padding:5px 10px;cursor:pointer}
+.mars-ex .mars-ex-btn{font:inherit;font-size:12px;letter-spacing:.1em;color:#8fd0e3;background:rgba(143,208,227,.08);border:1px solid rgba(143,208,227,.6);padding:5px 10px;cursor:pointer}
 .mars-ex .mars-ex-btn.actif{background:rgba(143,208,227,.32);color:#fff}
 .mars-ex .mars-ex-sep{color:#4a6a7a}
 .mars-ex .mars-ex-canvas{display:block;width:100%;height:auto;max-width:880px;border:1px solid rgba(143,208,227,.35)}
-.mars-ex .mars-ex-legende{margin-top:8px;font-size:11px;color:#9fc3d8}
+.mars-ex .mars-ex-legende{margin-top:8px;font-size:12px;color:#9fc3d8}
 .mars-ex .mars-ex-tuiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:8px;margin-bottom:10px}
 .mars-ex .mars-ex-tuile{border:1px solid rgba(143,208,227,.3);background:rgba(143,208,227,.06);padding:8px 10px;display:flex;flex-direction:column;gap:3px}
-.mars-ex .mars-ex-tuile span{font-size:10px;color:#9fc3d8;letter-spacing:.08em}
+.mars-ex .mars-ex-tuile span{font-size:12px;color:#9fc3d8;letter-spacing:.08em}
 .mars-ex .mars-ex-tuile b{font-size:18px;color:#fff;font-weight:500}
 .mars-ex .mars-ex-table{width:100%;border-collapse:collapse;font-size:13px}
-.mars-ex .mars-ex-table th{text-align:left;color:#9fc3d8;font-weight:400;font-size:11px;letter-spacing:.1em;border-bottom:1px solid rgba(143,208,227,.3);padding:6px 8px}
+.mars-ex .mars-ex-table th{text-align:left;color:#9fc3d8;font-weight:400;font-size:12px;letter-spacing:.1em;border-bottom:1px solid rgba(143,208,227,.3);padding:6px 8px}
 .mars-ex .mars-ex-table td{padding:7px 8px;border-bottom:1px solid rgba(143,208,227,.12);color:#e6f6ff}
 .mars-ex .gain{color:#41e0a0}.mars-ex .perte{color:#ff6b6b}
 .mars-ex .mars-ex-liste{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:8px}
 .mars-ex .mars-ex-liste li{border-left:3px solid #8fd0e3;padding:4px 10px;display:flex;flex-direction:column;gap:2px;background:rgba(143,208,227,.05)}
-.mars-ex .mars-ex-liste b{font-size:11px;color:#8fd0e3;font-weight:500;letter-spacing:.08em}
+.mars-ex .mars-ex-liste b{font-size:12px;color:#8fd0e3;font-weight:500;letter-spacing:.08em}
 .mars-ex .mars-ex-liste span{font-size:13px;color:#e6f6ff}
 
 /* Tactile : la scène de Mars capte les gestes (glisser = tourner, pincer = zoomer) sans faire défiler ni zoomer la page */

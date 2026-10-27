@@ -94,3 +94,26 @@ export function carrouselFenetres(liste, ecran, C, centre = 0) {
     return { id: f.id, ...C.limiter({ x: Math.round(cx - l / 2), y: Math.round(C.HAUT_RESERVE + (utileH - h) / 2), l, h }, ecran), zOrdre: 100 - a };
   });
 }
+
+/* Arc (V2) : les fenêtres se placent en demi-cercle devant l'utilisateur, SANS se chevaucher. Rangées de 4 fenêtres au plus (3 sur écran étroit) ; au milieu d'une rangée la fenêtre est
+   un peu plus basse, aux extrémités un peu plus haute (courbure), toutes à la même taille. La rangée la plus remplie est en bas (au plus près de la table). */
+export function arcFenetres(liste, ecran, C, { parRangee = ecran.l < 700 ? 3 : 4, courbure = 26, ecart = 14, part = 0.74 } = {}) {
+  const n = liste.length; if (!n) return [];
+  const utileL = ecran.l - 2 * C.MARGE, utileH = ecran.h - C.HAUT_RESERVE - C.BAS_RESERVE;
+  const rangees = Math.ceil(n / parRangee), parLigne = Math.ceil(n / rangees);
+  const gapV = ecart + courbure, l = Math.max(C.MINI_L, Math.min(Math.floor((utileL - ecart * (parLigne - 1)) / parLigne), 760));
+  // l'arc occupe le haut de l'écran (la table reste visible dessous) ; si les fenêtres deviendraient trop basses, il prend toute la hauteur utile
+  const hauteurPour = zone => Math.floor((zone - gapV * (rangees - 1) - courbure) / rangees);
+  let h = hauteurPour(utileH * part); if (h < C.MINI_H) h = hauteurPour(utileH);
+  h = Math.max(C.MINI_H, Math.min(h, 640));
+  const out = []; let idx = 0;
+  for (let r = 0; r < rangees; r++) {
+    const k = Math.min(parLigne, n - idx), totalL = k * l + (k - 1) * ecart, x0 = Math.round((ecran.l - totalL) / 2);
+    const yBase = C.HAUT_RESERVE + r * (h + gapV);
+    for (let i = 0; i < k; i++, idx++) {
+      const t = k > 1 ? (2 * i / (k - 1) - 1) : 0, dy = Math.round(courbure * (1 - t * t));   // 0 aux extrémités, courbure au milieu (centre plus bas)
+      out.push({ id: liste[idx].id, ...C.limiter({ x: x0 + i * (l + ecart), y: yBase + dy, l, h }, ecran) });
+    }
+  }
+  return out;
+}

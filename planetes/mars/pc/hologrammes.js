@@ -5,7 +5,7 @@ import { dessinerFenetreFlottante, construireContenu } from './dessin-exemples.j
 import { magasinReels } from './trading/rendu-reel.js';
 
 /* ═════════════ FENÊTRES HOLOGRAPHIQUES FLOTTANTES AU-DESSUS DE LA TABLE ═════════════
-   Sept plans translucides qui flottent en deux arcs (légère oscillation), chacun gravé de son aperçu RÉEL (donnée du Worker avec sa source, ou « indisponible » / « en préparation » : jamais de chiffre inventé). Survol : la fenêtre s'éclaire ;
+   Sept plans translucides qui flottent en deux arcs (immobiles : aucune oscillation), chacun gravé de son aperçu RÉEL (donnée du Worker avec sa source, ou « indisponible » / « en préparation » : jamais de chiffre inventé). Survol : la fenêtre s'éclaire ;
    clic : elle s'ouvre en grand (core/commun/panneaux.js, taille « large ») ; clic ailleurs : elle se ferme (géré par index.js via fermerSiOuverte). */
 export function creerHologrammes({ parent, centreTable, ouvrirEspace = null, fermerEspace = null }) {
   const groupe = new THREE.Group(); groupe.name = 'hologrammes'; parent.add(groupe);
@@ -32,7 +32,7 @@ export function creerHologrammes({ parent, centreTable, ouvrirEspace = null, fer
   function viser(ndc, camera) { rayon.setFromCamera(new THREE.Vector2(ndc[0], ndc[1]), camera); const h = rayon.intersectObjects(cibles, false)[0]; return h ? h.object.userData.fenetre : null; }
   function definirSurvol(id) {
     if (id === survolId) return; survolId = id;
-    for (const it of items) { const s = it.def.id === id; if (s !== it.survol) { it.survol = s; redessiner(it); } }
+    for (const it of items) { const s = it.def.id === id; if (s !== it.survol) it.survol = s; }
   }
   function ouvrir(id) {
     const def = fenetre(id); if (!def) return false;
@@ -58,13 +58,14 @@ export function creerHologrammes({ parent, centreTable, ouvrirEspace = null, fer
   /* L'espace s'est fermé tout seul (croix, Échap) : on le sait. */
   function marquerOuvert(id) { ouvert = id; document.dispatchEvent(new CustomEvent('mars:fenetre', { detail: { id } })); }
   function espaceFerme() { if (ouvert) { ouvert = null; document.dispatchEvent(new CustomEvent('mars:fenetre', { detail: { id: null } })); } }
-  function maj(t) {
+  /* AUCUN mouvement permanent (V2 phase 2) : avant, la hauteur oscillait (sinus), l'opacité pulsait (sinus ×6 par seconde = clignotement) et la fenêtre grossissait au survol.
+     Une fenêtre ne bouge plus jamais toute seule ; le survol éclaire seulement la couleur du matériau (aucune texture renvoyée au GPU, aucune taille qui change). */
+  function maj() {
     for (const it of items) {
-      it.pivot.position.y = it.base + Math.sin(t * 0.8 + it.phase) * 0.025;
-      const cible = it.survol || ouvert === it.def.id ? 1.18 : 1;
-      it.pivot.scale.x += (cible - it.pivot.scale.x) * 0.15; it.pivot.scale.y = it.pivot.scale.x;
-      it.plan.material.opacity = 0.93 + 0.07 * Math.sin(t * 6 + it.phase);
+      const cible = it.survol || ouvert === it.def.id ? 1.45 : 1.15, c = it.plan.material.color;
+      if (Math.abs(c.r - cible) > 0.002) { const v = c.r + (cible - c.r) * 0.25; c.setRGB(v, v, v); }
     }
   }
-  return { groupe, items, viser, survoler: definirSurvol, ouvrir, fermer, espaceFerme, marquerOuvert, majReel, ouvert: () => ouvert, maj, ids: () => FENETRES.map(f => f.id), position: id => { const it = items.find(x => x.def.id === id); return it ? it.pivot.getWorldPosition(new THREE.Vector3()) : null; } };
+  const etatPlans = () => items.map(it => ({ id: it.def.id, opacite: it.plan.material.opacity, echelle: it.pivot.scale.x, y: it.pivot.position.y }));   // tests de stabilité
+  return { groupe, items, etatPlans, viser, survoler: definirSurvol, ouvrir, fermer, espaceFerme, marquerOuvert, majReel, ouvert: () => ouvert, maj, ids: () => FENETRES.map(f => f.id), position: id => { const it = items.find(x => x.def.id === id); return it ? it.pivot.getWorldPosition(new THREE.Vector3()) : null; } };
 }

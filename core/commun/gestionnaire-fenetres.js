@@ -1,5 +1,5 @@
 import { creerCalcul } from './fenetres-calcul.js';
-import { vitesse, pasInertie, estLance, classerBalayage, aimanter, redimBord, echelleMolette, limiterRotation, angleEntre, deltaAngle, pasClavier, fenetreSuivante, cascade, carrouselFenetres } from './gestes-calcul.js';
+import { vitesse, pasInertie, estLance, classerBalayage, aimanter, redimBord, echelleMolette, limiterRotation, angleEntre, deltaAngle, pasClavier, fenetreSuivante, cascade, carrouselFenetres, arcFenetres } from './gestes-calcul.js';
 import { enregistrerSource } from './tiroir-fenetres.js';
 
 /* ═════════════ GESTIONNAIRE DE FENÊTRES COMMUN (accueil, Mars, anatomie, Terre…) ═════════════
@@ -18,7 +18,7 @@ import { enregistrerSource } from './tiroir-fenetres.js';
    const gf = creerGestionnaire({ ui, ecran, prefixe, calc, cle, idRacine, surChangement, vue, surRanger });
    gf.ouvrir({ id, titre, sousTitre, genre, contenu, taille, position, pastille, sur, avertissement, epingle, rangeable, dossier }) → { id, el, corps }
    gf.fermer(id) · focus(id) · reduire(id, oui) · agrandir(id, oui) · epingler(id, oui) · ranger(id) · deplacer(id, x, y) · dimensionner(id, l, h) · reduireTout() · fermerTout()
-   gf.reorganiser(mode = 'grille' | 'cascade' | 'carrousel') · menu(id, x, y) · aide(oui) · enregistrerTiroir({ vue, entrees }) · liste() · obtenir(id) · recouvrements() · redimensionner() · dispose() */
+   gf.reorganiser(mode = 'grille' | 'arc' | 'cascade' | 'carrousel') · menu(id, x, y) · aide(oui) · enregistrerTiroir({ vue, entrees }) · liste() · obtenir(id) · recouvrements() · redimensionner() · dispose() */
 export const CLE_STOCKAGE = 'rayle_fenetres_';
 const CLE_PREFS = 'rayle_fenetres_prefs', CLE_EFFETS = 'rayle_fenetres_effets';
 const lireMemoire = cle => { try { return JSON.parse(localStorage.getItem(CLE_STOCKAGE + cle) || '{}') || {}; } catch (e) { return {}; } };
@@ -290,7 +290,7 @@ export function creerGestionnaire({ ui, ecran = () => ({ l: window.innerWidth, h
     /* Replace les fenêtres ouvertes (hors épinglées) : grille propre (défaut), cascade ou carrousel. */
     reorganiser(mode = 'grille') {
       const e = ecran(), cibles = [...fen.values()].filter(f => !f.epingle).sort((a, b) => a.ordre - b.ordre).map(lire);
-      const dispo = mode === 'cascade' ? cascade(cibles, e, C) : mode === 'carrousel' ? carrouselFenetres(cibles, e, C, Math.floor((cibles.length - 1) / 2)) : reorganiser(cibles, e);
+      const dispo = mode === 'cascade' ? cascade(cibles, e, C) : mode === 'carrousel' ? carrouselFenetres(cibles, e, C, Math.floor((cibles.length - 1) / 2)) : mode === 'arc' ? arcFenetres(cibles, e, C) : reorganiser(cibles, e);
       for (const q of dispo) { const f = fen.get(q.id); f.reduite = false; f.max = false; f.el.classList.remove(p + '-reduite', p + '-max'); poser(f, q); if (f.sur && f.sur.redim) f.sur.redim(f.rect); memoriser(f); }
       if (mode === 'carrousel') for (const q of [...dispo].sort((a, b) => a.zOrdre - b.zOrdre)) focus(q.id);
       majBarre();
@@ -314,7 +314,7 @@ export function creerGestionnaire({ ui, ecran = () => ({ l: window.innerWidth, h
   /* choix de la disposition : grille, cascade, carrousel */
   function ouvrirModes(ancre) {
     fermerMenu(); menuEl = document.createElement('div'); menuEl.className = 'gfx-menu gfx-modes'; menuEl.setAttribute('role', 'menu'); menuEl.setAttribute('aria-label', 'Disposition des fenêtres');
-    menuEl.innerHTML = [['grille', 'Grille'], ['cascade', 'Cascade'], ['carrousel', 'Carrousel']].map(([m, t]) => '<button type="button" role="menuitem" data-mode="' + m + '">' + t + '</button>').join('');
+    menuEl.innerHTML = [['grille', 'Grille'], ['arc', 'Arc devant moi'], ['cascade', 'Cascade'], ['carrousel', 'Carrousel']].map(([m, t]) => '<button type="button" role="menuitem" data-mode="' + m + '">' + t + '</button>').join('');
     bloquer(menuEl); ui.appendChild(menuEl); const r = ancre.getBoundingClientRect(); menuEl.style.position = 'fixed'; menuEl.style.left = Math.max(4, r.left) + 'px'; menuEl.style.top = Math.max(4, r.top - menuEl.offsetHeight - 6) + 'px'; menuEl.style.zIndex = 80;
     menuEl.addEventListener('click', e => { const b = e.target.closest('[data-mode]'); if (!b) return; const m = b.dataset.mode; fermerMenu(); api.reorganiser(m); });
     menuEl.addEventListener('keydown', e => { if (e.key === 'Escape') { e.stopPropagation(); fermerMenu(); } });

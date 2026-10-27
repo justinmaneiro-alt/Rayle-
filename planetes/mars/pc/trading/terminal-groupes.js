@@ -60,7 +60,7 @@ function fenetreGraphique(client, instrument, unite, { tactile, ouvrirEspace }) 
   creerGraphique({ boite: zone, reglages: tactile ? REGLAGES_LEGERS : REGLAGES_DEFAUT }).then(g => { if (detruit) { g.detruire(); return; } graphique = g; if (derniere && !derniere.vide) { g.definir({ instrument: derniere.instrument, unite: derniere.unite, bougies: derniere.bougies }); premiere = false; g.message(''); } else g.message('Chargement…'); })
     .catch(e => { zone.innerHTML = '<p class="tm-vide tm-ko">Graphique indisponible : ' + esc(e.message) + '</p>'; });
   charger();
-  return { racine, sansMarge: true, redim() { if (graphique && !detruit) { try { graphique.recadrer(); } catch (e) { /* graphique déjà détruit */ } } }, detruire() { detruit = true; jeton++; if (desabonner) desabonner(); desabonner = null; if (graphique) { try { graphique.detruire(); } catch (e) { /* déjà détruit */ } graphique = null; } }, etat: () => ({ instrument: ins, unite: un, bougies: derniere ? derniere.bougies.length : 0, graphique }) };
+  return { racine, sansMarge: true, choisirUnite(u) { if (UNITES[u] && u !== un) { un = u; charger(); majBarre(); } }, redim() { if (graphique && !detruit) { try { graphique.recadrer(); } catch (e) { /* graphique déjà détruit */ } } }, detruire() { detruit = true; jeton++; if (desabonner) desabonner(); desabonner = null; if (graphique) { try { graphique.detruire(); } catch (e) { /* déjà détruit */ } graphique = null; } }, etat: () => ({ instrument: ins, unite: un, bougies: derniere ? derniere.bougies.length : 0, graphique }) };
 }
 
 /* Panneau du registre de l’espace de travail (watchlist, dashboard, COT…) avec un contexte local : instrument choisi dans une rangée de boutons. */
@@ -94,7 +94,7 @@ function fenetreReel(id, def, { ouvrirPoste }) {
 }
 
 /* ── Le terminal ── */
-async function creer({ tactile = false, ouvrirEspace = null, ouvrirPoste = () => {} } = {}) {
+async function creer({ tactile = false, ouvrirEspace = null, ouvrirPoste = () => {}, sansSelecteur = false } = {}) {
   chargerCss();
   const client = await obtenirClient();
   const hote = h('div', 'tm-hote'); document.body.appendChild(hote);
@@ -112,7 +112,7 @@ async function creer({ tactile = false, ouvrirEspace = null, ouvrirPoste = () =>
   });
   /* tiroir global : toutes les fenêtres du terminal, par dossier, même celles qui ne sont pas posées */
   gf.enregistrerTiroir({ vue: 'Mars · terminal', entrees: () => DOSSIERS.flatMap(d => d.ids.map(id => ({ id: 'p-' + id, titre: infos[id].titre, dossier: d.titre, apercu: infos[id].apercu, icone: infos[id].icone, posee: !!gf.obtenir('p-' + id), afficher: () => ouvrirPanneau(id, { donner: true }) }))) });
-  const ouvrirGraphique = (ins, unite = 'H1') => { const id = INS_DE_FENETRE[ins]; if (id) return ouvrirPanneau(id, { donner: true }); ouvrirFenetreLibre(ins, unite); };
+  const ouvrirGraphique = (ins, unite = 'H1') => { const id = INS_DE_FENETRE[ins]; if (id) { const ok = ouvrirPanneau(id, { donner: true }), c = instances.get(id); if (c && c.choisirUnite) c.choisirUnite(unite); return ok; } ouvrirFenetreLibre(ins, unite); };
   function ouvrirFenetreLibre(ins, unite) {
     const wid = 'p-libre-' + ins; if (gf.obtenir(wid)) { gf.focus(wid); return; }
     const c = fenetreGraphique(client, ins, unite, { tactile, ouvrirEspace }); const w = gf.ouvrir({ id: wid, titre: INSTRUMENTS[ins].nom, genre: 'graphique', contenu: c.racine, pastille: 'reel', sur: { fermer: () => c.detruire(), redim: () => c.redim() } }); w.corps.classList.add('gf-sans-marge');
@@ -171,7 +171,7 @@ async function creer({ tactile = false, ouvrirEspace = null, ouvrirPoste = () =>
   };
   function fermer() { api.fermer(); }
   T = api;
-  ouvrirSelecteur();
+  if (!sansSelecteur) ouvrirSelecteur();       // V2 : sur la table de Mars, les piles remplacent la fenêtre « Dossiers »
   for (const id of etat.ouverts) ouvrirPanneau(id);
   ready = true;
   return api;
