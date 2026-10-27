@@ -88,8 +88,9 @@ import { creerPageAnalyse } from './page-analyse.js?v=2026.10.10.7';
     const tok=++chartTok;
     const box=$('tv-chart');
     box.innerHTML='<div id="tv-chart-inner" style="width:100%;height:100%"></div>';
+    gardeTV(box,tok,s.tv,interval);   // démarre AVANT le chargement du script : un script qui n'arrive jamais est aussi détecté
     try{ await loadTvJs(); }
-    catch(e){ box.innerHTML='<div class="needkey">Graphique indisponible : le script TradingView est bloqué sur ce réseau.</div>'; return; }
+    catch(e){ if(gardeCourante) gardeCourante.arreter(); if(window.TVGarde) window.TVGarde.afficherSecours(box,{symbole:s.tv,intervalle:interval,raison:'Le script TradingView est bloqué sur ce réseau (bloqueur de publicités, pare-feu ou hors ligne).',reessayer:()=>loadChart(),alternative:()=>setSource('rayle'),libelleAlt:'Graphique Raylé'}); else box.innerHTML='<div class="needkey">Graphique indisponible : le script TradingView est bloqué sur ce réseau.</div>'; return; }
     if(tok!==chartTok) return;   // un autre actif a été demandé entre-temps
     new TradingView.widget({
       container_id:'tv-chart-inner', autosize:true,
@@ -111,6 +112,16 @@ import { creerPageAnalyse } from './page-analyse.js?v=2026.10.10.7';
         'paneProperties.vertGridProperties.color':'rgba(143,208,227,0.06)',
         'paneProperties.horzGridProperties.color':'rgba(143,208,227,0.06)'
       }
+    });
+  }
+  // Garde : un cadre TradingView resté vide ne donne aucune erreur. Sans message du widget dans les 15 s : message de secours visible (lien, réessayer, graphique Raylé).
+  let gardeCourante=null, arretTaille=null;
+  function gardeTV(box,tok,symbole,intervalle){
+    if(gardeCourante) gardeCourante.arreter(); if(arretTaille){ arretTaille(); arretTaille=null; }
+    if(!window.TVGarde) return;
+    gardeCourante=window.TVGarde.surveiller({
+      surPret:()=>{ if(tok!==chartTok) return; setTimeout(()=>{ if(tok===chartTok) window.TVGarde.ajusterTaille(box); },1200); if(arretTaille) arretTaille(); arretTaille=window.TVGarde.suivreTaille(box); },
+      surEchec:()=>{ if(tok!==chartTok) return; window.TVGarde.afficherSecours(box,{symbole,intervalle,reessayer:()=>loadChart(),alternative:()=>setSource('rayle'),libelleAlt:'Graphique Raylé'}); }
     });
   }
   function loadCal(){

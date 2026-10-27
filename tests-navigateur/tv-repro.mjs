@@ -1,0 +1,18 @@
+import puppeteer from 'puppeteer-core';
+import { BASE, CHROME, attendre } from './terre-aide.mjs';
+const nav = await puppeteer.launch({ executablePath: CHROME, headless: 'new', args: ['--no-sandbox', '--window-size=1600,900'], defaultViewport: { width: 1600, height: 900 } });
+const page = await nav.newPage();
+const logs = [];
+page.on('console', m => logs.push('[' + m.type() + '] ' + m.text().slice(0, 300)));
+page.on('pageerror', e => logs.push('[pageerror] ' + e.message));
+page.on('requestfailed', r => logs.push('[reqfail] ' + r.url().slice(0, 150) + ' ' + (r.failure() || {}).errorText));
+page.on('response', r => { if (/tradingview/.test(r.url()) && r.status() >= 400) logs.push('[http ' + r.status() + '] ' + r.url().slice(0, 150)); });
+await page.evaluateOnNewDocument(() => { localStorage.setItem('rayle_boot', '0'); localStorage.setItem('rayle_terminal_prefs', JSON.stringify({source:'tradingview'})); localStorage.setItem('rayle_entite_version', '2');  });
+await page.goto((process.env.URL || BASE + '/index.html') + '#terminal', { waitUntil: 'load' });
+await attendre(3000);
+await attendre(12000);
+const info = await page.evaluate(() => { const b = document.getElementById('tv-chart'); const f = b && b.querySelector('iframe'); const r = b && b.getBoundingClientRect(); return { box: r && [r.width, r.height], iframe: !!f, src: f && f.src.slice(0, 200), api: !!(window.TradingView && TradingView.widget), html: b && b.innerHTML.slice(0, 200) }; });
+console.log(JSON.stringify(info));
+await page.screenshot({ path: 'captures-accueil/tv-repro-' + (process.env.NOM||'local') + '.png' });
+console.log(logs.join('\n'));
+await nav.close();

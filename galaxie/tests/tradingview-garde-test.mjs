@@ -1,0 +1,30 @@
+import { createRequire } from 'node:module';
+const G = createRequire(import.meta.url)('../../core/commun/tradingview-garde.js');
+let ok = 0, ko = 0; const v = (n, c) => { c ? ok++ : (ko++, console.log('KO ' + n)); if (c) console.log('OK ' + n); };
+v('message widget (objet) reconnu', G.messagePret('https://s.tradingview.com', { name: 'tv-widget-load' }));
+v('message widget (texte JSON) reconnu', G.messagePret('https://s.tradingview.com', '{"name":"widgetReady"}'));
+v('quoteUpdate reconnu', G.messagePret('https://s.tradingview.com', { name: 'quoteUpdate', data: {} }));
+v('autre origine refusée', !G.messagePret('https://evil.example', { name: 'tv-widget-load' }));
+v('origine imitée refusée', !G.messagePret('https://tradingview.com.evil.example', { name: 'tv-widget-load' }));
+v('http refusé', !G.messagePret('http://s.tradingview.com', { name: 'tv-widget-load' }));
+v('nom inconnu refusé', !G.messagePret('https://s.tradingview.com', { name: 'autre' }));
+v('texte invalide refusé', !G.messagePret('https://s.tradingview.com', 'pas du json'));
+v('rien refusé', !G.messagePret('https://s.tradingview.com', null));
+v('lien encodé', G.lien('CAPITALCOM:US100', '60') === 'https://www.tradingview.com/chart/?symbol=CAPITALCOM%3AUS100&interval=60');
+/* faux « fenêtre » : horloge et écouteurs injectés */
+function fausseFenetre() { const ec = []; let t = null, delai = 0; return { __TV_DELAI_MS__: 0, addEventListener: (n, f) => ec.push(f), removeEventListener: (n, f) => { const i = ec.indexOf(f); if (i >= 0) ec.splice(i, 1); }, setTimeout: (f, d) => { t = f; delai = d; return 1; }, clearTimeout: () => { t = null; }, envoyer: (origin, data) => ec.slice().forEach(f => f({ origin, data })), echeance: () => { const f = t; t = null; if (f) f(); }, ecouteurs: () => ec.length, delai: () => delai }; }
+let f = fausseFenetre(), r = { pret: 0, echec: 0 };
+let g = G.surveiller({ fenetre: f, surPret: () => r.pret++, surEchec: () => r.echec++ });
+v('délai par défaut 15 s', f.delai() === 15000);
+f.envoyer('https://s.tradingview.com', { name: 'tv-widget-load' });
+f.echeance();
+v('widget vivant : prêt, pas d’échec, écouteur retiré', r.pret === 1 && r.echec === 0 && f.ecouteurs() === 0 && g.pret());
+f = fausseFenetre(); r = { pret: 0, echec: 0 };
+g = G.surveiller({ fenetre: f, surPret: () => r.pret++, surEchec: () => r.echec++ });
+f.envoyer('https://autre.example', { name: 'tv-widget-load' });
+f.echeance();
+v('cadre muet : échec signalé, pas prêt', r.echec === 1 && r.pret === 0 && !g.pret() && f.ecouteurs() === 0);
+f = fausseFenetre(); r = { pret: 0, echec: 0 };
+g = G.surveiller({ fenetre: f, surPret: () => r.pret++, surEchec: () => r.echec++ }); g.arreter(); f.echeance();
+v('arrêté : ni prêt ni échec', r.pret === 0 && r.echec === 0);
+console.log(`\n${ok} réussis, ${ko} échecs`); process.exit(ko ? 1 : 0);

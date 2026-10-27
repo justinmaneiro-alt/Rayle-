@@ -229,7 +229,7 @@ export function creerEspace({ conteneur, client, tactile = false, depart = {}, s
     for (const b of sourceBtns.children) b.classList.toggle('actif', b.dataset.source === etat.source);
     conteneur.classList.toggle('tg-mode-tv', etat.source === 'tv'); zoneTV.style.display = etat.source === 'tv' ? '' : 'none'; zoneRayle.style.display = etat.source === 'tv' ? 'none' : '';
   }
-  const tv = creerTradingView({ boite: zoneTV });
+  const tv = creerTradingView({ boite: zoneTV, surAlternative: () => choisirSource('rayle') });
   const majTV = () => { if (etat.source === 'tv') tv.definir(etat.instrument, etat.unite); };
   function choisirSource(k) {
     if (k !== 'tv' && k !== 'rayle') return false; if (k === etat.source) return true;
