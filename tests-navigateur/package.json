@@ -1,0 +1,15 @@
+{
+  "name": "rayle-tests-navigateur",
+  "private": true,
+  "type": "module",
+  "description": "Tests de bout en bout dans Chrome (non publié). Prérequis : le serveur (node serveur.mjs) tourne sur le port 8000 et Chrome est installé.",
+  "scripts": {
+    "test": "node panne-cache-test.mjs && node voix-test.mjs && node voix-reelle-test.mjs && node navigation-test.mjs && node manifestes-page-test.mjs && node reglages-page-test.mjs && node decor-test.mjs && node retouches-test.mjs",
+    "terre": "node terre-orbite-test.mjs && node terre-actus-meteo-test.mjs && node terre-nuit-test.mjs && node terre-zoom-entree-test.mjs && node terre-fil-test.mjs",
+    "voix": "node panne-cache-test.mjs && node voix-test.mjs && node voix-reelle-test.mjs"
+  },
+  "devDependencies": {
+    "puppeteer-core": "23.6.0",
+    "pngjs": "7.0.0"
+  }
+}

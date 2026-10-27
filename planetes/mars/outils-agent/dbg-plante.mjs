@@ -1,0 +1,11 @@
+import { decouperM5, etatInitial, evaluerChantier } from '../pc/agent-btc/recherche-continue.js';
+import { construireContexte } from '../pc/agent-btc/contexte.js';
+import { CRITERES2 } from '../pc/agent-btc/criteres-v2.js';
+import { validerRegle } from '../pc/agent-btc/regles-lab.js';
+import { marcheM5 } from '../tests/synth-m5.mjs';
+const derive = h => (h >= 14 && h < 16 ? 0.3 : h >= 3 && h < 7 ? -0.15 : 0), m = marcheM5({ n: 110000, graine: 9, derive });
+const regle = validerRegle({ nom: 'x', cote: 'long', conditions: [{ type: 'session', valeurs: [2] }, { type: 'volume', min: 1 }, { type: 'delta', sens: 'avec', ratioMin: 0 }], stop: { type: 'atr', tf: 'h1', k: 1.5 }, R: 2 }).regle;
+const dec = decouperM5(m, { ouverts: [] }), ctx = construireContexte(m), etat = etatInitial(); etat.N = Number(process.env.N0 || 0);
+const rt = { ctx, m15: m, dec, config: {}, cr: CRITERES2, etat, coffre: { ouverts: [] }, profil: {} };
+const r = evaluerChantier(rt, { id: 'x', nom: 'x', niveau: 5, variants: [{ famille: 'regle', params: regle }], gen: 0 });
+console.log(r.decision, r.raison);

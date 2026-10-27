@@ -1,0 +1,20 @@
+import puppeteer from 'puppeteer-core';
+import path from 'node:path';
+const wav = path.resolve('audio', process.argv[2] + '.wav'), grammaire = process.argv[3] || '';
+const b = await puppeteer.launch({ executablePath: 'C:/Program Files/Google/Chrome/Application/chrome.exe', headless: 'new', args: ['--use-fake-device-for-media-stream', '--use-fake-ui-for-media-stream', '--use-file-for-fake-audio-capture=' + wav, '--autoplay-policy=no-user-gesture-required'] });
+const page = await b.newPage(); page.on('console', m => console.log('page:', m.text().slice(0, 200))); page.on('pageerror', e => console.log('ERR', e.message.slice(0, 300)));
+await page.goto('http://127.0.0.1:8000/index.html', { waitUntil: 'load' });
+const out = await page.evaluate(async (gram) => {
+  const res = [];
+  await new Promise((ok, ko) => { const s = document.createElement('script'); s.src = '/core/voice/vendor/vosk.js'; s.onload = ok; s.onerror = ko; document.head.appendChild(s); });
+  const t0 = performance.now(); const model = await Vosk.createModel('/core/voice/vendor/modele-fr.tar.gz'); res.push('modele ' + Math.round(performance.now() - t0) + ' ms');
+  const rec = gram ? new model.KaldiRecognizer(16000, gram) : new model.KaldiRecognizer(16000);
+  rec.on('result', m => res.push('R:' + m.result.text)); rec.on('partialresult', m => { if (m.result.partial) res.push('p:' + m.result.partial); });
+  const ms = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false, channelCount: 1 } });
+  const ac = new AudioContext(); const src = ac.createMediaStreamSource(ms); const node = ac.createScriptProcessor(4096, 1, 1);
+  node.onaudioprocess = e => { try { rec.acceptWaveform(e.inputBuffer); } catch (x) { res.push('E:' + x.message); } };
+  src.connect(node); node.connect(ac.destination); res.push('sr ' + ac.sampleRate);
+  await new Promise(r => setTimeout(r, 9000));
+  return res;
+}, grammaire);
+console.log([...new Set(out)].join('\n')); await b.close();

@@ -4,19 +4,30 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content">
 <meta name="theme-color" content="#030103">
-<meta name="mobile-web-app-capable" content="yes">
-<meta name="application-name" content="Raylé">
-<meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="apple-mobile-web-app-title" content="Raylé">
 <title>RAYLÉ // Market &amp; Neural Core</title>
 <link rel="icon" type="image/svg+xml" href="favicon.svg">
-<link rel="manifest" href="manifest.webmanifest">
-<link rel="apple-touch-icon" href="icones/apple-touch-icon.png">
-<link rel="stylesheet" href="css/rayle.css?v=2026.10.10.7">
-<link rel="stylesheet" href="css/hud.css?v=2026.10.10.7">
-<link rel="stylesheet" href="css/terminal.css?v=2026.10.10.7">
-<link rel="stylesheet" href="css/terminal-pro.css?v=2026.10.10.7">
+<script src="core/multi/satellite-tot.js"></script>
+<script type="importmap">
+{ "imports": { "three": "./galaxie/vendor/three.module.min.js", "three/addons/": "./galaxie/vendor/addons/" } }
+</script>
+<link rel="stylesheet" href="skins/neurone/rayle.css">
+<link rel="stylesheet" href="core/commun/hud.css">
+<link rel="stylesheet" href="core/commun/jarvis.css">
+<link rel="stylesheet" href="core/commun/actus-accueil.css">
+<link rel="stylesheet" href="terminal/css/terminal.css">
+<link rel="stylesheet" href="terminal/css/terminal-pro.css">
+<link rel="stylesheet" href="galaxie/galaxie.css">
+<link rel="stylesheet" href="core/multi/multi.css">
+<link rel="stylesheet" href="core/commun/veilleur.css">
+<link rel="stylesheet" href="core/direct/direct.css">
+<link rel="stylesheet" href="core/commun/medias.css">
+<link rel="stylesheet" href="core/commun/tableau-bord.css">
+<link rel="stylesheet" href="core/commun/telecommande.css">
+<link rel="stylesheet" href="core/commun/v1-theme.css">
+<link rel="stylesheet" href="core/commun/g1-accueil.css">
+<link rel="stylesheet" href="core/commun/g1-mini.css">
+<link rel="stylesheet" href="core/commun/actus-pays.css">
+<link rel="stylesheet" href="core/commun/images-actus.css">
 </head>
 <body>
   <main class="scene" id="scene">
@@ -29,9 +40,12 @@
 
   <nav class="barre" id="barre">
     <button class="mic" id="btn"><span id="btnTxt">Activer Raylé</span><small id="btnSub">puis dites « Raylé » pour lui parler</small></button>
-    <button type="button" class="gros" id="btnOuvrirTerminal"><i>📈</i><span>Terminal</span></button>
-    <button type="button" class="gros" id="btnCouper"><i>⏹</i><span>Couper</span></button>
-    <button type="button" class="gros" id="gear"><i>⚙</i><span>Réglages</span></button>
+    <button type="button" class="gros" id="btnOuvrirTerminal"><i><svg viewBox="0 0 24 24"><path d="M3 20h18M4 16l5-6 4 3 7-8"/><path d="M16 5h4v4"/></svg></i><span>Terminal</span></button>
+    <button type="button" class="gros" id="btnOuvrirGalaxie"><i><svg viewBox="0 0 24 24"><ellipse cx="12" cy="12" rx="10" ry="4.2" transform="rotate(-25 12 12)"/><circle cx="12" cy="12" r="2.6"/><circle cx="19" cy="6" r=".9"/></svg></i><span>Galaxie</span></button>
+    <button type="button" class="gros" id="btnPays" title="Actualités par pays, continent ou favoris"><i><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c3 3 3 15 0 18M12 3c-3 3-3 15 0 18"/></svg></i><span>Pays</span></button>
+    <button type="button" class="gros" id="btnSources" title="Sources en direct : séismes, catastrophes, communiqués officiels, télévisions, podcasts"><i><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="2"/><path d="M7.5 7.5a6.4 6.4 0 0 0 0 9M16.5 7.5a6.4 6.4 0 0 1 0 9M4.5 4.5a10.6 10.6 0 0 0 0 15M19.5 4.5a10.6 10.6 0 0 1 0 15"/></svg></i><span>Sources</span></button>
+    <button type="button" class="gros" id="btnCouper"><i><svg viewBox="0 0 24 24"><rect x="6" y="6" width="12" height="12"/><path d="M3 3v4M3 3h4M21 3h-4M21 3v4M3 21v-4M3 21h4M21 21h-4M21 21v-4"/></svg></i><span>Couper</span></button>
+    <button type="button" class="gros" id="gear"><i><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3.2"/><path d="M12 2.5v3M12 18.5v3M2.5 12h3M18.5 12h3M5.3 5.3l2.1 2.1M16.6 16.6l2.1 2.1M18.7 5.3l-2.1 2.1M7.4 16.6l-2.1 2.1"/><circle cx="12" cy="12" r="7"/></svg></i><span>Réglages</span></button>
   </nav>
 
   <div id="panneaux" aria-live="polite"></div>
@@ -40,23 +54,42 @@
       <div class="cfg-top"><span>⚙ RÉGLAGES</span><button type="button" class="ghost" id="cfgClose">✕ Fermer</button></div>
       <h3>Affichage</h3>
       <label class="chk"><input type="checkbox" id="kSousTitres"> Sous-titres discrets (ce que Raylé dit et ce qu'elle entend, sous l'entité)</label>
-      <label for="kQualite">Qualité de l'entité</label>
+      <label for="kQualite">Mode de l'entité (accueil)</label>
       <select id="kQualite">
-        <option value="auto">Automatique (s'allège toute seule si l'écran rame)</option>
-        <option value="0">Élevée (2800 points)</option>
-        <option value="1">Moyenne (1500 points)</option>
-        <option value="2">Légère (800 points)</option>
-        <option value="3">Très légère (canvas 2D)</option>
+        <option value="auto">Automatique (détecte l'appareil, s'allège toute seule si l'écran rame)</option>
+        <option value="0">Complet (12000 neurones, lueur : PC)</option>
+        <option value="1">Normal (8000 neurones, lueur : tablette, PC modeste)</option>
+        <option value="2">Léger (6000 neurones, sans lueur : téléphone)</option>
+        <option value="3">Très léger (ancien dessin 2D)</option>
       </select>
       <div class="hint" id="infoEntite"></div>
+      <label class="chk"><input type="checkbox" id="kSons"> Sons d'interface (petits bips discrets : démarrage, fenêtres, alertes) — désactivés par défaut ; le navigateur ne les joue qu'après un premier clic</label>
+      <label class="chk"><input type="checkbox" id="kMedias"> Images dans les réponses : pour les questions de recherche et d'actualité seulement (jamais pour les commandes), en complément du texte, avec source et licence — modes : léger = presque rien, normal = 3 images, complet = 4 images</label>
+      <label class="chk"><input type="checkbox" id="kVideos"> Vidéos dans les réponses : lecteurs officiels (chaînes d'information sur YouTube, Wikimedia, Internet Archive), lancées seulement par un clic, jamais toutes seules</label>
+      <div class="hint" id="infoMedias"></div>
+      <label class="chk"><input type="checkbox" id="kBoot"> Séquence de démarrage au chargement de l'accueil (un clic l'abrège ; absente avec « réduire les animations »)</label>
 
-      <h3>Application</h3>
-      <label class="chk"><input type="checkbox" id="kEcran"> Garder l'écran allumé pendant que Raylé est ouverte</label>
+      <h3>Tableau de bord <span class="voix">accueil</span></h3>
+      <div id="tbReglages"></div>
+
+      <h3>Mode multi-écrans <span class="voix" id="mxEtat">désactivé</span></h3>
       <div class="row">
-        <button type="button" id="cfgInstaller" hidden>Installer Raylé</button>
-        <button type="button" class="ghost" id="cfgMaj">Chercher une mise à jour</button>
+        <button type="button" id="mxBascule">Activer le mode multi-écrans</button>
+        <button type="button" class="ghost" id="mxIdentifier">Identifier les écrans</button>
+        <button type="button" class="ghost" id="mxDetecter">Détecter mes écrans</button>
       </div>
-      <div class="hint" id="installInfo"></div>
+      <div class="hint" id="mxInfo"></div>
+      <h3>Mes écrans</h3>
+      <div class="mx-ed" id="mxEditeur"></div>
+
+      <h3>Pilotage depuis la tablette / le téléphone <span class="voix">réseau local</span></h3>
+      <div class="hint">Transforme une tablette ou un téléphone en télécommande de Raylé (pavé tactile, clavier, voix, pilotage). Désactivé par défaut. Quand il est actif, seule la page /clavier est joignable depuis ton réseau local, avec un QR code, un code à 6 chiffres affiché ici et un jeton par appareil. Rien n’agit sur Windows : seule la page Raylé obéit.</div>
+      <div class="row"><label class="chk"><input type="checkbox" id="telInterrupteur"> Pilotage depuis la tablette/téléphone</label> <button type="button" class="ghost" id="telOuvrir">QR code et appareils</button></div>
+      <div class="hint" id="telInfo"></div>
+
+      <h3>Alertes du Veilleur <span class="voix">Bitcoin · Telegram</span></h3>
+      <div class="hint">Le Veilleur surveille le Bitcoin sur ton PC, même Rayle fermé, et t’alerte sur Telegram et ici. Il n’envoie jamais d’ordre et ne signale une entrée que si une stratégie est validée par les backtests.</div>
+      <div class="vl-reglages" id="vlSection"></div>
 
       <h3>Connexion</h3>
       <label for="kUrl">Adresse du Worker</label>
@@ -79,6 +112,9 @@
       </div>
       <div class="hint" id="appInfo"></div>
 
+      <h3>Activation vocale <span class="voix">coupé · veille · actif</span></h3>
+      <div id="avReglages"></div>
+
       <h3>Voix et écoute</h3>
       <label for="kVit">Vitesse de la voix : <span id="kVitVal">…</span></label>
       <input id="kVit" type="range" min="-40" max="20" step="2">
@@ -99,18 +135,15 @@
         <button type="button" class="ghost" id="cfgTest">Tester la connexion</button>
         <button type="button" class="ghost" id="cfgTestVoix">Tester la voix</button>
         <button type="button" class="ghost" id="cfgTestMkt">Tester le marché</button>
-        <button type="button" class="ghost" id="cfgTestInfo">Tester les savoirs</button>
         <button type="button" class="ghost" id="cfgClean">Effacer les anciennes clés</button>
       </div>
       <span class="msg" id="cfgMsg"></span>
-      <div class="hint">Aucune clé d'IA ni de marché n'est stockée ici : elles sont rangées dans le Worker Cloudflare. Seuls l'adresse du Worker, le code d'accès et tes réglages restent dans ce navigateur. Ne partage le code avec personne.<br>Pour une vidéo YouTube : colle le lien dans le champ de texte, ou copie-le puis dis « Raylé, analyse la vidéo ».</div>
+      <div class="hint">Aucune clé d'IA ni de marché n'est stockée ici : elles sont rangées dans le Worker Cloudflare. Seuls l'adresse du Worker, le code d'accès et tes réglages restent dans ce navigateur. Ne partage le code avec personne.</div>
 
       <h3>Écrire à Raylé</h3>
       <form id="form" autocomplete="off">
         <span>&gt;</span>
-        <input id="txt" type="text" placeholder="…ou écrivez ici (lien YouTube, ou 📎 pour une image, une vidéo ou un devoir)">
-        <button type="button" class="clip" id="clip" title="Envoyer une image, une vidéo ou un devoir PDF / Word (écrivez d'abord votre question si vous voulez)">📎</button>
-        <input type="file" id="fichier" accept="image/*,video/*,.pdf,.docx,.pptx,.txt,.md,.csv" hidden>
+        <input id="txt" type="text" placeholder="…ou écrivez ici">
         <button type="submit">↵</button>
       </form>
 
@@ -190,39 +223,128 @@
   </div>
 </div>
 
+<div id="vueGalaxie" hidden>
+  <canvas id="scene3d"></canvas>
+  <div class="g-titre"><b>R A Y L É</b><span>Galaxie</span></div>
+  <button type="button" class="g-btn" id="g-retour" title="Revenir à l'écran principal de Raylé">← Raylé</button>
+  <nav id="fil"><button id="fil-accueil" title="Retour à la vue d'ensemble (H)">Galaxie</button><span id="fil-sep" hidden>›</span><span id="fil-planete"></span></nav>
+  <div class="g-reglages">
+    <label for="qualite">Qualité 3D</label>
+    <select id="qualite"><option value="auto">Auto</option><option value="haute">Haute</option><option value="moyenne">Moyenne</option><option value="basse">Basse</option></select>
+    <span>(<span id="qualite-actuelle">…</span>)</span>
+    <span class="fps" id="fps">… i/s</span>
+    <button type="button" class="g-btn" id="g-mic" title="Parler à Raylé">🎙</button>
+    <button type="button" class="g-btn" id="g-reglages-btn" title="Réglages de la galaxie">⚙</button>
+  </div>
+  <aside id="g-panneau" class="g-panneau" hidden>
+    <div class="g-pt"><h2>Réglages</h2><button type="button" id="g-pfermer" title="Fermer">✕</button></div>
+    <h3>Qualité</h3>
+    <label>Appareil <select id="gp-appareil"><option value="auto">Détecté</option><option value="pc">PC gamer</option><option value="tablette">Tablette</option><option value="telephone">Téléphone</option></select> <span class="g-petit" id="gp-appareil-info"></span></label>
+    <label>Résolution du rendu <b id="gp-echelle-val"></b><input type="range" id="gp-echelle" min="50" max="100" step="5"></label>
+    <label>Anticrénelage <select id="gp-msaa"><option value="">Selon la qualité</option><option value="0">Aucun</option><option value="2">2×</option><option value="4">4×</option></select></label>
+    <label>Lueur (bloom) <select id="gp-bloom"><option value="">Selon la qualité</option><option value="oui">Oui</option><option value="non">Non</option></select></label>
+    <label>Densité du décor <b id="gp-densite-val"></b><input type="range" id="gp-densite" min="20" max="100" step="10"></label>
+    <label>Vitesse du système <b id="gp-vitesse-val"></b><input type="range" id="gp-vitesse" min="10" max="300" step="10"></label>
+    <label>Limite d’images/s <select id="gp-fps"><option value="">Selon l’appareil</option><option value="30">30</option><option value="60">60</option><option value="90">90</option><option value="120">120</option><option value="144">144</option><option value="0">Sans limite</option></select></label>
+    <label class="g-case"><input type="checkbox" id="gp-afficherfps"> Afficher le compteur d’images/s</label>
+    <h3>Mode jeu <span class="g-petit" id="gp-jeu-etat"></span></h3>
+    <button type="button" id="gp-jeu">Activer le mode jeu</button>
+    <label>Images/s en mode jeu <select id="gp-jeu-fps"><option>15</option><option>20</option><option>30</option><option>45</option><option>60</option></select></label>
+    <label>Résolution en mode jeu <b id="gp-jeu-echelle-val"></b><input type="range" id="gp-jeu-echelle" min="40" max="100" step="5"></label>
+    <label class="g-case"><input type="checkbox" id="gp-jeu-focus"> Presque à l’arrêt quand la fenêtre n’a pas le focus</label>
+    <label class="g-case"><input type="checkbox" id="gp-jeu-tex"> Réduire les textures en mémoire vidéo</label>
+    <h3>Mesures</h3>
+    <div class="g-mesures" id="gp-mesures"></div>
+    <canvas id="gp-courbe" width="320" height="56"></canvas>
+    <button type="button" id="gp-banc">Tester les performances (≈ 15 s)</button>
+    <div class="g-petit" id="gp-banc-etat"></div>
+    <div id="gp-banc-res"></div>
+    <button type="button" id="gp-reco" hidden>Appliquer la recommandation</button>
+    <button type="button" id="gp-reset">Réinitialiser les réglages</button>
+  </aside>
+  <div id="g-jeu" hidden>MODE JEU</div>
+  <div id="alertes" hidden></div>
+  <div id="etiquette" hidden><span class="g-nom"></span></div>
+  <aside id="carte" class="g-panneau" hidden>
+    <h2 id="carte-titre"></h2><p id="carte-theme"></p><p class="g-petit" id="carte-etat"></p>
+    <button id="carte-entrer">Entrer</button><button id="carte-fermer">Fermer</button>
+    <p class="g-petit">Double-clic sur un astre : y voler. Ou dis « va sur … ».</p>
+  </aside>
+  <section id="sas" class="g-panneau" hidden>
+    <h2 id="sas-titre"></h2><p id="sas-theme"></p><p class="g-petit" id="sas-etat"></p>
+    <p class="g-petit" id="sas-ordres-titre" hidden>Ordres que Raylé pourra donner (○ prévu · ● disponible) :</p><ul id="sas-ordres"></ul>
+    <button id="sas-retour">Retour à la galaxie (Échap)</button>
+  </section>
+  <div id="g-parole"><div id="g-etat"></div><div id="g-dit"></div></div>
+  <div class="g-aide">Glisser : tourner · Molette : zoom · Clic droit + glisser : déplacer<br>Clic : choisir (clic sur Raylé : lui parler, 2e clic : couper) · Double-clic : entrer · Échap : retour · H : accueil · O : orbites<br>Voix : « va sur Mars » · « retour à la galaxie » · « mode jeu »</div>
+  <div class="g-credits">Textures : Solar System Scope (CC BY 4.0) · three.js (MIT)</div>
+  <div id="chargement"><div id="chargement-texte">Chargement des mondes…</div><div class="g-barre"><div id="chargement-barre"></div></div></div>
+</div>
+
 <script>window.RAYLE_VERSION='2026.10.10.7';</script>
-<script src="js/commun/bus.js?v=2026.10.10.7"></script>
-<script src="js/commun/vues.js?v=2026.10.10.7"></script>
-<script src="js/commun/entite.js?v=2026.10.10.7"></script>
-<script src="js/commun/panneaux.js?v=2026.10.10.7"></script>
-<script src="js/rayle/base.js?v=2026.10.10.7"></script>
-<script src="js/rayle/pont-terminal.js?v=2026.10.10.7"></script>
-<script src="js/rayle/commandes-terminal.js?v=2026.10.10.7"></script>
-<script src="js/rayle/nettoyage-voix.js?v=2026.10.10.7"></script>
-<script src="js/rayle/worker.js?v=2026.10.10.7"></script>
-<script src="js/rayle/voix.js?v=2026.10.10.7"></script>
-<script src="js/rayle/ia.js?v=2026.10.10.7"></script>
-<script src="js/rayle/phrase.js?v=2026.10.10.7"></script>
-<script src="js/rayle/agent.js?v=2026.10.10.7"></script>
-<script src="js/rayle/modes.js?v=2026.10.10.7"></script>
-<script src="js/rayle/coupure.js?v=2026.10.10.7"></script>
-<script src="js/rayle/marche.js?v=2026.10.10.7"></script>
-<script src="js/rayle/calendrier.js?v=2026.10.10.7"></script>
-<script src="js/rayle/calcul.js?v=2026.10.10.7"></script>
-<script src="js/rayle/panneaux-contenus.js?v=2026.10.10.7"></script>
-<script src="js/rayle/panneau-donnees.js?v=2026.10.10.7"></script>
-<script src="js/rayle/carte.js?v=2026.10.10.7"></script>
-<script src="js/rayle/savoirs.js?v=2026.10.10.7"></script>
-<script src="js/rayle/memoire.js?v=2026.10.10.7"></script>
-<script src="js/rayle/medias.js?v=2026.10.10.7"></script>
-<script src="js/rayle/lecture.js?v=2026.10.10.7"></script>
-<script src="js/rayle/reconnaissance.js?v=2026.10.10.7"></script>
-<script src="js/rayle/reglages.js?v=2026.10.10.7"></script>
-<script src="js/rayle/affichage.js?v=2026.10.10.7"></script>
-<script src="js/rayle/evenements.js?v=2026.10.10.7"></script>
-<script src="js/rayle/reponse-hud.js?v=2026.10.10.7"></script>
-<script src="js/rayle/securite.js?v=2026.10.10.7"></script>
-<script src="js/commun/pwa.js?v=2026.10.10.7"></script>
-<script src="js/rayle/demarrage.js?v=2026.10.10.7"></script>
+<script src="core/commun/bascule-worker.js"></script>
+<script src="core/commun/bus.js"></script>
+<script src="core/commun/ordres.js"></script>
+<script src="core/commun/vues.js"></script>
+<script src="skins/neurone/entite.js"></script>
+<script src="core/commun/panneaux.js"></script>
+<script type="module" src="core/commun/panneaux-mobiles.js"></script>
+<script src="core/commun/base.js"></script>
+<script src="core/commun/jarvis-svg.js"></script>
+<script src="core/commun/sons.js"></script>
+<script src="core/commun/jarvis.js"></script>
+<script src="core/commun/tableau-bord-contenu.js"></script>
+<script src="core/commun/tableau-bord.js"></script>
+<script src="core/commun/g1-contenu.js"></script>
+<script src="core/commun/g1-fenetres-calcul.js"></script>
+<script src="core/commun/graphique-bougies-calcul.js"></script>
+<script src="core/commun/graphique-bougies.js"></script>
+<script src="core/commun/g1-accueil.js"></script>
+<script src="core/commun/g1-mini.js"></script>
+<script src="core/commun/fenetres-anim.js"></script>
+<script src="core/commun/boot-jarvis.js"></script>
+<script src="core/commun/reponses-contenu.js"></script>
+<script src="core/commun/reponses-holo.js"></script>
+<script src="core/commun/images-contenu.js"></script>
+<script src="core/commun/images-holo.js"></script>
+<script src="core/commun/medias-contenu.js"></script>
+<script src="core/commun/images-actus.js"></script>
+<script src="core/commun/medias-holo.js"></script>
+<script src="core/commun/actus-accueil-contenu.js"></script>
+<script src="core/commun/actus-accueil.js"></script>
+<script src="core/commun/pays-contenu.js"></script>
+<script src="core/commun/actus-pays.js"></script>
+<script src="terminal/page/pont-terminal.js"></script>
+<script src="terminal/page/commandes-terminal.js"></script>
+<script src="galaxie/commandes.js"></script>
+<script src="core/voice/nettoyage-voix.js"></script>
+<script src="core/api-keys/worker.js"></script>
+<script src="core/voice/voix.js"></script>
+<script src="core/voice/declencheurs-calcul.js"></script>
+<script src="core/voice/veille-locale.js"></script>
+<script src="core/intelligence/ia.js"></script>
+<script src="core/intelligence/phrase.js"></script>
+<script src="core/intelligence/agent.js"></script>
+<script src="core/intelligence/modes.js"></script>
+<script src="core/voice/coupure.js"></script>
+<script src="terminal/page/marche.js"></script>
+<script src="terminal/page/calendrier.js"></script>
+<script src="core/intelligence/memoire.js"></script>
+<script src="core/intelligence/lecture.js"></script>
+<script src="core/voice/reconnaissance.js"></script>
+<script src="core/api-keys/reglages.js"></script>
+<script src="core/voice/affichage.js"></script>
+<script src="core/intelligence/evenements.js"></script>
+<script src="core/api-keys/securite.js"></script>
+<script src="core/commun/veilleur-page.js"></script>
+<script src="core/direct/direct-page.js"></script>
+<script src="core/multi/multi-calcul.js"></script>
+<script src="core/multi/multi-modules.js"></script>
+<script src="core/multi/multi.js"></script>
+<script src="core/multi/multi-editeur.js"></script>
+<script src="core/voice/activation.js"></script>
+<script src="core/commun/telecommande-calcul.js"></script>
+<script src="core/commun/telecommande.js"></script>
+<script src="core/commun/demarrage.js"></script>
 </body>
 </html>

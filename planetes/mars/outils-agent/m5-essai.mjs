@@ -1,0 +1,12 @@
+import { historiqueReel } from '../tests/aide-btc.mjs';
+import { trancher, etatInitial, decouperM5 } from '../pc/agent-btc/recherche-continue.js';
+import { creerBibliotheque } from '../pc/agent-btc/bibliotheque.js';
+const { serie } = await historiqueReel({ annees: 9 });
+console.log('bougies', serie.n);
+const dec = decouperM5(serie, { ouverts: [] });
+console.log('zone A mois', dec.moisZoneA.toFixed(1), 'dépistage', dec.moisDepistage.toFixed(1), 'walk-forward', dec.moisWalkForward.toFixed(1), 'blocs', dec.folds.length, 'final', dec.moisFinal.toFixed(1));
+const etat = etatInitial(), bib = creerBibliotheque();
+const t0 = Date.now();
+const r = await trancher(etat, { m15: serie, bibliotheque: bib, budget: { chantiersMax: Number(process.argv[2] || 3), tempsMs: 600000 }, surEvenement: e => { if (['chantier','validation','rejet_final','tranche_finie'].includes(e.type)) console.log(((Date.now()-t0)/1000).toFixed(1)+'s', JSON.stringify(e).slice(0, 220)); } });
+console.log('stop', r.stop, 'N', etat.N, (Date.now()-t0)/1000, 's');
+for (const j of etat.journalCourt.slice(-8)) console.log(j.decision, '|', j.nom, '|', (j.raison||'').slice(0, 260));

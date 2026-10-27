@@ -1,0 +1,295 @@
+{
+  "schema": 1,
+  "id": "saturne",
+  "nom": "Saturne",
+  "alias": [
+    "la planete aux anneaux"
+  ],
+  "theme": "Anatomie : squelette, muscles, nerfs, organes",
+  "etat": "active",
+  "orbite": {
+    "distance": 98,
+    "periode": 330,
+    "phase": 1.85
+  },
+  "apparence": {
+    "rayon": 6,
+    "rotation": 0.55,
+    "tilt": 0.47,
+    "texture": "galaxie/textures/8k_saturn.jpg",
+    "atmosphere": {
+      "couleur": [
+        0.95,
+        0.85,
+        0.6
+      ],
+      "force": 0.3,
+      "crepuscule": [
+        0.95,
+        0.6,
+        0.35
+      ],
+      "epaisseur": 0.05
+    },
+    "anneaux": {
+      "interieur": 8,
+      "exterieur": 13.5,
+      "texture": "galaxie/textures/2k_saturn_ring_alpha.png"
+    }
+  },
+  "satellites": [
+    {
+      "id": "vaisseau-anatomie",
+      "nom": "Vaisseau d'anatomie",
+      "alias": [
+        "vaisseau d'anatomie",
+        "vaisseau anatomie",
+        "le vaisseau d'anatomie",
+        "la base d'anatomie"
+      ],
+      "type": "anatomie",
+      "orbite": 17,
+      "periode": 46
+    }
+  ],
+  "modules": {
+    "pc": {
+      "entree": "planetes/saturne/pc/index.js",
+      "qualite_min": "moyenne"
+    },
+    "tablette": {
+      "entree": "planetes/saturne/fenetres/index.js"
+    },
+    "telephone": {
+      "entree": "planetes/saturne/fenetres/index.js"
+    }
+  },
+  "agents": [
+    {
+      "id": "saturne-interprete",
+      "role": "interprete",
+      "route": "/planete/saturne/interprete"
+    }
+  ],
+  "ordres": [
+    {
+      "action": "afficher_systeme",
+      "description": "Afficher un système du corps",
+      "params": {
+        "systeme": [
+          "squelette",
+          "muscles",
+          "nerveux",
+          "vasculaire",
+          "organes",
+          "arteres",
+          "veines",
+          "nerfs",
+          "nerfs_peripheriques",
+          "ligaments",
+          "coeur",
+          "poumons",
+          "digestif",
+          "dents",
+          "cerveau"
+        ]
+      }
+    },
+    {
+      "action": "decrire",
+      "description": "Décrire un os, un muscle ou un organe",
+      "params": {
+        "nom": "texte"
+      }
+    },
+    {
+      "action": "animer",
+      "description": "Animer un mouvement du squelette",
+      "params": {
+        "mouvement": "texte"
+      }
+    },
+    {
+      "action": "afficher_pathologie",
+      "description": "Montrer une pathologie sur le squelette",
+      "params": {
+        "nom": "texte"
+      }
+    },
+    {
+      "action": "aller_a",
+      "description": "Piloter le vaisseau jusqu’à l’orbite d’un astre (pilote automatique)",
+      "params": {
+        "cible": [
+          "soleil",
+          "mercure",
+          "venus",
+          "terre",
+          "mars",
+          "jupiter",
+          "saturne",
+          "uranus",
+          "neptune"
+        ]
+      }
+    },
+    {
+      "action": "changer_vue",
+      "description": "Changer de vue : extérieure, cockpit ou libre",
+      "params": {
+        "vue": [
+          "exterieur",
+          "cockpit",
+          "libre"
+        ]
+      }
+    },
+    {
+      "action": "s_asseoir",
+      "description": "S’asseoir au poste de pilotage"
+    },
+    {
+      "action": "se_lever",
+      "description": "Se lever du siège du pilote"
+    },
+    {
+      "action": "ouvrir_salle_medicale",
+      "description": "Ouvrir la salle médicale (table holographique d’anatomie)"
+    },
+    {
+      "action": "fermer_salle_medicale",
+      "description": "Revenir de la salle médicale au cockpit"
+    },
+    {
+      "action": "arreter_vaisseau",
+      "description": "Arrêter le vaisseau (coupe le pilote automatique et freine)"
+    },
+    {
+      "action": "mettre_en_orbite",
+      "description": "Mettre le vaisseau en orbite de l’astre le plus proche"
+    },
+    {
+      "action": "afficher_commandes",
+      "description": "Afficher le schéma des commandes de pilotage"
+    },
+    {
+      "action": "reglage_vol",
+      "description": "Régler l’assistance de vol ou le limiteur de vitesse",
+      "params": {
+        "reglage": [
+          "assistance",
+          "limiteur"
+        ],
+        "etat": [
+          "oui",
+          "non"
+        ]
+      }
+    },
+    {
+      "action": "entrer_vaisseau",
+      "description": "Monter à bord du vaisseau Vésale (orbite de Saturne)"
+    },
+    {
+      "action": "anatomie_montrer",
+      "description": "Sélectionner une structure anatomique sur la table holographique",
+      "params": {
+        "nom": "texte"
+      }
+    },
+    {
+      "action": "anatomie_isoler",
+      "description": "Isoler une structure anatomique",
+      "params": {
+        "nom": "texte"
+      }
+    },
+    {
+      "action": "anatomie_comparer",
+      "description": "Comparer une structure à gauche et à droite",
+      "params": {
+        "nom": "texte"
+      }
+    },
+    {
+      "action": "anatomie_tout",
+      "description": "Tout réafficher sur la table d’anatomie"
+    },
+    {
+      "action": "anatomie_coupe",
+      "description": "Plan de coupe : x sagittal, y transversal, z frontal, ou aucune",
+      "params": {
+        "plan": [
+          "x",
+          "y",
+          "z",
+          "aucune"
+        ]
+      }
+    },
+    {
+      "action": "anatomie_noms",
+      "description": "Langue des étiquettes : français, latin ou les deux",
+      "params": {
+        "langue": [
+          "fr",
+          "la",
+          "fr+la"
+        ]
+      }
+    },
+    {
+      "action": "anatomie_transparence",
+      "description": "Rendre les autres structures transparentes",
+      "params": {
+        "etat": [
+          "oui",
+          "non"
+        ]
+      }
+    },
+    {
+      "action": "anatomie_couches",
+      "description": "Retirer les couches de muscles : tout, sans la couche superficielle ou seulement la couche profonde",
+      "params": {
+        "niveau": [
+          "toutes",
+          "intermediaire",
+          "profonde"
+        ]
+      }
+    },
+    {
+      "action": "anatomie_cotation",
+      "description": "Rappeler l’échelle de cotation musculaire (Lovett, Daniels)"
+    },
+    {
+      "action": "anatomie_flux",
+      "description": "Animer ou arrêter l’animation illustrative de la circulation sanguine, du battement du cœur et de l’influx nerveux",
+      "params": {
+        "etat": [
+          "oui",
+          "non"
+        ]
+      }
+    },
+    {
+      "action": "anatomie_mouvement_stop",
+      "description": "Arrêter le mouvement animé du squelette"
+    },
+    {
+      "action": "anatomie_pathologie_stop",
+      "description": "Revenir à l’anatomie normale (retirer la pathologie affichée)"
+    }
+  ],
+  "donnees": {
+    "lit": [
+      "anatomie"
+    ],
+    "ecrit": []
+  },
+  "licences": [
+    "Textures Solar System Scope (CC BY 4.0), dérivées de données NASA",
+    "Vaisseau Vésale, cockpit et salle médicale : modélisation procédurale originale (aucun asset externe)"
+  ]
+}

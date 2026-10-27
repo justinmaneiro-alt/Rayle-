@@ -1,0 +1,15 @@
+/* Réglages et panneau du Veilleur (alertes de l'agent Bitcoin) */
+.vl-reglages{display:flex;flex-direction:column;gap:8px;margin-bottom:10px}
+.vl-etat{padding:6px 9px;border:1px solid rgba(77,227,255,.35);font:12px var(--mono,monospace);color:#bfeaff}
+.vl-etat.ok{border-color:rgba(80,255,150,.55)}.vl-etat.ko{border-color:rgba(255,170,60,.55)}
+.vl-lig{display:flex;flex-wrap:wrap;gap:6px 14px;align-items:center;font-size:12px}
+.vl-lig>span{opacity:.75}
+.vl-num{display:inline-flex;gap:5px;align-items:center}
+.vl-num input{width:64px}
+.vl-num input[type=time]{width:84px}
+.vl-msg{min-height:1.2em;font-size:12px;opacity:.85}
+.vl-vide{opacity:.75;font-size:12px;padding:6px 0}
+.vl-liste{display:flex;flex-direction:column;gap:8px}
+.vl-carte{border:1px solid rgba(77,227,255,.3);padding:8px 10px;font:12px/1.45 var(--mono,monospace);white-space:pre-wrap;background:rgba(3,1,6,.5)}
+.vl-carte.ENTREE{border-color:rgba(80,255,150,.7)}.vl-carte.PREPARATION{border-color:rgba(255,220,80,.6)}.vl-carte.OBSERVATION{border-color:rgba(120,170,255,.6)}.vl-carte.MACRO{border-color:rgba(255,160,60,.65)}
+.vl-carte h5{margin:0 0 4px;font:700 11px var(--mono,monospace);letter-spacing:.08em;opacity:.8}

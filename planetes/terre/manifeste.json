@@ -1,0 +1,131 @@
+{
+  "schema": 1,
+  "id": "terre",
+  "nom": "Terre",
+  "alias": [
+    "la terre",
+    "la planete bleue"
+  ],
+  "theme": "Base de données du monde : actualités, météo, lieux",
+  "etat": "active",
+  "orbite": {
+    "distance": 39,
+    "periode": 92,
+    "phase": 0.35
+  },
+  "apparence": {
+    "rayon": 3.2,
+    "rotation": 0.35,
+    "tilt": 0.41,
+    "texture": "galaxie/textures/8k_earth_daymap.jpg",
+    "nuit": "galaxie/textures/8k_earth_nightmap.jpg",
+    "nuages": "galaxie/textures/2k_earth_clouds.jpg",
+    "atmosphere": {
+      "couleur": [
+        0.35,
+        0.6,
+        1
+      ],
+      "force": 1.1,
+      "crepuscule": [
+        1,
+        0.45,
+        0.2
+      ],
+      "epaisseur": 0.04
+    }
+  },
+  "modules": {
+    "pc": {
+      "entree": "planetes/terre/pc/index.js",
+      "qualite_min": "moyenne"
+    },
+    "tablette": {
+      "entree": "planetes/terre/leger/index.js"
+    },
+    "telephone": {
+      "entree": "planetes/terre/leger/index.js"
+    }
+  },
+  "agents": [
+    {
+      "id": "terre-interprete",
+      "role": "interprete",
+      "route": "/planete/terre/interprete"
+    },
+    {
+      "id": "terre-collecteur",
+      "role": "agent",
+      "route": "/planete/terre/collecteur"
+    }
+  ],
+  "ordres": [
+    {
+      "action": "tourner_vers",
+      "description": "Faire tourner la Terre vers un pays ou une ville",
+      "params": {
+        "lieu": "texte"
+      }
+    },
+    {
+      "action": "afficher_actualites",
+      "description": "Ouvrir les actualités d’un pays dans une petite fenêtre",
+      "params": {
+        "pays": "texte"
+      }
+    },
+    {
+      "action": "montrer_lieu_perso",
+      "description": "Montrer un lieu retenu (domicile, travail, études)",
+      "params": {
+        "lieu": [
+          "domicile",
+          "travail",
+          "etudes"
+        ]
+      }
+    },
+    {
+      "action": "afficher_meteo",
+      "description": "Afficher la météo d’un lieu",
+      "params": {
+        "lieu": "texte"
+      }
+    }
+  ],
+  "donnees": {
+    "lit": [
+      "actualites",
+      "archives",
+      "meteo",
+      "lieux"
+    ],
+    "ecrit": [
+      "lieux",
+      "resume_monde"
+    ]
+  },
+  "licences": [
+    "Textures Solar System Scope (CC BY 4.0), dérivées de données NASA",
+    "NASA GIBS Blue Marble (domaine public)",
+    "EOxCloudless Sentinel-2 2020 (CC BY-NC-SA 4.0, usage non commercial)",
+    "AWS Terrain Tiles (SRTM, 3DEP, GMTED2010, ETOPO1, EU-DEM…)",
+    "OpenStreetMap (ODbL) via OpenFreeMap / OpenMapTiles",
+    "Open-Meteo Geocoding (GeoNames, CC BY 4.0)"
+  ],
+  "satellites": [
+    {
+      "id": "lune",
+      "nom": "Lune",
+      "alias": [
+        "la lune"
+      ],
+      "type": "lune",
+      "theme": "Satellite naturel de la Terre",
+      "rayon": 0.95,
+      "texture": "galaxie/textures/2k_moon.jpg",
+      "orbite": 10,
+      "periode": 26
+    }
+  ]
+}

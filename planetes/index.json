@@ -1,0 +1,14 @@
+{
+  "schema": 1,
+  "corps": [
+    "rayle",
+    "mercure",
+    "venus",
+    "terre",
+    "mars",
+    "jupiter",
+    "saturne",
+    "uranus",
+    "neptune"
+  ]
+}

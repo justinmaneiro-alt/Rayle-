@@ -1,0 +1,397 @@
+{
+  "schema": 1,
+  "id": "mars",
+  "nom": "Mars",
+  "alias": [
+    "la planete rouge",
+    "la base martienne"
+  ],
+  "theme": "Base martienne : bureau (bientôt) et terminal de trading",
+  "etat": "active",
+  "orbite": {
+    "distance": 48,
+    "periode": 130,
+    "phase": -0.25
+  },
+  "apparence": {
+    "rayon": 2.3,
+    "rotation": 0.33,
+    "tilt": 0.44,
+    "texture": "galaxie/textures/8k_mars.jpg",
+    "atmosphere": {
+      "couleur": [
+        1,
+        0.55,
+        0.35
+      ],
+      "force": 0.5,
+      "crepuscule": [
+        0.4,
+        0.62,
+        1
+      ],
+      "epaisseur": 0.03
+    }
+  },
+  "modules": {
+    "pc": {
+      "entree": "planetes/mars/pc/index.js",
+      "qualite_min": "moyenne"
+    },
+    "tablette": {
+      "entree": "planetes/mars/terminal-2d/index.js"
+    },
+    "telephone": {
+      "entree": "planetes/mars/terminal-2d/index.js"
+    }
+  },
+  "agents": [
+    {
+      "id": "mars-interprete",
+      "role": "interprete",
+      "route": "/planete/mars/interprete"
+    },
+    {
+      "id": "mars-analyste",
+      "role": "agent",
+      "route": "/planete/mars/analyste"
+    }
+  ],
+  "ordres": [
+    {
+      "action": "changer_actif",
+      "description": "Changer l’instrument du graphique (US100, or, Bitcoin, Solana, EUR/USD, dollar, taux, VIX)",
+      "params": {
+        "actif": [
+          "US100",
+          "XAU",
+          "BTC",
+          "SOL",
+          "DOGE",
+          "EUR",
+          "DXY",
+          "US10Y",
+          "VIX"
+        ]
+      }
+    },
+    {
+      "action": "changer_unite",
+      "description": "Changer l’unité de temps du graphique",
+      "params": {
+        "unite": [
+          "M15",
+          "H1",
+          "H4",
+          "D1"
+        ]
+      }
+    },
+    {
+      "action": "ouvrir_fenetre",
+      "description": "Ouvrir un panneau du terminal (dashboard, contexte, agent_btc, alertes, cot, calendrier, actus, banques, taux, heatmap, publications : disponibles ; analyse : étape suivante)",
+      "params": {
+        "fenetre": [
+          "dashboard",
+          "contexte",
+          "agent_btc",
+          "alertes",
+          "cot",
+          "calendrier",
+          "actus",
+          "banques",
+          "taux",
+          "heatmap",
+          "publications",
+          "analyse",
+          "agent",
+          "gardien",
+          "tilt",
+          "journal",
+          "simulation",
+          "regime",
+          "capture",
+          "sante"
+        ]
+      }
+    },
+    {
+      "action": "analyser",
+      "description": "Demander une analyse à l’agent de trading",
+      "params": {
+        "actif": [
+          "US100",
+          "XAU",
+          "BTC",
+          "SOL",
+          "DOGE",
+          "DXY"
+        ]
+      }
+    },
+    {
+      "action": "entrer_base",
+      "description": "Entrer dans la base martienne (le salon du terminal de trading)",
+      "params": {}
+    },
+    {
+      "action": "sortir_base",
+      "description": "Sortir de la base martienne (retour à l’orbite de Mars)",
+      "params": {}
+    },
+    {
+      "action": "visiter_bureau",
+      "description": "Aller au bureau de la base (pas encore aménagé : bientôt)",
+      "params": {}
+    },
+    {
+      "action": "regler_heure",
+      "description": "Régler l’heure solaire simulée de la base (0 à 24)",
+      "params": {
+        "heure": "nombre"
+      }
+    },
+    {
+      "action": "afficher_graphique",
+      "description": "Afficher un instrument sur une unité de temps dans le terminal (« montre-moi l’or en H1 »)",
+      "params": {
+        "instrument": [
+          "US100",
+          "XAU",
+          "BTC",
+          "SOL",
+          "DOGE",
+          "EUR",
+          "DXY",
+          "US10Y",
+          "VIX"
+        ],
+        "unite": [
+          "M15",
+          "H1",
+          "H4",
+          "D1"
+        ]
+      }
+    },
+    {
+      "action": "choisir_source",
+      "description": "Choisir le graphique du terminal : widget TradingView (MA 200 et RSI) ou graphique Raylé",
+      "params": {
+        "source": [
+          "tv",
+          "rayle"
+        ]
+      }
+    },
+    {
+      "action": "agent_expliquer",
+      "description": "Faire expliquer l’agent Bitcoin (phase du marché, setup, backtests, volume profile…) à voix haute, sans IA",
+      "params": {
+        "sujet": [
+          "agent",
+          "phase",
+          "setup",
+          "backtests",
+          "volume_profile",
+          "delta",
+          "marche"
+        ]
+      }
+    },
+    {
+      "action": "agent_recherche",
+      "description": "Lancer la recherche de stratégie de l’agent Bitcoin (en arrière-plan, dans le navigateur)",
+      "params": {}
+    },
+    {
+      "action": "lire_graphique",
+      "description": "L’agent lit tout le graphique : bougies, indicateurs, niveaux, dessins (résumé parlé ; les données complètes restent dans window.GraphiqueAgent)",
+      "params": {
+        "paire": [
+          "BTC",
+          "SOL",
+          "DOGE"
+        ],
+        "unite": [
+          "M15",
+          "H1",
+          "H4",
+          "D1"
+        ]
+      }
+    },
+    {
+      "action": "tracer_zone",
+      "description": "L’agent trace une zone (rectangle prix × temps) étiquetée et groupée par stratégie",
+      "params": {
+        "paire": [
+          "BTC",
+          "SOL",
+          "DOGE"
+        ],
+        "prix_haut": "nombre",
+        "prix_bas": "nombre",
+        "de": "texte",
+        "etiquette": "texte",
+        "groupe": "texte"
+      }
+    },
+    {
+      "action": "tracer_ligne",
+      "description": "L’agent trace une ligne horizontale (niveau) étiquetée et groupée",
+      "params": {
+        "paire": [
+          "BTC",
+          "SOL",
+          "DOGE"
+        ],
+        "prix": "nombre",
+        "etiquette": "texte",
+        "groupe": "texte"
+      }
+    },
+    {
+      "action": "tracer_trade",
+      "description": "L’agent trace un plan de trade : entrée, stop, objectif et R",
+      "params": {
+        "paire": [
+          "BTC",
+          "SOL",
+          "DOGE"
+        ],
+        "sens": [
+          "achat",
+          "vente"
+        ],
+        "entree": "nombre",
+        "stop": "nombre",
+        "objectif": "nombre",
+        "etiquette": "texte",
+        "groupe": "texte"
+      }
+    },
+    {
+      "action": "placer_marqueur",
+      "description": "L’agent place un marqueur (flèche, cercle, carré) à un instant donné",
+      "params": {
+        "paire": [
+          "BTC",
+          "SOL",
+          "DOGE"
+        ],
+        "quand": "texte",
+        "prix": "nombre",
+        "forme": [
+          "fleche_haut",
+          "fleche_bas",
+          "cercle",
+          "carre"
+        ],
+        "etiquette": "texte",
+        "groupe": "texte"
+      }
+    },
+    {
+      "action": "masquer_dessins",
+      "description": "Masquer ou réafficher un dessin ou tout un groupe de dessins (par identifiant ou nom de groupe)",
+      "params": {
+        "cible": "texte",
+        "etat": [
+          "masquer",
+          "afficher"
+        ]
+      }
+    },
+    {
+      "action": "effacer_dessins",
+      "description": "Effacer un dessin ou tout un groupe de dessins",
+      "params": {
+        "cible": "texte"
+      }
+    },
+    {
+      "action": "tester_zone",
+      "description": "Mesurer ce qui s’est passé historiquement dans une zone de prix (approches, rebonds, cassures, R moyen, intervalle)",
+      "params": {
+        "paire": [
+          "BTC",
+          "SOL",
+          "DOGE"
+        ],
+        "prix_haut": "nombre",
+        "prix_bas": "nombre"
+      }
+    },
+    {
+      "action": "tester_ma_zone",
+      "description": "Tester la dernière zone que j’ai tracée moi-même sur le graphique",
+      "params": {}
+    },
+    {
+      "action": "expliquer_bougie",
+      "description": "Expliquer le contexte d’une bougie M15 (volume, delta, phase, session, indicateurs) ; « derniere » pour la dernière bougie fermée",
+      "params": {
+        "paire": [
+          "BTC",
+          "SOL",
+          "DOGE"
+        ],
+        "quand": "texte"
+      }
+    },
+    {
+      "action": "rejouer",
+      "description": "Rejouer pas à pas le dernier trade ou la dernière période affichée",
+      "params": {
+        "quoi": [
+          "dernier_trade",
+          "periode_affichee"
+        ]
+      }
+    },
+    {
+      "action": "agent_rapport",
+      "description": "Rapport structuré de l’agent de trading, lu par Raylé : limites du compte prop, contrôle avant trade, tilt, probabilité de réussite de l’évaluation, régime, bilan de la semaine, santé, recherche",
+      "params": {
+        "sujet": [
+          "gardien",
+          "controle",
+          "tilt",
+          "simulation",
+          "regime",
+          "bilan",
+          "sante",
+          "recherche",
+          "journal",
+          "idees"
+        ]
+      }
+    },
+    {
+      "action": "suspendre_strategie",
+      "description": "Suspendre une stratégie de l’agent (par son nom ou son identifiant) ; jamais levée automatiquement",
+      "params": {
+        "nom": "texte"
+      }
+    }
+  ],
+  "donnees": {
+    "lit": [
+      "marches",
+      "cot",
+      "calendrier",
+      "actualites"
+    ],
+    "ecrit": [
+      "alertes",
+      "analyses"
+    ]
+  },
+  "licences": [
+    "Textures Solar System Scope (CC BY 4.0), dérivées de données NASA",
+    "Base, salon, paysage, Phobos et hologrammes : générés par le code (aucun fichier externe)",
+    "Graphique : TradingView Lightweight Charts (Apache 2.0) ; données de marché : Yahoo Finance et Twelve Data via le Worker de Raylé",
+    "Widget de graphique TradingView (script tv.js chargé depuis les serveurs de TradingView, gratuit, thème sombre)"
+  ]
+}

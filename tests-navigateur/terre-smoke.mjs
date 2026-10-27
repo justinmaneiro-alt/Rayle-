@@ -1,0 +1,13 @@
+import { ouvrirGalaxie, entrerEnOrbite, attendre, compteur } from './terre-aide.mjs';
+const { verifier, fin } = compteur();
+const { navigateur, page, erreurs } = await ouvrirGalaxie();
+await page.screenshot({ path: '../captures-terre/00-galaxie.png' });
+await entrerEnOrbite(page);
+await attendre(6000);
+await page.screenshot({ path: '../captures-terre/01-orbite.png' });
+const e = await page.evaluate(() => ({ etat: window.Terre.etat(), stats: window.Terre.stats() }));
+console.log(JSON.stringify(e.etat), JSON.stringify({ ...e.stats, affichees: e.stats.affichees.length }));
+verifier('orbite active', e.etat.actif);
+verifier('des tuiles sont affichées', e.stats.affichees.length > 0, String(e.stats.affichees.length));
+console.log('erreurs :', erreurs.length ? erreurs.join('\n  ') : 'aucune');
+await navigateur.close(); process.exit(fin() ? 1 : 0);

@@ -1,0 +1,43 @@
+/* Interface du vaisseau « Vésale » : direction artistique de la V1 (noir, un accent cyan froid, sable discret, verre sombre, bords 1 px, coins coupés). */
+#vueGalaxie #saturne-ui{position:absolute;inset:0;z-index:7;pointer-events:none;font-family:var(--mono,ui-monospace,Consolas,"Cascadia Mono",monospace);color:#cfeaff}
+#vueGalaxie #saturne-ui[hidden]{display:none}
+#vueGalaxie #saturne-ui *{box-sizing:border-box}
+#vueGalaxie #saturne-ui [hidden]{display:none!important}
+#vueGalaxie #saturne-ui button,#vueGalaxie #saturne-ui input,#vueGalaxie #saturne-ui select{pointer-events:auto;font:inherit}
+#vueGalaxie #saturne-ui .s-titre{position:absolute;top:14px;left:18px}
+#vueGalaxie #saturne-ui .s-titre b{font-size:clamp(15px,2vw,20px);letter-spacing:.5em;color:#fff;text-shadow:0 0 10px rgba(143,208,227,.7)}
+#vueGalaxie #saturne-ui .s-titre span{display:block;font-size:9.5px;letter-spacing:.3em;color:#8fd0e3;text-transform:uppercase;margin-top:3px}
+#vueGalaxie #saturne-ui .s-boutons{position:absolute;top:62px;right:18px;display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end;max-width:min(880px,calc(100vw - 36px))}
+#vueGalaxie #saturne-ui .s-groupe{display:flex;gap:0}
+#vueGalaxie #saturne-ui .s-boutons button{font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:#8fd0e3;background:rgba(4,9,15,.7);border:1px solid rgba(143,208,227,.7);padding:6px 11px;cursor:pointer;margin:0;backdrop-filter:blur(5px)}
+#vueGalaxie #saturne-ui .s-boutons button:hover{background:rgba(143,208,227,.22);color:#fff}
+#vueGalaxie #saturne-ui .s-boutons button.actif{background:rgba(143,208,227,.3);color:#fff}
+#vueGalaxie #saturne-ui .s-groupe button+button{margin-left:-1px}
+#vueGalaxie #saturne-ui .s-etat{position:absolute;left:50%;bottom:18px;transform:translateX(-50%);font-size:11.5px;letter-spacing:.06em;color:#cfeaff;background:rgba(4,9,15,.62);border:1px solid rgba(143,208,227,.3);padding:6px 14px;white-space:nowrap;max-width:calc(100vw - 36px);overflow:hidden;text-overflow:ellipsis;backdrop-filter:blur(5px)}
+#vueGalaxie #saturne-ui .s-message{position:absolute;left:50%;top:110px;transform:translateX(-50%);background:rgba(4,9,15,.82);border:1px solid #c9b27a;color:#efe2c0;font-size:12px;padding:7px 14px;max-width:min(640px,calc(100vw - 36px));text-align:center}
+#vueGalaxie #saturne-ui .s-fondu{position:absolute;inset:0;background:#000;opacity:0;pointer-events:none;transition:opacity .4s ease;z-index:9}
+#vueGalaxie #saturne-ui .s-fondu.noir{opacity:1}
+#vueGalaxie #saturne-ui.s-cockpit .s-etat{opacity:.0;pointer-events:none}
+#vueGalaxie #saturne-ui .s-panneau{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:min(760px,calc(100vw - 36px));max-height:calc(100vh - 150px);overflow:auto;background:rgba(4,9,15,.94);border:1px solid #8fd0e3;padding:14px 18px;pointer-events:auto;z-index:8}
+#vueGalaxie #saturne-ui .s-panneau h2{margin:0 0 10px;font-size:13px;letter-spacing:.25em;text-transform:uppercase;color:#fff;display:flex;justify-content:space-between;align-items:center}
+#vueGalaxie #saturne-ui .s-panneau h3{margin:14px 0 6px;font-size:11px;letter-spacing:.18em;text-transform:uppercase;color:#c9b27a}
+#vueGalaxie #saturne-ui .s-panneau table{border-collapse:collapse;width:100%;font-size:12px}
+#vueGalaxie #saturne-ui .s-panneau td,#vueGalaxie #saturne-ui .s-panneau th{padding:3px 8px;border-bottom:1px solid rgba(143,208,227,.14);text-align:left}
+#vueGalaxie #saturne-ui .s-panneau th{color:#6f93ac;font-weight:400;letter-spacing:.1em;font-size:10.5px}
+#vueGalaxie #saturne-ui .s-panneau .s-petit{font-size:11px;color:#8aa3b5;line-height:1.5}
+#vueGalaxie #saturne-ui .s-panneau label{display:flex;gap:10px;align-items:center;justify-content:space-between;margin:6px 0;font-size:12px}
+#vueGalaxie #saturne-ui .s-panneau input[type=range]{flex:1;accent-color:#8fd0e3}
+#vueGalaxie #saturne-ui .s-panneau select{background:#0a1220;color:#cfeaff;border:1px solid #8fd0e3;padding:3px 5px}
+#vueGalaxie #saturne-ui .s-panneau button{font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:#8fd0e3;background:rgba(143,208,227,.08);border:1px solid #8fd0e3;padding:4px 10px;cursor:pointer}
+#vueGalaxie #saturne-ui .s-panneau button:hover{background:rgba(143,208,227,.28);color:#fff}
+#vueGalaxie #saturne-ui .s-axe{display:grid;grid-template-columns:170px 70px 1fr 60px 60px;gap:6px;align-items:center;margin:3px 0;font-size:11.5px}
+#vueGalaxie #saturne-ui .s-jauge{height:8px;background:rgba(143,208,227,.12);position:relative}
+#vueGalaxie #saturne-ui .s-jauge i{position:absolute;top:0;bottom:0;left:50%;background:#8fd0e3;width:0}
+#vueGalaxie #saturne-ui .s-btnvoyant{display:inline-block;width:20px;height:20px;line-height:20px;text-align:center;font-size:10px;border:1px solid rgba(143,208,227,.4);margin:2px;color:#6f93ac}
+#vueGalaxie #saturne-ui .s-btnvoyant.on{background:#8fd0e3;color:#04090f}
+#vueGalaxie.saturne-actif .g-titre,#vueGalaxie.saturne-actif #fil,#vueGalaxie.saturne-actif #g-retour,#vueGalaxie.saturne-actif .g-aide,#vueGalaxie.saturne-actif .g-credits{display:none}
+#vueGalaxie canvas.s-verrou{cursor:none}
+@media (max-width:900px){#vueGalaxie #saturne-ui .s-boutons{top:108px;left:18px;right:18px;justify-content:flex-start}#vueGalaxie #saturne-ui .s-axe{grid-template-columns:120px 50px 1fr}}
+@media (prefers-reduced-motion:reduce){#vueGalaxie #saturne-ui .s-fondu{transition:none}}
+#vueGalaxie #saturne-ui.s-salle .s-groupe,#vueGalaxie #saturne-ui.s-salle [data-a="asseoir"]{display:none}
+/* le panneau d'anatomie et les fenêtres holographiques sont dans anatomie.css (Phase A et B) */

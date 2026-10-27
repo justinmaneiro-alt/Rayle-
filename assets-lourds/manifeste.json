@@ -1,0 +1,223 @@
+{
+ "version": 1,
+ "description": "Modèles lourds de Raylé (glTF compressé). Ce dossier est exclu de git (voir .gitignore). Chaque système peut être découpé en parties chargées progressivement.",
+ "hebergement": "Par défaut ce dossier ; pour héberger ailleurs (Cloudflare R2, par exemple), régler window.RAYLE_ASSETS_URL ou le réglage rayle_assets_url de l'appareil.",
+ "systemes": {
+  "anatomie-dents": {
+   "nom": "Dents",
+   "parties": [
+    {
+     "id": "dents-1",
+     "fichier": "anatomie/dents-1.glb",
+     "octets": 264376
+    }
+   ]
+  },
+  "anatomie-sens": {
+   "nom": "Organes des sens",
+   "parties": [
+    {
+     "id": "sens-1",
+     "fichier": "anatomie/sens-1.glb",
+     "octets": 940468
+    }
+   ]
+  },
+  "anatomie-nerfs": {
+   "nom": "Nerfs crâniens de l’orbite",
+   "parties": [
+    {
+     "id": "nerfs-1",
+     "fichier": "anatomie/nerfs-1.glb",
+     "octets": 175980
+    }
+   ]
+  },
+  "anatomie-conjonctif": {
+   "nom": "Ligaments, cartilages, disques",
+   "parties": [
+    {
+     "id": "conjonctif-1",
+     "fichier": "anatomie/conjonctif-1.glb",
+     "octets": 1407776
+    }
+   ]
+  },
+  "anatomie-muscles": {
+   "nom": "Muscles",
+   "parties": [
+    {
+     "id": "muscles-1",
+     "fichier": "anatomie/muscles-1.glb",
+     "octets": 3948424
+    },
+    {
+     "id": "muscles-2",
+     "fichier": "anatomie/muscles-2.glb",
+     "octets": 2693964
+    },
+    {
+     "id": "muscles-3",
+     "fichier": "anatomie/muscles-3.glb",
+     "octets": 1931912
+    }
+   ]
+  },
+  "anatomie-arteres": {
+   "nom": "Artères",
+   "parties": [
+    {
+     "id": "arteres-1",
+     "fichier": "anatomie/arteres-1.glb",
+     "octets": 858040
+    },
+    {
+     "id": "arteres-2",
+     "fichier": "anatomie/arteres-2.glb",
+     "octets": 1004028
+    },
+    {
+     "id": "arteres-3",
+     "fichier": "anatomie/arteres-3.glb",
+     "octets": 631084
+    },
+    {
+     "id": "arteres-4",
+     "fichier": "anatomie/arteres-4.glb",
+     "octets": 723676
+    },
+    {
+     "id": "arteres-5",
+     "fichier": "anatomie/arteres-5.glb",
+     "octets": 218916
+    }
+   ]
+  },
+  "anatomie-coeur": {
+   "nom": "Cœur",
+   "parties": [
+    {
+     "id": "coeur-1",
+     "fichier": "anatomie/coeur-1.glb",
+     "octets": 339028
+    }
+   ]
+  },
+  "anatomie-endocrine": {
+   "nom": "Glandes endocrines",
+   "parties": [
+    {
+     "id": "endocrine-1",
+     "fichier": "anatomie/endocrine-1.glb",
+     "octets": 39076
+    }
+   ]
+  },
+  "anatomie-veines": {
+   "nom": "Veines",
+   "parties": [
+    {
+     "id": "veines-1",
+     "fichier": "anatomie/veines-1.glb",
+     "octets": 1305812
+    },
+    {
+     "id": "veines-2",
+     "fichier": "anatomie/veines-2.glb",
+     "octets": 721572
+    },
+    {
+     "id": "veines-3",
+     "fichier": "anatomie/veines-3.glb",
+     "octets": 746628
+    }
+   ]
+  },
+  "anatomie-digestif": {
+   "nom": "Appareil digestif",
+   "parties": [
+    {
+     "id": "digestif-1",
+     "fichier": "anatomie/digestif-1.glb",
+     "octets": 1176468
+    }
+   ]
+  },
+  "anatomie-respiratoire": {
+   "nom": "Appareil respiratoire",
+   "parties": [
+    {
+     "id": "respiratoire-1",
+     "fichier": "anatomie/respiratoire-1.glb",
+     "octets": 799696
+    }
+   ]
+  },
+  "anatomie-lymphatique": {
+   "nom": "Système lymphatique",
+   "parties": [
+    {
+     "id": "lymphatique-1",
+     "fichier": "anatomie/lymphatique-1.glb",
+     "octets": 25716
+    }
+   ]
+  },
+  "anatomie-os": {
+   "nom": "Squelette",
+   "parties": [
+    {
+     "id": "os-1",
+     "fichier": "anatomie/os-1.glb",
+     "octets": 1461192
+    },
+    {
+     "id": "os-2",
+     "fichier": "anatomie/os-2.glb",
+     "octets": 559576
+    }
+   ]
+  },
+  "anatomie-peau": {
+   "nom": "Peau et phanères",
+   "parties": [
+    {
+     "id": "peau-1",
+     "fichier": "anatomie/peau-1.glb",
+     "octets": 548988
+    }
+   ]
+  },
+  "anatomie-genital": {
+   "nom": "Appareil génital",
+   "parties": [
+    {
+     "id": "genital-1",
+     "fichier": "anatomie/genital-1.glb",
+     "octets": 73340
+    }
+   ]
+  },
+  "anatomie-urinaire": {
+   "nom": "Appareil urinaire",
+   "parties": [
+    {
+     "id": "urinaire-1",
+     "fichier": "anatomie/urinaire-1.glb",
+     "octets": 46492
+    }
+   ]
+  },
+  "anatomie-cerveau": {
+   "nom": "Encéphale (cerveau, tronc cérébral, cervelet)",
+   "parties": [
+    {
+     "id": "cerveau-1",
+     "fichier": "anatomie/cerveau-1.glb",
+     "octets": 1780908
+    }
+   ]
+  }
+ },
+ "index_anatomie": "anatomie/index.json"
+}

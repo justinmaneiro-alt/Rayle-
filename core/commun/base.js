@@ -1,0 +1,74 @@
+"use strict";
+
+  const $=id=>document.getElementById(id);
+  const reactor=$('reactor'), logEl=$('log'), stateEl=$('state'), interimEl=$('interim'),
+        btn=$('btn'), btnTxt=$('btnTxt'), btnSub=$('btnSub'), form=$('form'), txt=$('txt'),
+        bridgeEl=$('bridgeStatus'), voiceEl=$('voiceName'),
+        miniReactor=$('miniReactor'), miniEtat=$('miniEtat'), miniDit=$('miniDit');   // petite Raylé du terminal
+
+  // L'entité (sphère de particules) vit dans le réacteur ; dans la vue terminal, elle passe dans la petite Raylé
+  Entite.monter(reactor);
+  RayleBus.on('vue:changee',d=>Entite.monter(d&&d.vue==='terminal'?miniReactor:reactor));
+
+  /* ═════════════ STOCKAGE LOCAL (adresse du Worker, code et réglages uniquement) ═════════════ */
+  const store={
+    get:k=>{ try{ return (localStorage.getItem(k)||'').trim(); }catch(e){ return ''; } },
+    set:(k,v)=>{ try{ if(v!=='' && v!=null) localStorage.setItem(k,v); else localStorage.removeItem(k); }catch(e){} }
+  };
+  const KEY_WURL='rayle_worker_url', KEY_WTOK='rayle_worker_token', KEY_WDEV='rayle_worker_appareil', KEY_WDEVNOM='rayle_worker_appareil_nom';
+  const KEY_VIT='rayle_vitesse', KEY_REVEIL='rayle_reveil', KEY_BARGE='rayle_interruption', KEY_NOMS='rayle_noms', KEY_MODE='rayle_mode_ecoute', KEY_SUITE='rayle_suite';
+  const OLD_KEYS=['rayle_key_groq','rayle_key_openrouter','rayle_key_twelvedata'];   // anciennes clés des versions précédentes
+
+  // Journal de diagnostic (rayleDiag) : chaque phrase entendue, et ce qu'on en a fait
+  function diagEntree(texte,voix,action){
+    try{ const l=(window.RAYLE_ENTREES=window.RAYLE_ENTREES||[]); l.push({t:new Date().toLocaleTimeString('fr-FR'),texte:String(texte).slice(0,80),voix:!!voix,action:action||'reçu'}); if(l.length>20) l.shift(); }catch(e){}
+  }
+  function diagAction(action){ try{ const l=window.RAYLE_ENTREES; if(l&&l.length) l[l.length-1].action=action; }catch(e){} }
+
+  const prefs={
+    vitesse:()=>{ const v=store.get(KEY_VIT); return v==='' ? null : Number(v); },
+    reveil:()=>store.get(KEY_REVEIL)!=='0',     // mot d'activation demandé (oui par défaut)
+    barge:()=>store.get(KEY_BARGE)==='1',
+    mode:()=>store.get(KEY_MODE)||'auto',
+    suite:()=>store.get(KEY_SUITE)!=='0'
+  };
+
+  /* ═════════════ PERSONNALITÉ CÔTÉ INTERFACE (reçue du Worker) ═════════════ */
+  let persona={adresse:'vous',voix:'',feminin:true,vitesse:-8};
+  try{ const p=JSON.parse(localStorage.getItem('rayle_persona')||'null'); if(p) persona=Object.assign(persona,p); }catch(e){}
+  const fx=(vous,tu)=>persona.adresse==='tu'?tu:vous;
+  const fem=(m,f)=>persona.feminin?f:m;
+  const vitesseCourante=()=>{ const v=prefs.vitesse(); return (v!=null && isFinite(v)) ? v : (isFinite(persona.vitesse)?persona.vitesse:-8); };
+  const pick=a=>a[Math.floor(Math.random()*a.length)];
+
+  /* ═════════════ ÉTAT & JOURNAL ═════════════ */
+  const STATES={idle:'COUPÉ · MICRO ÉTEINT',veille:'VEILLE · DITES « RAYLÉ » OU CLAQUEZ',listening:'ACTIF · JE VOUS ÉCOUTE',thinking:'ACTIF · RÉFLEXION',speaking:'ACTIF · RÉPONSE'};
+  function setState(s){ reactor.className='reactor '+s; miniReactor.className='reactor '+s; try{ Entite.etat(s); }catch(e){} let t=STATES[s]||''; try{ if(modeToucher()){ if(s==='idle') t='PRÊTE'; else if(s==='listening') t="J'ÉCOUTE"; } majBouton(); }catch(e){} try{ if(!workerReady()) t="VERROUILLÉ · CODE D'ACCÈS REQUIS (⚙)"; }catch(e){} stateEl.textContent=t; miniEtat.textContent=t; try{ const ge=document.getElementById('g-etat'); if(ge) ge.textContent=t; RayleBus.fusion('raylé',{etat:s}); RayleBus.emit('raylé:etat',{etat:s}); }catch(e){} }
+  function stamp(){ return new Date().toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit',second:'2-digit'}); }
+  function addLine(kind,text){
+    const d=document.createElement('div'); d.className='line '+kind;
+    const prefix = kind==='sys' ? '['+stamp()+'] ' : kind==='user' ? 'VOUS › ' : 'RAYLÉ › ';
+    d.textContent=prefix+String(text);
+    if(kind==='ray'||kind==='user') montrerDansLeCoin(kind,text);
+    if(kind==='ray'||kind==='user'){ try{ RayleBus.emit(kind==='ray'?'raylé:reponse':'raylé:question',{texte:String(text)}); }catch(e){} }   // fenêtres holographiques (reponses-holo.js)
+    logEl.appendChild(d); logEl.scrollTop=logEl.scrollHeight;
+    while(logEl.children.length>250) logEl.removeChild(logEl.firstChild);
+  }
+  // Message court sous le soleil de la galaxie (le journal est caché derrière la galaxie : sans ça, une erreur de micro y reste invisible)
+  function ligneGalaxie(texte,duree){
+    const gd=document.getElementById('g-dit'); if(!gd) return;
+    gd.textContent=String(texte).slice(0,220);
+    clearTimeout(coinTimer); coinTimer=setTimeout(()=>{ gd.textContent=''; },duree||15000);
+  }
+  // Dans la vue terminal, le journal est caché : la dernière phrase s'affiche à côté de la petite Raylé
+  let coinTimer=null;
+  function montrerDansLeCoin(kind,text){
+    try{ sousTitre(kind,text); }catch(e){}
+    const ligne=(kind==='user'?'VOUS › ':'')+String(text).slice(0,220);
+    miniDit.textContent=ligne;
+    const gd=document.getElementById('g-dit'); if(gd) gd.textContent=ligne;   // sous-titre de la vue galaxie
+    clearTimeout(coinTimer); coinTimer=setTimeout(()=>{ miniDit.textContent=''; if(gd) gd.textContent=''; },15000);
+  }
+  const norm=t=>String(t||'').normalize('NFC').normalize('NFD').replace(/[̀-ͯ]/g,'').toLowerCase();
+  // Version « commande » : sans ponctuation ni nom de Raylé
+  const cmdNorm=n=>String(n||'').replace(/[?!.,;:…«»"]/g,' ').replace(/(?:^|\s)(?:(?:hey|he|eh|ok|okay|dis)\s+)?rayle(?=\s|$)/g,' ').replace(/\s+/g,' ').trim();

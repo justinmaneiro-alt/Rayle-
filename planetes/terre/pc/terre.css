@@ -1,0 +1,164 @@
+/* ═════════════ INTERFACE DE LA TERRE (tout est préfixé par #vueGalaxie) ═════════════ */
+#vueGalaxie #terre-ui{position:absolute;inset:0;z-index:7;pointer-events:none;font-family:var(--mono,ui-monospace,Consolas,"Cascadia Mono",monospace);color:#cfeaff}
+#vueGalaxie #terre-ui[hidden]{display:none}
+#vueGalaxie #terre-ui *{box-sizing:border-box}
+#vueGalaxie #terre-ui [hidden]{display:none!important}
+#vueGalaxie #terre-ui .t-noms-zone{position:absolute;inset:0;pointer-events:none}
+#vueGalaxie #terre-ui .t-noms{position:absolute;left:0;top:0;pointer-events:none}
+#vueGalaxie #terre-ui .t-titre{position:absolute;top:14px;left:18px}
+#vueGalaxie #terre-ui .t-titre b{font-size:clamp(15px,2vw,20px);letter-spacing:.5em;color:#fff;text-shadow:0 0 10px #4de3ff,0 0 26px rgba(77,227,255,.55)}
+#vueGalaxie #terre-ui .t-titre span{display:block;font-size:9.5px;letter-spacing:.3em;color:#4de3ff;text-transform:uppercase;margin-top:3px}
+#vueGalaxie #terre-ui button,#vueGalaxie #terre-ui input,#vueGalaxie #terre-ui select{pointer-events:auto;font:inherit}
+#vueGalaxie #terre-ui .t-boutons{position:absolute;top:62px;right:18px;display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end;max-width:min(760px,calc(100vw - 36px))}
+#vueGalaxie #terre-ui .t-boutons button.actif{background:rgba(77,227,255,.35);color:#fff}
+#vueGalaxie #terre-ui .t-bas{position:absolute;left:50%;bottom:122px;transform:translateX(-50%);display:flex;flex-direction:column;align-items:center;gap:8px;max-width:min(560px,calc(100vw - 36px));pointer-events:none}
+#vueGalaxie #terre-ui .t-actions{display:flex;gap:8px;flex-wrap:wrap;justify-content:center}
+#vueGalaxie #terre-ui .t-actions button{font-size:11px;letter-spacing:.08em;color:#fff;background:rgba(6,10,20,.78);border:1px solid #ffd24d;padding:5px 10px;cursor:pointer}
+#vueGalaxie #terre-ui .t-actions button:hover{background:rgba(255,210,77,.25)}
+#vueGalaxie #terre-ui .t-radar{display:flex;align-items:center;gap:10px;background:rgba(6,10,20,.7);border:1px solid rgba(90,170,255,.6);padding:6px 12px;pointer-events:auto;font-size:11px;color:#bfe3ff}
+#vueGalaxie #terre-ui .t-radar button{font-size:12px;color:#4de3ff;background:none;border:1px solid #4de3ff;padding:2px 9px;cursor:pointer}
+#vueGalaxie #terre-ui .t-radar input{width:min(240px,40vw);accent-color:#5aaaff;pointer-events:auto}
+#vueGalaxie #terre-ui .t-marqueurs{position:absolute;left:0;top:0;pointer-events:none}
+#vueGalaxie #terre-ui .t-boutons button,#vueGalaxie #terre-ui .t-panneau button{font-size:11px;letter-spacing:.15em;text-transform:uppercase;color:#4de3ff;background:rgba(77,227,255,.08);border:1.5px solid #4de3ff;padding:6px 12px;cursor:pointer;margin:0}
+#vueGalaxie #terre-ui .t-boutons button:hover,#vueGalaxie #terre-ui .t-panneau button:hover{background:rgba(77,227,255,.28);color:#fff}
+#vueGalaxie #terre-ui .t-recherche{position:absolute;top:14px;left:50%;transform:translateX(-50%);width:min(420px,calc(100vw - 440px));min-width:240px;display:flex;background:rgba(6,10,20,.62);border:1px solid rgba(77,227,255,.5);backdrop-filter:blur(6px)}
+#vueGalaxie #terre-ui .t-recherche input{flex:1;min-width:0;background:none;border:0;outline:0;color:#fff;font-size:12.5px;padding:8px 10px;letter-spacing:.04em}
+#vueGalaxie #terre-ui .t-recherche input::placeholder{color:#7fa6c0}
+#vueGalaxie #terre-ui .t-recherche button{background:rgba(77,227,255,.15);border:0;border-left:1px solid rgba(77,227,255,.5);color:#4de3ff;padding:0 14px;cursor:pointer;font-size:15px}
+#vueGalaxie #terre-ui .t-recherche button:hover{background:rgba(77,227,255,.35);color:#fff}
+#vueGalaxie #terre-ui .t-resultats{position:absolute;top:100%;left:-1px;right:-1px;background:rgba(6,10,20,.9);border:1px solid rgba(77,227,255,.5);display:flex;flex-direction:column}
+#vueGalaxie #terre-ui .t-resultats button{text-align:left;background:none;border:0;color:#cfeaff;padding:7px 10px;cursor:pointer;font-size:12px;border-bottom:1px solid rgba(77,227,255,.15)}
+#vueGalaxie #terre-ui .t-resultats button:hover{background:rgba(77,227,255,.2)}
+#vueGalaxie #terre-ui .t-mesures{position:absolute;left:18px;bottom:44px;display:grid;grid-template-columns:auto auto;gap:3px 14px;font-size:11px;background:rgba(6,10,20,.55);border:1px solid rgba(77,227,255,.35);padding:8px 12px;backdrop-filter:blur(6px);min-width:250px}
+#vueGalaxie #terre-ui .t-mesures div{display:contents}
+#vueGalaxie #terre-ui .t-mesures span{color:#6f93ac;letter-spacing:.18em;font-size:9.5px;align-self:center}
+#vueGalaxie #terre-ui .t-mesures b{color:#fff;font-weight:400;text-align:right;font-variant-numeric:tabular-nums}
+#vueGalaxie #terre-ui .t-message{background:rgba(6,10,20,.78);border:1px solid #ffb347;color:#ffd9a8;font-size:12px;padding:6px 12px;max-width:min(560px,calc(100vw - 36px));text-align:center;pointer-events:auto}
+#vueGalaxie #terre-ui .t-aide{position:absolute;right:18px;bottom:44px;max-width:330px;text-align:right;font-size:10px;line-height:1.7;color:#6f93ac}
+#vueGalaxie #terre-ui .t-credits{position:absolute;left:18px;right:18px;bottom:6px;height:18px;display:flex;align-items:center;gap:10px;font-size:10px;color:#8aa3b5;white-space:nowrap}
+#vueGalaxie #terre-ui .t-credits span{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;pointer-events:none}
+#vueGalaxie #terre-ui .t-credits button{flex:none;font-size:10px;letter-spacing:.08em;color:#4de3ff;background:none;border:0;border-bottom:1px solid rgba(77,227,255,.5);padding:0;cursor:pointer}
+#vueGalaxie #terre-ui .t-credits-panneau{position:absolute;left:18px;top:70px;width:min(440px,calc(100vw - 36px));max-height:calc(100vh - 290px);overflow:auto;background:rgba(6,10,20,.92);border:1px solid #4de3ff;padding:12px 14px;pointer-events:auto;z-index:3}
+#vueGalaxie #terre-ui .t-credits-panneau p{margin:7px 0;font-size:11.5px;line-height:1.5;color:#cfe3ee}
+#vueGalaxie #terre-ui .t-credits-panneau h2{margin:0;font-size:13px;letter-spacing:.25em;text-transform:uppercase;color:#fff}
+#vueGalaxie #terre-ui .t-credits-panneau button{font-size:11px;color:#4de3ff;background:rgba(77,227,255,.08);border:1.5px solid #4de3ff;padding:3px 9px;cursor:pointer}
+#vueGalaxie #terre-ui .t-panneau{position:absolute;right:18px;top:176px;max-height:calc(100vh - 230px);overflow:auto;width:min(360px,calc(100vw - 36px));background:rgba(6,10,20,.82);border:1px solid #4de3ff;box-shadow:0 0 18px rgba(77,227,255,.2);backdrop-filter:blur(8px);padding:12px 14px;pointer-events:auto}
+#vueGalaxie #terre-ui .t-pt{display:flex;align-items:center;justify-content:space-between}
+#vueGalaxie #terre-ui .t-pt h2{margin:0;font-size:13px;letter-spacing:.25em;text-transform:uppercase;color:#fff}
+#vueGalaxie #terre-ui .t-pt button{padding:3px 9px}
+#vueGalaxie #terre-ui .t-panneau label{display:flex;align-items:center;gap:8px;justify-content:space-between;font-size:11.5px;margin:9px 0}
+#vueGalaxie #terre-ui .t-panneau label b{color:#4de3ff;font-weight:400;min-width:34px;text-align:right}
+#vueGalaxie #terre-ui .t-panneau label.t-case{justify-content:flex-start}
+#vueGalaxie #terre-ui .t-panneau input[type=range]{flex:1;accent-color:#4de3ff}
+#vueGalaxie #terre-ui .t-panneau select{color:#cfeaff;background:#0a1220;border:1px solid #4de3ff;padding:3px 5px;max-width:180px}
+#vueGalaxie #terre-ui .t-petit{font-size:10.5px;color:#6f93ac;margin-top:8px}
+#vueGalaxie #terre-fondu{position:absolute;inset:0;z-index:9;background:#000;opacity:0;pointer-events:none;transition:opacity .45s ease}
+#vueGalaxie #terre-fondu.noir{opacity:1}
+@media (max-width:1100px){
+#vueGalaxie #terre-ui .t-recherche{top:62px;left:18px;transform:none;width:calc(100vw - 36px)}
+#vueGalaxie #terre-ui .t-aide,#vueGalaxie #terre-ui .t-mesures .t-lg{display:none}
+#vueGalaxie #terre-ui .t-boutons{top:108px;left:18px;right:18px;max-width:none;justify-content:flex-start}
+#vueGalaxie #terre-ui .t-bandeau{top:190px}
+#vueGalaxie #terre-ui .t-panneau{top:236px;max-height:calc(100vh - 410px)}
+#vueGalaxie #terre-ui .t-credits-panneau{top:236px;max-height:calc(100vh - 420px)}
+#vueGalaxie #terre-ui .t-mesures{min-width:0;bottom:84px}
+#vueGalaxie #terre-ui .t-bas{bottom:176px}
+}
+@media (max-width:700px){#vueGalaxie #terre-ui.t-panneau-ouvert .t-bas{visibility:hidden}#vueGalaxie #terre-ui .t-titre{display:none}#vueGalaxie #terre-ui .t-boutons button{padding:5px 8px;letter-spacing:.06em}}
+
+/* pendant l'orbite, l'habillage de la galaxie cède la place à celui de la Terre (le micro et la qualité 3D restent) */
+#vueGalaxie.terre-orbite #g-parole{bottom:30px}
+#vueGalaxie.terre-orbite .g-titre,#vueGalaxie.terre-orbite #fil,#vueGalaxie.terre-orbite #g-retour,#vueGalaxie.terre-orbite .g-aide,#vueGalaxie.terre-orbite .g-credits{display:none}
+
+/* ═════════════ FENÊTRES HOLOGRAPHIQUES DE LA TERRE (actualités, météo) : dans #panneaux, donc hors de #vueGalaxie ═════════════ */
+#panneaux .t-actus{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:9px;max-height:min(52vh,430px);overflow:auto}
+#panneaux .t-actus li{display:flex;flex-direction:column;gap:2px;padding-bottom:8px;border-bottom:1px solid rgba(77,227,255,.14)}
+#panneaux .t-actus a{color:#e6f4ff;text-decoration:none;font-size:12.5px;line-height:1.35}
+#panneaux .t-actus a:hover{color:#4de3ff;text-decoration:underline}
+#panneaux .t-src{font-size:10.5px;color:#6f93ac;letter-spacing:.04em}
+#panneaux .t-src b{font-weight:400;color:#9fd8ea}
+#panneaux .t-sources{margin-top:8px;font-size:10.5px;line-height:1.5;color:#6f93ac}
+#panneaux .t-sources a{color:#9fd8ea}
+#panneaux .t-panne{color:#ffb347}
+#panneaux .t-charge{display:flex;align-items:center;gap:10px;font-size:12px;color:#9fd8ea;padding:14px 0}
+#panneaux .t-charge i{width:14px;height:14px;border:2px solid rgba(77,227,255,.25);border-top-color:#4de3ff;border-radius:50%;animation:t-tourne .9s linear infinite}
+@keyframes t-tourne{to{transform:rotate(360deg)}}
+#panneaux .t-indispo{display:flex;flex-direction:column;gap:4px;padding:10px 0;font-size:12px;color:#cfeaff}
+#panneaux .t-indispo b{color:#ffb347;letter-spacing:.2em;text-transform:uppercase;font-size:11px;font-weight:400}
+#panneaux .t-m-haut{display:flex;align-items:center;gap:14px;color:#4de3ff}
+#panneaux .t-m-haut>div{display:flex;flex-direction:column}
+#panneaux .t-temp{font-size:34px;font-weight:400;color:#fff;line-height:1;text-shadow:0 0 12px rgba(77,227,255,.55)}
+#panneaux .t-desc{font-size:12.5px;color:#cfeaff;margin-top:3px}
+#panneaux .t-ress{font-size:10.5px;color:#6f93ac}
+#panneaux .t-ic{flex:none;color:#4de3ff}
+#panneaux .t-details{display:grid;grid-template-columns:1fr 1fr;gap:5px 14px;margin:10px 0 4px;font-size:11px}
+#panneaux .t-details div{display:flex;justify-content:space-between;gap:8px;border-bottom:1px solid rgba(77,227,255,.12);padding-bottom:3px}
+#panneaux .t-details span{color:#6f93ac}
+#panneaux .t-details b{font-weight:400;color:#fff;text-align:right}
+#panneaux .t-courbe{width:100%;height:72px;display:block;margin:2px 0 4px;background:rgba(77,227,255,.04)}
+#panneaux .t-trait{fill:none;stroke:#4de3ff;stroke-width:1.8;vector-effect:non-scaling-stroke}
+#panneaux .t-barre{fill:rgba(90,170,255,.8)}
+#panneaux .t-lab{fill:#6f93ac;font-size:7px}
+#panneaux .t-jours{list-style:none;margin:6px 0 0;padding:0;display:flex;flex-direction:column;gap:3px}
+#panneaux .t-jours li{display:grid;grid-template-columns:24px 1fr auto auto;gap:8px;align-items:center;font-size:11.5px}
+#panneaux .t-jours .t-jt{color:#cfeaff;text-align:right}
+#panneaux .t-jours .t-jt b{color:#fff;font-weight:400}
+#panneaux .t-jours .t-jp{color:#6f93ac;min-width:70px;text-align:right;font-size:10.5px}
+
+/* ═════════════ ACTUALITÉS SUR LA TERRE : balises, cartes holographiques, bandeau défilant ═════════════ */
+#vueGalaxie #terre-ui .t-balises{position:absolute;left:0;top:0;pointer-events:none}
+#vueGalaxie #terre-ui .t-cartes{position:absolute;inset:0;pointer-events:none;overflow:hidden}
+#vueGalaxie #terre-ui .t-carte{--c:#4de3ff;position:absolute;left:0;top:0;width:262px;height:118px;overflow:hidden;padding:8px 11px 7px;background:linear-gradient(135deg,rgba(6,14,28,.84),rgba(6,10,20,.7));border:1px solid color-mix(in srgb,var(--c) 70%,transparent);box-shadow:0 0 16px color-mix(in srgb,var(--c) 28%,transparent),inset 0 0 22px color-mix(in srgb,var(--c) 10%,transparent);backdrop-filter:blur(7px);pointer-events:auto;cursor:pointer;opacity:0;clip-path:inset(0 100% 0 0);transition:transform .6s cubic-bezier(.2,.8,.2,1),opacity .4s,clip-path .55s ease-out,box-shadow .3s}
+#vueGalaxie #terre-ui .t-carte.t-entre{opacity:1;clip-path:inset(0 0 0 0)}
+#vueGalaxie #terre-ui .t-carte.t-sort{opacity:0;clip-path:inset(0 0 0 100%);transition:opacity .3s,clip-path .3s}
+#vueGalaxie #terre-ui .t-carte::before,#vueGalaxie #terre-ui .t-carte::after{content:"";position:absolute;width:11px;height:11px;border:2px solid var(--c)}
+#vueGalaxie #terre-ui .t-carte::before{left:-1px;top:-1px;border-right:0;border-bottom:0}
+#vueGalaxie #terre-ui .t-carte::after{right:-1px;bottom:-1px;border-left:0;border-top:0}
+#vueGalaxie #terre-ui .t-carte header{display:flex;align-items:center;gap:6px;font-size:9.5px;letter-spacing:.12em;text-transform:uppercase;color:var(--c)}
+#vueGalaxie #terre-ui .t-carte header i{width:7px;height:7px;border-radius:50%;background:var(--c);box-shadow:0 0 8px var(--c)}
+#vueGalaxie #terre-ui .t-carte header em{margin-left:auto;font-style:normal;color:#9fc3da;letter-spacing:.04em;text-transform:none}
+#vueGalaxie #terre-ui .t-carte .t-c-titre{display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden;margin:5px 0 4px;font-size:12.5px;line-height:1.32;color:#fff;text-decoration:none}
+#vueGalaxie #terre-ui .t-carte .t-c-titre:hover{text-decoration:underline;color:var(--c)}
+#vueGalaxie #terre-ui .t-carte footer{font-size:10px;color:#9fc3da;line-height:1.35}
+#vueGalaxie #terre-ui .t-carte footer b{color:#e6f4ff;font-weight:600}
+#vueGalaxie #terre-ui .t-carte.t-choisie,#vueGalaxie #terre-ui .t-carte.t-eclaire{box-shadow:0 0 28px color-mix(in srgb,var(--c) 60%,transparent),inset 0 0 26px color-mix(in srgb,var(--c) 22%,transparent)}
+#vueGalaxie #terre-ui .t-carte.t-eclaire{animation:t-carte-pulse 1.6s ease-in-out infinite}
+@keyframes t-carte-pulse{50%{box-shadow:0 0 38px color-mix(in srgb,var(--c) 85%,transparent),inset 0 0 30px color-mix(in srgb,var(--c) 30%,transparent)}}
+#vueGalaxie #terre-ui .t-bandeau{position:absolute;left:18px;right:18px;top:142px;height:26px;display:flex;align-items:center;background:rgba(6,10,20,.62);border:1px solid rgba(77,227,255,.4);backdrop-filter:blur(6px);pointer-events:auto;overflow:hidden}
+#vueGalaxie #terre-ui .t-bd-t{flex:none;padding:0 12px;font-size:10px;letter-spacing:.3em;color:#06101a;background:#4de3ff;height:100%;display:flex;align-items:center}
+#vueGalaxie #terre-ui .t-bd-v{flex:1;overflow:hidden;white-space:nowrap;mask-image:linear-gradient(90deg,transparent,#000 3%,#000 97%,transparent)}
+#vueGalaxie #terre-ui .t-bd-piste{display:inline-block;animation:t-bd-defile linear infinite;padding-left:20px}
+#vueGalaxie #terre-ui .t-bandeau:hover .t-bd-piste{animation-play-state:paused}
+@keyframes t-bd-defile{to{transform:translateX(-50%)}}
+#vueGalaxie #terre-ui .t-bd-i{display:inline-block;margin-right:38px;font-size:11.5px;color:#dcecf7;text-decoration:none}
+#vueGalaxie #terre-ui .t-bd-i i{display:inline-block;width:7px;height:7px;border-radius:50%;margin-right:7px;vertical-align:middle}
+#vueGalaxie #terre-ui .t-bd-i b{color:#fff;font-weight:600;margin-right:4px}
+#vueGalaxie #terre-ui .t-bd-i:hover{color:#fff;text-decoration:underline}
+#vueGalaxie #terre-ui .t-bandeau.t-fixe .t-bd-v{overflow-x:auto}
+#vueGalaxie #terre-ui .t-bandeau.t-fixe .t-bd-piste{animation:none}
+body[data-hud="leger"] #vueGalaxie #terre-ui .t-carte{transition:opacity .2s;backdrop-filter:none}
+@media (prefers-reduced-motion:reduce){#vueGalaxie #terre-ui .t-carte{transition:none;clip-path:none}#vueGalaxie #terre-ui .t-carte.t-eclaire{animation:none}#vueGalaxie #terre-ui .t-bd-piste{animation:none}}
+
+/* panneaux « France » / « Monde » (fenêtres holographiques de Raylé) */
+#panneaux .t-fil{list-style:none;margin:0;padding:0;max-height:min(52vh,430px);overflow:auto}
+#panneaux .t-fil li{--c:#4de3ff;display:flex;gap:9px;align-items:flex-start;padding:7px 0;border-bottom:1px solid rgba(77,227,255,.14)}
+#panneaux .t-fil .t-f-cat{flex:none;width:8px;height:8px;margin-top:5px;border-radius:50%;background:var(--c);box-shadow:0 0 8px var(--c)}
+#panneaux .t-fil li>div{flex:1;min-width:0}
+#panneaux .t-fil a{color:#fff;text-decoration:none;font-size:12.5px;line-height:1.3}
+#panneaux .t-fil a:hover{text-decoration:underline;color:var(--c)}
+#panneaux .t-fil .t-src{display:block;font-size:10.5px;color:#9fc3da;margin-top:2px}
+#panneaux .t-fil .t-voir{flex:none;font:inherit;font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--c);background:rgba(77,227,255,.06);border:1px solid var(--c);padding:3px 8px;cursor:pointer}
+#panneaux .t-fil .t-voir:hover{background:var(--c);color:#06101a}
+#panneaux .t-actus .t-lang{font-style:normal;font-size:9.5px;letter-spacing:.08em;padding:0 4px;border:1px solid rgba(77,227,255,.45);color:#4de3ff;margin-right:2px}
+
+/* ═════════════ ÉVÉNEMENTS NATURELS EN DIRECT (étape N) ═════════════ */
+.t-evenements{position:absolute;inset:0;pointer-events:none;z-index:2}
+.t-evt{position:absolute;left:14px;bottom:212px;z-index:6;width:min(430px,calc(100vw - 28px));background:rgba(3,10,18,.86);border:1px solid rgba(77,227,255,.45);padding:8px 10px;font:12px/1.4 ui-monospace,Consolas,monospace;color:#cfe8f5;pointer-events:auto}
+.t-evt-tete{display:flex;gap:8px;align-items:baseline}.t-evt-tete b{color:#ffb347;letter-spacing:.1em;font-size:11px}.t-evt-etat{flex:1;color:#9bc4d6}.t-evt-etat .ok{color:#41e0a0;font-weight:700}.t-evt-etat .att{color:#ffb347;font-weight:700}.t-evt-etat .ko{color:#ff6b78;font-weight:700}
+.t-evt-tete button{background:none;border:1px solid #4de3ff66;color:#9bc4d6;cursor:pointer;padding:0 6px}
+.t-evt-chips{display:flex;flex-wrap:wrap;gap:4px;margin:6px 0 4px}.t-evt-chip{font:inherit;font-size:11px;color:#9bc4d6;background:rgba(77,227,255,.05);border:1px solid rgba(77,227,255,.28);padding:3px 8px;cursor:pointer;border-left:3px solid var(--c,#4de3ff)}
+.t-evt-chip.actif{color:#05090e;background:var(--c,#4de3ff);border-color:var(--c,#4de3ff);font-weight:700}
+.t-evt-sources{color:#6b8796;font-size:10.5px}.t-evt-sources .ok{color:#7fbf9f}.t-evt-sources .ko{color:#ff8a96}
+.t-evt-det h4{margin:0 0 6px;color:var(--c,#ffb347);font-size:14px}.t-evt-desc{color:#cfe3ee;margin:6px 0}
+
+#vueGalaxie #terre-ui.t-credits-ouverts .t-bas,#vueGalaxie #terre-ui.t-credits-ouverts .t-bandeau{visibility:hidden}

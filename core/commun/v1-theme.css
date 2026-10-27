@@ -1,0 +1,102 @@
+/* ═════════════ V1 : direction artistique commune (sobre, professionnelle) ═════════════
+   Chargé APRÈS hud.css et jarvis.css. Une couleur d'accent (cyan froid désaturé), une secondaire discrète (sable),
+   rouge/vert réservés aux données. Aucune trame, aucun bruit, aucune double bordure, aucune ombre épaisse. */
+:root{
+  --v1-fond:#05080c; --v1-verre:rgba(8,13,19,.72); --v1-verre2:rgba(14,22,32,.62);
+  --v1-trait:rgba(143,208,227,.22); --v1-trait-fort:rgba(143,208,227,.5);
+  --v1-texte:#e6eef2; --v1-doux:#9db0bb; --v1-faible:#6e808b;
+  --v1-accent:#8fd0e3; --v1-accent-vif:#6fd3ee; --v1-sec:#c9b27a;
+  --v1-haut:#2fd18b; --v1-bas:#ff5d6e; --v1-alerte:#e9a23b;
+  --v1-mono:"JetBrains Mono","Cascadia Mono",Consolas,"Courier New",monospace;
+  --v1-sans:"Segoe UI Variable","Segoe UI",system-ui,-apple-system,sans-serif;
+  --mono:var(--v1-sans);   /* le texte de l'interface n'est plus en Courier : seules les valeurs chiffrées gardent --v1-mono */
+}
+
+/* Panneaux de Raylé : verre sombre, en-tête sobre */
+.pn{font-family:var(--v1-sans);font-size:14px;line-height:1.5;color:var(--v1-texte)}
+.pn .pn-scan{display:none}
+.pn-tete{padding:8px 8px 8px 14px;border-bottom:1px solid var(--v1-trait);gap:10px}
+.pn-ico{font-size:12px;color:var(--v1-accent);opacity:.8}
+.pn-tete h2{font:600 11px var(--v1-sans);letter-spacing:.2em;color:var(--v1-doux)}
+.pn-x{width:30px;height:30px;border:1px solid var(--v1-trait);color:var(--v1-doux);font:14px var(--v1-sans);transition:background .15s,color .15s,border-color .15s}
+.pn-x:hover{background:rgba(143,208,227,.12);color:#fff;border-color:var(--v1-trait-fort)}
+.pn-corps{padding:12px 16px;scrollbar-color:rgba(143,208,227,.35) transparent}
+.pn-pied{border-top:1px solid var(--v1-trait)}
+.pn-bouton,.pn-pied a{font:600 11px var(--v1-sans);letter-spacing:.12em;color:var(--v1-accent);border:1px solid var(--v1-trait-fort);background:transparent;transition:background .15s}
+.pn-bouton:hover,.pn-pied a:hover{background:rgba(143,208,227,.14);color:#fff}
+.pn-gros{font:500 40px var(--v1-mono);letter-spacing:-.01em}
+.pn-l{border-bottom:1px solid rgba(143,208,227,.1)}
+.pn-l b,.pn-chiffre>b,.pn-v{font-family:var(--v1-mono);font-variant-numeric:tabular-nums}
+.pn-sep{background:var(--v1-trait)}
+.pn-chiffre{border:1px solid var(--v1-trait);background:rgba(143,208,227,.04)}
+.pn-chiffre>b{font:500 21px var(--v1-mono)}
+.pn-code,.pn-carte,.pn-iframe,.pn-img{border:1px solid var(--v1-trait)}
+.pn-tag{border-radius:2px;letter-spacing:.12em;font-size:10px}
+.pn-tag.hausse,i.hausse,.pn-delta.hausse,.pn-v.hausse{color:var(--v1-haut)}
+.pn-tag.baisse,i.baisse,.pn-delta.baisse,.pn-v.baisse{color:var(--v1-bas)}
+
+/* Pastille d'état de l'en-tête : RÉEL / DIFFÉRÉ / SIMULÉ / EXEMPLE… */
+.pn-etat{flex:none;display:inline-flex;align-items:center;gap:6px;font:600 10px var(--v1-sans);letter-spacing:.14em;color:var(--v1-doux);padding:2px 8px;border:1px solid var(--v1-trait);border-radius:10px}
+.pn-etat[hidden]{display:none}
+.pn-etat::before{content:"";width:6px;height:6px;border-radius:50%;background:var(--v1-faible)}
+.pn-etat[data-etat="reel"]{color:var(--v1-haut);border-color:rgba(47,209,139,.4)}
+.pn-etat[data-etat="reel"]::before{background:var(--v1-haut);animation:v1-pouls 2.4s ease-in-out infinite}
+.pn-etat[data-etat="differe"],.pn-etat[data-etat="secours"]{color:var(--v1-alerte);border-color:rgba(233,162,59,.4)}
+.pn-etat[data-etat="differe"]::before,.pn-etat[data-etat="secours"]::before{background:var(--v1-alerte)}
+.pn-etat[data-etat="simule"],.pn-etat[data-etat="exemple"]{color:var(--v1-sec);border-color:rgba(201,178,122,.4)}
+.pn-etat[data-etat="simule"]::before,.pn-etat[data-etat="exemple"]::before{background:var(--v1-sec)}
+.pn-etat[data-etat="indispo"]{color:var(--v1-bas);border-color:rgba(255,93,110,.4)}
+.pn-etat[data-etat="indispo"]::before{background:var(--v1-bas)}
+@keyframes v1-pouls{50%{opacity:.35}}
+
+/* Apparition par balayage : un voile qui s'ouvre de haut en bas, puis l'image se stabilise (remplace l'ancien éclair). */
+.hud-in{animation:v1-balaye .55s cubic-bezier(.2,.7,.2,1) both;transform-origin:50% 0}
+.hud-out{animation:v1-ferme .28s ease-in both}
+@keyframes v1-balaye{0%{opacity:0;clip-path:inset(0 0 100% 0);transform:translateY(-6px)}60%{opacity:1}100%{opacity:1;clip-path:polygon(0 0,calc(100% - 12px) 0,100% 12px,100% 100%,12px 100%,0 calc(100% - 12px));transform:none}}
+@keyframes v1-ferme{to{opacity:0;transform:translateY(-4px) scale(.985)}}
+.hud-balayage{background:linear-gradient(180deg,transparent,rgba(143,208,227,.12),transparent)}
+@media (prefers-reduced-motion:reduce){.hud-in{animation:none}.hud-out{animation:none;opacity:0}.pn-etat::before{animation:none!important}}
+
+/* Pastille de l'accès et boutons de sécurité : mêmes traits fins */
+#badgeAcces{font-family:var(--v1-sans);letter-spacing:.16em;border-color:var(--v1-trait-fort);background:rgba(6,10,16,.8)}
+#badgeAcces.ouvert{box-shadow:none}
+.sec-pts{text-shadow:none}
+.sec-touche{border-color:var(--v1-trait-fort);background:rgba(143,208,227,.05);font-family:var(--v1-mono)}
+
+/* ── Accueil : retrait des effets tapageurs (éclair, scintillement, traits qui courent, particules, trame) au profit du balayage sobre ── */
+body.jarvis .pn.hud-in,body.anim-fen[data-hud=complet] .pn.hud-in,body.anim-fen[data-hud=normal] .pn.hud-in{animation:v1-balaye .55s cubic-bezier(.2,.7,.2,1) both}
+body.jarvis .pn.hud-out{animation:v1-ferme .28s ease-in both}
+.pn-trace,.pn-part,.pn-scan,.pn-balayage{display:none!important}
+body.anim-fen .pn-corps,body.anim-fen .pn-tete{animation:none}
+body.jarvis .pn.hud-cadre{background:linear-gradient(165deg,rgba(14,22,32,.76),rgba(6,10,16,.82) 60%);box-shadow:none}
+body.jarvis .pn-tete h2{text-shadow:none;color:var(--v1-doux)}
+body.jarvis .titre b{text-shadow:none;letter-spacing:.5em;font-weight:500}
+body.jarvis .state{text-shadow:none}
+body.boot .tb{opacity:0}
+.tb{transition:opacity .7s ease}
+@media (prefers-reduced-motion:reduce){body.jarvis .pn.hud-in{animation:none}body.jarvis .pn.hud-out{animation:none;opacity:0}}
+/* Léger : pas de flou d'arrière-plan sur les fenêtres (coût en images/s) */
+body[data-hud="leger"] .hud-cadre{-webkit-backdrop-filter:none;backdrop-filter:none;background:rgba(8,13,19,.9)}
+.hud-cadre{-webkit-backdrop-filter:blur(8px) saturate(1.1);backdrop-filter:blur(8px) saturate(1.1)}
+
+/* Trois etats du micro, bien distincts : COUPE (gris, immobile) - VEILLE (cyan, respiration lente) - ACTIF (cyan vif, battement rapide) */
+body.jarvis .state{display:flex;align-items:center;justify-content:center;gap:9px;letter-spacing:.28em}
+body.jarvis .state::before{content:"";width:7px;height:7px;border-radius:50%;background:var(--jv);flex:none}
+body.jarvis[data-etat=idle] .state{opacity:.75}
+body.jarvis[data-etat=idle] .state::before{background:transparent;border:1px solid var(--jv)}
+body.jarvis[data-etat=veille] .state::before{animation:v1-respire 4.5s ease-in-out infinite}
+body.jarvis[data-etat=veille] .state{animation:v1-respire-texte 4.5s ease-in-out infinite}
+body.jarvis[data-etat=listening] .state::before,body.jarvis[data-etat=thinking] .state::before,body.jarvis[data-etat=speaking] .state::before{animation:v1-bat 1.1s ease-in-out infinite}
+@keyframes v1-respire{0%,100%{opacity:.25;transform:scale(.8)}50%{opacity:1;transform:scale(1.15)}}
+@keyframes v1-respire-texte{0%,100%{opacity:.6}50%{opacity:1}}
+@keyframes v1-bat{0%,100%{transform:scale(1);opacity:1}50%{transform:scale(1.5);opacity:.7}}
+@media (prefers-reduced-motion:reduce){body.jarvis .state,body.jarvis .state::before{animation:none!important}}
+body[data-hud="leger"].jarvis .state,body[data-hud="leger"].jarvis .state::before{animation:none!important}
+
+/* reglages : activation vocale */
+.av-etats{display:flex;gap:6px;margin:4px 0 6px}
+.av-etats span{flex:1;text-align:center;padding:6px 4px;border:1px solid var(--v1-trait);font:600 11px var(--v1-sans);letter-spacing:.18em;color:var(--v1-faible)}
+.av-etats span.on{color:#fff;border-color:var(--v1-accent);background:rgba(143,208,227,.12)}
+.av-test{display:flex;align-items:center;gap:10px;margin:8px 0 4px}
+.av-niveau{flex:1;height:6px;border:1px solid var(--v1-trait);background:rgba(255,255,255,.04)}
+.av-niveau i{display:block;height:100%;width:0;background:var(--v1-accent);transition:width .1s linear}

@@ -1,0 +1,10 @@
+import { etatInitial, trancher } from '../pc/agent-btc/recherche-continue.js';
+import { creerBibliotheque } from '../pc/agent-btc/bibliotheque.js';
+import { validerRegle } from '../pc/agent-btc/regles-lab.js';
+import { marcheM5, DERIVE_PLANTEE } from '../tests/synth-m5.mjs';
+const m = marcheM5({ n: 110000, graine: 9, derive: DERIVE_PLANTEE });
+const regle = validerRegle({ nom: 'NY', cote: 'long', conditions: [{ type: 'session', valeurs: [2] }, { type: 'volume', min: 1 }, { type: 'delta', sens: 'avec', ratioMin: 0 }], stop: { type: 'atr', tf: 'h1', k: 1.5 }, R: 2 }).regle;
+const etat = etatInitial(); etat.idees.push({ id: 'i1', nom: 'NY', regle }); const bib = creerBibliotheque();
+const r = await trancher(etat, { m15: m, bibliotheque: bib, budget: { chantiersMax: 1, tempsMs: 120000 } });
+const s = bib.liste()[0]; console.log(s.statut, JSON.stringify(s.preuve.jeuFinal.lignes.map(l => [l.critere.slice(0, 30), l.valeur, l.seuil, l.ok])));
+console.log(JSON.stringify(s.preuve.jeuFinal.stats));

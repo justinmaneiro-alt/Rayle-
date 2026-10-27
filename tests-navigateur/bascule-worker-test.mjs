@@ -1,0 +1,38 @@
+import puppeteer from 'puppeteer-core';
+import { BASE, CHROME, attendre, compteur } from './terre-aide.mjs';
+/* Bascule ?worker=local / ?worker=normal : sauvegarde et restauration exactes, bandeau, mini-Worker joignable. Nécessite le mini-Worker (port 8796). */
+const { verifier, fin } = compteur();
+const nav = await puppeteer.launch({ executablePath: CHROME, headless: 'new', args: ['--no-sandbox'] });
+const page = await nav.newPage();
+const cles = () => page.evaluate(() => ({ u: localStorage.getItem('rayle_worker_url'), t: localStorage.getItem('rayle_worker_token'), s: localStorage.getItem('rayle_worker_sauvegarde') }));
+const aller = async q => { await page.goto(BASE + '/index.html' + q, { waitUntil: 'load' }); await attendre(600); };
+await aller('');
+await page.evaluate(() => { localStorage.setItem('rayle_worker_url', 'https://mon-vrai-worker.exemple.workers.dev'); localStorage.setItem('rayle_worker_token', 'JETON-SECRET-123'); localStorage.removeItem('rayle_worker_sauvegarde'); });
+await aller('');
+verifier('sans paramètre : rien ne change, pas de bandeau', (await cles()).u === 'https://mon-vrai-worker.exemple.workers.dev' && !(await page.$('#bascule-worker')));
+await aller('?worker=local');
+let c = await cles();
+verifier('?worker=local : la page pointe sur le mini-Worker', c.u === 'http://127.0.0.1:8796' && c.t === 'local', JSON.stringify(c));
+verifier('… et le vrai Worker est sauvegardé', JSON.parse(c.s).url === 'https://mon-vrai-worker.exemple.workers.dev' && JSON.parse(c.s).token === 'JETON-SECRET-123');
+verifier('bandeau « MINI-WORKER LOCAL (démo) » affiché', /MINI-WORKER LOCAL \(démo\)/.test(await page.$eval('#bascule-worker', e => e.innerText)));
+verifier('l’adresse est nettoyée (un rechargement ne refait rien)', !/worker=/.test(await page.evaluate(() => location.search)));
+const ping = await page.evaluate(async () => { try { const r = await fetch('http://127.0.0.1:8796/ping'); return (await r.json()).version; } catch (e) { return 'ERREUR ' + e.message; } });
+verifier('le mini-Worker répond depuis la page', ping === 'local-reel', ping);
+await aller('?worker=local');
+c = await cles();
+verifier('?worker=local deux fois : la sauvegarde du vrai Worker n’est pas écrasée', JSON.parse(c.s).url === 'https://mon-vrai-worker.exemple.workers.dev');
+await aller('');
+verifier('rechargement simple : toujours en mode démo, bandeau présent', (await cles()).u === 'http://127.0.0.1:8796' && !!(await page.$('#bascule-worker')));
+await aller('?worker=normal');
+c = await cles();
+verifier('?worker=normal : adresse et jeton restaurés EXACTEMENT, sauvegarde effacée', c.u === 'https://mon-vrai-worker.exemple.workers.dev' && c.t === 'JETON-SECRET-123' && c.s === null, JSON.stringify(c));
+verifier('… et le bandeau a disparu', !(await page.$('#bascule-worker')));
+await aller('?worker=normal');
+verifier('?worker=normal sans bascule active : rien ne change', (await cles()).t === 'JETON-SECRET-123');
+// cas : aucun Worker configuré avant → les clés redeviennent absentes
+await page.evaluate(() => { localStorage.removeItem('rayle_worker_url'); localStorage.removeItem('rayle_worker_token'); });
+await aller('?worker=local'); await aller('?worker=normal');
+c = await cles();
+verifier('Worker non configuré au départ : les clés redeviennent absentes', c.u === null && c.t === null && c.s === null, JSON.stringify(c));
+await nav.close();
+process.exit(fin() ? 1 : 0);

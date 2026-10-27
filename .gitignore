@@ -3,3 +3,48 @@ worker/
 .serena/
 CLAUDE.md
 docs/
+
+# Clés et secrets : jamais dans le dépôt
+.env
+.env.*
+.dev.vars
+*.key
+*.pem
+
+# Générés
+node_modules/
+.wrangler/
+*.zip
+
+# Vision privée : ne pas rendre publique
+VISION.md
+
+# Captures de travail de la refonte visuelle
+captures-refonte/
+
+tests-navigateur/node_modules/
+tests-navigateur/package-lock.json
+
+# captures de l accueil JARVIS
+captures-accueil/
+
+# captures de la Terre (peuvent montrer des lieux)
+captures-terre/
+
+# captures de Mars (travail)
+captures-mars/
+donnees-btc-cache/
+donnees-sol-cache/
+donnees-doge-cache/
+
+# Modèle vocal français de Vosk (Apache-2.0, ~41 Mo) : téléchargé par installer-voix-locale.ps1, jamais publié
+core/voice/vendor/modele-fr.tar.gz
+captures-v1/
+
+# modeles lourds (nuit 3) : jamais publies sur GitHub Pages
+assets-lourds/*
+!assets-lourds/manifeste.json
+!assets-lourds/LISEZMOI.md
+
+# Captures de test (gros fichiers, regénérables par les tests)
+docs/captures-*/

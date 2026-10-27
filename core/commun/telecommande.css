@@ -1,0 +1,27 @@
+/* Télécommande (K2) : curseur virtuel, pastille de liaison, fenêtre QR / appareils. Verre sombre, un accent cyan froid, bords 1 px (direction V1). */
+#tele-curseur { position: fixed; left: 0; top: 0; width: 26px; height: 26px; margin: -13px 0 0 -13px; border: 1.5px solid #8fd0e3; border-radius: 50%; background: rgba(143, 208, 227, .14); box-shadow: 0 0 0 1px rgba(5, 6, 12, .6); pointer-events: none; z-index: 2147483000; }
+#tele-curseur::after { content: ""; position: absolute; left: 50%; top: 50%; width: 4px; height: 4px; margin: -2px; border-radius: 50%; background: #e9f7fb; }
+#tele-pastille { position: fixed; left: 14px; bottom: 14px; z-index: 2147482000; padding: 6px 12px; font: 12px/1.2 ui-monospace, Consolas, monospace; color: #cfeaf2; background: rgba(8, 12, 20, .78); border: 1px solid rgba(143, 208, 227, .35); clip-path: polygon(8px 0, 100% 0, 100% calc(100% - 8px), calc(100% - 8px) 100%, 0 100%, 0 8px); pointer-events: none; }
+#tele-pastille[data-latence="lente"] { color: #c9b27a; border-color: rgba(201, 178, 122, .5); }
+#tele-fenetre { position: fixed; right: 18px; top: 18px; width: min(420px, calc(100vw - 36px)); max-height: calc(100vh - 36px); overflow: auto; z-index: 2147482500; padding: 14px 16px 12px; color: #dbeef4; font-size: 13.5px; background: rgba(8, 12, 20, .92); border: 1px solid rgba(143, 208, 227, .38); backdrop-filter: blur(10px); clip-path: polygon(14px 0, 100% 0, 100% calc(100% - 14px), calc(100% - 14px) 100%, 0 100%, 0 14px); }
+#tele-fenetre[hidden], #tele-curseur[hidden], #tele-pastille[hidden] { display: none; }
+#tele-fenetre header { display: flex; align-items: center; gap: 10px; letter-spacing: .08em; font-size: 12px; }
+#tele-fenetre header b { flex: 1; font-weight: 600; color: #8fd0e3; }
+#tele-fenetre header button { background: none; border: 1px solid rgba(143, 208, 227, .3); color: inherit; width: 28px; height: 28px; cursor: pointer; }
+.tele-etat { font: 11px ui-monospace, Consolas, monospace; padding: 2px 8px; border: 1px solid rgba(255, 255, 255, .25); }
+.tele-etat[data-on="1"] { color: #7fe3a8; border-color: rgba(127, 227, 168, .5); }
+.tele-corps { display: flex; gap: 14px; margin: 12px 0 6px; align-items: flex-start; }
+.tele-qr { flex: 0 0 150px; } .tele-qr svg { width: 150px; height: 150px; display: block; }
+.tele-infos { flex: 1; min-width: 0; } .tele-infos p { margin: 0 0 8px; line-height: 1.45; }
+.tele-code { font: 600 30px/1 ui-monospace, Consolas, monospace; letter-spacing: .22em; color: #e9f7fb; padding: 8px 0 6px; }
+.tele-adr { font: 11px ui-monospace, Consolas, monospace; word-break: break-all; color: #8aa3ad; }
+#tele-fenetre h4 { margin: 12px 0 6px; font-size: 12px; letter-spacing: .08em; color: #8fd0e3; font-weight: 600; }
+.tele-app { list-style: none; margin: 0; padding: 0; } .tele-app li { display: flex; align-items: center; gap: 8px; padding: 6px 0; border-top: 1px solid rgba(255, 255, 255, .08); }
+.tele-app li b { font-weight: 600; } .tele-app li small { flex: 1; color: #8aa3ad; }
+.tele-pt { width: 8px; height: 8px; border-radius: 50%; background: #55606a; } .tele-pt[data-on="1"] { background: #7fe3a8; }
+#tele-fenetre button[data-a] { cursor: pointer; font: inherit; color: #dbeef4; background: rgba(143, 208, 227, .1); border: 1px solid rgba(143, 208, 227, .35); padding: 5px 10px; }
+#tele-fenetre button.tele-urg { color: #ffb4a8; border-color: rgba(255, 140, 120, .55); background: rgba(255, 110, 90, .1); }
+.tele-ligne { margin: 10px 0 4px; } .tele-ligne select { font: inherit; color: inherit; background: #0b1119; border: 1px solid rgba(143, 208, 227, .3); padding: 3px 6px; }
+.tele-j { margin: 6px 0 0; padding-left: 18px; font: 11.5px/1.5 ui-monospace, Consolas, monospace; color: #9db4bd; }
+#tele-fenetre footer { display: flex; gap: 8px; margin-top: 12px; }
+.tele-err { color: #ffb4a8; margin: 8px 0 0; } .tele-vide, .tele-note { color: #8aa3ad; } .tele-note { display: block; margin-top: 8px; font-size: 11.5px; }

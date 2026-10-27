@@ -1,0 +1,28 @@
+/* Images des actualités (phase T3) : zone d'image, légende de crédit, repère de la vue cartographique */
+.ia-zone{position:relative}
+.ia-zone.ia-attente{background:linear-gradient(110deg,rgba(143,208,227,.05) 30%,rgba(143,208,227,.16) 50%,rgba(143,208,227,.05) 70%);background-size:200% 100%;animation:ia-brille 1.4s linear infinite}
+@keyframes ia-brille{to{background-position:-200% 0}}
+@media (prefers-reduced-motion:reduce){.ia-zone.ia-attente{animation:none}}
+.ia-zone.ia-vide{display:none!important}
+.ac-sujet.ac-avec-image:has(>.ia-vide){display:block}
+.ia-fig{position:absolute;inset:0;display:block;overflow:hidden;background:#050208}
+.ia-fig a{display:block;width:100%;height:100%}
+.ia-fig>img,.ia-fig>a>img{display:block;width:100%;height:100%;object-fit:cover}
+.ia-fig.ia-carte>img{position:absolute;max-width:none;object-fit:fill}
+.ia-pin{position:absolute;left:50%;top:50%;width:9px;height:9px;margin:-5px 0 0 -5px;border:2px solid #fff;border-radius:50%;background:#ff4d6d;box-shadow:0 0 6px rgba(0,0,0,.75);z-index:1}
+.ia-credit{position:absolute;left:0;right:0;bottom:0;padding:1px 3px;font-size:7.5px;line-height:1.25;letter-spacing:.02em;color:#e8f4ff;background:rgba(2,6,12,.74);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;pointer-events:none;z-index:2}
+body[data-hud=leger] .ia-zone{display:none}
+/* dans les fenetres de liste : meme gabarit que les vignettes des flux */
+.ac-vignette.ia-zone{width:74px;height:50px;border:1px solid color-mix(in srgb,var(--c,#4de3ff) 55%,transparent);background-color:#050208}
+/* cartes holographiques de la Terre */
+#vueGalaxie #terre-ui .t-carte .t-c-img.ia-zone{position:absolute;right:9px;top:30px;width:84px;height:62px;border:1px solid color-mix(in srgb,var(--c,#4de3ff) 55%,transparent);background-color:#050208;pointer-events:auto}
+#vueGalaxie #terre-ui .t-carte.t-avec-image .t-c-titre{margin-right:96px}
+#vueGalaxie #terre-ui .t-carte.t-avec-image .t-c-img.ia-vide~.t-c-titre{margin-right:0}
+#vueGalaxie #terre-ui .t-carte.t-avec-image footer{margin-right:96px}
+#vueGalaxie #terre-ui .t-carte.t-avec-image .t-c-img.ia-vide~footer{margin-right:0}
+/* fenetres France / Monde / pays de la Terre */
+#panneaux .t-fil li>.t-f-img.ia-zone,#panneaux .t-actus li>.t-f-img.ia-zone{flex:none;width:74px;height:50px;border:1px solid rgba(77,227,255,.4);background-color:#050208}
+#panneaux .t-actus li.t-avec-img{display:grid;grid-template-columns:1fr 74px;column-gap:9px}
+#panneaux .t-actus li.t-avec-img>a,#panneaux .t-actus li.t-avec-img>.t-src{grid-column:1}
+#panneaux .t-actus li.t-avec-img>.t-f-img{grid-column:2;grid-row:1/3}
+#panneaux .t-actus li.t-avec-img:has(>.ia-vide){display:flex}

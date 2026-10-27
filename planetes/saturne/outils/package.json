@@ -1,0 +1,12 @@
+{
+  "name": "rayle-saturne-outils",
+  "private": true,
+  "type": "module",
+  "description": "Outils de conversion des modeles d'anatomie (hors du site publie) : atlas BodyParts3D empaquete -> glTF compresse (Meshopt) par systeme.",
+  "devDependencies": {
+    "@gltf-transform/core": "^4.1.0",
+    "@gltf-transform/extensions": "^4.1.0",
+    "@gltf-transform/functions": "^4.1.0",
+    "meshoptimizer": "^0.22.0"
+  }
+}

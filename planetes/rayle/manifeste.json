@@ -1,0 +1,126 @@
+{
+  "schema": 1,
+  "id": "rayle",
+  "type": "soleil",
+  "nom": "Raylé",
+  "alias": [
+    "le soleil",
+    "soleil",
+    "le centre"
+  ],
+  "theme": "Le cœur : intelligence, voix, clés",
+  "etat": "active",
+  "apparence": {
+    "rayon": 12
+  },
+  "ordres": [
+    {
+      "action": "aller_a",
+      "description": "Voler jusqu’à une planète ou un vaisseau",
+      "params": {
+        "cible": "texte"
+      }
+    },
+    {
+      "action": "retour",
+      "description": "Revenir à la vue d’ensemble de la galaxie"
+    },
+    {
+      "action": "mode_jeu",
+      "description": "Activer ou désactiver le mode jeu (qualité minimale)",
+      "params": {
+        "etat": [
+          "actif",
+          "inactif"
+        ]
+      }
+    },
+    {
+      "action": "regler_qualite",
+      "description": "Régler la qualité 3D de la galaxie",
+      "params": {
+        "niveau": [
+          "auto",
+          "haute",
+          "moyenne",
+          "basse"
+        ]
+      }
+    },
+    {
+      "action": "mesurer_performance",
+      "description": "Tester les performances de la galaxie et recommander une qualité"
+    },
+    {
+      "action": "afficher_fps",
+      "description": "Afficher ou cacher le compteur d’images par seconde",
+      "params": {
+        "etat": [
+          "actif",
+          "inactif"
+        ]
+      }
+    },
+    {
+      "action": "afficher_reglages",
+      "description": "Ouvrir ou fermer le panneau de réglages de la galaxie",
+      "params": {
+        "etat": [
+          "ouvrir",
+          "fermer"
+        ]
+      }
+    },
+    {
+      "action": "afficher_orbites",
+      "description": "Afficher ou cacher les orbites des planètes",
+      "params": {
+        "etat": [
+          "actif",
+          "inactif"
+        ]
+      }
+    },
+    {
+      "action": "multi_ecrans",
+      "description": "Activer ou désactiver le mode multi-écrans (fenêtres sur les autres écrans)",
+      "params": {
+        "etat": [
+          "actif",
+          "inactif"
+        ]
+      }
+    },
+    {
+      "action": "disposition",
+      "description": "Choisir une disposition enregistrée du mode multi-écrans (Travail, Trading, Détente…)",
+      "params": {
+        "nom": "texte"
+      }
+    },
+    {
+      "action": "identifier_ecrans",
+      "description": "Afficher un grand numéro sur chaque écran"
+    },
+    {
+      "action": "deplacer_module",
+      "description": "Envoyer un module (actualités, fil, conversation, météo…) sur un autre écran",
+      "params": {
+        "module": [
+          "actus",
+          "fil",
+          "conversation",
+          "meteo",
+          "terre",
+          "galaxie",
+          "rayle"
+        ],
+        "ecran": "nombre"
+      }
+    },
+    {
+      "action": "fermer_tout",
+      "description": "Fermer toutes les fenêtres de Raylé proprement"
+    }
+  ]
+}

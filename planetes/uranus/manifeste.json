@@ -1,0 +1,27 @@
+{
+  "schema": 1,
+  "id": "uranus",
+  "nom": "Uranus",
+  "theme": "Prête à être programmée",
+  "etat": "en_attente",
+  "orbite": {
+    "distance": 118,
+    "periode": 470,
+    "phase": -1.5
+  },
+  "apparence": {
+    "rayon": 4.2,
+    "rotation": -0.3,
+    "tilt": 1.71,
+    "texture": "galaxie/textures/2k_uranus.jpg",
+    "atmosphere": {
+      "couleur": [0.5, 0.9, 1],
+      "force": 0.6,
+      "crepuscule": [0.5, 0.85, 1],
+      "epaisseur": 0.06
+    }
+  },
+  "licences": [
+    "Textures Solar System Scope (CC BY 4.0), dérivées de données NASA"
+  ]
+}

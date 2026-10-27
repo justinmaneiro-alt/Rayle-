@@ -1,0 +1,21 @@
+{
+  "schema": 1,
+  "id": "mercure",
+  "nom": "Mercure",
+  "theme": "Prête à être programmée",
+  "etat": "en_attente",
+  "orbite": {
+    "distance": 21,
+    "periode": 42,
+    "phase": 1.55
+  },
+  "apparence": {
+    "rayon": 1.6,
+    "rotation": 0.05,
+    "tilt": 0,
+    "texture": "galaxie/textures/2k_mercury.jpg"
+  },
+  "licences": [
+    "Textures Solar System Scope (CC BY 4.0), dérivées de données NASA"
+  ]
+}

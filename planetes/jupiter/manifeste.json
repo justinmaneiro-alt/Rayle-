@@ -1,0 +1,85 @@
+{
+  "schema": 1,
+  "id": "jupiter",
+  "nom": "Jupiter",
+  "theme": "Code : vaisseau du capitaine, base des agents de code",
+  "etat": "active",
+  "orbite": {
+    "distance": 76,
+    "periode": 230,
+    "phase": -0.75
+  },
+  "apparence": {
+    "rayon": 7.5,
+    "rotation": 0.6,
+    "tilt": 0.05,
+    "texture": "galaxie/textures/8k_jupiter.jpg",
+    "atmosphere": {
+      "couleur": [0.9, 0.75, 0.6],
+      "force": 0.35,
+      "crepuscule": [0.95, 0.55, 0.35],
+      "epaisseur": 0.05
+    }
+  },
+  "satellites": [
+    {
+      "id": "arcadia",
+      "nom": "Vaisseau du capitaine (code)",
+      "alias": [
+        "vaisseau du capitaine",
+        "l'arcadia",
+        "arcadia",
+        "albator",
+        "le vaisseau d'albator",
+        "capitaine albator",
+        "vaisseau de code"
+      ],
+      "type": "arcadia",
+      "orbite": 12,
+      "periode": 38
+    }
+  ],
+  "modules": {
+    "pc": {
+      "entree": "planetes/jupiter/pc/index.js",
+      "qualite_min": "moyenne"
+    },
+    "tablette": {
+      "entree": "planetes/jupiter/terminal-2d/index.js"
+    },
+    "telephone": {
+      "entree": "planetes/jupiter/terminal-2d/index.js"
+    }
+  },
+  "agents": [
+    {
+      "id": "jupiter-interprete",
+      "role": "interprete",
+      "route": "/planete/jupiter/interprete"
+    }
+  ],
+  "ordres": [
+    {
+      "action": "coder",
+      "description": "Écrire du code pour une demande (site, mod, gadget, script)",
+      "params": {
+        "demande": "texte"
+      }
+    },
+    {
+      "action": "montrer_resultat",
+      "description": "Afficher le résultat du dernier code produit"
+    }
+  ],
+  "donnees": {
+    "lit": [
+      "documentation_code"
+    ],
+    "ecrit": [
+      "projets"
+    ]
+  },
+  "licences": [
+    "Textures Solar System Scope (CC BY 4.0), dérivées de données NASA"
+  ]
+}

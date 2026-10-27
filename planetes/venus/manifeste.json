@@ -1,0 +1,27 @@
+{
+  "schema": 1,
+  "id": "venus",
+  "nom": "Vénus",
+  "theme": "Prête à être programmée",
+  "etat": "en_attente",
+  "orbite": {
+    "distance": 30,
+    "periode": 66,
+    "phase": 0.95
+  },
+  "apparence": {
+    "rayon": 2.8,
+    "rotation": -0.02,
+    "tilt": 3.09,
+    "texture": "galaxie/textures/2k_venus_surface.jpg",
+    "atmosphere": {
+      "couleur": [1, 0.78, 0.45],
+      "force": 0.9,
+      "crepuscule": [1, 0.6, 0.3],
+      "epaisseur": 0.09
+    }
+  },
+  "licences": [
+    "Textures Solar System Scope (CC BY 4.0), dérivées de données NASA"
+  ]
+}

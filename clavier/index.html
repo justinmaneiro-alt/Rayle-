@@ -1,0 +1,105 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="theme-color" content="#05060c">
+<meta name="mobile-web-app-capable" content="yes">
+<link rel="icon" href="data:,">
+<title>Télécommande Raylé</title>
+<link rel="stylesheet" href="/clavier/clavier.css">
+</head>
+<body data-mode="clavier">
+<header class="haut" id="haut">
+  <nav class="modes" id="modes" aria-label="Modes">
+    <button type="button" class="mode" data-m="pave">Pavé</button>
+    <button type="button" class="mode" data-m="clavier">Clavier</button>
+    <button type="button" class="mode" data-m="rayle">Raylé</button>
+    <button type="button" class="mode" data-m="pilotage">Pilotage</button>
+  </nav>
+  <div id="liaison" class="liaison" data-etat="hors" role="status"><i></i><span id="liaison-t">HORS LIAISON</span></div>
+  <div id="pc" class="liaison" data-etat="hors" role="status"><i></i><span>PC</span></div>
+  <div id="etat" class="etat" data-etat="pret">PRÊT</div>
+  <button id="b-reglages" class="bt" type="button" aria-label="Réglages">⚙</button>
+  <button id="b-plein" class="bt" type="button" aria-label="Plein écran">⛶</button>
+</header>
+
+<section id="v-clavier" class="vue">
+  <div id="champ" class="champ" aria-live="polite"><span id="texte"></span><span class="curseur"></span></div>
+  <main id="kb" class="kb">
+    <div class="plan" id="plan">
+      <svg id="arc" class="arc" role="group" aria-label="Commandes de Raylé"></svg>
+      <svg id="cadran" class="cadran" aria-hidden="true"></svg>
+      <svg id="lettres" class="lettres" role="group" aria-label="Lettres"></svg>
+    </div>
+    <svg id="espace-svg" class="espace" role="group" aria-label="Barre d'espace"></svg>
+  </main>
+</section>
+
+<section id="v-pave" class="vue" hidden>
+  <div id="pave" class="pave" role="application" aria-label="Pavé tactile">
+    <canvas id="pave-cv" class="pave-cv" aria-hidden="true"></canvas>
+    <div class="pave-etat" id="pave-etat" aria-live="off">PRÊT</div>
+    <div class="pave-aide">1 doigt : curseur · tap : clic · double tap : double clic · appui long : clic droit<br>2 doigts : défilement / pincement : zoom · 3 doigts : accueil</div>
+  </div>
+  <button type="button" id="pave-cible" class="pave-cible" data-v="auto">Auto</button>
+</section>
+
+<section id="v-rayle" class="vue" hidden>
+  <div class="rayle-grille">
+    <div class="rayle-col">
+      <button type="button" id="parler" class="parler">PARLER<small>maintenir pour parler</small></button>
+      <div class="trio" id="trio">
+        <button type="button" data-r="veille">VEILLE</button>
+        <button type="button" data-r="coupe">COUPÉ</button>
+        <button type="button" data-r="actif">ACTIF</button>
+      </div>
+      <button type="button" id="stop-parole" class="large-b">Arrête de parler</button>
+      <label class="vol">Volume <input id="volume" type="range" min="0" max="100" value="100"></label>
+      <div class="raccourcis" id="raccourcis">
+        <button type="button" data-f="meteo">Météo</button><button type="button" data-f="actualites">Actualités</button>
+        <button type="button" data-f="marche">Marché</button><button type="button" data-f="agent">Agent</button>
+      </div>
+    </div>
+    <div class="rayle-col fil" id="fil" aria-live="polite"><p class="fil-vide">Les dernières réponses de Raylé apparaîtront ici.</p></div>
+  </div>
+</section>
+
+<section id="v-pilotage" class="vue" hidden>
+  <div class="pil">
+    <div class="stick" id="stick-g" data-r="g"><b>TRANSLATION</b><div class="base"><div class="bille"></div></div><small>gauche · droite · avant · arrière</small></div>
+    <div class="centre">
+      <div class="poussee" id="poussee"><b>POUSSÉE</b><div class="rail"><div class="remplit" id="p-remplit"></div><div class="poignee" id="p-poignee"></div></div><span id="p-val">0 %</span></div>
+      <button type="button" id="b-post" class="post">POSTCOMBUSTION</button>
+      <div class="rang"><button type="button" id="b-roul-g">⟲</button><button type="button" id="b-vue">VUE : <span id="vue-nom">extérieure</span></button><button type="button" id="b-roul-d">⟳</button></div>
+    </div>
+    <div class="stick" id="stick-d" data-r="d"><b>ROTATION</b><div class="base"><div class="bille"></div></div><small>lacet · tangage</small></div>
+  </div>
+</section>
+
+<div id="info" class="info" role="status"></div>
+
+<section id="appairage" class="appairage" hidden>
+  <h2>Appairer cette tablette</h2>
+  <p>Sur le PC, ouvre ⚙ Réglages de Raylé : le code à 6 chiffres est dans la fenêtre « Pilotage tablette ».</p>
+  <div id="code-aff" class="code-aff" aria-live="polite">······</div>
+  <div class="pave-num" id="pave-num"></div>
+  <input id="nom-app" class="nom-app" maxlength="32" autocomplete="off" aria-label="Nom de l'appareil">
+  <p id="app-msg" class="app-msg" role="alert"></p>
+</section>
+
+<section id="reglages" class="reglages" hidden>
+  <h2>Réglages</h2>
+  <label>Main des commandes
+    <select id="r-main"><option value="gauche">Commandes à gauche (droitier)</option><option value="droite">Commandes à droite (gaucher)</option></select></label>
+  <label>Taille du clavier <input id="r-taille" type="range" min="80" max="100" step="5"></label>
+  <label>Sensibilité du pavé <input id="r-sens" type="range" min="4" max="30" step="1"></label>
+  <label class="ligne"><input id="r-vibre" type="checkbox"> Vibration</label>
+  <button id="r-oublier" class="bt large" type="button">Oublier cet appairage</button>
+  <button id="r-ok" class="bt large" type="button">Fermer</button>
+</section>
+<div id="portrait" class="portrait">Tourne la tablette en paysage</div>
+<script src="/clavier/telecommande-calcul.js"></script>
+<script src="/clavier/clavier.js"></script>
+</body>
+</html>

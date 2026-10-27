@@ -1,0 +1,133 @@
+/* Anatomie : panneau de commande (colonne de gauche) et fenêtres holographiques. Direction artistique V1 : verre sombre, bords 1 px cyan froid, coins coupés, texte net (14 px au moins).
+   Mise en page vérifiée à 1366, 1920, 2560 et en vertical : tout défile à l'INTÉRIEUR, rien ne déborde de l'écran. */
+#vueGalaxie #saturne-ui{--sa-fond:rgba(6,12,20,.93);--sa-bord:rgba(143,208,227,.5);--sa-texte:#dcecf6;--sa-doux:#9db6c6;--sa-accent:#8fd0e3;--sa-sable:#c9b27a}
+
+/* ── panneau de commande ── */
+#vueGalaxie #saturne-ui #s-anat{position:absolute;left:12px;top:70px;bottom:56px;width:clamp(300px,22vw,400px);max-width:calc(100vw - 24px);display:flex;flex-direction:column;background:var(--sa-fond);border:1px solid var(--sa-bord);clip-path:polygon(0 0,calc(100% - 14px) 0,100% 14px,100% 100%,0 100%);pointer-events:auto;z-index:6;font-size:14px;line-height:1.4;color:var(--sa-texte)}
+#vueGalaxie #saturne-ui:not(.s-salle) #s-anat{display:none}
+#vueGalaxie #saturne-ui #s-anat .sa-t{display:flex;align-items:center;justify-content:space-between;padding:8px 12px;border-bottom:1px solid rgba(143,208,227,.22);flex:none}
+#vueGalaxie #saturne-ui #s-anat h3{margin:0;font-size:14px;letter-spacing:.2em;text-transform:uppercase;color:var(--sa-sable)}
+#vueGalaxie #saturne-ui #s-anat h4{margin:14px 0 6px;font-size:14px;letter-spacing:.12em;text-transform:uppercase;color:var(--sa-sable);font-weight:600}
+#vueGalaxie #saturne-ui #s-anat .sa-corps{flex:1 1 auto;min-height:0;overflow-y:auto;overflow-x:hidden;padding:4px 12px 12px;scrollbar-width:thin;scrollbar-color:rgba(143,208,227,.4) transparent}
+#vueGalaxie #saturne-ui #s-anat.replie{width:auto;bottom:auto}
+#vueGalaxie #saturne-ui #s-anat.replie .sa-corps{display:none}
+#vueGalaxie #saturne-ui #s-anat.replie .sa-t{border-bottom:0;gap:12px}
+#vueGalaxie #saturne-ui #s-anat input[type=search]{width:100%;background:#0a1220;color:var(--sa-texte);border:1px solid var(--sa-accent);padding:7px 8px;font-size:14px}
+#vueGalaxie #saturne-ui #s-anat button{font-size:14px;letter-spacing:.02em;color:var(--sa-accent);background:rgba(143,208,227,.08);border:1px solid rgba(143,208,227,.6);padding:5px 9px;margin:3px 3px 0 0;cursor:pointer;min-height:32px}
+#vueGalaxie #saturne-ui #s-anat button:hover,#vueGalaxie #saturne-ui #s-anat button.actif{background:rgba(143,208,227,.3);color:#fff}
+#vueGalaxie #saturne-ui #s-anat button:focus-visible,#vueGalaxie #saturne-ui .saf button:focus-visible{outline:2px solid #fff;outline-offset:1px}
+#vueGalaxie #saturne-ui #s-anat .sa-res button{display:block;width:100%;text-align:left}
+#vueGalaxie #saturne-ui #s-anat .sa-ligne,#vueGalaxie #saturne-ui #s-anat .sa-sys{margin:6px 0}
+#vueGalaxie #saturne-ui #s-anat .sa-note{margin:0 0 6px;color:var(--sa-doux);font-size:14px}
+#vueGalaxie #saturne-ui #s-anat label{display:flex;gap:8px;align-items:center;justify-content:space-between;margin:8px 0;font-size:14px}
+#vueGalaxie #saturne-ui #s-anat select{background:#0a1220;color:var(--sa-texte);border:1px solid var(--sa-accent);font-size:14px;padding:4px;max-width:180px}
+#vueGalaxie #saturne-ui #s-anat input[type=range]{flex:1;accent-color:var(--sa-accent);min-width:0}
+#vueGalaxie #saturne-ui #s-anat .sa-etat{margin-top:10px;color:var(--sa-texte);min-height:2.8em;border-left:2px solid var(--sa-accent);padding-left:8px}
+#vueGalaxie #saturne-ui #s-anat .sa-actif{color:var(--sa-doux);margin-top:4px}
+#vueGalaxie #saturne-ui #s-anat .sa-credit{margin-top:12px;font-size:14px;color:#7f9bb0;line-height:1.4}
+
+/* ── fenêtres holographiques ── */
+#vueGalaxie #saturne-ui #sa-fenetres{position:absolute;inset:0;pointer-events:none;z-index:7}
+#vueGalaxie #saturne-ui .saf{position:absolute;display:flex;flex-direction:column;min-width:280px;min-height:140px;background:var(--sa-fond);border:1px solid var(--sa-bord);clip-path:polygon(0 0,calc(100% - 16px) 0,100% 16px,100% 100%,0 100%);pointer-events:auto;color:var(--sa-texte);font-size:14px;line-height:1.45;box-shadow:none;animation:saf-entree .14s ease-out both}
+#vueGalaxie #saturne-ui .saf::before{content:"";position:absolute;left:0;top:0;right:16px;height:2px;background:linear-gradient(90deg,var(--sa-accent),rgba(143,208,227,0));opacity:.8;pointer-events:none}
+#vueGalaxie #saturne-ui .saf.saf-focus{border-color:rgba(143,208,227,.85)}
+#vueGalaxie #saturne-ui .saf.saf-deplace,#vueGalaxie #saturne-ui .saf.saf-redim{animation:none;user-select:none}
+#vueGalaxie #saturne-ui .saf-t{display:flex;align-items:center;gap:8px;padding:8px 8px 8px 12px;border-bottom:1px solid rgba(143,208,227,.22);cursor:move;flex:none;touch-action:none}
+#vueGalaxie #saturne-ui .saf-pastille{width:9px;height:9px;border-radius:50%;background:#7f9bb0;flex:none}
+#vueGalaxie #saturne-ui .saf-pastille[data-p=reel]{background:#7be0a0}#vueGalaxie #saturne-ui .saf-pastille[data-p=simule]{background:#ffb347}
+#vueGalaxie #saturne-ui .saf-titres{flex:1;min-width:0;display:flex;flex-direction:column}
+#vueGalaxie #saturne-ui .saf-titre{font-size:16px;color:#fff;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#vueGalaxie #saturne-ui .saf-sous{font-size:14px;color:var(--sa-doux);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#vueGalaxie #saturne-ui .saf-b{display:flex;gap:4px;flex:none}
+#vueGalaxie #saturne-ui .saf-b button{width:32px;height:32px;font-size:16px;line-height:1;color:var(--sa-accent);background:rgba(143,208,227,.08);border:1px solid rgba(143,208,227,.5);cursor:pointer;padding:0}
+#vueGalaxie #saturne-ui .saf-b button:hover{background:rgba(143,208,227,.3);color:#fff}
+#vueGalaxie #saturne-ui .saf-corps{flex:1 1 auto;min-height:0;overflow:auto;padding:10px 14px 14px;scrollbar-width:thin;scrollbar-color:rgba(143,208,227,.4) transparent}
+#vueGalaxie #saturne-ui .saf-pied{flex:none;padding:6px 14px;border-top:1px solid rgba(143,208,227,.18);font-size:14px;color:var(--sa-sable)}
+#vueGalaxie #saturne-ui .saf-poignee{position:absolute;right:0;bottom:0;width:20px;height:20px;cursor:nwse-resize;touch-action:none;background:linear-gradient(135deg,transparent 52%,rgba(143,208,227,.7) 52%,rgba(143,208,227,.7) 60%,transparent 60%,transparent 72%,rgba(143,208,227,.7) 72%,rgba(143,208,227,.7) 80%,transparent 80%)}
+#vueGalaxie #saturne-ui .saf.saf-reduite{min-height:0;height:auto!important}
+#vueGalaxie #saturne-ui .saf.saf-reduite .saf-corps,#vueGalaxie #saturne-ui .saf.saf-reduite .saf-pied,#vueGalaxie #saturne-ui .saf.saf-reduite .saf-poignee{display:none}
+@keyframes saf-entree{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+/* R2 : gestionnaire commun — agrandir/restaurer, pincement, cibles tactiles de 44 px */
+#vueGalaxie #saturne-ui .saf{touch-action:pan-x pan-y}
+#vueGalaxie #saturne-ui .saf.saf-max{clip-path:none}
+#vueGalaxie #saturne-ui .saf-b button{min-width:32px}
+#vueGalaxie #saturne-ui .saf-piece{position:relative;height:clamp(170px,30vh,300px);margin:8px 0;border:1px solid rgba(143,208,227,.28);background:#05090f}
+#vueGalaxie #saturne-ui .saf-piece canvas{width:100%;height:100%;display:block;touch-action:none;cursor:grab}
+#vueGalaxie #saturne-ui .saf-piece-aide{position:absolute;left:8px;bottom:4px;font-size:12px;color:#7f9bb0;pointer-events:none}
+@media (pointer:coarse){
+  #vueGalaxie #saturne-ui .saf-b button{width:44px;height:44px}
+  #vueGalaxie #saturne-ui .saf-poignee{width:44px;height:44px}
+  #vueGalaxie #saturne-ui .saf-barre.saf-barre button{min-height:44px}
+}
+
+/* contenu des fiches */
+#vueGalaxie #saturne-ui .saf-fiche h4{margin:14px 0 4px;font-size:14px;letter-spacing:.1em;text-transform:uppercase;color:var(--sa-sable);font-weight:600}
+#vueGalaxie #saturne-ui .saf-fiche h5{margin:8px 0 2px;font-size:14px;color:var(--sa-doux);font-weight:600}
+#vueGalaxie #saturne-ui .saf-fiche dl{margin:0;display:grid;grid-template-columns:minmax(110px,32%) 1fr;gap:3px 10px}
+#vueGalaxie #saturne-ui .saf-fiche dt{color:var(--sa-doux)}#vueGalaxie #saturne-ui .saf-fiche dd{margin:0;overflow-wrap:anywhere}
+#vueGalaxie #saturne-ui .saf-fiche p{margin:4px 0}#vueGalaxie #saturne-ui .saf-fiche ul,#vueGalaxie #saturne-ui .saf-fiche ol{margin:4px 0;padding-left:20px}
+#vueGalaxie #saturne-ui .saf-absent{color:#7f9bb0;font-style:italic}
+#vueGalaxie #saturne-ui .saf-confiance{padding:6px 8px;border-left:3px solid #ffb347;background:rgba(255,179,71,.08)}
+#vueGalaxie #saturne-ui .saf-confiance[data-c=haute]{border-color:#7be0a0;background:rgba(123,224,160,.07)}
+#vueGalaxie #saturne-ui .saf-alerte{padding:6px 8px;border:1px solid #ffb347;color:#ffd9a0;background:rgba(255,179,71,.1)}
+#vueGalaxie #saturne-ui .saf-schema{padding:6px 8px;border:1px dashed var(--sa-sable);color:#efe2c0}
+#vueGalaxie #saturne-ui .saf-mesure{color:#bfeeff}
+#vueGalaxie #saturne-ui .saf-avert{margin-top:12px;color:var(--sa-doux);font-size:14px}
+#vueGalaxie #saturne-ui .saf-liens,#vueGalaxie #saturne-ui .saf-muscles{display:flex;flex-wrap:wrap;gap:6px}
+#vueGalaxie #saturne-ui .saf-fiche button,#vueGalaxie #saturne-ui .saf-outils button,#vueGalaxie #saturne-ui .saf-barre button{font-size:14px;color:var(--sa-accent);background:rgba(143,208,227,.08);border:1px solid rgba(143,208,227,.6);padding:4px 9px;cursor:pointer;min-height:30px}
+#vueGalaxie #saturne-ui .saf-fiche button:hover,#vueGalaxie #saturne-ui .saf-outils button:hover,#vueGalaxie #saturne-ui .saf-barre button:hover,#vueGalaxie #saturne-ui .saf-outils button.actif{background:rgba(143,208,227,.3);color:#fff}
+#vueGalaxie #saturne-ui .saf-outils{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px;position:sticky;top:-10px;background:var(--sa-fond);padding:4px 0;z-index:1}
+#vueGalaxie #saturne-ui .saf-outils .saf-principal{background:rgba(143,208,227,.22);color:#fff;border-color:var(--sa-accent)}
+#vueGalaxie #saturne-ui .saf-outils button:disabled{opacity:.5;cursor:default}
+#vueGalaxie #saturne-ui .saf-muscles button[data-role=agoniste]{border-color:#ff6a4d;color:#ffb4a6}#vueGalaxie #saturne-ui .saf-muscles button[data-role=antagoniste]{border-color:#5a8dff;color:#b4c9ff}#vueGalaxie #saturne-ui .saf-muscles button[data-role=stabilisateur]{border-color:#9aa6b2;color:#d0d8e0}
+#vueGalaxie #saturne-ui .saf-legende i{display:inline-block;width:12px;height:12px;margin:0 4px 0 10px;vertical-align:-1px}
+#vueGalaxie #saturne-ui .saf-legende i[data-role=agoniste]{background:#ff4d3a}#vueGalaxie #saturne-ui .saf-legende i[data-role=antagoniste]{background:#3a73ff}#vueGalaxie #saturne-ui .saf-legende i[data-role=stabilisateur]{background:#9aa6b2}
+#vueGalaxie #saturne-ui .saf-table{border-collapse:collapse;width:100%}#vueGalaxie #saturne-ui .saf-table th,#vueGalaxie #saturne-ui .saf-table td{padding:3px 6px;border-bottom:1px solid rgba(143,208,227,.16);text-align:left;font-size:14px}
+#vueGalaxie #saturne-ui .saf-table th{color:var(--sa-doux);font-weight:400}
+
+/* gestionnaire de fenêtres */
+#vueGalaxie #saturne-ui .saf-barre{position:absolute;left:50%;bottom:56px;transform:translateX(-50%);display:flex;align-items:center;gap:8px;flex-wrap:wrap;justify-content:center;max-width:calc(100vw - 24px);padding:5px 10px;background:var(--sa-fond);border:1px solid rgba(143,208,227,.4);pointer-events:auto;z-index:8;font-size:14px;color:var(--sa-texte)}
+#vueGalaxie #saturne-ui .saf-barre[hidden]{display:none}
+#vueGalaxie #saturne-ui .saf-chips{display:flex;gap:4px;flex-wrap:wrap}
+#vueGalaxie #saturne-ui .saf-barre button.actif{background:rgba(143,208,227,.3);color:#fff}#vueGalaxie #saturne-ui .saf-barre button.reduite{opacity:.65;font-style:italic}
+
+/* vue rapprochée du mouvement (fenêtre secondaire en 3D) */
+#vueGalaxie #saturne-ui .saf-3d{display:flex;flex-direction:column;height:100%;min-height:0}
+#vueGalaxie #saturne-ui .saf-3d canvas{flex:1 1 auto;min-height:120px;width:100%;display:block;background:#05090f;touch-action:none;cursor:grab}
+#vueGalaxie #saturne-ui .saf-3d .saf-lecteur{flex:none;display:flex;flex-wrap:wrap;gap:6px;align-items:center;padding-top:8px}
+#vueGalaxie #saturne-ui .saf-3d .saf-lecteur input[type=range]{flex:1 1 140px;accent-color:var(--sa-accent);min-width:100px}
+#vueGalaxie #saturne-ui .saf-3d .saf-lecteur button,#vueGalaxie #saturne-ui .saf-3d .saf-lecteur select{font-size:14px;color:var(--sa-accent);background:rgba(143,208,227,.08);border:1px solid rgba(143,208,227,.6);padding:4px 9px;min-height:30px}
+#vueGalaxie #saturne-ui .saf-3d .saf-lecteur select{background:#0a1220;color:var(--sa-texte)}
+#vueGalaxie #saturne-ui .saf-3d .saf-info{flex:none;color:var(--sa-doux);font-size:14px;padding-top:4px}
+
+/* catalogue (mouvements, pathologies) */
+#vueGalaxie #saturne-ui .saf-cat input[type=search]{width:100%;background:#0a1220;color:var(--sa-texte);border:1px solid var(--sa-accent);padding:7px 8px;font-size:14px}
+#vueGalaxie #saturne-ui .saf-cat .saf-filtres{display:flex;flex-wrap:wrap;gap:5px;margin:8px 0}
+#vueGalaxie #saturne-ui .saf-cat .saf-filtres button.actif{background:rgba(143,208,227,.32);color:#fff}
+#vueGalaxie #saturne-ui .saf-cat .saf-liste{display:flex;flex-direction:column;gap:3px}
+#vueGalaxie #saturne-ui .saf-cat .saf-liste button{text-align:left;display:flex;justify-content:space-between;gap:8px;width:100%}
+#vueGalaxie #saturne-ui .saf-cat .saf-liste small{color:var(--sa-doux);flex:none}
+#vueGalaxie #saturne-ui .saf-cat h4{margin:12px 0 4px;color:var(--sa-sable);font-size:14px;letter-spacing:.1em;text-transform:uppercase}
+#vueGalaxie #saturne-ui .saf-cat .saf-compte{color:var(--sa-doux);margin:4px 0}
+
+/* écran étroit (tablette en hauteur, téléphone) : panneau en bas, une fenêtre dépliée à la fois en pleine largeur */
+@media (max-width:820px){
+  #vueGalaxie #saturne-ui #s-anat{left:8px;right:8px;top:auto;bottom:56px;width:auto;max-width:none;max-height:38vh;clip-path:none}
+  #vueGalaxie #saturne-ui #s-anat.replie{max-height:none;right:auto}
+  #vueGalaxie #saturne-ui .saf{left:8px!important;right:8px!important;width:auto!important;top:104px!important;bottom:60px;height:auto!important;clip-path:none}
+  #vueGalaxie #saturne-ui .saf:not(.saf-focus){display:none}
+  #vueGalaxie #saturne-ui .saf-poignee{display:none}
+  #vueGalaxie #saturne-ui .saf-t{cursor:default}
+  #vueGalaxie #saturne-ui .saf-barre{bottom:auto;top:56px;max-width:calc(100vw - 16px)}
+}
+/* mode léger : pas d'animation d'entrée ; animations réduites : idem */
+#vueGalaxie.mode-leger #saturne-ui .saf,body[data-hud="leger"] #vueGalaxie #saturne-ui .saf{animation:none}
+@media (prefers-reduced-motion:reduce){#vueGalaxie #saturne-ui .saf{animation:none}}
+
+/* les panneaux de réponse de Raylé (colonne de gauche) se décalent à droite du panneau d'anatomie : ils ne recouvrent plus ses boutons */
+body.saturne-salle .pn-col.g{left:calc(clamp(300px,22vw,400px) + 26px);width:min(340px,22vw)}
+@media (max-width:820px){body.saturne-salle .pn-col.g{left:max(10px,env(safe-area-inset-left));width:min(390px,31vw)}}
+
+/* curseur réglable et comparaison dans la fenêtre d'une pathologie */
+#vueGalaxie #saturne-ui .saf-param{display:flex;gap:8px;align-items:center;flex:1 1 220px;color:var(--sa-texte)}
+#vueGalaxie #saturne-ui .saf-param input[type=range]{flex:1;accent-color:var(--sa-accent);min-width:90px}

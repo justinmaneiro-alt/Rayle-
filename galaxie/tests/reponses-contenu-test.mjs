@@ -1,0 +1,46 @@
+// Tests de l'analyse des réponses (fenêtres holographiques). Lancer :  node galaxie/tests/reponses-contenu-test.mjs
+import { createRequire } from 'node:module';
+const R = createRequire(import.meta.url)('../../core/commun/reponses-contenu.js');
+let ok = 0, ko = 0;
+const v = (n, c, d = '') => { c ? ok++ : ko++; if (!c) console.log('KO  ' + n + (d ? ' — ' + d : '')); };
+const types = f => f.map(x => x.type).join(',');
+const detecter = n => { const l = []; if (/nasdaq|us ?100/.test(n)) l.push('NDX'); if (/\bor\b|gold|xau/.test(n)) l.push('XAU'); if (/bitcoin|\bbtc\b/.test(n)) l.push('BTC'); return l; };
+
+v('sans accents, même longueur', R.sans('Éléphant À Çà œ') === 'elephant a ca o' && R.sans('Raylé').length === 5);
+v('phrases découpées', R.phrases('Il fait beau. Il est 14 h 30 ! Et alors ? Oui.').length === 4);
+v('phrase sans ponctuation finale', R.phrases('bonjour tout le monde').length === 1 && R.phrases('').length === 0);
+v('points clés : toutes si peu nombreuses', R.pointsCles('Un. Deux. Trois.').length === 3);
+const longue = 'Première phrase importante. Deuxième sans chiffre. Troisième sans chiffre. Quatrième sans chiffre. Cinquième avec 42 points. Sixième sans rien.';
+const pc = R.pointsCles(longue, 4);
+v('points clés : 4 maximum, la première et celle avec un chiffre gardées, ordre conservé', pc.length === 4 && pc[0].startsWith('Première') && pc.some(s => s.includes('42')) && pc.indexOf(pc.find(s => s.includes('42'))) > 0, JSON.stringify(pc));
+v('phrases tronquées proprement', R.pointsCles('mot '.repeat(80), 1, 60)[0].length <= 60 && R.pointsCles('mot '.repeat(80), 1, 60)[0].endsWith('…'));
+v('liste à puces', JSON.stringify(R.liste('Voici :\n- un\n- deux\n- trois')) === '["un","deux","trois"]');
+v('liste numérotée', R.liste('1. pommes\n2. poires').length === 2);
+v('liste par points-virgules', R.liste('le prix monte ; le volume baisse ; le RSI est neutre').length === 3);
+v('pas de liste dans une phrase simple', R.liste('Il fait beau, vraiment très beau.') === null);
+v('heure : questions', ['Quelle heure est-il ?', "c'est quoi l'heure", 'on est quel jour', 'quelle est la date'].every(R.estHeure) && !R.estHeure('quel est le prix du bitcoin'));
+v('définition : « c\'est quoi le RSI »', R.sujetDefinition("C'est quoi le RSI ?") === 'RSI');
+v('définition : « qu\'est-ce que c\'est que la volatilité »', R.sujetDefinition("Qu'est-ce que c'est que la volatilité ?") === 'volatilité');
+v('définition : « que veut dire support » avec accents conservés', R.sujetDefinition('Que veut dire écart-type ?') === 'écart-type');
+v('pas de définition pour une question ordinaire', R.sujetDefinition('quel est le prix du bitcoin') === null && R.sujetDefinition("c'est quoi cette phrase beaucoup trop longue pour être un sujet de définition valable") === null);
+v('erreurs reconnues, aucune fenêtre', R.estErreur('Erreur : Worker injoignable') && R.analyser({ question: 'x', reponse: 'Erreur : Worker injoignable', actifs: ['NDX'] }).length === 0);
+v('« or » conjonction ≠ l\'or', R.actifsMentionnes('que penses-tu du marché', 'Or, la tendance est claire.', detecter).length === 0);
+v('« l\'or » reconnu', R.actifsMentionnes("prix de l'or", '', detecter).join() === 'XAU');
+v('actifs : question prioritaire, 2 maximum', R.actifsMentionnes('nasdaq et bitcoin et gold', '', detecter).length === 2 && R.actifsMentionnes('et le nasdaq', 'le bitcoin monte', detecter).join() === 'NDX');
+v('réponse courte sans sujet : aucune fenêtre', types(R.analyser({ question: 'bonjour', reponse: 'Bonjour Justin, je suis là.' })) === '');
+v('heure : fenêtre heure', types(R.analyser({ question: 'quelle heure est-il', reponse: 'Il est quatorze heures.' })) === 'heure');
+v('marché : fenêtre marché', types(R.analyser({ question: 'prix du nasdaq', reponse: 'Le Nasdaq est à vingt mille.', actifs: ['NDX'] })) === 'marche');
+const longueRep = 'Le RSI est un indicateur de momentum. Il varie entre 0 et 100. Au-dessus de 70 on parle de surachat.';
+v('définition : fenêtre définition avec les deux premières phrases', (() => { const f = R.analyser({ question: "c'est quoi le RSI", reponse: longueRep }); return types(f) === 'definition' && f[0].sujet === 'RSI' && f[0].texte.startsWith('Le RSI est') && !f[0].texte.includes('surachat'); })());
+v('réponse longue : points clés', types(R.analyser({ question: 'explique', reponse: longueRep })) === 'points');
+v('heure + marché + points : 3 fenêtres au plus', R.analyser({ question: "quelle heure et le nasdaq", reponse: longueRep, actifs: ['NDX'] }).length === 3);
+v('durées : marché 45 s, heure 20 s, texte borné', R.duree({ type: 'marche' }, '') === 45000 && R.duree({ type: 'heure' }, '') === 20000 && R.duree({ type: 'points' }, 'x'.repeat(5000)) === 45000 && R.duree({ type: 'points' }, 'x'.repeat(100)) < 25000);
+// chiffres du marché
+const bougies = Array.from({ length: 250 }, (_, i) => ({ o: 100 + i, h: 101 + i, l: 99 + i, c: 100 + i + (i % 2 ? 0.5 : 0), v: 1 }));
+const m = R.calculerMarche(bougies);
+v('marché : prix = dernière clôture', m.prix === bougies[249].c);
+v('marché : variation en % vs bougie précédente', Math.abs(m.variation - +(((bougies[249].c - bougies[248].c) / bougies[248].c) * 100).toFixed(2)) < 1e-9, String(m.variation));
+v('marché : tendance haussière → RSI > 50 et prix au-dessus de l\'EMA 200', m.rsi > 50 && m.positionEma === 'au-dessus', JSON.stringify(m));
+v('marché : pas assez de bougies → EMA et RSI inconnus (null, jamais inventés)', (() => { const x = R.calculerMarche(bougies.slice(0, 10)); return x.ema200 === null && x.positionEma === null && x.rsi !== undefined; })());
+v('marché : données absentes → null', R.calculerMarche([]) === null && R.calculerMarche(null) === null && R.calculerMarche([{ c: 'x' }, { c: 'y' }]) === null);
+console.log(`${ok} OK, ${ko} KO`); process.exit(ko ? 1 : 0);
