@@ -20,7 +20,8 @@ function decouper(texte, n) { const mots = String(texte || '').split(/\s+/), l =
 export async function creerAnatomie({ api, salle, renderer, ui }) {
   const base = api.modeles.urlBase();
   const rep = await fetch(base + 'anatomie/index.json'); if (!rep.ok) throw new Error('index d’anatomie introuvable (' + rep.status + ') : lancer planetes/saturne/outils/anatomie-convertir.mjs');
-  const index = creerIndex(await rep.json());
+  let traductions = null; try { const tr = await fetch(new URL('data/anatomie_fr.json', document.baseURI).href); if (tr.ok) traductions = (await tr.json()).noms || null; } catch (e) { /* sans le fichier : nom latin ou terme anglais signalé */ }
+  const index = creerIndex(await rep.json(), traductions);
   const racine = new THREE.Group(); racine.name = 'anatomie'; racine.scale.setScalar(ECHELLE); racine.position.y = -CENTRE_Y * ECHELLE; racine.userData.anat = true;
   salle.holo.add(racine); salle.silhouette.visible = false; salle.etiquette.visible = false;
   renderer.localClippingEnabled = true;
@@ -67,19 +68,29 @@ export async function creerAnatomie({ api, salle, renderer, ui }) {
     cx.fillStyle = 'rgba(4,9,15,0.85)'; cx.fillRect(0, 0, 512, 96); cx.strokeStyle = hex || '#8fd0e3'; cx.lineWidth = 3; cx.strokeRect(2, 2, 508, 92);
     cx.fillStyle = '#e8f4fb'; cx.font = '600 28px "Cascadia Mono", Consolas, monospace'; cx.textAlign = 'center'; cx.textBaseline = 'middle'; let t = nom; while (cx.measureText(t).width > 480 && t.length > 8) t = t.slice(0, -2); cx.fillText(t === nom ? t : t + '…', 256, 48);
     const tex = new THREE.CanvasTexture(cv); tex.colorSpace = THREE.SRGBColorSpace;
-    const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, depthTest: false, transparent: true, toneMapped: false })); sp.scale.set(0.56, 0.105, 1); sp.renderOrder = 20; return sp;
+    const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, depthTest: false, transparent: true, toneMapped: false })); sp.scale.set(0.74, 0.139, 1); sp.renderOrder = 20;
+    // V2 : l'étiquette ne se pose plus SUR la pièce (elle masquait le modèle) : elle va en marge, reliée par un trait fin
+    const g = new THREE.Group(); g.add(sp); g.userData.sp = sp;
+    const ligne = new THREE.Line(new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(), new THREE.Vector3()]), new THREE.LineBasicMaterial({ color: new THREE.Color(hex || '#8fd0e3'), depthTest: false, transparent: true, opacity: 0.9, toneMapped: false }));
+    ligne.renderOrder = 19; ligne.frustumCulled = false; g.add(ligne); g.userData.ligne = ligne; return g;
   }
-  const liberer = sp => { if (sp.parent) sp.parent.remove(sp); sp.material.map.dispose(); sp.material.dispose(); };
+  /* Place l'étiquette g en marge, du côté de la pièce (c = centre de la pièce, repère du modèle) ; rang décale les étiquettes d'une même sélection pour qu'elles ne se chevauchent pas. */
+  function poserEtiquette(g, c, rang = 0) {
+    const cote = c[0] >= 0 ? 1 : -1, x = cote * Math.max(Math.abs(c[0]) + 0.46, 0.8), y = c[1] + 0.05 + 0.17 * rang;
+    g.position.set(x, y, c[2]);
+    const pos = g.userData.ligne.geometry.attributes.position; pos.setXYZ(0, c[0] - x, c[1] - y, 0); pos.setXYZ(1, -cote * 0.37, 0, 0); pos.needsUpdate = true; g.userData.ligne.geometry.computeBoundingSphere();
+  }
+  const liberer = g => { if (g.parent) g.parent.remove(g); g.traverse(o => { if (o.material) { if (o.material.map) o.material.map.dispose(); o.material.dispose(); } if (o.geometry) o.geometry.dispose(); }); };
   /* Étiquettes : seulement pour la structure SURVOLÉE (étiquette provisoire) ou SÉLECTIONNÉE (3 au plus) ; elles disparaissent avec le survol ou la sélection. */
   function majEtiquettes() {
     for (const [id, sp] of etat.etiquettes) { liberer(sp); etat.etiquettes.delete(id); }
-    etat.selection.slice(0, 3).forEach(id => { const p = index.parId.get(id), c = p && index.centre(p); if (!c) return; const sp = etiquette(p); sp.position.set(c[0], c[1] + 0.05, c[2]); etat.etiquettes.set(id, sp); racine.add(sp); });
+    etat.selection.slice(0, 3).forEach((id, rang) => { const p = index.parId.get(id), c = p && index.centre(p); if (!c) return; const sp = etiquette(p); poserEtiquette(sp, c, rang); etat.etiquettes.set(id, sp); racine.add(sp); });
     if (etat.survol && etat.selection.includes(etat.survol.id)) effacerSurvol();
   }
   function effacerSurvol() { if (!etat.survol) return; liberer(etat.survol.sp); etat.survol = null; prevenir('survol', null); }
   function poserSurvol(p) {
     if (etat.survol && etat.survol.id === p.id) return; effacerSurvol(); if (etat.selection.includes(p.id)) return;
-    const c = index.centre(p); if (!c) return; const sp = etiquette(p); sp.position.set(c[0], c[1] + 0.05, c[2]); racine.add(sp); etat.survol = { id: p.id, sp }; prevenir('survol', p.id);
+    const c = index.centre(p); if (!c) return; const sp = etiquette(p); poserEtiquette(sp, c, 0); racine.add(sp); etat.survol = { id: p.id, sp }; prevenir('survol', p.id);
   }
   /* La fiche n'est plus dessinée sur un petit écran mural : les fenêtres holographiques (anatomie-fenetres.js) écoutent les changements de sélection. */
   function majFiche() { prevenir('selection', { ids: etat.selection.slice(), mesure: etat.mesure }); }

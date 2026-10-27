@@ -16,7 +16,9 @@ export function creerPeau({ anat }) {
   /* positions et normales d'une pièce en repère du modèle (matrice locale du maillage appliquée : les modèles Meshopt sont quantifiés avec une matrice de dé-quantification) */
   function decoder(mesh, avecNormales = true) {
     const g = mesh.geometry, pa = g.attributes.position, na = g.attributes.normal, n = pa.count, P = new Float32Array(3 * n), N2 = avecNormales && na ? new Float32Array(3 * n) : null;
-    m4.copy(mesh.matrix); n3.getNormalMatrix(m4);
+    /* CAUSE DU « MUSCLES EN LAMBEAUX » (V2) : une pièce habillée APRÈS le début du mouvement avait déjà sa matrice posée (segment × repos) ; la prendre ici appliquait la pose DEUX fois
+       (sommets décalés de 10 à 20 cm, triangles étirés). Avant habillage, c'est la matrice de REPOS (userData.m0) qui compte. */
+    m4.copy(!mesh.userData.peau && mesh.userData.m0 ? mesh.userData.m0 : mesh.matrix); n3.getNormalMatrix(m4);
     for (let i = 0; i < n; i++) { v3.set(pa.getX(i), pa.getY(i), pa.getZ(i)).applyMatrix4(m4); P[3 * i] = v3.x; P[3 * i + 1] = v3.y; P[3 * i + 2] = v3.z; if (N2) { v3.set(na.getX(i), na.getY(i), na.getZ(i)).applyMatrix3(n3).normalize(); N2[3 * i] = v3.x; N2[3 * i + 1] = v3.y; N2[3 * i + 2] = v3.z; } }
     return { P, N: N2 };
   }

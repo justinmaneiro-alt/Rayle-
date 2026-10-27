@@ -9,7 +9,8 @@ export const EXTRAS = [
   { id: 'correlations', titre: 'Corrélations', icone: '🔗', apercu: 'Matrice sur 60 jours : US100, or, dollar, taux', registre: 'correlations', reel: true },
   { id: 'heatmap', titre: 'Nasdaq 100', icone: '🟩', apercu: 'Grandes valeurs de l’indice', registre: 'heatmap', reel: true },
   { id: 'publications', titre: 'Publications', icone: '🗞', apercu: 'Publications économiques à venir', registre: 'publications', reel: true },
-  { id: 'strategie', titre: 'Agent stratège', icone: '🧠', apercu: 'Scénarios commentés (annoncé, pas encore branché)', registre: 'strategie', reel: false }
+  { id: 'strategie', titre: 'Agent stratège', icone: '🧠', apercu: 'Scénarios commentés (annoncé, pas encore branché)', registre: 'strategie', reel: false },
+  { id: 'agents-prets', titre: 'Agents prêts (Tendance, Divergence RSI)', icone: '🤖', apercu: 'Assistant en 4 étapes : idée, paramètres, backtest, validation hors échantillon et alertes', registre: 'agents-prets', reel: true }
 ];
 /* correspondance fenêtre du mur → panneau du registre de l'espace de travail */
 export const REGISTRE_DE = { marche: 'watchlist', dashboard: 'dashboard', contexte: 'contexte', 'agent-btc': 'agent', alertes: 'alertes', calendrier: 'calendrier', cot: 'cot', 'actus-finance': 'actus', banques: 'banques', taux: 'taux' };
@@ -26,7 +27,7 @@ export const GROUPES = [
   { id: 'macro', titre: 'Éco et macro', icone: '🏦', panneaux: ['taux', 'banques', 'calendrier', 'cot', 'publications'] },
   { id: 'actus', titre: 'Actualités', icone: '📰', panneaux: ['actus-finance'] },
   { id: 'sentiment', titre: 'Sentiment de marché', icone: '🌡', panneaux: ['contexte', 'correlations', 'heatmap'] },
-  { id: 'agent', titre: 'Agent IA', icone: '🛰', panneaux: ['agent-btc', 'propositions-agent', 'regime-marche', 'strategie'] },
+  { id: 'agent', titre: 'Agent IA', icone: '🛰', panneaux: ['agent-btc', 'agents-prets', 'propositions-agent', 'regime-marche', 'strategie'] },
   { id: 'alertes', titre: 'Alertes et veilleur', icone: '🔔', panneaux: ['alertes'] },
   { id: 'perf', titre: 'Performance et risque', icone: '🛡', panneaux: ['perf-strategies', 'gardien-prop', 'journal-tilt', 'proba-evaluation'] }
 ];

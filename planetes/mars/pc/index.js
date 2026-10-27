@@ -470,6 +470,7 @@ async function construire(G) {
     fermerFenetre() { return int ? int.holo.fermer() : false; },
     dire,
     /* Pour les tests, les captures et les ordres vocaux. */
+    ouvrirPanneauTerminal: async id => { await terminalV2({ panneau: id }); return true; },       // voix et tests : pose un panneau du terminal sur l'écran (« ouvre les agents prêts »)
     etat: () => ({ actif, mode, transition, entree: entreeFinie, heure, heureSim, dist: orb ? orb.vue.dist : 0, lon: orb ? orb.vue.lon : 0, lat: orb ? orb.vue.lat : 0, angleBase: orb ? orb.angleBase() : 0, fenetre: int ? int.holo.ouvert() : null, vol: !!vol, profil: profil.niveau, auto, message: messageEl.hidden ? '' : messageEl.textContent,
       yaw, pitch, avancee, fenetres: int ? int.holo.ids() : [] }),
     placerOrbite(v) { if (!orb) return; Object.assign(orb.vue, v); if (v.dist !== undefined) distCible = v.dist; vol = null; inertie = null; },

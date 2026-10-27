@@ -10,7 +10,7 @@ export const NIVEAUX_INFO = { 'information générale': 'Information générale 
 /* Nom français d'une clé de muscle (d'après le modèle) ; à défaut la clé anglaise, signalée. */
 export function nomMuscle(index, cle) {
   const p = index.pieces.find(q => q.systeme === 'muscles' && cleMuscle(q.nom_en) === cle);
-  return p && p.nom_fr ? p.nom_fr.replace(/\s*\((droit|gauche)\)\s*$/i, '') : cle + ' (nom français non précisé)';
+  return p && p.nom_fr ? p.nom_fr.replace(/\s*\((droit|gauche)\)\s*$/i, '') : p ? (p.nom_la ? p.nom_la + ' (nom latin)' : p.nom_en + ' (terme anglais, à traduire)') : cle + ' (terme à vérifier)';
 }
 /* Un muscle par clé (les deux côtés ne sont pas répétés) → { cle, nom, id } où id est une pièce du modèle (premier côté trouvé) pour le lien cliquable. */
 export function listeMuscles(index, cles) {

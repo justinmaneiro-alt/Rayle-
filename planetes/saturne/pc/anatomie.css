@@ -93,7 +93,7 @@
 
 /* vue rapprochée du mouvement (fenêtre secondaire en 3D) */
 #vueGalaxie #saturne-ui .saf-3d{display:flex;flex-direction:column;height:100%;min-height:0}
-#vueGalaxie #saturne-ui .saf-3d canvas{flex:1 1 auto;min-height:120px;width:100%;display:block;background:#05090f;touch-action:none;cursor:grab}
+#vueGalaxie #saturne-ui .saf-3d canvas{flex:1 1 auto;min-height:220px;width:100%;display:block;background:#05090f;touch-action:none;cursor:grab}
 #vueGalaxie #saturne-ui .saf-3d .saf-lecteur{flex:none;display:flex;flex-wrap:wrap;gap:6px;align-items:center;padding-top:8px}
 #vueGalaxie #saturne-ui .saf-3d .saf-lecteur input[type=range]{flex:1 1 140px;accent-color:var(--sa-accent);min-width:100px}
 #vueGalaxie #saturne-ui .saf-3d .saf-lecteur button,#vueGalaxie #saturne-ui .saf-3d .saf-lecteur select{font-size:14px;color:var(--sa-accent);background:rgba(143,208,227,.08);border:1px solid rgba(143,208,227,.6);padding:4px 9px;min-height:30px}

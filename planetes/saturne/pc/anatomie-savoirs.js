@@ -92,7 +92,7 @@ export function fiche(piece) {
   if (piece.systeme === 'muscles') { muscle = ficheMuscle(piece); if (muscle) { contenu = { type: piece.type === 'muscle' ? 'muscle' : piece.type, description: null, reperes: [], articulations: [], muscles: [], clinique: muscle.clinique }; confiance = 'élevée'; } }
   return {
     vaisseau, cerveau, muscle, couche: piece.couche || null, couche_nom: piece.couche ? NOMS_COUCHES[piece.couche] : null,
-    id: piece.id, nom_affiche: piece.nom_fr || (piece.nom_en + ' (nom français non précisé)'), nom_fr: piece.nom_fr, nom_la: piece.nom_la, nom_en: piece.nom_en, region: piece.region, cote: piece.cote, systeme: piece.systeme,
+    id: piece.id, nom_affiche: piece.nom_fr || (piece.nom_la ? piece.nom_la + ' (nom latin)' : piece.nom_en + ' (terme anglais, à traduire)'), nom_fr: piece.nom_fr, nom_la: piece.nom_la, nom_en: piece.nom_en, region: piece.region, cote: piece.cote, systeme: piece.systeme,
     type: contenu ? contenu.type : piece.type, description: contenu ? contenu.description : null, reperes: contenu ? contenu.reperes : [], articulations: contenu ? contenu.articulations : [], muscles: contenu ? contenu.muscles : [], clinique: contenu ? contenu.clinique : null,
     confiance, verifier: A_VERIFIER
   };

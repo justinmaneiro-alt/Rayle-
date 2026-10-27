@@ -10,5 +10,5 @@ export function zonesInterdites(ecran) {
   const lc = Math.round(ecran.l * 0.24); zones.push({ x: Math.round(ecran.l / 2 - lc / 2), y: Math.round(ecran.h * 0.14), l: lc, h: Math.round(ecran.h * 0.66), poids: 1.2, modele: true });
   return zones;
 }
-export const calculAnatomie = creerCalcul({ marge: 10, haut: 102, bas: 110, miniL: 320, miniH: 200, zones: zonesInterdites });
+export const calculAnatomie = creerCalcul({ marge: 10, haut: 102, bas: 170, miniL: 320, miniH: 200, tailles: { vue3d: [0.34, 0.74] }, plafond: { vue3d: [700, 780] }, zones: zonesInterdites });
 export const { MARGE, HAUT_RESERVE, BAS_RESERVE, MINI_L, MINI_H, SEUIL_ETROIT, etroit, tailleParDefaut, limiter, placer, reorganiser, recouvrements, dansEcran, pleinEcran, pincer, chevauchement } = calculAnatomie;

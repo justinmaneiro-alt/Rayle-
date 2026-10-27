@@ -26,9 +26,9 @@ verifier('le terminal s’ouvre avec la fenêtre « Dossiers du terminal »', aw
 const dos = await ev(() => [...document.querySelectorAll('.dos-classeur')].map(b => ({ id: b.dataset.dos, nom: b.querySelector('.dos-onglet b').textContent, n: +b.querySelector('.dos-n').textContent })));
 verifier('7 dossiers thématiques', dos.length === 7, JSON.stringify(dos.map(d => d.nom)));
 verifier('noms : Graphiques, Éco et macro, Actualités, Sentiment de marché, Agent IA, Alertes et veilleur, Performance et risque', dos.map(d => d.nom).join('|') === 'Graphiques|Éco et macro|Actualités|Sentiment de marché|Agent IA|Alertes et veilleur|Performance et risque', dos.map(d => d.nom).join('|'));
-verifier('les 26 panneaux sont rangés (aucun oublié)', dos.reduce((a, d) => a + d.n, 0) === 26, String(dos.reduce((a, d) => a + d.n, 0)));
+verifier('les 27 panneaux sont rangés (aucun oublié)', dos.reduce((a, d) => a + d.n, 0) === 27, String(dos.reduce((a, d) => a + d.n, 0)));
 const tous = await ev(() => { const t = window.Mars.terminal(), ids = new Set(); for (const d of ['graphiques', 'macro', 'actus', 'sentiment', 'agent', 'alertes', 'perf']) for (const i of t.dossiers.dossier(d).ids) ids.add(i); return [...ids]; });
-verifier('26 identifiants distincts dans les dossiers', tous.length === 26);
+verifier('27 identifiants distincts dans les dossiers', tous.length === 27);
 verifier('par défaut, seule la fenêtre Dossiers et la fenêtre cliquée sont affichées (pas les 26)', (await fenetres()).length <= 3, (await fenetres()).join());
 verifier('contenu cohérent : « Sentiment de marché » = contexte, corrélations, Nasdaq 100', await ev(() => window.Mars.terminal().dossiers.dossier('sentiment').ids.join()) === 'contexte,correlations,heatmap');
 verifier('« Éco et macro » = taux, banques, calendrier, COT, publications', await ev(() => window.Mars.terminal().dossiers.dossier('macro').ids.join()) === 'taux,banques,calendrier,cot,publications');
@@ -94,7 +94,7 @@ verifier('… et « Épingler » fonctionne', await ev(() => window.Mars.termina
 // ── tiroir global ──
 await ev(() => window.TiroirFenetres.ouvrir()); await attendre(300);
 const tir = await ev(() => ({ n: document.querySelectorAll('.tf-f').length, vues: [...document.querySelectorAll('.tf-vue h3')].map(h => h.textContent) }));
-verifier('le tiroir liste toutes les fenêtres du terminal (26) par dossier', tir.n >= 26 && tir.vues.some(v => /Mars/.test(v)), JSON.stringify(tir));
+verifier('le tiroir liste toutes les fenêtres du terminal (27) par dossier', tir.n >= 27 && tir.vues.some(v => /Mars/.test(v)), JSON.stringify(tir));
 await page.type('.tf-panneau input', 'taux'); await attendre(250);
 verifier('la recherche filtre (« taux »)', (await ev(() => [...document.querySelectorAll('.tf-f')].map(b => b.textContent))).some(t => /Taux/.test(t)) && (await ev(() => document.querySelectorAll('.tf-f').length)) <= 3);
 await ev(() => [...document.querySelectorAll('.tf-f')].find(b => /Taux/.test(b.textContent)).click()); await attendre(1500);
@@ -108,7 +108,7 @@ await ev(() => window.Mars.terminal().reinitialiser()); await attendre(800);
 const cdp = await page.createCDPSession();
 const toucher = (type, pts) => cdp.send('Input.dispatchTouchEvent', { type, touchPoints: pts.map((p, i) => ({ x: p.x, y: p.y, id: i + 1 })) });
 const ca = await centreDe('.dos-classeur[data-dos="agent"]'); await toucher('touchStart', [ca]); await toucher('touchEnd', []); await attendre(1000);
-c = await carr(); verifier('doigt : un appui ouvre le dossier « Agent IA » (4 cartes)', c && c.n === 4, JSON.stringify(c));
+c = await carr(); verifier('doigt : un appui ouvre le dossier « Agent IA » (5 cartes)', c && c.n === 5, JSON.stringify(c));
 const ct = await centreDe('.dos-carte.centre'); await toucher('touchStart', [ct]); for (let i = 1; i <= 8; i++) { await toucher('touchMove', [{ x: ct.x - i * 40, y: ct.y }]); await attendre(25); } await attendre(150); await toucher('touchEnd', []); await attendre(800);
 c = await carr(); verifier('doigt : glisser fait défiler le carrousel', c && c.centre >= 1, JSON.stringify(c));
 const cs2 = await centreDe('.dos-carte.centre'); await toucher('touchStart', [cs2]); await toucher('touchEnd', []); await attendre(1500);

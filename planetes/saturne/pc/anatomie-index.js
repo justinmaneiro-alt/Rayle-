@@ -1,13 +1,18 @@
 /* ═════════════ ANATOMIE : INDEX DES PIÈCES (module pur : recherche, côtés, mesures, contrôle de cohérence) ═════════════
    Lit assets-lourds/anatomie/index.json (généré par planetes/saturne/outils/anatomie-convertir.mjs). Aucune dépendance au navigateur ni à three.js.
-   Un nom absent reste absent (`null`) : l'affichage dit « nom français non précisé », jamais une traduction devinée. */
+   Un nom absent reste absent (`null`) : jamais une traduction devinée. Les noms français manquants viennent de data/anatomie_fr.json (traduction PAR RÈGLES et lexique fermé, voir anatomie-traduction-calcul.js) ;
+   à défaut le nom latin, puis le terme anglais signalé « à traduire » (nomRepli). Le texte « nom français non précisé » n'existe plus. */
 export const norm = s => String(s == null ? '' : s).normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/[’']/g, ' ').replace(/[^a-z0-9 ]/g, ' ').replace(/\s+/g, ' ').trim();
 const MOTS_VIDES = new Set(['le', 'la', 'les', 'l', 'un', 'une', 'des', 'du', 'de', 'd', 'os', 'muscle', 'the', 'of', 'montre', 'moi', 'affiche', 'a', 'au', 'aux', 'et', 'sur']);
 const COTES = { gauche: 'gauche', gauches: 'gauche', left: 'gauche', droit: 'droit', droite: 'droit', right: 'droit' };
 const INV = { gauche: 'droit', droit: 'gauche' };
 
-export function creerIndex(json) {
+/* Nom à afficher quand il n'y a pas de nom français : le nom latin entre parenthèses, sinon le terme anglais clairement signalé. */
+export const nomRepli = p => (p.nom_fr ? p.nom_fr : p.nom_la ? p.nom_la + ' (nom latin)' : p.nom_en + ' (terme anglais, à traduire)');
+/* traductions : { id: { fr } } (data/anatomie_fr.json) — complète SEULEMENT les pièces sans nom français ; l'origine est marquée (traduction: 'regles'). */
+export function creerIndex(json, traductions = null) {
   const pieces = (json && json.pieces) || [];
+  if (traductions) for (const p of pieces) { const t = traductions[p.id]; if (t && t.fr && !p.nom_fr) { p.nom_fr = t.fr; p.traduction = 'regles'; } }
   const parId = new Map(pieces.map(p => [p.id, p]));
   const prep = pieces.map(p => ({ p, cles: [p.nom_fr, p.nom_la, p.nom_en].filter(Boolean).map(norm) }));
   /* clé de symétrie : le nom anglais sans « left / right », plus le type */
@@ -22,7 +27,7 @@ export function creerIndex(json) {
     systemes: () => [...new Set(pieces.map(p => p.systeme))],
     deSysteme: s => pieces.filter(p => p.systeme === s),
     deRegion: r => pieces.filter(p => p.region === r),
-    libelle(p, langue = 'fr') { if (!p) return ''; const n = langue === 'la' ? p.nom_la : langue === 'en' ? p.nom_en : p.nom_fr; const c = p.cote && n && !/gauche|droit/i.test(n) && langue === 'fr' ? ' (' + p.cote + ')' : ''; return (n || p.nom_en + (langue === 'fr' ? ' (nom français non précisé)' : '')) + c; },
+    libelle(p, langue = 'fr') { if (!p) return ''; const n = langue === 'la' ? p.nom_la : langue === 'en' ? p.nom_en : p.nom_fr; const c = p.cote && n && !/gauche|droit/i.test(n) && langue === 'fr' ? ' (' + p.cote + ')' : ''; return (n || (langue === 'fr' ? nomRepli(p) : p.nom_en)) + c; },
     /* Recherche : phrase libre (« le fémur gauche », « biceps brachial », « left tibia ») → pièces classées. */
     chercher(texte, { systeme = null, limite = 20 } = {}) {
       const mots = norm(texte).split(' ').filter(Boolean); let cote = null; const util = [];

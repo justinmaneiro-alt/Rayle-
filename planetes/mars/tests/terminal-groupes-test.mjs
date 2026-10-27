@@ -3,7 +3,7 @@ import { creerCalcul } from '../../../core/commun/fenetres-calcul.js';
 let n = 0, ko = 0; const ok = (c, m) => { n++; if (!c) { ko++; console.log('ÉCHEC :', m); } };
 
 ok(verifierGroupes().length === 0, 'groupes cohérents : ' + verifierGroupes().join(' | '));
-ok(PANNEAUX_TERMINAL.length === 26 && PANNEAUX_TERMINAL.filter(p => p.mur).length === 21, 'tous les panneaux : 21 du mur + 5 extras (' + PANNEAUX_TERMINAL.length + ')');
+ok(PANNEAUX_TERMINAL.length === 27 && PANNEAUX_TERMINAL.filter(p => p.mur).length === 21, 'tous les panneaux : 21 du mur + 6 extras (dont « Agents prêts » V2) (' + PANNEAUX_TERMINAL.length + ')');
 ok(GROUPES.every(g => g.panneaux.length >= 1) && GROUPES.length === 7, '7 dossiers non vides');
 ok(Object.keys(GRAPHIQUES).length === 5, '5 graphiques en bougies');
 ok(groupeDe('taux') === 'macro' && groupeDe('gardien-prop') === 'perf' && groupeDe('graphique-btc') === 'graphiques', 'groupe de chaque panneau');

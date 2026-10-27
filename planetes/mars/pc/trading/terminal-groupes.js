@@ -28,7 +28,7 @@ export const surTerminalFerme = f => { surFermeture = f; };
 
 function chargerCss() {
   chargerStyle();
-  for (const [id, f] of [['mars-trading-css', './espace.css'], ['mars-trading-css-v1', './v1-agent.css'], ['tm-css', './terminal-groupes.css']]) {
+  for (const [id, f] of [['mars-trading-css', './espace.css'], ['mars-trading-css-v1', './v1-agent.css'], ['tm-css', './terminal-groupes.css'], ['ap-css', './agents-prets.css']]) {
     if (document.getElementById(id)) continue;
     const l = document.createElement('link'); l.id = id; l.rel = 'stylesheet'; l.href = new URL(f, import.meta.url).href; document.head.appendChild(l);
   }
@@ -83,6 +83,17 @@ function fenetreRegistre(client, regId, { ouvrirGraphique }) {
   return { racine, detruire() { clearInterval(minuterie); jeton++; if (desabonner) desabonner(); try { p.detruire && p.detruire(); } catch (e) { /* déjà détruit */ } } };
 }
 
+/* V2 phase 6 : l'assistant « Agents prêts » (module chargé à la demande). */
+function fenetreAgentsPrets({ ouvrirPoste }) {
+  const racine = h('div', 'tm-agents-prets'); let inst = null, detruit = false;
+  import('./agents-prets-page.js').then(async M => {
+    if (detruit) return; const G = await import('./m6-page.js').catch(() => null), P = await import('./pilotes-paires.js').catch(() => null);
+    inst = M.creerAgentsPrets({ conteneur: racine, jugerProp: G ? G.jugerAlerteGlobal : null, ouvrirPoste: d => ouvrirPoste(d), fournirSerie: P ? async paire => (await P.obtenirHotePaire(paire, { demarrer: true })).serie() : null });
+    M.demarrerSuiviAgentsPrets({ serieDe: async paire => (await P.obtenirHotePaire(paire, { demarrer: true })).serie(), jugerProp: G ? G.jugerAlerteGlobal : null });
+  }).catch(e => { racine.innerHTML = '<p class="tm-vide tm-ko">Agents prêts indisponibles : ' + esc(e.message) + '</p>'; });
+  return { racine, sansMarge: true, instance: () => inst, detruire() { detruit = true; if (inst) inst.detruire(); } };
+}
+
 /* Panneau alimenté par la table (performance, gardien, régime…) : mêmes données que sur le mur. */
 function fenetreReel(id, def, { ouvrirPoste }) {
   const racine = h('div', 'tm-reel'), corps = h('div', 'tm-reel-corps'), pied = h('div', 'tm-reel-pied');
@@ -122,6 +133,7 @@ async function creer({ tactile = false, ouvrirEspace = null, ouvrirPoste = () =>
     if (gf.obtenir(wid)) { gf.focus(wid); gf.reduire(wid, false); return true; }
     let c;
     if (GRAPHIQUES[id]) c = fenetreGraphique(client, GRAPHIQUES[id].instrument, GRAPHIQUES[id].unite, { tactile, ouvrirEspace });
+    else if (id === 'agents-prets') c = fenetreAgentsPrets({ ouvrirPoste });
     else if (def.registre || REGISTRE_DE[id]) c = fenetreRegistre(client, def.registre || REGISTRE_DE[id], { ouvrirGraphique });
     else c = fenetreReel(id, def, { ouvrirPoste });
     instances.set(id, c);

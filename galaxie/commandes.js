@@ -54,6 +54,10 @@
     const actif=!!(window.Mars&&window.Mars.etat&&window.Mars.etat().actif);
     const n0=cmdNorm(norm(texte)).replace(/['’\-\/]/g,' ').replace(/\s+/g,' ').trim();
     const explicite=/\b(?:sur mars|dans la base|a la base|base martienne|sur la table)\b/.test(n0);
+    // V2 phase 6 : « à quoi sert le gardien prop ? » (outils du terminal, partout), « ouvre les agents prêts », « lis le marché », « explique les dernières bougies » (Mars ouverte) : modèles de phrases, sans IA
+    if(/\b(?:a quoi (?:sert|servent)|que fait (?:l outil|le panneau|la fenetre)|c est quoi (?:l outil|le panneau|la fenetre|cet outil)|explique(?: moi)? (?:l outil|le panneau|la fenetre|cet outil)|comment (?:marche|fonctionne) (?:l outil|le panneau|la fenetre)|agents? prets?|assistant de strategies?|assistant d agents?|strategie guidee|agent tendance|agent divergence|lis le marche|lit le marche|lire le marche|analyse le marche|decris le marche|lecture du marche|dernieres? bougies?|bougie par bougie)\b|\b(?:lis|lit|analyse) (?:le |la )?(?:bitcoin|btc|solana|sol|dogecoin|doge)\b/.test(n0)){
+      try{ const VA=await import(new URL('planetes/mars/pc/trading/voix-agents-v2-page.js',document.baseURI).href), rep=await VA.traiterAgentsV2(n0,{actif,explicite}); if(rep) return rep; }catch(e){ /* module indisponible : les autres commandes décident */ }
+    }
     // Agent BTC : explications parlées construites par modèles de phrases à partir des données de l'agent (zéro IA) ; question libre = IA comme d'habitude
     // Hub Finance (M2b) : « le COT de l'or », « le calendrier de la semaine », « que dit la Fed ? », « les actualités qui font bouger le Nasdaq », « la courbe des taux », « la carte du Nasdaq », « les résultats de Nvidia ».
     // Réponses construites à partir des données réelles (CFTC, Trésor, BLS, flux publics…), sans IA ; l'espace de travail s'ouvre sur le bon onglet. Hors de Mars, COT et calendrier restent à l'ancien terminal.
