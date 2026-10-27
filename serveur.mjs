@@ -10,6 +10,7 @@ import crypto from 'node:crypto';
 import { fileURLToPath } from 'node:url';
 import { creerMulti } from './app-pc/multi-ecrans.mjs';
 import { creerRoutesVeilleur } from './app-pc/veilleur-routes.mjs';
+import { creerRoutesAgent } from './app-pc/agent-routes.mjs';
 import { creerTelecommande } from './app-pc/telecommande.mjs';
 import { creerPontCamera } from './app-pc/camera-pont.mjs';
 
@@ -26,6 +27,7 @@ const INTERDITS = /(^|\/)(\.git|node_modules|worker|\.claude|\.serena)(\/|$)|(^|
 export function creerServeur({ portReseau, dossierDonnees = process.env.RAYLE_DONNEES || (process.env.LOCALAPPDATA ? path.join(process.env.LOCALAPPDATA, 'Rayle') : undefined), ip } = {}) {
   const multi = creerMulti();   // mode multi-écrans : écrans et fenêtres (routes /__multi/…, app-pc/multi-ecrans.mjs)
   const veilleur = creerRoutesVeilleur();   // Veilleur d'alertes en arrière-plan (routes /__veilleur/…, app-pc/veilleur-routes.mjs)
+  const agent = creerRoutesAgent();   // agent de marché de la V3 (routes /__agent/…, app-pc/agent-routes.mjs)
   const tele = creerTelecommande({ racine: RACINE, dossierDonnees, port: portReseau, ip });   // télécommande tactile (K2) : désactivée tant que Justin ne l'active pas dans ⚙ Réglages
   const camera = creerPontCamera({ racine: RACINE, dossierDonnees, ip });   // caméra du téléphone (V2 phase 11) : désactivée tant que Justin ne l'active pas dans ⚙ Gestes
   const serveur = http.createServer((req, res) => {
@@ -33,6 +35,7 @@ export function creerServeur({ portReseau, dossierDonnees = process.env.RAYLE_DO
     try { chemin = decodeURIComponent(new URL(req.url, 'http://x').pathname); } catch (e) { res.writeHead(400); return res.end('requête invalide'); }
     if (chemin.startsWith('/__multi/')) return multi.gerer(req, res, chemin);
     if (chemin.startsWith('/__veilleur/')) return veilleur.gerer(req, res, chemin);
+    if (chemin.startsWith('/__agent/')) return agent.gerer(req, res, chemin);
     if (chemin.startsWith('/__tele/')) return tele.gererLocal(req, res, chemin);
     if (chemin.startsWith('/__cam/')) return camera.gererLocal(req, res, chemin);
     if (chemin === '/clavier/telecommande-calcul.js') chemin = '/core/commun/telecommande-calcul.js';   // même fichier que sur le réseau local

@@ -66,13 +66,15 @@ export function planifier(etat, { paires, debutFinal, cache, generations = GENER
 export const lireCache = (dossierCache, emp) => lireJson(path.join(dossierCache, emp + '.json'), null);
 export const ecrireCache = (dossierCache, emp, v) => ecrireJson(path.join(dossierCache, emp + '.json'), v);
 
+/* Courbe des R cumulés hors échantillon, réduite à ≤ 200 points (pour l'écran : jamais la liste des trades). */
+export function courbeReduite(c, max = 200) { if (!Array.isArray(c) || c.length < 2) return null; const pas = Math.max(1, (c.length - 1) / (max - 1)), out = []; for (let i = 0; i < c.length - 1; i += pas) out.push(+c[Math.round(i)].toFixed(2)); out.push(+c[c.length - 1].toFixed(2)); return out; }
 /* Résumé court d'un résultat de validation (ce qui est gardé dans l'état et envoyé au Worker : jamais les listes de trades). */
 export function resumerValidation(r, tache) {
   const base = { id: tache.famille + ':' + tache.paire + ':' + tache.type, famille: tache.famille, nom: NOMS_V3[tache.famille], paire: tache.paire, type: tache.type, statut: r.statut, t: Date.now(), empreinteCriteres: r.criteres, jeuFinalOuvert: !!r.jeuFinal && r.jeuFinal.ouvert === true };
   if (!r.ok || !r.lignes) return { ...base, grille: tache.grille, raison: r.raison || null };
   const st = r.wf.stats;
   return { ...base, grille: tache.grille, gen: tache.gen || 0, retenus: r.retenus, nVariantes: r.nVariantes, variantesCetteEvaluation: r.variantesDeCetteEvaluation, trades: st.n, esperance: st.esperance, tauxReussite: st.tauxReussite, factProfit: st.factProfit, ddR: st.ddR, parSemaine: st.parSemaine,
-    bootstrapBas: r.bootstrap.bas, dsr: r.dsr && r.dsr.dsr, propDdPct: r.prop.ddPct, propJourPct: r.prop.pireJourPct, ratees: r.ratees, actifs: r.actifs, regimes: r.regimes, zone: r.zoneRecherche, jeuFinal: r.jeuFinal || null };
+    bootstrapBas: r.bootstrap.bas, dsr: r.dsr && r.dsr.dsr, propDdPct: r.prop.ddPct, propJourPct: r.prop.pireJourPct, ratees: r.ratees, actifs: r.actifs, regimes: r.regimes, zone: r.zoneRecherche, courbeR: courbeReduite(r.wf.stats.courbeR), jeuFinal: r.jeuFinal || null };
 }
 /* Le résultat est-il « prometteur et stable » (donc digne d'un raffinement) ? Jamais un pic isolé : voisins majoritairement positifs. */
 export function prometteur(r) {

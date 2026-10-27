@@ -113,7 +113,7 @@ export function creerService({ dossier = dossierAgent(), maintenant = () => Date
       const alertesRec = etat.alertes.filter(a => maintenant() - a.t < 8 * 86400e3);
       const r = surveillerRegle({ regle, s, suivi: suivi[regle.id] || null, serie: fen, risque: etat.parametresRisque, alertesRecentes: alertesRec, maintenant: maintenant() });
       if (r.erreur) continue;
-      suivi[regle.id] = r.suivi;
+      suivi[regle.id] = r.suivi; for (const x of r.suivi.trades) if (x.version == null) x.version = etat.active;   // version de l'agent qui a pris le trade (filtre de l'écran)
       // trades simulés clos → liste de l'état (affichage, rapport)
       for (const ev of r.evenements) if (ev.type === 'CLOTURE') { const id = regle.id + ':' + ev.trade.tSortie; if (!etat.tradesSimules.some(x => x.id === id)) etat.tradesSimules.push({ id, strategie: regle.id, paire: regle.paire, nom: regle.nom, mode: regle.mode, version: etat.active, ...ev.trade }); }
       if (etat.tradesSimules.length > 600) etat.tradesSimules.splice(0, etat.tradesSimules.length - 600);

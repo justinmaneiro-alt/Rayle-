@@ -1,0 +1,36 @@
+// Routes locales /__agent/… (branchées dans serveur.mjs) : la page Rayle lit l'état de l'agent directement sur le PC, SANS passer par le Worker (utile tant que le Worker n'est pas déployé,
+// et plus rapide). Mêmes garde-fous que le Veilleur : hôte local, même origine, en-tête X-Rayle-Multi pour les actions. Aucun secret n'est renvoyé (le jeton du Worker reste dans config.local.json).
+//   GET  /__agent/etat      { ok, enMarche, service, etat, suivi }   (état complet de l'agent, comme /agent/etat du Worker)
+//   POST /__agent/commande  { type: 'pause' | 'reprendre' | 'charge' | 'retour_arriere' | 'rapport', valeur?, numero? }  → écrit commandes.json, lu par le service à son prochain cycle
+import fs from 'node:fs';
+import path from 'node:path';
+import { requeteAutorisee } from './multi-ecrans.mjs';
+import { dossierAgent, fichiersAgent, lireJson, ecrireJson, vivant, chargerEtat } from '../agent-pc/etat-agent.mjs';
+
+const COMMANDES = ['pause', 'reprendre', 'charge', 'retour_arriere', 'rapport'];
+export function creerRoutesAgent(env = process.env) {
+  const dossier = () => dossierAgent(env);
+  const lireCorps = req => new Promise((resolve, reject) => { let n = 0; const m = []; req.on('data', c => { n += c.length; if (n > 4096) { reject(new Error('corps trop gros')); req.destroy(); } else m.push(c); }); req.on('end', () => { try { resolve(JSON.parse(Buffer.concat(m).toString('utf8') || '{}')); } catch (e) { reject(new Error('JSON invalide')); } }); req.on('error', reject); });
+  async function gerer(req, res, chemin) {
+    const json = (code, obj) => { const t = JSON.stringify(obj); res.writeHead(code, { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store', 'Content-Length': Buffer.byteLength(t) }); res.end(t); };
+    const refus = requeteAutorisee(req); if (refus) return json(403, { ok: false, erreur: refus });
+    const route = chemin.replace(/^\/__agent\//, ''), F = fichiersAgent(dossier());
+    try {
+      if (route === 'etat' && req.method === 'GET') {
+        if (!fs.existsSync(F.etat)) return json(200, { ok: true, existe: false, enMarche: false });
+        const service = lireJson(F.service, null), enMarche = !!(service && service.pid && vivant(service.pid) && Date.now() - service.vivantLe < 120000);
+        const e = chargerEtat(dossier());
+        return json(200, { ok: true, existe: true, enMarche, service: service && { phase: service.phase, raison: service.raison, vivantLe: service.vivantLe, worker: service.worker, jeu: service.jeu, donnees: service.donnees }, etat: e, suivi: lireJson(F.suivi, {}), maintenant: Date.now() });
+      }
+      if (route === 'commande' && req.method === 'POST') {
+        const b = await lireCorps(req);
+        if (!COMMANDES.includes(b.type)) return json(400, { ok: false, erreur: 'commande inconnue' });
+        if (b.type === 'charge' && !['faible', 'normal', 'fort'].includes(b.valeur)) return json(400, { ok: false, erreur: 'charge : faible, normal ou fort' });
+        const loc = path.join(dossier(), 'commandes.json'), liste = lireJson(loc, []) || []; liste.push({ type: b.type, valeur: b.valeur ?? null, numero: b.numero ?? null }); ecrireJson(loc, liste.slice(-20));
+        return json(200, { ok: true, note: 'transmise au service (appliquée à son prochain cycle, ≈ 30 s)' });
+      }
+      return json(404, { ok: false, erreur: 'route inconnue' });
+    } catch (e) { return json(500, { ok: false, erreur: String(e.message).slice(0, 160) }); }
+  }
+  return { gerer };
+}
