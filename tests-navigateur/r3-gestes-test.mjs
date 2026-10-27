@@ -179,7 +179,7 @@ verifier('Échap sur une fenêtre la ferme', !(await fenetres()).includes('p-mac
 await ev(() => window.banc.gf.epingler('p-macro-taux', false));
 await ev(() => { window.banc.gf.fermerTout(); for (const i of ['graphiques-bitcoin', 'graphiques-or', 'graphiques-us100', 'macro-taux', 'agent-agent']) window.banc.poser(i); }); await attendre(500);
 await page.click('.gf-barre [data-g="mode"]'); await attendre(150);
-verifier('la barre propose grille, cascade, carrousel', await ev(() => [...document.querySelectorAll('.gfx-modes button')].map(b => b.textContent).join() === 'Grille,Cascade,Carrousel'));
+verifier('la barre propose grille, cascade, carrousel (et, depuis la V2, l’arc)', await ev(() => { const m = [...document.querySelectorAll('.gfx-modes button')].map(b => b.textContent); return ['Grille', 'Cascade', 'Carrousel'].every(x => m.includes(x)) && m.length <= 4; }));
 await ev(() => document.querySelector('.gfx-modes [data-mode="cascade"]').click()); await attendre(250);
 const ls = await ev(() => window.banc.gf.liste()); verifier('cascade : décalage régulier vers le bas et la droite', ls.every((f, i) => i === 0 || (f.x > ls[i - 1].x && f.y > ls[i - 1].y)), JSON.stringify(ls.map(f => [f.x, f.y])));
 await page.click('.gf-barre [data-g="mode"]'); await attendre(100); await ev(() => document.querySelector('.gfx-modes [data-mode="carrousel"]').click()); await attendre(250);

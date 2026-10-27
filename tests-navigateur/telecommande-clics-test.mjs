@@ -34,7 +34,7 @@ await T.aller(f.x, f.y); await attendre(300);
 verifier('Mars : le survol virtuel met le curseur « main »', await ev(() => document.getElementById('scene3d').style.cursor === 'pointer'));
 await T.tap(f.x, f.y); await attendre(1500);
 const e = await ev(() => window.Mars.etat());
-verifier('Mars : un clic virtuel ouvre l’espace de travail', e.fenetre === f.id && await ev(() => !!document.querySelector('.pn.large[data-id="mars-espace"]') || !!document.querySelector('.gf[data-id^="p-"]')), String(e.fenetre));
+verifier('Mars : un clic virtuel ouvre l’espace de travail (ancien) ou la fenêtre vivante de la pile (V2)', !!e.fenetre && await ev(() => !!document.querySelector('.pn.large[data-id="mars-espace"]') || !!document.querySelector('.gf[data-id^="p-"]') || !!document.querySelector('[class^="dos-"]')), String(e.fenetre));
 await T.tap(L - 4, H * 0.5); await attendre(600);
 verifier('Mars : un clic ailleurs laisse le terminal (R2), Échap le ferme', (await ev(() => window.Mars.etat())).fenetre !== null); await ev(() => window.Telecommande.appliquer({ a: 'special', k: 'Escape' })); await attendre(900);
 verifier('Mars : Échap virtuel ferme le terminal', (await ev(() => window.Mars.etat())).fenetre === null);

@@ -6,7 +6,9 @@
   "scripts": {
     "test": "node panne-cache-test.mjs && node voix-test.mjs && node voix-reelle-test.mjs && node navigation-test.mjs && node manifestes-page-test.mjs && node reglages-page-test.mjs && node decor-test.mjs && node retouches-test.mjs",
     "terre": "node terre-orbite-test.mjs && node terre-actus-meteo-test.mjs && node terre-nuit-test.mjs && node terre-zoom-entree-test.mjs && node terre-fil-test.mjs",
-    "voix": "node panne-cache-test.mjs && node voix-test.mjs && node voix-reelle-test.mjs"
+    "voix": "node panne-cache-test.mjs && node voix-test.mjs && node voix-reelle-test.mjs",
+    "v2": "node v2-parcours-final-test.mjs && node v2-fuite-fenetres-test.mjs && node v2-pad-test.mjs && node v2-jarvis-test.mjs && node v2-agents-prets-test.mjs && node v2-lppr-test.mjs && node v2-ia-locale-test.mjs && node v2-neptune-test.mjs && node v2-gestes-test.mjs && node v2-vr-test.mjs",
+    "perf-tablette": "node v2-perf-tablette.mjs"
   },
   "devDependencies": {
     "iwer": "^2.7.0",

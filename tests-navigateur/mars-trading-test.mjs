@@ -88,7 +88,7 @@ await ev(() => window.Mars.espaceApi().choisirDock('correlations')); await atten
 const cr = await ev(() => Array.from(document.querySelectorAll('.tg-matrice tr')).map(r => Array.from(r.children).map(c => c.textContent)));
 verifier('3. corrélations : matrice 5 × 5 de nombres, diagonale à 1,00', cr.length === 6 && cr.slice(1).every((l, i) => l.length === 6 && l[i + 1] === '1.00' && l.slice(1).every(x => /^-?\d\.\d\d$/.test(x))), JSON.stringify(cr));
 const onglets = await ev(() => Array.from(document.querySelectorAll('.tg-onglet')).map(o => o.textContent + '|' + o.className.includes('tg-e-bientot')));
-verifier('3. onglets du hub Finance réels (COT, calendrier, actus, banques centrales, taux, Nasdaq 100, publications) ; seul « Agent stratège » reste « bientôt »', ['COT (CFTC)', 'Calendrier', 'Actus finance', 'Banques centrales', 'Taux', 'Nasdaq 100', 'Publications'].every(n => onglets.includes(n + '|false')) && onglets.includes('Agent stratège|true'), JSON.stringify(onglets));
+verifier('3. onglets du hub Finance réels (COT, calendrier, actus, banques centrales, taux, Nasdaq 100, banques et analyses (ex-« Publications », phase 7 de la V2)) ; seul « Agent stratège » reste « bientôt »', ['COT (CFTC)', 'Calendrier', 'Actus finance', 'Banques centrales', 'Taux', 'Nasdaq 100', 'Banques et analyses'].every(n => onglets.includes(n + '|false')) && onglets.includes('Agent stratège|true'), JSON.stringify(onglets));
 const bt = {};
 for (const [id, etape] of [['strategie', 'M4']]) {
   await ev(i => window.Mars.espaceApi().choisirDock(i), id); await attendre(150);

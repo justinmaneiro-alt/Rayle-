@@ -82,7 +82,7 @@ Aucun asset externe : géométries, textures (couleur, rugosité, normales, émi
 
 ## Maj V2 (2026-10-27) : ressources ajoutées
 - **MediaPipe Tasks Vision 0.10.21** © Google, **Apache-2.0** (paquet npm `@mediapipe/tasks-vision` : bundle JavaScript et WebAssembly) et **modèle `hand_landmarker.task`** (Google, Apache-2.0) : détection des 21 points de la main, pour les gestes (phase 11). Téléchargés par `node app-pc/installer-gestes.mjs` dans `assets-lourds/gestes/` (exclu de git), vérifiés par SHA-256, exécutés localement (aucune image n'est envoyée).
-- **three.js r170** (MIT) : chargeurs STL, OBJ, MTL, FBX (+ `fflate`, MIT, et `NURBSCurve`) et exporteurs GLTF, STL, OBJ ajoutés dans `galaxie/vendor/addons/` pour l'atelier 3D de Neptune (phase 10), même version que le reste de three.js.
+- **three.js r170** (MIT) : chargeurs STL, OBJ, MTL, FBX (+ `fflate`, MIT, et `NURBSCurve`) et exporteur GLTF ajouté dans `galaxie/vendor/addons/` pour l'atelier 3D de Neptune (phase 10), même version que le reste de three.js.
 - **LPP (Liste des Produits et Prestations remboursables)**, Assurance Maladie (ameli.fr), version du 07-10-2026 : données publiques officielles, index local `data/lppr/lppr_titre2.json` extrait par `planetes/neptune/outils/lppr-extraire.py` ; le PDF source reste hors du dépôt. Ne remplace pas la nomenclature officielle.
 - **Projets d'inspiration des bots de la phase 7** (idées de stratégies, aucun code copié) : Freqtrade et Freqtrade-strategies (GPL-3.0), Jesse (MIT), QuantConnect Lean (Apache-2.0), je-suis-tm/quant-trading (Apache-2.0) : détail dans `docs/BOTS.md`.
 - **Fichiers d'essai** de `tests-navigateur/fixtures-neptune/` et `fixtures-gestes/` : fabriqués par le code du projet (aucun modèle ni enregistrement tiers).
