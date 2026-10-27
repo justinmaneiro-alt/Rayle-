@@ -21,6 +21,7 @@ export const CRITERES3 = Object.freeze({
     sinonUnActif: Object.freeze({ dsrMin: 0.99, basIcMin: 0.1 }),                        // …OU limité à un actif avec une preuve plus solide
     regimesPositifsMin: 2, tradesParRegimeMin: 20                                        // positif dans au moins 2 des 3 régimes (hausse, baisse, range) ayant assez de trades
   }),
+  jeuFinal: Object.freeze({ moisMin: 6, ouverturesMax: 5, niveauBase: 0.95, bonferroni: true }),   // jeu final : ouvert UNE fois par stratégie ; k-ième ouverture sur une paire → niveau de confiance 1 − 0,05/k ; 5 ouvertures au plus par paire
   causalite: Object.freeze({ coupes: 6 }),                                               // « poison du futur » : les signaux calculés sur un début de série (coupé juste après 6 signaux réels, plus 2 coupes quelconques) doivent être IDENTIQUES à ceux de la série entière
   simulationDirect: Object.freeze({ semainesMin: 4, tradesMin: 30, capital: 10000 }),    // avant toute alerte d'ENTRÉE réelle : 4 semaines OU 30 trades simulés sans dérive (le plus long des deux), alertes marquées « SIMULATION »
   rythme: Object.freeze({ positionsParSemaineMax: 5, alerteTropPermissive: 8 }),         // 1 à 5 positions par semaine ; au-delà de 8, le moteur est jugé trop permissif et doit se resserrer

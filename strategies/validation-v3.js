@@ -53,16 +53,19 @@ export function parametresRetenus(wf) {
 
 /* Évalue UNE stratégie. `variantesAvant` = variantes déjà testées dans toute l'histoire de l'agent (le compteur ne baisse jamais). `autres` = [{ nom, m15 }] : les autres actifs (SOL, DOGE…) sur lesquels on
    applique les MÊMES paramètres retenus (aucun choix refait). `grille` : remplace la grille de la famille (tests ; la recherche réelle garde la grille d'origine). */
-export function validerV3(m15, id, { config = {}, variantesAvant = 0, ctx = null, autres = [], grille = null, surProgres = null, c3 = CRITERES3 } = {}) {
+export function validerV3(m15Complet, id, { config = {}, variantesAvant = 0, ctx = null, autres = [], grille = null, surProgres = null, c3 = CRITERES3, debutFinal = null } = {}) {
   const fam = famille(id); if (!fam) return { ok: false, id, statut: 'insuffisant', raison: 'stratégie inconnue : ' + id };
-  const dec = decouper(m15), criteres = { v1: empreinteCriteres(), v2: CRITERES2.version, v3: empreinteV3(c3) };
+  // `debutFinal` (ms) : le jeu final commence là, FIXE (coffre) ; la recherche ne voit que ce qui précède. Sans lui : 75 % / 25 % du protocole d'origine.
+  const avantFinal = x => { if (debutFinal == null) return x; let idx = 0; while (idx < x.n && x.t[idx] < debutFinal) idx++; return tranche(x, 0, idx); };
+  const m15 = avantFinal(m15Complet), decoupage = debutFinal != null ? { ...CRITERES.decoupage, fractionRecherche: 1 } : CRITERES.decoupage;
+  const dec = decouper(m15, decoupage), criteres = { v1: empreinteCriteres(), v2: CRITERES2.version, v3: empreinteV3(c3) };
   if (!dec.ok) return { ok: true, id, statut: 'insuffisant', raison: dec.raison, criteres, jeuFinalOuvert: false };
   if (dec.folds.length < c3.walkForward.fenetresMin) return { ok: true, id, statut: 'insuffisant', raison: 'Seulement ' + dec.folds.length + ' blocs de test hors échantillon (il en faut ' + c3.walkForward.fenetresMin + ').', criteres, jeuFinalOuvert: false };
   const g = grille || fam.grille(0), tout = combinaisons(g), parDefaut = tout[0];
   // 0. causalité
   const causal = verifierCausalite(fam, parDefaut, m15, { coupes: c3.causalite.coupes });
   if (!causal.ok) return { ok: true, id, nom: fam.nom, statut: 'rejetee_causalite', raison: 'Les signaux changent quand on ajoute des bougies APRÈS eux (' + causal.ecarts + ' écarts) : la stratégie regarde le futur.', causalite: causal, lignes: [L('Causalité (aucun regard vers le futur)', causal.ecarts, '= 0', false)], criteres, jeuFinalOuvert: false };
-  const c = ctx || construireContexte(m15), plage = { de: 0, a: dec.finA };
+  const c = (ctx && debutFinal == null ? ctx : construireContexte(m15)), plage = { de: 0, a: dec.finA };
   const lignesVar = []; let k = 0;
   for (const params of tout) { lignesVar.push(evaluerVariante(c, id, params, config, plage)); if (surProgres) surProgres(++k / tout.length); }
   const wf = walkForward(lignesVar, dec, config), mc = monteCarlo(wf.trades), retenus = parametresRetenus(wf), nVar = variantesAvant + lignesVar.length;
@@ -74,8 +77,8 @@ export function validerV3(m15, id, { config = {}, variantesAvant = 0, ctx = null
   // autres actifs : mêmes paramètres, zone de recherche de chaque actif
   const actifs = [{ nom: 'référence', n: wf.stats.n, esperance: wf.stats.esperance, positif: wf.stats.esperance > 0 && wf.stats.n >= c3.robustesse.tradesParActifMin }];
   for (const a of autres) {
-    const da = decouper(a.m15); if (!da.ok || !retenus) { actifs.push({ nom: a.nom, n: 0, esperance: null, positif: false, raison: da.ok ? 'pas de paramètres' : da.raison }); continue; }
-    const e = evaluerVariante(construireContexte(a.m15), id, retenus, config, { de: 0, a: da.finA });
+    const ma = avantFinal(a.m15), da = decouper(ma, decoupage); if (!da.ok || !retenus) { actifs.push({ nom: a.nom, n: 0, esperance: null, positif: false, raison: da.ok ? 'pas de paramètres' : da.raison }); continue; }
+    const e = evaluerVariante(construireContexte(ma), id, retenus, config, { de: 0, a: da.finA });
     actifs.push({ nom: a.nom, n: e.stats.n, esperance: e.stats.esperance, positif: e.stats.esperance > 0 && e.stats.n >= c3.robustesse.tradesParActifMin });
   }
   const nbPositifs = actifs.filter(a => a.positif).length, solideSeul = dsr.dsr != null && dsr.dsr >= c3.robustesse.sinonUnActif.dsrMin && boot.bas != null && boot.bas >= c3.robustesse.sinonUnActif.basIcMin;

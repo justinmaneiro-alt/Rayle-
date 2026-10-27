@@ -1,6 +1,6 @@
 # Critères de validation de l'agent — version 3
 
-Écrits le **2026-10-27, avant toute recherche V3**. Empreinte : `97dff6d2` (fichier lisible par le code : `criteres-v3.json`, source : `criteres-v3.js`).
+Écrits le **2026-10-27, avant toute recherche V3**. Empreinte : `c9b4ddd4` (fichier lisible par le code : `criteres-v3.json`, source : `criteres-v3.js`).
 La version 1 (empreinte `c9995253`) et la version 2 restent intactes : la version 3 les **ajoute**, elle ne les remplace pas.
 
 **Règle d'or : ces seuils ne sont jamais assouplis pour « avoir un résultat ».** Les changer = une nouvelle version (v4), un nouveau jeu final, et la recherche repart de zéro (le compteur de variantes testées, lui, ne baisse jamais).
@@ -25,7 +25,7 @@ Unité : **R** = multiple du risque pris sur un trade, **après frais, spread et
 | 11 | Autres critères v1 : facteur de profit ≥ 1,3, creux ≤ 12 R, Monte Carlo (creux 95e centile ≤ 20 R), part du meilleur trade ≤ 35 %, trimestres positifs ≥ 60 %, 0,2 à 5 positions par semaine | voir `planetes/mars/pc/agent-btc/criteres.js` |
 | 12 | Objectif v2 : +20 R net sur ≥ 150 trades hors échantillon | v2, conservé |
 
-Le **jeu final** (derniers 25 % de l'historique) n'est ouvert qu'**une seule fois** par stratégie, avec les paramètres figés (v1 et v2, inchangés). Il n'est jamais ouvert par la recherche courante.
+Le **jeu final** (tout ce qui suit une date fixée au premier jour et gardée dans le « coffre » de l'agent ; au moins 6 mois) n'est ouvert qu'**une seule fois** par stratégie, avec les paramètres figés. Il est partagé par plusieurs candidates : la k-ième ouverture sur une paire exige une borne basse bootstrap > 0 au niveau 1 − 0,05 / k, et il n'y a pas plus de 5 ouvertures par paire (ensuite : données fraîches). Il doit passer les critères de jeu final v1 + compte prop. Une stratégie recalée ici ne revient jamais. La recherche courante ne l'ouvre jamais.
 
 ## Après la validation en backtest : la simulation en direct
 

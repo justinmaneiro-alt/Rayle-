@@ -2,6 +2,7 @@ import fs from 'node:fs';
 import { CRITERES3, empreinteV3 } from '../../strategies/criteres-v3.js';
 import { bibliotheque, ORDRE_V3, famille, tailleGrille } from '../../strategies/familles-v3.js';
 import { validerV3, verifierCausalite, STATUTS_V3 } from '../../strategies/validation-v3.js';
+import { ouvrirJeuFinalV3 } from '../../strategies/jeu-final-v3.js';
 import { intervalleBootstrap, simulerProp, detecterDerive, parRegime } from '../../strategies/stats-v3.js';
 import { FAMILLES } from '../../planetes/mars/pc/agent-btc/hypotheses.js';
 import { construireContexte } from '../../planetes/mars/pc/agent-btc/contexte.js';
@@ -104,6 +105,17 @@ FAMILLES.test_truquee = {
 {
   const r = validerV3(marcheMixte(8000, 2), 'tendance_ma');
   v('historique trop court : refus clair, pas de verdict', r.statut === 'insuffisant' && /mois/.test(r.raison));
+}
+{
+  const debutFinal = historique.t[Math.floor(historique.n * 0.8)], r = validerV3(historique, 'test_mauvaise', { debutFinal });
+  v('coffre : la recherche ne voit que ce qui précède le jeu final (zone de recherche < date du coffre)', r.zoneRecherche.a < debutFinal && r.statut === 'non_validee', JSON.stringify(r.zoneRecherche));
+  const f = ouvrirJeuFinalV3(historique, { pas: 60, k: 2.5, R: 2 }, 'test_mauvaise', { debutFinal, rang: 1 });
+  v('jeu final : une mauvaise stratégie échoue (ou attend), ne réussit jamais', f.ok === false && f.ouvert === true && f.lignes.some(l => !l.ok), f.statut);
+  const f6 = ouvrirJeuFinalV3(historique, { pas: 60, k: 2.5, R: 2 }, 'test_mauvaise', { debutFinal, rang: 6 });
+  v('jeu final : au plus 5 ouvertures par paire', f6.statut === 'attente' && f6.ouvert === false);
+  const fCourt = ouvrirJeuFinalV3(historique, { pas: 60, k: 2.5, R: 2 }, 'test_mauvaise', { debutFinal: historique.t[historique.n - 5000], rang: 1 });
+  v('jeu final : moins de 6 mois de données → on attend', fCourt.statut === 'attente' && /6/.test(fCourt.raison));
+  v('jeu final : k-ième ouverture → niveau de confiance plus exigeant (rang 3 : 98,3 %)', /98,3/.test(ouvrirJeuFinalV3(historique, { pas: 60, k: 2.5, R: 2 }, 'test_mauvaise', { debutFinal, rang: 3 }).lignes.find(l => /bootstrap/.test(l.critere)).critere));
 }
 delete FAMILLES.test_mauvaise; delete FAMILLES.test_truquee;
 console.log(`\n${ok} réussis, ${ko} échecs`); process.exit(ko ? 1 : 0);
