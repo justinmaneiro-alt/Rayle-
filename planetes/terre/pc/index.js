@@ -297,7 +297,7 @@ async function construire(G) {
     /* Entre en orbite à l'endroit que regardait la caméra de la galaxie. */
     async entrer({ rapide = false } = {}) {
       if (actif) return;
-      actif = true; entreeFinie = false;
+      actif = true; entreeFinie = false; window.Terre = api;   // la carte légère a pu reprendre window.Terre entre deux visites
       await fondu(true, rapide ? 140 : 380);
       await obtenirModele;
       if (messageVecteur) ui.dire(messageVecteur, 9000);

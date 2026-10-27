@@ -1,0 +1,54 @@
+/* ═════════════ TERRE, MODE LÉGER : carte plate pour tablette et téléphone (tout est préfixé par #terre-leger) ═════════════
+   Verre sombre, un accent cyan froid, boutons d'au moins 44 px (doigt), marges de sécurité (encoche, barre de gestes). Aucune animation coûteuse. */
+#terre-leger{position:absolute;inset:0;z-index:8;background:#05080f;color:#dbe9f0;font:14px/1.4 system-ui,-apple-system,"Segoe UI",sans-serif;overflow:hidden;touch-action:none;user-select:none;-webkit-user-select:none;--cy:#8fd0e3;--verre:rgba(8,14,24,.84);--trait:rgba(143,208,227,.4)}
+#terre-leger[hidden]{display:none}
+#terre-leger *{box-sizing:border-box}
+#terre-leger [hidden]{display:none!important}
+#terre-leger .tl-zone{position:absolute;inset:0}
+#terre-leger .tl-carte{display:block;position:absolute;inset:0;cursor:grab}
+#terre-leger .tl-carte:active{cursor:grabbing}
+#terre-leger .tl-epingles{position:absolute;inset:0;pointer-events:none}
+#terre-leger .tl-fondu{position:absolute;inset:0;pointer-events:none;background:#000;opacity:0}
+#terre-leger button,#terre-leger input,#terre-leger a{font:inherit;touch-action:manipulation;user-select:auto;-webkit-user-select:auto}
+#terre-leger .tl-b{min-height:44px;min-width:44px;padding:0 14px;color:#fff;background:var(--verre);border:1px solid var(--trait);border-radius:0;cursor:pointer;clip-path:polygon(8px 0,100% 0,100% calc(100% - 8px),calc(100% - 8px) 100%,0 100%,0 8px);-webkit-tap-highlight-color:transparent}
+#terre-leger .tl-b:hover{background:rgba(143,208,227,.18)}
+#terre-leger .tl-b:active{background:rgba(143,208,227,.32)}
+#terre-leger .tl-b.sec{color:var(--cy);background:rgba(8,14,24,.7)}
+#terre-leger .tl-haut{position:absolute;left:0;right:0;top:0;padding:max(10px,env(safe-area-inset-top)) max(12px,env(safe-area-inset-right)) 8px max(12px,env(safe-area-inset-left));display:flex;gap:8px;align-items:flex-start;pointer-events:none}
+#terre-leger .tl-haut>*{pointer-events:auto}
+#terre-leger .tl-recherche{flex:1;min-width:0;display:flex;background:var(--verre);border:1px solid var(--trait);min-height:44px}
+#terre-leger .tl-recherche input{flex:1;min-width:0;background:none;border:0;outline:0;color:#fff;font-size:16px;padding:0 12px}   /* 16 px : iOS ne zoome pas la page */
+#terre-leger .tl-recherche input::placeholder{color:#7fa6c0}
+#terre-leger .tl-recherche button{width:48px;background:rgba(143,208,227,.16);border:0;border-left:1px solid var(--trait);color:var(--cy);font-size:20px;cursor:pointer}
+#terre-leger .tl-resultats{position:absolute;left:max(12px,env(safe-area-inset-left));right:max(12px,env(safe-area-inset-right));top:calc(max(10px,env(safe-area-inset-top)) + 50px);background:rgba(8,14,24,.95);border:1px solid var(--trait);display:flex;flex-direction:column;max-height:50vh;overflow:auto;pointer-events:auto;z-index:3}
+#terre-leger .tl-resultats button{min-height:46px;text-align:left;background:none;border:0;border-bottom:1px solid rgba(143,208,227,.15);color:#dbe9f0;padding:8px 12px;cursor:pointer}
+#terre-leger .tl-resultats button:hover,#terre-leger .tl-resultats button:active{background:rgba(143,208,227,.18)}
+#terre-leger .tl-r-info{padding:12px;color:#9fb3bd}
+#terre-leger .tl-zoom{position:absolute;right:max(12px,env(safe-area-inset-right));top:50%;transform:translateY(-50%);display:flex;flex-direction:column;gap:8px}
+#terre-leger .tl-zoom .tl-b{font-size:24px;padding:0}
+#terre-leger .tl-bas{position:absolute;left:0;right:0;bottom:calc(max(8px,env(safe-area-inset-bottom)) + 22px);padding:0 max(12px,env(safe-area-inset-right)) 0 max(12px,env(safe-area-inset-left));display:flex;gap:8px;justify-content:center;flex-wrap:wrap;pointer-events:none}
+#terre-leger .tl-bas>*{pointer-events:auto}
+#terre-leger .tl-info{position:absolute;left:50%;transform:translateX(-50%);top:calc(max(10px,env(safe-area-inset-top)) + 60px);max-width:min(560px,calc(100% - 100px));padding:8px 14px;background:var(--verre);border:1px solid var(--trait);color:#e6eef2;text-align:center;pointer-events:none;font-size:13px}
+#terre-leger .tl-info.vide{display:none}
+#terre-leger .tl-echelle{position:absolute;left:max(14px,env(safe-area-inset-left));bottom:calc(max(8px,env(safe-area-inset-bottom)) + 70px);display:flex;align-items:center;gap:8px;color:#e6eef2;font-size:12px;text-shadow:0 1px 3px #000;pointer-events:none}
+#terre-leger .tl-echelle i{display:block;height:6px;border:2px solid #fff;border-top:0;filter:drop-shadow(0 1px 2px #000)}
+#terre-leger .tl-credits{position:absolute;left:0;right:0;bottom:max(4px,env(safe-area-inset-bottom));min-height:20px;padding:0 10px;background:rgba(0,0,0,.45);color:#9fb3bd;border:0;font-size:10.5px;text-align:center;cursor:pointer;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#terre-leger .tl-pin{position:absolute;width:26px;height:26px;margin:-13px 0 0 -13px;padding:0;border-radius:50%;background:var(--c,#8fd0e3);border:2px solid #fff;box-shadow:0 0 0 3px rgba(0,0,0,.35);pointer-events:auto;cursor:pointer;display:flex;align-items:center;justify-content:center;color:#05080f;font-size:11px;font-weight:700}
+#terre-leger .tl-pin::before{content:"";position:absolute;inset:-9px}   /* zone d'appui de 44 px autour d'une épingle de 26 px */
+#terre-leger .tl-pin.fort{width:32px;height:32px;margin:-16px 0 0 -16px}
+#terre-leger .tl-pin.choisi{outline:3px solid #fff;outline-offset:3px}
+#terre-leger .tl-pin b{font-size:11px}
+#terre-leger .tl-feuille{position:absolute;left:0;right:0;bottom:calc(max(8px,env(safe-area-inset-bottom)) + 74px);margin:0 auto;width:min(560px,calc(100% - 24px));background:rgba(8,14,24,.94);border:1px solid var(--trait);border-left:4px solid var(--c,var(--cy));padding:12px 14px;display:flex;flex-direction:column;gap:10px;pointer-events:auto;max-height:42vh;overflow:auto;z-index:2}
+#terre-leger .tl-f-corps{display:flex;flex-direction:column;gap:4px}
+#terre-leger .tl-f-cat{font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--c,var(--cy))}
+#terre-leger .tl-f-titre{color:#fff;font-size:16px;font-weight:600;text-decoration:none}
+#terre-leger .tl-f-src{color:#9fb3bd;font-size:12.5px}
+#terre-leger .tl-f-src a{color:var(--cy)}
+#terre-leger .tl-f-actions{display:flex;gap:8px;flex-wrap:wrap}
+#vueGalaxie.terre-leger-actif #terre-ui{display:none}
+@media (max-width:520px){
+  #terre-leger .tl-bas .tl-b{flex:1 1 calc(33% - 8px);padding:0 6px}
+  #terre-leger .tl-retour{padding:0 10px}
+  #terre-leger .tl-zoom{top:auto;bottom:calc(max(8px,env(safe-area-inset-bottom)) + 130px);transform:none}
+}
+@media (prefers-reduced-motion:reduce){#terre-leger *{transition:none!important;animation:none!important}}
