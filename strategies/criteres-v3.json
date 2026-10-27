@@ -1,0 +1,66 @@
+{
+  "empreinte": "97dff6d2",
+  "criteres": {
+    "version": 3,
+    "figesLe": "2026-10-27",
+    "base": {
+      "v1": 1,
+      "v2": 2
+    },
+    "walkForward": {
+      "fenetresMin": 4
+    },
+    "horsEchantillon": {
+      "tradesMin": 150,
+      "esperanceMin": 0.25
+    },
+    "bootstrap": {
+      "tirages": 5000,
+      "niveau": 0.95,
+      "basMin": 0,
+      "graine": 20261027
+    },
+    "deflation": {
+      "dsrMin": 0.95
+    },
+    "voisins": {
+      "partPositiveMin": 0.7,
+      "voisinsMin": 4,
+      "medianeVsMeilleur": 0.5
+    },
+    "prop": {
+      "risquePct": 1,
+      "drawdownMaxPct": 6,
+      "perteJourMaxPct": 3,
+      "objectifPct": 10
+    },
+    "robustesse": {
+      "actifsPositifsMin": 2,
+      "actifsTotal": 3,
+      "tradesParActifMin": 40,
+      "sinonUnActif": {
+        "dsrMin": 0.99,
+        "basIcMin": 0.1
+      },
+      "regimesPositifsMin": 2,
+      "tradesParRegimeMin": 20
+    },
+    "causalite": {
+      "coupes": 6
+    },
+    "simulationDirect": {
+      "semainesMin": 4,
+      "tradesMin": 30,
+      "capital": 10000
+    },
+    "rythme": {
+      "positionsParSemaineMax": 5,
+      "alerteTropPermissive": 8
+    },
+    "derive": {
+      "cusumSeuil": 4,
+      "tradesMin": 8
+    },
+    "aucuneStrategie": "Aucune stratégie validée pour l’instant. Preuves insuffisantes."
+  }
+}
