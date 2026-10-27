@@ -43,8 +43,13 @@
     diagAction("envoyé à l'IA");
     setState('thinking');
     let reply='', engine='', actions=[], viaAgent=false;
+    // 0) IA locale (LM Studio) pour les tâches courantes ; null = le Worker répond comme avant. Le modèle non censuré (sur demande explicite) ne déclenche aucune action et n'entre pas dans l'historique.
+    let sansHistorique=false;
+    if(window.IaLocale){
+      try{ const L=await IaLocale.essayer(text,{historique:historiqueChat.slice(-8),contexte:contextText()}); if(my!==epoch) return; if(L&&valid(L.reply)){ reply=L.reply; engine=L.engine+(L.model?' · '+L.model:''); actions=[]; viaAgent=true; sansHistorique=!!L.sansHistorique; diagAction('IA locale'); } }catch(e){ /* le Worker prend le relais */ }
+    }
     // 1) Agent : le Worker choisit et enchaîne ses outils (données, alertes, mémoire…) et renvoie les actions de la page
-    if(workerReady()){
+    if(!reply&&workerReady()){
       try{
         const d=await askAgent(text);
         if(my!==epoch) return;             // coupé pendant que l'IA travaillait
@@ -74,8 +79,7 @@
       addLine('sys', workerReady() ? 'Mode secours local' : 'Mode secours local — configurez le Worker via ⚙ Réglages');
     }else{
       if(engine!==engineLast){ addLine('sys','Moteur IA : '+engine); engineLast=engine; }
-      historiqueChat.push({role:'user',content:text},{role:'assistant',content:reply});
-      saveHistory();
+      if(!sansHistorique){ historiqueChat.push({role:'user',content:text},{role:'assistant',content:reply}); saveHistory(); }
       noterEchange();                        // compte pour le résumé de conversation
     }
     liveCtx='';

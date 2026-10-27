@@ -6,6 +6,7 @@ import os from 'node:os';
 import path from 'node:path';
 import crypto from 'node:crypto';
 import { qrTexte } from './qr-console.mjs';
+import { creerRelaisIaLocale } from './ia-locale-relais.mjs';
 
 const TYPES = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.css': 'text/css; charset=utf-8', '.svg': 'image/svg+xml' };
 
@@ -19,9 +20,12 @@ export function adresseLocale() {
 const memeJeton = (a, b) => { const x = Buffer.from(String(a || '')), y = Buffer.from(b); return x.length === y.length && crypto.timingSafeEqual(x, y); };
 
 export function creerServeurReseau(racine, jeton) {
+  const relais = creerRelaisIaLocale({ jeton });
   const dossier = path.join(racine, 'clavier');
   return http.createServer((req, res) => {
     const refus = (code, msg) => { res.writeHead(code, { 'Content-Type': 'text/plain; charset=utf-8', 'Cache-Control': 'no-store' }); res.end(msg); };
+    // phase 9 : relais de l'IA locale (LM Studio), même jeton que le clavier, deux routes seulement (voir app-pc/ia-locale-relais.mjs)
+    try { if (relais.gerer(req, res, new URL(req.url, 'http://x'))) return; } catch (e) { return refus(400, 'requête invalide'); }
     if (req.method !== 'GET' && req.method !== 'HEAD') return refus(405, 'méthode refusée');
     let url;
     try { url = new URL(req.url, 'http://x'); } catch (e) { return refus(400, 'requête invalide'); }
