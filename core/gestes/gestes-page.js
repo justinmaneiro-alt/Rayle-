@@ -76,6 +76,12 @@ const Gestes = (() => {
     ws.onmessage = e => { let m; try { m = JSON.parse(e.data); } catch (x) { return; } if (m.t === 'ev' && m.m) { const v = C.validerMains(m.m); if (v) injecter({ t: v.t, ratio: v.ratio, mains: v.mains }); } else if (m.t === 'etat') { E.telephone = m.etat; prevenir('maj', E); } };
     ws.onclose = () => { if (voulu && E.actif && E.source === 'telephone') setTimeout(connecterPont, 1500); };
   }
+  /* source 3 : caméra du téléphone par HTTPS et Worker (phase 4 V3) : la session doit déjà exister (QR affiché), les trames arrivent par CameraRelais, revalidées. */
+  async function connecterRelais() {
+    const R = window.CameraRelais; if (!R) throw new Error('Module CameraRelais absent.');
+    if (!R.etat().session) { const ok = await R.demarrer({ aSurTrames: f => injecter(f) }); if (!ok) throw new Error(R.etat().erreur || 'Session impossible.'); }
+    else R.definirSurTrames(f => injecter(f));
+  }
   const api = (chemin, corps) => fetch('/__cam/' + chemin, corps === undefined ? { headers: { 'X-Rayle-Cam': '1' } } : { method: 'POST', headers: { 'X-Rayle-Cam': '1' }, body: JSON.stringify(corps) }).then(r => r.json());
 
   // ── cycle de vie ──
@@ -90,15 +96,17 @@ const Gestes = (() => {
     if (E.actif) await desactiver(); E.erreur = ''; E.source = source; E.actif = true; creerMoteur(); prevenir('maj', E);
     if (!window.Telecommande || !window.Telecommande.appliquer) { E.actif = false; E.erreur = 'Les gestes pilotent la page par la télécommande interne, disponible dans l’application PC (127.0.0.1) : ici ils sont indisponibles.'; prevenir('maj', E); return false; }
     try {
-      if (source === 'locale') await demarrerWebcam(); else if (source === 'telephone') connecterPont();
+      if (source === 'locale') await demarrerWebcam(); else if (source === 'telephone') connecterPont(); else if (source === 'telephone-https') await connecterRelais();
     } catch (e) { E.actif = false; E.camera = false; E.erreur = messageErreur(e); arreterFlux(); prevenir('maj', E); return false; }
     if (memoriser) { prefs.source = source; ecrire(prefs); }
     prevenir('maj', E); return true;
   }
   function arreterFlux() { cancelAnimationFrame(boucle); if (flux) flux.getTracks().forEach(t => t.stop()); flux = null; video = null; E.camera = false; }
   async function desactiver() {
+    const etaitRelais = E.source === 'telephone-https';
     E.actif = false; voulu = false; arreterFlux(); try { ws && ws.close(); } catch (e) { /* déjà fermée */ } ws = null;
     if (moteur) { const s = moteur.traiter({ t: Date.now(), mains: [] }); for (const m of s.msgs) window.Telecommande && window.Telecommande.appliquer(m); moteur.reinitialiser(); if (window.Telecommande) window.Telecommande.appliquer({ a: 'lacher' }); }
+    if (etaitRelais && window.CameraRelais) await window.CameraRelais.arreter(false);
     E.mains = 0; E.derniere = ''; prevenir('maj', E);
   }
   /* « Gestes désactivés » rapide : la caméra continue (pour la reprise par deux poings) mais plus aucune action n'est envoyée. */

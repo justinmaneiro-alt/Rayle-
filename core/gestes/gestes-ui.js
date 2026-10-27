@@ -22,12 +22,12 @@ const GestesUI = (() => {
     sect = document.createElement('div'); sect.id = 'gestes-section';
     sect.innerHTML = '<h3>Gestes (caméra)</h3><div class="hint" id="gs-etat" role="status"></div>' +
       '<label class="chk"><input type="checkbox" id="gs-actif"> Activer les gestes de la main (la caméra analyse les points de ta main, rien ne part sur Internet)</label>' +
-      '<label for="gs-source">Caméra</label><select id="gs-source"><option value="locale">Webcam du PC</option><option value="telephone">Caméra du téléphone (QR)</option></select>' +
+      '<label for="gs-source">Caméra</label><select id="gs-source"><option value="locale">Webcam du PC</option><option value="telephone-https">Caméra du téléphone (QR sécurisé HTTPS)</option><option value="telephone">Caméra du téléphone (réseau local, avancé)</option></select>' +
       '<div class="row"><button type="button" class="ghost" id="gs-aide">Aide des gestes</button><button type="button" class="ghost" id="gs-calib">Calibrer</button><button type="button" class="ghost" id="gs-tel">Caméra du téléphone…</button><button type="button" class="ghost" id="gs-pause">Pause</button><button type="button" class="ghost" id="gs-enreg">Enregistrer 5 s</button></div>' +
       '<label class="chk"><input type="checkbox" id="gs-miroir"> Image en miroir (caméra de face)</label><label class="chk"><input type="checkbox" id="gs-droitier"> Main droite pour le curseur</label>' +
       '<div class="hint">Désactivé par défaut. Sans caméra, la souris et le toucher marchent comme avant. Alt+G : pause rapide. Procédure et limites : docs/GESTES.md.</div>';
     h3.parentNode.insertBefore(sect, h3);
-    $('gs-actif').addEventListener('change', async e => { if (e.target.checked) { await G.activer({ source: $('gs-source').value }); } else await G.desactiver(); maj(); });
+    $('gs-actif').addEventListener('change', async e => { if (e.target.checked) { const src = $('gs-source').value; if (src === 'telephone-https' && window.CameraRelais && !window.CameraRelais.etat().session) { e.target.checked = false; telephone(); return; } await G.activer({ source: src }); } else await G.desactiver(); maj(); });
     $('gs-source').addEventListener('change', async e => { G.regler({ source: e.target.value }); if (G.etat().actif) await G.activer({ source: e.target.value }); maj(); });
     $('gs-aide').addEventListener('click', aide); $('gs-calib').addEventListener('click', calibration); $('gs-tel').addEventListener('click', telephone);
     $('gs-pause').addEventListener('click', () => { G.mettreEnPause(!G.etat().pause); });
@@ -41,13 +41,13 @@ const GestesUI = (() => {
   }
   function libelle(e) {
     if (!e.actif) return e.erreur ? 'Gestes : ' + e.erreur : 'Gestes désactivés';
-    const src = { locale: 'webcam', telephone: 'téléphone', rejeu: 'rejeu' }[e.source] || e.source;
+    const src = { locale: 'webcam', telephone: 'téléphone (réseau local)', 'telephone-https': 'téléphone (HTTPS)', rejeu: 'rejeu' }[e.source] || e.source;
     return (e.pause ? '⏸ Gestes en pause' : '✋ Gestes') + ' · ' + src + (e.camera || e.source !== 'locale' ? ' · ' + e.mains + ' main' + (e.mains > 1 ? 's' : '') : (e.info ? ' · ' + e.info : '')) + (e.derniere ? ' · ' + e.derniere : '');
   }
   function maj() {
     const e = G.etat(), r = G.reglages(), p = pastilleEl();
     p.hidden = !e.actif; p.textContent = libelle(e); p.dataset.etat = e.pause ? 'pause' : e.mains ? 'main' : 'attente';
-    if (sect) { $('gs-etat').textContent = libelle(e) + (e.erreur ? '' : ''); $('gs-actif').checked = e.actif; $('gs-source').value = r.source === 'telephone' ? 'telephone' : 'locale'; $('gs-miroir').checked = r.miroir; $('gs-droitier').checked = r.droitier; $('gs-pause').textContent = e.pause ? 'Reprendre' : 'Pause'; if (e.erreur) $('gs-etat').textContent = e.erreur; }
+    if (sect) { $('gs-etat').textContent = libelle(e) + (e.erreur ? '' : ''); $('gs-actif').checked = e.actif; $('gs-source').value = r.source === 'telephone' || r.source === 'telephone-https' ? r.source : 'locale'; $('gs-miroir').checked = r.miroir; $('gs-droitier').checked = r.droitier; $('gs-pause').textContent = e.pause ? 'Reprendre' : 'Pause'; if (e.erreur) $('gs-etat').textContent = e.erreur; }
   }
 
   function modaleEl() {
@@ -87,6 +87,24 @@ const GestesUI = (() => {
     const n = lignes.length; let d = ''; lignes.forEach((l, y) => { for (let x = 0; x < n; x++) if (l[x] === '1') d += 'M' + x + ' ' + y + 'h1v1h-1z'; });
     return '<svg viewBox="-2 -2 ' + (n + 4) + ' ' + (n + 4) + '" shape-rendering="crispEdges" role="img" aria-label="QR code de la caméra du téléphone"><rect x="-2" y="-2" width="' + (n + 4) + '" height="' + (n + 4) + '" fill="#fff"/><path d="' + d + '" fill="#050608"/></svg>';
   }
+  /* Mode sécurisé HTTPS (V3 phase 4) : page GitHub Pages + Worker, QR à jeton unique, aucune alerte de certificat. */
+  let minuteurHttps = 0;
+  function majHttps() {
+    const z = $('gm-https'); if (!z) { clearInterval(minuteurHttps); return; }
+    const R = window.CameraRelais; if (!R) { z.innerHTML = '<div class="gm-err">Module indisponible.</div>'; return; }
+    const e = R.etat(), reste = e.expire ? Math.max(0, Math.round((e.expire - Date.now()) / 1000)) : 0, mmss = Math.floor(reste / 60) + ' min ' + String(reste % 60).padStart(2, '0') + ' s';
+    let h = '<h4 class="gm-h">Mode sécurisé (HTTPS) · recommandé</h4>';
+    if (e.etat === 'attente' && e.qr) {
+      h += '<div class="gm-qr">' + svgQR(e.qr.map(l => l.map(x => x ? '1' : '0').join(''))) + '</div><p class="gm-note">Scanne ce QR code avec le téléphone : il ouvre une page <b>HTTPS</b> (aucun avertissement de certificat). Le code ne sert <b>qu’une fois</b> et expire dans <b>' + mmss + '</b>. Seuls les points de ta main transitent, jamais la vidéo.</p>';
+    } else if (e.etat === 'connecte') {
+      h += '<p class="gm-note"><b>Téléphone connecté.</b> ' + e.recues + ' trames de points reçues' + (e.dernierEnvoi ? ' · dernier envoi il y a ' + Math.max(0, Math.round((Date.now() - e.dernierEnvoi) / 1000)) + ' s' : '') + '. Session valable encore ' + mmss + '. Sur le téléphone, appuie sur « Démarrer la caméra ».</p>';
+    } else if (e.etat === 'expiree') h += '<div class="gm-err">Le code a expiré (ou la session est terminée). Génère-en un nouveau.</div>';
+    else if (e.etat === 'fermee') h += '<p class="gm-note">Session fermée.</p>';
+    else h += '<p class="gm-note">Un QR code à usage unique, valable 5 minutes, lie le téléphone à cette session. Il passe par ton Worker Cloudflare : le téléphone n’a besoin d’aucune configuration.</p>';
+    if (e.erreur) h += '<div class="gm-err">' + esc(e.erreur) + '</div>';
+    h += '<div class="gm-actions">' + (e.etat === 'attente' || e.etat === 'connecte' ? '<button type="button" data-h="utiliser">Utiliser la caméra du téléphone pour les gestes</button><button type="button" class="sec" data-h="fermer">Fermer la session</button>' : '<button type="button" data-h="creer">Générer un QR code sécurisé</button>') + '</div>';
+    if (z.dataset.sig !== h) { z.dataset.sig = h; z.innerHTML = h; }
+  }
   async function majTelephone() {
     const z = $('gm-tel'); if (!z) return;
     try { etatTel = await G.api('etat'); } catch (e) { etatTel = { actif: false, erreur: 'Serveur local injoignable : cette fonction demande l’application PC.' }; }
@@ -100,7 +118,16 @@ const GestesUI = (() => {
         '<div class="gm-actions"><button type="button" data-t="utiliser">Utiliser la caméra du téléphone pour les gestes</button><button type="button" class="sec" data-t="arret">Éteindre le pont</button><button type="button" class="sec" data-t="urgence">Arrêt d’urgence</button></div>';
   }
   function telephone() {
-    ouvrirModale('Caméra du téléphone', '<div id="gm-tel">Chargement…</div>');
+    ouvrirModale('Caméra du téléphone', '<div id="gm-https"></div><h4 class="gm-h">Réseau local (avancé)</h4><div id="gm-tel">Chargement…</div>');
+    $('gm-https').addEventListener('click', async e => {
+      const b = e.target.closest('[data-h]'); if (!b || !window.CameraRelais) return;
+      if (b.dataset.h === 'creer') { await window.CameraRelais.demarrer({ aSurTrames: f => G.injecter(f) }); }
+      else if (b.dataset.h === 'fermer') { await window.CameraRelais.arreter(); if (G.etat().actif && G.etat().source === 'telephone-https') await G.desactiver(); }
+      else if (b.dataset.h === 'utiliser') { await G.activer({ source: 'telephone-https' }); maj(); }
+      majHttps();
+    });
+    if (window.CameraRelais) window.CameraRelais.surEvenement(majHttps);
+    majHttps(); clearInterval(minuteurHttps); minuteurHttps = setInterval(majHttps, 1000);
     $('gm-tel').addEventListener('click', async e => {   // un seul écouteur : le conteneur reste, son contenu est redessiné
       const b = e.target.closest('[data-t]'); if (!b) return;
       if (b.dataset.t === 'activer') { try { etatTel = await G.api('activer', {}); } catch (x) { /* serveur local injoignable : majTelephone l'explique */ } }

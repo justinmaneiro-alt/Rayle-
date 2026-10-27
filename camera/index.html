@@ -33,6 +33,17 @@
 <main>
   <h1>Caméra Rayle</h1><div class="sous">Les points de ta main, pas la vidéo</div>
 
+  <section class="carte" id="s-worker" hidden>
+    <h2>Connecter ce téléphone à Rayle</h2>
+    <p style="margin:0 0 8px;color:var(--doux);font-size:14px">Tu as scanné le QR code affiché par Rayle sur ton PC (<span id="t-worker-url"></span>). Ce code ne sert qu’<b>une seule fois</b> et expire en 5 minutes.</p>
+    <ul>
+      <li>La caméra de ce téléphone filme ta main, mais <b>la vidéo ne quitte jamais ce téléphone</b> : seuls 21 petits points par main sont envoyés à Rayle.</li>
+      <li>Le navigateur va te demander l’autorisation d’utiliser la caméra : réponds « Autoriser ».</li>
+      <li>Au premier lancement, le modèle de détection de main (quelques Mo) est téléchargé depuis jsDelivr et Google ; ensuite il est en mémoire.</li>
+    </ul>
+    <button id="b-rejoindre">Connecter ce téléphone</button><div id="m-worker"></div>
+  </section>
+
   <section class="carte" id="s-appairage" hidden>
     <h2>1 · Appairer ce téléphone</h2>
     <p style="margin:0;color:var(--doux);font-size:14px">Sur le PC : Rayle → ⚙ → Gestes → « Caméra du téléphone » : un code à 6 chiffres s’affiche.</p>
@@ -49,7 +60,7 @@
     <button class="sec" id="b-stop" hidden>Arrêter</button>
     <div id="m-cam"></div>
     <div class="msg sable">Pose le téléphone sur un support, écran vers toi (ou caméra avant dirigée vers ta main), à environ 50 cm. Garde l’écran allumé.</div>
-    <ul><li>Seuls les 21 points de chaque main sont envoyés au PC, par le réseau de la maison. Aucune image ne quitte ce téléphone.</li><li>Les gestes sont expliqués dans Rayle (⚙ → Gestes → Aide).</li></ul>
+    <ul><li>Seuls les 21 points de chaque main sont envoyés au PC. Aucune image ne quitte ce téléphone.</li><li>Les gestes sont expliqués dans Rayle (⚙ → Gestes → Aide).</li></ul>
     <button class="sec" id="b-oublier">Oublier ce téléphone</button>
   </section>
 
