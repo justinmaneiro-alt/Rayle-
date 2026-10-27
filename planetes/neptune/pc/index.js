@@ -31,6 +31,10 @@ async function construire(G) {
     <button type="button" data-a="assembler" title="Assemblage animé">Assembler</button>
     <button type="button" data-a="coupe" title="Plan de coupe">Coupe</button>
     <button type="button" data-a="mesure" title="Mesurer : clique deux points">Mesurer</button>
+    <button type="button" data-a="poignee-deplacer" title="Poignées : déplacer la pièce choisie (touche W)">Déplacer</button>
+    <button type="button" data-a="poignee-tourner" title="Poignées : tourner la pièce choisie (touche E)">Tourner</button>
+    <button type="button" data-a="poignee-echelle" title="Poignées : changer la taille de la pièce choisie (touche R)">Taille</button>
+    <button type="button" data-a="aimant" title="Aimantation : pas réguliers (touche G)">Aimant</button>
     <button type="button" data-a="cadrer">Cadrer</button>
     <button type="button" data-a="aide">Aide</button>
     <button type="button" data-a="quitter">Quitter</button>
@@ -69,7 +73,7 @@ async function construire(G) {
   const dire = (txt, ms = 4500) => { messageEl.textContent = txt; messageEl.hidden = !txt; clearTimeout(minuteurMessage); if (txt && ms) minuteurMessage = setTimeout(() => { messageEl.hidden = true; }, ms); };
   const fondu = async (noir, ms = 420) => { fonduEl.style.transitionDuration = ms + 'ms'; fonduEl.classList.toggle('noir', noir); await attendre(ms + 30); };
 
-  let atelier = null, actif = false, transition = false, geste = null, dernierImport = null, retirerPad = null;
+  let atelier = null, actif = false, transition = false, geste = null, poigneeSaisie = false, dernierImport = null, retirerPad = null;
   const canvasEl = canvas;
   const selId = () => atelier && atelier.etat.selection;
   function ecran() { const r = canvasEl.getBoundingClientRect(); return { l: Math.max(1, r.width), h: Math.max(1, r.height) }; }
@@ -99,10 +103,10 @@ async function construire(G) {
 
   // ── gestes de souris sur la scène (délégués par la galaxie) ──
   const handlers = {
-    pointerdown(e) { if (transition) return; canvasEl.setPointerCapture(e.pointerId); geste = { x: e.clientX, y: e.clientY, bouge: 0, bouton: e.button, shift: e.shiftKey }; },
-    pointermove(e) { if (!geste) return; const dx = e.clientX - geste.x, dy = e.clientY - geste.y; geste.x = e.clientX; geste.y = e.clientY; geste.bouge += Math.abs(dx) + Math.abs(dy); if (geste.bouton === 2 || geste.bouton === 1 || geste.shift) atelier.souris.deplacer(dx, dy); else atelier.souris.tourner(dx, dy); },
-    pointerup(e) { try { canvasEl.releasePointerCapture(e.pointerId); } catch (x) { /* déjà relâché */ } const g = geste; geste = null; if (!g || transition) return; if (g.bouge < 6 && g.bouton === 0) atelier.clic(e.clientX, e.clientY, { parent: e.altKey }); },
-    pointercancel() { geste = null; },
+    pointerdown(e) { if (transition) return; canvasEl.setPointerCapture(e.pointerId); if (atelier.poignee.appuyer(e)) { poigneeSaisie = true; geste = null; return; } geste = { x: e.clientX, y: e.clientY, bouge: 0, bouton: e.button, shift: e.shiftKey }; },
+    pointermove(e) { if (poigneeSaisie) { atelier.poignee.bouger(e); return; } if (!geste) { atelier.poignee.bouger(e); canvasEl.style.cursor = atelier.poignee.visee() ? 'grab' : ''; return; } const dx = e.clientX - geste.x, dy = e.clientY - geste.y; geste.x = e.clientX; geste.y = e.clientY; geste.bouge += Math.abs(dx) + Math.abs(dy); if (geste.bouton === 2 || geste.bouton === 1 || geste.shift) atelier.souris.deplacer(dx, dy); else atelier.souris.tourner(dx, dy); },
+    pointerup(e) { try { canvasEl.releasePointerCapture(e.pointerId); } catch (x) { /* déjà relâché */ } if (poigneeSaisie) { poigneeSaisie = false; atelier.poignee.relacher(e); return; } const g = geste; geste = null; if (!g || transition) return; if (g.bouge < 6 && g.bouton === 0) atelier.clic(e.clientX, e.clientY, { parent: e.altKey }); },
+    pointercancel(e) { geste = null; if (poigneeSaisie) { poigneeSaisie = false; atelier.poignee.relacher(e); } },
     wheel(e) { if (transition) return; atelier.souris.zoom(e.deltaY * (e.deltaMode === 1 ? 33 : 1)); },
     dblclick() { /* évite que la galaxie vole vers un astre */ }
   };
@@ -118,7 +122,7 @@ async function construire(G) {
     atelier.sur('modele', dessinerArbre); atelier.sur('selection', majSelection); atelier.sur('pistes', dessinerArbre);
     atelier.sur('mesure', m => { const el = $('n-mesure'); el.textContent = m ? 'Distance : ' + m.texte + ' (Δx ' + +m.dx.toPrecision(3) + ', Δy ' + +m.dy.toPrecision(3) + ', Δz ' + +m.dz.toPrecision(3) + ') — dans l’unité du fichier choisie ci-contre.' : 'Mode Mesurer : clique deux points sur le modèle.'; if (!m) etiquetteEl.hidden = true; });
     atelier.sur('visite', note => dire(note, 3500));
-    atelier.sur('etat', () => { ui.querySelectorAll('[data-a="coupe"]').forEach(b => b.classList.toggle('actif', atelier.etat.coupe.actif)); ui.querySelectorAll('[data-a="mesure"]').forEach(b => b.classList.toggle('actif', atelier.etat.mesure)); etatEl.textContent = atelier.etat.visite ? 'Visite en cours : ' + atelier.etat.visite.genre + ' (bouge la souris pour reprendre la main)' : ''; });
+    atelier.sur('etat', () => { ui.querySelectorAll('[data-a="coupe"]').forEach(b => b.classList.toggle('actif', atelier.etat.coupe.actif)); ui.querySelectorAll('[data-a="mesure"]').forEach(b => b.classList.toggle('actif', atelier.etat.mesure)); ['deplacer', 'tourner', 'echelle'].forEach(m => ui.querySelectorAll('[data-a="poignee-' + m + '"]').forEach(b => b.classList.toggle('actif', atelier.etat.poignees === m))); ui.querySelectorAll('[data-a="aimant"]').forEach(b => b.classList.toggle('actif', atelier.etat.aimant)); etatEl.textContent = atelier.etat.visite ? 'Visite en cours : ' + atelier.etat.visite.genre + ' (bouge la souris pour reprendre la main)' : ''; });
     const { l, h } = ecran(); atelier.dimensionner(l, h);
   }
   async function importerFichiers(liste, extra = {}) {
@@ -150,6 +154,8 @@ async function construire(G) {
     if (b.dataset.c) { const id = selId(); if (!id) return dire('Sélectionne une pièce pour poser une clé.'); atelier.poserCle(id, b.dataset.c, Math.max(0, +$('n-tcle').value || 0)); return; }
     if (b.dataset.x) { const f = b.dataset.x; try { const r = await atelier.exporter(f, { echelleSTL: +$('n-stl-u').value || 1 }); dire('Exporté : ' + r.fichier + ' (' + Math.round(r.octets / 1024) + ' Ko).', 5000); } catch (err) { dire('Export impossible : ' + (err && err.message || err), 7000); } return; }
     const a = b.dataset.a; if (!a) return;
+    if (a.startsWith('poignee-')) { const m = a.slice(8); const r = atelier.poignees(atelier.etat.poignees === m ? null : m); dire(r ? (selId() ? 'Poignées : ' + { deplacer: 'déplacer', tourner: 'tourner', echelle: 'changer la taille' }[r] + '. Saisis une flèche, un anneau ou un cube.' : 'Poignées activées : choisis d’abord une pièce (clic sur le modèle).') : 'Poignées retirées.'); return; }
+    if (a === 'aimant') { dire(atelier.aimanter(!atelier.etat.aimant) ? 'Aimantation : pas réguliers (1/20 de la taille, 15°, 10 %).' : 'Aimantation coupée.'); return; }
     if (a === 'quitter') api.sortir(); else if (a === 'cadrer') atelier.cadrer();
     else if (a === 'mesure') { atelier.regler({ mesure: !atelier.etat.mesure }); if (!atelier.etat.mesure) atelier.effacerMesure(); dire(atelier.etat.mesure ? 'Mesure : clique deux points sur le modèle.' : 'Mesure terminée.'); }
     else if (a === 'coupe') { const c = atelier.etat.coupe; atelier.regler({ coupe: { ...c, actif: !c.actif } }); $('n-coupe-ligne').hidden = !atelier.etat.coupe.actif; }
@@ -194,7 +200,7 @@ async function construire(G) {
   ui.addEventListener('drop', async e => { surDepot(e); if (!actif || !e.dataTransfer || !e.dataTransfer.files.length) return; await importerFichiers([...e.dataTransfer.files], { unite: atelier.etat.unite }); });
   window.addEventListener('keydown', e => {
     if (!actif || transition || e.target.matches('input, textarea, select') || modale.hidden === false && e.key !== 'Escape') { if (actif && e.key === 'Escape' && !modale.hidden) fermerModale(); return; }
-    if (e.key === 'Delete' && selId()) { atelier.supprimer(selId()); e.stopPropagation(); } else if (e.key === 'f' || e.key === 'F') atelier.cadrer(selId() ? atelier.parId(selId()) : atelier.modele); else if (e.key === 'm' || e.key === 'M') ui.querySelector('[data-a="mesure"]').click(); else if (e.key === 'h' || e.key === 'H') { if (selId()) atelier.isoler(selId()); else atelier.toutAfficher(); e.stopPropagation(); e.preventDefault(); }
+    if (e.key === 'Delete' && selId()) { atelier.supprimer(selId()); e.stopPropagation(); } else if (e.key === 'f' || e.key === 'F') atelier.cadrer(selId() ? atelier.parId(selId()) : atelier.modele); else if (e.key === 'm' || e.key === 'M') ui.querySelector('[data-a="mesure"]').click(); else if (!e.ctrlKey && !e.altKey && !e.metaKey && 'werqgWERQG'.includes(e.key) && e.key.length === 1) { const k = e.key.toLowerCase(); if (k === 'g') ui.querySelector('[data-a="aimant"]').click(); else if (k === 'q') atelier.poignees(null); else ui.querySelector('[data-a="poignee-' + { w: 'deplacer', e: 'tourner', r: 'echelle' }[k] + '"]').click(); e.stopPropagation(); } else if (e.key === 'h' || e.key === 'H') { if (selId()) atelier.isoler(selId()); else atelier.toutAfficher(); e.stopPropagation(); e.preventDefault(); }
   }, true);
   window.addEventListener('galaxie:sortie', () => { if (actif) api.sortir(); });
   window.addEventListener('resize', () => { if (actif && atelier) { const { l, h } = ecran(); atelier.dimensionner(l, h); } });

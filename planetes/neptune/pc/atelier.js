@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { TransformControls } from 'three/addons/controls/TransformControls.js';
 import * as M from './maquette-calcul.js';
 
 /* ═════════════ NEPTUNE : L'ATELIER 3D (moteur) ═════════════
@@ -15,7 +16,7 @@ export function creerAtelier({ renderer, canvas }) {
   const scene = new THREE.Scene(), camera = new THREE.PerspectiveCamera(50, 1, 0.01, 1000);
   const modele = new THREE.Group(); modele.name = 'Modèle'; scene.add(modele);
   const decor = new THREE.Group(); scene.add(decor);
-  const etat = { unite: 'm', fond: 'sombre', grille: true, ombres: true, hdri: 'studio', exposition: 1, eclate: 0, coupe: { actif: false, axe: 1, position: 0, inverse: false }, mesure: false, selection: null, lecture: null, visite: null, mode: 'orbite', tourAuto: false };
+  const etat = { poignees: null, aimant: false, repere: 'world', unite: 'm', fond: 'sombre', grille: true, ombres: true, hdri: 'studio', exposition: 1, eclate: 0, coupe: { actif: false, axe: 1, position: 0, inverse: false }, mesure: false, selection: null, lecture: null, visite: null, mode: 'orbite', tourAuto: false };
   const ctrl = { az: 0.7, el: 0.35, dist: 5, cible: new THREE.Vector3(), cibleVisee: null };
   const raycaster = new THREE.Raycaster(), ecouteurs = new Map(), mixers = [], clips = [];
   let pmrem = null, envStudio = null, envHdri = null, boiteSel = null, mesureObj = null, rayon = 1, sol = null, grille = null, lumDir = null, lumHemi = null, pistes = [], tPistes = 0, lecturePistes = null, derniereMesure = null;
@@ -176,7 +177,35 @@ export function creerAtelier({ renderer, canvas }) {
     const o = id ? parId(id) : null;
     if (o) { boiteSel = new THREE.BoxHelper(o, 0x8fd0e3); boiteSel.userData.__aide = true; boiteSel.material.depthTest = false; boiteSel.renderOrder = 999; scene.add(boiteSel); }
     emettre('selection', id ? (o ? { id, nom: o.name } : null) : null);
+    rattacherPoignees();
   }
+  // ── poignées de manipulation (déplacer, tourner, échelle) : flèches, anneaux et cubes à saisir à la souris ou au doigt ──
+  // TransformControls (three r170, MIT) est branché À LA MAIN sur les gestes délégués par la galaxie : disconnect() retire ses propres écouteurs, index.js lui passe les événements.
+  const tc = new TransformControls(camera, canvas); tc.disconnect(); tc.enabled = false; tc.setSize(0.9);
+  const aidePoignees = tc.getHelper(); aidePoignees.userData.__aide = true; aidePoignees.visible = false; scene.add(aidePoignees);
+  const MODES_POIGNEES = { deplacer: 'translate', tourner: 'rotate', echelle: 'scale' };
+  function rattacherPoignees() {
+    const o = etat.poignees && etat.selection ? parId(etat.selection) : null;
+    if (o && o !== modele && o.visible) { tc.attach(o); aidePoignees.visible = true; } else { tc.detach(); aidePoignees.visible = false; }
+  }
+  function poignees(mode) {   // 'deplacer' | 'tourner' | 'echelle' | null (aucune)
+    etat.poignees = MODES_POIGNEES[mode] ? mode : null; tc.enabled = !!etat.poignees; if (etat.poignees) tc.setMode(MODES_POIGNEES[mode]);
+    rattacherPoignees(); emettre('etat'); return etat.poignees;
+  }
+  function aimanter(oui) { etat.aimant = !!oui; etat.pas = oui ? Math.max(rayon / 20, 1e-4) : null; tc.setTranslationSnap(oui ? Math.max(rayon / 20, 1e-4) : null); tc.setRotationSnap(oui ? THREE.MathUtils.degToRad(15) : null); tc.setScaleSnap(oui ? 0.1 : null); emettre('etat'); return etat.aimant; }
+  function repere(espace) { tc.setSpace(espace === 'local' ? 'local' : 'world'); etat.repere = tc.space; emettre('etat'); return etat.repere; }
+  const pointeur = e => { const r = canvas.getBoundingClientRect(); return { x: ((e.clientX - r.left) / r.width) * 2 - 1, y: -((e.clientY - r.top) / r.height) * 2 + 1, button: e.button }; };
+  tc.addEventListener('objectChange', () => { const o = tc.object; if (o) eclatBase.delete(o.uuid); majSelection(); });
+  tc.addEventListener('dragging-changed', e => { if (!e.value) { mettreAJourDecor(); majSelection(); emettre('modele'); } emettre('etat'); });
+  const poignee = {
+    /* Appui : vrai si une poignée est saisie (la caméra ne doit alors pas tourner). Au doigt il n'y a pas de survol : on teste sous le doigt à l'appui. */
+    appuyer(e) { if (!tc.enabled || !tc.object) return false; const p = pointeur(e); tc.pointerHover(p); if (tc.axis === null) return false; tc.pointerDown(p); return !!tc.dragging; },
+    /* Mouvement : pendant la saisie, déplace ; sinon surligne la poignée sous la souris (vrai si l'une est visée). */
+    bouger(e) { if (!tc.enabled || !tc.object) return false; const p = pointeur(e); if (tc.dragging) { tc.pointerMove(p); return true; } if (e.pointerType !== 'touch') tc.pointerHover(p); return tc.axis !== null; },
+    relacher(e) { if (!tc.dragging) return false; tc.pointerUp(pointeur(e)); return true; },
+    occupe: () => !!tc.dragging, visee: () => tc.axis !== null, mode: () => etat.poignees
+  };
+
   function sousLeCurseur(x, y) {
     const r = canvas.getBoundingClientRect(); raycaster.setFromCamera(new THREE.Vector2(((x - r.left) / r.width) * 2 - 1, -((y - r.top) / r.height) * 2 + 1), camera);
     const cibles = []; modele.traverse(o => { if (o.isMesh && o.visible) cibles.push(o); });
@@ -374,12 +403,12 @@ export function creerAtelier({ renderer, canvas }) {
     appliquerCamera();
   }
   function dispose() {
-    arreterVisite(); effacerMesure(); selectionner(null); modele.traverse(o => { if (o.isMesh) { o.geometry.dispose(); matsDe(o).forEach(x => x.dispose && x.dispose()); } });
+    arreterVisite(); effacerMesure(); selectionner(null); tc.detach(); scene.remove(aidePoignees); tc.dispose(); modele.traverse(o => { if (o.isMesh) { o.geometry.dispose(); matsDe(o).forEach(x => x.dispose && x.dispose()); } });
     scene.clear(); mixers.length = 0; clips.length = 0; if (pmrem) pmrem.dispose(); if (chargeurs) { chargeurs.draco.dispose(); chargeurs.ktx2.dispose(); }
     renderer.localClippingEnabled = false;
   }
   appliquerCamera(); mettreAJourDecor();
   return { scene, camera, modele, etat, pret, sur, maj, dispose, dimensionner, cadrer, souris, regler, chargerHDRI, importer, arbre, pieces: () => pieces().map(infoPiece), parId, selectionner, clic, parNom, afficher, isoler, toutAfficher, renommer, couleur, materiau, deplacer, tourner, echelle, supprimer, dupliquer, symetrie,
     effacerMesure, milieuMesure, derniereMesure: () => derniereMesure, circonference, eclater, animerAssemblage, lireClip, listeClips, poserCle, effacerPistes, etatPistes, lirePistes, lancerVisite, arreterVisite, presenter, arreterPresentation, fabriquer, exporter, controleImpression, fichesAttribution,
-    stats: () => { const c = compter(modele); return { ...c, pieces: pieces().length }; }, maillageDe, formatsPris: EXTENSIONS };
+    poignees, aimanter, repere, poignee, stats: () => { const c = compter(modele); return { ...c, pieces: pieces().length }; }, maillageDe, formatsPris: EXTENSIONS };
 }

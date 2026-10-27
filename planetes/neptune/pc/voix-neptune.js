@@ -11,6 +11,8 @@ export function detecter(texte, { ouvert = false } = {}) {
   if (/\b(?:ouvre|lance|va dans|entre dans|montre)\b.*\b(?:atelier|maquettes?)\b|\b(?:atelier|maquettes?) (?:3d|trois d|de neptune|neptune)\b/.test(t) && !ouvert) return { type: 'ouvrir_atelier' };
   if (!ouvert) return null;
   if (/\b(?:ferme|quitte|sors de)\b.*\b(?:atelier|maquettes?)\b/.test(t)) return { type: 'fermer_atelier' };
+  if (/\bpoignees?\b/.test(t)) return { type: 'poignees', mode: /\b(?:retire|enleve|cache|masque|desactive|coupe|ferme|sans)\b/.test(t) ? null : /\b(?:tourn|rotation|pivot|angle)/.test(t) ? 'tourner' : /\b(?:taille|echelle|redimension|agrand|zoom)/.test(t) ? 'echelle' : 'deplacer' };
+  if (/\baimant(?:e|er|ation)?\b/.test(t)) return { type: 'aimant', actif: !/\b(?:retire|enleve|desactive|coupe|sans|arrete)\b/.test(t) };
   if (/\bpresente\b.*\bpieces?\b|\b(?:pieces?) par (?:pieces?)\b|\bvisite guidee\b|\bpresente (?:la |le |l )?(?:maquette|modele|moteur|bateau|armure|maison)\b/.test(t)) return { type: 'presenter' };
   if (/\b(?:stop|arrete|coupe|interromps)\b.*\b(?:presentation|visite|explication)s?\b/.test(t)) return { type: 'arreter' };
   if (/\bvisite\b|\bfais le tour\b|\bparcours\b/.test(t)) return { type: 'visite' };
@@ -49,6 +51,8 @@ export async function traiter(texte) {
     setTimeout(() => N.presenter({ sansIntro: true, attendreParole: true }), 300);
     return M.introPresentation(nom, ps.length);
   }
+  if (d.type === 'poignees') { const r = A.poignees(d.mode); return r ? 'Poignées de ' + { deplacer: 'déplacement', tourner: 'rotation', echelle: 'taille' }[r] + (A.etat.selection ? '.' : ' : choisis d’abord une pièce en cliquant dessus.') : 'Poignées retirées.'; }
+  if (d.type === 'aimant') return A.aimanter(d.actif) ? 'Aimantation activée : la pièce avance par pas réguliers.' : 'Aimantation coupée.';
   if (d.type === 'arreter') { N.arreterPresentation(); A.arreterVisite(); return 'D’accord, j’arrête.'; }
   if (d.type === 'visite') { const r = A.lancerVisite(); return r.ok ? 'Je lance la visite ' + (r.genre === 'maison' ? 'de la maison' : r.genre === 'bateau' ? 'du bateau' : 'de l’objet') + ', environ ' + Math.round(r.duree) + ' secondes.' : r.raison; }
   if (d.type === 'isoler' || d.type === 'masquer') {

@@ -18,4 +18,6 @@ v('fabriquer : la description est conservée', (d => d.type === 'fabriquer' && /
 v('symétrie, duplication, suppression, cadrage', detecter('fais la symétrique', o).type === 'symetrie' && detecter('duplique la pièce', o).type === 'dupliquer' && detecter('supprime la pièce', o).type === 'supprimer' && detecter('cadre la vue', o).type === 'cadrer');
 v('phrases étrangères ignorées (atelier ouvert)', ['quelle heure est-il', 'mets le graphique en H4', 'va sur Mars', 'comment ça va'].every(t => detecter(t, o) === null));
 v('fermer l’atelier', detecter('ferme l’atelier', o).type === 'fermer_atelier');
+v('poignées : mode déduit de la phrase', detecter('active les poignées de déplacement', o).mode === 'deplacer' && detecter('mets les poignées de rotation', o).mode === 'tourner' && detecter('poignées de taille', o).mode === 'echelle' && detecter('retire les poignées', o).mode === null && detecter('retire les poignées', o).type === 'poignees');
+v('aimantation : activer / couper', detecter('active l’aimantation', o).actif === true && detecter('coupe l’aimantation', o).actif === false && detecter('aimante', o).type === 'aimant');
 console.log(ko ? ko + ' échec(s) / ' + (ok + ko) : ok + ' vérifications réussies.'); process.exit(ko ? 1 : 0);

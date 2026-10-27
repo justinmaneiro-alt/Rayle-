@@ -1,0 +1,94 @@
+; FBX 7.4.0 project file (fichier d'essai écrit par Raylé : rien d'un modèle existant)
+FBXHeaderExtension:  {
+	FBXHeaderVersion: 1003
+	FBXVersion: 7400
+	Creator: "Raylé fixtures"
+}
+GlobalSettings:  {
+	Version: 1000
+	Properties70:  {
+		P: "UpAxis", "int", "Integer", "",1
+		P: "UpAxisSign", "int", "Integer", "",1
+		P: "FrontAxis", "int", "Integer", "",2
+		P: "FrontAxisSign", "int", "Integer", "",1
+		P: "CoordAxis", "int", "Integer", "",0
+		P: "CoordAxisSign", "int", "Integer", "",1
+		P: "UnitScaleFactor", "double", "Number", "",1
+	}
+}
+Definitions:  {
+	Version: 100
+	Count: 6
+}
+Objects:  {
+	Geometry: 1001, "Geometry::Cube", "Mesh" {
+		Vertices: *24 {
+			a: -1,-1,-1,1,-1,-1,1,1,-1,-1,1,-1,-1,-1,1,1,-1,1,1,1,1,-1,1,1
+		}
+		PolygonVertexIndex: *24 {
+			a: 0,3,2,-2,4,5,6,-8,0,1,5,-5,2,3,7,-7,1,2,6,-6,0,4,7,-4
+		}
+		GeometryVersion: 124
+		LayerElementNormal: 0 {
+			Version: 101
+			Name: ""
+			MappingInformationType: "ByPolygonVertex"
+			ReferenceInformationType: "Direct"
+			Normals: *72 {
+				a: 0,0,-1,0,0,-1,0,0,-1,0,0,-1,0,0,1,0,0,1,0,0,1,0,0,1,0,-1,0,0,-1,0,0,-1,0,0,-1,0,0,1,0,0,1,0,0,1,0,0,1,0,1,0,0,1,0,0,1,0,0,1,0,0,-1,0,0,-1,0,0,-1,0,0,-1,0,0
+			}
+		}
+	}
+	Geometry: 1002, "Geometry::Pyramide", "Mesh" {
+		Vertices: *15 {
+			a: -1,0,-1,1,0,-1,1,0,1,-1,0,1,0,1.6,0
+		}
+		PolygonVertexIndex: *16 {
+			a: 0,1,2,-4,0,4,-2,1,4,-3,2,4,-4,3,4,-1
+		}
+		GeometryVersion: 124
+		LayerElementNormal: 0 {
+			Version: 101
+			Name: ""
+			MappingInformationType: "ByPolygonVertex"
+			ReferenceInformationType: "Direct"
+			Normals: *48 {
+				a: 0,-1,0,0,-1,0,0,-1,0,0,-1,0,0,0.53,-0.848,0,0.53,-0.848,0,0.53,-0.848,0.848,0.53,0,0.848,0.53,0,0.848,0.53,0,0,0.53,0.848,0,0.53,0.848,0,0.53,0.848,-0.848,0.53,0,-0.848,0.53,0,-0.848,0.53,0
+			}
+		}
+	}
+	Model: 2001, "Model::Cube FBX", "Mesh" {
+		Version: 232
+		Properties70:  {
+			P: "Lcl Translation", "Lcl Translation", "", "A",-2,1,0
+		}
+	}
+	Model: 2002, "Model::Pyramide FBX", "Mesh" {
+		Version: 232
+		Properties70:  {
+			P: "Lcl Translation", "Lcl Translation", "", "A",2,0,0
+		}
+	}
+	Material: 3001, "Material::Rouge", "" {
+		Version: 102
+		ShadingModel: "phong"
+		Properties70:  {
+			P: "DiffuseColor", "Color", "", "A",0.8,0.25,0.2
+		}
+	}
+	Material: 3002, "Material::Bleu", "" {
+		Version: 102
+		ShadingModel: "phong"
+		Properties70:  {
+			P: "DiffuseColor", "Color", "", "A",0.2,0.45,0.8
+		}
+	}
+}
+Connections:  {
+	C: "OO",2001,0
+	C: "OO",2002,0
+	C: "OO",1001,2001
+	C: "OO",1002,2002
+	C: "OO",3001,2001
+	C: "OO",3002,2002
+}
