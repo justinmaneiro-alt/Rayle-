@@ -54,6 +54,8 @@
     const actif=!!(window.Mars&&window.Mars.etat&&window.Mars.etat().actif);
     const n0=cmdNorm(norm(texte)).replace(/['’\-\/]/g,' ').replace(/\s+/g,' ').trim();
     const explicite=/\b(?:sur mars|dans la base|a la base|base martienne|sur la table)\b/.test(n0);
+    // V2 phase 11 : gestes de la main : « active les gestes », « désactive les gestes », « aide des gestes », « calibre les gestes », « gestes en pause »
+    if(/\bgestes?\b/.test(n0) && window.Gestes){ try{ const rep=await window.Gestes.traiterVoix(texte); if(rep) return rep; }catch(e){ /* les autres commandes décident */ } }
     // V2 phase 10 : atelier 3D de Neptune : « ouvre l'atelier 3D » partout, puis (atelier ouvert) « présente pièce par pièce », « isole le piston », « éclate la vue », « fabrique un engrenage… »
     if(/atelier|maquette|piece|eclat|rassemble|isole|fabrique|visite|mesure|circonference|coupe|exporte|symetri|duplique|impression/.test(n0)){
       try{ const NV=await import(new URL('planetes/neptune/pc/voix-neptune.js',document.baseURI).href), rep=await NV.traiter(texte); if(rep) return rep; }catch(e){ /* module indisponible : les autres commandes décident */ }

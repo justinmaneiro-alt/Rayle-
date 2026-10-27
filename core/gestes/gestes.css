@@ -1,0 +1,23 @@
+/* Gestes de la main : pastille d'état, écrans d'aide, de calibrage et de la caméra du téléphone. Verre sombre, accent cyan, texte >= 13 px. */
+#gestes-pastille{position:fixed;left:14px;bottom:52px;z-index:2147481000;padding:6px 12px;font:13px/1.25 ui-monospace,Consolas,monospace;color:#8fd0e3;background:rgba(4,9,15,.82);border:1px solid rgba(143,208,227,.5);cursor:pointer;max-width:min(520px,calc(100vw - 28px))}
+#gestes-pastille[data-etat="main"]{border-color:#27d98a;color:#c8f7e0}
+#gestes-pastille[data-etat="pause"]{color:#c9b27a;border-color:rgba(201,178,122,.6)}
+#gestes-pastille[hidden],#gestes-modale[hidden]{display:none}
+#gestes-modale{position:fixed;inset:0;z-index:2147482500;background:rgba(0,0,0,.55);display:flex;align-items:center;justify-content:center;font:14px/1.45 system-ui,sans-serif;color:#e6eef2}
+#gestes-modale .gm-boite{width:min(560px,calc(100vw - 28px));max-height:calc(100vh - 40px);overflow:auto;background:#07101a;border:1px solid rgba(143,208,227,.6)}
+#gestes-modale header{display:flex;justify-content:space-between;align-items:center;padding:10px 14px;border-bottom:1px solid rgba(143,208,227,.3);color:#8fd0e3;letter-spacing:.06em}
+#gestes-modale header button{background:none;border:1px solid rgba(143,208,227,.5);color:#8fd0e3;min-width:36px;min-height:34px;cursor:pointer}
+#gestes-modale .gm-corps{padding:12px 14px 16px}
+#gestes-modale .gm-tab{width:100%;border-collapse:collapse}#gestes-modale .gm-tab td{padding:8px 6px;border-bottom:1px solid rgba(143,208,227,.15);vertical-align:top}
+#gestes-modale .gm-ic{font-size:26px;white-space:nowrap;width:76px}
+#gestes-modale .gm-tab span{color:#9fb3bd}
+#gestes-modale .gm-note{color:#9fb3bd;font-size:13px;margin:8px 0}
+#gestes-modale .gm-consigne{margin:8px 0;padding:8px 10px;border-left:3px solid #8fd0e3;background:rgba(143,208,227,.08)}
+#gestes-modale .gm-apercu{width:100%;aspect-ratio:4/3;background:#000;border:1px solid rgba(143,208,227,.3)}#gestes-modale .gm-apercu canvas{width:100%;height:100%}
+#gestes-modale .gm-actions{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px}
+#gestes-modale button:not(header button){font:inherit;color:#8fd0e3;background:rgba(143,208,227,.1);border:1px solid rgba(143,208,227,.6);padding:8px 13px;min-height:38px;cursor:pointer}
+#gestes-modale button:disabled{opacity:.45;cursor:default}
+#gestes-modale .gm-qr{width:min(260px,70vw);margin:8px auto}
+#gestes-modale .gm-code{font:28px/1.2 ui-monospace,Consolas,monospace;letter-spacing:.2em;color:#fff}
+#gestes-modale .gm-err{margin:8px 0;padding:8px 10px;border-left:3px solid #ff6b6b;background:rgba(255,107,107,.08);font-size:13px}
+#gestes-modale .gm-app{margin:6px 0;display:flex;gap:8px;align-items:center;flex-wrap:wrap}.gm-h{margin:12px 0 4px;color:#8fd0e3;font-size:14px}

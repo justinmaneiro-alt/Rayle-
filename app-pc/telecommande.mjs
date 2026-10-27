@@ -5,6 +5,7 @@
 // - Routes /__tele/… sur le serveur principal (127.0.0.1) pour la page Rayle : état, activer, désactiver, arrêt d'urgence, déconnecter, réglages.
 // Rien n'agit au niveau de Windows : le serveur ne fait que relayer ; la page Rayle applique (liste blanche dans core/commun/telecommande-calcul.js).
 import http from 'node:http';
+import https from 'node:https';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
@@ -51,16 +52,19 @@ function lecteurTrames(surMessage, surFermeture) {
   };
 }
 
-export function creerTelecommande({ racine, dossierDonnees, port = Number(process.env.RAYLE_PORT_RESEAU) || undefined, ip, maintenant = () => Date.now(), journalConsole = false } = {}) {
-  const dossierClavier = path.join(racine, 'clavier');
-  const fichier = dossierDonnees ? path.join(dossierDonnees, 'telecommande.json') : null;
+export function creerTelecommande({ racine, dossierDonnees, port = Number(process.env.RAYLE_PORT_RESEAU) || undefined, ip, maintenant = () => Date.now(), journalConsole = false,
+  // V2 phase 11 : la même mécanique sert la « Caméra Rayle » du téléphone (instance SÉPARÉE : autres jetons, autre code d'appairage, autre fichier, autre liste blanche)
+  prefixe = '/clavier', dossierPage = 'clavier', nomCookie = 'rayle_k2', prefixeLocal = '/__tele/', fichierDonnees = 'telecommande.json', enteteLocal = 'x-rayle-tele', valideur = null, tls = null, preparerTls = null, fichiersSpeciaux = {}, dossiersStatiques = {} } = {}) {
+  const dossierClavier = path.join(racine, dossierPage);
+  let tlsActuel = tls;   // le certificat de la caméra du téléphone est fabriqué à l'activation (preparerTls) : getUserMedia exige une page HTTPS
+  const fichier = dossierDonnees ? path.join(dossierDonnees, fichierDonnees) : null;
   let donnees = { appareils: [], reglages: { expirationHeures: 24 * 30 }, journal: [] };
   try { if (fichier) { const l = JSON.parse(fs.readFileSync(fichier, 'utf8')); if (l && Array.isArray(l.appareils)) donnees = { ...donnees, ...l, reglages: { ...donnees.reglages, ...(l.reglages || {}) } }; } } catch (e) { /* premier lancement */ }
   const sauver = () => { if (!fichier) return; try { fs.mkdirSync(path.dirname(fichier), { recursive: true }); fs.writeFileSync(fichier, JSON.stringify(donnees)); } catch (e) { /* disque indisponible : l'état reste en mémoire */ } };
   const noter = (evt, extra = {}) => { donnees.journal.push({ h: new Date(maintenant()).toISOString(), evt, ...extra }); if (donnees.journal.length > 200) donnees.journal.splice(0, donnees.journal.length - 200); sauver(); if (journalConsole) console.log('[télécommande]', evt, extra.appareil || '', extra.raison || ''); };
 
   let reseau = null;            // serveur HTTP du réseau local
-  let actif = false, adresse = null, jetonQR = null, erreur = '';
+  let actif = false, adresse = null, jetonQR = null, erreur = '', avertissement = '';
   let code = null, codeFin = 0, echecs = 0, verrouJusque = 0;
   const liaisons = new Set();   // { sock, role:'tablette'|'pc', id, latence, vu }
   const ecouteurs = new Set();  // surEvenement(message validé, appareil) : appelés pour chaque événement de tablette accepté
@@ -74,10 +78,10 @@ export function creerTelecommande({ racine, dossierDonnees, port = Number(proces
   const fermer = (l, codeFermeture = 1000) => { try { const c = Buffer.alloc(2); c.writeUInt16BE(codeFermeture); l.sock.write(trameControle(8, c)); l.sock.end(); } catch (e) { /* déjà fermée */ } liaisons.delete(l); };
 
   function etat() {
-    const url = actif && adresse ? 'http://' + adresse.ip + ':' + adresse.port + '/clavier?jeton=' + jetonQR : null;
+    const url = actif && adresse ? (tlsActuel ? 'https' : 'http') + '://' + adresse.ip + ':' + adresse.port + prefixe + '?jeton=' + jetonQR : null;
     let qr = null; if (url) { try { qr = matriceQR(url).map(l => l.map(v => v ? '1' : '0').join('')); } catch (e) { qr = null; } }
     return {
-      actif, erreur, url, adresse: adresse ? adresse.ip + ':' + adresse.port : null, qr, code: actif ? codeValide() : null, codeExpire: actif ? codeFin : null,
+      actif, erreur, avertissement, https: !!tlsActuel, url, adresse: adresse ? adresse.ip + ':' + adresse.port : null, qr, code: actif ? codeValide() : null, codeExpire: actif ? codeFin : null,
       expirationHeures: donnees.reglages.expirationHeures, pagesPC: hors('pc').length,
       appareils: donnees.appareils.map(a => { const l = hors('tablette').find(x => x.id === a.id); return { id: a.id, nom: a.nom, cree: a.cree, expire: a.expire, dernier: a.dernier || null, connecte: !!l, latence: l ? l.latence : null }; }),
       journal: donnees.journal.slice(-40)
@@ -85,8 +89,9 @@ export function creerTelecommande({ racine, dossierDonnees, port = Number(proces
   }
 
   // ── Activation / arrêt ──
-  function activer() {
-    if (actif) return Promise.resolve(etat());
+  async function activer() {
+    if (actif) return etat();
+    if (preparerTls && !tlsActuel) { avertissement = ''; try { tlsActuel = await preparerTls(); } catch (e) { avertissement = 'Certificat HTTPS impossible (' + e.message + ') : la page du téléphone sera en HTTP et Chrome refusera la caméra, sauf réglage manuel (docs/GESTES.md).'; tlsActuel = null; } }   // sans certificat : la page reste en HTTP (voir docs/GESTES.md : option de Chrome pour le téléphone)
     const ipEcoute = ip || adresseLocale();
     erreur = '';
     if (!ipEcoute) { erreur = 'Aucune adresse de réseau local trouvée : connecte le PC au Wi-Fi ou au câble de ta box.'; return Promise.reject(new Error(erreur)); }
@@ -151,20 +156,20 @@ export function creerTelecommande({ racine, dossierDonnees, port = Number(proces
 
   // ── Serveur du réseau local ──
   function creerServeurReseau() {
-    const srv = http.createServer((req, res) => {
+    const gestionnaire = (req, res) => {
       const refus = (c, m) => { res.writeHead(c, { 'Content-Type': 'text/plain; charset=utf-8', 'Cache-Control': 'no-store' }); res.end(m); };
       const ipC = req.socket.remoteAddress;
       if (!T.estReseauLocal(ipC)) { noter('refus', { raison: 'hors réseau local', ip: ipC }); return refus(403, 'réseau local seulement'); }
       let url, chemin; try { url = new URL(req.url, 'http://x'); chemin = decodeURIComponent(url.pathname); } catch (e) { return refus(400, 'requête invalide'); }
-      if (chemin !== '/clavier' && !chemin.startsWith('/clavier/')) return refus(403, 'interdit');
-      const cookie = /(?:^|;\s*)rayle_k2=([0-9a-f]+)/.exec(req.headers.cookie || '');
+      if (chemin !== prefixe && !chemin.startsWith(prefixe + '/')) return refus(403, 'interdit');
+      const cookie = new RegExp('(?:^|;\\s*)' + nomCookie + '=([0-9a-f]+)').exec(req.headers.cookie || '');
       const parUrl = egal(url.searchParams.get('jeton'), jetonQR), parCookie = egal(cookie && cookie[1], jetonQR);
       if (!actif || (!parUrl && !parCookie)) { noter('refus', { raison: 'jeton QR absent ou faux', ip: ipC }); return refus(403, 'jeton requis'); }
-      if (chemin === '/clavier/statut') {   // la page de la tablette demande si son jeton est encore valable (sans effet de bord)
+      if (chemin === prefixe + '/statut') {   // la page de la tablette demande si son jeton est encore valable (sans effet de bord)
         const tj = url.searchParams.get('jeton'), rj = tj ? appareilParJeton(tj) : null;
         res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store' }); return res.end(JSON.stringify({ k2: true, jetonValide: !!(rj && rj.appareil) }));
       }
-      if (chemin === '/clavier/appairer') {
+      if (chemin === prefixe + '/appairer') {
         if (req.method !== 'POST') return refus(405, 'méthode refusée');
         let corps = ''; req.on('data', d => { corps += d; if (corps.length > 1024) req.destroy(); });
         return req.on('end', () => {
@@ -174,23 +179,26 @@ export function creerTelecommande({ racine, dossierDonnees, port = Number(proces
         });
       }
       if (req.method !== 'GET' && req.method !== 'HEAD') return refus(405, 'méthode refusée');
-      const sous = chemin === '/clavier' || chemin === '/clavier/' ? 'index.html' : chemin.slice('/clavier/'.length);
+      const sous = chemin === prefixe || chemin === prefixe + '/' ? 'index.html' : chemin.slice((prefixe + '/').length);
       const f = path.normalize(path.join(dossierClavier, sous)), rel = path.relative(dossierClavier, f);
-      if (rel.startsWith('..') || path.isAbsolute(rel)) return refus(403, 'interdit');
+      if (!dossiersStatiques[sous.split('/')[0]] && !fichiersSpeciaux[sous] && (rel.startsWith('..') || path.isAbsolute(rel))) return refus(403, 'interdit');
       // Le calcul pur (liste blanche, inertie…) est servi sous /clavier/telecommande-calcul.js : il vient du dossier core, jamais d'une autre route.
-      const source = sous === 'telecommande-calcul.js' ? path.join(racine, 'core', 'commun', 'telecommande-calcul.js') : f;
+      const dossierStatique = Object.keys(dossiersStatiques).find(k => sous.startsWith(k + '/')), fichierStatique = dossierStatique ? path.normalize(path.join(dossiersStatiques[dossierStatique], sous.slice(dossierStatique.length + 1))) : null;
+      if (fichierStatique && (path.relative(dossiersStatiques[dossierStatique], fichierStatique).startsWith('..') || !/\.(?:mjs|js|wasm|task)$/.test(fichierStatique))) return refus(403, 'interdit');
+      const source = fichierStatique || (Object.prototype.hasOwnProperty.call(fichiersSpeciaux, sous) ? fichiersSpeciaux[sous] : (sous === 'telecommande-calcul.js' && prefixe === '/clavier' ? path.join(racine, 'core', 'commun', 'telecommande-calcul.js') : f));
       fs.stat(source, (err, st) => {
         if (err || !st.isFile()) return refus(404, 'introuvable');
         const h = { 'Content-Type': TYPES[path.extname(source).toLowerCase()] || 'application/octet-stream', 'Content-Length': st.size, 'Cache-Control': 'no-store', 'X-Content-Type-Options': 'nosniff', 'Referrer-Policy': 'no-referrer' };
-        if (parUrl) h['Set-Cookie'] = 'rayle_k2=' + jetonQR + '; Path=/clavier; HttpOnly; SameSite=Strict';
+        if (parUrl) h['Set-Cookie'] = nomCookie + '=' + jetonQR + '; Path=' + prefixe + '; HttpOnly; SameSite=Strict' + (tlsActuel ? '; Secure' : '');
         res.writeHead(200, h); if (req.method === 'HEAD') return res.end(); fs.createReadStream(source).pipe(res);
       });
-    });
+    };
+    const srv = tlsActuel ? https.createServer(tlsActuel, gestionnaire) : http.createServer(gestionnaire);
     srv.on('upgrade', (req, sock) => {
       const ipC = req.socket.remoteAddress, ferme = (c, m) => { try { sock.write('HTTP/1.1 ' + c + ' ' + m + '\r\nConnection: close\r\n\r\n'); } catch (e) {} sock.destroy(); };
       if (!T.estReseauLocal(ipC)) { noter('refus', { raison: 'hors réseau local (liaison)', ip: ipC }); return ferme(403, 'Forbidden'); }
       let url; try { url = new URL(req.url, 'http://x'); } catch (e) { return ferme(400, 'Bad Request'); }
-      if (url.pathname !== '/clavier/ws' || !actif) return ferme(403, 'Forbidden');
+      if (url.pathname !== prefixe + '/ws' || !actif) return ferme(403, 'Forbidden');
       const origine = req.headers.origin; if (origine) { try { if (new URL(origine).host !== req.headers.host) { noter('refus', { raison: 'origine étrangère', ip: ipC }); return ferme(403, 'Forbidden'); } } catch (e) { return ferme(403, 'Forbidden'); } }
       const r = appareilParJeton(url.searchParams.get('jeton'));
       if (!r.appareil) { noter('refus', { raison: r.refus, appareil: r.nom, ip: ipC }); return ferme(401, 'Unauthorized'); }
@@ -227,7 +235,7 @@ export function creerTelecommande({ racine, dossierDonnees, port = Number(proces
     }
     const a = donnees.appareils.find(x => x.id === l.id);
     if (!a || maintenant() > a.expire) { noter('refus', { raison: 'jeton expiré en cours de liaison', appareil: l.nom }); return fermer(l, 4002); }
-    const v = T.valider(m);
+    const v = valideur ? valideur(m) : T.valider(m);
     if (!v) { noter('action ignorée', { raison: String(m && m.a).slice(0, 24), appareil: l.nom }); return; }   // hors liste blanche : ignorée
     if (v.a === 'pointeur') { /* flux dense : pas de journal */ }
     hors('pc').forEach(p => envoyer(p, { t: 'ev', de: l.nom, m: v }));
@@ -246,8 +254,8 @@ export function creerTelecommande({ racine, dossierDonnees, port = Number(proces
   const origineLocale = req => { const o = req.headers.origin; if (!o) return true; try { return new URL(o).host === req.headers.host; } catch (e) { return false; } };
   function gererLocal(req, res, chemin) {
     const json = (c, o) => { res.writeHead(c, { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store' }); res.end(JSON.stringify(o)); };
-    if (!boucle(req.socket.remoteAddress) || !origineLocale(req) || req.headers['x-rayle-tele'] !== '1') return json(403, { erreur: 'interdit' });
-    const action = chemin.slice('/__tele/'.length);
+    if (!boucle(req.socket.remoteAddress) || !origineLocale(req) || req.headers[enteteLocal] !== '1') return json(403, { erreur: 'interdit' });
+    const action = chemin.slice(prefixeLocal.length);
     if (action === 'etat' && req.method === 'GET') return json(200, etat());
     if (req.method !== 'POST') return json(405, { erreur: 'méthode refusée' });
     let corps = ''; req.on('data', d => { corps += d; if (corps.length > 2048) req.destroy(); });
@@ -266,7 +274,7 @@ export function creerTelecommande({ racine, dossierDonnees, port = Number(proces
     const ferme = (c, m) => { try { sock.write('HTTP/1.1 ' + c + ' ' + m + '\r\nConnection: close\r\n\r\n'); } catch (e) {} sock.destroy(); };
     if (!boucle(req.socket.remoteAddress) || !origineLocale(req) || !req.headers.origin) return ferme(403, 'Forbidden');
     let u; try { u = new URL(req.url, 'http://x'); } catch (e) { return ferme(400, 'Bad Request'); }
-    if (u.pathname !== '/__tele/ws') return ferme(404, 'Not Found');
+    if (u.pathname !== prefixeLocal + 'ws') return ferme(404, 'Not Found');
     const l = accepter(req, sock, 'pc', null); if (!l) return;
     envoyer(l, { t: 'etat', etat: etat() }); diffuserEtat();
   }
