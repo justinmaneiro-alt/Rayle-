@@ -51,3 +51,9 @@ docs/captures-*/
 
 # LPPR : le PDF officiel (18 Mo) se retelecharge, seul l index extrait est publie
 data/lppr/source/
+
+# V3 : données de recherche et fichiers intermédiaires (jamais dans git)
+data/agent/
+data/lppr/graphe-brut.json
+data/lppr/exemples-devis/*.json
+data/lppr/exemples-devis/*.pdf

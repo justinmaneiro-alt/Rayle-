@@ -3,9 +3,11 @@
 .av3-vues button { min-height: 44px; padding: 0 20px; background: transparent; color: #b8c7cf; border: 1px solid rgba(143,208,227,.25); font: 600 14px system-ui, sans-serif; cursor: pointer; clip-path: polygon(8px 0, 100% 0, 100% calc(100% - 8px), calc(100% - 8px) 100%, 0 100%, 0 8px); }
 .av3-vues button.actif { color: #06080c; background: #8fd0e3; border-color: #8fd0e3; }
 .av3-vues-aide { color: #7f929b; font-size: 12px; margin-left: 8px; }
-[data-vue="agent"] > .av3-pane-details, [data-vue="details"] > .av3-pane-agent { display: none; }
-.av3-pane { min-height: 0; }
-.av3-pane-details { height: calc(100% - 62px); }
+/* L'enveloppe occupe toute la fenêtre : barre « Agent / Détails » en haut, puis UNE des deux vues qui défile seule. */
+.av3-wrap { display: flex; flex-direction: column; width: 100%; height: 100%; min-height: 0; }
+.av3-wrap[data-vue="agent"] > .av3-pane-details, .av3-wrap[data-vue="details"] > .av3-pane-agent { display: none; }
+.av3-pane { flex: 1 1 auto; min-height: 0; overflow: auto; }
+.av3-pane-details { position: relative; }
 .av3 { color: #dce8ee; font: 14px/1.5 system-ui, "Segoe UI", sans-serif; padding: 14px 16px 24px; display: grid; gap: 14px; max-width: 1180px; margin: 0 auto; box-sizing: border-box; }
 .av3 h3 { margin: 0 0 8px; font: 700 12px system-ui, sans-serif; letter-spacing: .12em; text-transform: uppercase; color: #8fd0e3; }
 .av3 h3 small { text-transform: none; letter-spacing: 0; color: #7f929b; font-weight: 400; }

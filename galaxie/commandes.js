@@ -63,8 +63,12 @@
       try{ const NV=await import(new URL('planetes/neptune/pc/voix-neptune.js',document.baseURI).href), rep=await NV.traiter(texte); if(rep) return rep; }catch(e){ /* module indisponible : les autres commandes décident */ }
     }
     // V2 phase 8 : LPPR (Titre II) : « ouvre la LPPR », « code LPPR de l'emboîture tibiale », « explique le code … », « peut-on cumuler … et … », « devis : … » (index local, sans IA)
-    if(/lpp|nomenclature|devis|cumul|[0-9]{7}/.test(n0)){
+    if(/lpp|nomenclature|devis|cumul|[0-9]{7}|forfait.*reparation|reparation.*(?:forfait|prothese|orthese)|autre code|pas (?:le|ce) (?:bon )?code|c est le code/.test(n0)){
       try{ const L=await import(new URL('core/lppr/lppr-fenetre.js',document.baseURI).href), rep=await L.traiterVoix(texte); if(rep) return rep; }catch(e){ /* module indisponible : les autres commandes décident */ }
+    }
+    // V3 : l'agent unique (Kepler) : « que fait l'agent ? », « le rapport de l'agent », « mets l'agent en pause », « reprends l'agent », « envoie le statut de l'agent sur Telegram » (données de l'agent, sans IA ; Rayle reste la seule voix)
+    if(/\b(?:l agent|kepler)\b/.test(n0) && /\b(?:que fait|ou en est|comment va|statut|etat|rapport|bilan|compte rendu|pause|reprend|reprends|relance|retour arriere|charge|telegram|nouvelles|point sur|en ce moment|maintenant)\b/.test(n0)){
+      try{ const AV=await import(new URL('planetes/mars/pc/trading/voix-agent-v3-page.js',document.baseURI).href), rep=await AV.traiterAgentV3(n0); if(rep) return rep; }catch(e){ /* module indisponible : les autres commandes décident */ }
     }
     // V2 phase 6 : « à quoi sert le gardien prop ? » (outils du terminal, partout), « ouvre les agents prêts », « lis le marché », « explique les dernières bougies » (Mars ouverte) : modèles de phrases, sans IA
     if(/\b(?:a quoi (?:sert|servent)|que fait (?:l outil|le panneau|la fenetre)|c est quoi (?:l outil|le panneau|la fenetre|cet outil)|explique(?: moi)? (?:l outil|le panneau|la fenetre|cet outil)|comment (?:marche|fonctionne) (?:l outil|le panneau|la fenetre)|agents? prets?|assistant de strategies?|assistant d agents?|strategie guidee|agent tendance|agent divergence|lis le marche|lit le marche|lire le marche|analyse le marche|decris le marche|lecture du marche|dernieres? bougies?|bougie par bougie)\b|\b(?:lis|lit|analyse) (?:le |la )?(?:bitcoin|btc|solana|sol|dogecoin|doge)\b/.test(n0)){

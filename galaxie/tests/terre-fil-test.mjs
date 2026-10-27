@@ -153,7 +153,7 @@ const avantOrigine = bases[bases.length - 1].size; promesses.length = 0;
 await W.scheduled({ cron: '* * * * *', scheduledTime: base + 2 * 60000 }, ENVc, ctxc); await Promise.all(promesses);
 v('déclencheur d’origine : aucune lecture de lot d’actualités', [...bases[bases.length - 1].keys()].filter(k => k.startsWith('fil:lot:')).length === 2 && avantOrigine >= 2);
 const toml = fs.readFileSync(new URL('../wrangler.toml', racine), 'utf8');
-v('wrangler.toml : les 3 déclencheurs (origine + deux « actualités ») et rien d’autre', F.CRONS_ACTUS.every(c => toml.includes('"' + c + '"')) && toml.includes('"* * * * *"') && toml.split('\n').find(l => l.startsWith('crons')).split('", "').length === 3);
+v('wrangler.toml : les 3 déclencheurs (origine + deux « actualités ») + le 4e de l’agent V3 (surveillance), et rien d’autre', F.CRONS_ACTUS.every(c => toml.includes('"' + c + '"')) && toml.includes('"* * * * *"') && toml.split('\n').find(l => l.startsWith('crons')).split('", "').length === 4 && toml.includes('"1-14,16-29,31-44,46-59 * * * *"'));
 
 /* ───── outils de l'IA ───── */
 const O = (await import(new URL('intelligence/outils/index.js', racine).href)).OUTILS;

@@ -21,7 +21,7 @@ export const surPosteFerme = f => { surFermeture = f; };
 const paireMemorisee = () => { try { return localStorage.getItem('rayle_poste_paire') || 'BTC'; } catch (e) { return 'BTC'; } };
 
 export async function ouvrirPoste(demande = {}) {
-  if (poste) { if (demande.paire && poste.choisirPaire) await poste.choisirPaire(demande.paire); if (demande.onglet) { basculerVue("details"); await poste.ouvrirOnglet(demande.onglet); } return poste; }
+  if (poste) { if (demande.vue) basculerVue(demande.vue); if (demande.paire && poste.choisirPaire) await poste.choisirPaire(demande.paire); if (demande.onglet) { basculerVue("details"); await poste.ouvrirOnglet(demande.onglet); } return poste; }
   if (ouvertureEnCours) { await ouvertureEnCours; if (poste) { if (demande.paire && poste.choisirPaire) await poste.choisirPaire(demande.paire); if (demande.onglet) { basculerVue("details"); await poste.ouvrirOnglet(demande.onglet); } } return poste; }
   chargerCss();
   ouvertureEnCours = (async () => {
@@ -36,12 +36,12 @@ export async function ouvrirPoste(demande = {}) {
         const barreVue = document.createElement('div'); barreVue.className = 'av3-vues'; barreVue.setAttribute('role', 'tablist');
         barreVue.innerHTML = '<button type="button" role="tab" data-av3-vue="agent">Agent</button><button type="button" role="tab" data-av3-vue="details">Détails</button><span class="av3-vues-aide">Un seul agent, toujours le même, qui tourne tout seul.</span>';
         const paneAgent = document.createElement('div'); paneAgent.className = 'av3-pane av3-pane-agent'; const paneDetails = document.createElement('div'); paneDetails.className = 'av3-pane av3-pane-details';
-        el.append(barreVue, paneAgent, paneDetails);
+        const wrap = document.createElement('div'); wrap.className = 'av3-wrap'; wrap.append(barreVue, paneAgent, paneDetails); el.appendChild(wrap);
         const lireVue = () => { try { return localStorage.getItem('rayle_agent_vue') === 'details' ? 'details' : 'agent'; } catch (e) { return 'agent'; } };
-        basculerVue = v => { el.dataset.vue = v; try { localStorage.setItem('rayle_agent_vue', v); } catch (e) { /* interdit */ } barreVue.querySelectorAll('[data-av3-vue]').forEach(b => { b.classList.toggle('actif', b.dataset.av3Vue === v); b.setAttribute('aria-selected', String(b.dataset.av3Vue === v)); }); if (v === 'agent' && accueil) accueil.rafraichir(); if (v === 'details' && poste) { try { poste.rafraichir(); } catch (x) { /* pas encore prêt */ } } };
+        basculerVue = v => { wrap.dataset.vue = v; try { localStorage.setItem('rayle_agent_vue', v); } catch (e) { /* interdit */ } barreVue.querySelectorAll('[data-av3-vue]').forEach(b => { b.classList.toggle('actif', b.dataset.av3Vue === v); b.setAttribute('aria-selected', String(b.dataset.av3Vue === v)); }); if (v === 'agent' && accueil) accueil.rafraichir(); if (v === 'details' && poste) { try { poste.rafraichir(); } catch (x) { /* pas encore prêt */ } } };
         barreVue.addEventListener('click', ev => { const b = ev.target.closest('[data-av3-vue]'); if (b) basculerVue(b.dataset.av3Vue); });
         accueil = creerAccueilAgent({ conteneur: paneAgent });
-        basculerVue(demande.onglet ? 'details' : lireVue());
+        basculerVue(demande.vue || (demande.onglet ? 'details' : (window.__RAYLE_POSTE_TEST__ ? 'details' : lireVue())));   // les anciens tests du poste (drapeau __RAYLE_POSTE_TEST__) arrivent sur « Détails » comme avant
         poste = creerPoste({ conteneur: paneDetails, hote, paire: ['BTC', 'SOL', 'DOGE'].includes(paire) ? paire : 'BTC', obtenirHotePaire: p => obtenirHotePaire(p, { demarrer: true }), activer: activerPilote, activerPaire, basculer: async actif => { const p = poste ? poste.paire() : 'BTC'; return p === 'BTC' ? basculer(actif) : basculerPaire(p, actif); }, onglet: demande.onglet || null });
         desabonner = surChangement(() => { if (poste) { poste.rafraichir(); synchroniserIdees(hotesChargees()).catch(() => {}); } });
         return () => { const p = poste; poste = null; if (accueil) { try { accueil.detruire(); } catch (x) { /* déjà détruit */ } accueil = null; } if (desabonner) desabonner(); desabonner = null; document.body.classList.remove('mars-poste-ouvert'); try { p.detruire(); } catch (x) { /* déjà détruit */ } surFermeture(); };

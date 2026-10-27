@@ -65,4 +65,18 @@ v('indisponible : message clair, jamais de chiffres inventés, commande pour dé
   v('positions DÉMO : toutes marquées DÉMO (nom, libellé, drapeau) et expliquées comme fictives', d.length === 3 && d.every(x => x.demo && /DÉMO/.test(x.nom) && /^DÉMO/.test(libellePosition(x))) && /n’existe pas/.test(d[0].raison.join(' ')));
   v('libellé : sens, statut et rapport risque / gain', /ACHAT en cours · 1 pour 3,0/.test(libellePosition(p.find(x => x.statut === 'en cours'))));
 }
+/* ── voix ── */
+import { detecter, reponseStatut, reponseRapport } from '../../planetes/mars/pc/agent-v3/voix-agent-v3.js';
+{
+  const cas = [['que fait l agent', 'statut'], ['ou en est l agent', 'statut'], ['comment va kepler', 'statut'], ['donne moi le statut de l agent', 'statut'], ['le rapport de l agent', 'rapport'], ['fais moi le bilan de l agent', 'rapport'], ['mets l agent en pause', 'pause'], ['passe l agent en pause', 'pause'], ['reprends l agent', 'reprendre'], ['relance kepler', 'reprendre'],
+    ['envoie le statut de l agent sur telegram', 'telegram'], ['reviens a la version precedente de l agent', 'retour_arriere'], ['mets la charge de l agent a faible', 'charge']];
+  for (const [phrase, type] of cas) { const d = detecter(phrase); v('voix : « ' + phrase + ' » → ' + type, d && d.type === type, JSON.stringify(d)); }
+  v('voix : charge « fort » reconnue', (detecter('mets la charge de l agent a fort') || {}).valeur === 'fort');
+  for (const phrase of ['quel temps fait il', 'ouvre la galaxie', 'mets le graphique tradingview', 'que fait la terre', 'a quoi sert le gardien prop', 'lis le marche']) v('voix : « ' + phrase + ' » n’est PAS pour l’agent (aucun vol de commande)', detecter(phrase) === null, JSON.stringify(detecter(phrase)));
+  const e0 = E.etatInitial(T0), r0 = reponseStatut(e0, { pcVivant: true }, T0);
+  v('réponse parlée sans stratégie : honnête, pas de promesse, pas de markdown', /aucune n’a passé la validation/.test(r0) && /preuves sont insuffisantes/.test(r0) && !/[*#_`]/.test(r0), r0);
+  E.creerVersion(e0, { candidates: [{ famille: 'tendance_ma', paire: 'BTC', params: { a: 1 }, validation }], raison: 't' }, T0);
+  v('réponse parlée avec une stratégie : nombre et version', /1 stratégie \(version 1\)/.test(reponseStatut(e0, { pcVivant: true }, T0)));
+  v('rapport parlé : plusieurs phrases', reponseRapport(e0, { pcVivant: true }, T0).split('. ').length >= 4);
+}
 console.log(`\n${ok} réussis, ${ko} échecs`); process.exit(ko ? 1 : 0);

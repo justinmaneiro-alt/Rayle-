@@ -1,0 +1,95 @@
+import puppeteer from 'puppeteer-core';
+import fs from 'node:fs';
+import { BASE, CHROME, attendre, compteur } from './terre-aide.mjs';
+
+/* V3 phase 3 : la fenêtre LPPR (graphe de connaissances) dans la vraie page : version affichée, recherche, codes terminés signalés, explication avec règles, cumul, devis en deux temps (questions puis lignes),
+   export PDF et Word (fichiers valides), réparation, vérification de devis, corrections du vocabulaire, voix, tablette, aucune erreur de console. Lancer : node tests-navigateur/v3-lppr-test.mjs */
+const T = compteur(); fs.mkdirSync('docs/captures-v3', { recursive: true });
+const L = 1500, H = 900;
+const nav = await puppeteer.launch({ executablePath: CHROME, headless: 'new', args: ['--use-angle=d3d11', '--enable-gpu', '--ignore-gpu-blocklist', `--window-size=${L},${H}`] });
+async function ouvrirPage(largeur, hauteur, tactile = false) {
+  const page = await nav.newPage(); await page.setViewport({ width: largeur, height: hauteur, hasTouch: tactile, isMobile: tactile });
+  const erreurs = []; page.on('pageerror', e => erreurs.push(e.message.slice(0, 200))); page.on('console', m => { if (m.type() === 'error' && !/Failed to load resource|ERR_|CORS policy|faireconomy/.test(m.text())) erreurs.push(m.text().slice(0, 200)); });
+  await page.evaluateOnNewDocument(() => { try { localStorage.setItem('rayle_entite_version', '2'); localStorage.setItem('rayle_boot', '0'); localStorage.removeItem('rayle_lppr_vocab'); } catch (e) { /* stockage refusé */ } window.__blobs = []; const vrai = URL.createObjectURL.bind(URL); URL.createObjectURL = b => { window.__blobs.push(b); return vrai(b); }; HTMLAnchorElement.prototype.click = function () { window.__telechargements = (window.__telechargements || []).concat(this.download); }; });
+  await page.goto(BASE + '/index.html', { waitUntil: 'load' }); await attendre(3000);
+  await page.evaluate(async () => { await import(new URL('core/lppr/lppr-fenetre.js', document.baseURI).href); });
+  return { page, erreurs };
+}
+let { page, erreurs } = await ouvrirPage(L, H);
+const ev = (f, ...a) => page.evaluate(f, ...a), txt = s => ev(sel => (document.querySelector(sel) || {}).textContent || '', s);
+const saisir = async (sel, valeur) => { await ev((s, x) => { const e = document.querySelector(s); e.value = x; e.dispatchEvent(new Event('input', { bubbles: true })); }, sel, valeur); await attendre(700); };
+const cliquer = sel => ev(s => document.querySelector(s).click(), sel);
+
+T.verifier('window.Lppr existe', await ev(() => !!window.Lppr));
+const rep = await ev(() => window.Lppr.traiterVoix('ouvre la LPPR'));
+T.verifier('« ouvre la LPPR » : version et rappel « à vérifier »', /Titre II/.test(rep) && /Mise à jour du 2026-10-07/.test(rep) && /nomenclature en vigueur/.test(rep), rep);
+await attendre(800);
+T.verifier('la fenêtre affiche la version, le nombre de codes (> 1 400) et le rappel', await ev(() => { const b = document.querySelector('.lp-bandeau').textContent; return /Mise à jour du 2026-10-07/.test(b) && /1[45]\d\d codes/.test(b) && /nomenclature en vigueur/.test(b); }));
+T.verifier('six onglets : Chercher, Cumul, Devis, Réparation, Vérifier un devis, Vocabulaire', await ev(() => [...document.querySelectorAll('.lp-onglets button')].map(b => b.textContent).join('|') === 'Chercher|Cumul|Devis|Réparation|Vérifier un devis|Vocabulaire'));
+await saisir('.lp-q', 'pied à restitution d’énergie classe II adulte');
+T.verifier('recherche : le bon code en premier, tarif, prix limite, référence (chapitre, page, version)', await ev(() => { const c = document.querySelector('.lp-res .lp-code'); return /^2700339/.test(c.querySelector('.lp-copie').textContent) && /452,20/.test(c.textContent) && /page 1318/.test(c.textContent) && /chapitre 7/.test(c.textContent) && /2026-10-07/.test(c.textContent); }));
+await page.screenshot({ path: 'docs/captures-v3/lppr-chercher.png' });
+T.verifier('bouton de copie sans plantage', await ev(async () => { const b = document.querySelector('.lp-res .lp-copie'); b.click(); await new Promise(r => setTimeout(r, 100)); return true; }));
+await saisir('.lp-q', 'collier cervical');
+T.verifier('famille sans ligne remboursable : « je ne trouve pas » + lignes terminées marquées PLUS REMBOURSABLE', await ev(() => { const t = document.querySelector('.lp-res').textContent; return /Je ne trouve pas/.test(t) && /terminée/.test(t) && /PLUS REMBOURSABLE/.test(t) && !!document.querySelector('.lp-inactif'); }));
+await saisir('.lp-q', '9999999');
+T.verifier('code inexistant : aucun code inventé', await ev(() => /Je ne trouve pas le code 9999999/.test(document.querySelector('.lp-res').textContent) && !document.querySelector('.lp-res .lp-code')));
+await saisir('.lp-q', '2719936');
+await ev(() => document.querySelector('[data-expliquer]').click()); await attendre(300);
+T.verifier('« Expliquer » : règles citées avec leur source, « sur devis » jamais chiffré, rappel', await ev(() => { const t = document.querySelector('.lp-res').textContent; return /moitié du tarif/.test(t) && /la ligne du code/.test(t) && /sur devis/i.test(t) && /nomenclature en vigueur/.test(t); }));
+await ev(() => document.querySelector('[data-lp="cumul"]').click());
+await saisir('.lp-codes', '2702930 2705012'); await cliquer('.lp-go-cumul'); await attendre(300);
+T.verifier('cumul : renvoi cité avec sa phrase, jamais présenté comme une autorisation', await ev(() => { const t = document.querySelector('[data-z="cumul"] .lp-res').textContent; return /renvoie à l’autre/.test(t) && /2705012/.test(t); }));
+await saisir('.lp-codes', '2717630 2700339'); await cliquer('.lp-go-cumul'); await attendre(300);
+T.verifier('cumul : « aucune règle » n’est pas une autorisation + alerte « deux appareils de base »', await ev(() => { const t = document.querySelector('[data-z="cumul"] .lp-res').textContent; return /ce n’est pas une autorisation/.test(t) && /Deux appareils de base/.test(t) && /ne prouve pas/.test(t); }));
+await ev(() => document.querySelector('[data-lp="devis"]').click());
+await ev(() => { document.querySelector('.lp-d').value = 'prothèse tibiale droite adulte'; }); await cliquer('.lp-go-devis'); await attendre(400);
+T.verifier('devis : seulement la question qui manque (classe du pied) ; côté et âge déjà compris', await ev(() => { const q = [...document.querySelectorAll('[data-z="devis"] [data-q]')]; return q.length === 1 && q[0].dataset.q === 'classe_pied' && /droit/.test(document.querySelector('[data-z="devis"] .lp-res').textContent) === false; }));
+await ev(() => { const s = document.querySelector('[data-q="classe_pied"]'); s.value = 'II'; document.querySelector('.lp-go-suite').click(); }); await attendre(500);
+T.verifier('devis : lignes (code, désignation, quantité, tarif, prix limite, total), total, alertes, rappel', await ev(() => { const t = document.querySelector('[data-z="devis"] .lp-res').textContent; return /2700339/.test(t) && /Pied à restitution d’énergie de classe II/.test(t) && /452,20/.test(t) && /Base de remboursement estimée/.test(t) && /Pièce possiblement oubliée/.test(t) && /À confirmer|CONFIRMER/.test(t) && document.querySelectorAll('[data-z="devis"] .lp-table tbody tr').length >= 2; }));
+await page.screenshot({ path: 'docs/captures-v3/lppr-devis.png' });
+await ev(() => { document.querySelector('.lp-pat').value = 'TEST Patient'; document.querySelector('.lp-go-pdf').click(); document.querySelector('.lp-go-docx').click(); }); await attendre(300);
+const fichiers = await ev(async () => { const out = []; for (const b of window.__blobs) { const u = new Uint8Array(await b.arrayBuffer()); out.push({ type: b.type, taille: b.size, debut: String.fromCharCode(...u.slice(0, 5)), texte: new TextDecoder('latin1').decode(u) }); } return { out, noms: window.__telechargements }; });
+const pdfF = fichiers.out.find(f => f.type === 'application/pdf'), docF = fichiers.out.find(f => /wordprocessingml/.test(f.type));
+T.verifier('export PDF : fichier %PDF valide, nom devis-lppr-….pdf, le patient saisi n’est que dans le fichier', pdfF && pdfF.debut === '%PDF-' && /devis-lppr-.*\.pdf$/.test(fichiers.noms[0]) && pdfF.texte.includes('%%EOF'), JSON.stringify({ n: fichiers.out.length, noms: fichiers.noms, t: fichiers.out.map(f => [f.type, f.taille, f.debut]) }));
+T.verifier('export Word : fichier .docx (zip « PK »), type Word', docF && docF.debut.startsWith('PK') && /devis-lppr-.*\.docx$/.test(fichiers.noms[1]) && docF.texte.includes('word/document.xml'));
+T.verifier('aucun enregistrement du nom du patient (stockage du navigateur)', await ev(() => !JSON.stringify(Object.entries(localStorage)).includes('TEST Patient')));
+await ev(() => document.querySelector('[data-lp="reparation"]').click());
+await ev(() => { document.querySelector('.lp-r').value = 'réparation de pièces d’un pied à restitution d’énergie, lame talonnière'; }); await cliquer('.lp-go-rep'); await attendre(400);
+T.verifier('réparation : le forfait 2719936, nature « réparation », règles de garantie', await ev(() => { const t = document.querySelector('[data-z="reparation"] .lp-res').textContent; return /2719936/.test(t) && /réparation/.test(t) && /garantie/.test(t); }));
+await ev(() => { document.querySelector('.lp-r').value = 'changement d’une articulation de hanche'; }); await cliquer('.lp-go-rep'); await attendre(400);
+T.verifier('réparation ambiguë : les deux codes avec la différence, jamais un choix au hasard', await ev(() => { const r = document.querySelector('[data-z="reparation"] .lp-res'); return r.querySelectorAll('.lp-code').length === 2 && /Deux codes plausibles/.test(r.textContent); }));
+await ev(() => document.querySelector('[data-lp="verifier"]').click());
+await ev(() => { document.querySelector('.lp-v').value = '2717630 ; 1 ; 400\n9999999 ; 1 ; 10\n2730091 ; 1 ; 100'; document.querySelector('.lp-vd').value = 'prothèse tibiale'; }); await cliquer('.lp-go-verif'); await attendre(400);
+T.verifier('vérifier un devis : dépassement du prix limite, code inconnu, code terminé, pièce oubliée', await ev(() => { const t = document.querySelector('[data-z="verifier"] .lp-res').textContent; return /supérieur au prix limite de vente/.test(t) && /Code inconnu/.test(t) && /plus remboursable/.test(t) && /Pièce attendue/.test(t); }));
+// vocabulaire et corrections
+await ev(() => document.querySelector('[data-lp="chercher"]').click()); await saisir('.lp-q', 'sangle de suspension');
+const avant = await ev(() => document.querySelector('.lp-res .lp-copie').dataset.copie);
+await ev(() => document.querySelector('[data-exclure]').click()); await attendre(500);
+const apres = await ev(() => document.querySelector('.lp-res .lp-copie').dataset.copie);
+T.verifier('« Ce n’est pas le bon » : le code n’est plus proposé pour ce mot, la correction est gardée sur l’appareil', avant !== apres && await ev(a => !JSON.stringify([...document.querySelectorAll('.lp-res .lp-copie')].map(x => x.dataset.copie)).includes(a), avant) && await ev(() => /exclusions/.test(localStorage.getItem('rayle_lppr_vocab') || '')));
+const v1 = await ev(() => window.Lppr.traiterVoix('pour sangle c’est le code 2751288'));
+await saisir('.lp-q', 'sangle de suspension');
+T.verifier('voix « pour sangle, c’est le code 2751288 » : noté, et ce code passe en tête', /C’est noté/.test(v1) && await ev(() => document.querySelector('.lp-res .lp-copie').dataset.copie === '2751288'), v1);
+await ev(() => document.querySelector('[data-lp="vocabulaire"]').click());
+T.verifier('onglet Vocabulaire : liste, doutes marqués, export des corrections', await ev(() => { const t = document.querySelector('[data-z="vocabulaire"]').textContent; return /corset-siège/.test(t) && /doute/.test(t) && !!document.querySelector('.lp-go-export-vocab'); }));
+const vs = await ev(() => window.Lppr.traiterVoix('quel est le code LPPR du pied à restitution d’énergie classe II'));
+T.verifier('voix : code, prix, page et rappel, sans markdown', /Code 2700339/.test(vs) && /452,20/.test(vs) && /page 1318/.test(vs) && /vérifier/.test(vs) && !/[*#_`]/.test(vs), vs.slice(0, 160));
+const ve = await ev(() => window.Lppr.traiterVoix('explique le code 2730091'));
+T.verifier('voix : un code terminé est dit « plus remboursable »', /plus remboursable/i.test(ve) && /2022-07-31/.test(ve), ve.slice(0, 200));
+const vr = await ev(() => window.Lppr.traiterVoix('quel est le forfait de réparation d’un pied à restitution d’énergie lame talonnière'));
+T.verifier('voix : forfait de réparation avec sa règle', /2719936/.test(vr) && /garantie|réparation/i.test(vr), vr.slice(0, 160));
+const vd = await ev(() => window.Lppr.traiterVoix('propose un devis pour une prothèse tibiale droite adulte'));
+T.verifier('voix : le devis pose la question manquante', /classe/.test(vd) && /il me manque/i.test(vd), vd.slice(0, 160));
+T.verifier('voix : une phrase qui n’est pas pour la LPPR est laissée aux autres commandes', (await ev(() => window.Lppr.traiterVoix('quel temps fait-il'))) === null);
+T.verifier('aucune erreur JavaScript (PC)', erreurs.length === 0, erreurs.slice(0, 3).join(' | '));
+await page.close();
+// tablette
+({ page, erreurs } = await ouvrirPage(1180, 820, true));
+await page.evaluate(() => window.Lppr.ouvrir({ recherche: 'prothèse myoélectrique main' })); await attendre(900);
+const tab = await page.evaluate(() => { const r = document.querySelector('.lp-racine'); return { sw: r.scrollWidth, cw: r.clientWidth, petits: [...r.querySelectorAll('button')].filter(b => b.offsetParent && b.getBoundingClientRect().height < 30).map(b => b.textContent.slice(0, 20) + ':' + Math.round(b.getBoundingClientRect().height)) }; });
+T.verifier('tablette : aucun défilement horizontal, boutons d’au moins 30 px', tab.sw <= tab.cw + 2 && !tab.petits.length, JSON.stringify(tab));
+await page.screenshot({ path: 'docs/captures-v3/lppr-tablette.png' });
+T.verifier('tablette : aucune erreur JavaScript', erreurs.length === 0, erreurs.join(' | '));
+await nav.close();
+process.exit(T.fin() ? 1 : 0);

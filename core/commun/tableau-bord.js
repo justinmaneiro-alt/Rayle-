@@ -188,9 +188,22 @@
       }catch(e){} dessinerAgent(); },actif:visible});
     }catch(e){ donnees.reels={'gardien-prop':{etat:'indisponible',erreur:String((e&&e.message)||e).slice(0,60)}}; arretAgent=null; dessinerAgent(); }
   }
+  /* V3 : état de l'agent unique (PC d'abord, sinon Worker) : une ligne « Kepler · en surveillance ». Aucune valeur inventée : sans état, la ligne n'existe pas. */
+  let agentV3Charge=0;
+  async function sonderAgentV3(){
+    if(Date.now()-agentV3Charge<30000) return; agentV3Charge=Date.now();
+    try{
+      const [pg,ae]=await Promise.all([importer('planetes/mars/pc/trading/agent-accueil.js'),importer('strategies/agent-etat.js')]);
+      const d=await pg.lireEtatAgent(); if(!d||!d.etat){ donnees.agentV3=null; return; }
+      const sv=d.suivi||{}, st=ae.statutAgent(d.etat,{pcVivant:d.enMarche,enPreparation:Object.values(sv).some(x=>x&&x.pendante),positionOuverte:Object.values(sv).some(x=>x&&x.position)}), c=ae.chiffres(d.etat);
+      donnees.agentV3={nom:d.etat.identite.nom,valeur:st.texte,detail:(c.validees?c.validees+' stratégie(s)':'aucune stratégie validée')+' · v'+(c.version||'—'),ton:st.code==='position'||st.code==='preparation'?'attention':(st.code==='pause'||st.code==='aucune'||st.code==='pc_eteint'?'neutre':'ok')};
+      dessinerAgent();
+    }catch(e){ donnees.agentV3=null; }
+  }
   function dessinerAgent(){
     const e=fen.agent; if(!e) return; const z=e.querySelector('[data-z=agent]');
     const l=T.lignesAgent(donnees.reels,donnees.pilote);
+    if(donnees.agentV3) l.unshift(donnees.agentV3);   // V3 : l'agent unique (Kepler) : sa phrase d'état, lue sur le PC ou le Worker
     const html=l.map(x=>'<li data-ton="'+x.ton+'"><span>'+esc(x.nom)+'</span><b>'+esc(x.valeur)+'</b><small>'+esc(x.detail)+'</small></li>').join('');
     if(z.dataset.sig!==html){ z.dataset.sig=html; z.innerHTML=html; }
     const p=donnees.reels['propositions-agent'];
@@ -231,6 +244,7 @@
     if(TEST.sansReseau||!visible()||(!g1&&!corps.classList.contains('tb-actif'))) return; const now=Date.now();
     for(const k of Object.keys(charge)){ if(!g1&&!fen[util[k]]) continue; if(now-(dernier[k]||0)>=CADENCES[k]){ dernier[k]=now; charge[k](); } }
     if(fen.agent||g1) demarrerAgent();
+    if(fen.agent||g1) sonderAgentV3();
   }
   setInterval(()=>{ if(visible()&&corps.classList.contains('tb-actif')){ tic(); } },1000);
   setInterval(cadence,15000);

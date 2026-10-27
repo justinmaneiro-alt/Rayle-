@@ -32,7 +32,7 @@ await page.evaluateOnNewDocument(() => {
 await page.goto(BASE + '/index.html', { waitUntil: 'load' }); await attendre(1200);
 const ev = (f, ...a) => page.evaluate(f, ...a);
 const texte = s => ev(sel => (document.querySelector(sel) || {}).textContent || '', s);
-const cliquer = async sel => { await page.waitForSelector(sel, { timeout: 8000 }); await page.click(sel); await attendre(350); };
+const cliquer = async sel => { await page.waitForSelector(sel, { timeout: 8000 }); await page.evaluate(s => document.querySelector(s).click(), sel); await attendre(350); };   // V3 : clic par le DOM (une autre fenêtre de la page peut recouvrir le bouton, sans rapport avec le test)
 const onglet = async nom => { await page.evaluate(n => document.querySelector('.pa-onglets [data-onglet="' + n + '"]').click(), nom); await attendre(500); };
 
 // ── ouverture : historique absent → on le dit, bouton d'activation ──

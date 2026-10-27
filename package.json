@@ -1,0 +1,9 @@
+{
+  "name": "rayle",
+  "private": true,
+  "description": "Raylé : IA personnelle de Justin. Ce fichier ne sert qu'à lancer les tests locaux (npm run test:lppr, npm run test:agent) ; aucune dépendance à installer à la racine. Pas de champ « type » : certains scripts classiques du dépôt se chargent aussi sous Node.",
+  "scripts": {
+    "test:lppr": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON galaxie/tests/lppr-graphe-test.mjs && node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON core/lppr/noter-lppr.mjs",
+    "test:agent": "node galaxie/tests/strategies-v3-test.mjs && node galaxie/tests/direct-v3-test.mjs && node galaxie/tests/agent-etat-test.mjs && node galaxie/tests/agent-service-test.mjs && node galaxie/tests/agent-worker-test.mjs && node galaxie/tests/agent-donnees-test.mjs && node galaxie/tests/agent-page-test.mjs"
+  }
+}
