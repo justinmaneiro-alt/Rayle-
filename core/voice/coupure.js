@@ -77,26 +77,14 @@
 
   /* ═════════════ NOM DE RAYLÉ MAL ENTENDU ═════════════ */
   // La reconnaissance vocale écrit parfois « Riley », « Rallye »… pour « Raylé »
-  const NOMS_BASE='riley,rayley,railey,reilly,rayleigh,raylet,rayler,rayle,raylee,rallye,ralé,rallé,réalé,reylé,reilé,railé,raïlé,raillé,rayé';
+  // Logique pure dans core/voice/prenom-calcul.js (testée : galaxie/tests/prenom-test.mjs)
   let FIX_NAME=null;
-  function buildFixName(){
-    const extra=store.get(KEY_NOMS).split(',').map(s=>s.trim().toLowerCase()).filter(s=>s.length>=3);
-    const all=NOMS_BASE.split(',').concat(extra).map(s=>s.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')).sort((a,b)=>b.length-a.length);
-    FIX_NAME=new RegExp('(^|[^\\p{L}])('+all.join('|')+')(?![\\p{L}])','giu');
-  }
+  function buildFixName(){ FIX_NAME=Prenom.creerCorrecteur(store.get(KEY_NOMS)); }
   buildFixName();
-  const fixName=t=>String(t||'').normalize('NFC').replace(FIX_NAME,'$1Raylé');
+  const fixName=t=>FIX_NAME(t);
 
   // Trouve « Raylé » dans la phrase : renvoie ce qui est dit avant et après
-  function wakeSplit(text){
-    const t=String(text).normalize('NFC'); const n=norm(t);
-    const m=n.match(/(^|[^a-z])((?:(?:hey|he|eh|ok|okay|dis[- ]moi|dis|salut|bonjour|bonsoir|coucou|allo|yo)[\s,]+)?rayle)(?![a-z])/);
-    if(!m) return null;
-    const start=m.index+m[1].length, end=start+m[2].length;
-    const avant=t.slice(0,start).replace(/[\s,.!?:;…-]+$/,'').trim();
-    const apres=t.slice(end).replace(/^[\s,.!?:;…-]+/,'').trim();
-    return {avant,apres};
-  }
+  const wakeSplit=Prenom.separer;
   let veilleTimer=null;
   function veilleEcho(text){
     interimEl.textContent='zz veille · entendu : « '+String(text).slice(0,70)+' » (dites « Raylé »)';

@@ -12,7 +12,7 @@
 (function(){
   if(window.RAYLE_SATELLITE||!window.VeilleLocale) return;
   const CLE='rayle_activation', $a=id=>document.getElementById(id);
-  const DEFAUT={mode:'local',mot:true,mains:true,doigts:true,double:false,sensibilite:5,delai:15,demarrerVeille:false,mots:''};
+  const DEFAUT={mode:'local',mot:true,mains:true,doigts:true,double:false,sensibilite:5,delai:20,demarrerVeille:false,mots:''};
   let R=Object.assign({},DEFAUT);
   try{ const b=JSON.parse(localStorage.getItem(CLE)||'null'); if(b&&typeof b==='object'){ for(const k of Object.keys(DEFAUT)) if(typeof b[k]===typeof DEFAUT[k]) R[k]=b[k]; } }catch(e){}
   R.sensibilite=Math.min(10,Math.max(1,Math.round(R.sensibilite))); R.delai=Math.min(120,Math.max(5,Math.round(R.delai)));
