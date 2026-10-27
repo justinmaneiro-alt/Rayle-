@@ -30,7 +30,7 @@
   scene.appendChild(racine);
   const col={g:racine.querySelector('.g'),d:racine.querySelector('.d')};
 
-  const ENTETE=(f)=>'<header class="tb-t"><h3>'+esc(f.titre)+'</h3><em class="tb-et" hidden></em></header>';
+  const ENTETE=(f)=>'<header class="tb-t"><h3>'+esc(f.titre)+'</h3><em class="tb-et" hidden></em><button type="button" class="tb-pose" aria-label="Poser « '+esc(f.titre)+' » dans une fenêtre déplaçable" title="Poser dans une fenêtre (déplacer, agrandir, ranger)">⤢</button></header>';
   const CORPS={
     heure:()=>'<div class="tb-heure"><svg class="tb-sec" viewBox="0 0 40 40" aria-hidden="true"><circle class="fond" cx="20" cy="20" r="18"/><circle class="arc" cx="20" cy="20" r="18" pathLength="60"/></svg><div><b class="tb-h" data-z="h">--:--</b><small class="tb-s" data-z="s">--</small></div></div><div class="tb-date" data-z="date">—</div>',
     meteo:()=>'<div data-z="meteo"><p class="tb-vide">Lecture de la météo…</p></div>',
@@ -41,6 +41,10 @@
     terre:()=>'<ul class="tb-terre" data-z="terre"><li class="tb-vide">Lecture des événements…</li></ul>'
   };
   const fen={};   // id → élément
+  function fabriquer(f,i){
+    const e=document.createElement('section'); e.className='tb-f'; e.dataset.id=f.id; e.dataset.ouvre=f.ouvre; e.tabIndex=0; e.setAttribute('role','button'); e.setAttribute('aria-label',f.titre+' : ouvrir la vue complète');
+    e.innerHTML=ENTETE(f)+'<div class="tb-c">'+CORPS[f.id]()+'</div>'; fen[f.id]=e; e.style.setProperty('--i',i||0); return e;
+  }
   function construire(){
     reglages=T.normaliserReglages(reglages);
     const dis=T.disposition(reglages,mode());
@@ -50,10 +54,8 @@
       for(const e of [...col[c].children]) if(!ids.includes(e.dataset.id)){ e.remove(); delete fen[e.dataset.id]; }
       dis[c].forEach((f,i)=>{
         let e=fen[f.id];
-        if(!e){
-          e=document.createElement('section'); e.className='tb-f'; e.dataset.id=f.id; e.dataset.ouvre=f.ouvre; e.tabIndex=0; e.setAttribute('role','button'); e.setAttribute('aria-label',f.titre+' : ouvrir la vue complète');
-          e.innerHTML=ENTETE(f)+'<div class="tb-c">'+CORPS[f.id]()+'</div>'; fen[f.id]=e; e.style.setProperty('--i',i);
-        }
+        if(e&&e.dataset.detache==='1') return;          // V2 : posée dans une fenêtre du bureau (jarvis-bureau.js), pas dans la colonne
+        if(!e) e=fabriquer(f,i);
         if(e.parentNode!==col[c]||col[c].children[i]!==e) col[c].insertBefore(e,col[c].children[i]||null);
       });
     }
@@ -254,8 +256,8 @@
     terminal:()=>{ const b=$('btnOuvrirTerminal'); if(b) b.click(); },
     terre:()=>{ if(window.DirectPage) DirectPage.ouvrirHub('evenements').catch(()=>{}); }
   };
-  racine.addEventListener('click',ev=>{ const f=ev.target.closest('.tb-f'); if(f&&VUES[f.dataset.ouvre]) VUES[f.dataset.ouvre](); });
-  racine.addEventListener('keydown',ev=>{ if(ev.key!=='Enter'&&ev.key!==' ') return; const f=ev.target.closest('.tb-f'); if(f&&VUES[f.dataset.ouvre]){ ev.preventDefault(); VUES[f.dataset.ouvre](); } });
+  racine.addEventListener('click',ev=>{ const f=ev.target.closest('.tb-f'); if(f&&ev.target.closest('.tb-pose')){ ev.stopPropagation(); if(window.JarvisBureau&&JarvisBureau.actif()) JarvisBureau.ouvrir(f.dataset.id); return; } if(f&&VUES[f.dataset.ouvre]) VUES[f.dataset.ouvre](); });
+  racine.addEventListener('keydown',ev=>{ if(ev.key!=='Enter'&&ev.key!==' ') return; if(ev.target.closest('.tb-pose')) return; const f=ev.target.closest('.tb-f'); if(f&&VUES[f.dataset.ouvre]){ ev.preventDefault(); VUES[f.dataset.ouvre](); } });
   /* parallaxe très légère à la souris (complet seulement) */
   let pxr=0;
   window.addEventListener('pointermove',ev=>{ if(mode()!=='complet'||!visible()||pxr) return; pxr=requestAnimationFrame(()=>{ pxr=0; racine.style.setProperty('--px',((ev.clientX/innerWidth-.5)*2).toFixed(3)); racine.style.setProperty('--py',((ev.clientY/innerHeight-.5)*2).toFixed(3)); }); },{passive:true});
@@ -302,7 +304,15 @@
     dessinerReglages();
   }
 
-  window.TableauBord={donnees:()=>donnees,etat:()=>({actif:corps.classList.contains('tb-actif'),fenetres:Object.keys(fen),donnees:Object.keys(donnees).filter(k=>donnees[k]&&Object.keys(donnees[k]).length),reglages}),
+  /* V2 (bureau de l'accueil) : une fenêtre du tableau peut être POSÉE dans une fenêtre du gestionnaire, puis REMISE dans sa colonne. */
+  function detacher(id){
+    const def=T.FENETRES.find(f=>f.id===id); if(!def) return null;
+    const e=fen[id]||fabriquer(def,0); e.dataset.detache='1'; if(e.parentNode) e.parentNode.removeChild(e);
+    delete e.dataset.sig; const z=e.querySelector('[data-z]'); if(z) delete z.dataset.sig;
+    dessinerMeteo(); dessinerActus(); dessinerMarche(); dessinerTerre(); dessinerAgent(); tic(); return e;
+  }
+  function rattacher(id){ const e=fen[id]; if(!e) return false; delete e.dataset.detache; if(e.parentNode) e.parentNode.removeChild(e); construire(); return true; }
+  window.TableauBord={detacher,rattacher,titres:()=>T.FENETRES.map(f=>({id:f.id,titre:f.titre})),vue:id=>{ const e=fen[id]||T.FENETRES.find(f=>f.id===id); const v=e&&VUES[e.dataset?e.dataset.ouvre:e.ouvre]; if(v) v(); return !!v; },donnees:()=>donnees,etat:()=>({actif:corps.classList.contains('tb-actif'),fenetres:Object.keys(fen),donnees:Object.keys(donnees).filter(k=>donnees[k]&&Object.keys(donnees[k]).length),reglages}),
     rafraichir:rafraichirTout,reglages:()=>reglages,definirReglages:r=>{ reglages=T.normaliserReglages(r); sauver(); dessinerReglages(); construire(); },ouvrir:id=>{ const e=fen[id]; if(e&&VUES[e.dataset.ouvre]){ VUES[e.dataset.ouvre](); return true; } return false; },
     /* tests : injecter des données sans réseau */
     injecter:(cle,val)=>{ donnees[cle]=val; ({meteo:dessinerMeteo,actus:dessinerActus,marche:dessinerMarche,terre:dessinerTerre,reels:dessinerAgent,pilote:dessinerAgent})[cle]&&({meteo:dessinerMeteo,actus:dessinerActus,marche:dessinerMarche,terre:dessinerTerre,reels:dessinerAgent,pilote:dessinerAgent})[cle](); }};

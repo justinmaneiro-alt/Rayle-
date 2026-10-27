@@ -143,12 +143,19 @@ export function construireHub(conteneur, { onglet = 'evenements', surTerre = nul
 
 /* Ouvre (ou ramène) la fenêtre du hub dans le système de panneaux de Raylé. */
 let instance = null;
+const surTerre = async id => { try { const M = await import(new URL('planetes/terre/pc/ordres-terre.js', document.baseURI).href), T = await M.assurerTerre(); await T.afficherEvenements({ vol: false }); T.ouvrirEvenement(id); } catch (e) { /* la Terre ne s'ouvre pas ici : le hub reste utilisable */ } };
+/* V2 : monte le hub dans un élément quelconque (fenêtre du bureau de l'accueil, core/commun/jarvis-bureau.js). Renvoie la fonction de fermeture. */
+export function monterHub(el, o = {}) {
+  instance = construireHub(el, { onglet: o.onglet, surTerre, leger: document.body.dataset.hud === 'leger' });
+  return () => { if (instance) instance.detruire(); instance = null; };
+}
 export function ouvrirHub(o = {}) {
+  if (window.JarvisBureau && window.JarvisBureau.actif()) { window.JarvisBureau.ouvrir('sources', o); return instance; }   // V2 : fenêtre du bureau, à un endroit prévisible, rangeable dans sa pile
   const P = window.Panneaux; if (!P) throw new Error('fenêtres indisponibles');
-  const surTerre = async id => { try { const M = await import(new URL('planetes/terre/pc/ordres-terre.js', document.baseURI).href), T = await M.assurerTerre(); await T.afficherEvenements({ vol: false }); T.ouvrirEvenement(id); } catch (e) { /* la Terre ne s'ouvre pas ici : le hub reste utilisable */ } };
+  const surTerreAncien = async id => { try { const M = await import(new URL('planetes/terre/pc/ordres-terre.js', document.baseURI).href), T = await M.assurerTerre(); await T.afficherEvenements({ vol: false }); T.ouvrirEvenement(id); } catch (e) { /* la Terre ne s'ouvre pas ici : le hub reste utilisable */ } };
   if (instance && document.querySelector('#panneaux .pn[data-id="hub-sources"]')) { instance.aller(o.onglet || 'evenements'); return instance; }
-  P.ouvrir({ id: 'hub-sources', type: 'hub-sources', titre: 'SOURCES EN DIRECT', icone: '📡', taille: 'large', duree: 0, corps: el => { instance = construireHub(el, { onglet: o.onglet, surTerre, leger: document.body.dataset.hud === 'leger' }); return () => { if (instance) instance.detruire(); instance = null; }; } });
+  P.ouvrir({ id: 'hub-sources', type: 'hub-sources', titre: 'SOURCES EN DIRECT', icone: '📡', taille: 'large', duree: 0, corps: el => { instance = construireHub(el, { onglet: o.onglet, surTerre: surTerreAncien, leger: document.body.dataset.hud === 'leger' }); return () => { if (instance) instance.detruire(); instance = null; }; } });
   return instance;
 }
-export const hubOuvert = () => !!document.querySelector('#panneaux .pn[data-id="hub-sources"]');
+export const hubOuvert = () => !!document.querySelector('#panneaux .pn[data-id="hub-sources"]') || !!instance;
 export const instanceHub = () => instance;
