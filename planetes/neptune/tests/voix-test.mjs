@@ -1,0 +1,21 @@
+// Tests de la détection vocale de l'atelier 3D (phase 10). Lancer : node planetes/neptune/tests/voix-test.mjs
+import { detecter } from '../pc/voix-neptune.js';
+let ok = 0, ko = 0; const v = (n, c, d = '') => { c ? ok++ : ko++; if (!c) console.log('KO  ' + n + (d ? ' — ' + d : '')); };
+const o = { ouvert: true };
+v('« ouvre l’atelier 3D » marche atelier fermé', detecter('Ouvre l’atelier 3D').type === 'ouvrir_atelier' && detecter('montre-moi l’atelier de Neptune').type === 'ouvrir_atelier');
+v('atelier fermé : aucune autre commande n’est prise', ['présente pièce par pièce', 'isole le piston', 'éclate la vue', 'fabrique un engrenage', 'mesure', 'exporte en stl'].every(t => detecter(t) === null));
+v('présenter pièce par pièce', ['présente pièce par pièce', 'fais-moi une visite guidée', 'présente la maquette', 'présente le moteur'].every(t => detecter(t, o).type === 'presenter'));
+v('arrêter la présentation', detecter('arrête la présentation', o).type === 'arreter');
+v('visite de caméra', detecter('fais la visite', o).type === 'visite');
+v('isoler : le nom de la pièce est extrait', (d => d.type === 'isoler' && d.nom === 'piston 3')(detecter('isole le piston 3', o)) && detecter('isole la bielle', o).nom === 'bielle');
+v('masquer', (d => d.type === 'masquer' && /culasse/.test(d.nom))(detecter('cache la culasse', o)));
+v('tout afficher', detecter('affiche tout le modèle', o).type === 'tout_afficher');
+v('éclater / désassembler / rassembler', detecter('éclate la vue', o).type === 'eclater' && detecter('désassemble le moteur', o).animer === true && detecter('rassemble les pièces', o).type === 'assembler');
+v('plan de coupe', detecter('coupe en deux', o).type === 'coupe' && detecter('fais une vue en coupe', o).actif === true && detecter('enlève le plan de coupe', o).actif === false);
+v('mesurer, circonférence, impression', detecter('mesure', o).type === 'mesure' && detecter('donne la circonférence', o).type === 'circonference' && detecter('contrôle l’impression', o).type === 'impression' && detecter('vérifie l’étanchéité', o).type === 'impression');
+v('exporter : format', detecter('exporte en STL', o).format === 'stl' && detecter('exporte en obj', o).format === 'obj' && detecter('exporte le modèle', o).format === 'glb');
+v('fabriquer : la description est conservée', (d => d.type === 'fabriquer' && /engrenage de 24 dents/.test(d.description))(detecter('fabrique un engrenage de 24 dents', o)) && detecter('crée un boîtier de 120 mm', o).type === 'fabriquer');
+v('symétrie, duplication, suppression, cadrage', detecter('fais la symétrique', o).type === 'symetrie' && detecter('duplique la pièce', o).type === 'dupliquer' && detecter('supprime la pièce', o).type === 'supprimer' && detecter('cadre la vue', o).type === 'cadrer');
+v('phrases étrangères ignorées (atelier ouvert)', ['quelle heure est-il', 'mets le graphique en H4', 'va sur Mars', 'comment ça va'].every(t => detecter(t, o) === null));
+v('fermer l’atelier', detecter('ferme l’atelier', o).type === 'fermer_atelier');
+console.log(ko ? ko + ' échec(s) / ' + (ok + ko) : ok + ' vérifications réussies.'); process.exit(ko ? 1 : 0);

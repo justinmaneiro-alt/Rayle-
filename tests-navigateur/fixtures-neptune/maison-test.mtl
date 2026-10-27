@@ -1,0 +1,8 @@
+newmtl mur
+Kd 0.9 0.85 0.75
+newmtl dalle
+Kd 0.5 0.5 0.5
+newmtl toit
+Kd 0.6 0.2 0.15
+newmtl porte
+Kd 0.35 0.2 0.1

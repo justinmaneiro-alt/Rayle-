@@ -159,7 +159,7 @@ export async function demarrer() {
   }
   const ui = creerInterface();
   /* Planètes dont le module prend le relais à l'arrivée (manifeste modules.pc.entree) : un clic suffit pour y aller. Seule la Terre en a un pour l'instant. */
-  const AVEC_MODULE = new Set(PLANETES.filter(p => (p.id === 'terre' || p.id === 'mars' || p.id === 'saturne') && p.etat === 'active' && p.modules && p.modules.pc && p.modules.pc.entree).map(p => p.id));
+  const AVEC_MODULE = new Set(PLANETES.filter(p => (p.id === 'terre' || p.id === 'mars' || p.id === 'saturne' || p.id === 'neptune') && p.etat === 'active' && p.modules && p.modules.pc && p.modules.pc.entree).map(p => p.id));
   const entreePlanete = (id, rapide = false) => {
     const p = PLANETES.find(x => x.id === id);
     if (!AVEC_MODULE.has(id) || !p) return false;

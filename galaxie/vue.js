@@ -81,6 +81,9 @@ async function brancher(a) {
     // Saturne : monter à bord du vaisseau d'anatomie, pilotage, salle médicale (même principe)
     try { const m = await import(new URL('planetes/saturne/pc/ordres-saturne.js', document.baseURI).href); m.brancher({ O, galaxie: a, ouvrirGalaxie }); }
     catch (e) { console.warn('ordres de Saturne indisponibles :', e); }
+    // Neptune : atelier 3D (importer, fabriquer, présenter pièce par pièce)
+    try { const m = await import(new URL('planetes/neptune/pc/ordres-neptune.js', document.baseURI).href); m.brancher({ O, galaxie: a, ouvrirGalaxie }); }
+    catch (e) { console.warn('ordres de Neptune indisponibles :', e); }
   }
   try { if (window.RayleGalaxie) await window.RayleGalaxie.preparer(); } catch (e) { console.warn('ordres de base indisponibles :', e); }   // mode_jeu, enregistré côté application
   publier();

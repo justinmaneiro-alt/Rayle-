@@ -54,6 +54,10 @@
     const actif=!!(window.Mars&&window.Mars.etat&&window.Mars.etat().actif);
     const n0=cmdNorm(norm(texte)).replace(/['’\-\/]/g,' ').replace(/\s+/g,' ').trim();
     const explicite=/\b(?:sur mars|dans la base|a la base|base martienne|sur la table)\b/.test(n0);
+    // V2 phase 10 : atelier 3D de Neptune : « ouvre l'atelier 3D » partout, puis (atelier ouvert) « présente pièce par pièce », « isole le piston », « éclate la vue », « fabrique un engrenage… »
+    if(/atelier|maquette|piece|eclat|rassemble|isole|fabrique|visite|mesure|circonference|coupe|exporte|symetri|duplique|impression/.test(n0)){
+      try{ const NV=await import(new URL('planetes/neptune/pc/voix-neptune.js',document.baseURI).href), rep=await NV.traiter(texte); if(rep) return rep; }catch(e){ /* module indisponible : les autres commandes décident */ }
+    }
     // V2 phase 8 : LPPR (Titre II) : « ouvre la LPPR », « code LPPR de l'emboîture tibiale », « explique le code … », « peut-on cumuler … et … », « devis : … » (index local, sans IA)
     if(/lpp|nomenclature|devis|cumul|[0-9]{7}/.test(n0)){
       try{ const L=await import(new URL('core/lppr/lppr-fenetre.js',document.baseURI).href), rep=await L.traiterVoix(texte); if(rep) return rep; }catch(e){ /* module indisponible : les autres commandes décident */ }

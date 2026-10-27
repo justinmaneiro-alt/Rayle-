@@ -1,0 +1,45 @@
+/* Atelier 3D de Neptune : interface volontairement SIMPLE (l'esthétique viendra plus tard). Noir, un accent cyan froid, sable discret, verre sombre, texte ≥ 13 px. */
+#vueGalaxie #neptune-ui{position:absolute;inset:0;z-index:7;pointer-events:none;font-family:var(--mono,ui-monospace,Consolas,"Cascadia Mono",monospace);color:#d6e6ee;font-size:13px}
+#vueGalaxie #neptune-ui[hidden]{display:none}
+#vueGalaxie #neptune-ui *{box-sizing:border-box}
+#vueGalaxie #neptune-ui [hidden]{display:none!important}
+#vueGalaxie #neptune-ui button,#vueGalaxie #neptune-ui input,#vueGalaxie #neptune-ui select,#vueGalaxie #neptune-ui textarea,#vueGalaxie #neptune-ui summary,#vueGalaxie #neptune-ui .n-btn,#vueGalaxie #neptune-ui .n-noeud{pointer-events:auto;font:inherit}
+#vueGalaxie.neptune-actif .g-titre,#vueGalaxie.neptune-actif #fil,#vueGalaxie.neptune-actif #g-retour,#vueGalaxie.neptune-actif .g-aide,#vueGalaxie.neptune-actif .g-credits{display:none}
+#neptune-ui .n-titre{position:absolute;top:12px;left:16px}
+#neptune-ui .n-titre b{font-size:clamp(15px,2vw,19px);letter-spacing:.5em;color:#fff;text-shadow:0 0 10px rgba(143,208,227,.7)}
+#neptune-ui .n-titre span{display:block;font-size:11px;letter-spacing:.25em;color:#8fd0e3;text-transform:uppercase;margin-top:3px}
+#neptune-ui .n-barre{position:absolute;top:56px;left:16px;right:16px;display:flex;flex-wrap:wrap;gap:6px}
+#neptune-ui button,#neptune-ui .n-btn{color:#8fd0e3;background:rgba(4,9,15,.78);border:1px solid rgba(143,208,227,.65);padding:6px 11px;cursor:pointer;min-height:34px;display:inline-flex;align-items:center;font-size:13px}
+#neptune-ui button:hover,#neptune-ui .n-btn:hover{background:rgba(143,208,227,.22);color:#fff}
+#neptune-ui button.actif{background:rgba(143,208,227,.32);color:#fff;border-color:#8fd0e3}
+#neptune-ui aside{position:absolute;top:104px;bottom:46px;width:min(310px,38vw);overflow:auto;background:rgba(4,9,15,.74);border:1px solid rgba(143,208,227,.3);padding:8px 10px;backdrop-filter:blur(6px)}
+#neptune-ui aside,#neptune-ui .n-boite,#neptune-ui .n-message{pointer-events:auto}
+#neptune-ui .n-gauche{left:16px}#neptune-ui .n-droite{right:16px;width:min(360px,42vw)}
+#neptune-ui h3{margin:0 0 6px;font-size:13px;letter-spacing:.12em;text-transform:uppercase;color:#8fd0e3}
+#neptune-ui h3 small{color:#9fb3bd;letter-spacing:0;text-transform:none}
+#neptune-ui .n-noeud{display:flex;align-items:center;gap:6px;min-height:28px;border-bottom:1px solid rgba(143,208,227,.08);cursor:pointer}
+#neptune-ui .n-noeud.sel{background:rgba(143,208,227,.2)}
+#neptune-ui .n-noeud .n-nom{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+#neptune-ui .n-noeud small{color:#9fb3bd}
+#neptune-ui .n-oeil{min-height:24px!important;padding:0 6px!important;border:0!important;background:none!important}
+#neptune-ui .n-actions{display:flex;flex-wrap:wrap;gap:5px;margin-top:8px}
+#neptune-ui .n-actions button{padding:4px 8px;min-height:30px}
+#neptune-ui details{margin-bottom:8px;border-bottom:1px solid rgba(143,208,227,.15);padding-bottom:6px}
+#neptune-ui summary{cursor:pointer;color:#8fd0e3;letter-spacing:.08em;text-transform:uppercase;font-size:12px;padding:4px 0}
+#neptune-ui .n-ligne{display:flex;flex-wrap:wrap;gap:6px 10px;align-items:center;margin:6px 0}
+#neptune-ui .n-ligne input[type=text],#neptune-ui .n-ligne input:not([type]),#neptune-ui .n-ligne input[type=number],#neptune-ui select,#neptune-ui textarea{color:#e6eef2;background:#0a1220;border:1px solid rgba(143,208,227,.5);padding:5px 7px;min-height:32px}
+#neptune-ui textarea{width:100%}
+#neptune-ui .n-pave button{padding:3px 8px;min-height:28px}
+#neptune-ui .n-note{color:#9fb3bd;font-size:13px;margin:4px 0;line-height:1.4}
+#neptune-ui .n-note ul{margin:4px 0;padding-left:18px}
+#neptune-ui a{color:#8fd0e3}
+#neptune-ui .n-etat{position:absolute;left:16px;bottom:12px;color:#c9b27a}
+#neptune-ui .n-message{position:absolute;left:50%;bottom:16px;transform:translateX(-50%);max-width:min(720px,calc(100vw - 40px));background:rgba(4,9,15,.88);border:1px solid rgba(201,178,122,.6);padding:8px 14px;color:#f0e4c3;text-align:center}
+#neptune-ui .n-mesure-etiquette{position:absolute;transform:translate(-50%,-120%);background:rgba(4,9,15,.88);border:1px solid #c9b27a;color:#f0e4c3;padding:2px 8px}
+#neptune-ui .n-glisser{position:absolute;inset:100px 340px 60px 340px;display:flex;align-items:center;justify-content:center;border:2px dashed #8fd0e3;background:rgba(143,208,227,.12);font-size:16px;color:#fff}
+#neptune-ui .n-fondu{position:absolute;inset:0;background:#000;opacity:0;pointer-events:none;transition:opacity .4s}
+#neptune-ui .n-fondu.noir{opacity:1;pointer-events:auto}
+#neptune-ui .n-modale{position:absolute;inset:0;background:rgba(0,0,0,.55);display:flex;align-items:center;justify-content:center;pointer-events:auto}
+#neptune-ui .n-boite{width:min(640px,calc(100vw - 32px));max-height:calc(100vh - 80px);overflow:auto;background:#07101a;border:1px solid rgba(143,208,227,.6);padding:14px 16px}
+#neptune-ui .n-aide li{margin:6px 0;line-height:1.45}
+@media (max-width:900px){#neptune-ui aside{width:min(300px,46vw);top:150px}#neptune-ui .n-barre{top:50px}#neptune-ui .n-glisser{inset:150px 16px 60px 16px}}

@@ -15,9 +15,17 @@
     "tilt": 0.49,
     "texture": "galaxie/textures/2k_neptune.jpg",
     "atmosphere": {
-      "couleur": [0.3, 0.5, 1],
+      "couleur": [
+        0.3,
+        0.5,
+        1
+      ],
       "force": 0.8,
-      "crepuscule": [0.45, 0.7, 1],
+      "crepuscule": [
+        0.45,
+        0.7,
+        1
+      ],
       "epaisseur": 0.06
     }
   },
@@ -36,18 +44,28 @@
   ],
   "ordres": [
     {
+      "action": "entrer_atelier",
+      "description": "Ouvrir l’atelier 3D de Neptune",
+      "params": {}
+    },
+    {
       "action": "creer_maquette",
-      "description": "Créer une maquette 3D à partir d’une description",
+      "description": "Fabriquer une forme paramétrique simple à partir d’une description",
       "params": {
         "description": "texte"
       }
     },
     {
       "action": "ouvrir_maquette",
-      "description": "Ouvrir une maquette existante",
+      "description": "Rouvrir une maquette gardée dans la bibliothèque locale",
       "params": {
         "nom": "texte"
       }
+    },
+    {
+      "action": "presenter_pieces",
+      "description": "Présenter la maquette pièce par pièce, à voix haute",
+      "params": {}
     }
   ],
   "donnees": {
