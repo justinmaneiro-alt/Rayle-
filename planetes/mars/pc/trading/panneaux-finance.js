@@ -6,6 +6,7 @@ import { GROUPES, MENTION_RECHERCHE_PAYANTE, nomBanque } from '../finance/flux-c
 import { ACTIFS, NOMS_ACTIFS, repartition } from '../finance/impact.js';
 import { AVERTISSEMENT_COMPOSITION, SECTEURS, couleurVariation, phraseHeatmap } from '../finance/heatmap-calcul.js';
 import { phraseSec } from '../finance/sec-calcul.js';
+import { FICHES, TYPES, DROITS, filtrerAnalyses, entitesDe, typeLisible, apercuAutorise, legendeImage, resumerAnalyses } from '../finance/analyses-calcul.js';
 
 /* ═════════════ PANNEAUX DU HUB FINANCE DANS L'ESPACE DE TRAVAIL DE MARS (M2b) ═════════════
    Calendrier · COT · Actus finance · Banques centrales · Taux · Publications · Nasdaq 100 (carte de chaleur + dépôts SEC). Chaque panneau affiche l'étiquette de ses données (RÉEL / DIFFÉRÉ / PÉRIMÉ / INDISPONIBLE),
@@ -155,15 +156,33 @@ export function creerPanneauBanques() {
   const a2 = attente('banques'); if (a2) instances.banques.regler(a2);
   return p;
 }
+/* V2 phase 7 : « Banques et analyses » = publications et analyses PUBLIQUES et GRATUITES de banques centrales, d'institutions et d'ING Think (fiches : analyses-calcul.js). Titre, date, court extrait, lien ; jamais le texte complet. */
 export function creerPanneauPublications() {
+  let entite = null, type = null, fiches = false;
   const p = panneau('fi-pubs', {
     cadenceMs: 600000,
     async charger() {
       const r = await obtenirFinance().flux('institutions');
       let h = bandeauEtat(r) + '<div class="fi-avert">' + esc(MENTION_RECHERCHE_PAYANTE) + '</div>';
-      if (r.etat !== 'ok') return h + pied('Publications publiques de la BCE, de la BRI et d’ING Think.');
-      h += '<div class="fi-compte">' + r.items.length + ' <em class="fi-off">PUBLICATIONS PUBLIQUES</em></div>' + listeFlux(r.items, { max: 50 });
-      return h + sources(r.sources) + pied('Publications publiques seulement (BCE, BRI, ING Think). FMI et OCDE refusent les appels automatiques ; BNP Paribas, Natixis, Crédit Agricole n’offrent pas de flux exploitable : non utilisés.');
+      if (r.etat !== 'ok') return h + pied('Banques centrales, BRI et ING Think : publications publiques via le Worker de Raylé. Les sources ajoutées en V2 demandent un déploiement du Worker (docs/deploiement-worker.md).');
+      const tous = r.items.filter(i => FICHES[i.sourceId]), ents = entitesDe(tous), items = filtrerAnalyses(tous, { entite, type });
+      h += '<div class="fi-barre">' + [[null, 'Tout'], ['banque centrale', 'Banques centrales'], ['institution', 'Institutions'], ['banque', 'Banque (ING)']].map(([k, l]) => '<button type="button" class="fi-chip' + (type === k ? ' actif' : '') + '" data-type="' + (k || '') + '">' + esc(l) + '</button>').join('') + ' <span class="fi-sep">│</span> '
+        + ents.map(e => '<button type="button" class="fi-chip' + (entite === e.entite ? ' actif' : '') + '" data-entite="' + esc(e.entite) + '" title="' + e.n + ' publications">' + esc(e.entite) + ' ' + e.n + '</button>').join('') + (entite ? ' <button type="button" class="fi-chip" data-entite="">× filtre</button>' : '') + '</div>';
+      h += '<div class="fi-compte">' + items.length + ' <em class="fi-off">PUBLICATIONS PUBLIQUES</em> · ' + esc(resumerAnalyses(tous).texte.slice(0, 160)) + '</div>';
+      h += '<ul class="fi-liste">' + items.slice(0, 60).map(i => {
+        const f = FICHES[i.sourceId];
+        return '<li><a href="' + esc(i.url) + '" target="_blank" rel="noopener noreferrer">' + esc(i.titre) + '</a><small class="fi-meta"> · <em class="fi-off">' + esc(typeLisible(f.type)) + '</em> · ' + esc(f.entite) + ' · ' + esc(i.source) + ' · ' + esc(quand(i.t)) + '</small>'
+          + (apercuAutorise(i.sourceId, i) ? '<figure class="fi-img"><img src="' + esc(i.image) + '" alt="" loading="lazy" referrerpolicy="no-referrer"><figcaption>' + esc(legendeImage(i.sourceId, i)) + '</figcaption></figure>' : '')
+          + (i.resume ? '<small class="fi-resume">' + esc(i.resume) + '</small>' : '') + '</li>';
+      }).join('') + '</ul>' + (items.length ? '' : '<p class="fi-vide">Aucune publication pour ce filtre.</p>');
+      h += sources(r.sources);
+      h += '<details class="fi-fiches"' + (fiches ? ' open' : '') + '><summary>Fiches des sources : lien, fréquence, droits d’usage</summary><table class="fi-tab"><thead><tr><th>Source</th><th>Type</th><th>Fréquence</th><th>Droits</th></tr></thead><tbody>'
+        + Object.entries(FICHES).map(([id, f]) => '<tr><td><a href="' + esc(f.site) + '" target="_blank" rel="noopener noreferrer">' + esc(f.entite) + ' · ' + esc(id) + '</a></td><td>' + esc(typeLisible(f.type)) + '</td><td>' + esc(f.frequence) + '</td><td>' + esc(f.droits) + '</td></tr>').join('') + '</tbody></table></details>';
+      return h + pied(esc(DROITS) + ' Aperçus d’images : désactivés (aucune source ne les autorise explicitement). FMI et OCDE refusent les appels automatiques ; J.P. Morgan, Goldman Sachs, BlackRock et Vanguard n’ont pas de flux public : non utilisés. Titres dans la langue d’origine ; ce sont des informations de contexte, pas un signal.');
+    },
+    apres(r) {
+      r.onclick = e => { const b = e.target.closest('button'); if (!b) return; if (b.dataset.type !== undefined) { type = b.dataset.type || null; } if (b.dataset.entite !== undefined) { entite = b.dataset.entite || null; } p.maj(); };
+      const d = r.querySelector('.fi-fiches'); if (d) d.ontoggle = () => { fiches = d.open; };
     }
   });
   return p;

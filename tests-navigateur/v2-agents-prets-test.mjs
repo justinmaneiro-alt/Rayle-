@@ -42,9 +42,18 @@ verifier('le bandeau « fiabilité mesurée, pas une promesse » est toujours vi
 verifier('4 étapes dans la barre : Idée, Paramètres, Backtest, Optimiser et alertes', await ev(() => [...document.querySelectorAll('.ap-etapes button')].map(b => b.textContent.replace(/\s+/g, ' ').trim()).join('|') === '1 Idée|2 Paramètres|3 Backtest|4 Optimiser et alertes'));
 verifier('étapes 2 à 4 grisées tant qu’aucune idée n’est choisie', await ev(() => [...document.querySelectorAll('.ap-etapes button')].slice(1).every(b => b.disabled)));
 // ── étape 1 ──
-const cartes = await ev(() => [...document.querySelectorAll('.ap-carte b')].map(b => b.textContent));
+const cartes = await ev(() => [...document.querySelectorAll('.ap-cartes')[0].querySelectorAll('.ap-carte b')].map(b => b.textContent));
 verifier('4 idées : Tendance, Divergence RSI, Moyennes mobiles, Personnalisée', cartes.length === 4 && /Tendance/.test(cartes[0]) && /Divergence RSI/.test(cartes[1]) && /Moyennes mobiles/.test(cartes[2]) && /Personnalisée/.test(cartes[3]), JSON.stringify(cartes));
-verifier('chaque idée dit quand elle marche et quand elle perd', await ev(() => [...document.querySelectorAll('.ap-carte small')].every(s => s.textContent.length > 40)));
+verifier('chaque idée dit quand elle marche et quand elle perd', await ev(() => [...document.querySelectorAll('.ap-cartes')[0].querySelectorAll('.ap-carte small')].every(s => s.textContent.length > 40)));
+// ── bots open source ──
+const bots = await ev(() => [...document.querySelectorAll('.ap-bot')].map(c => ({ nom: c.querySelector('b').textContent, origine: c.querySelector('.ap-origine').textContent, mesures: c.querySelectorAll('.ap-mesure li').length, bouton: c.querySelector('button').textContent })));
+verifier('section « Bots open source adaptés » : 5 bots avec projet d’origine et licence', bots.length === 5 && bots.every(b => /Idée de/.test(b.origine) && /licence/.test(b.origine)), JSON.stringify(bots.map(b => b.origine)));
+verifier('chaque bot affiche son résultat mesuré sur les 3 paires et un bouton « Tester dans Raylé »', bots.every(b => b.mesures === 3 && /Tester dans Raylé/.test(b.bouton)));
+verifier('le texte rappelle « paper trading seulement, aucun ordre » et renvoie à docs/BOTS.md', await ev(() => { const t = document.querySelector('.ap-corps').textContent; return t.includes('PAPER TRADING') && t.includes('docs/BOTS.md'); }));
+verifier('les résultats mesurés sont honnêtes : « NON VALIDÉ » affiché (aucun bot n’est validé)', (await ev(() => document.querySelector('.ap-mesure').textContent)).includes('NON VALIDÉ'));
+await clic('.ap-bot [data-idee="bot_donchian"]'); await attendre(300);
+verifier('« Tester dans Raylé » sur un bot : étape 2 avec ses réglages expliqués', await ev(() => document.querySelectorAll('.ap-params label').length === 3 && /Longueur du canal/.test(document.querySelector('.ap-params').textContent) && /Donchian/.test(document.querySelector('.ap-corps h4').textContent)));
+await clic('[data-etape="1"]'); await attendre(200);
 await clic('.ap-carte[data-idee="perso"]'); await attendre(300);
 verifier('« Personnalisée » ouvre « Teste ma stratégie »', await ev(() => !!window.__poste && window.__poste.onglet === 'teste'));
 await clic('.ap-carte[data-idee="tendance_ma"]'); await attendre(300);

@@ -1,4 +1,6 @@
-import { FAMILLES_V2, ORDRE_AGENTS_V2 } from '../agents-v2/familles-v2.js';
+import { AGENTS as FAMILLES_V2, ORDRE_AGENTS_V2, BOTS, ORDRE_BOTS } from '../agents-v2/registre-agents.js';
+import { MENTION_PAPIER } from '../agents-v2/bots-externes.js';
+import { MESURE_BOTS } from '../agents-v2/resultats-bots.js';
 import { STATUTS, FIABILITE_TEXTE } from '../agents-v2/validation-agent.js';
 import { proposer, alertesAEnvoyer, etiquetteAgent } from '../agents-v2/proposition.js';
 import { lireMarcheV2, agreger } from '../agents-v2/lecture-marche-v2.js';
@@ -25,9 +27,10 @@ const NOM_PAIRE = { BTC: 'Bitcoin', SOL: 'Solana', DOGE: 'Dogecoin' };
 export const IDEES = [
   { id: 'tendance_ma', titre: 'Tendance (moyennes mobiles 20 / 50 / 200)', icone: '📈', court: 'Suivre la tendance : repli sur la moyenne, puis reprise.', quand: 'Marche mieux dans les tendances nettes et longues ; perd en range (faux replis) et pendant les retournements.' },
   { id: 'divergence_rsi', titre: 'Divergence RSI confirmée', icone: '🔀', court: 'Repérer un essoufflement : prix plus bas, RSI plus haut, puis confirmation de structure.', quand: 'Signaux plus rares ; marche surtout aux bornes d’un range ou en fin de tendance ; peut être très tôt (donc faux) dans une tendance forte.' },
-  { id: 'moyennes', titre: 'Moyennes mobiles (croisement simple)', icone: '〰', court: 'Entrer quand le prix croise une moyenne mobile. S’édite dans « Teste ma stratégie ».', quand: 'Très simple, très bruité : à tester contre le hasard avant d’y croire.' },
+  { id: 'bot_croisement_sma', titre: 'Moyennes mobiles (golden cross / death cross)', icone: '〰', court: 'Croisement de deux moyennes mobiles simples en H1 : le « hello world » du trading algorithmique.', quand: 'Très simple, très bruité : réussit dans les tendances longues, perd en range. Mesuré ci-dessous dans « Bots open source ».' },
   { id: 'perso', titre: 'Personnalisée', icone: '🛠', court: 'Ta propre règle en blocs ou en français : « Teste ma stratégie ».', quand: 'Tout dépend de ta règle. Le test la compare au hasard et à l’achat-conservation.' }
 ];
+const AIDE_BOTS = Object.fromEntries(ORDRE_BOTS.map(id => [id, BOTS[id].aide]));
 const AIDE = {
   tendance_ma: { touche: ['Tolérance autour de l’EMA 50', 'À quelle distance de l’EMA 50 (en ATR) le repli doit venir : plus la tolérance est grande, plus de replis comptent (donc plus de signaux, plus de bruit).'],
     stopATR: ['Distance minimale du stop', 'Le stop est placé sous le creux du repli, mais jamais plus près que ce nombre d’ATR M15 : un stop trop serré saute pour rien.'],
@@ -35,6 +38,7 @@ const AIDE = {
   divergence_rsi: { k: ['Netteté des creux et sommets', 'Nombre de bougies de chaque côté pour reconnaître un creux : plus grand = pivots plus nets, moins de signaux.'], diffRsi: ['Écart de RSI', 'Écart minimal de RSI entre les deux creux (divergence plus ou moins marquée).'],
     pad: ['Marge du stop', 'Marge sous le second creux, en ATR.'], R: ['Objectif en R', 'Gagner R fois ce que tu risques (tu vises 4 à 6 R).'] }
 };
+const aideDe = (id, k) => (AIDE[id] || AIDE_BOTS[id])[k];
 const defautsDe = id => { const g = FAMILLES_V2[id].grille(), o = {}; for (const [k, l] of Object.entries(g)) o[k] = l[Math.floor(l.length / 2)]; return o; };
 
 export function creerAgentsPrets({ conteneur, fournirSerie = null, jugerProp = null, dire = null, ouvrirPoste = null, maintenant = () => Date.now() }) {
@@ -93,10 +97,12 @@ export function creerAgentsPrets({ conteneur, fournirSerie = null, jugerProp = n
   /* ── étapes ── */
   const bandeau = () => '<div class="ap-fiab" role="note">' + esc(FIABILITE_TEXTE) + '</div>';
   const entete = () => '<div class="ap-haut"><div class="ap-etapes" role="tablist">' + ['Idée', 'Paramètres', 'Backtest', 'Optimiser et alertes'].map((n, i) => '<button type="button" role="tab" data-etape="' + (i + 1) + '" class="' + (S.etape === i + 1 ? 'actif' : '') + '" ' + (i > 0 && !S.agent ? 'disabled' : '') + '><b>' + (i + 1) + '</b> ' + n + '</button>').join('') + '</div><div class="ap-paires" role="group" aria-label="Paire">' + ORDRE_PAIRES.map(p => '<button type="button" data-paire="' + p + '" class="' + (S.paire === p ? 'actif' : '') + '" title="' + NOM_PAIRE[p] + '">' + p + '</button>').join('') + '</div></div>';
-  const etape1 = () => '<p class="ap-intro">Choisis une idée. Chaque agent est une stratégie <b>simple et connue</b>, testée avec les frais, sans regarder le futur. Aucun ordre n’est jamais passé.</p><div class="ap-cartes">' + IDEES.map(i => '<button type="button" class="ap-carte' + (S.agent === i.id ? ' actif' : '') + '" data-idee="' + i.id + '"><i>' + i.icone + '</i><b>' + esc(i.titre) + '</b><span>' + esc(i.court) + '</span><small>' + esc(i.quand) + '</small></button>').join('') + '</div>';
+  const lignesBot = id => Object.entries(MESURE_BOTS.resume[id] || {}).map(([p, r]) => r ? '<li><b>' + p + '</b> : ' + esc(STATUTS[r.statut] || r.statut) + (r.esperance != null ? ' · espérance ' + sgn(r.esperance) + ' R sur ' + r.n + ' trades' : '') + '</li>' : '').join('');
+  const botsHtml = () => '<h4>Bots open source adaptés à Raylé</h4><p class="ap-note">' + esc(MENTION_PAPIER) + ' Licences et origines : docs/BOTS.md. Résultats mesurés le ' + esc(MESURE_BOTS.mesureLe) + ' sur l’historique complet (hors échantillon, jeu final jamais ouvert).</p><div class="ap-cartes">' + ORDRE_BOTS.filter(id => id !== 'bot_croisement_sma').concat(['bot_croisement_sma']).map(id => '<div class="ap-carte ap-bot' + (S.agent === id ? ' actif' : '') + '"><b>' + esc(BOTS[id].nom) + '</b><small class="ap-origine">Idée de <b>' + esc(BOTS[id].origine.projet) + '</b> · licence ' + esc(BOTS[id].origine.licence) + '</small><span>' + esc(BOTS[id].description.slice(0, 190)) + '…</span><ul class="ap-mesure">' + lignesBot(id) + '</ul><button type="button" data-idee="' + id + '" class="prim">Tester dans Raylé</button></div>').join('') + '</div>';
+  const etape1 = () => '<p class="ap-intro">Choisis une idée. Chaque agent est une stratégie <b>simple et connue</b>, testée avec les frais, sans regarder le futur. Aucun ordre n’est jamais passé.</p><div class="ap-cartes">' + IDEES.map(i => '<button type="button" class="ap-carte' + (S.agent === i.id ? ' actif' : '') + '" data-idee="' + i.id + '"><i>' + i.icone + '</i><b>' + esc(i.titre) + '</b><span>' + esc(i.court) + '</span><small>' + esc(i.quand) + '</small></button>').join('') + '</div>' + botsHtml();
   function etape2() {
     const id = S.agent, fam = FAMILLES_V2[id], p = paramsDe(), g = fam.grille();
-    return '<h4>' + esc(fam.nom) + '</h4><p class="ap-intro">' + esc(fam.description) + '</p><div class="ap-params">' + Object.entries(g).map(([k, l]) => '<label><span><b>' + esc(AIDE[id][k][0]) + '</b><small>' + esc(AIDE[id][k][1]) + '</small></span><select data-param="' + k + '">' + l.map(v => '<option value="' + v + '"' + (p[k] === v ? ' selected' : '') + '>' + String(v).replace('.', ',') + '</option>').join('') + '</select></label>').join('') + '</div>'
+    return '<h4>' + esc(fam.nom) + '</h4><p class="ap-intro">' + esc(fam.description) + '</p><div class="ap-params">' + Object.entries(g).map(([k, l]) => '<label><span><b>' + esc(aideDe(id, k)[0]) + '</b><small>' + esc(aideDe(id, k)[1]) + '</small></span><select data-param="' + k + '">' + l.map(v => '<option value="' + v + '"' + (p[k] === v ? ' selected' : '') + '>' + String(v).replace('.', ',') + '</option>').join('') + '</select></label>').join('') + '</div>'
       + '<p class="ap-note">Les valeurs proposées sont des plages <b>raisonnables et volontairement petites</b> (' + Object.values(g).reduce((s, l) => s * l.length, 1) + ' combinaisons au total) : plus on teste de réglages, plus on risque de trouver un « bon » résultat par hasard.</p>'
       + '<div class="ap-actions"><button type="button" data-a="expliquer">Demander à Raylé de l’expliquer</button><button type="button" data-a="defauts">Valeurs par défaut</button><button type="button" data-a="suite" class="prim">Backtester →</button></div>';
   }
@@ -179,7 +185,8 @@ export function creerAgentsPrets({ conteneur, fournirSerie = null, jugerProp = n
     try {
       const s = await serie(); let b = versBougies(s, Math.max(0, s.n - 2500), s.n);
       b = agreger(b, unite).slice(-400);
-      S.lecture = lireMarcheV2(b, { unite, actif: S.paire, maintenant: maintenant() }); S.msg = '';
+      const AN = await import('./analyses-page.js').catch(() => null), contexteAnalyses = AN && !test().serie ? await AN.contexteAnalyses() : '';
+      S.lecture = lireMarcheV2(b, { unite, actif: S.paire, maintenant: maintenant(), contexteAnalyses }); S.msg = '';
       if (S.lecture.ok) parler(S.lecture.phrases.slice(0, 3).join(' '));
     } catch (e) { S.lecture = { ok: false, raison: String(e.message || e) }; S.msg = ''; }
     rendre();
@@ -202,7 +209,7 @@ export function creerAgentsPrets({ conteneur, fournirSerie = null, jugerProp = n
     }
     switch (b.dataset.a) {
       case 'defauts': S.params[S.agent] = defautsDe(S.agent); S.bt = null; sauver(); rendre(); break;
-      case 'expliquer': { const fam = FAMILLES_V2[S.agent], p = paramsDe(); const t = fam.nom + '. ' + fam.description + ' Réglages actuels : ' + Object.entries(p).map(([k, v]) => AIDE[S.agent][k][0].toLowerCase() + ' ' + String(v).replace('.', ',')).join(', ') + '. Ce n’est qu’une hypothèse : on la teste hors échantillon avant de lui faire confiance.'; parler(t); S.msg = t; rendre(); break; }
+      case 'expliquer': { const fam = FAMILLES_V2[S.agent], p = paramsDe(); const t = fam.nom + '. ' + fam.description + ' Réglages actuels : ' + Object.entries(p).map(([k, v]) => aideDe(S.agent, k)[0].toLowerCase() + ' ' + String(v).replace('.', ',')).join(', ') + '. Ce n’est qu’une hypothèse : on la teste hors échantillon avant de lui faire confiance.'; parler(t); S.msg = t; rendre(); break; }
       case 'suite': aller(3); break;
       case 'backtest': await lancerBacktest(); break;
       case 'etape4': aller(4); break;

@@ -21,7 +21,8 @@ export async function traiterAgentsV2(n0, { actif = false, explicite = false } =
       if (!s || !s.n) return 'Je n’ai pas d’historique pour ' + paire + '. Active les données de la paire dans le poste de l’agent, ou colle une capture du graphique : l’IA lira les chiffres sur ta demande.';
       const m15 = versBougies(s, Math.max(0, s.n - 4000), s.n), b = agreger(m15, d.unite).slice(-400);
       if (d.parBougie) { const r = lectureBougies(b, d.n, { unite: d.unite, actif: paire }); return r.ok ? 'Les ' + d.n + ' dernières bougies ' + d.unite + ' de ' + paire + ' : ' + r.lignes.join(' ') : r.raison; }
-      const r = lireMarcheV2(b, { unite: d.unite, actif: paire, maintenant: Date.now() });
+      const AN = await import('./analyses-page.js').catch(() => null), contexteAnalyses = AN ? await AN.contexteAnalyses() : '';
+      const r = lireMarcheV2(b, { unite: d.unite, actif: paire, maintenant: Date.now(), contexteAnalyses });
       return r.ok ? r.phrases.join(' ') : r.raison + (r.manque === 'bougies' ? ' Colle une capture du graphique dans le poste de l’agent (onglet « Capture d’écran ») : l’IA lira les chiffres sur ta demande.' : '');
     } catch (e) { return 'Je n’ai pas pu lire le marché : ' + String(e && e.message || e) + '.'; }
   }

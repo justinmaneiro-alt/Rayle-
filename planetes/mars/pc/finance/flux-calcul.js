@@ -34,7 +34,16 @@ export const REGISTRE_FLUX = [
   { id: 'bce_pubs', nom: 'BCE · Publications', groupe: 'institutions', institution: 'BCE', url: 'https://www.ecb.europa.eu/rss/pub.html', acces: 'worker', langue: 'en', officiel: true },
   { id: 'bri_pub', nom: 'BRI · Publications', groupe: 'institutions', institution: 'BRI', url: 'https://www.bis.org/doclist/bis_fsi_publs.rss', acces: 'worker', langue: 'en', officiel: true },
   { id: 'bri_discours', nom: 'BRI · Discours de banquiers centraux', groupe: 'institutions', institution: 'BRI', url: 'https://www.bis.org/doclist/cbspeeches.rss', acces: 'worker', langue: 'en', officiel: true },
-  { id: 'ing_think', nom: 'ING Think · Analyses publiques', groupe: 'institutions', institution: 'ING', url: 'https://think.ing.com/rss', acces: 'worker', langue: 'en' }
+  { id: 'ing_think', nom: 'ING Think · Analyses publiques', groupe: 'institutions', institution: 'ING', url: 'https://think.ing.com/rss', acces: 'worker', langue: 'en' },
+  // V2 phase 7 : recherche et analyses publiques de banques centrales et d'institutions (sondées en vrai le 2026-10-27 : docs/resultats-v2/sources-analyses.json ; fiches : analyses-calcul.js)
+  { id: 'bce_blog', nom: 'BCE · Blog', groupe: 'institutions', institution: 'BCE', url: 'https://www.ecb.europa.eu/rss/blog.html', acces: 'worker', langue: 'en', officiel: true },
+  { id: 'fed_ny_liberty', nom: 'Fed de New York · Liberty Street Economics', groupe: 'institutions', institution: 'Fed NY', url: 'https://libertystreeteconomics.newyorkfed.org/feed/', acces: 'worker', langue: 'en', officiel: true },
+  { id: 'fed_feds_notes', nom: 'Fed · FEDS Notes', groupe: 'institutions', institution: 'Fed', url: 'https://www.federalreserve.gov/feeds/feds_notes.xml', acces: 'worker', langue: 'en', officiel: true },
+  { id: 'fed_working_papers', nom: 'Fed · Documents de travail', groupe: 'institutions', institution: 'Fed', url: 'https://www.federalreserve.gov/feeds/working_papers.xml', acces: 'worker', langue: 'en', officiel: true },
+  { id: 'fed_sf', nom: 'Fed de San Francisco · Lettres et recherche', groupe: 'institutions', institution: 'Fed SF', url: 'https://www.frbsf.org/feed/', acces: 'worker', langue: 'en', officiel: true },
+  { id: 'fed_stl_blog', nom: 'Fed de Saint-Louis · FRED Blog', groupe: 'institutions', institution: 'Fed StL', url: 'https://fredblog.stlouisfed.org/feed/', acces: 'worker', langue: 'en', officiel: true },
+  { id: 'bundesbank', nom: 'Bundesbank · Actualités', groupe: 'institutions', institution: 'Bundesbank', url: 'https://www.bundesbank.de/service/rss/en/633306/feed.rss', acces: 'worker', langue: 'en', officiel: true },
+  { id: 'bri_recherche', nom: 'BRI · Documents de travail', groupe: 'institutions', institution: 'BRI', url: 'https://www.bis.org/doclist/wppubls.rss', acces: 'worker', langue: 'en', officiel: true }
 ];
 export const FLUX_PAR_ID = Object.fromEntries(REGISTRE_FLUX.map(f => [f.id, f]));
 export const GROUPES = { actus: 'Actualités financières', banques: 'Banques centrales', institutions: 'Publications publiques' };
@@ -55,7 +64,8 @@ export function analyserRss(xml, max = 40) {
     const d = bloc(b, 'pubDate') || bloc(b, 'dc:date') || bloc(b, 'published') || bloc(b, 'updated') || bloc(b, 'date'), t = Date.parse(texte(d));
     const resume = texte(bloc(b, 'description') || bloc(b, 'summary') || bloc(b, 'content:encoded')).slice(0, 220);
     if (!/^https?:\/\//.test(url)) continue;
-    out.push({ titre: titre.slice(0, 220), url, t: Number.isFinite(t) ? t : null, resume });
+    const im = /<(?:media:thumbnail|media:content|enclosure)\b[^>]*\burl=["']([^"']+)["']/i.exec(b), img = im ? decode(im[1]) : '';
+    out.push(Object.assign({ titre: titre.slice(0, 220), url, t: Number.isFinite(t) ? t : null, resume }, /^https:\/\//.test(img) ? { image: img } : {}));
   }
   return out;
 }

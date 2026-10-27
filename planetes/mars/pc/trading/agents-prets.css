@@ -52,3 +52,8 @@
 .ap-p span{font-size:13px;color:#9fb3bd}.ap-p p{margin:4px 0 0}
 .ap-lec{padding-left:18px}.ap-lec li{margin:4px 0}
 @media (max-width:640px){.ap-racine{padding:8px 8px 12px}.ap-params label{flex-direction:column}}
+.ap-bot{border:1px solid rgba(143,208,227,.35);background:rgba(8,13,19,.6);padding:12px!important;gap:6px}
+.ap-bot.actif{border-color:#8fd0e3;background:rgba(143,208,227,.12)}
+.ap-origine{color:#c9b27a;font-size:13px}
+.ap-mesure{margin:4px 0;padding-left:18px;font-size:13px;color:#cfdde3}
+.ap-mesure li{margin:2px 0}

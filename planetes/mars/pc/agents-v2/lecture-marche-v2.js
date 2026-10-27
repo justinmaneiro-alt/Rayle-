@@ -33,7 +33,7 @@ export function pivotsDe(b, k = 3) {
   return { hauts, bas };
 }
 
-export function lireMarcheV2(bougies, { unite = 'M15', actif = '', annonces = [], maintenant = null, derniersMax = 8 } = {}) {
+export function lireMarcheV2(bougies, { unite = 'M15', actif = '', annonces = [], maintenant = null, derniersMax = 8, contexteAnalyses = '' } = {}) {
   const b = (bougies || []).filter(x => x && Number.isFinite(x.o) && Number.isFinite(x.h) && Number.isFinite(x.l) && Number.isFinite(x.c));
   if (b.length < BOUGIES_MIN) return { ok: false, manque: 'bougies', raison: 'Il me faut au moins ' + BOUGIES_MIN + ' bougies pour lire le marché (j’en ai ' + b.length + ').' };
   const n = b.length, i = n - 1, px = b[i].c, a14 = atrSerie(b), atr = a14[i];
@@ -100,6 +100,7 @@ export function lireMarcheV2(bougies, { unite = 'M15', actif = '', annonces = []
   if (finRange) P.push(finRange.type === 'cassure' ? 'Fin de range : cassure ' + (finRange.sens > 0 ? 'haussière' : 'baissière') + ' du niveau ' + f(finRange.niveau) + ' (' + (finRange.confirmee ? 'confirmée : la dernière clôture reste au-delà' : 'NON confirmée : le prix est revenu dans la boîte, risque de fausse cassure') + ').' : 'Fin de range possible : la volatilité se comprime (ATR récent à ' + f(compression * 100, 0) + ' % de l’habituel), une cassure peut arriver.');
   if (sweeps.length) { const s = sweeps[sweeps.length - 1]; P.push('Prise de liquidité : ' + s.nom + ' puis clôture à l’intérieur — ' + (s.sens > 0 ? 'les vendeurs piégés peuvent alimenter un rebond' : 'les acheteurs piégés peuvent alimenter une baisse') + ' (à confirmer).'); }
   if (volume) P.push('Volume : ' + f(volume.ratio, 1) + ' × la moyenne sur les 3 dernières bougies, direction ' + volume.direction + ' (' + f(volume.partHaussiere * 100, 0) + ' % du volume dans les bougies haussières' + (volume.deltaReel != null ? ' ; delta réel ' + f(volume.deltaReel * 100, 0) + ' %' : '') + ').'); else P.push('Volume : non fourni pour cet actif.');
+  if (contexteAnalyses) P.push('Contexte des analyses publiques : ' + contexteAnalyses);
   P.push(eviter.length ? 'Quand éviter de trader ici : ' + eviter.join(' ') : 'Rien n’interdit de trader d’après ces critères (range, volume, volatilité, annonces).');
   P.push('Scénario haussier : ' + scenarios.haussier.declencheur + ', objectif ' + scenarios.haussier.objectif + ', invalidé par ' + scenarios.haussier.invalidation + '. Scénario baissier : ' + scenarios.baissier.declencheur + ', objectif ' + scenarios.baissier.objectif + ', invalidé par ' + scenarios.baissier.invalidation + '.');
   P.push('Ce sont des constats sur les bougies, pas des prévisions : aucun ordre n’est passé et rien ne garantit la suite.');

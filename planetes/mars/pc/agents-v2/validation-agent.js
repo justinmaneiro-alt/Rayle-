@@ -4,7 +4,7 @@ import { combinaisons, cleParams, FAMILLES } from '../agent-btc/hypotheses.js';
 import { CRITERES, empreinteCriteres } from '../agent-btc/criteres.js';
 import { statistiques } from '../agent-btc/moteur.js';
 import { intervalleEsperance } from '../agent-btc/stats-m5.js';
-import { FAMILLES_V2, ORDRE_AGENTS_V2 } from './familles-v2.js';
+import { AGENTS, ORDRE_AGENTS_V2 } from './registre-agents.js';
 
 /* ═════════════ VALIDATION D'UN AGENT PRÊT À L'EMPLOI (V2, phase 6 ; module pur, testé : planetes/mars/tests/v2-agents-test.mjs) ═════════════
    MÊME PROTOCOLE que toute la bibliothèque (aucun critère n'est touché ni assoupli) :
@@ -28,7 +28,7 @@ export function parametresRetenus(wf) {
 
 /* Évalue UN agent sur la série M15 (colonnes de agent-btc/colonnes.js). `variantesDejaTestees` : variantes comptées avant (compteur qui ne baisse jamais). Rend un rapport complet. */
 export function validerAgent(m15, id, { config = {}, variantesDejaTestees = 0, surProgres = null, ctx = null } = {}) {
-  const fam = FAMILLES_V2[id]; if (!fam) return { ok: false, statut: 'insuffisant', raison: 'agent inconnu : ' + id };
+  const fam = AGENTS[id]; if (!fam) return { ok: false, statut: 'insuffisant', raison: 'agent inconnu : ' + id };
   const dec = decouper(m15);
   if (!dec.ok) return { ok: true, id, statut: 'insuffisant', raison: dec.raison, criteres: { version: CRITERES.version, empreinte: empreinteCriteres() }, jeuFinalOuvert: false };
   const c = ctx || construireContexte(m15), plage = { de: 0, a: dec.finA }, grille = combinaisons(fam.grille());
@@ -51,7 +51,7 @@ export function evaluerRetenu(ctx, id, params, config, plage) {
 }
 /* Backtest d'un jeu de paramètres choisi à la main (étape 3 de l'assistant) : zone de recherche seulement, jamais le jeu final. */
 export function backtester(m15, id, params, { config = {}, ctx = null } = {}) {
-  const fam = FAMILLES_V2[id]; if (!fam) return { ok: false, raison: 'agent inconnu' };
+  const fam = AGENTS[id]; if (!fam) return { ok: false, raison: 'agent inconnu' };
   const dec = decouper(m15), finA = dec.ok ? dec.finA : Math.floor(m15.n * CRITERES.decoupage.fractionRecherche), c = ctx || construireContexte(m15);
   const e = evaluerVariante(c, id, { ...Object.fromEntries(Object.entries(fam.grille()).map(([k, v]) => [k, v[0]])), ...params }, config, { de: 0, a: finA });
   const ic = e.trades.length >= 8 ? intervalleEsperance(e.trades.map(t => t.R)) : null;

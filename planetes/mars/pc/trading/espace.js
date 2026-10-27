@@ -47,7 +47,7 @@ export const PANNEAUX = {
   banques: { titre: 'Banques centrales', zone: 'dock', etat: 'reel', grand: true, creer: () => creerPanneauBanques() },
   taux: { titre: 'Taux', zone: 'dock', etat: 'reel', grand: true, creer: () => creerPanneauTaux() },
   heatmap: { titre: 'Nasdaq 100', zone: 'dock', etat: 'reel', grand: true, creer: () => creerPanneauNasdaq() },
-  publications: { titre: 'Publications', zone: 'dock', etat: 'reel', grand: true, creer: () => creerPanneauPublications() },
+  publications: { titre: 'Banques et analyses', zone: 'dock', etat: 'reel', grand: true, creer: () => creerPanneauPublications() },
   strategie: { titre: 'Agent stratège', zone: 'dock', etat: 'bientot', etape: 'M4', creer: () => bientot('M4', 'Agent IA stratège : scénarios, volume profile commenté, alertes avant les séances. Raylé explique et alerte ; elle ne passe jamais d’ordre.') }
 };
 function bientot(etape, texte) { const e = h('div', 'tg-bientot'); e.innerHTML = '<b>ARRIVE À L’ÉTAPE ' + etape + '</b><p>' + esc(texte) + '</p><i>Rien n’est affiché ici tant que la donnée réelle n’est pas branchée.</i>'; return { racine: e, maj() {}, detruire() {} }; }

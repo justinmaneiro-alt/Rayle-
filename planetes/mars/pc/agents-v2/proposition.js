@@ -1,4 +1,4 @@
-import { FAMILLES_V2 } from './familles-v2.js';
+import { AGENTS } from './registre-agents.js';
 import { STATUTS, FIABILITE_TEXTE } from './validation-agent.js';
 
 /* ═════════════ PROPOSITIONS ET ALERTES DES AGENTS PRÊTS À L'EMPLOI (V2, phase 6 ; module pur, testé : planetes/mars/tests/v2-agents-test.mjs) ═════════════
@@ -15,7 +15,7 @@ export const etiquetteAgent = statut => (statut === 'valide_oos' ? 'VALIDÉ HORS
 
 /* i = index de la dernière bougie M15 FERMÉE. validation = résultat de validerAgent (ou null : jamais validé). jugerProp(plan) → { decision, texte, quantite } (gardien) ou null. */
 export function proposer({ ctx, id, params, validation, i = null, paire = 'BTC', cout = null, jugerProp = null, maintenant = Date.now() }) {
-  const fam = FAMILLES_V2[id]; if (!fam) return { statut: 'aucune', raison: 'agent inconnu' };
+  const fam = AGENTS[id]; if (!fam) return { statut: 'aucune', raison: 'agent inconnu' };
   const n = ctx.n, k = i == null ? n - 1 : i; if (k < 400) return { statut: 'aucune', raison: 'historique trop court pour juger' };
   const valide = !!validation && validation.statut === 'valide_oos';
   const sig = fam.signaux(ctx, params), sens = sig.sens[k];
