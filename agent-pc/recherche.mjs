@@ -50,7 +50,8 @@ export function grilleRaffinee(id, retenus, plafond = 300) {
   for (const k of Object.keys(g)) { if (n <= plafond) break; if (g[k].length > 1) { n /= g[k].length; g[k] = [retenus[k]]; } }   // on fige les derniers paramètres plutôt que de dépasser le plafond
   return g;
 }
-export const empreinteTache = ({ famille: f, paire, grille, debutFinal, type }) => hash([f, paire, type || 'exploration', JSON.stringify(grille), debutFinal, empreinteV3()].join('|'));   // la zone de recherche est FIXE (coffre) : de nouvelles bougies ne changent pas le résultat
+export const VERSION_PIPELINE = 'p4';   // V4 : purge du walk-forward (trade à cheval sur la coupe) ; change l'empreinte, donc les anciens résultats sont refaits (le compteur de variantes ne baisse jamais)
+export const empreinteTache = ({ famille: f, paire, grille, debutFinal, type }) => hash([f, paire, type || 'exploration', JSON.stringify(grille), debutFinal, empreinteV3(), VERSION_PIPELINE].join('|'));   // la zone de recherche est FIXE (coffre) : de nouvelles bougies ne changent pas le résultat
 
 /* Liste des tâches à faire, cache déjà retiré. Génération 0 pour toutes les familles et tous les actifs d'abord, puis la génération 1, etc. */
 export function planifier(etat, { paires, debutFinal, cache, generations = GENERATIONS_MAX }) {

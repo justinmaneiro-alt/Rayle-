@@ -38,7 +38,8 @@ export function walkForward(lignes, decoupe, config) {
   const blocs = [], tous = [];
   for (const f of decoupe.folds) {
     let meilleur = null, sc = -Infinity;
-    for (const l of lignes) { const st = statsSur(l.trades, f.train[0], f.train[1], config), s = score(st, 15); if (s > sc) { sc = s; meilleur = { l, st }; } }
+    for (const l of lignes) { const st = statsSur(l.trades.filter(x => x.sortie < f.train[1]), f.train[0], f.train[1], config), s = score(st, 15);   // purge V4 : un trade encore ouvert à la fin de l'entraînement n'est pas compté (son résultat vient du bloc de test)
+      if (s > sc) { sc = s; meilleur = { l, st }; } }
     if (!meilleur) { blocs.push({ debut: f.debutTest, fin: f.finTest, params: null, entrainement: null, test: statsSur([], f.test[0], f.test[1], config) }); continue; }
     const tr = dans(meilleur.l.trades, f.test[0], f.test[1]); tous.push(...tr);
     blocs.push({ debut: f.debutTest, fin: f.finTest, params: meilleur.l.params, entrainement: meilleur.st, test: statistiques(tr, { barres: f.test[1] - f.test[0], risquePct: (config && config.risquePct) || 1 }), cle: cleParams(meilleur.l.params) });
