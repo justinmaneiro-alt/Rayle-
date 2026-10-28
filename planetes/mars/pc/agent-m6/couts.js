@@ -1,4 +1,4 @@
-import { PAIRES } from './paires.js';
+import { PAIRES, paire } from './paires.js';
 
 /* ═════════════ COÛT D'EXÉCUTION PAR STRATÉGIE, EN R PAR TRADE (M6 ; module pur, testé : m6-fiabilite-test.mjs) ═════════════
    Un trade coûte : frais à l'entrée et à la sortie (en % du montant), spread (l'écart acheteur / vendeur : on paie la moitié à l'entrée, la moitié à la sortie) et glissement (l'ordre au marché
@@ -8,7 +8,7 @@ import { PAIRES } from './paires.js';
    est de la sur-optimisation : ne le faire que si ce sont les VRAIS coûts. */
 export const COUTS_DEFAUT = Object.freeze({ BTC: PAIRES.BTC.couts, SOL: PAIRES.SOL.couts, DOGE: PAIRES.DOGE.couts });
 
-export function coutsDe(idPaire, surcharge = {}) { return { ...(COUTS_DEFAUT[idPaire] || PAIRES.BTC.couts), ...surcharge }; }
+export function coutsDe(idPaire, surcharge = {}) { const p = paire(idPaire); return { ...(COUTS_DEFAUT[idPaire] || (p && p.couts) || PAIRES.BTC.couts), ...surcharge }; }
 export const configMoteurDe = (idPaire, surcharge = {}) => { const c = coutsDe(idPaire, surcharge); return { fraisPct: c.fraisPct, spreadPct: c.spreadPct, glissementPct: c.glissementPct }; };
 
 /* Coût en R d'un trade dont le stop est à distancePct % du prix d'entrée. */

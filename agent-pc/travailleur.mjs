@@ -1,7 +1,9 @@
 // Travailleur de recherche (worker_threads) : exécute UNE tâche (famille × paire) : validation V3 sur la zone de recherche, raffinement éventuel, puis jeu final (une seule ouverture) si la stratégie est
 // validée en backtest. Lit les bougies sur le disque (aucun réseau). Rend { resumes: [...] }.
+// V6 : tâche « guidée » (recherche évolutive sur le premier bloc d'entraînement seulement, puis validation V3 COMPLÈTE d'une petite grille), familles filtrées (financement), coûts de couts.json.
 import { parentPort, workerData } from 'node:worker_threads';
 import path from 'node:path';
+import fs from 'node:fs';
 import { creerHistorique } from '../planetes/mars/pc/agent-btc/historique.js';
 import { stockageFichier } from '../app-pc/veilleur/stockage-fichier.mjs';
 import { validerV3 } from '../strategies/validation-v3.js';
@@ -13,27 +15,52 @@ import { chargerCompact } from './flux/compact-flux.mjs';
 import { ACTIFS_HIST } from './flux/historique-trades.mjs';
 import { attacherEmpreinte } from '../strategies/liquidite/contexte-flux.js';
 import { EXIGENCES_V4 } from '../strategies/familles-v4.js';
+import { exigencesFiltree, attacherFinancement } from '../strategies/familles-filtrees.js';
+import { rechercheGuidee, plageGuidage } from '../strategies/optimisation-guidee.js';
 import { auditer } from '../strategies/equipe/auditeur.js';
 import { enregistrerHypothese } from '../strategies/equipe/chercheur.js';
 import { tranche } from '../planetes/mars/pc/agent-btc/colonnes.js';
+import { construireContexte } from '../planetes/mars/pc/agent-btc/contexte.js';
+import { decouper } from '../planetes/mars/pc/agent-btc/evaluation.js';
+import { CRITERES } from '../planetes/mars/pc/agent-btc/criteres.js';
+import { combinaisons, cleParams } from '../planetes/mars/pc/agent-btc/hypotheses.js';
 
 export async function chargerSerie(dossierDonnees, paire) {
   const h = creerHistorique({ stockage: stockageFichier(path.join(dossierDonnees, paire.toLowerCase())), lire: null }); await h.charger(); return h.serie();
 }
-/* Exécute une tâche avec des séries fournies (testable sans disque). `series` = { BTC: m15, SOL: m15, … }. */
-export function executerTacheSync(tache, contexte, series, compacts = {}) {
+/* Financement (taux publiés toutes les 8 h) d'une paire : derives-<paire>.json du dossier de données. Absent : null (le filtre « financement » ne laisse alors rien passer). */
+export function chargerFinancement(dossierDonnees, paire) {
+  try { const j = JSON.parse(fs.readFileSync(path.join(dossierDonnees, 'derives-' + paire.toLowerCase() + '.json'), 'utf8')); return Array.isArray(j.funding) && j.funding.length ? j.funding : null; } catch (e) { return null; }
+}
+/* Exécute une tâche avec des séries fournies (testable sans disque). `series` = { BTC: m15, SOL: m15, … } ; `compacts` = résumés d'empreinte ; `financements` = { BTC: [{ t, taux }], … }. */
+export function executerTacheSync(tache, contexte, series, compacts = {}, financements = {}) {
   if (tache.hypothese) enregistrerHypothese(tache.hypothese);                                         // V4 : une hypothèse du Chercheur devient une petite famille testable dans ce processus
   const m15 = series[tache.paire]; if (!m15 || !m15.n) return { resumes: [{ famille: tache.famille, paire: tache.paire, type: tache.type, statut: 'insuffisant', raison: 'pas de données pour ' + tache.paire, t: Date.now() }] };
   const autres = Object.keys(series).filter(p => p !== tache.paire && series[p] && series[p].n).map(p => ({ nom: p, m15: series[p] }));
   const config = contexte.couts ? configRicheDe(tache.paire, contexte.couts) : configMoteurDe(tache.paire), debutFinal = tache.debutFinal, resumes = [];   // V6 : coûts de couts.json (maker, taker, spread, glissement) quand le service les fournit
-  // V4 : les familles qui exigent l'empreinte (aggTrades) reçoivent le résumé de l'historique des transactions ; sans lui, aucun signal (jamais de valeur inventée)
-  const avecEmpreinte = (EXIGENCES_V4[tache.famille] || []).includes('empreinte'), preparer = avecEmpreinte ? ctx => attacherEmpreinte(ctx, compacts[tache.paire] || null) : null, preparerAutre = avecEmpreinte ? (ctx, nom) => attacherEmpreinte(ctx, compacts[nom] || null) : null;
-  let r = validerV3(m15, tache.famille, { config, variantesAvant: contexte.variantesAvant || 0, autres, debutFinal, grille: tache.type === 'exploration' ? null : tache.grille, preparer, preparerAutre });
-  resumes.push(resumerValidation(r, tache));
+  // V4 : les familles qui exigent l'empreinte (aggTrades) reçoivent le résumé de l'historique des transactions ; sans lui, aucun signal (jamais de valeur inventée). V6 : le filtre « financement » reçoit les taux publiés.
+  const avecEmpreinte = (EXIGENCES_V4[tache.famille] || []).includes('empreinte'), avecFinancement = exigencesFiltree(tache.famille) === 'financement';
+  const preparer = avecEmpreinte ? ctx => attacherEmpreinte(ctx, compacts[tache.paire] || null) : avecFinancement ? ctx => attacherFinancement(ctx, financements[tache.paire] || null) : null;
+  const preparerAutre = avecEmpreinte ? (ctx, nom) => attacherEmpreinte(ctx, compacts[nom] || null) : avecFinancement ? (ctx, nom) => attacherFinancement(ctx, financements[nom] || null) : null;
+  // V6 : tâche GUIDÉE — la recherche évolutive ne regarde que le premier bloc d'entraînement du walk-forward (avant tout bloc de test, jamais le jeu final) et rend une petite grille ; chaque essai compte comme une variante
+  let grilleTache = tache.type === 'exploration' ? null : tache.grille, extra = 0, guidage = null, explorees = null;
+  if (tache.type === 'guidee') {
+    let idx = 0; while (idx < m15.n && m15.t[idx] < debutFinal) idx++;
+    const zone = tranche(m15, 0, idx), dec = decouper(zone, { ...CRITERES.decoupage, fractionRecherche: 1 }), pg = plageGuidage(dec);
+    if (pg) {
+      const ctx = construireContexte(zone); if (preparer) preparer(ctx);
+      const rg = rechercheGuidee({ ctx, id: tache.famille, config, plage: pg, graine: tache.ronde || 1, iterations: 4, population: 16, elite: 4, tradesMin: 20 });
+      grilleTache = rg.grille; explorees = rg.explorees; const dansGrille = new Set(combinaisons(grilleTache).map(cleParams)); extra = rg.explorees.filter(p => !dansGrille.has(cleParams(p))).length;
+      guidage = { evaluations: rg.evaluees.length, positives: rg.positives, meilleur: rg.meilleur ? { params: rg.meilleur.params, esperance: rg.meilleur.esperance, n: rg.meilleur.n } : null, plage: { barres: pg.a } };
+    } else { grilleTache = tache.grille; guidage = { evaluations: 0, raison: 'pas assez d’historique pour un premier bloc d’entraînement' }; }
+  }
+  let r = validerV3(m15, tache.famille, { config, variantesAvant: (contexte.variantesAvant || 0) + extra, autres, debutFinal, grille: grilleTache, preparer, preparerAutre, voieCorrigee: !!contexte.voieCorrigee });
+  const r0 = resumerValidation(r, { ...tache, grille: grilleTache || tache.grille }); if (explorees) { r0.variantesExplorees = explorees; r0.guidage = guidage; }
+  resumes.push(r0);
   let retenu = r;
   if (tache.type === 'exploration' && prometteur(r)) {                                                // raffinement : seulement autour d'un résultat prometteur ET stable
     const grille = grilleRaffinee(tache.famille, r.retenus), t2 = { ...tache, type: 'raffinement', grille };
-    const r2 = validerV3(m15, tache.famille, { config, variantesAvant: (contexte.variantesAvant || 0) + (r.variantesDeCetteEvaluation || 0), autres, debutFinal, grille, preparer, preparerAutre });
+    const r2 = validerV3(m15, tache.famille, { config, variantesAvant: (contexte.variantesAvant || 0) + (r.variantesDeCetteEvaluation || 0), autres, debutFinal, grille, preparer, preparerAutre, voieCorrigee: !!contexte.voieCorrigee });
     resumes.push(resumerValidation(r2, t2)); retenu = r2.statut === 'validee_backtest' ? r2 : r;
     if (r2.statut === 'validee_backtest') tache = t2;
   }
@@ -55,6 +82,7 @@ if (workerData && workerData.tache) {
   (async () => {
     const series = {}; for (const p of contexte.paires) series[p] = await chargerSerie(contexte.dossierDonnees, p).catch(() => null);
     const compacts = {}; if ((EXIGENCES_V4[tache.famille] || []).includes('empreinte')) for (const p of contexte.paires) { try { compacts[p] = chargerCompact(path.dirname(contexte.dossierDonnees), 'spot', ACTIFS_HIST[p]); } catch (e) { compacts[p] = null; } }
-    parentPort.postMessage(executerTacheSync(tache, contexte, series, compacts));
+    const financements = {}; if (exigencesFiltree(tache.famille) === 'financement') for (const p of contexte.paires) financements[p] = chargerFinancement(contexte.dossierDonnees, p);
+    parentPort.postMessage(executerTacheSync(tache, contexte, series, compacts, financements));
   })().catch(e => { parentPort.postMessage({ resumes: [{ famille: tache.famille, paire: tache.paire, type: tache.type, statut: 'erreur', raison: String(e && e.message || e).slice(0, 200), t: Date.now() }] }); });
 }

@@ -10,6 +10,7 @@ import { CRITERES2 } from '../planetes/mars/pc/agent-btc/criteres-v2.js';
 import { CRITERES3, empreinteV3 } from './criteres-v3.js';
 import { intervalleBootstrap, simulerProp, parRegime } from './stats-v3.js';
 import { famille } from './familles-v3.js';
+import { rendementsJournaliers, nombreEffectif, nombreEffectifTotal, SEUIL_CORRELATION, JOURS_MIN, EXPLICATION as EXPLICATION_NEFF } from './essais-effectifs.js';
 
 /* ═════════════ VALIDATION V3 D'UNE STRATÉGIE (module pur, testé : galaxie/tests/strategies-v3-test.mjs) ═════════════
    UN seul protocole, écrit avant les tests (strategies/CRITERES.md) :
@@ -53,7 +54,7 @@ export function parametresRetenus(wf) {
 
 /* Évalue UNE stratégie. `variantesAvant` = variantes déjà testées dans toute l'histoire de l'agent (le compteur ne baisse jamais). `autres` = [{ nom, m15 }] : les autres actifs (SOL, DOGE…) sur lesquels on
    applique les MÊMES paramètres retenus (aucun choix refait). `grille` : remplace la grille de la famille (tests ; la recherche réelle garde la grille d'origine). */
-export function validerV3(m15Complet, id, { config = {}, variantesAvant = 0, ctx = null, autres = [], grille = null, surProgres = null, c3 = CRITERES3, debutFinal = null, preparer = null, preparerAutre = null } = {}) {
+export function validerV3(m15Complet, id, { config = {}, variantesAvant = 0, ctx = null, autres = [], grille = null, surProgres = null, c3 = CRITERES3, debutFinal = null, preparer = null, preparerAutre = null, voieCorrigee = false } = {}) {
   const fam = famille(id); if (!fam) return { ok: false, id, statut: 'insuffisant', raison: 'stratégie inconnue : ' + id };
   // `debutFinal` (ms) : le jeu final commence là, FIXE (coffre) ; la recherche ne voit que ce qui précède. Sans lui : 75 % / 25 % du protocole d'origine.
   const avantFinal = x => { if (debutFinal == null) return x; let idx = 0; while (idx < x.n && x.t[idx] < debutFinal) idx++; return tranche(x, 0, idx); };
@@ -70,10 +71,14 @@ export function validerV3(m15Complet, id, { config = {}, variantesAvant = 0, ctx
   for (const params of tout) { lignesVar.push(evaluerVariante(c, id, params, config, plage)); if (surProgres) surProgres(++k / tout.length); }
   const wf = walkForward(lignesVar, dec, config), mc = monteCarlo(wf.trades), retenus = parametresRetenus(wf), nVar = variantesAvant + lignesVar.length;
   const robuste = retenus ? robustesse(c, id, retenus, config, plage) : null;
-  const juge1 = jugerHorsEchantillon(wf, { nVariantes: nVar, mc, robuste }), m5 = lignesM5(wf, nVar);
   const R = wf.trades.map(x => x.R), boot = intervalleBootstrap(R, { tirages: c3.bootstrap.tirages, niveau: c3.bootstrap.niveau, graine: c3.bootstrap.graine });
   const prop = simulerProp(wf.trades, c3.prop), regimes = parRegime(enrichirTrades(wf.trades, c), c3.robustesse.tradesParRegimeMin);
-  const dsr = sharpeDeflate(R, nVar);
+  /* V6 phase 4 : NOMBRE EFFECTIF D'ESSAIS. Les variantes presque identiques (rendements journaliers corrélés ≥ 0,8) comptent pour un seul essai dans la valeur CORRIGÉE ; l'ANCIENNE valeur (toutes les variantes) reste la règle de
+     validation par défaut (`voieCorrigee` faux). Les deux sont calculées et rendues côte à côte ; les seuils des critères ne bougent pas. */
+  const avecTrades = lignesVar.filter(l => l.trades.length >= JOURS_MIN), matrice = avecTrades.map(l => rendementsJournaliers(l.trades, m15.t[0], m15.t[dec.finA - 1])), ne = nombreEffectif(matrice);
+  const nEffCourant = ne.nEff + (lignesVar.length - avecTrades.length), nEffTotal = nombreEffectifTotal({ nEffCourant, nCourant: lignesVar.length, variantesAvant });
+  const calc = n => ({ N: n, juge: jugerHorsEchantillon(wf, { nVariantes: n, mc, robuste }), m5: lignesM5(wf, n), dsr: sharpeDeflate(R, n) });
+  const ancien = calc(nVar), corrige = calc(nEffTotal), ref = voieCorrigee ? corrige : ancien, dsr = ref.dsr;
   // autres actifs : mêmes paramètres, zone de recherche de chaque actif
   const actifs = [{ nom: 'référence', n: wf.stats.n, esperance: wf.stats.esperance, positif: wf.stats.esperance > 0 && wf.stats.n >= c3.robustesse.tradesParActifMin }];
   for (const a of autres) {
@@ -82,20 +87,28 @@ export function validerV3(m15Complet, id, { config = {}, variantesAvant = 0, ctx
     const e = evaluerVariante(ca, id, retenus, config, { de: 0, a: da.finA });
     actifs.push({ nom: a.nom, n: e.stats.n, esperance: e.stats.esperance, positif: e.stats.esperance > 0 && e.stats.n >= c3.robustesse.tradesParActifMin });
   }
-  const nbPositifs = actifs.filter(a => a.positif).length, solideSeul = dsr.dsr != null && dsr.dsr >= c3.robustesse.sinonUnActif.dsrMin && boot.bas != null && boot.bas >= c3.robustesse.sinonUnActif.basIcMin;
+  const assembler = pack => {
+  const nbPositifs = actifs.filter(a => a.positif).length, solideSeul = pack.dsr.dsr != null && pack.dsr.dsr >= c3.robustesse.sinonUnActif.dsrMin && boot.bas != null && boot.bas >= c3.robustesse.sinonUnActif.basIcMin;
   const okActifs = autres.length === 0 ? null : (nbPositifs >= c3.robustesse.actifsPositifsMin || (nbPositifs >= 1 && solideSeul));
   const lignes = [
     L('Causalité (aucun regard vers le futur)', 0, '= 0', true),
     L('Blocs de test hors échantillon (walk-forward)', dec.folds.length, '≥ ' + c3.walkForward.fenetresMin, dec.folds.length >= c3.walkForward.fenetresMin),
-    ...juge1.lignes, ...m5.lignes,
+    ...pack.juge.lignes, ...pack.m5.lignes,
     L('Intervalle de confiance (bootstrap) à ' + Math.round(c3.bootstrap.niveau * 100) + ' % : borne basse', boot.bas, '> ' + c3.bootstrap.basMin, boot.bas != null && boot.bas > c3.bootstrap.basMin, ' R'),
     L('Compte prop : creux maximal simulé (' + c3.prop.risquePct + ' % de risque par trade)', prop.ddPct, '≤ ' + c3.prop.drawdownMaxPct, prop.ddPct <= c3.prop.drawdownMaxPct, ' %'),
     L('Compte prop : pire journée simulée', prop.pireJourPct, '≤ ' + c3.prop.perteJourMaxPct, prop.pireJourPct <= c3.prop.perteJourMaxPct, ' %'),
     L('Régimes positifs (hausse, baisse, range ; ≥ ' + c3.robustesse.tradesParRegimeMin + ' trades)', regimes.positifs + ' sur ' + regimes.evaluables, '≥ ' + c3.robustesse.regimesPositifsMin, regimes.evaluables >= c3.robustesse.regimesPositifsMin && regimes.positifs >= c3.robustesse.regimesPositifsMin)
   ];
   if (okActifs != null) lignes.push(L('Actifs positifs (mêmes paramètres)', nbPositifs + ' sur ' + actifs.length, '≥ ' + c3.robustesse.actifsPositifsMin + ' ou un seul avec preuve solide', okActifs));
+    return lignes;
+  };
+  const lignes = assembler(ref), lignesAlt = assembler(voieCorrigee ? ancien : corrige), lAncien = voieCorrigee ? lignesAlt : lignes, lCorrige = voieCorrigee ? lignes : lignesAlt;
   const ok = lignes.every(l => l.ok);
   return { ok: true, id, nom: fam.nom, statut: ok ? 'validee_backtest' : 'non_validee', lignes, ratees: lignes.filter(l => !l.ok).map(l => l.critere), retenus, nVariantes: nVar, variantesDeCetteEvaluation: lignesVar.length,
+    correction: { explication: EXPLICATION_NEFF, methode: 'amas de variantes dont les rendements journaliers sont corrélés à ' + SEUIL_CORRELATION + ' ou plus', voieCorrigeeActive: !!voieCorrigee,
+      ancien: { N: nVar, dsr: ancien.dsr.dsr, sr0: ancien.dsr.sr0, seuilHasard: ancien.juge.seuilMulti, ratees: lAncien.filter(l => !l.ok).map(l => l.critere), valide: lAncien.every(l => l.ok) },
+      corrige: { N: nEffTotal, nEffCourant, nCourant: lignesVar.length, amas: ne.amas.slice(0, 10), dsr: corrige.dsr.dsr, sr0: corrige.dsr.sr0, seuilHasard: corrige.juge.seuilMulti, ratees: lCorrige.filter(l => !l.ok).map(l => l.critere), valide: lCorrige.every(l => l.ok) }, estimation: variantesAvant > 0 },
+    moisTest: dec.folds.reduce((a, f) => a + (f.finTest - f.debutTest), 0) / (30.4375 * 86400e3),   // durée totale des blocs de test hors échantillon (pour estimer le rythme de trades par mois)
     coutMoyenR: /* TOUS les coûts : frais + spread + glissement */ wf.trades.length ? wf.trades.reduce((a, x) => a + (x.coutsTotalR != null ? x.coutsTotalR : (x.coutsR || 0)), 0) / wf.trades.length : null, wf: { stats: wf.stats, blocs: wf.blocs.length, tradesParBloc: wf.blocs.map(b => b.test && b.test.n) }, bootstrap: boot, prop, regimes: regimes.regimes, actifs, mc, causalite: causal, dsr,
     zoneRecherche: { de: m15.t[0], a: m15.t[dec.finA - 1], mois: dec.moisZoneA }, couvertureFlux: c.fp ? (c.fp.ok ? { de: c.fp.de, a: c.fp.a, mois: c.fp.mois } : { raison: c.fp.raison }) : null, jeuFinalOuvert: false, criteres,
     avertissement: 'Résultat de BACKTEST hors échantillon : les résultats passés ne garantissent rien. Aucun ordre n’est exécuté.' };

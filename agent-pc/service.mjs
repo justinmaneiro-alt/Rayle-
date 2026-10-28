@@ -30,7 +30,10 @@ import { faitsRapport, rapportTemplate } from '../strategies/rapport-v3.js';
 import { simulationTerminee } from '../strategies/agent-etat.js';
 import { decouper } from '../planetes/mars/pc/agent-btc/evaluation.js';
 import { tranche } from '../planetes/mars/pc/agent-btc/colonnes.js';
-import { ORDRE_PAIRES } from '../planetes/mars/pc/agent-m6/paires.js';
+import { ORDRE_PAIRES, PAIRES_EXTRA } from '../planetes/mars/pc/agent-m6/paires.js';
+import { planifierNiveaux } from './extension.mjs';
+import { planAttente } from '../strategies/extension-recherche.js';
+import { meilleuresPistes } from '../strategies/pistes.js';
 import { creerDetecteurJeu } from '../app-pc/veilleur/charge-systeme.mjs';
 import { dossierVeilleur } from '../app-pc/veilleur/dossier.mjs';
 import { assurerEnregistreur, statutFlux } from './flux/service-flux.mjs';
@@ -39,8 +42,10 @@ export const VERSION_SERVICE = 1;
 export const CYCLE_MS = 30000, FENETRE_LIVE = 3000, FENETRE_RICHE = 6000, TRANCHE_MS = 4 * 60e3, JEUX_PAR_DEFAUT = ['valorant', 'cs2', 'csgo', 'fortniteclient-win64-shipping', 'eldenring', 'leagueclient', 'league of legends', 'overwatch', 'rocketleague', 'gta5', 'cyberpunk2077', 'baldursgate3', 'minecraft'];
 const semaineISO = t => { const d = new Date(t), j = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate())), n = j.getUTCDay() || 7; j.setUTCDate(j.getUTCDate() + 4 - n); const a = new Date(Date.UTC(j.getUTCFullYear(), 0, 1)); return j.getUTCFullYear() + '-S' + String(Math.ceil(((j - a) / 86400e3 + 1) / 7)).padStart(2, '0'); };
 
-export function creerService({ dossier = dossierAgent(), maintenant = () => Date.now(), donnees = null, sync = null, ecrire = ecrireRapport, executer = executerTache, detecteur = null, fetchImpl = globalThis.fetch, paires = ORDRE_PAIRES, tranchesMs = TRANCHE_MS, sansPriorite = false, avecFlux = false, avecEquipe = false, avecPepiniere = false } = {}) {
+export function creerService({ dossier = dossierAgent(), maintenant = () => Date.now(), donnees = null, sync = null, ecrire = ecrireRapport, executer = executerTache, detecteur = null, fetchImpl = globalThis.fetch, paires: pairesBase = ORDRE_PAIRES, tranchesMs = TRANCHE_MS, sansPriorite = false, avecFlux = false, avecEquipe = false, avecPepiniere = false } = {}) {
   const F = fichiersAgent(dossier); fs.mkdirSync(dossier, { recursive: true });
+  const extrasInit = (() => { const e = lireJson(F.etat, null); return Array.isArray(e && e.actifsExtra) ? e.actifsExtra.filter(x => PAIRES_EXTRA[x] && !pairesBase.includes(x)) : []; })();      // V6 : actifs ajoutés par Justin (--ajouter-actif)
+  const paires = [...pairesBase, ...extrasInit];
   const config = lireConfig(dossier), S = sync || creerSync({ config, fetchImpl }), D = donnees || creerDonnees({ dossier: F.donnees, paires, maintenant, journal: m => journal('donnees', m) });
   const jeu = detecteur || creerDetecteurJeu({ dossier: dossierVeilleur() });
   let etat = chargerEtat(dossier, maintenant()), suivi = lireJson(F.suivi, {}) || {}, dernierJourDonnees = null, derniereTranche = 0, dernierBattement = 0, enCalcul = false, arretDemande = false, pausesLevees = {};
@@ -61,6 +66,8 @@ export function creerService({ dossier = dossierAgent(), maintenant = () => Date
     else if (c.type === 'rapport') await faireRapport(true);
     else if (c.type === 'observation') { etat.parametresRisque.observation = !!c.valeur; journal('commande', 'Alertes observation (non validé) : ' + (c.valeur ? 'ACTIVÉES' : 'désactivées') + '.'); }
     else if (c.type === 'rapport_quotidien') await autonomieDuJour(true);
+    else if (c.type === 'tests_multiples') { const on = c.valeur === 'corriges' || c.valeur === true; etat.parametresRisque.testsMultiplesCorriges = on; journal('commande', 'Tests multiples : règle de validation ' + (on ? 'CORRIGÉE (nombre effectif d’essais ; voie à valider par Justin) — la recherche est refaite avec cette règle' : 'ANCIENNE (tous les essais comptés ; règle par défaut)') + '. Les seuils des critères ne changent pas.'); }
+    else if (c.type === 'ajouter_actif') { const id = String(c.valeur || '').toUpperCase(); if (!PAIRES_EXTRA[id] && !ORDRE_PAIRES.includes(id)) journal('commande', 'Actif inconnu : ' + id + ' (possibles : ' + Object.keys(PAIRES_EXTRA).join(', ') + ').'); else if (ORDRE_PAIRES.includes(id) || (etat.actifsExtra || []).includes(id)) journal('commande', id + ' est déjà dans la recherche.'); else { etat.actifsExtra = [...(etat.actifsExtra || []), id]; sauver(); journal('commande', 'Actif ' + id + ' ajouté à la recherche : arrête le service (node agent-pc/service.mjs --arreter), attends 1 minute et relance-le pour télécharger son historique public Binance (gratuit, plusieurs minutes). Le compteur de variantes de cet actif repart de zéro, celui des autres ne baisse pas.'); } }
   }
   async function lireCommandes() {
     const ids = [];
@@ -211,17 +218,25 @@ export function creerService({ dossier = dossierAgent(), maintenant = () => Date
     if (enCalcul) return { fait: false };
     const ok = await peutChercher(); if (!ok.ok) { info.phase = ok.raison.startsWith('pause :') ? 'pause_jeu' : 'attente'; info.raison = ok.raison; return { fait: false, raison: ok.raison }; }
     const dfp = debutFinalPar(); if (!Object.keys(dfp).length) { info.raison = 'pas assez de données pour fixer le jeu final'; return { fait: false }; }
-    const reglageCouts = lireCoutsReglage(dossier), coutsEmp = reglageCouts.source === 'fichier' ? reglageCouts.empreinte : '';       // V6 : les coûts de Justin (couts.json) comptent dans l'empreinte des tâches
-    const caches = { has: emp => !!lireCache(F.cache, emp) }, taches = planifier(etat, { paires, debutFinal: dfp, cache: caches, priorites: etat.recherche && etat.recherche.priorites, revue: new Date(maintenant()).getUTCDay() === 0, couts: coutsEmp });
+    const voieCorrigee = !!(etat.parametresRisque && etat.parametresRisque.testsMultiplesCorriges), reglageCouts = lireCoutsReglage(dossier), coutsEmp = (reglageCouts.source === 'fichier' ? reglageCouts.empreinte : '') + (voieCorrigee ? '|tmc' : '');   // V6 : la voie « tests multiples corrigés » (désactivée par défaut) change les résultats, donc l'empreinte       // V6 : les coûts de Justin (couts.json) comptent dans l'empreinte des tâches
+    const caches = { has: emp => !!lireCache(F.cache, emp) }, derivesDispo = Object.fromEntries(paires.map(p => [p, fs.existsSync(path.join(F.donnees, 'derives-' + p.toLowerCase() + '.json'))]));
+    const plan = planifierNiveaux(etat, { paires, debutFinal: dfp, cache: caches, priorites: etat.recherche && etat.recherche.priorites, revue: new Date(maintenant()).getUTCDay() === 0, couts: coutsEmp, derivesDispo }), taches = plan.taches.slice();   // V6 : niveaux 0 (base), 1 (guidée), 2 (filtrées)
+    if (etat.recherche.niveau !== plan.niveau) { etat.recherche.niveau = plan.niveau; if (plan.niveau != null && plan.niveau > 0) journal('recherche', 'Niveau ' + plan.niveau + ' de la recherche : ' + plan.niveaux[plan.niveau].nom + ' (' + (plan.niveaux[plan.niveau].total - plan.niveaux[plan.niveau].faits) + ' tâches).'); }
+    etat.recherche.niveaux = plan.niveaux.map(n => ({ id: n.id, nom: n.nom, total: n.total, faits: n.faits }));
     const equipe = lireEquipe(dossier); taches.unshift(...tachesHypotheses({ equipe, paires, debutFinal: dfp, cache: caches, empreinteTache: x => empreinteTache({ ...x, couts: coutsEmp }) }));                // V4 : les hypothèses du Chercheur passent en premier
-    if (!taches.length) { info.phase = 'attente'; info.raison = 'espace de recherche défini épuisé (' + GENERATIONS_MAX + ' générations) : j’attends de nouvelles données ou de nouvelles idées'; etat.recherche.enCours = null; etat.recherche.epuise = true; return { fait: false, raison: info.raison }; }
-    etat.recherche.epuise = false; enCalcul = true; info.phase = 'recherche'; info.raison = null; ecrireInfo();
+    if (!taches.length) {   // V6 : plus d'impasse muette — tout l'espace ÉLARGI est exploré : on dit précisément ce qu'on attend et pour combien de temps
+      const total = Object.values(etat.compteurVariantes).reduce((a, b) => a + b, 0), att = planAttente({ niveaux: plan.niveaux, pistes: meilleuresPistes(etat.backtests, { n: 3 }), pepiniere: lirePepiniere(dossier), equipe: { derniereExecution: equipe.chercheur.derniereExecution }, reglage: reglageCouts, actifsExtra: etat.actifsExtra || [], maintenant: maintenant(), variantes: total });
+      const avait = !!(etat.recherche.attente && etat.recherche.attente.attente); etat.recherche.attente = { t: maintenant(), ...att };
+      info.phase = 'attente'; info.raison = att.lignes.join(' '); etat.recherche.enCours = null; etat.recherche.epuise = true; if (!avait) journal('recherche', 'Espace élargi épuisé. ' + att.lignes.join(' '));
+      return { fait: false, raison: info.raison, attente: att };
+    }
+    etat.recherche.attente = null; etat.recherche.epuise = false; enCalcul = true; info.phase = 'recherche'; info.raison = null; ecrireInfo();
     const debut = maintenant(); let faites = 0;
     try {
       while (taches.length && maintenant() - debut < tranchesMs && !arretDemande) {
         const lot = taches.splice(0, charge()), total = Object.values(etat.compteurVariantes).reduce((a, b) => a + b, 0);
         etat.recherche.enCours = lot.map(t => t.famille + ' ' + t.paire + (t.gen ? ' (génération ' + t.gen + ')' : '')).join(', '); ecrireInfo();
-        const contexte = { paires, dossierDonnees: F.donnees, couts: reglageCouts, variantesAvant: total, ouverturesParPaire: Object.fromEntries(paires.map(p => [p, ((etat.coffre && etat.coffre[p]) ? etat.coffre[p].ouvertures.length : 0)])) };
+        const contexte = { paires, dossierDonnees: F.donnees, couts: reglageCouts, voieCorrigee, variantesAvant: total, ouverturesParPaire: Object.fromEntries(paires.map(p => [p, ((etat.coffre && etat.coffre[p]) ? etat.coffre[p].ouvertures.length : 0)])) };
         const res = await Promise.all(lot.map(t => executer(t, contexte).catch(e => ({ resumes: [{ famille: t.famille, paire: t.paire, type: t.type, statut: 'erreur', raison: String(e.message).slice(0, 150), t: maintenant() }] }))));
         const candidates = [];
         const eq = lireEquipe(dossier);
@@ -306,6 +321,8 @@ if (estPrincipal()) {
   if (a === '--rapport') { demander({ type: 'rapport' }); process.exit(0); }
   if (a === '--rapport-quotidien') { demander({ type: 'rapport_quotidien' }); process.exit(0); }
   if (a === '--observation') { demander({ type: 'observation', valeur: args[1] === 'on' }); process.exit(0); }
+  if (a === '--tests-multiples') { demander({ type: 'tests_multiples', valeur: args[1] === 'corriges' ? 'corriges' : 'anciens' }); process.exit(0); }
+  if (a === '--ajouter-actif') { demander({ type: 'ajouter_actif', valeur: args[1] }); process.exit(0); }
   if (a === '--retour-arriere') { demander({ type: 'retour_arriere', numero: args[1] ? Number(args[1]) : null }); process.exit(0); }
   try { const pid = Number(fs.readFileSync(F.verrou, 'utf8')); if (pid && pid !== process.pid && vivant(pid)) { console.log('Le service tourne déjà (pid ' + pid + ').'); process.exit(0); } } catch (e) { /* pas de verrou */ }
   fs.writeFileSync(F.verrou, String(process.pid)); try { fs.unlinkSync(F.arret); } catch (e) { /* rien */ }

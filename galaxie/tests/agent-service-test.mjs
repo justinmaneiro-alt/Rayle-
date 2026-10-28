@@ -45,6 +45,7 @@ const W = fauxWorker(), ecrireFaux = async faits => ({ lignes: ['Ligne 1 : ' + f
 const svc = creerService({ dossier, maintenant, donnees: fausseDonnees, sync: W, ecrire: ecrireFaux, executer: executeur, detecteur: jeuLibre, sansPriorite: true, tranchesMs: 10 * 60e3 });
 
 // ── naissance : une seule identité ──
+const journalContient = txt => svc.etat().journal.some(x => (x.texte || '').includes(txt));
 await svc.demarrer();
 let e = svc.etat();
 v('naissance : l’agent a une identité stable, un journal, aucune version', e.identite.nom === 'Kepler' && e.versions.length === 0 && e.journal.some(x => x.type === 'naissance'));
@@ -66,9 +67,12 @@ v('le Worker a reçu l’état (synchronisation) et la nouvelle version', W.appe
 v('Telegram : alerte « nouvelle version » avec rappel', W._tg.some(a => /Nouvelle version v1/.test(a.texte) && /Aucun ordre/.test(a.texte)));
 
 // ── cache : un deuxième cycle ne recalcule rien ──
+// V6 : la recherche élargit elle-même son espace (niveau 1 : optimisation guidée, niveau 2 : familles filtrées) ; on la laisse tout parcourir, puis un cycle de plus ne recalcule rien
+for (let k = 0, stable = 0; k < 40 && stable < 2; k++) { const a = executions.length; await svc.cycle(); stable = executions.length === a ? stable + 1 : 0; }
 const avant = executions.length; await svc.cycle();
 v('cache par empreinte : rien n’est recalculé', executions.length === avant);
-v('statut : recherche terminée → « en surveillance », avec le compteur', svc.statut().code === 'surveillance' && /espace de recherche/.test(svc.info().raison || ''), svc.statut().code + ' ' + svc.info().raison);
+v('les trois niveaux ont tourné : base, optimisation guidée, familles filtrées', executions.some(x => x.famille === 'tendance_ma' && !x.gen) && svc.etat().recherche.niveaux && svc.etat().recherche.niveaux.every(n => n.faits === n.total) && journalContient('Niveau 1') && journalContient('Niveau 2'), JSON.stringify(svc.etat().recherche.niveaux));
+v('statut : tout l’espace ÉLARGI est exploré → « en surveillance » ET un plan d’attente précis (ce qu’on attend et pour combien de temps)', svc.statut().code === 'surveillance' && /espace défini ET élargi/.test(svc.info().raison || '') && /Ce que j’attends/.test(svc.info().raison || '') && svc.etat().recherche.attente && svc.etat().recherche.attente.attente === true, svc.statut().code + ' ' + svc.info().raison);
 
 // ── surveillance : un signal → entrée simulée → alerte SIMULATION (la stratégie n'a pas fini sa simulation) ──
 {
