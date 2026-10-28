@@ -148,3 +148,4 @@ body[data-hud="leger"] .tb *{animation:none!important}
 .tb-rr span{display:inline-flex;gap:4px}
 .tb-rr button{min-width:34px;padding:4px 8px}
 .tb-res{display:flex;flex-direction:column;gap:4px;margin-top:6px}
+.tb-agent li.tb-lien-liq{display:block}.tb-lien-liq button{font:600 11px var(--v1-sans);color:var(--v1-accent);background:transparent;border:1px solid var(--v1-trait);padding:4px 10px;cursor:pointer;letter-spacing:.06em}.tb-lien-liq button:hover{border-color:var(--v1-trait-fort);color:#fff}

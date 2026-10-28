@@ -200,11 +200,12 @@
       dessinerAgent();
     }catch(e){ donnees.agentV3=null; }
   }
+  document.addEventListener('click',ev=>{ const b=ev.target.closest&&ev.target.closest('[data-tb-liq]'); if(b){ ev.stopPropagation(); import(new URL('planetes/mars/pc/liquidite/fenetre-liquidite.js',document.baseURI).href).then(m=>m.ouvrirCarte({})).catch(()=>{}); } },true);   // V4 : lien vers la carte de liquidité
   function dessinerAgent(){
     const e=fen.agent; if(!e) return; const z=e.querySelector('[data-z=agent]');
     const l=T.lignesAgent(donnees.reels,donnees.pilote);
     if(donnees.agentV3) l.unshift(donnees.agentV3);   // V3 : l'agent unique (Kepler) : sa phrase d'état, lue sur le PC ou le Worker
-    const html=l.map(x=>'<li data-ton="'+x.ton+'"><span>'+esc(x.nom)+'</span><b>'+esc(x.valeur)+'</b><small>'+esc(x.detail)+'</small></li>').join('');
+    const html=l.map(x=>'<li data-ton="'+x.ton+'"><span>'+esc(x.nom)+'</span><b>'+esc(x.valeur)+'</b><small>'+esc(x.detail)+'</small></li>').join('');+'<li class="tb-lien-liq"><button type="button" data-tb-liq title="Carnet d’ordres de Kraken et Binance enregistré par Kepler">💧 Ouvrir la carte de liquidité</button></li>';   // V4
     if(z.dataset.sig!==html){ z.dataset.sig=html; z.innerHTML=html; }
     const p=donnees.reels['propositions-agent'];
     etiquette(e.querySelector('.tb-et'),donnees.reels['gardien-prop']&&donnees.reels['gardien-prop'].etat==='indisponible'?'indispo':(p&&p.etiquette==='SIMULÉ'?'simule':'reel'));

@@ -1,13 +1,21 @@
 // Routes locales /__agent/… (branchées dans serveur.mjs) : la page Rayle lit l'état de l'agent directement sur le PC, SANS passer par le Worker (utile tant que le Worker n'est pas déployé,
 // et plus rapide). Mêmes garde-fous que le Veilleur : hôte local, même origine, en-tête X-Rayle-Multi pour les actions. Aucun secret n'est renvoyé (le jeton du Worker reste dans config.local.json).
 //   GET  /__agent/etat      { ok, enMarche, service, etat, suivi }   (état complet de l'agent, comme /agent/etat du Worker)
+//   GET  /__agent/equipe      { ok, equipe (3 rôles), hypotheses, pepiniere }          (V4 : onglet Équipe)
+//   GET  /__agent/occasions   { ok, occasions, exemples }                               (V4 : onglet Occasions manquées)
+//   GET  /__agent/donnees     { ok, flux, historique, disque }                          (V4 : onglet Données)
 //   POST /__agent/commande  { type: 'pause' | 'reprendre' | 'charge' | 'retour_arriere' | 'rapport', valeur?, numero? }  → écrit commandes.json, lu par le service à son prochain cycle
 import fs from 'node:fs';
 import path from 'node:path';
 import { requeteAutorisee } from './multi-ecrans.mjs';
 import { dossierAgent, fichiersAgent, lireJson, ecrireJson, vivant, chargerEtat } from '../agent-pc/etat-agent.mjs';
+import { lireEquipe, resumeEquipe } from '../agent-pc/equipe/equipe.mjs';
+import { lirePepiniere, resumePepiniere } from '../agent-pc/pepiniere.mjs';
+import { statutFlux } from '../agent-pc/flux/service-flux.mjs';
+import { creerHistorique } from '../agent-pc/flux/historique-trades.mjs';
+import { resumeOccasions, resumeExemples } from '../strategies/autonomie.js';
 
-const COMMANDES = ['pause', 'reprendre', 'charge', 'retour_arriere', 'rapport'];
+const COMMANDES = ['pause', 'reprendre', 'charge', 'retour_arriere', 'rapport', 'observation', 'rapport_quotidien'];
 export function creerRoutesAgent(env = process.env) {
   const dossier = () => dossierAgent(env);
   const lireCorps = req => new Promise((resolve, reject) => { let n = 0; const m = []; req.on('data', c => { n += c.length; if (n > 4096) { reject(new Error('corps trop gros')); req.destroy(); } else m.push(c); }); req.on('end', () => { try { resolve(JSON.parse(Buffer.concat(m).toString('utf8') || '{}')); } catch (e) { reject(new Error('JSON invalide')); } }); req.on('error', reject); });
@@ -21,6 +29,20 @@ export function creerRoutesAgent(env = process.env) {
         const service = lireJson(F.service, null), enMarche = !!(service && service.pid && vivant(service.pid) && Date.now() - service.vivantLe < 120000);
         const e = chargerEtat(dossier());
         return json(200, { ok: true, existe: true, enMarche, service: service && { phase: service.phase, raison: service.raison, vivantLe: service.vivantLe, worker: service.worker, jeu: service.jeu, donnees: service.donnees }, etat: e, suivi: lireJson(F.suivi, {}), maintenant: Date.now() });
+      }
+      if (route === 'equipe' && req.method === 'GET') {
+        const e = lireEquipe(dossier()), etat = fs.existsSync(F.etat) ? chargerEtat(dossier()) : null, now = Date.now();
+        return json(200, { ok: true, equipe: resumeEquipe(e, etat, now), hypotheses: e.hypotheses.slice(-30).reverse().map(h => ({ id: h.id, titre: h.titre, raison: h.raison, statut: h.statut, source: h.source, t: h.t, resultats: h.resultats })), pepiniere: resumePepiniere(lirePepiniere(dossier()), now), rapportQuotidien: etat && etat.rapportQuotidien || null });
+      }
+      if (route === 'occasions' && req.method === 'GET') {
+        const o = lireJson(path.join(dossier(), 'occasions.json'), {}) || {}, liste = Object.entries(o).flatMap(([p, j]) => ((j && j.liste) || []).map(x => ({ ...x, actif: p }))).sort((a, b) => b.t - a.t);
+        let ex = []; try { ex = fs.readFileSync(path.join(dossier(), 'exemples.jsonl'), 'utf8').split('\n').filter(Boolean).map(x => JSON.parse(x)); } catch (e) { /* aucun */ }
+        return json(200, { ok: true, occasions: { ...resumeOccasions({ liste }), recentes: liste.filter(x => !x.prise).slice(0, 25) }, exemples: { ...resumeExemples(ex), recents: ex.slice(-20).reverse() } });
+      }
+      if (route === 'donnees' && req.method === 'GET') {
+        let libre = null; try { const st = fs.statfsSync(dossier()); libre = Number(st.bavail) * Number(st.bsize) / 1024 ** 3; } catch (e) { /* inconnu */ }
+        const etat = fs.existsSync(F.etat) ? chargerEtat(dossier()) : null;
+        return json(200, { ok: true, flux: statutFlux(dossier()), historique: creerHistorique({ dossier: dossier() }).resume(), disqueLibreGo: libre, bougies: etat && etat.donnees || null });
       }
       if (route === 'commande' && req.method === 'POST') {
         const b = await lireCorps(req);
