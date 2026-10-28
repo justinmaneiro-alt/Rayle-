@@ -17,6 +17,7 @@ import { planifier, lireCache, ecrireCache, executerTache, integrerResultat, CHA
 import { lireEquipe, ecrireEquipe, executerChercheur, tachesHypotheses, marquerTest, ecrireRapportAuditeur, resumeEquipe, noter as noterEquipe } from './equipe/equipe.mjs';
 import { enregistrerHypothese, construireFaitsChercheur } from '../strategies/equipe/chercheur.js';
 import { calculerDiagnostic } from './diagnostic.mjs';
+import { lirePepiniere, alimenter, avancerPepiniere, resumePepiniere } from './pepiniere.mjs';
 import { journaliser, creerVersion, retourArriere, strategiesActives, statutAgent, promouvoir, mettreEnPause, jalon, versionActive, exporterRegles } from '../strategies/agent-etat.js';
 import { surveillerRegle } from '../strategies/surveillance-commune.js';
 import { enregistrerAlertes, construireAlerte, filtrerAlertes } from '../strategies/alertes-v3.js';
@@ -33,7 +34,7 @@ export const VERSION_SERVICE = 1;
 export const CYCLE_MS = 30000, FENETRE_LIVE = 3000, TRANCHE_MS = 4 * 60e3, JEUX_PAR_DEFAUT = ['valorant', 'cs2', 'csgo', 'fortniteclient-win64-shipping', 'eldenring', 'leagueclient', 'league of legends', 'overwatch', 'rocketleague', 'gta5', 'cyberpunk2077', 'baldursgate3', 'minecraft'];
 const semaineISO = t => { const d = new Date(t), j = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate())), n = j.getUTCDay() || 7; j.setUTCDate(j.getUTCDate() + 4 - n); const a = new Date(Date.UTC(j.getUTCFullYear(), 0, 1)); return j.getUTCFullYear() + '-S' + String(Math.ceil(((j - a) / 86400e3 + 1) / 7)).padStart(2, '0'); };
 
-export function creerService({ dossier = dossierAgent(), maintenant = () => Date.now(), donnees = null, sync = null, ecrire = ecrireRapport, executer = executerTache, detecteur = null, fetchImpl = globalThis.fetch, paires = ORDRE_PAIRES, tranchesMs = TRANCHE_MS, sansPriorite = false, avecFlux = false, avecEquipe = false } = {}) {
+export function creerService({ dossier = dossierAgent(), maintenant = () => Date.now(), donnees = null, sync = null, ecrire = ecrireRapport, executer = executerTache, detecteur = null, fetchImpl = globalThis.fetch, paires = ORDRE_PAIRES, tranchesMs = TRANCHE_MS, sansPriorite = false, avecFlux = false, avecEquipe = false, avecPepiniere = false } = {}) {
   const F = fichiersAgent(dossier); fs.mkdirSync(dossier, { recursive: true });
   const config = lireConfig(dossier), S = sync || creerSync({ config, fetchImpl }), D = donnees || creerDonnees({ dossier: F.donnees, paires, maintenant, journal: m => journal('donnees', m) });
   const jeu = detecteur || creerDetecteurJeu({ dossier: dossierVeilleur() });
@@ -143,6 +144,15 @@ export function creerService({ dossier = dossierAgent(), maintenant = () => Date
     journal('equipe', 'Le Chercheur a proposé ' + r.acceptees.length + ' hypothèse(s) (' + r.source + ')' + (stagne ? ' : la recherche avait épuisé son espace.' : '.')); return r;
   }
 
+  /* ── (2 ter) pépinière live : jusqu'à 50 candidates en simulation sur le marché réel (V4, phase 7) ── */
+  let dernierAlimentage = 0; const derniereAnalysePep = {};
+  async function pepiniereTick() {
+    const pep = lirePepiniere(dossier), t = maintenant(); if (t - dernierAlimentage > 6 * 3600e3) { dernierAlimentage = t; alimenter(pep, etat, paires, t); }
+    const r = await avancerPepiniere({ dossier, pep, etat, serie: p => D.serie(p), paires, maintenant: t, derniereAnalyse: derniereAnalysePep });
+    for (const c of r.changements) { journal('pepiniere', c.texte); if (c.type === 'acceptee') await alerter([construireAlerte('RAPPORT', { extra: { lignes: [c.texte], semaine: 'pep-' + c.id }, }, t)]); }
+    return r;
+  }
+
   /* ── (3) recherche permanente ── */
   const debutFinalPar = () => { const o = {}; for (const p of paires) { const c = etat.coffre && etat.coffre[p]; if (c && c.debutFinal) { o[p] = c.debutFinal; continue; } const s = D.serie(p); if (!s || s.n < 5000) continue; const d = decouper(s); if (d.ok) { (etat.coffre = etat.coffre || {})[p] = { debutFinal: d.debutFinal, ouvertures: [], fixeLe: maintenant() }; o[p] = d.debutFinal; journal('coffre', 'Jeu final de ' + p + ' fixé à partir du ' + jourDe(d.debutFinal) + ' (il ne bougera plus ; ouvert une seule fois par stratégie).'); } } return o; };
   async function peutChercher() {
@@ -213,6 +223,7 @@ export function creerService({ dossier = dossierAgent(), maintenant = () => Date
       try { cr.donnees = await donneesDuJour(); } catch (e) { erreur('données', e); }
       try { const maj = await D.actualiser(); info.derniereMaj = { t: maintenant(), ...maj }; } catch (e) { erreur('bougies', e); }
       if (avecFlux) { try { const r = assurerEnregistreur(dossier, { maintenant: maintenant() }); if (r === 'lance') journal('flux', 'Enregistreur du carnet (re)lancé.'); } catch (e) { erreur('flux', e); } }   // V4 : carnet d'ordres 24 h/24, relancé s'il s'arrête
+      if (avecPepiniere) { try { cr.pepiniere = await pepiniereTick(); } catch (e) { erreur('pépinière', e); } }
       if (avecEquipe) { try { cr.equipe = await equipeDuJour(); } catch (e) { erreur('équipe', e); } }
       try { cr.alertes = await surveiller(); } catch (e) { erreur('surveillance', e); }
       try { cr.recherche = await chercher(); } catch (e) { erreur('recherche', e); }
@@ -228,7 +239,7 @@ export function creerService({ dossier = dossierAgent(), maintenant = () => Date
   }
   function battementSepare() { if (!S.configure) return; S.battement(pcInfo()).then(r => { info.worker = { configure: true, ok: true, t: maintenant(), msg: null }; return r; }).catch(e => { info.worker = { configure: true, ok: false, t: maintenant(), msg: String(e.message).slice(0, 100) }; }); }
   function priorite() { if (sansPriorite) return; try { os.setPriority(process.pid, os.constants.priority.PRIORITY_LOW); } catch (e) { journal('service', 'priorité basse impossible : ' + e.message); } }
-  return { cycle, demarrer, battementSepare, priorite, equipeDuJour, resumeEquipe: () => resumeEquipe(lireEquipe(dossier), etat, maintenant()), etat: () => etat, suivi: () => suivi, info: () => info, donnees: D, fichiers: F, faireRapport, appliquerCommande, chercher, surveiller, donneesDuJour, pousserEtat, arreter: () => { arretDemande = true; }, statut: () => statutAgent(etat, { pcVivant: true, rechercheEnCours: enCalcul, enPreparation: pcInfo().enPreparation, positionOuverte: pcInfo().positionOuverte }) };
+  return { cycle, demarrer, battementSepare, priorite, equipeDuJour, pepiniereTick, resumePepiniere: () => resumePepiniere(lirePepiniere(dossier), maintenant()), resumeEquipe: () => resumeEquipe(lireEquipe(dossier), etat, maintenant()), etat: () => etat, suivi: () => suivi, info: () => info, donnees: D, fichiers: F, faireRapport, appliquerCommande, chercher, surveiller, donneesDuJour, pousserEtat, arreter: () => { arretDemande = true; }, statut: () => statutAgent(etat, { pcVivant: true, rechercheEnCours: enCalcul, enPreparation: pcInfo().enPreparation, positionOuverte: pcInfo().positionOuverte }) };
 }
 
 /* ── ligne de commande ── */
@@ -248,7 +259,7 @@ if (estPrincipal()) {
   if (a === '--retour-arriere') { demander({ type: 'retour_arriere', numero: args[1] ? Number(args[1]) : null }); process.exit(0); }
   try { const pid = Number(fs.readFileSync(F.verrou, 'utf8')); if (pid && pid !== process.pid && vivant(pid)) { console.log('Le service tourne déjà (pid ' + pid + ').'); process.exit(0); } } catch (e) { /* pas de verrou */ }
   fs.writeFileSync(F.verrou, String(process.pid)); try { fs.unlinkSync(F.arret); } catch (e) { /* rien */ }
-  const s = creerService({ dossier, avecFlux: true, avecEquipe: true }); s.priorite();
+  const s = creerService({ dossier, avecFlux: true, avecEquipe: true, avecPepiniere: true }); s.priorite();
   let fini = false; const sortir = () => { if (fini) return; fini = true; try { s.info().phase = 'arrete'; s.cycle; fs.unlinkSync(F.verrou); } catch (e) { /* fini */ } process.exit(0); };
   process.on('SIGINT', sortir); process.on('SIGTERM', sortir);
   process.on('uncaughtException', e => { try { ajouterJournal({ type: 'erreur', texte: 'non gérée : ' + (e && e.message) }, dossier); } catch (x) { /* rien */ } });
