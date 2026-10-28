@@ -96,7 +96,7 @@ export function validerV3(m15Complet, id, { config = {}, variantesAvant = 0, ctx
   if (okActifs != null) lignes.push(L('Actifs positifs (mêmes paramètres)', nbPositifs + ' sur ' + actifs.length, '≥ ' + c3.robustesse.actifsPositifsMin + ' ou un seul avec preuve solide', okActifs));
   const ok = lignes.every(l => l.ok);
   return { ok: true, id, nom: fam.nom, statut: ok ? 'validee_backtest' : 'non_validee', lignes, ratees: lignes.filter(l => !l.ok).map(l => l.critere), retenus, nVariantes: nVar, variantesDeCetteEvaluation: lignesVar.length,
-    coutMoyenR: wf.trades.length ? wf.trades.reduce((a, x) => a + (x.coutsTotalR != null ? x.coutsTotalR : (x.coutsR || 0)), 0) / wf.trades.length : null,   // TOUS les coûts : frais + spread + glissement, wf: { stats: wf.stats, blocs: wf.blocs.length, tradesParBloc: wf.blocs.map(b => b.test && b.test.n) }, bootstrap: boot, prop, regimes: regimes.regimes, actifs, mc, causalite: causal, dsr,
+    coutMoyenR: /* TOUS les coûts : frais + spread + glissement */ wf.trades.length ? wf.trades.reduce((a, x) => a + (x.coutsTotalR != null ? x.coutsTotalR : (x.coutsR || 0)), 0) / wf.trades.length : null, wf: { stats: wf.stats, blocs: wf.blocs.length, tradesParBloc: wf.blocs.map(b => b.test && b.test.n) }, bootstrap: boot, prop, regimes: regimes.regimes, actifs, mc, causalite: causal, dsr,
     zoneRecherche: { de: m15.t[0], a: m15.t[dec.finA - 1], mois: dec.moisZoneA }, couvertureFlux: c.fp ? (c.fp.ok ? { de: c.fp.de, a: c.fp.a, mois: c.fp.mois } : { raison: c.fp.raison }) : null, jeuFinalOuvert: false, criteres,
     avertissement: 'Résultat de BACKTEST hors échantillon : les résultats passés ne garantissent rien. Aucun ordre n’est exécuté.' };
 }

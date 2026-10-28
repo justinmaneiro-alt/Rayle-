@@ -1,4 +1,5 @@
 import { avancerRegle, ETAT_REGLE_VIDE, resumeCompte } from './direct-v3.js';
+import { avancerRegleRiche, estRiche } from './direct-riche.js';
 import { construireAlerte, filtrerAlertes, tropPermissive, controleCompte } from './alertes-v3.js';
 import { detecterDerive, simulerProp } from './stats-v3.js';
 import { CRITERES3 } from './criteres-v3.js';
@@ -7,9 +8,10 @@ import { configMoteurDe } from '../planetes/mars/pc/agent-m6/couts.js';
 /* ═════════════ SURVEILLANCE D'UNE RÈGLE : LE MÊME CODE POUR LE PC ET LE WORKER (module pur, testé via agent-worker-test.mjs et agent-service-test.mjs) ═════════════
    Entrées : la règle, la stratégie de l'état (nom, phase, validation), l'état de suivi de la règle, la série M15 (bougies fermées), les paramètres de risque et les alertes récentes.
    Sortie : le nouvel état de suivi, les alertes à envoyer (déjà filtrées : jamais de doublon, pas de spam, pas d'entrée si le moteur est trop permissif), les décisions (mise en pause pour dérive). */
-export function surveillerRegle({ regle, s, suivi = null, serie, risque = {}, alertesRecentes = [], maintenant = Date.now(), ctx = null }) {
+export function surveillerRegle({ regle, s, suivi = null, serie, risque = {}, alertesRecentes = [], maintenant = Date.now(), ctx = null, config = null }) {
   const etat = suivi || ETAT_REGLE_VIDE(), cap = risque.capital || 10000, rk = risque.risquePct || 1;
-  /* mêmes coûts par paire que le backtest */ const r = avancerRegle({ regle, serie, etat, config: configMoteurDe(regle.paire), capital: cap, risquePct: rk, ctx });
+  /* mêmes coûts par paire que le backtest (V6 : ceux de couts.json quand le service les donne ; les familles « riches » ont leur propre suivi, qui rejoue le simulateur riche) */
+  const r = (estRiche(regle.famille) ? avancerRegleRiche : avancerRegle)({ regle, serie, etat, config: config || configMoteurDe(regle.paire), capital: cap, risquePct: rk, ctx });
   if (r.erreur) return { erreur: r.erreur, suivi: etat, alertes: [], evenements: [] };
   const strat = s || { id: regle.id, nom: regle.nom, paire: regle.paire, phase: regle.mode === 'REEL' ? 'active' : 'simulation' }, resume = resumeCompte(etat, { capital: cap, risquePct: rk }), candidates = [];
   for (const ev of r.evenements) {

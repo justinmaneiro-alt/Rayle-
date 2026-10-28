@@ -14,7 +14,7 @@ import { ORDRE_PAIRES } from '../planetes/mars/pc/agent-m6/paires.js';
 import { ORDRE_V3 } from '../strategies/familles-v3.js';
 import { ORDRE_V4 } from '../strategies/familles-v4.js';
 import { hasard } from '../strategies/diagnostic-v4.js';
-import { analyserFamilleCouts, syntheseCouts, lignesTableau } from '../strategies/analyse-couts.js';
+import { analyserFamilleCouts, syntheseCouts, lignesTableau, comparerEntreesFamille } from '../strategies/analyse-couts.js';
 import { coutEstimeR, tauxEquilibre, esperanceProfil } from '../strategies/couts-r.js';
 
 const fmt = (x, d = 2) => (x == null || !Number.isFinite(x) ? '—' : (Math.abs(x) < 0.5 * Math.pow(10, -d) ? 0 : x).toFixed(d).replace('.', ','));   // jamais « -0,00 »
@@ -22,18 +22,19 @@ const racine = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 let ORDRE_V6 = []; try { ORDRE_V6 = (await import('../strategies/familles-v6.js')).ORDRE_V6 || []; } catch (e) { /* la V6 n'est pas encore là : on analyse les familles existantes */ }
 
 export function calculerCouts(etat, series, { familles = [...ORDRE_V3, ...ORDRE_V4, ...ORDRE_V6], paires = ORDRE_PAIRES, rapide = false, reglage = lireCoutsReglage(), maintenant = Date.now(), surProgres = null } = {}) {
-  const analyses = [], hasardParPaire = [], configs = {};
+  const analyses = [], hasardParPaire = [], configs = {}, entrees = [];
   for (const p of paires) {
     const m15 = series[p]; if (!m15 || !m15.n) continue;
     const debutFinal = etat.coffre && etat.coffre[p] && etat.coffre[p].debutFinal; if (!debutFinal) continue;
     let fin = 0; while (fin < m15.n && m15.t[fin] < debutFinal) fin++;                           // zone de recherche seulement
     const ctx = construireContexte(tranche(m15, 0, fin)), config = configRicheDe(p, reglage), plage = { de: 0, a: fin }; configs[p] = config;
     for (const id of familles) { try { const a = analyserFamilleCouts(ctx, id, config, plage); analyses.push({ paire: p, analyse: a }); if (surProgres) surProgres(p, id); } catch (e) { analyses.push({ paire: p, erreur: id + ' : ' + e.message }); } }
+    for (const id of familles) { try { const c = comparerEntreesFamille(ctx, id, config, plage, { maxVariantes: rapide ? 4 : 12 }); if (c) entrees.push({ paire: p, ...c }); } catch (e) { /* famille sans choix d'entrée */ } }
     hasardParPaire.push({ paire: p, ...hasard(ctx, config, plage, { essais: rapide ? 6 : 20 }) });
   }
   const ok = analyses.filter(a => a.analyse);
   return { t: maintenant, source: phraseSource(reglage), reglageEmpreinte: reglage.empreinte, configs, analyses: ok.map(a => ({ paire: a.paire, id: a.analyse.id, nom: a.analyse.nom, unite: a.analyse.unite, variantes: a.analyse.variantes, positivesBrutes: a.analyse.positivesBrutes, positivesNettes: a.analyse.positivesNettes, bandes: a.analyse.bandes.map(b => ({ libelle: b.libelle, n: b.n, brute: b.brute, couts: b.couts, nette: b.nette, tauxReussite: b.tauxReussite })), resume: a.analyse.resume })),
-    erreurs: analyses.filter(a => a.erreur).map(a => a.erreur), hasard: hasardParPaire, synthese: syntheseCouts(ok, { hasard: hasardParPaire }), lignes: lignesTableau(ok) };
+    erreurs: analyses.filter(a => a.erreur).map(a => a.erreur), hasard: hasardParPaire, entrees, synthese: syntheseCouts(ok, { hasard: hasardParPaire }), lignes: lignesTableau(ok) };
 }
 
 export function redigerMarkdown(d) {
@@ -58,6 +59,8 @@ export function redigerMarkdown(d) {
     '| Famille | Actif | Unité | Stop (distance) | Trades | Avant frais (R) | Frais (R) | Après frais (R) | Réussite |', '|---|---|---|---|---:|---:|---:|---:|---:|',
     ...d.lignes.filter(l => l.n >= 30).sort((a, b) => a.famille.localeCompare(b.famille) || a.paire.localeCompare(b.paire) || a.distanceMoyennePct - b.distanceMoyennePct).map(l => '| ' + l.famille + ' | ' + l.paire + ' | ' + l.unite + ' | ' + l.bande + ' | ' + l.n + ' | ' + fmt(l.brute) + ' | ' + fmt(l.couts) + ' | ' + fmt(l.nette) + ' | ' + Math.round(l.tauxReussite * 100) + ' % |'), '');
   L.push('## Où l’avantage brut existe mais est détruit', '', d.synthese.detruit.length ? '| Famille | Actif | Stop | Trades | Avant frais | Frais | Après frais |\n|---|---|---|---:|---:|---:|---:|\n' + d.synthese.detruit.map(l => '| ' + l.famille + ' | ' + l.paire + ' | ' + l.bande + ' | ' + l.n + ' | ' + fmt(l.brute) + ' R | ' + fmt(l.couts) + ' R | ' + fmt(l.nette) + ' R |').join('\n') : '_Aucune case (≥ 100 trades) avec un avantage brut positif détruit par les frais._', '');
+  L.push('## Ordre au marché ou ordre limité (maker) ?', '', 'Mêmes signaux, deux façons d’entrer. L’ordre limité paie moins de frais (frais « maker », ni spread ni glissement) MAIS n’est rempli que si le prix traverse le niveau (d’au moins la « profondeur de file ») : on compte les ordres non remplis, ceux « partis sans nous » (le prix est allé vers l’objectif sans passer par notre niveau) et les remplissages « adverses » (la bougie de remplissage se referme contre nous). **Un ordre limité qui rate justement les bons trades ne vaut rien.**', '',
+    d.entrees && d.entrees.length ? '| Famille | Actif | Trades marché | Espérance marché | Trades limite | Espérance limite | Frais en R (marché → limite) | Remplis | Non remplis | Partis sans nous | Adverses | Trades manqués (espérance) |\n|---|---|---:|---:|---:|---:|---|---:|---:|---:|---:|---|\n' + d.entrees.map(e => '| ' + e.nom + ' | ' + e.paire + ' | ' + e.marche.n + ' | ' + fmt(e.marche.esperance) + ' | ' + e.limite.n + ' | ' + fmt(e.limite.esperance) + ' | ' + fmt(e.marche.couts) + ' → ' + fmt(e.limite.couts) + ' | ' + (e.tauxRemplissage == null ? '—' : Math.round(e.tauxRemplissage * 100) + ' %') + ' | ' + e.ordres.nonRemplis + ' | ' + e.ordres.partisSansNous + ' | ' + (e.partAdverse == null ? '—' : Math.round(e.partAdverse * 100) + ' %') + ' | ' + e.tradesManques + ' (' + fmt(e.esperanceTradesManques) + ' R) |').join('\n') : '_Aucune famille avec choix d’entrée dans cette analyse._', '');
   L.push('## Le hasard, avec les mêmes coûts', '', '| Actif | Essais | Espérance moyenne | Meilleur essai | Avant frais | Frais (R) |', '|---|---:|---:|---:|---:|---:|',
     ...d.hasard.map(h => '| ' + h.paire + ' | ' + h.essais + ' | ' + fmt(h.esperanceMoyenne) + ' | ' + fmt(h.esperanceMax) + ' | ' + fmt(h.bruteMoyenne) + ' | ' + fmt(h.coutsMoyens) + ' |'), '',
     '## Familles et paires dont le calcul a échoué', '', d.erreurs.length ? d.erreurs.map(x => '- ' + x).join('\n') : '_aucune_', '');

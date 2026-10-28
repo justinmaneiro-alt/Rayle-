@@ -2,6 +2,7 @@ import { combinaisons } from '../planetes/mars/pc/agent-btc/hypotheses.js';
 import { evaluerVariante } from '../planetes/mars/pc/agent-btc/evaluation.js';
 import { famille } from './familles-v3.js';
 import './familles-v4.js';
+import { comparerMakerTaker } from './simulateur-riche.js';
 import { parBandeDeStop, resumeCouts, avantageDetruit, partMangee, moyenne, tauxEquilibre, phraseFrais, BANDES_STOP } from './couts-r.js';
 
 /* ═════════════ OÙ LES FRAIS DÉTRUISENT L'AVANTAGE (V6, phase 1 ; module pur, testé : galaxie/tests/couts-r-analyse-test.mjs) ═════════════
@@ -23,6 +24,25 @@ export function analyserFamilleCouts(ctx, id, config, plage, { grille = null, nM
   const bons = variantes.filter(v => v.n >= nMinBon), meilleur = bons.slice().sort((a, b) => b.esperance - a.esperance)[0] || null;
   return { id, nom: fam.nom, unite: uniteDe(id), variantes: variantes.length, avecAssezDeTrades: bons.length, positivesBrutes: bons.filter(v => v.brute > 0).length, positivesNettes: bons.filter(v => v.esperance > 0).length,
     bandes: parBandeDeStop(tous), resume: resumeCouts(tous), meilleur, tradesPoolesN: tous.length };
+}
+
+/* Entrée au MARCHÉ (taker) contre entrée à COURS LIMITÉ (maker) pour une famille qui offre le choix (paramètre `entree`) : mêmes signaux, mêmes autres paramètres, deux façons d'entrer. Regroupe jusqu'à
+   `maxVariantes` variantes (réparties dans la grille) et rend : trades, espérance et coût moyen de chaque façon, taux de remplissage, ordres jamais remplis, ordres « partis sans nous », espérance des trades MANQUÉS
+   (si elle est positive, l'ordre limité rate justement les bons trades : c'est la sélection adverse) et part de remplissages « adverses » (la bougie de remplissage se referme contre nous). Des chiffres, jamais un verdict. */
+export function comparerEntreesFamille(ctx, id, config, plage, { maxVariantes = 12 } = {}) {
+  const fam = famille(id), g = fam && fam.grille(0); if (!g || !Array.isArray(g.entree) || !g.entree.includes('limite') || !g.entree.includes('marche')) return null;
+  const toutes = combinaisons({ ...g, entree: ['marche'] }), pas = Math.max(1, Math.floor(toutes.length / maxVariantes)), choisies = toutes.filter((_, i) => i % pas === 0).slice(0, maxVariantes);
+  const acc = { marche: { n: 0, R: 0, cout: 0 }, limite: { n: 0, R: 0, cout: 0 }, poses: 0, remplis: 0, nonRemplis: 0, partis: 0, adverses: 0, manques: 0, manquesR: 0, remplisMemesSignauxN: 0, remplisMemesSignauxR: 0 };
+  for (const p of choisies) {
+    const sm = fam.signaux(ctx, { ...p, entree: 'marche' }), sl = fam.signaux(ctx, { ...p, entree: 'limite' }), c = comparerMakerTaker(ctx.m15, sm, sl, config, plage);
+    acc.marche.n += c.marche.n; acc.marche.R += (c.marche.esperance || 0) * c.marche.n; acc.marche.cout += (c.marche.couts || 0) * c.marche.n; acc.limite.n += c.limite.n; acc.limite.R += (c.limite.esperance || 0) * c.limite.n; acc.limite.cout += (c.limite.couts || 0) * c.limite.n;
+    const o = c.limite.ordres; acc.poses += o.poses; acc.remplis += o.remplis; acc.nonRemplis += o.nonRemplis; acc.partis += o.partisSansNous; acc.adverses += o.adverses;
+    acc.manques += c.selectionAdverse.nManques; acc.manquesR += (c.selectionAdverse.esperanceDesTradesManques || 0) * c.selectionAdverse.nManques;
+  }
+  const moy = (s, n) => (n ? s / n : null);
+  return { id, nom: fam.nom, variantes: choisies.length, marche: { n: acc.marche.n, esperance: moy(acc.marche.R, acc.marche.n), couts: moy(acc.marche.cout, acc.marche.n) }, limite: { n: acc.limite.n, esperance: moy(acc.limite.R, acc.limite.n), couts: moy(acc.limite.cout, acc.limite.n) },
+    ordres: { poses: acc.poses, remplis: acc.remplis, nonRemplis: acc.nonRemplis, partisSansNous: acc.partis }, tauxRemplissage: acc.poses ? acc.remplis / acc.poses : null, partAdverse: acc.remplis ? acc.adverses / acc.remplis : null,
+    tradesManques: acc.manques, esperanceTradesManques: moy(acc.manquesR, acc.manques) };
 }
 
 /* Tableau à plat : une ligne par famille × actif × bande de stop. `analyses` = [{ paire, analyse }]. */

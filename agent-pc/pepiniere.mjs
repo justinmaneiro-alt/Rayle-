@@ -5,6 +5,8 @@ import { dossierAgent, lireJson, ecrireJson } from './etat-agent.mjs';
 import { tranche } from '../planetes/mars/pc/agent-btc/colonnes.js';
 import { configMoteurDe } from '../planetes/mars/pc/agent-m6/couts.js';
 import { surveillerRegle } from '../strategies/surveillance-commune.js';
+import { estRiche } from '../strategies/direct-riche.js';
+import { configRicheDe, lireCoutsReglage } from './couts-reglage.mjs';
 import { etatPepiniereVide, ajouterCandidate, candidatesDepuisRecherche, candidatesCarnet, integrerTradesHistoriques, proposerEntreePapier, avancerPapier, evaluer, resumePepiniere, PEPINIERE } from '../strategies/pepiniere.js';
 import { proposerCarnet, ORDRE_CARNET } from '../strategies/familles-carnet.js';
 import { cascadesLiquidations } from '../strategies/liquidite/pieges-stops.js';
@@ -27,7 +29,7 @@ export async function avancerPepiniere({ dossier = dossierAgent(), pep = null, e
   for (const c of pep.candidates) {
     if (c.statut !== 'active' || c.type !== 'historique') continue; const s = serie(c.paire); if (!s || s.n < 1500) continue;
     if (c.suivi && c.suivi.derniereBarre != null && c.suivi.derniereBarre >= s.t[s.n - 1]) continue;                               // rien de neuf depuis la dernière bougie
-    const fen = s.n > 3000 ? tranche(s, s.n - 3000, s.n) : s, r = surveillerRegle({ regle: { id: c.id, famille: c.famille, params: c.params, paire: c.paire, mode: 'SIMULATION', nom: c.nom }, s: null, suivi: c.suivi, serie: fen, risque: etat.parametresRisque || {}, alertesRecentes: [], maintenant });
+    const lim = estRiche(c.famille) ? 6000 : 3000, fen = s.n > lim ? tranche(s, s.n - lim, s.n) : s, r = surveillerRegle({ config: configRicheDe(c.paire, lireCoutsReglage(dossier)), regle: { id: c.id, famille: c.famille, params: c.params, paire: c.paire, mode: 'SIMULATION', nom: c.nom }, s: null, suivi: c.suivi, serie: fen, risque: etat.parametresRisque || {}, alertesRecentes: [], maintenant });
     if (r.erreur) continue; c.suivi = r.suivi; avancees += integrerTradesHistoriques(c, r.suivi.trades);
     for (const ev of r.evenements || []) if (ev.type === 'ENTREE') entrees.push({ id: c.id, nom: c.nom, paire: c.paire, sens: ev.sens, stop: ev.stop, t: ev.t });
   }

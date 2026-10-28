@@ -2,6 +2,7 @@ import { CRITERES } from './criteres.js';
 import { FAMILLES, combinaisons, voisins, cleParams } from './hypotheses.js';
 import { simuler, statistiques } from './moteur.js';
 import { alea } from '../mars-calcul.js';
+import { simulerRiche } from '../../../../strategies/simulateur-riche.js';   // V6 : ordres limités, stop minimum, sorties riches (les familles qui le demandent marquent leurs signaux `riche: true`)
 
 /* ═════════════ PROTOCOLE D'ÉVALUATION ANTI-SUR-OPTIMISATION (M3b ; module pur, testé : agent-backtest-test.mjs) ═════════════
    Découpage, walk-forward, robustesse des voisins, Monte Carlo, comparaisons multiples, jeu final. Les seuils viennent de criteres.js (écrits avant les tests). */
@@ -24,8 +25,8 @@ export function decouper(m15, d = CRITERES.decoupage) {
 
 /* Évalue une variante : signaux (une fois), puis UNE simulation continue sur [de, a). Rend { trades, stats }. */
 export function evaluerVariante(ctx, famille, params, config, plage) {
-  const sig = FAMILLES[famille].signaux(ctx, params), sim = simuler(ctx.m15, sig, config, plage);
-  return { params, trades: sim.trades, stats: statistiques(sim.trades, { barres: (plage.a - plage.de), risquePct: sim.config.risquePct }) };
+  const sig = FAMILLES[famille].signaux(ctx, params), sim = sig && sig.riche ? simulerRiche(ctx.m15, sig, config, plage) : simuler(ctx.m15, sig, config, plage);
+  return { params, trades: sim.trades, stats: statistiques(sim.trades, { barres: (plage.a - plage.de), risquePct: sim.config.risquePct }), ordres: sim.ordres || null };
 }
 const dans = (trades, de, a) => trades.filter(x => x.entree >= de && x.entree < a);
 export const statsSur = (trades, de, a, config) => statistiques(dans(trades, de, a), { barres: a - de, risquePct: (config && config.risquePct) || 1 });

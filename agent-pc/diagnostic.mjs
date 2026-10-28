@@ -13,6 +13,7 @@ import { configMoteurDe } from '../planetes/mars/pc/agent-m6/couts.js';
 import { ORDRE_PAIRES } from '../planetes/mars/pc/agent-m6/paires.js';
 import { ORDRE_V3, NOMS_V3 } from '../strategies/familles-v3.js';
 import { ORDRE_V4 } from '../strategies/familles-v4.js';
+import { ORDRE_V6 } from '../strategies/familles-v6.js';
 import { CRITERES3, empreinteV3 } from '../strategies/criteres-v3.js';
 import { entonnoir, parFamilleActif, balayerFamille, hasard, conclusion } from '../strategies/diagnostic-v4.js';
 
@@ -20,7 +21,7 @@ const fmt = (x, d = 2) => (x == null || !Number.isFinite(x) ? '—' : x.toFixed(
 const racine = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 
 /* Calcule le diagnostic complet. `series` = { BTC: m15, … } ; `etat` = état de l'agent. Rend un objet sérialisable. */
-export function calculerDiagnostic(etat, series, { rapide = false, familles = [...ORDRE_V3, ...ORDRE_V4], maintenant = Date.now() } = {}) {
+export function calculerDiagnostic(etat, series, { rapide = false, familles = [...ORDRE_V3, ...ORDRE_V4, ...ORDRE_V6], maintenant = Date.now() } = {}) {
   const bal = [], hasardParPaire = [];
   for (const p of ORDRE_PAIRES) {
     const m15 = series[p]; if (!m15 || !m15.n) continue;

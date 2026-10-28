@@ -10,6 +10,7 @@ import { Worker } from 'node:worker_threads';
 import { fileURLToPath } from 'node:url';
 import { ORDRE_V3, famille, tailleGrille, NOMS_V3 } from '../strategies/familles-v3.js';
 import { ORDRE_V4, NOMS_V4 } from '../strategies/familles-v4.js';
+import { ORDRE_V6, NOMS_V6 } from '../strategies/familles-v6.js';
 import { ordonnerFamilles } from '../strategies/autonomie.js';
 import { CRITERES3, empreinteV3 } from '../strategies/criteres-v3.js';
 import { combinaisons } from '../planetes/mars/pc/agent-btc/hypotheses.js';
@@ -37,7 +38,7 @@ export function grilleDe(id, gen = 0) {
 export const tailleGrilleGen = (id, gen) => Object.values(grilleDe(id, gen)).reduce((a, v) => a * v.length, 1);
 export const cleVariante = (f, paire, p) => f + ':' + paire + ':' + Object.keys(p).sort().map(k => k + '=' + p[k]).join(',');
 /* Ordre de recherche : les familles les plus simples (plus petite grille) d'abord ; à égalité, l'ordre de la bibliothèque. */
-export const ORDRE_TOUT = Object.freeze([...ORDRE_V3, ...ORDRE_V4]), NOMS_TOUT = Object.freeze({ ...NOMS_V3, ...NOMS_V4 });
+export const ORDRE_TOUT = Object.freeze([...ORDRE_V3, ...ORDRE_V4, ...ORDRE_V6]), NOMS_TOUT = Object.freeze({ ...NOMS_V3, ...NOMS_V4, ...NOMS_V6 });
 /* Nom d'usage d'une tâche : famille connue, sinon le titre de l'hypothèse du Chercheur. */
 export const nomDe = tache => NOMS_TOUT[tache.famille] || (tache.hypothese && tache.hypothese.titre) || tache.famille;
 export const ORDRE_SIMPLICITE = Object.freeze([...ORDRE_TOUT].sort((a, b) => tailleGrille(a) - tailleGrille(b) || ORDRE_TOUT.indexOf(a) - ORDRE_TOUT.indexOf(b)));

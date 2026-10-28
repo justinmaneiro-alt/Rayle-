@@ -17,7 +17,8 @@ import { planifier, lireCache, ecrireCache, executerTache, integrerResultat, CHA
 import { lireEquipe, ecrireEquipe, executerChercheur, tachesHypotheses, marquerTest, ecrireRapportAuditeur, resumeEquipe, noter as noterEquipe } from './equipe/equipe.mjs';
 import { enregistrerHypothese, construireFaitsChercheur } from '../strategies/equipe/chercheur.js';
 import { calculerDiagnostic } from './diagnostic.mjs';
-import { lireCoutsReglage, ecrireExemple } from './couts-reglage.mjs';
+import { lireCoutsReglage, ecrireExemple, configRicheDe } from './couts-reglage.mjs';
+import { estRiche } from '../strategies/direct-riche.js';
 import { calculerCouts } from './couts-en-r.mjs';
 import { lirePepiniere, alimenter, avancerPepiniere, resumePepiniere } from './pepiniere.mjs';
 import { majOccasions, resumeOccasions, expliquerExemple, resumeExemples, ajusterRecherche, rapportQuotidien, alerteObservationTexte } from '../strategies/autonomie.js';
@@ -35,7 +36,7 @@ import { dossierVeilleur } from '../app-pc/veilleur/dossier.mjs';
 import { assurerEnregistreur, statutFlux } from './flux/service-flux.mjs';
 
 export const VERSION_SERVICE = 1;
-export const CYCLE_MS = 30000, FENETRE_LIVE = 3000, TRANCHE_MS = 4 * 60e3, JEUX_PAR_DEFAUT = ['valorant', 'cs2', 'csgo', 'fortniteclient-win64-shipping', 'eldenring', 'leagueclient', 'league of legends', 'overwatch', 'rocketleague', 'gta5', 'cyberpunk2077', 'baldursgate3', 'minecraft'];
+export const CYCLE_MS = 30000, FENETRE_LIVE = 3000, FENETRE_RICHE = 6000, TRANCHE_MS = 4 * 60e3, JEUX_PAR_DEFAUT = ['valorant', 'cs2', 'csgo', 'fortniteclient-win64-shipping', 'eldenring', 'leagueclient', 'league of legends', 'overwatch', 'rocketleague', 'gta5', 'cyberpunk2077', 'baldursgate3', 'minecraft'];
 const semaineISO = t => { const d = new Date(t), j = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate())), n = j.getUTCDay() || 7; j.setUTCDate(j.getUTCDate() + 4 - n); const a = new Date(Date.UTC(j.getUTCFullYear(), 0, 1)); return j.getUTCFullYear() + '-S' + String(Math.ceil(((j - a) / 86400e3 + 1) / 7)).padStart(2, '0'); };
 
 export function creerService({ dossier = dossierAgent(), maintenant = () => Date.now(), donnees = null, sync = null, ecrire = ecrireRapport, executer = executerTache, detecteur = null, fetchImpl = globalThis.fetch, paires = ORDRE_PAIRES, tranchesMs = TRANCHE_MS, sansPriorite = false, avecFlux = false, avecEquipe = false, avecPepiniere = false } = {}) {
@@ -120,9 +121,10 @@ export function creerService({ dossier = dossierAgent(), maintenant = () => Date
     const regles = exporterRegles(etat); let nouvellesAlertes = 0;
     for (const regle of regles) {
       const serie = D.serie(regle.paire); if (!serie || serie.n < 1500) continue;
-      const fen = serie.n > FENETRE_LIVE ? tranche(serie, serie.n - FENETRE_LIVE, serie.n) : serie, s = etat.strategies[regle.id];
+      const lim = estRiche(regle.famille) ? FENETRE_RICHE : FENETRE_LIVE;      // les familles de la V6 ont besoin de ≈ 4000 bougies pour chauffer les indicateurs H4
+      const fen = serie.n > lim ? tranche(serie, serie.n - lim, serie.n) : serie, s = etat.strategies[regle.id];
       const alertesRec = etat.alertes.filter(a => maintenant() - a.t < 8 * 86400e3);
-      const r = surveillerRegle({ regle, s, suivi: suivi[regle.id] || null, serie: fen, risque: etat.parametresRisque, alertesRecentes: alertesRec, maintenant: maintenant() });
+      const r = surveillerRegle({ regle, s, suivi: suivi[regle.id] || null, serie: fen, risque: etat.parametresRisque, alertesRecentes: alertesRec, maintenant: maintenant(), config: configRicheDe(regle.paire, lireCoutsReglage(dossier)) });
       if (r.erreur) continue;
       suivi[regle.id] = r.suivi; for (const x of r.suivi.trades) if (x.version == null) x.version = etat.active;   // version de l'agent qui a pris le trade (filtre de l'écran)
       // trades simulés clos → liste de l'état (affichage, rapport)
