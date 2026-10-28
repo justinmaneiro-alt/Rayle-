@@ -55,15 +55,15 @@ export function grilleRaffinee(id, retenus, plafond = 300) {
   for (const k of Object.keys(g)) { if (n <= plafond) break; if (g[k].length > 1) { n /= g[k].length; g[k] = [retenus[k]]; } }   // on fige les derniers paramètres plutôt que de dépasser le plafond
   return g;
 }
-export const VERSION_PIPELINE = 'p4';   // V4 : purge du walk-forward (trade à cheval sur la coupe) ; change l'empreinte, donc les anciens résultats sont refaits (le compteur de variantes ne baisse jamais)
-export const empreinteTache = ({ famille: f, paire, grille, debutFinal, type }) => hash([f, paire, type || 'exploration', JSON.stringify(grille), debutFinal, empreinteV3(), VERSION_PIPELINE].join('|'));   // la zone de recherche est FIXE (coffre) : de nouvelles bougies ne changent pas le résultat
+export const VERSION_PIPELINE = 'p6';   // V4 : purge du walk-forward (trade à cheval sur la coupe) ; change l'empreinte, donc les anciens résultats sont refaits (le compteur de variantes ne baisse jamais)
+export const empreinteTache = ({ famille: f, paire, grille, debutFinal, type, couts = '' }) => hash([f, paire, type || 'exploration', JSON.stringify(grille), debutFinal, empreinteV3(), VERSION_PIPELINE, couts || ''].join('|'));   // V6 : les coûts de couts.json font partie de l'empreinte (changer les coûts refait la recherche ; le compteur de variantes ne baisse jamais)   // la zone de recherche est FIXE (coffre) : de nouvelles bougies ne changent pas le résultat
 
 /* Liste des tâches à faire, cache déjà retiré. Génération 0 pour toutes les familles et tous les actifs d'abord, puis la génération 1, etc. */
-export function planifier(etat, { paires, debutFinal, cache, generations = GENERATIONS_MAX, priorites = null, revue = false }) {
+export function planifier(etat, { paires, debutFinal, cache, generations = GENERATIONS_MAX, priorites = null, revue = false, couts = '' }) {
   const taches = [];
   for (let gen = 0; gen <= generations; gen++) for (const f of ordonnerFamilles(ORDRE_SIMPLICITE_GEN(gen), priorites, { revue })) for (const p of paires) {      // V4 : les familles « à creuser » d'abord, celles mises de côté seulement le jour de revue
     if (!debutFinal[p]) continue;
-    const grille = grilleDe(f, gen), emp = empreinteTache({ famille: f, paire: p, grille, debutFinal: debutFinal[p], type: 'exploration' });
+    const grille = grilleDe(f, gen), emp = empreinteTache({ famille: f, paire: p, grille, debutFinal: debutFinal[p], type: 'exploration', couts });
     if (cache.has(emp)) continue;
     taches.push({ type: 'exploration', gen, famille: f, paire: p, grille, empreinte: emp, debutFinal: debutFinal[p], taille: tailleGrilleGen(f, gen) });
   }
@@ -79,7 +79,7 @@ export function resumerValidation(r, tache) {
   const base = { id: tache.famille + ':' + tache.paire + ':' + tache.type, famille: tache.famille, nom: nomDe(tache), paire: tache.paire, type: tache.type, statut: r.statut, t: Date.now(), empreinteCriteres: r.criteres, jeuFinalOuvert: !!r.jeuFinal && r.jeuFinal.ouvert === true };
   if (!r.ok || !r.lignes) return { ...base, grille: tache.grille, raison: r.raison || null };
   const st = r.wf.stats;
-  return { ...base, grille: tache.grille, gen: tache.gen || 0, retenus: r.retenus, nVariantes: r.nVariantes, variantesCetteEvaluation: r.variantesDeCetteEvaluation, trades: st.n, esperance: st.esperance, tauxReussite: st.tauxReussite, factProfit: st.factProfit, ddR: st.ddR, parSemaine: st.parSemaine,
+  return { ...base, grille: tache.grille, gen: tache.gen || 0, retenus: r.retenus, nVariantes: r.nVariantes, variantesCetteEvaluation: r.variantesDeCetteEvaluation, trades: st.n, coutMoyenR: r.coutMoyenR == null ? null : r.coutMoyenR, esperance: st.esperance, tauxReussite: st.tauxReussite, factProfit: st.factProfit, ddR: st.ddR, parSemaine: st.parSemaine,
     bootstrapBas: r.bootstrap.bas, dsr: r.dsr && r.dsr.dsr, propDdPct: r.prop.ddPct, propJourPct: r.prop.pireJourPct, ratees: r.ratees, actifs: r.actifs, regimes: r.regimes, zone: r.zoneRecherche, couvertureFlux: r.couvertureFlux || null, courbeR: courbeReduite(r.wf.stats.courbeR), jeuFinal: r.jeuFinal || null };
 }
 /* Le résultat est-il « prometteur et stable » (donc digne d'un raffinement) ? Jamais un pic isolé : voisins majoritairement positifs. */

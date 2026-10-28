@@ -8,6 +8,7 @@
    - UNE seule position à la fois, pas de martingale, pas de pyramidage, pas de renforcement ; repos entre deux positions ; maximum de positions par semaine ;
    - taille = risque fixe (en % du capital, réglable) divisé par la distance au stop ; frais par côté, spread, glissement réalistes (réglables) ;
    - une position encore ouverte à la fin des données n'est PAS comptée (aucun résultat inventé).
+   V6 : chaque trade porte aussi RbrutIdeal (le gain SANS aucun coût : prix idéaux, ni frais ni spread ni glissement) et coutsTotalR (= RbrutIdeal − R : TOUS les coûts) ; Rbrut / coutsR gardent leur sens d'origine (Rbrut après spread et glissement, coutsR = frais seuls).
    Les résultats sont exprimés en R (multiples du risque pris, frais et glissement inclus) et en % du capital (rendement composé). */
 export const CONFIG_DEFAUT = Object.freeze({
   risquePct: 1,            // % du capital risqué par position
@@ -34,9 +35,9 @@ export function ouvrirPosition(cfg, s, ouverture, stop, R) {
 export function evaluerBougie(cfg, pos, b, premiere, detenues) {
   const s = pos.s, slip = cfg.glissementPct / 100, demi = cfg.spreadPct / 200;
   const touchStop = s > 0 ? b.l <= pos.stop : b.h >= pos.stop, touchCible = s > 0 ? b.h >= pos.cible : b.l <= pos.cible;
-  if (touchStop) { const gap = !premiere && (s > 0 ? b.o < pos.stop : b.o > pos.stop); return { prix: (gap ? b.o : pos.stop) * (1 - s * slip), motif: 'stop' }; }
-  if (touchCible) { const gap = !premiere && (s > 0 ? b.o > pos.cible : b.o < pos.cible); return { prix: (gap ? b.o : pos.cible) * (1 - s * demi), motif: 'cible' }; }
-  if (detenues >= cfg.maxBarres) return { prix: b.c * (1 - s * (slip + demi)), motif: 'temps' };
+  if (touchStop) { const gap = !premiere && (s > 0 ? b.o < pos.stop : b.o > pos.stop); return { prix: (gap ? b.o : pos.stop) * (1 - s * slip), motif: 'stop', ideal: gap ? b.o : pos.stop }; }
+  if (touchCible) { const gap = !premiere && (s > 0 ? b.o > pos.cible : b.o < pos.cible); return { prix: (gap ? b.o : pos.cible) * (1 - s * demi), motif: 'cible', ideal: gap ? b.o : pos.cible }; }
+  if (detenues >= cfg.maxBarres) return { prix: b.c * (1 - s * (slip + demi)), motif: 'temps', ideal: b.c };
   return null;
 }
 /* Résultat en R d'une position sortie à prixSortie (frais déduits ; risque = 1). */
@@ -62,7 +63,7 @@ export function simuler(m15, signaux, config = {}, plage = {}) {
     for (let j = e; j < a; j++) { ex = evaluerBougie(cfg, pos, { o: o[j], h: h[j], l: l[j], c: c[j] }, j === e, j - e + 1); if (ex) { sortie = j; break; } }
     if (sortie < 0) { tronque = 1; break; }                                 // position encore ouverte à la fin des données : non comptée
     const r = resultatPosition(cfg, pos, ex.prix);
-    trades.push({ signal: i, entree: e, sortie, t: t[e], tSortie: t[sortie], sens: s, prixEntree: pos.fill, stop: pos.stop, cible: pos.cible, prixSortie: ex.prix, motif: ex.motif, R: r.R, Rbrut: r.Rbrut, coutsR: r.coutsR, distancePct: pos.pct, barres: sortie - e + 1 });
+    trades.push({ signal: i, entree: e, sortie, t: t[e], tSortie: t[sortie], sens: s, prixEntree: pos.fill, stop: pos.stop, cible: pos.cible, prixSortie: ex.prix, motif: ex.motif, R: r.R, Rbrut: r.Rbrut, coutsR: r.coutsR, RbrutIdeal: s * (ex.ideal - o[e]) / pos.dist, coutsTotalR: s * (ex.ideal - o[e]) / pos.dist - r.R, distancePct: pos.pct, barres: sortie - e + 1 });
     prochain = sortie + cfg.reposBarres; i = Math.max(sortie, i + 1);
   }
   return { trades, tronque: !!tronque, config: cfg };

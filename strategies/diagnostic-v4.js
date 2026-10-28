@@ -50,7 +50,7 @@ export function hasard(ctx, config, plage, { essais = 20, graine = 777, ...opts 
   const esp = [];
   for (let k = 0; k < essais; k++) {
     const sim = simuler(ctx.m15, signauxAleatoires(ctx, { graine: graine + k, ...opts }), config, plage), st = statistiques(sim.trades, { barres: plage.a - plage.de });
-    if (st.n >= 30) esp.push({ esperance: st.esperance, n: st.n, brute: sim.trades.reduce((x, t) => x + t.Rbrut, 0) / st.n, couts: sim.trades.reduce((x, t) => x + t.coutsR, 0) / st.n });
+    if (st.n >= 30) esp.push({ esperance: st.esperance, n: st.n, brute: sim.trades.reduce((x, t) => x + (t.RbrutIdeal != null ? t.RbrutIdeal : t.Rbrut), 0) / st.n, couts: sim.trades.reduce((x, t) => x + (t.coutsTotalR != null ? t.coutsTotalR : t.coutsR), 0) / st.n });   // V6 : « avant frais » = avant TOUS les coûts
   }
   const e = esp.map(x => x.esperance).sort((a, b) => a - b), moy = f => esp.length ? esp.reduce((x, y) => x + f(y), 0) / esp.length : null;
   return { essais: esp.length, esperanceMoyenne: moy(x => x.esperance), esperanceMax: e.length ? e[e.length - 1] : null, esperanceMin: e.length ? e[0] : null, bruteMoyenne: moy(x => x.brute), coutsMoyens: moy(x => x.couts), tradesMoyens: moy(x => x.n) };

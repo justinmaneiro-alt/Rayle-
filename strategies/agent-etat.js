@@ -1,6 +1,7 @@
 import { CRITERES3, empreinteV3 } from './criteres-v3.js';
 import { NOMS_V3 } from './familles-v3.js';
 import { NOMS_V4 } from './familles-v4.js';
+import { phraseFrais, tauxEquilibre } from './couts-r.js';
 
 /* ═════════════ ÉTAT DE L'AGENT UNIQUE (module pur, testé : galaxie/tests/agent-etat-test.mjs) ═════════════
    Un seul agent, toujours le même : identité stable, mémoire, versions numérotées, journal. Cet état est partagé par trois endroits : le service PC (écrit), le Worker Cloudflare (lit la version
@@ -103,11 +104,20 @@ function phraseStatut(etat, code) {
     pc_eteint: 'Ton PC est éteint : je surveille le marché depuis le serveur avec la dernière version validée (v' + etat.active + '), mais je ne cherche pas de nouvelles stratégies.', veille_recherche: 'Ton PC est éteint : pas de recherche en ce moment.',
     recherche: 'Je cherche et teste des stratégies sur les données ' + (n ? 'et je surveille le marché avec ' + n + ' stratégie(s).' : '; aucune n’est encore validée.'), surveillance: 'Je surveille le marché avec ' + n + ' stratégie(s) (version v' + etat.active + ').', aucune: CRITERES3.aucuneStrategie })[code];
 }
+/* Frais moyens en R par trade (V6) : `etat.frais` = { coutMoyenR, t } mesuré chaque jour par le service sur tout ce qui a été testé ; sinon, moyenne pondérée des résumés de validation qui la contiennent. */
+export function fraisMoyenR(etat) {
+  if (etat.frais && Number.isFinite(etat.frais.coutMoyenR)) return etat.frais.coutMoyenR;
+  const l = (etat.backtests || []).filter(b => Number.isFinite(b.coutMoyenR) && b.trades > 0), n = l.reduce((a, b) => a + b.trades, 0);
+  return n ? l.reduce((a, b) => a + b.coutMoyenR * b.trades, 0) / n : null;
+}
+/* La phrase de l'état : « Frais moyens : X R par trade. Taux de réussite minimal pour être rentable avec RR=2 : Y %. » */
+export const phraseFraisEtat = etat => phraseFrais({ coutMoyenR: fraisMoyenR(etat), rr: 2 });
 /* Les trois chiffres + la version active. */
 export function chiffres(etat, maintenant = Date.now()) {
   const variantes = Object.values(etat.compteurVariantes).reduce((a, b) => a + b, 0), v = versionActive(etat);
   const alertesActives = etat.alertes.filter(a => !a.lue && maintenant - a.t < 7 * 86400e3 && a.type !== 'RAPPORT').length;
-  return { variantes, validees: strategiesActives(etat).length, alertesActives, version: v ? v.numero : null, derniereValidation: v ? v.creeLe : null };
+  const frais = fraisMoyenR(etat);
+  return { variantes, validees: strategiesActives(etat).length, alertesActives, version: v ? v.numero : null, derniereValidation: v ? v.creeLe : null, fraisMoyenR: frais, tauxEquilibreRR2: frais == null ? null : tauxEquilibre(2, frais) };
 }
 /* Règles minimales envoyées au Worker : seulement ce qu'il faut pour surveiller (famille + paramètres) et le mode d'alerte. */
 export function exporterRegles(etat) {

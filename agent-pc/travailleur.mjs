@@ -7,6 +7,7 @@ import { stockageFichier } from '../app-pc/veilleur/stockage-fichier.mjs';
 import { validerV3 } from '../strategies/validation-v3.js';
 import { ouvrirJeuFinalV3 } from '../strategies/jeu-final-v3.js';
 import { configMoteurDe } from '../planetes/mars/pc/agent-m6/couts.js';
+import { configRicheDe } from './couts-reglage.mjs';
 import { grilleRaffinee, prometteur, resumerValidation } from './recherche.mjs';
 import { chargerCompact } from './flux/compact-flux.mjs';
 import { ACTIFS_HIST } from './flux/historique-trades.mjs';
@@ -24,7 +25,7 @@ export function executerTacheSync(tache, contexte, series, compacts = {}) {
   if (tache.hypothese) enregistrerHypothese(tache.hypothese);                                         // V4 : une hypothèse du Chercheur devient une petite famille testable dans ce processus
   const m15 = series[tache.paire]; if (!m15 || !m15.n) return { resumes: [{ famille: tache.famille, paire: tache.paire, type: tache.type, statut: 'insuffisant', raison: 'pas de données pour ' + tache.paire, t: Date.now() }] };
   const autres = Object.keys(series).filter(p => p !== tache.paire && series[p] && series[p].n).map(p => ({ nom: p, m15: series[p] }));
-  const config = configMoteurDe(tache.paire), debutFinal = tache.debutFinal, resumes = [];
+  const config = contexte.couts ? configRicheDe(tache.paire, contexte.couts) : configMoteurDe(tache.paire), debutFinal = tache.debutFinal, resumes = [];   // V6 : coûts de couts.json (maker, taker, spread, glissement) quand le service les fournit
   // V4 : les familles qui exigent l'empreinte (aggTrades) reçoivent le résumé de l'historique des transactions ; sans lui, aucun signal (jamais de valeur inventée)
   const avecEmpreinte = (EXIGENCES_V4[tache.famille] || []).includes('empreinte'), preparer = avecEmpreinte ? ctx => attacherEmpreinte(ctx, compacts[tache.paire] || null) : null, preparerAutre = avecEmpreinte ? (ctx, nom) => attacherEmpreinte(ctx, compacts[nom] || null) : null;
   let r = validerV3(m15, tache.famille, { config, variantesAvant: contexte.variantesAvant || 0, autres, debutFinal, grille: tache.type === 'exploration' ? null : tache.grille, preparer, preparerAutre });

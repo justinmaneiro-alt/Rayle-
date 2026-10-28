@@ -17,6 +17,8 @@ import { planifier, lireCache, ecrireCache, executerTache, integrerResultat, CHA
 import { lireEquipe, ecrireEquipe, executerChercheur, tachesHypotheses, marquerTest, ecrireRapportAuditeur, resumeEquipe, noter as noterEquipe } from './equipe/equipe.mjs';
 import { enregistrerHypothese, construireFaitsChercheur } from '../strategies/equipe/chercheur.js';
 import { calculerDiagnostic } from './diagnostic.mjs';
+import { lireCoutsReglage, ecrireExemple } from './couts-reglage.mjs';
+import { calculerCouts } from './couts-en-r.mjs';
 import { lirePepiniere, alimenter, avancerPepiniere, resumePepiniere } from './pepiniere.mjs';
 import { majOccasions, resumeOccasions, expliquerExemple, resumeExemples, ajusterRecherche, rapportQuotidien, alerteObservationTexte } from '../strategies/autonomie.js';
 import { construireContexte } from '../planetes/mars/pc/agent-btc/contexte.js';
@@ -141,6 +143,7 @@ export function creerService({ dossier = dossierAgent(), maintenant = () => Date
     const A = etat.autonomie, neuf = A.jour !== jour; if (!neuf && !force && A.jourRapport === jour) return null;
     let diag = null; const series = {}; for (const p of paires) series[p] = D.serie(p);
     if (neuf || force) {
+      try { const rc = calculerCouts(etat, series, { rapide: true, maintenant: t, reglage: lireCoutsReglage(dossier) }); etat.frais = { t, coutMoyenR: rc.synthese.coutMoyen, trades: rc.synthese.nTotal }; ecrireJson(path.join(dossier, 'couts-en-r.json'), rc); journal('autonomie', 'Frais moyens du jour : ' + (rc.synthese.coutMoyen == null ? 'inconnus' : rc.synthese.coutMoyen.toFixed(2).replace('.', ',') + ' R par trade') + '.'); } catch (e) { erreur('frais en R', e); }   // V6 phase 1
       try { diag = calculerDiagnostic(etat, series, { rapide: true, maintenant: t }); ecrireJson(path.join(dossier, 'diagnostic.json'), diag); const aj = ajusterRecherche(diag); etat.recherche.priorites = { ...aj, t }; journal('autonomie', 'Diagnostic du jour : ' + diag.conclusion.verdict.slice(0, 120) + (aj.raisons.length ? ' · Ajustement : ' + aj.raisons.slice(0, 2).join(' ') : '')); } catch (e) { erreur('diagnostic quotidien', e); }
       try {
         const occ = lireOcc(), pep = lirePepiniere(dossier), exemples = lireExemples(); let modif = false;
@@ -206,8 +209,9 @@ export function creerService({ dossier = dossierAgent(), maintenant = () => Date
     if (enCalcul) return { fait: false };
     const ok = await peutChercher(); if (!ok.ok) { info.phase = ok.raison.startsWith('pause :') ? 'pause_jeu' : 'attente'; info.raison = ok.raison; return { fait: false, raison: ok.raison }; }
     const dfp = debutFinalPar(); if (!Object.keys(dfp).length) { info.raison = 'pas assez de données pour fixer le jeu final'; return { fait: false }; }
-    const caches = { has: emp => !!lireCache(F.cache, emp) }, taches = planifier(etat, { paires, debutFinal: dfp, cache: caches, priorites: etat.recherche && etat.recherche.priorites, revue: new Date(maintenant()).getUTCDay() === 0 });
-    const equipe = lireEquipe(dossier); taches.unshift(...tachesHypotheses({ equipe, paires, debutFinal: dfp, cache: caches, empreinteTache }));                // V4 : les hypothèses du Chercheur passent en premier
+    const reglageCouts = lireCoutsReglage(dossier), coutsEmp = reglageCouts.source === 'fichier' ? reglageCouts.empreinte : '';       // V6 : les coûts de Justin (couts.json) comptent dans l'empreinte des tâches
+    const caches = { has: emp => !!lireCache(F.cache, emp) }, taches = planifier(etat, { paires, debutFinal: dfp, cache: caches, priorites: etat.recherche && etat.recherche.priorites, revue: new Date(maintenant()).getUTCDay() === 0, couts: coutsEmp });
+    const equipe = lireEquipe(dossier); taches.unshift(...tachesHypotheses({ equipe, paires, debutFinal: dfp, cache: caches, empreinteTache: x => empreinteTache({ ...x, couts: coutsEmp }) }));                // V4 : les hypothèses du Chercheur passent en premier
     if (!taches.length) { info.phase = 'attente'; info.raison = 'espace de recherche défini épuisé (' + GENERATIONS_MAX + ' générations) : j’attends de nouvelles données ou de nouvelles idées'; etat.recherche.enCours = null; etat.recherche.epuise = true; return { fait: false, raison: info.raison }; }
     etat.recherche.epuise = false; enCalcul = true; info.phase = 'recherche'; info.raison = null; ecrireInfo();
     const debut = maintenant(); let faites = 0;
@@ -215,7 +219,7 @@ export function creerService({ dossier = dossierAgent(), maintenant = () => Date
       while (taches.length && maintenant() - debut < tranchesMs && !arretDemande) {
         const lot = taches.splice(0, charge()), total = Object.values(etat.compteurVariantes).reduce((a, b) => a + b, 0);
         etat.recherche.enCours = lot.map(t => t.famille + ' ' + t.paire + (t.gen ? ' (génération ' + t.gen + ')' : '')).join(', '); ecrireInfo();
-        const contexte = { paires, dossierDonnees: F.donnees, variantesAvant: total, ouverturesParPaire: Object.fromEntries(paires.map(p => [p, ((etat.coffre && etat.coffre[p]) ? etat.coffre[p].ouvertures.length : 0)])) };
+        const contexte = { paires, dossierDonnees: F.donnees, couts: reglageCouts, variantesAvant: total, ouverturesParPaire: Object.fromEntries(paires.map(p => [p, ((etat.coffre && etat.coffre[p]) ? etat.coffre[p].ouvertures.length : 0)])) };
         const res = await Promise.all(lot.map(t => executer(t, contexte).catch(e => ({ resumes: [{ famille: t.famille, paire: t.paire, type: t.type, statut: 'erreur', raison: String(e.message).slice(0, 150), t: maintenant() }] }))));
         const candidates = [];
         const eq = lireEquipe(dossier);
@@ -275,7 +279,7 @@ export function creerService({ dossier = dossierAgent(), maintenant = () => Date
     sauver(); ecrireInfo(); return cr;
   }
   async function demarrer() {
-    journal('service', 'Service de l’agent démarré (pid ' + process.pid + ').'); try { await D.charger(); } catch (e) { erreur('chargement des données', e); }
+    journal('service', 'Service de l’agent démarré (pid ' + process.pid + ').'); try { ecrireExemple(dossier); } catch (e) { /* dossier en lecture seule */ } try { await D.charger(); } catch (e) { erreur('chargement des données', e); }
     try { for (const h of lireEquipe(dossier).hypotheses) enregistrerHypothese(h); } catch (e) { erreur('équipe', e); }     // les familles issues des hypothèses du Chercheur doivent exister pour la surveillance
     await reprendreDepuisWorker(); sauver(); ecrireInfo();
   }

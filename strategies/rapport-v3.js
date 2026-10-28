@@ -1,4 +1,4 @@
-import { chiffres, statutAgent, strategiesActives, versionActive } from './agent-etat.js';
+import { chiffres, statutAgent, strategiesActives, versionActive, phraseFraisEtat } from './agent-etat.js';
 import { CRITERES3 } from './criteres-v3.js';
 
 /* ═════════════ RAPPORT DE L'AGENT EN 5 LIGNES (module pur, testé : galaxie/tests/agent-etat-test.mjs) ═════════════
@@ -14,7 +14,7 @@ export function faitsRapport(etat, ctx = {}, maintenant = Date.now()) {
   const essais = etat.backtests.slice(-5), meilleur = etat.backtests.filter(b => b.esperance != null && b.statut !== 'rejetee_causalite').sort((a, b) => b.esperance - a.esperance)[0] || null;
   return { statut: st, version: c.version, derniereValidation: c.derniereValidation, variantes: c.variantes, validees: c.validees, alertesActives: c.alertesActives, strategies: actives.map(s => ({ nom: s.nom, paire: s.paire, phase: s.phase })), versionRaison: v ? v.raison : null,
     essaisRecents: essais.map(b => ({ nom: b.nom, paire: b.paire, statut: b.statut, esperance: b.esperance, trades: b.trades })), meilleurEssai: meilleur ? { nom: meilleur.nom, paire: meilleur.paire, esperance: meilleur.esperance, trades: meilleur.trades, statut: meilleur.statut } : null,
-    compte: ctx.compte || null, maintenant };
+    frais: phraseFraisEtat(etat), fraisMoyenR: c.fraisMoyenR, compte: ctx.compte || null, maintenant };
 }
 /* Le rapport écrit par le code : cinq lignes, français simple, jamais de promesse. */
 export function rapportTemplate(f) {
@@ -23,6 +23,7 @@ export function rapportTemplate(f) {
   l.push('J’ai testé ' + f.variantes.toLocaleString('fr-FR') + ' variantes de stratégies jusqu’ici ; ' + (f.validees ? f.validees + ' stratégie(s) ont passé la validation (version v' + f.version + ', validée le ' + jourFr(f.derniereValidation) + ').' : 'aucune n’a passé la validation : ' + CRITERES3.aucuneStrategie));
   if (f.meilleurEssai) l.push('Meilleur essai pour l’instant : ' + f.meilleurEssai.nom + ' sur ' + f.meilleurEssai.paire + ', ' + fr(f.meilleurEssai.esperance, 2) + ' R par trade sur ' + f.meilleurEssai.trades + ' trades hors échantillon (' + (f.meilleurEssai.statut === 'validee_backtest' ? 'validé en backtest' : 'pas validé') + ').');
   else l.push('Je n’ai pas encore de résultat chiffré à te montrer.');
+  if (f.fraisMoyenR != null) l[l.length - 1] += ' ' + f.frais;      // V6 : « Frais moyens : X R par trade. Taux de réussite minimal pour être rentable avec RR=2 : Y %. »
   l.push(f.strategies.length ? 'Stratégies suivies : ' + f.strategies.map(s => s.nom + ' ' + s.paire + ' (' + ({ simulation: 'en simulation', active: 'active', pause: 'en pause' }[s.phase] || s.phase) + ')').join(', ') + '.' : 'Aucune stratégie n’est suivie pour l’instant : pas d’alerte d’entrée à attendre.');
   l.push('Rappel : les résultats passés ne garantissent rien et aucun ordre n’est exécuté.');
   return l;
