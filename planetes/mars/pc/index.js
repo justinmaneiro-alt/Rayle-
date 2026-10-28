@@ -133,18 +133,7 @@ async function construire(G) {
       catch (e) { if (int) int.holo.majReel('contexte', { etat: 'indisponible', erreur: String(e && e.message || e) }); }
     };
     contexte(); const t3 = setInterval(contexte, 180000); arretsDonnees.push(() => clearInterval(t3));
-    // Agent BTC : instantané de l'agent (le téléchargement de l'historique n'est lancé que si l'utilisateur a activé l'agent)
-    try {
-      const { obtenirAgent, surChangement: surAgent } = await import('./trading/session-agent.js'), agent = await obtenirAgent({ demarrer: true });
-      const dessiner = () => {
-        if (!int || mode !== 'interieur') return; const s = agent.instantane(), L = s.lecture, c = s.compte.valide;
-        if (!s.donnees.n) { int.holo.majReel('agent-btc', { etat: 'bientot', message: 'ouvre l’agent pour télécharger l’historique' }); return; }
-        const et = { jamais: 'pas de recherche', en_recherche: 'en recherche…', validee: 'VALIDÉE', rejetee: 'rejetée', aucune: 'aucune robuste trouvée', attente_jeu_final: 'attend un jeu final', interrompue: 'interrompue', refus_historique: 'historique court' }[s.etatStrategie] || s.etatStrategie;
-        const stp = s.setup && s.setup.statut === 'entree' ? 'ENTRÉE ' + (s.setup.sens > 0 ? 'achat' : 'vente') : s.setup && s.setup.statut === 'preparation' ? 'préparation' : 'pas de setup';
-        int.holo.majReel('agent-btc', { etat: 'ok', agent: { phase: L && L.ok ? L.phase.phase + ' (H1)' : 'en attente', phaseCode: L && L.ok ? L.phase.code : 0, volume: L && L.ok ? L.direction.lecture.replace(' sur 24 h', '') : '—', strategie: et, strategieCouleur: s.etatStrategie === 'validee' ? 'ok' : (s.etatStrategie === 'aucune' || s.etatStrategie === 'rejetee') ? 'ko' : '', setup: stp, setupCouleur: s.setup ? (s.setup.statut === 'entree' ? 'entree' : s.setup.statut === 'preparation' ? 'prep' : '') : '', compte: c.n ? c.n + ' trades · ' + (c.esperance >= 0 ? '+' : '') + c.esperance.toFixed(2) + ' R' : 'aucun trade', source: s.donnees.source === 'binance' ? 'Binance' : s.donnees.source, heure: s.donnees.fin ? new Date(s.donnees.fin - 900e3).toLocaleTimeString('fr-FR', { timeZone: 'Europe/Paris', hour: '2-digit', minute: '2-digit' }) : '—' } });
-      };
-      dessiner(); const off = surAgent(() => dessiner()); const t4 = setInterval(dessiner, 30000); arretsDonnees.push(() => { clearInterval(t4); off(); });
-    } catch (e) { if (int) int.holo.majReel('agent-btc', { etat: 'indisponible', erreur: String(e && e.message || e) }); }
+    // Agent BTC : la fenêtre lit l'état de l'agent Kepler (service du PC, sinon Worker) : mise à jour dans fenetres-m6.js (V3b). L'ancien agent du navigateur n'est plus démarré ici.
     demarrerFinance();
     // M6 : les six fenêtres de performance de l'agent (gardien prop, journal et tilt, propositions, performance, régime, probabilité de réussite)
     try { const M6 = await import('./trading/fenetres-m6.js'); const stop = M6.demarrerFenetresM6({ majReel: (id, r) => { if (int) int.holo.majReel(id, r); }, actif: () => !!int && mode === 'interieur' }); arretsDonnees.push(stop); } catch (e) { for (const id of ['gardien-prop', 'journal-tilt', 'propositions-agent', 'perf-strategies', 'regime-marche', 'proba-evaluation']) if (int) int.holo.majReel(id, { etat: 'indisponible', erreur: String(e && e.message || e) }); }

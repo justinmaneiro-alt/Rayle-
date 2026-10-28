@@ -4,7 +4,7 @@ import { correlations, lectureCorrelation, resume } from './analyse.js';
 import { age, heureParis } from './serie.js';
 import { UNITES_DASHBOARD, colonne, constatsContexte, formaterUsd, global as globalDash, lignesContexte } from './dashboard.js';
 import { creerTradingView } from './tradingview.js';
-import { creerPanneauAgent } from './panneau-agent.js';
+import { creerPanneauAgentV3 } from './panneau-agent-v3.js';
 import { creerPanneauAlertes } from './panneau-alertes.js';
 import { creerPanneauActus, creerPanneauBanques, creerPanneauCalendrier, creerPanneauCot, creerPanneauNasdaq, creerPanneauPublications, creerPanneauTaux } from './panneaux-finance.js';
 import { lireCotations } from './cotations.js';
@@ -33,12 +33,13 @@ export function descriptionSource(r, maintenant = Date.now()) {
 }
 
 /* ── Registre des panneaux ── */
+const MSG_STRATEGE = 'Il n’y a pas d’agent stratège séparé : la recherche de stratégies et les alertes sont faites par l’agent Kepler (onglet « Agent BTC »), et Raylé t’explique à la voix. Les scénarios commentés avant les séances ne sont pas construits : rien n’est inventé à leur place.';
 export const PANNEAUX = {
   watchlist: { titre: 'Watchlist', zone: 'droite', etat: 'reel', creer: creerWatchlist },
   resume: { titre: 'Résumé de marché', zone: 'droite', etat: 'reel', creer: creerResume },
   dashboard: { titre: 'Dashboard analytique', zone: 'dock', etat: 'reel', creer: creerDashboard },
   contexte: { titre: 'Contexte de marché', zone: 'dock', etat: 'reel', creer: creerContexte },
-  agent: { titre: 'Agent BTC', zone: 'dock', etat: 'reel', grand: true, creer: c => creerPanneauAgent(c) },
+  agent: { titre: 'Agent BTC', zone: 'dock', etat: 'reel', grand: true, creer: c => creerPanneauAgentV3(c) },   // V3b : page simple de l'agent Kepler (service PC / Worker) + onglet « Détails » (l'ancienne page, intacte)
   alertes: { titre: 'Alertes', zone: 'dock', etat: 'reel', grand: true, creer: () => creerPanneauAlertes() },
   correlations: { titre: 'Corrélations', zone: 'dock', etat: 'reel', creer: creerCorrelations },
   cot: { titre: 'COT (CFTC)', zone: 'dock', etat: 'reel', grand: true, creer: () => creerPanneauCot() },
@@ -48,9 +49,9 @@ export const PANNEAUX = {
   taux: { titre: 'Taux', zone: 'dock', etat: 'reel', grand: true, creer: () => creerPanneauTaux() },
   heatmap: { titre: 'Nasdaq 100', zone: 'dock', etat: 'reel', grand: true, creer: () => creerPanneauNasdaq() },
   publications: { titre: 'Banques et analyses', zone: 'dock', etat: 'reel', grand: true, creer: () => creerPanneauPublications() },
-  strategie: { titre: 'Agent stratège', zone: 'dock', etat: 'bientot', etape: 'M4', creer: () => bientot('M4', 'Agent IA stratège : scénarios, volume profile commenté, alertes avant les séances. Raylé explique et alerte ; elle ne passe jamais d’ordre.') }
+  strategie: { titre: 'Agent stratège', zone: 'dock', etat: 'info', creer: () => explication(MSG_STRATEGE) }
 };
-function bientot(etape, texte) { const e = h('div', 'tg-bientot'); e.innerHTML = '<b>ARRIVE À L’ÉTAPE ' + etape + '</b><p>' + esc(texte) + '</p><i>Rien n’est affiché ici tant que la donnée réelle n’est pas branchée.</i>'; return { racine: e, maj() {}, detruire() {} }; }
+function explication(texte) { const e = h('div', 'tg-bientot'); e.innerHTML = '<b>PAS D’AGENT STRATÈGE SÉPARÉ</b><p>' + esc(texte) + '</p><i>Rien n’est affiché ici tant qu’aucune donnée réelle n’existe.</i>'; return { racine: e, maj() {}, detruire() {} }; }
 
 function creerWatchlist(c) {
   const racine = h('div', 'tg-watch'), pied = h('div', 'tg-pied'); const lignes = {};
@@ -208,7 +209,7 @@ export function creerEspace({ conteneur, client, tactile = false, depart = {}, s
   for (const [id, p] of Object.entries(PANNEAUX)) {
     const inst = p.creer(ctxPanneau); instances[id] = inst;
     const boite = h('section', 'tg-p tg-e-' + p.etat); boite.dataset.panneau = id;
-    const tete = h('header', '', '<b>' + esc(p.titre) + '</b>' + (p.etat === 'exemple' ? '<em class="ex">EXEMPLE</em>' : p.etat === 'bientot' ? '<em class="bt">BIENTÔT · ' + p.etape + '</em>' : '<em class="re">RÉEL</em>')); boite.append(tete, inst.racine); inst.boite = boite;
+    const tete = h('header', '', '<b>' + esc(p.titre) + '</b>' + (p.etat === 'exemple' ? '<em class="ex">EXEMPLE</em>' : p.etat === 'bientot' ? '<em class="bt">BIENTÔT · ' + p.etape + '</em>' : p.etat === 'info' ? '' : '<em class="re">RÉEL</em>')); boite.append(tete, inst.racine); inst.boite = boite;
     if (p.zone === 'droite') colonne.appendChild(boite);
     else { const o = h('button', 'tg-onglet tg-e-' + p.etat, esc(p.titre)); o.type = 'button'; o.dataset.panneau = id; o.onclick = () => choisirDock(id); onglets.appendChild(o); corpsDock.appendChild(boite); boite.classList.add('tg-dock-p'); }
   }

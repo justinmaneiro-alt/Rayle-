@@ -63,7 +63,7 @@ export function brancher({ O, galaxie, ouvrirGalaxie }) {
   }, 60000);
   sur('agent_expliquer', async ({ sujet }) => { const A = await import('./trading/session-agent.js'); return { ok: true, texte: await A.expliquerAgent(sujet) }; }, 60000);
   sur('agent_recherche', async () => { const A = await import('./trading/session-agent.js'); return { ok: true, texte: await A.lancerRechercheAgent() }; }, 60000);
-  sur('analyser', async () => ({ ok: false, erreur: 'l’agent d’analyse arrive à l’étape M4 ; pour l’instant le résumé du marché est calculé dans le terminal, sans IA' }));
+  sur('analyser', async () => ({ ok: false, erreur: 'il n’y a pas d’agent stratège séparé : la recherche et les alertes sont faites par l’agent Kepler (fenêtre Agent BTC) ; pour l’instant le résumé du marché est calculé dans le terminal, sans IA' }));
   import('./trading/chart-api.js').then(M => M.brancherOrdresGraphique(sur)).catch(() => { /* API du graphique indisponible : ces ordres répondent « pas encore disponible » */ });      // M6 : lire / tracer / tester une zone / expliquer une bougie / rejouer
   import('./trading/rapports-agent.js').then(M => M.brancherOrdresRapports(sur)).catch(() => { /* rapports de l'agent : idem */ });
   sur('regler_heure', async ({ heure }) => {

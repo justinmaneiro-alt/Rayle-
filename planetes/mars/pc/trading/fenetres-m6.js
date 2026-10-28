@@ -3,6 +3,9 @@ import { hotesChargees, paireActive, surChangement, obtenirHotePaire } from './p
 import { regimePour, regimesMemo, derniereSimulation } from './services-m6.js';
 import { assistantsMemo, assistantTick } from './assistant-page.js';
 import { tableauM6c } from '../agent-m6c/performance-m6c.js';
+import { lireEtatAgent } from './agent-accueil.js';
+import { regimesActifs, regimesActifsMemo } from './regime-actifs-page.js';
+import { reelAgent, reelPropositions, reelRegimes } from '../agent-v3/synthese-agent.js';
 
 /* ═════════════ LES SIX FENÊTRES DE PERFORMANCE DE L'AGENT SUR LA TABLE DE MARS (M6) ═════════════
    Performance des stratégies (BACKTEST) · Gardien prop (RÉEL) · Propositions de l'agent (RÉEL / SIMULÉ) · Régime de marché (RÉEL + ESTIMÉ) · Journal et tilt (RÉEL) · Probabilité de réussite (ESTIMÉ).
@@ -11,7 +14,7 @@ import { tableauM6c } from '../agent-m6c/performance-m6c.js';
 const NOM = { BTC: 'Bitcoin', SOL: 'Solana', DOGE: 'Dogecoin' }, $ = v => Math.round(v).toLocaleString('fr-FR') + ' $';
 const couleurNiveau = n => ({ VERT: undefined, ORANGE: '#ffb347', ROUGE: '#ff6b6b', BLOQUE: '#ff6b6b' }[n]);
 
-export function construireReels(m6vue, vuesPaires, regimes, simulation, m6c = null) {
+export function construireReels(m6vue, vuesPaires, regimes, simulation, m6c = null, v3 = null) {
   const out = {}, g = m6vue.gardien, c = m6vue.compte, t = m6vue.tilt;
   const cl = p => (p >= 0.8 ? 'ko' : p >= 0.5 ? 'warn' : 'ok');
   out['gardien-prop'] = { etat: 'ok', etiquette: 'RÉEL', jauges: [
@@ -43,21 +46,40 @@ export function construireReels(m6vue, vuesPaires, regimes, simulation, m6c = nu
   // probabilité de réussite
   const s = simulation, ref = s && s.ok ? (s.niveaux.find(x => s.plage && x.risquePct === s.plage.de) || s.niveaux[1] || s.niveaux[0]) : null;
   out['proba-evaluation'] = ref ? { etat: 'ok', etiquette: s.hypothetique ? 'HYPOTHÉTIQUE' : 'ESTIMÉ', liste: [{ g: 'Objectif avant limites', d: Math.round(ref.pObjectif.moy * 100) + ' %', c: '#41e0a0' }, { g: 'Fourchette', d: Math.round(ref.pObjectif.bas * 100) + ' à ' + Math.round(ref.pObjectif.haut * 100) + ' %' }, { g: 'Drawdown touché', d: Math.round(ref.pDrawdown.moy * 100) + ' %', c: '#ff6b6b' }, { g: 'Perte du jour touchée', d: Math.round(ref.pJour.moy * 100) + ' %', c: '#ff6b6b' }], entete: 'à ' + ref.risquePct + ' % de risque par trade', pied: s.n + ' trades · pas une promesse' } : { etat: 'bientot', message: 'lance une simulation dans le poste' };
+  // V3b : l'agent Kepler (service PC, sinon Worker) et le régime de chaque actif remplacent les messages « active l'agent sur une paire » / « paire non activée »
+  if (v3) {
+    const aProps = out['propositions-agent'] && out['propositions-agent'].etat === 'ok' && out['propositions-agent'].liste && out['propositions-agent'].liste.length && out['propositions-agent'].etiquette === 'SIMULÉ';
+    if (!aProps) out['propositions-agent'] = reelPropositions(v3.lecture);
+    const rg = reelRegimes(v3.regimes, v3.lecture); if (rg.etat === 'ok' || out['regime-marche'].etat !== 'ok') out['regime-marche'] = rg;
+    out['agent-btc'] = reelAgent(v3.lecture);
+  }
   return out;
 }
 
 export function demarrerFenetresM6({ majReel, actif = () => true }) {
   let arrete = false, minuterie = null, dernierRegime = 0;
+  /* L'état de l'agent Kepler et les régimes par actif ne dépendent PAS de l'ancien pilote : lus même si le reste échoue. */
+  async function lireV3() {
+    let lecture = null; try { lecture = await lireEtatAgent(); } catch (e) { lecture = null; }
+    const signature = () => Object.values(regimesActifsMemo()).map(x => x.t).join(',');
+    const avant = signature(); regimesActifs().then(() => { if (signature() !== avant) planifier(300); }).catch(() => {});   // mis en cache 15 min : on ne redessine que si du neuf est arrivé
+    return { lecture, regimes: regimesActifsMemo() };
+  }
   async function tick() {
     if (arrete || !actif()) return;
+    let v3 = null; try { v3 = await lireV3(); } catch (e) { v3 = null; }
     try {
       const m6 = await obtenirM6(), vue = m6.vue(), hotes = hotesChargees(), vuesPaires = {};
       for (const p of ['BTC', 'SOL', 'DOGE']) { let h = hotes[p]; if (!h && (p === 'BTC' || paireActive(p))) { try { h = await obtenirHotePaire(p, { demarrer: true }); } catch (e) { h = null; } } if (h) { try { vuesPaires[p] = h.vue(); } catch (e) { /* en chargement */ } } }
       if (Date.now() - dernierRegime > 15 * 60e3) { dernierRegime = Date.now(); for (const p of Object.keys(vuesPaires)) { if (vuesPaires[p].donnees && vuesPaires[p].donnees.n) regimePour(p).then(() => planifier(500)).catch(() => {}); } }
       try { await assistantTick(Object.keys(vuesPaires)); } catch (e) { /* l'assistant ne doit jamais bloquer les fenêtres */ }
-      const reels = construireReels(vue, vuesPaires, regimesMemo(), derniereSimulation(), { paires: Object.keys(vuesPaires), assistants: assistantsMemo() });
+      const reels = construireReels(vue, vuesPaires, regimesMemo(), derniereSimulation(), { paires: Object.keys(vuesPaires), assistants: assistantsMemo() }, v3);
       for (const [id, r] of Object.entries(reels)) majReel(id, r);
-    } catch (e) { for (const id of ['gardien-prop', 'journal-tilt', 'propositions-agent', 'perf-strategies', 'regime-marche', 'proba-evaluation']) majReel(id, { etat: 'indisponible', erreur: String(e && e.message || e) }); }
+    } catch (e) {
+      for (const id of ['gardien-prop', 'journal-tilt', 'perf-strategies', 'proba-evaluation']) majReel(id, { etat: 'indisponible', erreur: String(e && e.message || e) });
+      if (v3) { majReel('agent-btc', reelAgent(v3.lecture)); majReel('propositions-agent', reelPropositions(v3.lecture)); majReel('regime-marche', reelRegimes(v3.regimes, v3.lecture)); }
+      else for (const id of ['propositions-agent', 'regime-marche', 'agent-btc']) majReel(id, { etat: 'indisponible', erreur: String(e && e.message || e) });
+    }
   }
   const planifier = ms => { clearTimeout(minuterie); minuterie = setTimeout(tick, ms); };
   const off1 = surChangementM6(() => planifier(400)), off2 = surChangement(() => planifier(1500)), iv = setInterval(tick, 30000);

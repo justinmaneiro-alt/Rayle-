@@ -9,7 +9,7 @@ export const EXTRAS = [
   { id: 'correlations', titre: 'Corrélations', icone: '🔗', apercu: 'Matrice sur 60 jours : US100, or, dollar, taux', registre: 'correlations', reel: true },
   { id: 'heatmap', titre: 'Nasdaq 100', icone: '🟩', apercu: 'Grandes valeurs de l’indice', registre: 'heatmap', reel: true },
   { id: 'publications', titre: 'Banques et analyses', icone: '🏛', apercu: 'Publications et analyses publiques et gratuites : banques centrales, BRI, ING Think', registre: 'publications', reel: true },
-  { id: 'strategie', titre: 'Agent stratège', icone: '🧠', apercu: 'Scénarios commentés (annoncé, pas encore branché)', registre: 'strategie', reel: false },
+  { id: 'strategie', titre: 'Agent stratège', icone: '🧠', apercu: 'Pas d’agent stratège séparé : voir l’agent Kepler (Agent BTC)', registre: 'strategie', reel: false },
   { id: 'agents-prets', titre: 'Agents prêts (Tendance, Divergence RSI)', icone: '🤖', apercu: 'Assistant en 4 étapes : idée, paramètres, backtest, validation hors échantillon et alertes', registre: 'agents-prets', reel: true }
 ];
 /* correspondance fenêtre du mur → panneau du registre de l'espace de travail */

@@ -123,7 +123,7 @@ verifier('4. ordre ouvrir_fenetre cot : le panneau COT s\'ouvre (réel depuis la
 o = await ordre('ouvrir_fenetre', { fenetre: 'analyse' });
 verifier('4. ordre ouvrir_fenetre analyse : étape suivante, rien d\'inventé', !o.ok && /étape suivante/.test(o.erreur), JSON.stringify(o));
 o = await ordre('analyser', { actif: 'US100' });
-verifier('4. ordre analyser : « étape M4 » (aucune IA ici)', !o.ok && /M4/.test(o.erreur), JSON.stringify(o));
+verifier('4. ordre analyser : pas d’agent stratège séparé (aucune IA ici)', !o.ok && /agent stratège séparé/.test(o.erreur), JSON.stringify(o));
 verifier('4. paramètre invalide refusé par le bus', !(await ordre('afficher_graphique', { instrument: 'ETH', unite: 'H1' })).ok);
 // Échap : ferme l'espace, reste dans la base
 await page.keyboard.press('Escape'); await attendre(800);
