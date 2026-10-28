@@ -6,13 +6,17 @@
    Messages envoyés : { a:'mains', t, ratio, mains:[{ lat, pts:[[x,y,z]×21] }] } au plus 30 fois par seconde (les mains vides à 5/s pour que le PC libère ce qu'il tenait).
    LIAISON DIRECTE (WebRTC DataChannel, non fiable et non ordonné) : après la connexion, le téléphone ouvre un canal direct vers le PC (le Worker ne sert qu'à échanger offre / réponse / candidats) et y envoie chaque trame
    tout de suite, sans lot. Tant que le canal n'est pas ouvert (ou si le Worker n'a pas la signalisation), les trames partent par lots vers le Worker comme avant. Aperçu de la caméra : JAMAIS envoyé, sauf si le PC le demande
-   (case cochée par Justin) ; alors un petit JPEG part par le canal direct seulement (jamais par le Worker). */
+   (case cochée par Justin) ; alors un petit JPEG part par le canal direct seulement (jamais par le Worker).
+   V5 : une détection par image de la caméra (requestVideoFrameCallback, 60 images/s demandées, jamais en retard), paquets BINAIRES de 100 à 184 octets (camera/paquet-binaire.js) envoyés SEULEMENT si la liaison
+   n'est pas encombrée (un paquet en retard est sauté, jamais mis en file), aperçu réduit et coupable (« Économie »), écran gardé allumé (Wake Lock, redemandé au retour sur la page). */
 const $ = id => document.getElementById(id);
 const CLE = 'rayle_cam_jeton';
 const MP = '0.10.21', CDN = 'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@' + MP + '/', MODELE_CDN = 'https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/1/hand_landmarker.task';
 const W = { actif: false, s: null, j: null, url: null, cle: null, expire: 0, sortie: [], minuteur: 0, envoyes: 0, erreurs: 0, fin: false };
 const D = { pc: null, canal: null, ouvert: false, envoyes: 0, fenetre: [], rtt: null, apercu: false, dernierApercu: 0, sigApres: 0, sondeSig: 0, essai: 0, debut: 0, echec: '' };
 const L = { jeton: null, ws: null, ouvert: false, pc: false, rtt: null, n: 0, envoyes: {}, dernierPong: 0, delaiMax: 5000, pings: 0, garde: 0, retard: 0, tentative: 0 };
+const K = { binaire: false, seq: 0, dt: 0, conf: 1, eco: false, dernierDessin: 0, sautes: 0, stats: null, dernierT: 0 };
+try { K.eco = localStorage.getItem('rayle_cam_eco') === '1'; } catch (e) { /* stockage refusé */ }
 const C = { flux: null, video: null, detecteur: null, boucle: 0, actif: false, dernierEnvoi: 0, dernierVu: 0, dernierVide: 0, ctx: null, verrou: null };
 try { L.jeton = localStorage.getItem(CLE) || null; } catch (e) { /* stockage refusé */ }
 /* Lecture du fragment du QR, puis effacement immédiat de l'adresse (le jeton ne reste ni dans l'historique ni dans un signet). */
@@ -29,6 +33,10 @@ const msg = (id, texte, genre) => { $(id).innerHTML = texte ? '<div class="msg '
 
 // ── liaison avec le PC ──
 function envoyer(o) {
+  if (o.a === 'mains' && K.binaire && W.actif && D.ouvert && D.canal && D.canal.readyState === 'open' && self.PaquetBinaire) {   // binaire seulement si le PC l'a annoncé (PC et téléphone peuvent ne pas être à la même version)   // liaison directe : paquet binaire
+    if (D.canal.bufferedAmount > 4096) { K.sautes++; return false; }   // la liaison est encombrée : on SAUTE ce paquet au lieu de l'empiler
+    try { D.canal.send(self.PaquetBinaire.encoder({ t: o.t, ratio: o.ratio, mains: o.mains, seq: K.seq++, dt: K.dt, conf: K.conf })); D.envoyes++; D.fenetre.push(Date.now()); return true; } catch (e) { /* canal en difficulté : repli ci-dessous */ }
+  }
   if (W.actif && D.ouvert && D.canal && D.canal.readyState === 'open') { try { D.canal.send(JSON.stringify(o)); if (o.a === 'mains') { D.envoyes++; D.fenetre.push(Date.now()); } return true; } catch (e) { /* canal en difficulté : repli par le Worker ci-dessous */ } }
   if (W.actif) { if (!W.cle || W.fin) return false; W.sortie.push(o); if (W.sortie.length > 60) W.sortie.splice(0, W.sortie.length - 60); return true; }
   if (L.ws && L.ws.readyState === 1) { try { L.ws.send(JSON.stringify(o)); return true; } catch (e) { return false; } } return false;
@@ -41,7 +49,7 @@ function voyants() {
 }
 function debitEnvoi() { const lim = Date.now() - 1000; D.fenetre = D.fenetre.filter(t => t >= lim); return D.fenetre.length; }
 function statsLiaison() {
-  if (D.ouvert) return '· direct · ' + debitEnvoi() + ' paquets/s' + (D.rtt != null ? ' · ' + Math.max(1, Math.round(D.rtt / 2)) + ' ms' : '');
+  if (D.ouvert) { const st = K.stats && Date.now() - K.stats.recu < 3000 ? K.stats : null; return '· direct · ' + debitEnvoi() + ' paquets/s' + (st && st.delai != null ? ' · délai ' + st.delai + ' ms' : D.rtt != null ? ' · ' + Math.max(1, Math.round(D.rtt / 2)) + ' ms' : '') + (st && st.perte > 0.02 ? ' · perte ' + Math.round(st.perte * 100) + ' %' : '') + (K.eco ? ' · économie' : ''); }
   if (D.pc && !D.echec) return '· liaison directe en cours…';
   return W.envoyes ? '· relais Worker (lent)' + (D.echec ? ' : ' + D.echec : '') : '';
 }
@@ -82,7 +90,7 @@ async function rejoindre() {
 /* ── liaison directe (WebRTC) ── le téléphone propose (offre), le PC répond ; messages de signalisation par le Worker, clé d'émission comme preuve. */
 const ICE = [{ urls: 'stun:stun.l.google.com:19302' }];
 const signal = (chemin, corps) => pt(chemin, Object.assign({ s: W.s, cle: W.cle }, corps));
-function fermerDirect() { clearInterval(D.sondeSig); try { D.canal && D.canal.close(); } catch (e) { /* déjà fermé */ } try { D.pc && D.pc.close(); } catch (e) { /* déjà fermée */ } D.canal = null; D.pc = null; D.ouvert = false; D.rtt = null; D.apercu = false; }
+function fermerDirect() { K.binaire = false; clearInterval(D.sondeSig); try { D.canal && D.canal.close(); } catch (e) { /* déjà fermé */ } try { D.pc && D.pc.close(); } catch (e) { /* déjà fermée */ } D.canal = null; D.pc = null; D.ouvert = false; D.rtt = null; D.apercu = false; }
 async function ouvrirDirect() {
   if (typeof RTCPeerConnection === 'undefined' || !W.cle || W.fin) { D.echec = 'WebRTC indisponible'; return; }
   fermerDirect(); D.echec = ''; D.sigApres = 0; D.debut = Date.now(); const essai = ++D.essai;
@@ -94,6 +102,8 @@ async function ouvrirDirect() {
     if (m.t === 'ping') { try { c.send(JSON.stringify({ t: 'pong', n: m.n })); } catch (e) { /* canal fermé */ } }
     else if (m.t === 'apercu') D.apercu = !!m.actif;
     else if (m.t === 'rtt' && Number.isFinite(m.ms)) D.rtt = m.ms;
+    else if (m.t === 'caps') K.binaire = !!m.binaire;
+    else if (m.t === 'stats') { K.stats = { delai: Number.isFinite(m.delai) ? m.delai : null, perte: Number.isFinite(m.perte) ? m.perte : 0, debit: Number.isFinite(m.debit) ? m.debit : 0, conseil: typeof m.conseil === 'string' ? m.conseil.slice(0, 160) : '', recu: Date.now() }; const z = $('t-conseil'); if (z) z.textContent = K.stats.conseil; }
     else if (m.t === 'fin') finSession('Le PC a coupé la liaison. Pour reprendre, scanne un nouveau QR code.', 'sable');
   };
   p.onicecandidate = ev => { if (ev.candidate && D.pc === p) signal('/camera/signal', { m: { k: 'ice', c: { candidate: ev.candidate.candidate, sdpMLineIndex: ev.candidate.sdpMLineIndex, sdpMid: ev.candidate.sdpMid } } }).catch(() => {}); };
@@ -154,7 +164,7 @@ function rejouerTest(suite) {
     envoyerApercu();
     if (file) { const ecoule = performance.now() - f0; while (i < file.length && file[i].t <= ecoule) { const f = file[i++]; envoyer({ a: 'mains', t: ti + f.t, ratio: f.ratio || 4 / 3, mains: f.mains }); } if (i >= file.length) file = null; return; }
     const f = suite.frames[boucleFile++ % suite.frames.length]; envoyer({ a: 'mains', t: Date.now(), ratio: f.ratio || 4 / 3, mains: f.mains });
-  }, 33);
+  }, Math.round(1000 / (suite.ips || 30)));
 }
 async function demarrerCamera() {
   msg('m-cam', '');
@@ -166,7 +176,7 @@ async function demarrerCamera() {
     const fichiers = await vision.FilesetResolver.forVisionTasks(W.actif ? CDN + 'wasm' : '/camera/vendor/wasm');
     const creer = delegate => vision.HandLandmarker.createFromOptions(fichiers, { baseOptions: { modelAssetPath: W.actif ? MODELE_CDN : '/camera/vendor/hand_landmarker.task', delegate }, runningMode: 'VIDEO', numHands: 2, minHandDetectionConfidence: 0.55, minHandPresenceConfidence: 0.5, minTrackingConfidence: 0.5 });
     try { C.detecteur = await creer('GPU'); } catch (e) { C.detecteur = await creer('CPU'); }
-    C.flux = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user', width: { ideal: 640 }, height: { ideal: 480 }, frameRate: { ideal: 30 } }, audio: false });
+    C.flux = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user', width: { ideal: 640 }, height: { ideal: 480 }, frameRate: { ideal: 60, min: 30 } }, audio: false });
   } catch (e) {
     $('b-cam').disabled = false; const nom = e && e.name;
     return msg('m-cam', nom === 'NotAllowedError' || nom === 'SecurityError' ? 'Caméra refusée. Rien n’est envoyé à Rayle. Pour l’autoriser : Chrome → cadenas (ou ⋮) → Autorisations → Caméra → Autoriser ; Safari → aA → Réglages du site web → Caméra. Puis recharge cette page : si le QR code a servi, redemande-en un au PC.' : nom === 'NotFoundError' ? 'Aucune caméra trouvée sur ce téléphone.' : 'Impossible de démarrer : ' + (e && e.message || e), 'ko');
@@ -174,18 +184,22 @@ async function demarrerCamera() {
   C.video = document.createElement('video'); C.video.playsInline = true; C.video.muted = true; C.video.srcObject = C.flux; await C.video.play();
   const cv = $('cv'); cv.width = 320; cv.height = Math.round(320 * (C.video.videoHeight || 480) / (C.video.videoWidth || 640)); C.ctx = cv.getContext('2d');
   C.actif = true; montrer('apercu', true); $('b-cam').hidden = true; $('b-stop').hidden = false; $('b-cam').disabled = false; msg('m-cam', ''); voyants();
-  try { if (navigator.wakeLock) C.verrou = await navigator.wakeLock.request('screen'); } catch (e) { /* écran : à garder allumé à la main */ }
-  boucle();
+  verrouEcran();
+  appliquerEco(); boucle();
 }
+async function verrouEcran() { try { if (navigator.wakeLock && C.actif && !C.verrou) { C.verrou = await navigator.wakeLock.request('screen'); C.verrou.addEventListener('release', () => { C.verrou = null; }); } } catch (e) { /* écran : à garder allumé à la main */ } }
+function appliquerEco() { const b = $('b-eco'); if (b) b.textContent = K.eco ? 'Aperçu coupé (économie) · le rétablir' : 'Économie : couper l’aperçu'; if (C.actif) montrer('apercu', !K.eco); }
+$('b-eco').onclick = () => { K.eco = !K.eco; try { localStorage.setItem('rayle_cam_eco', K.eco ? '1' : '0'); } catch (e) { /* stockage refusé */ } appliquerEco(); voyants(); };
 function arreterCamera() {
-  D.apercu = false; clearInterval(C.test); C.actif = false; cancelAnimationFrame(C.boucle); if (C.flux) C.flux.getTracks().forEach(t => t.stop()); C.flux = null; try { C.detecteur && C.detecteur.close(); } catch (e) { /* déjà fermé */ } C.detecteur = null;
+  D.apercu = false; clearInterval(C.test); C.actif = false; cancelAnimationFrame(C.boucle); try { C.video && C.video.cancelVideoFrameCallback && C.video.cancelVideoFrameCallback(C.rvfc); } catch (e) { /* déjà annulé */ } if (C.flux) C.flux.getTracks().forEach(t => t.stop()); C.flux = null; try { C.detecteur && C.detecteur.close(); } catch (e) { /* déjà fermé */ } C.detecteur = null;
   try { C.verrou && C.verrou.release(); } catch (e) { /* déjà libéré */ } C.verrou = null; envoyer({ a: 'mains', t: Date.now(), ratio: 4 / 3, mains: [] });
   montrer('apercu', false); $('b-cam').hidden = false; $('b-stop').hidden = true; voyants();
 }
 $('b-cam').onclick = demarrerCamera; $('b-stop').onclick = arreterCamera;
-document.addEventListener('visibilitychange', () => { if (document.hidden && C.actif) msg('m-cam', 'L’écran est masqué : le navigateur peut mettre la caméra en pause. Garde cette page au premier plan.', 'sable'); });
+document.addEventListener('visibilitychange', () => { if (!document.hidden) verrouEcran(); if (document.hidden && C.actif) msg('m-cam', 'L’écran est masqué : le navigateur peut mettre la caméra en pause. Garde cette page au premier plan.', 'sable'); });
 const LIAISONS = [[0, 1], [1, 2], [2, 3], [3, 4], [0, 5], [5, 6], [6, 7], [7, 8], [5, 9], [9, 10], [10, 11], [11, 12], [9, 13], [13, 14], [14, 15], [15, 16], [13, 17], [17, 18], [18, 19], [19, 20], [0, 17]];
 function dessiner(mains) {
+  if (K.eco || !C.ctx || !C.ctx.canvas) return;
   const c = C.ctx, w = c.canvas.width, h = c.canvas.height; c.save(); c.clearRect(0, 0, w, h); c.translate(w, 0); c.scale(-1, 1); c.drawImage(C.video, 0, 0, w, h); c.restore();
   c.strokeStyle = '#8fd0e3'; c.fillStyle = '#c9b27a'; c.lineWidth = 2;
   for (const m of mains) { c.beginPath(); for (const [a, b] of LIAISONS) { c.moveTo((1 - m.pts[a][0]) * w, m.pts[a][1] * h); c.lineTo((1 - m.pts[b][0]) * w, m.pts[b][1] * h); } c.stroke(); for (const p of m.pts) c.fillRect((1 - p[0]) * w - 2, p[1] * h - 2, 4, 4); }
@@ -199,14 +213,24 @@ function envoyerApercu() {
     const d = mini.toDataURL('image/jpeg', 0.45); if (d.length < 15000) D.canal.send(JSON.stringify({ a: 'image', d }));
   } catch (e) { /* canal occupé : on saute cette image */ }
 }
+/* Une détection par image de la caméra : l'image suivante n'est demandée qu'APRÈS la détection, donc jamais de retard qui s'accumule (une image trop lente est simplement sautée). */
 function boucle() {
-  if (!C.actif) return; C.boucle = requestAnimationFrame(boucle);
-  const t = performance.now(); if (t - C.dernierEnvoi < 1000 / 30 || C.video.readyState < 2) return; C.dernierEnvoi = t;
-  let r; try { r = C.detecteur.detectForVideo(C.video, t); } catch (e) { return; }
-  const mains = (r.landmarks || []).map((pts, i) => ({ lat: (r.handedness && r.handedness[i] && r.handedness[i][0] && r.handedness[i][0].categoryName) === 'Right' ? 'Right' : 'Left', pts: pts.map(p => [+p.x.toFixed(4), +p.y.toFixed(4), +(p.z || 0).toFixed(4)]) }));
-  dessiner(mains); envoyerApercu();
-  if (mains.length) { C.dernierVu = t; envoyer({ a: 'mains', t: Date.now(), ratio: C.video.videoWidth / (C.video.videoHeight || 1), mains }); }
-  else if (t - C.dernierVide > 200) { C.dernierVide = t; envoyer({ a: 'mains', t: Date.now(), ratio: 4 / 3, mains: [] }); }
+  if (!C.actif) return;
+  const suite = () => { if (!C.actif) return; if (C.video.requestVideoFrameCallback) C.rvfc = C.video.requestVideoFrameCallback(image); else C.boucle = requestAnimationFrame(image); };
+  function image(maintenant, meta) {
+    if (!C.actif) return;
+    if (C.video.readyState < 2) return suite();
+    const t0 = performance.now(), age = meta && Number.isFinite(meta.captureTime) ? Math.max(0, t0 - meta.captureTime) : 0, stamp = Math.max(t0, K.dernierT + 1); K.dernierT = stamp;
+    let r; try { r = C.detecteur.detectForVideo(C.video, stamp); } catch (e) { return suite(); }
+    K.dt = Math.min(255, Math.round(age + (performance.now() - t0)));
+    const mains = (r.landmarks || []).map((pts, i) => ({ lat: (r.handedness && r.handedness[i] && r.handedness[i][0] && r.handedness[i][0].categoryName) === 'Right' ? 'Right' : 'Left', pts: pts.map(p => [+p.x.toFixed(4), +p.y.toFixed(4), +(p.z || 0).toFixed(4)]) }));
+    K.conf = (r.handedness || []).reduce((m, h) => Math.max(m, h && h[0] && Number.isFinite(h[0].score) ? h[0].score : 0), 0) || (mains.length ? 0.5 : 1);
+    if (mains.length) { C.dernierVu = t0; envoyer({ a: 'mains', t: Date.now(), ratio: C.video.videoWidth / (C.video.videoHeight || 1), mains }); }
+    else if (t0 - C.dernierVide > 100) { C.dernierVide = t0; envoyer({ a: 'mains', t: Date.now(), ratio: 4 / 3, mains: [] }); }   // sans main : 10 battements par seconde, le PC garde l'état moins d'une demi-seconde
+    if (t0 - K.dernierDessin > 80) { K.dernierDessin = t0; dessiner(mains); envoyerApercu(); }   // aperçu : 12 images par seconde au plus, jamais à chaque détection
+    suite();
+  }
+  suite();
 }
 
 // ── démarrage ──

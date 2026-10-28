@@ -71,7 +71,9 @@
       for (const p of m.pts) { if (!Array.isArray(p) || p.length < 2 || p.length > 3 || !p.every(nb)) return null; pts.push([Math.round(Math.max(-1, Math.min(2, p[0])) * 1e4) / 1e4, Math.round(Math.max(-1, Math.min(2, p[1])) * 1e4) / 1e4, Math.round(Math.max(-2, Math.min(2, p[2] || 0)) * 1e4) / 1e4]); }
       mains.push({ lat: m.lat, pts });
     }
-    return { a: 'mains', t, ratio, mains };
+    const sortie = { a: 'mains', t, ratio, mains };
+    if (nb(msg.seq)) sortie.seq = msg.seq & 0xFFFF; if (nb(msg.dt)) sortie.dt = Math.max(0, Math.min(255, msg.dt)); if (nb(msg.conf)) sortie.conf = Math.max(0, Math.min(1, msg.conf));   // V5 : numéro de séquence, durée de détection du téléphone, confiance
+    return sortie;
   }
 
   /* ── calibration : à partir d'échantillons mesurés sur la personne, pas d'après des chiffres « moyens » ──

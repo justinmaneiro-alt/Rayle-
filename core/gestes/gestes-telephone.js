@@ -13,6 +13,15 @@ const GestesTel = (() => {
     if (!e.actif) return 'gestes éteints';
     if (e.pause) return 'en pause';
     const m = moteur || {};
+    if (e.moteurV === 5) {   // V5 : l'engagement d'abord
+      if (e.mode === 'sans-main') return 'aucune main';
+      if (e.mode === 'repos') return 'main vue, pas engagé (ouvre-la ≈ 1 s)';
+      if (m.deux === 'pince') return 'deux mains : redimensionner / zoomer';
+      if (m.deux === 'ouvertes') return 'deux mains : pivoter';
+      if (m.saisie) return 'saisie (fenêtre ou objet tenu)';
+      if (e.derniere) return 'engagé · ' + e.derniere;
+      return 'engagé · ' + (e.pose || 'pointer');
+    }
     if (m.deux === 'zoom') return 'redimensionner (deux mains)';
     if (m.deux === 'rotation') return 'pivoter (deux mains)';
     if (m.saisie) return 'saisie (fenêtre ou objet tenu)';
@@ -46,11 +55,13 @@ const GestesTel = (() => {
     if (!fen) return; const r = R() ? R().etat() : {}, e = G.etat(), l = libelleLiaison(r), mot = G.moteur() ? G.moteur().etat() : null;
     const set = (id, v) => { const el = fen.querySelector('[data-k="' + id + '"]'); if (el && el.textContent !== v) el.textContent = v; };
     const pt = fen.querySelector('[data-k="pt"]'); if (pt) pt.className = 'gt-pt ' + l.c;
-    set('liaison', l.t); set('debit', r.liaison === 'direct' || r.etat === 'connecte' ? (r.debit || 0) + ' paquets/s' : '—');
-    set('delai', r.delai != null ? r.delai + ' ms (aller-retour ' + r.rtt + ' ms)' : (r.liaison === 'direct' ? 'mesure…' : '—'));
+    set('liaison', l.t); set('debit', r.liaison === 'direct' || r.etat === 'connecte' ? (r.debit || 0) + ' paquets/s' + (r.binaire ? ' (binaires)' : '') : '—');
+    set('delai', r.delaiTotal != null ? r.delaiTotal + ' ms de bout en bout (téléphone ' + r.dtTel + ' · réseau ' + r.delai + ' · PC ' + (r.traitement || 0).toFixed(1) + ')' : r.delai != null ? r.delai + ' ms (aller-retour ' + r.rtt + ' ms)' : (r.liaison === 'direct' ? 'mesure…' : '—'));
+    set('perte', r.liaison === 'direct' ? Math.round((r.perte || 0) * 100) + ' % perdus · ' + (r.ecartes || 0) + ' en retard écartés · gigue ' + (r.gigue || 0) + ' ms' : '—');
+    const cf = fen.querySelector('[data-k="conf"]'); if (cf) cf.value = r.confiance == null ? 0 : r.confiance; set('confT', r.confiance == null ? '—' : Math.round(r.confiance * 100) + ' %');
     set('geste', libelleGeste(e, mot)); set('mains', String(e.mains || 0)); set('recues', String(r.recues || 0) + ' trames reçues');
     const lim = fen.querySelector('[data-k="note"]');
-    if (lim) lim.textContent = r.liaison === 'direct' ? '' : (r.etat === 'connecte' ? 'Sans la liaison directe le débit reste faible : le Worker doit être à jour (voir docs/GESTES.md).' : '');
+    if (lim) lim.textContent = r.liaison === 'direct' ? (r.conseil || '') : (r.etat === 'connecte' ? 'Sans la liaison directe le débit reste faible : le Worker doit être à jour (voir docs/GESTES.md).' : '');
     if (imgApercu) { if (r.apercu && imgApercu.src !== r.apercu) imgApercu.src = r.apercu; imgApercu.hidden = !r.apercu; }
   }
   function ouvrir() {
@@ -58,7 +69,7 @@ const GestesTel = (() => {
     fen = document.createElement('section'); fen.id = 'gestes-tel'; fen.setAttribute('role', 'region'); fen.setAttribute('aria-label', 'Suivi de la caméra du téléphone');
     fen.innerHTML = '<header data-g="barre"><span class="gt-pt ko" data-k="pt"></span><b>Caméra du téléphone</b><button type="button" data-g="fermer" aria-label="Fermer la fenêtre de suivi">✕</button></header>' +
       '<div class="gt-corps"><canvas width="280" height="210" aria-label="Squelette des mains reçu du téléphone"></canvas><img alt="Aperçu de la caméra du téléphone" hidden>' +
-      '<dl><dt>Liaison</dt><dd data-k="liaison">…</dd><dt>Débit</dt><dd data-k="debit">—</dd><dt>Délai</dt><dd data-k="delai">—</dd><dt>Geste</dt><dd data-k="geste">—</dd><dt>Mains vues</dt><dd data-k="mains">0</dd><dt>Reçu</dt><dd data-k="recues">0</dd></dl>' +
+      '<dl><dt>Liaison</dt><dd data-k="liaison">…</dd><dt>Débit</dt><dd data-k="debit">—</dd><dt>Délai</dt><dd data-k="delai">—</dd><dt>Geste</dt><dd data-k="geste">—</dd><dt>Perte</dt><dd data-k="perte">—</dd><dt>Confiance</dt><dd><meter data-k="conf" min="0" max="1" low="0.5" high="0.8" optimum="1" value="0" style="width:90px"></meter> <span data-k="confT">—</span></dd><dt>Mains vues</dt><dd data-k="mains">0</dd><dt>Reçu</dt><dd data-k="recues">0</dd></dl>' +
       '<div class="gt-note" data-k="note"></div>' +
       '<label class="gt-chk"><input type="checkbox" data-g="apercu"> Aperçu vidéo de la caméra (désactivé par défaut : une petite image part du téléphone, seulement tant que c’est coché)</label></div>';
     document.body.appendChild(fen); cv = fen.querySelector('canvas'); ctx = cv.getContext('2d'); imgApercu = fen.querySelector('img');

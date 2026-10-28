@@ -58,14 +58,17 @@
     <div class="apercu" id="apercu" hidden><canvas id="cv"></canvas></div>
     <button id="b-cam">Démarrer la caméra</button>
     <button class="sec" id="b-stop" hidden>Arrêter</button>
+    <button class="sec" id="b-eco">Économie : couper l’aperçu</button>
+    <div id="t-conseil" class="msg sable" style="min-height:0"></div>
     <div id="m-cam"></div>
-    <div class="msg sable">Pose le téléphone sur un support, écran vers toi (ou caméra avant dirigée vers ta main), à environ 50 cm. Garde l’écran allumé.</div>
+    <div class="msg sable"><b>Installation en 3 lignes :</b><br>1. Pose le téléphone sur un support stable, caméra avant vers ta main, à 40–60 cm.<br>2. Laisse l’écran allumé et cette page au premier plan.<br>3. Bonne lumière de face sur la main (pas de contre-jour). Si ça saccade : « Économie ».</div>
     <ul><li>Seuls les 21 points de chaque main sont envoyés au PC. Aucune image ne quitte ce téléphone.</li><li>Les gestes sont expliqués dans Rayle (⚙ → Gestes → Aide).</li></ul>
     <button class="sec" id="b-oublier">Oublier ce téléphone</button>
   </section>
 
   <section class="carte" id="s-erreur" hidden><div class="msg ko" id="t-erreur"></div></section>
 </main>
+<script src="paquet-binaire.js"></script>
 <script type="module" src="camera.js"></script>
 </body>
 </html>

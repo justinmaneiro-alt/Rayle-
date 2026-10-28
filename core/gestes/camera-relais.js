@@ -12,9 +12,10 @@ const CameraRelais = (() => {
   const PAGE_PAR_DEFAUT = 'https://justinmaneiro-alt.github.io/Rayle-/camera/';
   const ICE = [{ urls: 'stun:stun.l.google.com:19302' }];   // gratuit, sans compte ; sur le Wi-Fi de la maison les adresses locales suffisent (le STUN sert hors du réseau)
   const DELAI_DIRECT_MS = 15000, TAILLE_IMAGE_MAX = 16000;
-  const E = { etat: 'inactive', session: null, jeton: null, expire: 0, url: '', erreur: '', recues: 0, derniere: 0, dernierEnvoi: null, qr: null, liaison: 'aucune', rtt: null, delai: null, apercu: null, apercuVoulu: false, derniereTrame: null, directEchec: '' };
+  const E = { etat: 'inactive', session: null, jeton: null, expire: 0, url: '', erreur: '', recues: 0, derniere: 0, dernierEnvoi: null, qr: null, liaison: 'aucune', rtt: null, delai: null, apercu: null, apercuVoulu: false, derniereTrame: null, directEchec: '', perte: 0, ecartes: 0, gigue: 0, dtTel: 0, confiance: null, traitement: 0, delaiTotal: null, conseil: '', binaire: false };
   const ecouteurs = []; let minuteur = 0, apres = 0, sigApres = 0, enVol = false, surTrames = null, voulu = false;
   let pair = null, canal = null, pings = 0, sondes = {}, debutNegociation = 0, vus = [];
+  const PB = () => window.PaquetBinaire, suivi = window.PaquetBinaire ? window.PaquetBinaire.creerSuivi() : null;   // V5 : paquets binaires, séquence, pertes
   const prevenir = () => { for (const f of ecouteurs.slice()) { try { f(E); } catch (e) { /* un écouteur fautif n'arrête pas les autres */ } } };
   const surEvenement = f => { ecouteurs.push(f); return () => { const i = ecouteurs.indexOf(f); if (i >= 0) ecouteurs.splice(i, 1); }; };
   const workerOk = () => typeof workerReady !== 'undefined' && workerReady();
@@ -47,8 +48,8 @@ const CameraRelais = (() => {
   function recevoir(brut) {
     const g = window.GestesCalcul, v = g ? g.validerMains(brut) : null; if (!v) return false;
     const maintenant = Date.now(); E.recues++; E.derniere = maintenant; vus.push(maintenant); if (vus.length > 200) vus = vus.slice(-100);
-    E.derniereTrame = { t: v.t, ratio: v.ratio, mains: v.mains };
-    if (surTrames) surTrames({ t: v.t, ratio: v.ratio, mains: v.mains });
+    E.derniereTrame = { t: v.t, ratio: v.ratio, mains: v.mains }; if (v.dt != null) E.dtTel = v.dt; if (v.conf != null) E.confiance = v.conf;
+    const p0 = performance.now(); if (surTrames) surTrames({ t: v.t, ratio: v.ratio, mains: v.mains }); E.traitement = E.traitement * 0.9 + (performance.now() - p0) * 0.1;
     return true;
   }
   /* Trames reçues pendant la dernière seconde (par n'importe quel chemin). */
@@ -61,19 +62,33 @@ const CameraRelais = (() => {
     try { canal && canal.close(); } catch (e) { /* déjà fermé */ } try { pair && pair.close(); } catch (e) { /* déjà fermée */ }
     canal = null; pair = null; debutNegociation = 0;
     if (E.liaison === 'direct' || E.liaison === 'negociation') E.liaison = E.session ? 'worker' : 'aucune';
-    E.rtt = E.delai = null; E.apercu = null;
+    E.rtt = E.delai = null; E.apercu = null; E.binaire = false; if (suivi) suivi.reinitialiser();
+  }
+  /* Une fois par seconde : débit, pertes, délai bout en bout et conseil, sur la fenêtre de suivi ET renvoyés au téléphone. */
+  function mesures() {
+    if (!suivi || !PB()) return; const st = suivi.stats(); E.perte = st.perte; E.ecartes = st.ecartes; E.gigue = st.gigue;
+    E.delaiTotal = PB().delaiBoutEnBout(E.dtTel, E.rtt, E.traitement);
+    const actif = E.liaison === 'direct' && E.etat === 'connecte', mainsVues = !!(E.derniereTrame && E.derniereTrame.mains.length && Date.now() - E.derniere < 700);
+    E.conseil = PB().conseil({ debit: debit(), perte: E.perte, delai: E.delaiTotal, mainsVues, actif });
+    envoyerCanal({ t: 'stats', delai: E.delaiTotal, perte: +E.perte.toFixed(3), debit: debit(), conseil: E.conseil });
   }
   function envoyerCanal(o) { if (canal && canal.readyState === 'open') { try { canal.send(JSON.stringify(o)); return true; } catch (e) { return false; } } return false; }
   function brancherCanal(c) {
-    canal = c;
+    canal = c; try { c.binaryType = 'arraybuffer'; } catch (e) { /* navigateur sans binaryType : texte seulement */ }
     c.onopen = () => {
       E.liaison = 'direct'; E.directEchec = ''; debutNegociation = 0; E.erreur = '';
-      clearInterval(pings); pings = setInterval(() => { const n = ++sondes.n || (sondes.n = 1); sondes[n] = performance.now(); envoyerCanal({ t: 'ping', n }); for (const k of Object.keys(sondes)) if (k !== 'n' && performance.now() - sondes[k] > 6000) delete sondes[k]; }, 1000);
+      clearInterval(pings); pings = setInterval(() => { const n = ++sondes.n || (sondes.n = 1); sondes[n] = performance.now(); envoyerCanal({ t: 'ping', n }); envoyerCanal({ t: 'caps', binaire: !!PB() }); mesures(); for (const k of Object.keys(sondes)) if (k !== 'n' && performance.now() - sondes[k] > 6000) delete sondes[k]; }, 1000);
       if (E.apercuVoulu) envoyerCanal({ t: 'apercu', actif: true });
+      envoyerCanal({ t: 'caps', binaire: !!PB() });   // annonce : « je sais lire les paquets binaires »
       prevenir();
     };
     c.onclose = () => { if (canal !== c) return; clearInterval(pings); pings = 0; canal = null; E.liaison = voulu ? 'worker' : 'aucune'; E.rtt = E.delai = null; E.apercu = null; prevenir(); };
     c.onmessage = ev => {
+      if (ev.data instanceof ArrayBuffer && PB()) {   // V5 : paquet binaire (100 à 184 octets)
+        if (ev.data.byteLength > 400) return; const t = PB().decoder(ev.data); if (!t) return;
+        if (suivi.noter(t.seq) !== 'ok') return;   // plus vieux que le dernier vu, ou doublon : écarté, jamais traité en retard
+        E.binaire = true; recevoir(t); return;
+      }
       if (typeof ev.data !== 'string' || ev.data.length > 24000) return;   // un message de points fait ~ 2 Ko ; une image d'aperçu 16 Ko au plus
       let m; try { m = JSON.parse(ev.data); } catch (e) { return; } if (!m || typeof m !== 'object') return;
       if (m.a === 'mains') { recevoir(m); }
@@ -135,6 +150,6 @@ const CameraRelais = (() => {
     if (E.etat !== 'erreur') E.etat = 'inactive';
     if (prevenirAussi) prevenir();
   }
-  return { demarrer, arreter, etat: () => ({ ...E, qr: E.qr, debit: debit() }), debit, surEvenement, pageCamera, adresseQR, definirSurTrames: f => { surTrames = f; }, definirApercu, recevoirTrame: recevoir };
+  return { demarrer, arreter, mesures, etat: () => ({ ...E, qr: E.qr, debit: debit() }), debit, surEvenement, pageCamera, adresseQR, definirSurTrames: f => { surTrames = f; }, definirApercu, recevoirTrame: recevoir };
 })();
 window.CameraRelais = CameraRelais;
