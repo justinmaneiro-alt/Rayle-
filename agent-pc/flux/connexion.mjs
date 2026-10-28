@@ -1,3 +1,4 @@
+// (Sans dépendance Node : marche aussi dans le navigateur, pour le mode direct de la carte de liquidité.)
 // Connexion WebSocket robuste (V4, phase 2) : reconnexion avec attente progressive, surveillance du silence, trous notés (jamais comblés). Utilise le WebSocket intégré de Node (22 et plus) ;
 // `WebSocketImpl` est injectable pour les tests. Aucun secret : seuls des flux publics.
 export function creerConnexion({ nom, url, abonnement = null, surMessage, surOuverture = () => {}, surCoupure = () => {}, noterTrou = () => {}, WebSocketImpl = globalThis.WebSocket,
@@ -19,7 +20,7 @@ export function creerConnexion({ nom, url, abonnement = null, surMessage, surOuv
       if (coupureLe != null) { noterTrou({ t: coupureLe, flux: nom, de: coupureLe, a: t, raison: 'connexion coupée puis rétablie' }); coupureLe = null; }
       dernierMessage = t; stats.messages++;
       if (ouvertLe && t - ouvertLe > stableMs) attente = attenteMinMs;
-      try { surMessage(typeof e.data === 'string' ? e.data : Buffer.from(e.data).toString('utf8'), t); } catch (err) { stats.derniereErreur = String(err.message).slice(0, 100); }
+      try { surMessage(typeof e.data === 'string' ? e.data : new TextDecoder().decode(e.data), t); } catch (err) { stats.derniereErreur = String(err.message).slice(0, 100); }
     };
     ws.onerror = e => { stats.derniereErreur = String((e && (e.message || e.type)) || 'erreur').slice(0, 100); };
     ws.onclose = () => { if (courant !== ws) return; coupure(); };

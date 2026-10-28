@@ -120,7 +120,7 @@ export async function creerGraphique({ boite, reglages = REGLAGES_DEFAUT, surReg
       ligne('macdL', ind.macd.macd, COULEURS.cyan, volet, { epaisseur: 1.3, precision: 3 }); ligne('macdS', ind.macd.signal, COULEURS.ambre, volet, { epaisseur: 1.3, precision: 3 });
     } else { supprimer('macdH'); supprimer('macdL'); supprimer('macdS'); }
     if (reg.atr && ind) ligne('atr', ind.atr, COULEURS.rose, (reg.rsi ? 1 : 0) + (reg.macd ? 1 : 0) + 1, { epaisseur: 1.5, precision: dec() }); else supprimer('atr');
-    niveaux(); profil();
+    niveaux(); surimposition(); profil();
     mettreLegende(null);
   }
 
@@ -134,6 +134,13 @@ export async function creerGraphique({ boite, reglages = REGLAGES_DEFAUT, surReg
     niveauxCourants = nv;
   }
   let niveauxCourants = null;
+  /* V4 : surimpression de la carte de liquidité (murs, aimants) : lignes de prix posées PAR-DESSUS les bougies, retirées et refaites à chaque reconstruction. [{ prix, couleur, titre, epaisseur, tirets }] */
+  const lignesFlux = []; let niveauxFlux = [];
+  function surimposition() {
+    while (lignesFlux.length) { try { bougies.removePriceLine(lignesFlux.pop()); } catch (e) { /* retirée */ } }
+    for (const n of niveauxFlux) { try { lignesFlux.push(bougies.createPriceLine({ price: n.prix, color: n.couleur || 'rgba(111,211,238,.9)', lineWidth: n.epaisseur || 1, lineStyle: n.tirets === false ? 0 : 2, axisLabelVisible: true, title: n.titre || '' })); } catch (e) { /* prix invalide */ } }
+  }
+  function surimposer(liste) { niveauxFlux = Array.isArray(liste) ? liste.filter(n => n && n.prix > 0) : []; surimposition(); }
   let profilCourant = null;
   function profil() {
     if (!reg.profil || !donnees.some(b => b.v > 0)) { profilPrimitive.definir(null); profilCourant = null; return; }
@@ -173,7 +180,7 @@ export async function creerGraphique({ boite, reglages = REGLAGES_DEFAUT, surReg
   function regler(p) { Object.assign(reg, p); construire(); tailleVolets(); surReglage({ ...reg }); }
   const message = t => { etat.textContent = t || ''; etat.style.display = t ? 'flex' : 'none'; };
   return {
-    definir, maj, regler, reglages: () => ({ ...reg }), message, chart, series,
+    definir, maj, regler, surimposer, surimposition: () => ({ niveaux: niveauxFlux.length, lignes: lignesFlux.length }), reglages: () => ({ ...reg }), message, chart, series,
     recadrer() { chart.timeScale().fitContent(); }, aujourdhui() { chart.timeScale().scrollToRealTime(); },
     etat: () => ({ bougies: donnees.length, visibles: chart.timeScale().getVisibleLogicalRange(), series: Object.keys(series), volets: chart.panes().length, niveaux: niveauxCourants, profil: profilCourant, instrument: ins.id, unite: un.id }),
     detruire() { clearTimeout(minuteurProfil); try { chart.remove(); } catch (e) { /* déjà détruit */ } }

@@ -14,6 +14,9 @@
     const cmdD=window.DirectPage?await DirectPage.commande(text):null;    // sources en direct : « montre-moi les séismes », « mets France 24 en direct », « que dit l'OMS ? »
     if(my!==epoch) return;
     if(cmdD){ diagAction('sources en direct'); addLine('ray',cmdD); await speak(cmdD); return; }
+    const cmdL=window.LiquiditeVoix?await LiquiditeVoix.commande(text):null;    // « ouvre la carte de liquidité », « où va le marché ? » : carnet d'ordres enregistré par Kepler (V4)
+    if(my!==epoch) return;
+    if(cmdL){ diagAction('carte de liquidité'); addLine('ray',cmdL); await speak(cmdL); return; }
     const cmdM=await commandeMars(text);    // terminal de la base Mars (seulement quand Mars est ouverte) : « montre-moi l'or en H1 »
     if(my!==epoch) return;
     if(cmdM){ diagAction('terminal de Mars'); addLine('ray',cmdM); await speak(cmdM); return; }

@@ -6,7 +6,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import zlib from 'node:zlib';
-import { TAILLE_ENTETE, encoderEntete, decoderFichier, tailleEnregistrement } from '../../strategies/liquidite/format-profondeur.js';
+import { TAILLE_ENTETE, encoderEntete, decoderFichier, decoderEntete, tailleEnregistrement, encoderSegments } from '../../strategies/liquidite/format-profondeur.js';
 
 export const TYPES_BRUTS = Object.freeze(['profondeur', 'trades', 'evenements', 'liquidations']);
 const pad = n => String(n).padStart(2, '0');
@@ -100,6 +100,25 @@ export function creerStockage({ dossier, maintenant = () => Date.now(), quotaOct
     for (const h of heures(t0, t1)) { const b = lireBrut(chemin('profondeur', cleSure(cle), jourUTC(h), heureUTC(h) + '.bin')); if (!b) continue; const d = decoderFichier(b); if (!d) continue; entete = d.entete; for (const r of d.enregistrements) if (r.tSec * 1000 >= t0 && r.tSec * 1000 <= t1) out.push(r); }
     return { entete, enregistrements: out };
   }
+  /* Octets bruts des secondes demandées (un segment par fichier d'heure, avec son en-tête) : la page les décode avec strategies/liquidite/format-profondeur.js (decoderSegments). */
+  function lireProfondeurOctets(cle, t0, t1) {
+    vider(); const segments = []; let n = 0;
+    for (const h of heures(t0, t1)) {
+      const b = lireBrut(chemin('profondeur', cleSure(cle), jourUTC(h), heureUTC(h) + '.bin')); if (!b) continue; const e = decoderEntete(b); if (!e) continue;
+      const taille = tailleEnregistrement(e.nTranches), dv = new DataView(b.buffer, b.byteOffset, b.byteLength), morceaux = [b.subarray(0, TAILLE_ENTETE)];
+      for (let p = TAILLE_ENTETE; p + taille <= b.length; p += taille) { const t = dv.getUint32(p, true) * 1000; if (t >= t0 && t <= t1) { morceaux.push(b.subarray(p, p + taille)); n++; } }
+      if (morceaux.length > 1) segments.push(Buffer.concat(morceaux));
+    }
+    return { octets: encoderSegments(segments), secondes: n };
+  }
+  /* Première et dernière seconde enregistrées pour un flux (pour la relecture). */
+  function plageEnregistree(cle) {
+    const base = chemin('profondeur', cleSure(cle)); let premier = null, dernier = null;
+    const jours = safeList(base).sort(); if (!jours.length) return null;
+    const lireBord = (jour, sens) => { const fich = safeList(path.join(base, jour)).filter(f => /\.bin(\.gz)?$/.test(f)).sort(); if (!fich.length) return null; const f = sens === 'debut' ? fich[0] : fich[fich.length - 1]; const b = lireBrut(path.join(base, jour, f.replace(/\.gz$/, ''))); if (!b) return null; const d = decoderFichier(b); if (!d || !d.enregistrements.length) return null; return d.enregistrements[sens === 'debut' ? 0 : d.enregistrements.length - 1].tSec * 1000; };
+    for (const j of jours) { premier = lireBord(j, 'debut'); if (premier != null) break; } for (const j of jours.slice().reverse()) { dernier = lireBord(j, 'fin'); if (dernier != null) break; }
+    return premier != null && dernier != null ? { debut: premier, fin: dernier } : null;
+  }
   function lireLignes(type, cle, t0, t1) {
     vider(); const out = [];
     for (const h of heures(t0, t1)) { const b = lireBrut(chemin(type, cleSure(cle), jourUTC(h), heureUTC(h) + '.jsonl')); if (!b) continue; for (const l of Buffer.from(b).toString('utf8').split('\n')) { if (!l) continue; try { const o = JSON.parse(l); if (o.t >= t0 && o.t <= t1) out.push(o); } catch (e) { /* ligne coupée */ } } }
@@ -112,6 +131,6 @@ export function creerStockage({ dossier, maintenant = () => Date.now(), quotaOct
     } return out;
   }
   function lireTrous(depuis = 0) { const f = chemin('trous.jsonl'); if (!fs.existsSync(f)) return []; return fs.readFileSync(f, 'utf8').split('\n').filter(Boolean).map(l => { try { return JSON.parse(l); } catch (e) { return null; } }).filter(x => x && x.t >= depuis); }
-  return { dossier, chemin, ecrireProfondeur, ecrireLigne, ecrireAgg1m, noterTrou, vider, compresserFinis, inventaire, purger, espaceLibre, lireProfondeur, lireLignes, lireAgg1m, lireTrous, quotaOctets, jourUTC };
+  return { dossier, chemin, ecrireProfondeur, ecrireLigne, ecrireAgg1m, noterTrou, vider, compresserFinis, inventaire, purger, espaceLibre, lireProfondeur, lireProfondeurOctets, plageEnregistree, lireLignes, lireAgg1m, lireTrous, quotaOctets, jourUTC };
 }
 function safeList(d) { try { return fs.readdirSync(d); } catch (e) { return []; } }

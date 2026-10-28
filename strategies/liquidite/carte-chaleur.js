@@ -39,9 +39,10 @@ export function echelleIntensite(carte, { percentile = 0.995 } = {}) {
 
 /* MURS : un niveau est un mur quand sa liquidité dépasse `facteur` × la médiane des niveaux non nuls de la même colonne (la « médiane locale » du carnet de cet instant) ET un plancher en dollars, pendant au
    moins `dureeMinS` (les trous de ≤ `trouMaxS` secondes ne coupent pas le mur). Rend les murs, les plus gros d'abord. `actif` = présent dans la dernière colonne. */
-export function detecterMurs(carte, { facteur = 4, plancherUsd = 50000, dureeMinS = 20, trouMaxS = 3, couvertureSeule = true } = {}) {
-  if (!carte) return []; const { nT, nPrix, valeurs, couverte, tSec } = carte, med = new Float64Array(nT), murs = [];
-  for (let i = 0; i < nT; i++) { const col = []; for (let j = 0; j < nPrix; j++) { const v = valeurs[i * nPrix + j]; if (v > 0) col.push(v); } med[i] = mediane(col); }
+export function detecterMurs(carte, { facteur = 5, plancherUsd = 50000, dureeMinS = 20, trouMaxS = 3, couvertureSeule = true, voisinage = 12, epaisseurMax = 12 } = {}) {
+  if (!carte) return []; const { nT, nPrix, valeurs, couverte, tSec } = carte, murs = [], tampon = [];
+  // « médiane locale » : médiane des niveaux non nuls des `voisinage` lignes de chaque côté dans LA MÊME colonne (calculée seulement pour les candidats au-dessus du plancher)
+  const medianeLocale = (i, j) => { tampon.length = 0; for (let k = Math.max(0, j - voisinage); k <= Math.min(nPrix - 1, j + voisinage); k++) { if (Math.abs(k - j) <= 1) continue; const x = valeurs[i * nPrix + k]; if (x > 0) tampon.push(x); } return tampon.length >= 4 ? mediane(tampon) : 0; };
   for (let j = 0; j < nPrix; j++) {
     let debut = -1, dernier = -1, maxUsd = 0, somme = 0, nb = 0, ratioMax = 0;
     const fermer = () => {
@@ -50,16 +51,22 @@ export function detecterMurs(carte, { facteur = 4, plancherUsd = 50000, dureeMin
       debut = -1; maxUsd = 0; somme = 0; nb = 0; ratioMax = 0;
     };
     for (let i = 0; i < nT; i++) {
-      const v = valeurs[i * nPrix + j], ok = v >= plancherUsd && med[i] > 0 && v >= facteur * med[i] && (!couvertureSeule || couverte[i * nPrix + j] === 1);
-      if (ok) { if (debut < 0) debut = i; else if (tSec[i] - tSec[dernier] > trouMaxS + carte.agregationS) { fermer(); debut = i; } dernier = i; if (v > maxUsd) maxUsd = v; somme += v; nb++; if (v / med[i] > ratioMax) ratioMax = v / med[i]; }
+      const v = valeurs[i * nPrix + j]; let ok = false, ratio = 0;
+      if (v >= plancherUsd && (!couvertureSeule || couverte[i * nPrix + j] === 1)) { const m = medianeLocale(i, j); if (m > 0 && v >= facteur * m) { ok = true; ratio = v / m; } }
+      if (ok) { if (debut < 0) debut = i; else if (tSec[i] - tSec[dernier] > trouMaxS + carte.agregationS) { fermer(); debut = i; } dernier = i; if (v > maxUsd) maxUsd = v; somme += v; nb++; if (ratio > ratioMax) ratioMax = ratio; }
       else if (debut >= 0 && tSec[i] - tSec[dernier] > trouMaxS + carte.agregationS) fermer();
     }
     fermer();
   }
-  // fusion des lignes voisines (un mur épais occupe plusieurs lignes de la grille)
+  // fusion des lignes CONTIGUËS (un mur épais occupe quelques lignes de la grille) ; au plus `epaisseurMax` lignes par mur ; prix = moyenne pondérée par la taille
   murs.sort((a, b) => a.prix - b.prix); const fus = [];
-  for (const m of murs) { const p = fus[fus.length - 1]; if (p && p.cote === m.cote && Math.abs(m.prix - p.prix) <= 3 * carte.pas && m.debutSec <= p.finSec) { p.usdMax += m.usdMax; p.usdMoyen += m.usdMoyen; p.dureeS = Math.max(p.dureeS, m.dureeS); p.finSec = Math.max(p.finSec, m.finSec); p.debutSec = Math.min(p.debutSec, m.debutSec); p.ratioMediane = Math.max(p.ratioMediane, m.ratioMediane); p.actif = p.actif || m.actif; p.prix = (p.prix + m.prix) / 2; p.distancePct = Math.min(p.distancePct, m.distancePct); } else fus.push({ ...m }); }
-  return fus.sort((a, b) => b.usdMax - a.usdMax);
+  for (const m of murs) {
+    const g = fus[fus.length - 1];
+    if (g && g.cote === m.cote && m.prix - g.dernierPrix <= 2.01 * carte.pas && m.debutSec <= g.finSec && g.lignes < epaisseurMax) { g.somme += m.prix * m.usdMax; g.usdMax += m.usdMax; g.usdMoyen += m.usdMoyen; g.dureeS = Math.max(g.dureeS, m.dureeS); g.finSec = Math.max(g.finSec, m.finSec); g.debutSec = Math.min(g.debutSec, m.debutSec); g.ratioMediane = Math.max(g.ratioMediane, m.ratioMediane); g.actif = g.actif || m.actif; g.dernierPrix = m.prix; g.lignes++; }
+    else fus.push({ ...m, somme: m.prix * m.usdMax, dernierPrix: m.prix, lignes: 1 });
+  }
+  const midFinal = carte.mid[nT - 1];
+  return fus.map(g => { const prix = g.somme / g.usdMax; return { prix, cote: g.cote, usdMax: g.usdMax, usdMoyen: g.usdMoyen, ratioMediane: g.ratioMediane, dureeS: g.dureeS, debutSec: g.debutSec, finSec: g.finSec, actif: g.actif, lignes: g.lignes, distancePct: Math.abs(prix - midFinal) / midFinal * 100 }; }).sort((a, b) => b.usdMax - a.usdMax);
 }
 
 /* FIABILITÉ d'un mur (0 à 1) à partir des événements « gros ordres » enregistrés (apparition / retrait / exécution) autour de son prix, et de la distance du prix du marché au moment de chaque retrait :

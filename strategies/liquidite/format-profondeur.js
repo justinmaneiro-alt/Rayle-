@@ -38,3 +38,19 @@ export function decoderFichier(octets) {
   }
   return { entete: e, enregistrements: out, tronque: (octets.length - TAILLE_ENTETE) % taille !== 0 };
 }
+
+/* Plusieurs fichiers de profondeur bout à bout (réponse de la route locale) : pour chacun, un entier 32 bits (longueur) puis le fichier (en-tête + enregistrements). L'unité peut changer d'un fichier à l'autre :
+   chaque segment est décodé avec SON en-tête. Rend { entete (celle du dernier segment), enregistrements }. */
+export function encoderSegments(fichiers) { const t = fichiers.reduce((a, f) => a + 4 + f.length, 0), out = new Uint8Array(t), dv = new DataView(out.buffer); let p = 0; for (const f of fichiers) { dv.setUint32(p, f.length, true); out.set(f, p + 4); p += 4 + f.length; } return out; }
+export function decoderSegments(octets) {
+  const dv = new DataView(octets.buffer, octets.byteOffset, octets.byteLength), tous = []; let entete = null;
+  for (let p = 0; p + 4 <= octets.length;) { const l = dv.getUint32(p, true); if (p + 4 + l > octets.length) break; const d = decoderFichier(octets.subarray(p + 4, p + 4 + l)); if (d) { entete = d.entete; for (const r of d.enregistrements) tous.push(r); } p += 4 + l; }
+  return { entete, enregistrements: tous };
+}
+
+/* Décode UN enregistrement (octets de `encoderEnregistrement`) avec son en-tête : sert au mode direct du navigateur (mémoire) qui n'écrit pas de fichier. */
+export function decoderEnregistrement(octets, entete) {
+  const dv = new DataView(octets.buffer, octets.byteOffset, octets.byteLength), n = entete.nTranches, bid = new Float32Array(n), ask = new Float32Array(n); let o = 28;
+  for (let i = 0; i < n; i++, o += 2) bid[i] = dequantifier(dv.getUint16(o, true), entete.unite); for (let i = 0; i < n; i++, o += 2) ask[i] = dequantifier(dv.getUint16(o, true), entete.unite);
+  return { tSec: dv.getUint32(0, true), meilleurBid: dv.getFloat64(4, true), meilleurAsk: dv.getFloat64(12, true), couvBasPct: dv.getFloat32(20, true), couvHautPct: dv.getFloat32(24, true), bid, ask };
+}

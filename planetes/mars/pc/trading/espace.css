@@ -201,3 +201,4 @@ body.mars-espace-ouvert #mars-ui .m-boutons,body.mars-espace-ouvert #mars-ui .m-
 .fi-carte{display:flex;flex-wrap:wrap;gap:8px;align-items:flex-start}.fi-sect{flex:1 1 220px;min-width:200px}.fi-sect h5{margin:0 0 3px;font-size:12px;letter-spacing:.1em;text-transform:uppercase;color:#8fb2c3;font-weight:600}
 .fi-tuiles-sect{display:flex;flex-wrap:wrap;gap:2px}.fi-tuile{width:58px;height:44px;border:1px solid rgba(255,255,255,.08);color:#fff;cursor:pointer;font:inherit;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:0}.fi-tuile b{font-size:12px}.fi-tuile span{font-size:12px;opacity:.92}.fi-tuile.sel{outline:2px solid #ffb000}
 .fi-sec{margin-top:8px;border-top:1px solid rgba(77,227,255,.25);padding-top:6px}
+.tg-sur{display:inline-flex;align-items:center;gap:5px;font-size:12px;color:#9bc4d6;cursor:pointer}.tg-sur-note{font-size:11px;color:#8fb2c3;max-width:260px}.tg-sur-note[data-ok="0"]{color:#f0cf8f}

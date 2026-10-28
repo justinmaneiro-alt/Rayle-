@@ -1,0 +1,36 @@
+/* Carte de liquidité (V4, phase 4) : même direction artistique que le reste (verre sombre, un accent cyan, rouge / vert seulement pour les données). */
+.pn.lq-fenetre{width:min(1280px,96vw);height:min(86vh,860px);max-height:none;background:rgba(5,9,14,.98)}
+.pn.lq-fenetre .pn-corps{padding:0;overflow:hidden;display:flex;min-height:0}
+.pn.lq-fenetre .pn-pied{display:none}
+.lq{--cy:var(--v1-accent,#8fd0e3);--tx:var(--v1-texte,#e6eef2);--dx:var(--v1-doux,#9db0bb);--tr:var(--v1-trait,rgba(143,208,227,.22));--ha:var(--v1-haut,#2fd18b);--ba:var(--v1-bas,#ff5d6e);--al:var(--v1-alerte,#e9a23b);
+  flex:1;min-width:0;min-height:0;display:flex;flex-direction:column;color:var(--tx);font:13px/1.45 var(--v1-sans,system-ui,sans-serif)}
+.lq *{box-sizing:border-box}
+.lq-haut{flex:none;display:flex;flex-wrap:wrap;gap:6px 12px;align-items:center;padding:8px 12px;border-bottom:1px solid var(--tr)}
+.lq-haut label{display:inline-flex;align-items:center;gap:6px;color:var(--dx);font-size:12px}
+.lq select,.lq button,.lq input[type=range]{font:inherit;color:var(--tx);background:rgba(14,22,32,.8);border:1px solid var(--tr);padding:4px 8px;min-height:30px}
+.lq button{cursor:pointer}.lq button:hover{border-color:var(--cy)}
+.lq-modes{display:inline-flex}.lq-modes button.actif{background:rgba(143,208,227,.16);color:#fff;border-color:var(--cy)}
+.lq-puce{margin-left:auto;display:inline-flex;align-items:center;gap:6px;font-size:12px;color:var(--dx);border:1px solid var(--tr);padding:3px 10px;border-radius:12px}
+.lq-puce i{width:8px;height:8px;border-radius:50%;background:#556}.lq-puce[data-etat=pc] i{background:var(--ha)}.lq-puce[data-etat=directe] i{background:var(--al)}.lq-puce[data-etat=ko] i{background:var(--ba)}
+.lq-msg{flex:none;padding:6px 12px;font-size:12px;border-bottom:1px solid var(--tr);color:var(--dx)}.lq-msg[data-type=erreur]{color:#ffb3bc;background:rgba(255,93,110,.07)}.lq-msg[data-type=avert]{color:#f0cf8f;background:rgba(233,162,59,.07)}
+.lq-corps{flex:1;min-height:0;display:flex;gap:0}
+.lq-carte{flex:1;min-width:0;min-height:260px;position:relative}.lq-carte canvas{position:absolute;inset:0;width:100%;height:100%;display:block;touch-action:pan-y}
+.lq-lat{flex:none;width:310px;overflow:auto;border-left:1px solid var(--tr);padding:8px 12px;scrollbar-width:thin;background:rgba(8,13,19,.6)}
+.lq-lat section{margin-bottom:12px}.lq-lat h4{margin:0 0 6px;font:600 11px var(--v1-sans,system-ui);letter-spacing:.14em;text-transform:uppercase;color:var(--cy)}.lq-lat h4 small{color:var(--dx);text-transform:none;letter-spacing:0;font-weight:400;margin-left:4px}
+.lq-ou-l{margin:0;padding-left:18px}.lq-ou-l li{margin-bottom:6px}
+.lq-avert,.lq-murs-l,.lq-etat-l{margin:6px 0 0;padding:0;list-style:none;font-size:12px;color:var(--dx)}.lq-avert li,.lq-etat-l li{margin-bottom:3px}.lq-avert li{color:#f0cf8f}
+.lq-murs-l li{display:flex;gap:6px;align-items:baseline;margin-bottom:4px}.lq-murs-l i{width:8px;height:8px;border-radius:2px;flex:none}.lq-murs-l b{font-family:var(--v1-mono,Consolas,monospace);color:var(--tx)}.lq-doux{color:var(--dx)}
+.lq-rel{flex:none;display:flex;flex-wrap:wrap;gap:6px 10px;align-items:center;padding:6px 12px;border-top:1px solid var(--tr)}.lq-rel input[type=range]{flex:1;min-width:140px;padding:0}.lq-heure{font-family:var(--v1-mono,Consolas,monospace);color:var(--cy);min-width:130px}
+.lq-rel[hidden],.lq-msg[hidden]{display:none}
+.lq-bas{flex:none;display:flex;flex-wrap:wrap;gap:6px 16px;align-items:center;padding:6px 12px;border-top:1px solid var(--tr);font-size:12px;color:var(--dx)}.lq-bas label{display:inline-flex;gap:5px;align-items:center}
+.lq-marques{margin-left:auto;display:inline-flex;gap:8px;align-items:center}.lq-marques small{color:var(--dx)}
+.lq-pied{flex:none;margin:0;padding:6px 12px 8px;font-size:11px;color:var(--dx);border-top:1px solid var(--tr)}
+/* tablette et téléphone : tout s'empile, le panneau « Où va le marché ? » passe sous la carte */
+@media (max-width:860px){
+  .pn.lq-fenetre{width:100%;height:calc(100vh - 8px)}
+  .lq-corps{flex-direction:column;overflow:auto}.lq-carte{flex:none;height:46vh;min-height:230px}
+  .lq-lat{width:auto;border-left:0;border-top:1px solid var(--tr);overflow:visible}
+  .lq-puce{margin-left:0}.lq-pied{font-size:10.5px}
+}
+.lq-note{flex:none;padding:5px 12px;font-size:12px;color:#f0cf8f;background:rgba(233,162,59,.07);border-bottom:1px solid var(--tr)}.lq-note[hidden]{display:none}
+#panneaux:has(.lq-fenetre){z-index:80}   /* la carte reste au-dessus des petites fenêtres de l'accueil tant qu'elle est ouverte */

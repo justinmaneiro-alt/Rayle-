@@ -199,7 +199,18 @@ export function creerEspace({ conteneur, client, tactile = false, depart = {}, s
   bPlein.onclick = () => { etat.plein = !etat.plein; conteneur.classList.toggle('tg-plein', etat.plein); bPlein.textContent = etat.plein ? '▤ Espace complet' : '▣ Graphique seul'; };
   const sourceBtns = h('div', 'tg-source'); sourceBtns.title = 'Graphique : widget TradingView (MA 200 + RSI préchargés) ou graphique maison de Raylé';
   for (const [k, nom] of [['tv', 'TradingView'], ['rayle', 'Raylé']]) { const b = h('button', 'tg-btn tg-src-btn', nom); b.type = 'button'; b.dataset.source = k; b.onclick = () => choisirSource(k); sourceBtns.appendChild(b); }
-  actions.append(sourceBtns, menuInd, bRecadrer, bDock, bPlein, bRafraichir);
+  // V4 : carte de liquidité (fenêtre) et surimpression des murs / aimants sur le graphique Raylé
+  const ACT_LIQ = { BTC: 'BTC', SOL: 'SOL', DOGE: 'DOGE' };
+  const bLiq = h('button', 'tg-btn tg-liq', '💧 Carte de liquidité'); bLiq.type = 'button'; bLiq.title = 'Ouvrir la carte de liquidité (carnet d’ordres de Kraken et Binance, enregistré par Kepler)';
+  bLiq.onclick = () => import('../liquidite/fenetre-liquidite.js').then(m => m.ouvrirCarte({ actif: ACT_LIQ[etat.instrument] || undefined })).catch(() => { /* indisponible */ });
+  const lblSur = h('label', 'tg-sur'); lblSur.innerHTML = '<input type="checkbox" data-sur> Murs et cibles sur le graphique'; lblSur.title = 'Visible sur le graphique Raylé (pas sur le widget TradingView) ; BTC, SOL, DOGE ; demande le service PC';
+  const noteSur = h('span', 'tg-sur-note'); let surimp = null;
+  lblSur.querySelector('input').onchange = async e => {
+    if (!surimp) { const M = await import('../liquidite/surimpression.js'); surimp = M.creerSurimpression({ graphique: () => graphique, instrument: () => etat.instrument, surEtat: x => { noteSur.textContent = x.texte || ''; noteSur.dataset.ok = x.ok ? '1' : '0'; } }); }
+    try { localStorage.setItem('rayle_lq_surimpression', e.target.checked ? '1' : '0'); } catch (x) { /* interdit */ }
+    if (e.target.checked) { if (etat.source === 'tv') { noteSur.textContent = 'Passe au graphique « Raylé » pour voir les niveaux (TradingView ne se laisse pas dessiner).'; } surimp.activer(); } else surimp.desactiver();
+  };
+  actions.append(sourceBtns, menuInd, bRecadrer, bDock, bPlein, bRafraichir, bLiq, lblSur, noteSur);
   barre.append(chips, unites, actions);
 
   // panneaux
@@ -264,7 +275,7 @@ export function creerEspace({ conteneur, client, tactile = false, depart = {}, s
     let premiere = true;
     desabonner = client.abonner(etat.instrument, etat.unite, r => { if (mon !== chargement) return; appliquer(r, premiere && !r.vide); if (!r.vide) premiere = false; }, { tick: 15000, forcer });
   }
-  function choisirInstrument(id) { if (!INSTRUMENTS[id] || id === etat.instrument) return false; etat.instrument = id; sauver(); majBarre(); charger(); majTV(); if (etat.dock === 'dashboard') instances.dashboard.maj(); return true; }
+  function choisirInstrument(id) { if (!INSTRUMENTS[id] || id === etat.instrument) return false; etat.instrument = id; setTimeout(() => surimp && surimp.maj(), 1500); sauver(); majBarre(); charger(); majTV(); if (etat.dock === 'dashboard') instances.dashboard.maj(); return true; }
   function choisirUnite(u) { if (!UNITES[u] || u === etat.unite) return false; etat.unite = u; sauver(); majBarre(); charger(); majTV(); return true; }
   /* Focus venant d'une fenêtre de la table : un graphique, ou un panneau du dock (mis en valeur). */
   function appliquerDemande(o = {}) {
