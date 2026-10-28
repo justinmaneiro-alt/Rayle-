@@ -46,7 +46,7 @@ try {
   // ── page de Rayle (PC) ──
   const pc = await nav.newPage(); await pc.setViewport({ width: 1400, height: 900 }); const errPc = [];
   pc.on('pageerror', e => errPc.push(e.message.slice(0, 200)));
-  await pc.evaluateOnNewDocument((w) => { try { localStorage.setItem('rayle_entite_version', '2'); localStorage.setItem('rayle_boot', '0'); localStorage.removeItem('rayle_gestes'); localStorage.setItem('rayle_worker_url', w); localStorage.setItem('rayle_worker_token', 'local'); window.RAYLE_CAMERA_PAGE = location.origin + '/camera/index.html'; } catch (e) { /* stockage refusé */ } }, WORKER);
+  await pc.evaluateOnNewDocument((w) => { try { localStorage.setItem('rayle_entite_version', '2'); localStorage.setItem('rayle_boot', '0'); localStorage.setItem('rayle_gestes', '{"moteur":"v2"}'); localStorage.setItem('rayle_worker_url', w); localStorage.setItem('rayle_worker_token', 'local'); window.RAYLE_CAMERA_PAGE = location.origin + '/camera/index.html'; } catch (e) { /* stockage refusé */ } }, WORKER);
   await pc.goto(BASE + '/index.html', { waitUntil: 'load' }); await attendre(2500);
   const evpc = (f, ...a) => pc.evaluate(f, ...a);
   verifier('CameraRelais et QrMatrice sont chargés', await evpc(() => !!window.CameraRelais && !!window.QrMatrice));

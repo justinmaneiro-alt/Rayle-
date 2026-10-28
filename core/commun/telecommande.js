@@ -74,15 +74,18 @@
   }
   /* R3.1 : verrou. Fenêtre sous le curseur (n'importe où dessus) = saisie de sa barre de titre ; objet 3D (canvas) = bouton gauche enfoncé (rotation). Les 'pointeur' suivants la déplacent / le font
      tourner, 'lacher' libère. Rien sous le curseur de saisissable : aucun verrou (le doigt reste un simple curseur). */
-  const FENETRES_SAISISSABLES = '.gf,.saf,.pn,.pm-mobile,#tele-fenetre,#g1Fen', TITRES = '.gf-t,.saf-t,.pn-tete,.g1-fen-barre,header';
+  const FENETRES_SAISISSABLES = '.gf,.saf,.pn,.pm-mobile,#tele-fenetre,#g1Fen,.gv5-demo-fen', TITRES = '.gf-t,.saf-t,.pn-tete,.g1-fen-barre,.gv5-t,header', POIGNEES = '.gf-poignee,.saf-poignee,.gfx-bord,.gv5-demo-poignee';   // V5 : les poignées de redimensionnement sont saisies elles-mêmes (agrandir / rétrécir)
+  let glisseGenre = '';
   function verrou() {
     if (glisse) return true; const el = sous(); let cible = null, genre = '';
-    const fen = el.closest && el.closest(FENETRES_SAISISSABLES);
-    if (fen) { cible = fen.querySelector(TITRES) || fen; genre = 'fenetre'; } else if (el.tagName === 'CANVAS') { cible = el; genre = '3d'; }
+    const fen = el.closest && el.closest(FENETRES_SAISISSABLES), poignee = el.closest && el.closest(POIGNEES);
+    if (poignee) { cible = poignee; genre = 'poignee'; } else if (fen) { cible = fen.querySelector(TITRES) || fen; genre = 'fenetre'; } else if (el.tagName === 'CANVAS') { cible = el; genre = '3d'; }
     if (!cible) { envoyer({ t: 'saisie', v: 0, genre: '' }); return false; }
-    glisse = { el: cible, buttons: 1, bouton: 0 }; appuyer(0, cible); montrerCurseur(); envoyer({ t: 'saisie', v: 1, genre }); return true;
+    glisse = { el: cible, buttons: 1, bouton: 0 }; glisseGenre = genre; appuyer(0, cible); montrerCurseur(); envoyer({ t: 'saisie', v: 1, genre }); return true;
   }
-  function lacher() { if (glisse) { relacher(glisse.bouton, glisse.el); glisse = null; envoyer({ t: 'saisie', v: 0 }); } }
+  function lacher() { if (glisse) { relacher(glisse.bouton, glisse.el); glisse = null; glisseGenre = ''; envoyer({ t: 'saisie', v: 0 }); } }
+  /* V5 : le curseur « souris dans l'air » donne des positions ABSOLUES (pixels) ; la télécommande reste seule à fabriquer les événements de la page. */
+  function placerA(x, y) { const dx = x - pos.x, dy = y - pos.y; if (Math.abs(dx) < 0.25 && Math.abs(dy) < 0.25) return; bouger(dx, dy); }
   function defiler(dx, dy) {
     if (sur3D()) {   // vue 3D : deux doigts déplacent la vue (glisser avec le bouton droit)
       if (!defileGlisse) { defileGlisse = sous(); appuyer(2, defileGlisse); }
@@ -197,10 +200,10 @@
   let objetGeste = null, minuteurObjet = 0, modeTablette = '';
   const centrerSur = cv => { const r = cv.getBoundingClientRect(); pos.x = Math.round(r.left + r.width / 2); pos.y = Math.round(r.top + r.height / 2); };
   function finObjet() { clearTimeout(minuteurObjet); if (objetGeste) { relacher(objetGeste.bouton, objetGeste.cv); objetGeste = null; } }
-  function objet(m) {
-    const reg = m.id && window.Objets3DPad ? Objets3DPad.obtenir(m.id) : null;
+  function objet(m, cvForce) {   // cvForce (V5) : le canevas visé par les mains, au lieu du plus grand canevas visible
+    const reg = !cvForce && m.id && window.Objets3DPad ? Objets3DPad.obtenir(m.id) : null;
     if (m.g === 'fin') { finObjet(); return; }
-    const cv = (reg && typeof reg.canvas === 'function' && reg.canvas()) || (window.CartePad && CartePad.canevasPrincipal());
+    const cv = cvForce || (reg && typeof reg.canvas === 'function' && reg.canvas()) || (window.CartePad && CartePad.canevasPrincipal());
     if (m.g === 'choisir') { if (reg && reg.choisir) reg.choisir(); else if (cv) { centrerSur(cv); clic(1, 0); } return; }
     if (reg && typeof reg[m.g] === 'function') { reg[m.g](m.dx * innerWidth, m.dy * innerHeight, m.delta); return; }   // l'objet gère lui-même ses gestes
     if (!cv) return;
@@ -329,5 +332,5 @@
     setInterval(() => pousserCarte(false), 250);
     setInterval(() => { if (etat.actif && fenetre && !fenetre.hidden) rafraichir(); }, 4000);
   });
-  window.Telecommande = { etat: () => etat, appliquer, rafraichir, activer: () => basculer(true), desactiver: () => basculer(false), ouvrir: () => rafraichir().then(ouvrirFenetre), position: () => ({ ...pos }), connectee: () => !!(ws && ws.readyState === 1), derniereAction: () => dernierEvenement };
+  window.Telecommande = { objetSur: (cv, m) => { const v = T.valider(Object.assign({ a: 'objet' }, m)); if (v) objet(v, cv); }, placer: placerA, verrou, lacher, saisie: () => glisse ? { genre: glisseGenre, el: glisse.el } : null, etat: () => etat, appliquer, rafraichir, activer: () => basculer(true), desactiver: () => basculer(false), ouvrir: () => rafraichir().then(ouvrirFenetre), position: () => ({ ...pos }), connectee: () => !!(ws && ws.readyState === 1), derniereAction: () => dernierEvenement };
 })();

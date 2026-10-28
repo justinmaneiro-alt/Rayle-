@@ -7,14 +7,20 @@ const GestesUI = (() => {
   let sect = null, modale = null, pastille = null, minuteurTel = 0, etatTel = null, avaitTel = false, messageBouton = null;
 
   const VOCABULAIRE = [
-    ['☝', 'Pointer', 'Index tendu, les autres doigts repliés : le curseur suit ton doigt.'],
-    ['🤏', 'Pincer et relâcher vite', 'Un clic. Deux pincements rapprochés : double clic.'],
-    ['🤏…', 'Pincer et tenir (0,3 s)', 'Saisir : la fenêtre ou l’objet 3D sous le curseur te suit ; relâche pour le lâcher.'],
-    ['🤏🤏', 'Pincer à deux mains et écarter', 'Redimensionner / zoomer ; rapprocher pour réduire.'],
-    ['✋', 'Main ouverte qui balaie', 'Faire défiler les piles (balayage rapide gauche ou droite).'],
-    ['✊', 'Poing tenu 0,7 s', 'Ranger les fenêtres.'],
-    ['✋✋', 'Deux mains ouvertes qui tournent', 'Faire pivoter l’objet 3D.'],
-    ['✊✊', 'Deux poings tenus 1,5 s', 'Mettre les gestes en pause, et les reprendre de la même façon.']
+    ['✋', 'Engager', 'Main ouverte face à la caméra, immobile ≈ 0,7 s : les gestes agissent. Sans cela, rien ne se passe (anti-gestes accidentels).'],
+    ['☝', 'Pointer', 'Index tendu, les autres doigts repliés : le curseur (grand anneau) suit ton doigt sur TOUT l’écran. Il est attiré par les boutons.'],
+    ['🤏', 'Pincer et relâcher vite', 'Pouce + index : un clic, là où le curseur était avant de pincer. Deux pincements rapprochés : double clic (maximiser / restaurer une fenêtre).'],
+    ['🤏…', 'Pincer et tenir (0,3 s)', 'Saisir : barre de titre = déplacer la fenêtre ; coin ou bord = la redimensionner ; objet 3D = le faire tourner (avec inertie).'],
+    ['🤏🖕', 'Pouce + majeur', 'Clic droit / menu.'],
+    ['✌', 'Deux doigts (index + majeur)', 'Monter / descendre la main : faire défiler.'],
+    ['🤏🤏', 'Deux mains pincées', 'Sur une fenêtre : écarter / rapprocher = agrandir / rétrécir. Sur un objet 3D : écarter = zoom, tourner = pivoter, déplacer ensemble = déplacer.'],
+    ['✋→', 'Main ouverte qui balaie', 'Vite à gauche ou à droite : faire défiler les piles.'],
+    ['✋↓', 'Main ouverte qui descend vite', 'Ranger la fenêtre sous le curseur dans la pile.'],
+    ['✊→✋', 'Poing court puis main qui s’ouvre', 'Fermer la fenêtre sous le curseur (0,5 s de confirmation : ferme le poing pour annuler).'],
+    ['✋⤴', 'Main ouverte qui recule', 'Retour à l’accueil.'],
+    ['☝…', 'Index immobile 1 s sur un objet 3D', 'Le suivre / le centrer (double clic sur l’objet).'],
+    ['✋…', 'Main ouverte immobile 1,5 s', 'Revenir à la vue d’origine de l’objet 3D.'],
+    ['✊…', 'Poing tenu 1 s', 'Pause (anneau barré). Main ouverte 0,7 s pour reprendre. Arrête net un objet 3D qui tourne encore.']
   ];
 
   function section() {
@@ -26,7 +32,7 @@ const GestesUI = (() => {
       '<div class="row"><button type="button" class="ghost" id="gs-aide">Aide des gestes</button><button type="button" class="ghost" id="gs-calib">Calibrer</button><button type="button" class="ghost" id="gs-tel">Caméra du téléphone…</button><button type="button" class="ghost" id="gs-suivi">Fenêtre de suivi</button><button type="button" class="ghost" id="gs-pause">Pause</button><button type="button" class="ghost" id="gs-enreg">Enregistrer 5 s</button></div>' +
       '<label class="chk"><input type="checkbox" id="gs-miroir"> Image en miroir (caméra de face)</label><label class="chk"><input type="checkbox" id="gs-droitier"> Main droite pour le curseur</label>' +
       '<div class="hint">Désactivé par défaut. Sans caméra, la souris et le toucher marchent comme avant. Alt+G : pause rapide. Procédure et limites : docs/GESTES.md.</div>';
-    h3.parentNode.insertBefore(sect, h3);
+    h3.parentNode.insertBefore(sect, h3); if (window.GestesV5UI) window.GestesV5UI.installer(sect);
     /* La case marche avec la caméra du téléphone dès qu'il est connecté (ou en attente) ; sans téléphone, avec le choix de la liste (webcam du PC par défaut). */
     $('gs-actif').addEventListener('change', async e => {
       if (e.target.checked) {
@@ -50,12 +56,14 @@ const GestesUI = (() => {
   function libelle(e) {
     if (!e.actif) return e.erreur ? 'Gestes : ' + e.erreur : 'Gestes désactivés';
     const src = { locale: 'webcam', telephone: 'téléphone (réseau local)', 'telephone-https': 'caméra du téléphone', rejeu: 'rejeu' }[e.source] || e.source;
-    if (e.source === 'telephone-https' && window.CameraRelais) { const r = window.CameraRelais.etat(); return (e.pause ? '⏸ Gestes en pause' : '✋ Gestes') + ' · ' + src + ' · ' + (r.etat === 'attente' ? 'en attente du téléphone' : r.liaison === 'direct' ? 'connecté (direct, ' + r.debit + ' paquets/s' + (r.delai != null ? ', ' + r.delai + ' ms' : '') + ')' : r.etat === 'connecte' ? 'connecté (par le Worker, lent)' : 'non connecté') + (r.etat === 'connecte' ? ' · ' + e.mains + ' main' + (e.mains > 1 ? 's' : '') : '') + (e.derniere ? ' · ' + e.derniere : ''); }
-    return (e.pause ? '⏸ Gestes en pause' : '✋ Gestes') + ' · ' + src + (e.camera || e.source !== 'locale' ? ' · ' + e.mains + ' main' + (e.mains > 1 ? 's' : '') : (e.info ? ' · ' + e.info : '')) + (e.derniere ? ' · ' + e.derniere : '');
+    const etatV5 = e.moteurV === 5 ? ({ 'sans-main': 'pas de main', repos: 'main vue : ouvre-la ≈ 1 s pour engager', engage: 'ENGAGÉ', pause: 'PAUSE' }[e.mode] || '') : '';
+    const tete = e.pause ? '⏸ Gestes en pause' : e.moteurV === 5 && e.engage ? '✋ Gestes engagés' : '✋ Gestes';
+    if (e.source === 'telephone-https' && window.CameraRelais) { const r = window.CameraRelais.etat(); return tete + ' · ' + src + ' · ' + (r.etat === 'attente' ? 'en attente du téléphone' : r.liaison === 'direct' ? 'connecté (direct, ' + r.debit + ' paquets/s' + (r.delaiTotal != null ? ', ' + r.delaiTotal + ' ms' : r.delai != null ? ', ' + r.delai + ' ms' : '') + ')' : r.etat === 'connecte' ? 'connecté (par le Worker, lent)' : 'non connecté') + (r.etat === 'connecte' ? ' · ' + (etatV5 || e.mains + ' main' + (e.mains > 1 ? 's' : '')) : '') + (e.derniere ? ' · ' + e.derniere : ''); }
+    return tete + ' · ' + src + (e.camera || e.source !== 'locale' ? ' · ' + (etatV5 || e.mains + ' main' + (e.mains > 1 ? 's' : '')) : (e.info ? ' · ' + e.info : '')) + (e.derniere ? ' · ' + e.derniere : '');
   }
   function maj() {
     const e = G.etat(), r = G.reglages(), p = pastilleEl();
-    p.hidden = !e.actif; p.textContent = libelle(e); p.dataset.etat = e.pause ? 'pause' : e.mains ? 'main' : 'attente';
+    p.hidden = !e.actif; p.textContent = libelle(e); p.dataset.etat = e.pause ? 'pause' : (e.moteurV === 5 ? (e.engage ? 'main' : 'attente') : (e.mains ? 'main' : 'attente'));
     const tel = e.actif && e.source === 'telephone-https';
     if (tel && !avaitTel && window.GestesTel) window.GestesTel.ouvrir();   // la fenêtre de suivi s'ouvre quand la caméra du téléphone s'active
     if (!tel && avaitTel && window.GestesTel && !(e.erreur)) window.GestesTel.fermer();
@@ -161,6 +169,6 @@ const GestesUI = (() => {
 
   window.addEventListener('keydown', e => { if (e.altKey && !e.ctrlKey && !e.metaKey && (e.key === 'g' || e.key === 'G') && G.etat().actif) { e.preventDefault(); G.mettreEnPause(!G.etat().pause); } });
   G.surEvenement(maj); section(); maj(); setInterval(() => { const e = G.etat(); if (e.actif && e.source === "telephone-https") maj(); }, 1000);
-  return { aide, calibration, telephone, maj, fermer, VOCABULAIRE };
+  return { aide, calibration, telephone, maj, fermer, VOCABULAIRE, ouvrirModale };
 })();
 window.GestesUI = GestesUI;

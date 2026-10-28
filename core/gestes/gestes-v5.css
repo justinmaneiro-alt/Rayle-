@@ -1,0 +1,73 @@
+/* Gestes V5 : curseur « souris dans l'air », retours visuels, diagnostic, mode « Apprendre les gestes ». Verre sombre, un accent cyan (#8fd0e3) + sable (#c9b27a), texte ≥ 13 px. */
+:root { --gv5-t: 76px; }
+body.gv5-actif #tele-curseur { display: none !important; }
+#gv5-curseur { position: fixed; left: 0; top: 0; width: var(--gv5-t); height: var(--gv5-t); margin: calc(var(--gv5-t) / -2) 0 0 calc(var(--gv5-t) / -2); pointer-events: none; z-index: 2147483200; will-change: transform; --gv5-p: 0; }
+#gv5-curseur[hidden], .gv5-trace[hidden], #gv5-diag[hidden] { display: none; }
+#gv5-curseur .gv5-anneau { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; transition: transform .14s ease-out; }
+#gv5-curseur circle { fill: rgba(143, 208, 227, .08); stroke: #8fd0e3; stroke-width: 3.2; vector-effect: non-scaling-stroke; filter: drop-shadow(0 0 6px rgba(143, 208, 227, .75)); }
+#gv5-curseur .gv5-prog { fill: none; stroke: #c9b27a; stroke-width: 5; stroke-dasharray: 0 100; stroke-linecap: round; transform: rotate(-90deg); filter: none; opacity: 0; }
+#gv5-curseur[data-prog] .gv5-prog { stroke-dasharray: calc(var(--gv5-p) * 100) 100; opacity: 1; }
+#gv5-curseur[data-prog=""] .gv5-prog { opacity: 0; }
+#gv5-curseur .gv5-point { position: absolute; left: 50%; top: 50%; width: 9px; height: 9px; margin: -4.5px; border-radius: 50%; background: #eaf8fc; box-shadow: 0 0 8px #8fd0e3, 0 0 0 1.5px rgba(5, 6, 12, .7); }
+#gv5-curseur .gv5-barre { display: none; position: absolute; left: 12%; top: 50%; width: 76%; height: 4px; margin-top: -2px; background: #c9b27a; transform: rotate(-45deg); box-shadow: 0 0 6px rgba(201, 178, 122, .8); }
+#gv5-curseur[data-etat="survol"] .gv5-anneau { transform: scale(1.2); }
+#gv5-curseur[data-etat="survol"] circle { fill: rgba(143, 208, 227, .2); stroke: #d4f3fb; }
+#gv5-curseur[data-etat="pince"] .gv5-anneau { transform: scale(calc(1 - var(--gv5-p) * .38)); }
+#gv5-curseur[data-etat="prise"] .gv5-anneau { transform: scale(.78); }
+#gv5-curseur[data-etat="prise"] circle { fill: rgba(143, 208, 227, .45); stroke: #c9b27a; }
+#gv5-curseur[data-etat="prise"] .gv5-prog { opacity: 0; }
+#gv5-curseur[data-etat="pause"] circle { stroke: #7d8a90; fill: rgba(125, 138, 144, .1); filter: none; }
+#gv5-curseur[data-etat="pause"] .gv5-barre { display: block; }
+#gv5-curseur[data-etat="pause"] .gv5-point { background: #7d8a90; box-shadow: none; }
+#gv5-curseur[data-etat="inactif"] circle { stroke-dasharray: 4 7; opacity: .75; fill: none; filter: none; }
+#gv5-curseur[data-etat="inactif"] .gv5-prog { stroke-dasharray: calc(var(--gv5-p) * 100) 100; opacity: 1; }
+#gv5-curseur[data-etat="fermer"] circle { stroke: #ff8a65; fill: rgba(255, 138, 101, .12); }
+#gv5-curseur[data-etat="fermer"] .gv5-prog { stroke: #ff8a65; stroke-dasharray: calc((1 - var(--gv5-p)) * 100) 100; opacity: 1; }
+#gv5-curseur.gv5-clic .gv5-anneau { animation: gv5-pouls .3s ease-out; }
+@keyframes gv5-pouls { 0% { transform: scale(.6); } 60% { transform: scale(1.35); } 100% { transform: scale(1); } }
+.gv5-trace { position: fixed; left: 0; top: 0; width: 10px; height: 10px; margin: -5px 0 0 -5px; border-radius: 50%; background: #8fd0e3; pointer-events: none; z-index: 2147483100; }
+.gv5-aimante { outline: 2px solid #8fd0e3 !important; outline-offset: 3px; box-shadow: 0 0 14px rgba(143, 208, 227, .65) !important; filter: brightness(1.22); }
+.gv5-tenue { outline: 2px solid #c9b27a !important; box-shadow: 0 16px 48px rgba(0, 0, 0, .7), 0 0 22px rgba(201, 178, 122, .5) !important; filter: brightness(1.08); }
+.gv5-poignee-active { background: rgba(201, 178, 122, .55) !important; box-shadow: 0 0 12px #c9b27a !important; }
+.gv5-ferme-prevu { outline: 3px solid #ff8a65 !important; box-shadow: 0 0 26px rgba(255, 138, 101, .7) !important; animation: gv5-clignote .5s ease-in-out infinite alternate; }
+@keyframes gv5-clignote { from { filter: brightness(1); } to { filter: brightness(1.35); } }
+@media (prefers-reduced-motion: reduce) { #gv5-curseur .gv5-anneau { transition: none; } #gv5-curseur.gv5-clic .gv5-anneau, .gv5-ferme-prevu { animation: none; } }
+
+#gv5-diag { position: fixed; left: 14px; bottom: 92px; z-index: 2147481800; background: rgba(4, 9, 15, .86); border: 1px solid rgba(143, 208, 227, .5); padding: 6px; pointer-events: none; }
+#gv5-diag canvas { display: block; width: 200px; height: 150px; background: rgba(143, 208, 227, .05); }
+#gv5-diag pre { margin: 6px 0 0; font: 12.5px/1.35 ui-monospace, Consolas, monospace; color: #cfe9f1; white-space: pre; }
+
+/* paramètres dans ⚙ */
+#gv5-reglages { margin: 8px 0; border: 1px solid rgba(143, 208, 227, .3); padding: 6px 10px; }
+#gv5-reglages summary { cursor: pointer; color: #8fd0e3; padding: 4px 0; font-size: 14px; }
+#gv5-reglages label.gv5-l { display: grid; grid-template-columns: 1fr auto; gap: 2px 10px; margin: 8px 0 2px; font-size: 13.5px; color: #cfe9f1; }
+#gv5-reglages label.gv5-l output { color: #c9b27a; font-family: ui-monospace, Consolas, monospace; }
+#gv5-reglages label.gv5-l input[type="range"] { grid-column: 1 / -1; width: 100%; }
+#gv5-reglages .row { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
+
+/* mode « Apprendre les gestes » */
+#gv5-appr { position: fixed; inset: 0; z-index: 2147482800; background: rgba(2, 5, 9, .88); color: #e6eef2; font: 15px/1.45 system-ui, sans-serif; display: flex; flex-direction: column; }
+#gv5-appr[hidden] { display: none; }
+#gv5-appr header { display: flex; align-items: center; gap: 12px; padding: 10px 16px; border-bottom: 1px solid rgba(143, 208, 227, .35); color: #8fd0e3; }
+#gv5-appr header b { flex: 1; letter-spacing: .06em; }
+#gv5-appr button { font: inherit; color: #8fd0e3; background: rgba(143, 208, 227, .1); border: 1px solid rgba(143, 208, 227, .6); padding: 8px 14px; min-height: 40px; cursor: pointer; }
+#gv5-appr .gv5-pas { display: flex; gap: 6px; padding: 8px 16px; flex-wrap: wrap; }
+#gv5-appr .gv5-pas i { font-style: normal; font-size: 13px; padding: 3px 9px; border: 1px solid rgba(143, 208, 227, .3); color: #9fb3bd; }
+#gv5-appr .gv5-pas i[data-s="en-cours"] { border-color: #8fd0e3; color: #fff; }
+#gv5-appr .gv5-pas i[data-s="ok"] { border-color: #27d98a; color: #c8f7e0; }
+#gv5-appr .gv5-pas i[data-s="saute"] { opacity: .5; }
+#gv5-appr .gv5-consigne { padding: 6px 16px; font-size: 17px; }
+#gv5-appr .gv5-retour { padding: 0 16px 6px; min-height: 26px; color: #c9b27a; }
+#gv5-appr .gv5-retour.ok { color: #27d98a; }
+#gv5-appr .gv5-scene { position: relative; flex: 1; margin: 0 16px 10px; border: 1px solid rgba(143, 208, 227, .25); background: radial-gradient(ellipse at center, rgba(143, 208, 227, .06), transparent 70%); overflow: hidden; }
+#gv5-appr .gv5-pied { padding: 8px 16px 14px; display: flex; gap: 10px; align-items: center; color: #9fb3bd; font-size: 13px; }
+#gv5-appr .gv5-pied span { flex: 1; }
+.gv5-cible { position: absolute; width: 74px; height: 74px; margin: -37px 0 0 -37px; border-radius: 50%; border: 2px dashed #c9b27a; display: flex; align-items: center; justify-content: center; color: #c9b27a; font-size: 13px; }
+.gv5-cible[data-ok="1"] { border: 2px solid #27d98a; background: rgba(39, 217, 138, .15); color: #27d98a; }
+.gv5-grosbouton { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); font: 22px system-ui, sans-serif; min-width: 220px; min-height: 90px; color: #fff; background: rgba(143, 208, 227, .22); border: 2px solid #8fd0e3; cursor: pointer; }
+.gv5-demo-fen { position: absolute; width: 300px; height: 190px; background: #0b121b; border: 1px solid rgba(143, 208, 227, .6); box-shadow: 0 8px 24px rgba(0, 0, 0, .6); }
+.gv5-demo-fen .gv5-t { height: 40px; line-height: 40px; padding: 0 12px; background: rgba(143, 208, 227, .2); color: #fff; cursor: grab; user-select: none; }
+.gv5-demo-fen .gv5-corps { padding: 12px; color: #9fb3bd; }
+.gv5-demo-poignee { position: absolute; right: 0; bottom: 0; width: 38px; height: 38px; background: linear-gradient(135deg, transparent 50%, #8fd0e3 50%); cursor: nwse-resize; }
+.gv5-demo-cv { position: absolute; left: 50%; top: 50%; width: 320px; height: 240px; margin: -120px 0 0 -160px; border: 1px solid rgba(143, 208, 227, .4); background: #05080d; }
+.gv5-zone-balayage { position: absolute; inset: 20% 8%; border: 2px dashed rgba(143, 208, 227, .5); display: flex; align-items: center; justify-content: center; font-size: 22px; color: #8fd0e3; }

@@ -9,19 +9,41 @@ const Gestes = (() => {
   const BASE = (window.RAYLE_GESTES_URL || new URL('assets-lourds/gestes/', document.baseURI).href).replace(/\/?$/, '/');
   const lire = () => { try { return JSON.parse(localStorage.getItem(CLE) || '{}') || {}; } catch (e) { return {}; } };
   const ecrire = o => { try { localStorage.setItem(CLE, JSON.stringify(o)); } catch (e) { /* stockage refusé : réglages perdus à la fermeture */ } };
-  let prefs = Object.assign({ seuilFerme: C.DEFAUTS.seuilFerme, seuilOuvre: C.DEFAUTS.seuilOuvre, zoneUtile: C.DEFAUTS.zoneUtile, miroir: true, droitier: true, source: 'locale', apercu: false }, lire());
-  const E = { actif: false, source: null, erreur: '', info: '', mains: 0, derniere: '', pause: false, fps: 0, charge: false, camera: false, enregistrement: null, rejeu: false, nbMessages: 0 };
+  /* V5 : réglages de la « souris dans l'air » (moteur 'v5'). Le moteur de la V2 reste disponible : { moteur: 'v2' }. */
+  const DEFAUTS_V5 = { moteur: 'v5', zoneL: 0.7, zoneH: 0.7, zoneCx: 0.5, zoneCy: 0.5, lissage: 0.5, sensibiliteClic: 1, taillePointeur: 76, aimantation: 0.6, engagementMs: 700, exigerEngagement: true, reculActif: true, modeRelatif: false, diagnostic: false, priseLarge: true };
+  let prefs = Object.assign({ seuilFerme: C.DEFAUTS.seuilFerme, seuilOuvre: C.DEFAUTS.seuilOuvre, zoneUtile: C.DEFAUTS.zoneUtile, miroir: true, droitier: true, source: 'locale', apercu: false }, DEFAUTS_V5, lire());
+  const E = { actif: false, source: null, erreur: '', info: '', mains: 0, derniere: '', pause: false, fps: 0, charge: false, camera: false, enregistrement: null, rejeu: false, nbMessages: 0, moteurV: 5, mode: 'sans-main', engage: false, saisie: false };
   let decalageTel = null;   // horloge du téléphone -> horloge de la page (le moteur veut un temps qui avance, dans le même repère que la webcam)
   const ecouteurs = []; let calib = null, moteur = null, flux = null, video = null, detecteur = null, boucle = 0, tPrec = 0, vusRecents = 0, dernierEnvoiVide = 0, ws = null, voulu = false, apercuCtx = null, adaptatif = { fps: 30, sansMain: 0 };
   const surEvenement = f => { ecouteurs.push(f); return () => { const i = ecouteurs.indexOf(f); if (i >= 0) ecouteurs.splice(i, 1); }; };
   const prevenir = (type, d) => { for (const f of ecouteurs.slice()) { try { f(type, d); } catch (e) { /* un écouteur fautif n'arrête pas les autres */ } } };
   const reglages = () => ({ ...prefs });
-  function creerMoteur() { moteur = C.creerMoteur({ seuilFerme: prefs.seuilFerme, seuilOuvre: prefs.seuilOuvre, zoneUtile: prefs.zoneUtile, miroir: prefs.miroir, droitier: prefs.droitier, ecran: { l: innerWidth, h: innerHeight } }); return moteur; }
+  const v5 = () => prefs.moteur !== 'v2' && !!window.GestesV5;
+  /* Réglages de la page -> options du moteur V5 (la zone active, le lissage, la sensibilité du clic, l'engagement… sont tous réglables). */
+  const optionsV5 = () => ({ ecran: { l: innerWidth, h: innerHeight }, miroir: prefs.miroir, droitier: prefs.droitier, zone: { l: prefs.zoneL, h: prefs.zoneH, cx: prefs.zoneCx, cy: prefs.zoneCy }, modeRelatif: prefs.modeRelatif, lissage: prefs.lissage, sensibiliteClic: prefs.sensibiliteClic, seuilFerme: prefs.seuilFerme, seuilOuvre: prefs.seuilOuvre, engagementMs: prefs.engagementMs, exigerEngagement: prefs.exigerEngagement, reculActif: prefs.reculActif });
+  function creerMoteur() {
+    E.moteurV = v5() ? 5 : 2;
+    moteur = v5() ? window.GestesV5.creerMoteur(optionsV5()) : C.creerMoteur({ seuilFerme: prefs.seuilFerme, seuilOuvre: prefs.seuilOuvre, zoneUtile: prefs.zoneUtile, miroir: prefs.miroir, droitier: prefs.droitier, ecran: { l: innerWidth, h: innerHeight } });
+    if (window.GestesV5Actions) window.GestesV5Actions.reglages({ taille: prefs.taillePointeur, aimantation: prefs.aimantation, priseLarge: prefs.priseLarge, diagnostic: prefs.diagnostic });
+    return moteur;
+  }
   window.addEventListener('resize', () => { if (moteur) moteur.regler({ ecran: { l: innerWidth, h: innerHeight } }); });
 
   // ── application des messages sur la page ──
   function rangerFenetres() { let n = 0; for (const g of (window.RayleGestionnaires || [])) { try { g.reorganiser('grille'); n++; } catch (e) { /* gestionnaire non prêt */ } } return n; }
+  const LIBELLES_V5 = { engage: 'engagé : les gestes agissent', reprise: 'gestes repris', pause: 'gestes en pause', sans_main: 'plus de main : désengagé', clic: 'clic', clic_droit: 'clic droit', saisie: 'saisie', lacher: 'relâché', balayage: 'balayage', ranger_bas: 'fenêtre rangée', vue_initiale: 'vue initiale', accueil: 'retour à l’accueil', suivre: 'suivre l’objet', fermer_debut: 'fermeture… (poing pour annuler)', fermer: 'fenêtre fermée', fermer_annule: 'fermeture annulée', debut_zoom: 'redimensionner (deux mains)', debut_rotation: 'pivoter (deux mains)', fin_deux: 'deux mains relâchées' };
+  let dernierMajV5 = 0;
+  function appliquerV5(sortie) {
+    const et = sortie.etat || {}, avant = E.mode + '|' + E.mains + '|' + E.saisie;
+    E.mains = et.mains || 0; E.pause = !!et.pause; E.mode = et.mode || 'sans-main'; E.engage = !!et.engage; E.saisie = !!et.saisie; E.progres = et.progres || null; E.pose = et.pose || null;
+    if (window.GestesV5Actions) { window.GestesV5Actions.appliquer(sortie); window.GestesV5Actions.afficher(et); }
+    E.nbMessages += sortie.actions.length;
+    for (const e of sortie.evenements) { E.derniere = (e.type === 'clic' && e.n === 2) ? 'double clic' : (e.type === 'balayage' ? 'balayage ' + e.sens : (LIBELLES_V5[e.type] || e.type)); prevenir('geste', e); }
+    const now = performance.now(), change = avant !== E.mode + '|' + E.mains + '|' + E.saisie;
+    if (sortie.evenements.length || change || now - dernierMajV5 > 250) { dernierMajV5 = now; prevenir('maj', E); }
+  }
   function appliquer(sortie) {
+    if (sortie.actions) return appliquerV5(sortie);
     E.mains = sortie.etat ? sortie.etat.mains : 0; E.pause = !!(sortie.etat && sortie.etat.pause);
     for (const m of sortie.msgs) { E.nbMessages++; if (window.Telecommande && window.Telecommande.appliquer) window.Telecommande.appliquer(m); }
     for (const e of sortie.evenements) {
@@ -125,7 +147,7 @@ const Gestes = (() => {
   async function desactiver() {
     const etaitRelais = E.source === 'telephone-https';
     E.actif = false; voulu = false; arreterFlux(); try { ws && ws.close(); } catch (e) { /* déjà fermée */ } ws = null;
-    if (moteur) { const s = moteur.traiter({ t: Date.now(), mains: [] }); for (const m of s.msgs) window.Telecommande && window.Telecommande.appliquer(m); moteur.reinitialiser(); if (window.Telecommande) window.Telecommande.appliquer({ a: 'lacher' }); }
+    if (moteur) { if (E.moteurV === 5) { moteur.reinitialiser(); if (window.GestesV5Actions) window.GestesV5Actions.arreter(); } else { const s = moteur.traiter({ t: Date.now(), mains: [] }); for (const m of s.msgs) window.Telecommande && window.Telecommande.appliquer(m); moteur.reinitialiser(); } if (window.Telecommande) window.Telecommande.appliquer({ a: 'lacher' }); }
     if (etaitRelais && window.CameraRelais) await window.CameraRelais.arreter(false);
     E.mains = 0; E.derniere = ''; prevenir('maj', E);
   }
@@ -133,9 +155,9 @@ const Gestes = (() => {
   function mettreEnPause(oui) { if (moteur) moteur.pause(oui); E.pause = !!oui; if (oui && window.Telecommande) window.Telecommande.appliquer({ a: 'lacher' }); prevenir('maj', E); }
 
   // ── rejeu (tests, démonstration sans caméra) ──
-  async function rejouer(frames, { vitesse = 1, instantane = false } = {}) {
+  async function rejouer(frames, { vitesse = 1, instantane = false, ecart = 400 } = {}) {   // ecart : pause (ms) entre deux suites rejouées ; 17 = enchaînement sans coupure
     if (!E.actif || E.source !== 'rejeu') { await activer({ source: 'rejeu', memoriser: false }); }
-    E.rejeu = true; const t0 = frames.length ? frames[0].t : 0, debut = performance.now(), base = (E.dernierT || 0) + 400; let n = 0;   // les horloges des suites repartent de 0 : on les prolonge, le moteur exige un temps qui avance
+    E.rejeu = true; const t0 = frames.length ? frames[0].t : 0, debut = performance.now(), base = (E.dernierT || 0) + ecart; let n = 0;   // les horloges des suites repartent de 0 : on les prolonge, le moteur exige un temps qui avance
     for (const f of frames) { if (!E.actif) break; if (!instantane) { const attente = (f.t - t0) / vitesse - (performance.now() - debut); if (attente > 1) await new Promise(r => setTimeout(r, attente)); } injecter({ ...f, t: base + (f.t - t0) / vitesse }); n++; if (instantane && n % 20 === 0) await new Promise(r => setTimeout(r, 0)); }
     E.rejeu = false; return n;
   }
@@ -157,7 +179,12 @@ const Gestes = (() => {
   }
 
   // ── réglages et calibration ──
-  function regler(patch) { prefs = Object.assign(prefs, patch); ecrire(prefs); if (moteur) moteur.regler({ seuilFerme: prefs.seuilFerme, seuilOuvre: prefs.seuilOuvre, zoneUtile: prefs.zoneUtile, miroir: prefs.miroir, droitier: prefs.droitier }); prevenir('maj', E); return reglages(); }
+  function regler(patch) {
+    prefs = Object.assign(prefs, patch); ecrire(prefs);
+    if (moteur) { if (E.moteurV === 5) moteur.regler(optionsV5()); else moteur.regler({ seuilFerme: prefs.seuilFerme, seuilOuvre: prefs.seuilOuvre, zoneUtile: prefs.zoneUtile, miroir: prefs.miroir, droitier: prefs.droitier }); }
+    if (window.GestesV5Actions) window.GestesV5Actions.reglages({ taille: prefs.taillePointeur, aimantation: prefs.aimantation, priseLarge: prefs.priseLarge, diagnostic: prefs.diagnostic });
+    prevenir('maj', E); return reglages();
+  }
   /* Calibration guidée : trois mesures prises sur la personne (main ouverte, main pincée, balayage de l'écran avec le doigt). `etape(n, texte)` affiche la consigne ; chaque étape dure `secondes`. */
   async function calibrer({ secondes = 4, etape = () => {}, attente = ms => new Promise(r => setTimeout(r, ms)) } = {}) {
     if (!E.actif) throw new Error('Active d’abord les gestes.');
@@ -175,13 +202,31 @@ const Gestes = (() => {
     if (seuils.ok) regler({ seuilFerme: seuils.seuilFerme, seuilOuvre: seuils.seuilOuvre }); if (zone.ok) regler({ zoneUtile: zone.zoneUtile });
     return r;
   }
-  function reinitialiserReglages() { prefs = Object.assign(prefs, { seuilFerme: C.DEFAUTS.seuilFerme, seuilOuvre: C.DEFAUTS.seuilOuvre, zoneUtile: C.DEFAUTS.zoneUtile }); ecrire(prefs); if (moteur) moteur.regler({ seuilFerme: prefs.seuilFerme, seuilOuvre: prefs.seuilOuvre, zoneUtile: prefs.zoneUtile }); prevenir('maj', E); }
+  function reinitialiserReglages() { prefs = Object.assign(prefs, { seuilFerme: C.DEFAUTS.seuilFerme, seuilOuvre: C.DEFAUTS.seuilOuvre, zoneUtile: C.DEFAUTS.zoneUtile, miroir: true, droitier: true }, DEFAUTS_V5, { moteur: prefs.moteur }); ecrire(prefs); regler({}); }
+  /* Calibrage automatique (≈ 10 s) : balayer l'écran avec l'index (zone confortable), puis pincer et rouvrir plusieurs fois (seuils) ; la taille de la main dit si on est à la bonne distance. */
+  async function calibrerAuto({ secondes = 10, etape = () => {}, attente = ms => new Promise(r => setTimeout(r, ms)) } = {}) {
+    if (!E.actif) throw new Error('Active d’abord les gestes.'); if (!window.GestesV5) throw new Error('Moteur V5 indisponible.');
+    const ratios = [], pointes = [], echelles = []; let phase = null;
+    calib = frame => {
+      if (!frame.mains.length) return; const m = frame.mains[0], ratio = frame.ratio || 4 / 3, pts = m.pts.map(p => [(prefs.miroir ? 1 - p[0] : p[0]) * ratio, p[1], p[2] || 0]), r = C.pincement(pts);
+      ratios.push(r); echelles.push(C.echelleMain(pts)); if (phase === 'zone' && r > 0.5) pointes.push([pts[8][0] / ratio, pts[8][1]]);
+    };
+    try {
+      phase = 'zone'; etape(1, 'Index tendu : balaie lentement TOUT l’écran avec le doigt, coins compris.'); await attente(secondes * 600);
+      phase = 'pince'; etape(2, 'Maintenant pince le pouce et l’index puis rouvre la main, quatre ou cinq fois, franchement.'); await attente(secondes * 400);
+    } finally { calib = null; phase = null; }
+    const r = window.GestesV5.calibrerAuto({ ratios, pointes, echelles });
+    if (r.zone) regler({ zoneL: r.zone.l, zoneH: r.zone.h, zoneCx: r.zone.cx, zoneCy: r.zone.cy });
+    if (r.seuils) regler({ seuilFerme: r.seuils.seuilFerme, seuilOuvre: r.seuils.seuilOuvre, sensibiliteClic: 1 });
+    return r;
+  }
 
   // ── voix : « active les gestes », « désactive les gestes », « aide des gestes »… (rend le texte à dire, ou null) ──
   async function traiterVoix(texte) {
     const n = String(texte || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/['’\-]/g, ' ');
     if (!/\bgestes?\b/.test(n)) return null;
     if (/\b(?:aide|vocabulaire|liste|explique)\b/.test(n)) { if (window.GestesUI) window.GestesUI.aide(); return 'Voici les gestes. Pointer avec l’index déplace le curseur. Pincer et relâcher clique, pincer et tenir saisit. Deux mains pincées qui s’écartent redimensionnent. Une main ouverte qui balaie fait défiler les piles. Un poing tenu range les fenêtres. Deux poings tenus mettent les gestes en pause.'; }
+    if (/\b(?:apprend\w*|appren\w*|entraine\w*|exerc\w*)\b/.test(n)) { if (window.GestesV5UI) window.GestesV5UI.apprendre(); return 'Je lance l’apprentissage des gestes : suis les consignes à l’écran.'; }
     if (/\b(?:calibr\w*|regle\w*)\b/.test(n)) { if (window.GestesUI) window.GestesUI.calibration(); return 'Je lance la calibration : suis les consignes à l’écran.'; }
     if (/\b(?:desactive|coupe|arrete|eteins|stop)\b/.test(n)) { await desactiver(); return 'Gestes désactivés.'; }
     if (/\b(?:pause)\b/.test(n)) { mettreEnPause(true); return 'Gestes en pause. Deux poings tenus les reprennent.'; }
@@ -191,6 +236,6 @@ const Gestes = (() => {
     return null;
   }
 
-  return { activer, activerAuto, telephoneConnecte, desactiver, mettreEnPause, injecter, rejouer, enregistrer, telecharger, calibrer, regler, reglages, reinitialiserReglages, etat: () => ({ ...E }), surEvenement, brancherApercu, traiterVoix, api, rangerFenetres, moteur: () => moteur, messageErreur };
+  return { activer, activerAuto, telephoneConnecte, desactiver, mettreEnPause, injecter, rejouer, enregistrer, telecharger, calibrer, calibrerAuto, regler, reglages, reinitialiserReglages, etat: () => ({ ...E }), surEvenement, brancherApercu, traiterVoix, api, rangerFenetres, moteur: () => moteur, messageErreur };
 })();
 window.Gestes = Gestes;

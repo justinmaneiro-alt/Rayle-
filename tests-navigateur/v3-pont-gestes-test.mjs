@@ -49,7 +49,7 @@ const navTel = await puppeteer.launch({ executablePath: CHROME, headless: 'new',
 try {
   const pc = await nav.newPage(); await pc.setViewport({ width: 1400, height: 900 }); const errPc = [];
   pc.on('pageerror', e => errPc.push(e.message.slice(0, 200)));
-  await pc.evaluateOnNewDocument((w) => { try { localStorage.setItem('rayle_entite_version', '2'); localStorage.setItem('rayle_boot', '0'); localStorage.removeItem('rayle_gestes'); localStorage.setItem('rayle_worker_url', w); localStorage.setItem('rayle_worker_token', 'local'); window.RAYLE_CAMERA_PAGE = location.origin + '/camera/index.html'; } catch (e) { /* stockage refusé */ } }, WORKER);
+  await pc.evaluateOnNewDocument((w) => { try { localStorage.setItem('rayle_entite_version', '2'); localStorage.setItem('rayle_boot', '0'); localStorage.setItem('rayle_gestes', '{"moteur":"v2"}'); localStorage.setItem('rayle_worker_url', w); localStorage.setItem('rayle_worker_token', 'local'); window.RAYLE_CAMERA_PAGE = location.origin + '/camera/index.html'; } catch (e) { /* stockage refusé */ } }, WORKER);
   await pc.goto(BASE + '/index.html', { waitUntil: 'load' }); await attendre(2500);
   const ev = (f, ...a) => pc.evaluate(f, ...a);
   const placer = async (x, y) => ev(async (x2, y2) => { for (let i = 0; i < 6; i++) Telecommande.appliquer({ a: 'pointeur', dx: -300, dy: -300 }); let rx = x2, ry = y2; while (rx > 0) { const d = Math.min(300, rx); Telecommande.appliquer({ a: 'pointeur', dx: d, dy: 0 }); rx -= d; } while (ry > 0) { const d = Math.min(300, ry); Telecommande.appliquer({ a: 'pointeur', dx: 0, dy: d }); ry -= d; } return Telecommande.position(); }, x, y);

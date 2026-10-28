@@ -22,7 +22,7 @@ const nav = await puppeteer.launch({ executablePath: CHROME, headless: 'new', ar
 async function ouvrir({ avant = null } = {}) {
   const page = await nav.newPage(); await page.setViewport({ width: 1400, height: 900 }); const erreurs = [];
   page.on('pageerror', e => erreurs.push(e.message.slice(0, 200))); page.on('console', m => { if (m.type() === 'error') erreurs.push(m.text().slice(0, 200)); });
-  await page.evaluateOnNewDocument(() => { try { localStorage.setItem('rayle_entite_version', '2'); localStorage.setItem('rayle_boot', '0'); localStorage.removeItem('rayle_gestes'); } catch (e) { /* stockage refusé */ } });
+  await page.evaluateOnNewDocument(() => { try { localStorage.setItem('rayle_entite_version', '2'); localStorage.setItem('rayle_boot', '0'); localStorage.setItem('rayle_gestes', '{"moteur":"v2"}'); } catch (e) { /* stockage refusé */ } });
   if (avant) await avant(page);
   await page.goto(BASE + '/index.html', { waitUntil: 'load' }); await attendre(2500);
   await page.addScriptTag({ path: path.join(RACINE, 'core/gestes/main-synthetique.js') });
@@ -96,7 +96,7 @@ verifier('Alt+G bascule la pause', await ev(() => !Gestes.etat().pause));
 await ev(() => { document.getElementById('gear').click(); });
 verifier('⚙ → Gestes : section avec case, source, aide, calibrage, caméra du téléphone, enregistrement', await ev(() => ['gs-actif', 'gs-source', 'gs-aide', 'gs-calib', 'gs-tel', 'gs-pause', 'gs-enreg'].every(id => !!document.getElementById(id))));
 await ev(() => document.getElementById('gs-aide').click());
-verifier('écran d’aide : 8 gestes décrits', await ev(() => document.querySelectorAll('#gestes-modale .gm-tab tr').length) === 8 && await ev(() => /Pincer et tenir/.test(document.getElementById('gestes-modale').textContent)));
+verifier('écran d’aide : au moins 8 gestes décrits (14 en V5)', await ev(() => document.querySelectorAll('#gestes-modale .gm-tab tr').length) >= 8 && await ev(() => /Pincer et tenir/.test(document.getElementById('gestes-modale').textContent)));
 await page.screenshot({ path: 'captures-accueil/v2-gestes-aide.png' });
 await ev(() => document.querySelector('#gestes-modale [data-g="fermer"]').click());
 verifier('l’écran se ferme', await ev(() => document.getElementById('gestes-modale').hidden));
