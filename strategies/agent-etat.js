@@ -1,5 +1,6 @@
 import { CRITERES3, empreinteV3 } from './criteres-v3.js';
 import { NOMS_V3 } from './familles-v3.js';
+import { NOMS_V4 } from './familles-v4.js';
 
 /* ═════════════ ÉTAT DE L'AGENT UNIQUE (module pur, testé : galaxie/tests/agent-etat-test.mjs) ═════════════
    Un seul agent, toujours le même : identité stable, mémoire, versions numérotées, journal. Cet état est partagé par trois endroits : le service PC (écrit), le Worker Cloudflare (lit la version
@@ -41,7 +42,7 @@ export function creerVersion(etat, { candidates, raison, validation = null }, ma
     const id = idStrategie(c.famille, c.paire, c.params); ids.push(id);
     const ex = etat.strategies[id];
     if (ex) { ex.phase = ex.phase === 'retiree' ? 'simulation' : ex.phase; ex.validation = c.validation; if (ex.phase === 'simulation' && !ex.debutSimulation) ex.debutSimulation = maintenant; }
-    else etat.strategies[id] = { id, famille: c.famille, nom: NOMS_V3[c.famille] || c.famille, paire: c.paire, params: c.params, phase: 'simulation', debutSimulation: maintenant, creeeDansVersion: numero, validation: c.validation, suivi: null, historique: [{ t: maintenant, evenement: 'validée en backtest, entre en simulation' }] };
+    else etat.strategies[id] = { id, famille: c.famille, nom: NOMS_V3[c.famille] || NOMS_V4[c.famille] || c.famille, paire: c.paire, params: c.params, phase: 'simulation', debutSimulation: maintenant, creeeDansVersion: numero, validation: c.validation, suivi: null, historique: [{ t: maintenant, evenement: 'validée en backtest, entre en simulation' }] };
   }
   for (const v of etat.versions) v.active = false;
   const v = { numero, creeLe: maintenant, raison, strategies: ids, active: true, criteres: { v3: empreinteV3() }, validation };

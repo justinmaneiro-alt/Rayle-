@@ -1,6 +1,7 @@
 import { FAMILLES } from '../planetes/mars/pc/agent-btc/hypotheses.js';
 import { hautAvant, basAvant } from '../planetes/mars/pc/agent-btc/contexte.js';
 import { FAMILLES_V2, rsi } from '../planetes/mars/pc/agents-v2/familles-v2.js';
+import './familles-v4.js';                                             // V4 : enregistre aussi les familles volume / liquidité / flux dans le moteur
 
 /* ═════════════ BIBLIOTHÈQUE DE STRATÉGIES SIMPLES DE LA V3 (module pur, testé : galaxie/tests/strategies-v3-test.mjs) ═════════════
    Six familles connues, bien faites, pas plus. Chacune a : un nom et une description en français, une grille de paramètres RAISONNABLE (jamais de grille infinie), et `signaux(ctx, p)` qui rend

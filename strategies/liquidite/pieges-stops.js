@@ -10,7 +10,7 @@ const tolEgal = (prix, atr, tolPct, tolAtr) => Math.max(prix * tolPct / 100, (at
 /* Parcourt la série UNE fois et rend, pour chaque barre i : le tableau des événements de balayage (sweep & reclaim) et les piscines connues à cet instant (sur demande via `etatEn(i)` : on garde un
    instantané léger seulement pour les barres demandées par `garder`). `atr` : ATR M15 (Float64Array). */
 export function balayagesLiquidite(m15, atr, { kConf = 3, tolPct = 0.12, tolAtr = 0.25, minTouches = 2, ageMax = 2500, marge = 0.0, reprise = 0, avecJourSemaine = true, ronds = null, garder = null } = {}) {
-  const n = m15.n, sens = new Int8Array(n), niveau = new Float64Array(n), type = new Array(n).fill(null), touches = new Int16Array(n), force = new Float64Array(n);
+  const n = m15.n, sens = new Int8Array(n), niveau = new Float64Array(n), type = new Array(n).fill(null), touches = new Int16Array(n), force = new Float64Array(n), poolHaut = new Float64Array(n).fill(NaN), poolBas = new Float64Array(n).fill(NaN);
   const hautsP = [], basP = [], etats = new Map();                                    // piscines : { prix, touches, depuis, type, balayee }
   let jour = -1, jH = -Infinity, jL = Infinity, jPH = null, jPL = null, sem = -1, sH = -Infinity, sL = Infinity, sPH = null, sPL = null;
   const swingH = j => { for (let k = 1; k <= kConf; k++) if (!(m15.h[j] > m15.h[j - k]) || !(m15.h[j] >= m15.h[j + k])) return false; return true; };
@@ -33,13 +33,15 @@ export function balayagesLiquidite(m15, atr, { kConf = 3, tolPct = 0.12, tolAtr 
     for (const q of hautsP) if (!q.balayee && (q.touches >= minTouches || q.type !== 'egaux') && m15.h[i] > q.prix * (1 + marge / 100)) { q.balayee = true; if (m15.c[i] < q.prix - reprise * a && (!meilleur || q.touches > meilleur.touches)) meilleur = { ...q, sens: -1 }; }
     for (const q of basP) if (!q.balayee && (q.touches >= minTouches || q.type !== 'egaux') && m15.l[i] < q.prix * (1 - marge / 100)) { q.balayee = true; if (m15.c[i] > q.prix + reprise * a && (!meilleur || q.touches > meilleur.touches)) meilleur = { ...q, sens: 1 }; }
     if (meilleur) { sens[i] = meilleur.sens; niveau[i] = meilleur.prix; type[i] = meilleur.type; touches[i] = meilleur.touches; force[i] = a > 0 ? Math.abs((meilleur.sens < 0 ? m15.h[i] - meilleur.prix : meilleur.prix - m15.l[i])) / a : 0; }
+    // 3 bis) piscine NON balayée la plus proche au-dessus et en dessous de la clôture (connue à la clôture de la barre i : causale)
+    { let ph = Infinity, pb = -Infinity; const px = m15.c[i]; for (const q of hautsP) if (!q.balayee && (q.touches >= minTouches || q.type !== 'egaux') && q.prix > px && q.prix < ph) ph = q.prix; for (const q of basP) if (!q.balayee && (q.touches >= minTouches || q.type !== 'egaux') && q.prix < px && q.prix > pb) pb = q.prix; if (ph < Infinity) poolHaut[i] = ph; if (pb > -Infinity) poolBas[i] = pb; }
     // 4) mise à jour du jour / semaine en cours APRÈS les tests (la barre i n'est pas encore « précédente »)
     if (m15.h[i] > jH) jH = m15.h[i]; if (m15.l[i] < jL) jL = m15.l[i]; if (m15.h[i] > sH) sH = m15.h[i]; if (m15.l[i] < sL) sL = m15.l[i];
     // 5) ménage : piscines balayées ou trop vieilles
     if ((i & 63) === 0) { purge(hautsP, i, ageMax); purge(basP, i, ageMax); }
     if (garder && garder(i)) etats.set(i, { hauts: hautsP.filter(x => !x.balayee).map(x => ({ ...x })), bas: basP.filter(x => !x.balayee).map(x => ({ ...x })) });
   }
-  return { sens, niveau, type, touches, force, etatEn: i => etats.get(i) || null, piscinesFinales: () => ({ hauts: hautsP.filter(x => !x.balayee), bas: basP.filter(x => !x.balayee) }) };
+  return { sens, niveau, type, touches, force, poolHaut, poolBas, etatEn: i => etats.get(i) || null, piscinesFinales: () => ({ hauts: hautsP.filter(x => !x.balayee), bas: basP.filter(x => !x.balayee) }) };
 }
 function retirer(liste, type) { for (let k = liste.length - 1; k >= 0; k--) if (liste[k].type === type) liste.splice(k, 1); }
 function purge(liste, i, ageMax) { for (let k = liste.length - 1; k >= 0; k--) if (liste[k].balayee || i - liste[k].depuis > ageMax) liste.splice(k, 1); }

@@ -2,6 +2,7 @@
 //   node agent-pc/flux/historique-trades.mjs                     télécharge et résume (24 mois, BTC SOL DOGE, comptant + futures) ; reprend où il s'est arrêté
 //   node agent-pc/flux/historique-trades.mjs --mois 36           plus long (3 ans : ≈ 40 Go À TÉLÉCHARGER au total, mais seulement ≈ 0,5 Go gardés)
 //   node agent-pc/flux/historique-trades.mjs --actifs DOGE --marches fut --mois 3     un petit essai
+//   node agent-pc/flux/historique-trades.mjs --actifs BTC --marches spot --depuis 2021-07 --jusqua 2024-08     intervalle précis (pour la recherche sur la zone d'entraînement)
 //   node agent-pc/flux/historique-trades.mjs --statut
 // Chaque archive (200 à 600 Mo) est téléchargée, résumée en barres M15 avec empreinte (strategies/liquidite/barres-flux.js) puis SUPPRIMÉE : disque temporaire ≈ 1 Go.
 // Limites honnêtes : il n'existe PAS d'historique gratuit du carnet d'ordres complet ; bookDepth (futures) donne la profondeur à ±1…5 % toutes les ≈ 30 s et sert de complément partiel.
@@ -30,6 +31,13 @@ export function planArchives({ type, marche, symbole, mois = 24, maintenant = Da
   for (let k = mois; k >= 1; k--) { const t = new Date(Date.UTC(annee, m0 - k, 1)), cle = moisISO(t.getTime()); out.push({ periode: 'mensuel', date: cle, url: racine + 'monthly/' + type + '/' + symbole + '/' + symbole + '-' + type + '-' + cle + '.zip' }); }
   const fin = Math.floor(maintenant / 86400e3) * 86400e3 - 2 * 86400e3;
   for (let t = Date.UTC(annee, m0, 1); t <= fin; t += 86400e3) { const j = jourISO(t); out.push({ periode: 'jour', date: j, url: racine + 'daily/' + type + '/' + symbole + '/' + symbole + '-' + type + '-' + j + '.zip' }); }
+  return out;
+}
+/* Archives pour un INTERVALLE de mois explicite (« depuis » à « jusqua », formats AAAA-MM) : mensuelles pour les mois complets, quotidiennes pour le mois en cours. */
+export function planIntervalle({ type, marche, symbole, depuis, jusqua = null, maintenant = Date.now() }) {
+  const [a0, m0] = depuis.split('-').map(Number), d = new Date(maintenant), moisCourant = d.getUTCFullYear() * 12 + d.getUTCMonth(), fin = jusqua ? (() => { const [a, m] = jusqua.split('-').map(Number); return Math.min(moisCourant, a * 12 + m - 1); })() : moisCourant, out = [], racine = BASE + MARCHES[marche] + '/';
+  for (let k = a0 * 12 + m0 - 1; k <= fin && k < moisCourant; k++) { const cle = Math.floor(k / 12) + '-' + pad(k % 12 + 1); out.push({ periode: 'mensuel', date: cle, url: racine + 'monthly/' + type + '/' + symbole + '/' + symbole + '-' + type + '-' + cle + '.zip' }); }
+  if (fin >= moisCourant) { const dernier = Math.floor(maintenant / 86400e3) * 86400e3 - 2 * 86400e3; for (let t = Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), 1); t <= dernier; t += 86400e3) { const j = jourISO(t); out.push({ periode: 'jour', date: j, url: racine + 'daily/' + type + '/' + symbole + '/' + symbole + '-' + type + '-' + j + '.zip' }); } }
   return out;
 }
 /* Archives QUOTIDIENNES seulement (bookDepth, metrics : pas de fichiers mensuels) pour les `jours` derniers jours (jusqu'à avant-hier). */
@@ -167,7 +175,8 @@ if (estPrincipal()) {
   console.log('Historique des transactions : ' + mois + ' mois, ' + actifs.join('/') + ', ' + marches.join('+') + '. Tu peux fermer la fenêtre : relance la même commande pour reprendre.');
   for (const a of actifs) {
     const sym = ACTIFS_HIST[a];
-    for (const m of marches) for (const arch of planArchives({ type: 'aggTrades', marche: m, symbole: sym, mois })) { try { await H.traiterAggTrades(m, sym, arch); } catch (e) { console.log('ERREUR ' + m + ' ' + sym + ' ' + arch.date + ' : ' + e.message + ' (je continue ; relance plus tard)'); } }
+    const depuis = val('--depuis', null), jusqua = val('--jusqua', null);
+    for (const m of marches) for (const arch of (depuis ? planIntervalle({ type: 'aggTrades', marche: m, symbole: sym, depuis, jusqua }) : planArchives({ type: 'aggTrades', marche: m, symbole: sym, mois }))) { try { await H.traiterAggTrades(m, sym, arch); } catch (e) { console.log('ERREUR ' + m + ' ' + sym + ' ' + arch.date + ' : ' + e.message + ' (je continue ; relance plus tard)'); } }
     if (marches.includes('fut')) {
       for (const arch of planJournalier({ type: 'bookDepth', marche: 'fut', symbole: sym, jours: Math.min(365, mois * 30) })) { try { await H.traiterBookDepth(sym, arch); } catch (e) { /* facultatif */ } }
       for (const arch of planJournalier({ type: 'metrics', marche: 'fut', symbole: sym, jours: Math.min(365, mois * 30) })) { try { await H.traiterMetrics(sym, arch); } catch (e) { /* facultatif */ } }

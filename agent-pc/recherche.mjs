@@ -9,6 +9,7 @@ import crypto from 'node:crypto';
 import { Worker } from 'node:worker_threads';
 import { fileURLToPath } from 'node:url';
 import { ORDRE_V3, famille, tailleGrille, NOMS_V3 } from '../strategies/familles-v3.js';
+import { ORDRE_V4, NOMS_V4 } from '../strategies/familles-v4.js';
 import { CRITERES3, empreinteV3 } from '../strategies/criteres-v3.js';
 import { combinaisons } from '../planetes/mars/pc/agent-btc/hypotheses.js';
 import { journaliser } from '../strategies/agent-etat.js';
@@ -35,8 +36,9 @@ export function grilleDe(id, gen = 0) {
 export const tailleGrilleGen = (id, gen) => Object.values(grilleDe(id, gen)).reduce((a, v) => a * v.length, 1);
 export const cleVariante = (f, paire, p) => f + ':' + paire + ':' + Object.keys(p).sort().map(k => k + '=' + p[k]).join(',');
 /* Ordre de recherche : les familles les plus simples (plus petite grille) d'abord ; à égalité, l'ordre de la bibliothèque. */
-export const ORDRE_SIMPLICITE = Object.freeze([...ORDRE_V3].sort((a, b) => tailleGrille(a) - tailleGrille(b) || ORDRE_V3.indexOf(a) - ORDRE_V3.indexOf(b)));
-export const ORDRE_SIMPLICITE_GEN = gen => [...ORDRE_V3].sort((a, b) => tailleGrilleGen(a, gen) - tailleGrilleGen(b, gen) || ORDRE_V3.indexOf(a) - ORDRE_V3.indexOf(b));
+export const ORDRE_TOUT = Object.freeze([...ORDRE_V3, ...ORDRE_V4]), NOMS_TOUT = Object.freeze({ ...NOMS_V3, ...NOMS_V4 });
+export const ORDRE_SIMPLICITE = Object.freeze([...ORDRE_TOUT].sort((a, b) => tailleGrille(a) - tailleGrille(b) || ORDRE_TOUT.indexOf(a) - ORDRE_TOUT.indexOf(b)));
+export const ORDRE_SIMPLICITE_GEN = gen => [...ORDRE_TOUT].sort((a, b) => tailleGrilleGen(a, gen) - tailleGrilleGen(b, gen) || ORDRE_TOUT.indexOf(a) - ORDRE_TOUT.indexOf(b));
 
 /* Grille RAFFINÉE autour de paramètres retenus : pour chaque paramètre, la valeur retenue et les milieux avec ses deux voisins de la grille d'origine. Au plus 300 variantes (sinon : on réduit). */
 export function grilleRaffinee(id, retenus, plafond = 300) {
@@ -71,11 +73,11 @@ export const ecrireCache = (dossierCache, emp, v) => ecrireJson(path.join(dossie
 export function courbeReduite(c, max = 200) { if (!Array.isArray(c) || c.length < 2) return null; const pas = Math.max(1, (c.length - 1) / (max - 1)), out = []; for (let i = 0; i < c.length - 1; i += pas) out.push(+c[Math.round(i)].toFixed(2)); out.push(+c[c.length - 1].toFixed(2)); return out; }
 /* Résumé court d'un résultat de validation (ce qui est gardé dans l'état et envoyé au Worker : jamais les listes de trades). */
 export function resumerValidation(r, tache) {
-  const base = { id: tache.famille + ':' + tache.paire + ':' + tache.type, famille: tache.famille, nom: NOMS_V3[tache.famille], paire: tache.paire, type: tache.type, statut: r.statut, t: Date.now(), empreinteCriteres: r.criteres, jeuFinalOuvert: !!r.jeuFinal && r.jeuFinal.ouvert === true };
+  const base = { id: tache.famille + ':' + tache.paire + ':' + tache.type, famille: tache.famille, nom: NOMS_TOUT[tache.famille], paire: tache.paire, type: tache.type, statut: r.statut, t: Date.now(), empreinteCriteres: r.criteres, jeuFinalOuvert: !!r.jeuFinal && r.jeuFinal.ouvert === true };
   if (!r.ok || !r.lignes) return { ...base, grille: tache.grille, raison: r.raison || null };
   const st = r.wf.stats;
   return { ...base, grille: tache.grille, gen: tache.gen || 0, retenus: r.retenus, nVariantes: r.nVariantes, variantesCetteEvaluation: r.variantesDeCetteEvaluation, trades: st.n, esperance: st.esperance, tauxReussite: st.tauxReussite, factProfit: st.factProfit, ddR: st.ddR, parSemaine: st.parSemaine,
-    bootstrapBas: r.bootstrap.bas, dsr: r.dsr && r.dsr.dsr, propDdPct: r.prop.ddPct, propJourPct: r.prop.pireJourPct, ratees: r.ratees, actifs: r.actifs, regimes: r.regimes, zone: r.zoneRecherche, courbeR: courbeReduite(r.wf.stats.courbeR), jeuFinal: r.jeuFinal || null };
+    bootstrapBas: r.bootstrap.bas, dsr: r.dsr && r.dsr.dsr, propDdPct: r.prop.ddPct, propJourPct: r.prop.pireJourPct, ratees: r.ratees, actifs: r.actifs, regimes: r.regimes, zone: r.zoneRecherche, couvertureFlux: r.couvertureFlux || null, courbeR: courbeReduite(r.wf.stats.courbeR), jeuFinal: r.jeuFinal || null };
 }
 /* Le résultat est-il « prometteur et stable » (donc digne d'un raffinement) ? Jamais un pic isolé : voisins majoritairement positifs. */
 export function prometteur(r) {
@@ -105,10 +107,10 @@ export function integrerResultat(etat, resume, tache, maintenant = Date.now()) {
   if (resume.statut === 'validee_backtest' && jf && jf.ouvert) {
     const coffre = (etat.coffre = etat.coffre || {})[tache.paire] = etat.coffre[tache.paire] || { debutFinal: tache.debutFinal, ouvertures: [] };
     coffre.ouvertures.push({ famille: tache.famille, params: resume.retenus, t: maintenant, resultat: jf.statut, rang: jf.rang });
-    if (jf.ok) { journaliser(etat, 'validation', NOMS_V3[tache.famille] + ' ' + tache.paire + ' : validée en backtest ET sur le jeu final (ouvert une seule fois).', maintenant); return [{ famille: tache.famille, paire: tache.paire, params: resume.retenus, validation: { statut: 'validee_backtest', jeuFinal: jf.statut, esperance: resume.esperance, trades: resume.trades, criteres: empreinteV3(), t: maintenant } }]; }
-    journaliser(etat, 'rejet', NOMS_V3[tache.famille] + ' ' + tache.paire + ' : validée en backtest mais RECALÉE sur le jeu final (ne revient jamais).', maintenant);
-  } else if (resume.statut === 'rejetee_causalite') journaliser(etat, 'rejet', NOMS_V3[tache.famille] + ' ' + tache.paire + ' : REJETÉE, elle regarde le futur.', maintenant);
-  else journaliser(etat, 'essai', NOMS_V3[tache.famille] + ' ' + tache.paire + ' (' + tache.type + ') : ' + ({ non_validee: 'non validée (' + (resume.ratees || []).length + ' critères ratés)', insuffisant: 'historique insuffisant', validee_backtest: 'validée en backtest (jeu final en attente)' }[resume.statut] || resume.statut), maintenant);
+    if (jf.ok) { journaliser(etat, 'validation', NOMS_TOUT[tache.famille] + ' ' + tache.paire + ' : validée en backtest ET sur le jeu final (ouvert une seule fois).', maintenant); return [{ famille: tache.famille, paire: tache.paire, params: resume.retenus, validation: { statut: 'validee_backtest', jeuFinal: jf.statut, esperance: resume.esperance, trades: resume.trades, criteres: empreinteV3(), t: maintenant } }]; }
+    journaliser(etat, 'rejet', NOMS_TOUT[tache.famille] + ' ' + tache.paire + ' : validée en backtest mais RECALÉE sur le jeu final (ne revient jamais).', maintenant);
+  } else if (resume.statut === 'rejetee_causalite') journaliser(etat, 'rejet', NOMS_TOUT[tache.famille] + ' ' + tache.paire + ' : REJETÉE, elle regarde le futur.', maintenant);
+  else journaliser(etat, 'essai', NOMS_TOUT[tache.famille] + ' ' + tache.paire + ' (' + tache.type + ') : ' + ({ non_validee: 'non validée (' + (resume.ratees || []).length + ' critères ratés)', insuffisant: 'historique insuffisant', validee_backtest: 'validée en backtest (jeu final en attente)' }[resume.statut] || resume.statut), maintenant);
   return [];
 }
 export { combinaisons, CRITERES3 };

@@ -30,9 +30,12 @@ export function pocBarre(b) { let m = -1, k = null; for (const [kk, a, v] of b.f
 
 /* Profil de volume (en dollars par tranche) sur une suite de barres : { poc, vah, val, tranches: Map(k → { achat, vente }) }, zone de valeur à `part` (70 %) du volume. */
 export function profilVolume(barres, { part = 0.7 } = {}) {
-  const m = new Map(); let total = 0;
-  for (const b of barres) for (const [k, a, v] of b.fp) { let e = m.get(k); if (!e) m.set(k, e = { achat: 0, vente: 0 }); e.achat += a; e.vente += v; total += a + v; }
-  if (!m.size) return null;
+  const m = new Map(); for (const b of barres) for (const [k, a, v] of b.fp) { let e = m.get(k); if (!e) m.set(k, e = { achat: 0, vente: 0 }); e.achat += a; e.vente += v; }
+  return profilDepuisTranches(m, { part });
+}
+/* Même calcul à partir d'une table { k → { achat, vente } } déjà cumulée (sert au chargement en flux de l'historique : on n'a jamais toutes les barres en mémoire). */
+export function profilDepuisTranches(m, { part = 0.7 } = {}) {
+  let total = 0; for (const e of m.values()) total += e.achat + e.vente; if (!m.size) return null;
   const ks = [...m.keys()].sort((a, b) => a - b), vol = k => { const e = m.get(k); return e ? e.achat + e.vente : 0; };
   let poc = ks[0]; for (const k of ks) if (vol(k) > vol(poc)) poc = k;
   let lo = poc, hi = poc, cum = vol(poc); const kMin = ks[0], kMax = ks[ks.length - 1];

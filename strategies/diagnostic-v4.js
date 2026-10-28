@@ -2,6 +2,7 @@ import { combinaisons } from '../planetes/mars/pc/agent-btc/hypotheses.js';
 import { simuler, statistiques } from '../planetes/mars/pc/agent-btc/moteur.js';
 import { alea } from '../planetes/mars/pc/mars-calcul.js';
 import { famille, NOMS_V3 } from './familles-v3.js';
+import { NOMS_V4 } from './familles-v4.js';
 
 /* ═════════════ DIAGNOSTIC DE KEPLER (V4, module pur, testé : galaxie/tests/diagnostic-v4-test.mjs) ═════════════
    Répond à « pourquoi des milliers de variantes sans aucune stratégie validée ? » avec des chiffres, sans rien supposer. Aucune fonction ici ne touche aux critères de validation : on les LIT seulement.
@@ -30,7 +31,7 @@ export function parFamilleActif(backtests, { tradesMin = 150 } = {}) {
   for (const b of backtests || []) {
     if (b.esperance == null || b.trades == null) continue;
     const k = b.famille + ':' + b.paire, e = m.get(k);
-    if (!e || b.esperance > e.esperance) m.set(k, { famille: b.famille, nom: b.nom || NOMS_V3[b.famille] || b.famille, paire: b.paire, esperance: b.esperance, trades: b.trades, factProfit: b.factProfit, ratees: (b.ratees || []).length, type: b.type });
+    if (!e || b.esperance > e.esperance) m.set(k, { famille: b.famille, nom: b.nom || NOMS_V3[b.famille] || NOMS_V4[b.famille] || b.famille, paire: b.paire, esperance: b.esperance, trades: b.trades, factProfit: b.factProfit, ratees: (b.ratees || []).length, type: b.type });
   }
   const liste = [...m.values()].sort((a, b) => b.esperance - a.esperance);
   return { liste, presque: liste.filter(x => x.esperance > 0 && x.trades < tradesMin), positives: liste.filter(x => x.esperance > 0), tradesMin };
@@ -67,7 +68,7 @@ export function balayerFamille(ctx, id, config, plage, { grille = null, tradesMi
   const avecTrades = lignes.filter(l => l.n >= nMinBon), meilleur = avecTrades.slice().sort((a, b) => b.esperance - a.esperance)[0] || null;
   const meilleurAssez = avecTrades.filter(l => l.n >= tradesMin).sort((a, b) => b.esperance - a.esperance)[0] || null;
   return {
-    id, nom: NOMS_V3[id] || fam.nom, variantes: lignes.length, avecAssezDeTrades: avecTrades.length,
+    id, nom: NOMS_V3[id] || NOMS_V4[id] || fam.nom, variantes: lignes.length, avecAssezDeTrades: avecTrades.length,
     positivesNettes: avecTrades.filter(l => l.esperance > 0).length, positivesBrutes: avecTrades.filter(l => l.brute > 0).length, nettesSeuil: avecTrades.filter(l => l.esperance >= 0.25).length,
     esperanceNetteMediane: mediane(avecTrades.map(l => l.esperance)), esperanceBruteMediane: mediane(avecTrades.map(l => l.brute)), coutMoyenR: avecTrades.length ? avecTrades.reduce((a, l) => a + l.couts, 0) / avecTrades.length : null,
     meilleur, meilleurAssez
