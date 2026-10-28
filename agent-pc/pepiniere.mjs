@@ -22,13 +22,14 @@ export function alimenter(pep, etat, paires, maintenant) {
 }
 /* Avance toutes les candidates. `serie(p)` rend la série M15 de l'actif ; `etat` = état de l'agent (coûts et risque) ; `stockage` = flux enregistrés (peut être null : les candidates carnet attendent). Rend { changements, avancees }. */
 export async function avancerPepiniere({ dossier = dossierAgent(), pep = null, etat, serie, paires, maintenant = Date.now(), stockage = null, analyseur = analyserActif, derniereAnalyse = {} } = {}) {
-  pep = pep || lirePepiniere(dossier); const changements = []; let avancees = 0;
+  pep = pep || lirePepiniere(dossier); const changements = [], entrees = []; let avancees = 0;
   // 1. candidates « historique » : compte simulé du service sur les bougies M15 fermées
   for (const c of pep.candidates) {
     if (c.statut !== 'active' || c.type !== 'historique') continue; const s = serie(c.paire); if (!s || s.n < 1500) continue;
     if (c.suivi && c.suivi.derniereBarre != null && c.suivi.derniereBarre >= s.t[s.n - 1]) continue;                               // rien de neuf depuis la dernière bougie
     const fen = s.n > 3000 ? tranche(s, s.n - 3000, s.n) : s, r = surveillerRegle({ regle: { id: c.id, famille: c.famille, params: c.params, paire: c.paire, mode: 'SIMULATION', nom: c.nom }, s: null, suivi: c.suivi, serie: fen, risque: etat.parametresRisque || {}, alertesRecentes: [], maintenant });
     if (r.erreur) continue; c.suivi = r.suivi; avancees += integrerTradesHistoriques(c, r.suivi.trades);
+    for (const ev of r.evenements || []) if (ev.type === 'ENTREE') entrees.push({ id: c.id, nom: c.nom, paire: c.paire, sens: ev.sens, stop: ev.stop, t: ev.t });
   }
   // 2. candidates « carnet » : propositions de la carte de liquidité (une analyse par actif et par minute), puis simulation sur les barres d'une minute
   const S = stockage || (() => { try { return stockageDe(dossier); } catch (e) { return null; } })();
@@ -42,12 +43,12 @@ export async function avancerPepiniere({ dossier = dossierAgent(), pep = null, e
         const a = await analyseur({ dossier, actif, venue: 'binance-spot', minutes: 20, maintenant, stockage: S }); if (a && a.prix) {
           const ev = S.lireLignes('evenements', cle, maintenant - 60000, maintenant), liq = S.lireLignes('liquidations', 'binance-fut-' + actif, maintenant - 20 * 60e3, maintenant);
           const props = proposerCarnet({ actif, t: maintenant, prix: a.prix, atr: a.prix * 0.0015, analyse: a, evenementsRecents: ev, cascades: cascadesLiquidations(liq, { fenetreS: 60, seuilUsd: actif === 'BTC' ? 1e6 : 2e5 }), joursCarnet: a.joursCarnet });
-          for (const p of props) { const c = cands.find(x => x.famille === p.famille); if (c) proposerEntreePapier(c, p, maintenant); }
+          for (const p of props) { const c = cands.find(x => x.famille === p.famille); if (c && proposerEntreePapier(c, p, maintenant)) entrees.push({ id: c.id, nom: c.nom, paire: c.paire, sens: p.sens, stop: p.stop, t: maintenant }); }
         }
       } catch (e) { /* analyse indisponible : on réessaie dans une minute */ }
     }
   }
   changements.push(...evaluer(pep, maintenant)); ecrirePepiniere(pep, dossier);
-  return { changements, avancees, pep };
+  return { changements, avancees, pep, entrees };
 }
 export { resumePepiniere, PEPINIERE };

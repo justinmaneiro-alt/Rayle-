@@ -10,6 +10,7 @@ import { Worker } from 'node:worker_threads';
 import { fileURLToPath } from 'node:url';
 import { ORDRE_V3, famille, tailleGrille, NOMS_V3 } from '../strategies/familles-v3.js';
 import { ORDRE_V4, NOMS_V4 } from '../strategies/familles-v4.js';
+import { ordonnerFamilles } from '../strategies/autonomie.js';
 import { CRITERES3, empreinteV3 } from '../strategies/criteres-v3.js';
 import { combinaisons } from '../planetes/mars/pc/agent-btc/hypotheses.js';
 import { journaliser } from '../strategies/agent-etat.js';
@@ -58,9 +59,9 @@ export const VERSION_PIPELINE = 'p4';   // V4 : purge du walk-forward (trade à 
 export const empreinteTache = ({ famille: f, paire, grille, debutFinal, type }) => hash([f, paire, type || 'exploration', JSON.stringify(grille), debutFinal, empreinteV3(), VERSION_PIPELINE].join('|'));   // la zone de recherche est FIXE (coffre) : de nouvelles bougies ne changent pas le résultat
 
 /* Liste des tâches à faire, cache déjà retiré. Génération 0 pour toutes les familles et tous les actifs d'abord, puis la génération 1, etc. */
-export function planifier(etat, { paires, debutFinal, cache, generations = GENERATIONS_MAX }) {
+export function planifier(etat, { paires, debutFinal, cache, generations = GENERATIONS_MAX, priorites = null, revue = false }) {
   const taches = [];
-  for (let gen = 0; gen <= generations; gen++) for (const f of ORDRE_SIMPLICITE_GEN(gen)) for (const p of paires) {
+  for (let gen = 0; gen <= generations; gen++) for (const f of ordonnerFamilles(ORDRE_SIMPLICITE_GEN(gen), priorites, { revue })) for (const p of paires) {      // V4 : les familles « à creuser » d'abord, celles mises de côté seulement le jour de revue
     if (!debutFinal[p]) continue;
     const grille = grilleDe(f, gen), emp = empreinteTache({ famille: f, paire: p, grille, debutFinal: debutFinal[p], type: 'exploration' });
     if (cache.has(emp)) continue;

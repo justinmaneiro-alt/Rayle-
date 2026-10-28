@@ -1,0 +1,44 @@
+// Fumée du service Kepler V4 : un cycle complet avec l'équipe, la pépinière et l'autonomie quotidienne, de FAUSSES données et un FAUX Worker. Vérifie que tout s'écrit, que rien ne plante, que le rapport du matin part
+// une seule fois, que l'observation est désactivée par défaut, et qu'aucun critère n'a bougé.
+import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
+import { creerService } from '../../agent-pc/service.mjs';
+import { marcheMixte } from '../../planetes/mars/tests/synth-btc.mjs';
+import { empreinteV3 } from '../../strategies/criteres-v3.js';
+import { lireEquipe } from '../../agent-pc/equipe/equipe.mjs';
+import { lirePepiniere } from '../../agent-pc/pepiniere.mjs';
+
+let ok = 0, ko = 0; const v = (n, c, d = '') => { if (c) ok++; else { ko++; console.log('KO  ' + n + (d !== '' ? ' — ' + d : '')); } };
+const dossier = fs.mkdtempSync(path.join(os.tmpdir(), 'agent-v4-')); process.env.RAYLE_VEILLEUR_DOSSIER = path.join(dossier, 'veilleur');
+const FIN = Math.floor(Date.UTC(2026, 9, 28, 8, 0) / 900e3) * 900e3 + 5 * 60e3; let horloge = FIN; const maintenant = () => horloge;
+const TOTAL = 90000, m15 = marcheMixte(TOTAL, 9), decal = (FIN - (TOTAL + 1) * 900e3) - m15.t[0]; for (let i = 0; i < m15.n; i++) m15.t[i] += decal;
+const series = { BTC: m15, SOL: m15, DOGE: m15 };
+const donnees = { async charger() { return []; }, async maintenirChaqueJour() { return ['BTC', 'SOL', 'DOGE'].map(p => ({ paire: p, n: m15.n, jourFin: '2026-10-28', trous: 2, integrite: { ok: true } })); }, async actualiser() { return {}; }, serie: p => series[p] };
+const tg = []; const W = { configure: true, async battement() { return { commandes: [] }; }, async synchroniser() { return { ok: true, suiviWorker: {} }; }, async etat() { return null; }, async commandesTraitees() { return {}; }, async telegram(texte, type) { tg.push({ texte, type }); } };
+const executeur = async tache => ({ resumes: [{ famille: tache.famille, paire: tache.paire, type: tache.type, statut: 'non_validee', t: horloge, grille: tache.grille, esperance: -0.1, trades: 100, ratees: ['Espérance nette'], nom: tache.hypothese ? tache.hypothese.titre : tache.famille }] });
+const jeu = { async evaluer() { return { jeu: false }; } };
+const svc = creerService({ dossier, maintenant, donnees, sync: W, ecrire: async () => ({ lignes: ['a', 'b', 'c', 'd', 'e'], source: 'test', essais: [] }), executer: executeur, detecteur: jeu, sansPriorite: true, tranchesMs: 1, fetchImpl: async () => { throw new Error('hors ligne'); }, avecEquipe: true, avecPepiniere: true });
+v('critères v3 inchangés', empreinteV3() === 'c9b4ddd4');
+await svc.demarrer();
+const cr = await svc.cycle();
+const e = svc.etat();
+v('le cycle complet ne plante pas (aucune erreur du service)', svc.info().erreurs.length === 0 || !svc.info().erreurs.some(x => /équipe|pépinière|autonomie|diagnostic/.test(x.msg)), JSON.stringify(svc.info().erreurs.slice(0, 3)));
+v('autonomie : diagnostic écrit, priorités de recherche posées, rapport quotidien écrit', fs.existsSync(path.join(dossier, 'diagnostic.json')) && e.recherche.priorites && Array.isArray(e.recherche.priorites.creuser) && e.rapportQuotidien && e.rapportQuotidien.lignes.length >= 5, JSON.stringify(e.rapportQuotidien && e.rapportQuotidien.lignes.slice(0, 2)));
+v('le rapport du matin est parti sur Telegram, UNE fois, marqué OBSERVATION (jamais confondu avec une entrée), avec « aucun ordre »', tg.filter(x => /rapport du 28\/10\/2026/.test(x.texte)).length === 1 && /aucun ordre/i.test(tg.find(x => /rapport du/.test(x.texte)).texte), JSON.stringify(tg.map(x => x.type)));
+const eq = lireEquipe(dossier);
+v('l’équipe : le Chercheur a écrit des hypothèses (secours déterministe : aucun modèle joignable), journal et rapport du jour', eq.hypotheses.length > 0 && eq.hypotheses.length <= 10 && eq.hypotheses.every(h => ['a_tester', 'en_test', 'testee'].includes(h.statut)) && fs.existsSync(path.join(dossier, 'rapports', 'chercheur', '2026-10-28.md')) && eq.journal.some(j => /aucun modèle disponible/.test(j.texte)));
+const pep = lirePepiniere(dossier);
+v('pépinière : 15 candidates du carnet + celles de la recherche, état écrit', pep.candidates.length >= 15 && fs.existsSync(path.join(dossier, 'pepiniere.json')) && pep.K >= 15);
+v('les hypothèses du Chercheur deviennent des tâches de recherche (premières de la file)', (await (async () => { await svc.chercher(); return svc.etat().backtests.some(b => /^hyp_/.test(b.famille)); })()));
+await svc.cycle(); v('le rapport du matin n’est pas renvoyé le même jour', tg.filter(x => /rapport du 28\/10\/2026/.test(x.texte)).length === 1);
+v('observation (non validé) DÉSACTIVÉE par défaut', !svc.etat().parametresRisque.observation && await svc.alertesObservation([{ id: 'x', nom: 'X', paire: 'BTC', sens: 1, stop: 1, t: 1 }]) === 0);
+await svc.appliquerCommande({ type: 'observation', valeur: true }); const n0 = tg.length;
+const envoyees = await svc.alertesObservation([{ id: 'x', nom: 'Idée', paire: 'BTC', sens: 1, stop: 81000, t: 5 }]);
+v('activée sur commande : une alerte OBSERVATION « pas de preuve statistique » part, séparée des alertes validées', envoyees === 1 && tg.length === n0 + 1 && /pas de preuve statistique/.test(tg[tg.length - 1].texte) && tg[tg.length - 1].type === 'OBSERVATION');
+for (let k = 0; k < 8; k++) await svc.alertesObservation([{ id: 'y' + k, nom: 'Idée', paire: 'BTC', sens: 1, stop: 81000, t: 10 + k }]);
+v('au plus 5 alertes d’observation par jour (pas de spam)', tg.filter(x => /OBSERVATION \(non validé\)/.test(x.texte)).length === 5);
+const re = svc.resumeEquipe(); v('page « Équipe » : trois rôles', re.kepler && re.chercheur && re.auditeur && re.chercheur.hypotheses.total > 0);
+const rp = svc.resumePepiniere(); v('résumé de la pépinière : candidates et trois lignes honnêtes', rp.actives >= 15 && rp.lignes.length === 3);
+fs.rmSync(dossier, { recursive: true, force: true });
+console.log(ok + ' réussis, ' + ko + ' échecs'); process.exit(ko ? 1 : 0);

@@ -18,6 +18,8 @@ import { lireEquipe, ecrireEquipe, executerChercheur, tachesHypotheses, marquerT
 import { enregistrerHypothese, construireFaitsChercheur } from '../strategies/equipe/chercheur.js';
 import { calculerDiagnostic } from './diagnostic.mjs';
 import { lirePepiniere, alimenter, avancerPepiniere, resumePepiniere } from './pepiniere.mjs';
+import { majOccasions, resumeOccasions, expliquerExemple, resumeExemples, ajusterRecherche, rapportQuotidien, alerteObservationTexte } from '../strategies/autonomie.js';
+import { construireContexte } from '../planetes/mars/pc/agent-btc/contexte.js';
 import { journaliser, creerVersion, retourArriere, strategiesActives, statutAgent, promouvoir, mettreEnPause, jalon, versionActive, exporterRegles } from '../strategies/agent-etat.js';
 import { surveillerRegle } from '../strategies/surveillance-commune.js';
 import { enregistrerAlertes, construireAlerte, filtrerAlertes } from '../strategies/alertes-v3.js';
@@ -54,6 +56,8 @@ export function creerService({ dossier = dossierAgent(), maintenant = () => Date
     else if (c.type === 'charge' && CHARGES[c.valeur]) { etat.parametresRisque.charge = c.valeur; journal('commande', 'Charge de calcul : ' + c.valeur + '.'); }
     else if (c.type === 'retour_arriere') { const r = retourArriere(etat, c.numero || null, maintenant()); if (r.ok) { await pousserEtat(); await alerter([construireAlerte('RAPPORT', { extra: { lignes: ['Retour arrière : la version v' + r.numero + ' est de nouveau active.'], semaine: 'retour-' + maintenant() } }, maintenant())]); } }
     else if (c.type === 'rapport') await faireRapport(true);
+    else if (c.type === 'observation') { etat.parametresRisque.observation = !!c.valeur; journal('commande', 'Alertes observation (non validé) : ' + (c.valeur ? 'ACTIVÉES' : 'désactivées') + '.'); }
+    else if (c.type === 'rapport_quotidien') await autonomieDuJour(true);
   }
   async function lireCommandes() {
     const ids = [];
@@ -131,8 +135,44 @@ export function creerService({ dossier = dossierAgent(), maintenant = () => Date
     return nouvellesAlertes;
   }
 
+  /* ── (2 quater) autonomie quotidienne (V4, phase 8) : diagnostic, ajustement de la recherche, occasions manquées, exemples de Justin, rapport Telegram du matin ── */
+  async function autonomieDuJour(force = false) {
+    const t = maintenant(), jour = jourDe(t); etat.autonomie = etat.autonomie || { jour: null, jourRapport: null, observationJour: { jour: null, n: 0 } };
+    const A = etat.autonomie, neuf = A.jour !== jour; if (!neuf && !force && A.jourRapport === jour) return null;
+    let diag = null; const series = {}; for (const p of paires) series[p] = D.serie(p);
+    if (neuf || force) {
+      try { diag = calculerDiagnostic(etat, series, { rapide: true, maintenant: t }); ecrireJson(path.join(dossier, 'diagnostic.json'), diag); const aj = ajusterRecherche(diag); etat.recherche.priorites = { ...aj, t }; journal('autonomie', 'Diagnostic du jour : ' + diag.conclusion.verdict.slice(0, 120) + (aj.raisons.length ? ' · Ajustement : ' + aj.raisons.slice(0, 2).join(' ') : '')); } catch (e) { erreur('diagnostic quotidien', e); }
+      try {
+        const occ = lireOcc(), pep = lirePepiniere(dossier), exemples = lireExemples(); let modif = false;
+        for (const p of paires) { const s0 = series[p]; if (!s0 || s0.n < 3000) continue; const fen = tranche(s0, Math.max(0, s0.n - 8000), s0.n), ctx = construireContexte(fen), trades = [...etat.tradesSimules.filter(x => x.paire === p), ...pep.candidates.filter(c => c.paire === p).flatMap(c => c.trades)]; occ[p] = occ[p] || { liste: [] }; if (majOccasions(occ[p], ctx, trades)) modif = true;
+          for (const ex of exemples) if (ex.actif === p && !ex.explication) { ex.explication = expliquerExemple(ex, ctx); modif = true; } }
+        if (modif) { ecrireJson(fOcc, occ); fs.writeFileSync(fEx, exemples.map(x => JSON.stringify(x)).join('\n') + (exemples.length ? '\n' : ''), 'utf8'); }
+      } catch (e) { erreur('occasions / exemples', e); }
+      A.jour = jour;
+    }
+    if (A.jourRapport !== jour && (new Date(t).getUTCHours() >= 6 || force)) {
+      try {
+        let libre = null; try { const st = fs.statfsSync(dossier); libre = Number(st.bavail) * Number(st.bsize) / 1024 ** 3; } catch (e) { /* inconnu */ }
+        diag = diag || lireJson(path.join(dossier, 'diagnostic.json'), null);
+        const lignes = rapportQuotidien({ diag, etat, pepiniere: resumePepiniere(lirePepiniere(dossier), t), equipe: resumeEquipe(lireEquipe(dossier), etat, t), flux: (() => { try { return statutFlux(dossier); } catch (e) { return null; } })(), donnees: { trous: (etat.donnees && etat.donnees.paires || []).reduce((a, x) => a + (x.trous || 0), 0) }, disqueLibreGo: libre, pcVivant: true, occasions: occasionsResume(), exemples: exemplesResume() }, t);
+        A.jourRapport = jour; etat.rapportQuotidien = { t, lignes }; journal('autonomie', 'Rapport quotidien écrit (' + lignes.length + ' lignes).'); await alerter([construireAlerte('RAPPORT', { extra: { lignes, semaine: 'quotidien-' + jour } }, t)]);
+      } catch (e) { erreur('rapport quotidien', e); }
+    }
+    return { jour };
+  }
+  const observationActive = () => !!(etat.parametresRisque && etat.parametresRisque.observation);
+  async function alertesObservation(entrees) {
+    if (!observationActive() || !entrees.length) return 0; const t = maintenant(), jour = jourDe(t); const A = (etat.autonomie = etat.autonomie || { jour: null, jourRapport: null, observationJour: { jour: null, n: 0 } });
+    if (A.observationJour.jour !== jour) A.observationJour = { jour, n: 0 }; let n = 0;
+    for (const e of entrees) { if (A.observationJour.n >= 5) break; A.observationJour.n++; n += await alerter([construireAlerte('RAPPORT', { extra: { lignes: alerteObservationTexte(e), semaine: 'obs-' + e.id + '-' + e.t } }, t)]); }
+    return n;
+  }
+
   /* ── (2 bis) l'équipe : le Chercheur écrit ses hypothèses (une fois par jour, et quand la recherche stagne) ── */
-  const occasionsResume = () => null, exemplesResume = () => null;           // branchés en phase 8 (occasions manquées, exemples de Justin)
+  const fOcc = path.join(dossier, 'occasions.json'), fEx = path.join(dossier, 'exemples.jsonl');
+  const lireOcc = () => lireJson(fOcc, {}) || {}, lireExemples = () => { try { return fs.readFileSync(fEx, 'utf8').split('\n').filter(Boolean).map(l => JSON.parse(l)); } catch (e) { return []; } };
+  const occasionsResume = () => { const o = lireOcc(), tout = { liste: Object.values(o).flatMap(j => (j && j.liste) || []) }; return tout.liste.length ? resumeOccasions(tout) : null; };
+  const exemplesResume = () => { const l = lireExemples(); return l.length ? resumeExemples(l) : null; };
   async function equipeDuJour(force = false) {
     const eq = lireEquipe(dossier), t = maintenant(), derniere = eq.chercheur.derniereExecution, memeJour = derniere && jourDe(derniere) === jourDe(t), stagne = !!(etat.recherche && etat.recherche.epuise);
     if (memeJour && !force && !(stagne && t - derniere > 6 * 3600e3)) return null;
@@ -149,6 +189,7 @@ export function creerService({ dossier = dossierAgent(), maintenant = () => Date
   async function pepiniereTick() {
     const pep = lirePepiniere(dossier), t = maintenant(); if (t - dernierAlimentage > 6 * 3600e3) { dernierAlimentage = t; alimenter(pep, etat, paires, t); }
     const r = await avancerPepiniere({ dossier, pep, etat, serie: p => D.serie(p), paires, maintenant: t, derniereAnalyse: derniereAnalysePep });
+    await alertesObservation(r.entrees || []);
     for (const c of r.changements) { journal('pepiniere', c.texte); if (c.type === 'acceptee') await alerter([construireAlerte('RAPPORT', { extra: { lignes: [c.texte], semaine: 'pep-' + c.id }, }, t)]); }
     return r;
   }
@@ -165,7 +206,7 @@ export function creerService({ dossier = dossierAgent(), maintenant = () => Date
     if (enCalcul) return { fait: false };
     const ok = await peutChercher(); if (!ok.ok) { info.phase = ok.raison.startsWith('pause :') ? 'pause_jeu' : 'attente'; info.raison = ok.raison; return { fait: false, raison: ok.raison }; }
     const dfp = debutFinalPar(); if (!Object.keys(dfp).length) { info.raison = 'pas assez de données pour fixer le jeu final'; return { fait: false }; }
-    const caches = { has: emp => !!lireCache(F.cache, emp) }, taches = planifier(etat, { paires, debutFinal: dfp, cache: caches });
+    const caches = { has: emp => !!lireCache(F.cache, emp) }, taches = planifier(etat, { paires, debutFinal: dfp, cache: caches, priorites: etat.recherche && etat.recherche.priorites, revue: new Date(maintenant()).getUTCDay() === 0 });
     const equipe = lireEquipe(dossier); taches.unshift(...tachesHypotheses({ equipe, paires, debutFinal: dfp, cache: caches, empreinteTache }));                // V4 : les hypothèses du Chercheur passent en premier
     if (!taches.length) { info.phase = 'attente'; info.raison = 'espace de recherche défini épuisé (' + GENERATIONS_MAX + ' générations) : j’attends de nouvelles données ou de nouvelles idées'; etat.recherche.enCours = null; etat.recherche.epuise = true; return { fait: false, raison: info.raison }; }
     etat.recherche.epuise = false; enCalcul = true; info.phase = 'recherche'; info.raison = null; ecrireInfo();
@@ -224,6 +265,7 @@ export function creerService({ dossier = dossierAgent(), maintenant = () => Date
       try { const maj = await D.actualiser(); info.derniereMaj = { t: maintenant(), ...maj }; } catch (e) { erreur('bougies', e); }
       if (avecFlux) { try { const r = assurerEnregistreur(dossier, { maintenant: maintenant() }); if (r === 'lance') journal('flux', 'Enregistreur du carnet (re)lancé.'); } catch (e) { erreur('flux', e); } }   // V4 : carnet d'ordres 24 h/24, relancé s'il s'arrête
       if (avecPepiniere) { try { cr.pepiniere = await pepiniereTick(); } catch (e) { erreur('pépinière', e); } }
+      if (avecEquipe) { try { cr.autonomie = await autonomieDuJour(); } catch (e) { erreur('autonomie', e); } }
       if (avecEquipe) { try { cr.equipe = await equipeDuJour(); } catch (e) { erreur('équipe', e); } }
       try { cr.alertes = await surveiller(); } catch (e) { erreur('surveillance', e); }
       try { cr.recherche = await chercher(); } catch (e) { erreur('recherche', e); }
@@ -239,7 +281,7 @@ export function creerService({ dossier = dossierAgent(), maintenant = () => Date
   }
   function battementSepare() { if (!S.configure) return; S.battement(pcInfo()).then(r => { info.worker = { configure: true, ok: true, t: maintenant(), msg: null }; return r; }).catch(e => { info.worker = { configure: true, ok: false, t: maintenant(), msg: String(e.message).slice(0, 100) }; }); }
   function priorite() { if (sansPriorite) return; try { os.setPriority(process.pid, os.constants.priority.PRIORITY_LOW); } catch (e) { journal('service', 'priorité basse impossible : ' + e.message); } }
-  return { cycle, demarrer, battementSepare, priorite, equipeDuJour, pepiniereTick, resumePepiniere: () => resumePepiniere(lirePepiniere(dossier), maintenant()), resumeEquipe: () => resumeEquipe(lireEquipe(dossier), etat, maintenant()), etat: () => etat, suivi: () => suivi, info: () => info, donnees: D, fichiers: F, faireRapport, appliquerCommande, chercher, surveiller, donneesDuJour, pousserEtat, arreter: () => { arretDemande = true; }, statut: () => statutAgent(etat, { pcVivant: true, rechercheEnCours: enCalcul, enPreparation: pcInfo().enPreparation, positionOuverte: pcInfo().positionOuverte }) };
+  return { cycle, demarrer, battementSepare, priorite, autonomieDuJour, alertesObservation, equipeDuJour, pepiniereTick, resumePepiniere: () => resumePepiniere(lirePepiniere(dossier), maintenant()), resumeEquipe: () => resumeEquipe(lireEquipe(dossier), etat, maintenant()), etat: () => etat, suivi: () => suivi, info: () => info, donnees: D, fichiers: F, faireRapport, appliquerCommande, chercher, surveiller, donneesDuJour, pousserEtat, arreter: () => { arretDemande = true; }, statut: () => statutAgent(etat, { pcVivant: true, rechercheEnCours: enCalcul, enPreparation: pcInfo().enPreparation, positionOuverte: pcInfo().positionOuverte }) };
 }
 
 /* ── ligne de commande ── */
@@ -256,6 +298,8 @@ if (estPrincipal()) {
   if (a === '--reprendre') { demander({ type: 'reprendre' }); process.exit(0); }
   if (a === '--charge') { demander({ type: 'charge', valeur: args[1] }); process.exit(0); }
   if (a === '--rapport') { demander({ type: 'rapport' }); process.exit(0); }
+  if (a === '--rapport-quotidien') { demander({ type: 'rapport_quotidien' }); process.exit(0); }
+  if (a === '--observation') { demander({ type: 'observation', valeur: args[1] === 'on' }); process.exit(0); }
   if (a === '--retour-arriere') { demander({ type: 'retour_arriere', numero: args[1] ? Number(args[1]) : null }); process.exit(0); }
   try { const pid = Number(fs.readFileSync(F.verrou, 'utf8')); if (pid && pid !== process.pid && vivant(pid)) { console.log('Le service tourne déjà (pid ' + pid + ').'); process.exit(0); } } catch (e) { /* pas de verrou */ }
   fs.writeFileSync(F.verrou, String(process.pid)); try { fs.unlinkSync(F.arret); } catch (e) { /* rien */ }
