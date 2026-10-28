@@ -21,3 +21,20 @@
 #gestes-modale .gm-code{font:28px/1.2 ui-monospace,Consolas,monospace;letter-spacing:.2em;color:#fff}
 #gestes-modale .gm-err{margin:8px 0;padding:8px 10px;border-left:3px solid #ff6b6b;background:rgba(255,107,107,.08);font-size:13px}
 #gestes-modale .gm-app{margin:6px 0;display:flex;gap:8px;align-items:center;flex-wrap:wrap}.gm-h{margin:12px 0 4px;color:#8fd0e3;font-size:14px}
+
+/* Fenêtre de suivi de la caméra du téléphone (sur le PC) */
+#gestes-tel{position:fixed;right:14px;bottom:96px;z-index:2147481500;width:min(320px,calc(100vw - 28px));background:rgba(4,9,15,.9);border:1px solid rgba(143,208,227,.5);color:#e6eef2;font:13px/1.4 system-ui,sans-serif}
+#gestes-tel header{display:flex;align-items:center;gap:8px;padding:7px 10px;border-bottom:1px solid rgba(143,208,227,.3);color:#8fd0e3;cursor:grab;touch-action:none;user-select:none}
+#gestes-tel header b{flex:1;font-weight:600;letter-spacing:.04em}
+#gestes-tel header button{background:none;border:1px solid rgba(143,208,227,.5);color:#8fd0e3;min-width:34px;min-height:30px;cursor:pointer}
+#gestes-tel .gt-corps{padding:10px}
+#gestes-tel canvas,#gestes-tel img{display:block;width:100%;aspect-ratio:4/3;background:#000;border:1px solid rgba(143,208,227,.25);margin-bottom:8px;object-fit:cover}
+#gestes-tel img[hidden]{display:none}
+#gestes-tel dl{display:grid;grid-template-columns:auto 1fr;gap:3px 10px;margin:0}
+#gestes-tel dt{color:#9fb3bd}#gestes-tel dd{margin:0;font-family:ui-monospace,Consolas,monospace;overflow-wrap:anywhere}
+#gestes-tel .gt-pt{width:10px;height:10px;border-radius:50%;background:#555}
+#gestes-tel .gt-pt.ok{background:#27d98a}#gestes-tel .gt-pt.att{background:#c9b27a}#gestes-tel .gt-pt.ko{background:#ff6b6b}
+#gestes-tel .gt-note{color:#c9b27a;font-size:12px;margin-top:6px}#gestes-tel .gt-note:empty{display:none}
+#gestes-tel .gt-chk{display:flex;gap:8px;align-items:flex-start;margin-top:10px;color:#9fb3bd;font-size:12px}
+#gestes-tel[hidden]{display:none}
+#gestes-modale .gm-etat{margin:8px 0;padding:8px 10px;border-left:3px solid #8fd0e3;background:rgba(143,208,227,.08)}#gestes-modale .gm-etat.ok{border-color:#27d98a}#gestes-modale .gm-etat.ko{border-color:#ff6b6b}

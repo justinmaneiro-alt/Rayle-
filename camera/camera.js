@@ -3,11 +3,15 @@
    MediaPipe Hands tourne ICI, dans le navigateur du téléphone ; les fichiers du modèle viennent du PC (/camera/vendor/…), rien n'est chargé depuis Internet.
    MODE HTTPS (V3 phase 4) : la page est servie par GitHub Pages (HTTPS valide, la caméra est autorisée) et le QR contient #s=<session>&j=<jeton à usage unique>&w=<adresse du Worker> dans le FRAGMENT (jamais envoyé à un serveur,
    effacé de la barre d'adresse dès le chargement). Le jeton est échangé UNE fois contre une clé d'émission ; les points partent par paquets vers le Worker (/camera/points), le PC les relit. MediaPipe vient alors de jsDelivr (version figée).
-   Messages envoyés : { a:'mains', t, ratio, mains:[{ lat, pts:[[x,y,z]×21] }] } au plus 30 fois par seconde (les mains vides à 5/s pour que le PC libère ce qu'il tenait). */
+   Messages envoyés : { a:'mains', t, ratio, mains:[{ lat, pts:[[x,y,z]×21] }] } au plus 30 fois par seconde (les mains vides à 5/s pour que le PC libère ce qu'il tenait).
+   LIAISON DIRECTE (WebRTC DataChannel, non fiable et non ordonné) : après la connexion, le téléphone ouvre un canal direct vers le PC (le Worker ne sert qu'à échanger offre / réponse / candidats) et y envoie chaque trame
+   tout de suite, sans lot. Tant que le canal n'est pas ouvert (ou si le Worker n'a pas la signalisation), les trames partent par lots vers le Worker comme avant. Aperçu de la caméra : JAMAIS envoyé, sauf si le PC le demande
+   (case cochée par Justin) ; alors un petit JPEG part par le canal direct seulement (jamais par le Worker). */
 const $ = id => document.getElementById(id);
 const CLE = 'rayle_cam_jeton';
 const MP = '0.10.21', CDN = 'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@' + MP + '/', MODELE_CDN = 'https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/1/hand_landmarker.task';
 const W = { actif: false, s: null, j: null, url: null, cle: null, expire: 0, sortie: [], minuteur: 0, envoyes: 0, erreurs: 0, fin: false };
+const D = { pc: null, canal: null, ouvert: false, envoyes: 0, fenetre: [], rtt: null, apercu: false, dernierApercu: 0, sigApres: 0, sondeSig: 0, essai: 0, debut: 0, echec: '' };
 const L = { jeton: null, ws: null, ouvert: false, pc: false, rtt: null, n: 0, envoyes: {}, dernierPong: 0, delaiMax: 5000, pings: 0, garde: 0, retard: 0, tentative: 0 };
 const C = { flux: null, video: null, detecteur: null, boucle: 0, actif: false, dernierEnvoi: 0, dernierVu: 0, dernierVide: 0, ctx: null, verrou: null };
 try { L.jeton = localStorage.getItem(CLE) || null; } catch (e) { /* stockage refusé */ }
@@ -25,14 +29,21 @@ const msg = (id, texte, genre) => { $(id).innerHTML = texte ? '<div class="msg '
 
 // ── liaison avec le PC ──
 function envoyer(o) {
+  if (W.actif && D.ouvert && D.canal && D.canal.readyState === 'open') { try { D.canal.send(JSON.stringify(o)); if (o.a === 'mains') { D.envoyes++; D.fenetre.push(Date.now()); } return true; } catch (e) { /* canal en difficulté : repli par le Worker ci-dessous */ } }
   if (W.actif) { if (!W.cle || W.fin) return false; W.sortie.push(o); if (W.sortie.length > 60) W.sortie.splice(0, W.sortie.length - 60); return true; }
   if (L.ws && L.ws.readyState === 1) { try { L.ws.send(JSON.stringify(o)); return true; } catch (e) { return false; } } return false;
 }
 function voyants() {
-  if (W.actif) { $('pt-pc').className = 'pt ' + (W.cle && !W.fin ? (W.erreurs > 3 ? 'att' : 'ok') : 'ko'); $('t-pc').textContent = W.fin ? 'Session terminée' : W.cle ? (W.erreurs > 3 ? 'Rayle : liaison instable' : 'Connecté à Rayle') : 'Non connecté'; $('t-lat').textContent = W.envoyes ? '· ' + W.envoyes + ' paquets' : ''; $('pt-cam').className = 'pt ' + (C.actif ? 'ok' : ''); $('t-cam').textContent = C.actif ? 'caméra active' : 'caméra arrêtée'; return; }
+  if (W.actif) { $('pt-pc').className = 'pt ' + (W.cle && !W.fin ? (W.erreurs > 3 ? 'att' : 'ok') : 'ko'); $('t-pc').textContent = W.fin ? 'Session terminée' : W.cle ? (W.erreurs > 3 ? 'Rayle : liaison instable' : 'Connecté à Rayle') : 'Non connecté'; $('t-lat').textContent = statsLiaison(); $('pt-cam').className = 'pt ' + (C.actif ? 'ok' : ''); $('t-cam').textContent = C.actif ? 'caméra active' : 'caméra arrêtée'; return; }
   $('pt-pc').className = 'pt ' + (L.ouvert ? (L.pc ? 'ok' : 'att') : 'ko'); $('t-pc').textContent = L.ouvert ? (L.pc ? 'PC : Rayle ouvert' : 'PC : connecté, Rayle fermé') : 'PC : déconnecté';
   $('t-lat').textContent = L.rtt != null ? '· ' + L.rtt + ' ms' : '';
   $('pt-cam').className = 'pt ' + (C.actif ? 'ok' : ''); $('t-cam').textContent = C.actif ? 'caméra active' : 'caméra arrêtée';
+}
+function debitEnvoi() { const lim = Date.now() - 1000; D.fenetre = D.fenetre.filter(t => t >= lim); return D.fenetre.length; }
+function statsLiaison() {
+  if (D.ouvert) return '· direct · ' + debitEnvoi() + ' paquets/s' + (D.rtt != null ? ' · ' + Math.max(1, Math.round(D.rtt / 2)) + ' ms' : '');
+  if (D.pc && !D.echec) return '· liaison directe en cours…';
+  return W.envoyes ? '· relais Worker (lent)' + (D.echec ? ' : ' + D.echec : '') : '';
 }
 function fermerLiaison() { clearInterval(L.pings); clearInterval(L.garde); clearTimeout(L.retard); try { L.ws && L.ws.close(); } catch (e) { /* déjà fermée */ } L.ws = null; }
 function connecter() {
@@ -56,7 +67,7 @@ function afficher(ecran, raison) { montrer('s-worker', ecran === 'worker'); mont
 
 // ── mode HTTPS par le Worker (V3 phase 4) ──
 const pt = (url, corps) => fetch(W.url + url, { method: 'POST', headers: { 'Content-Type': 'text/plain' }, body: JSON.stringify(corps), cache: 'no-store', referrerPolicy: 'no-referrer' });   // text/plain : pas de pré-requête CORS
-function finSession(texte, genre) { W.fin = true; clearInterval(W.minuteur); arreterCamera(); W.cle = null; voyants(); afficher('worker'); $('b-rejoindre').hidden = true; msg('m-worker', texte, genre || 'sable'); }
+function finSession(texte, genre) { W.fin = true; clearInterval(W.minuteur); fermerDirect(); arreterCamera(); W.cle = null; voyants(); afficher('worker'); $('b-rejoindre').hidden = true; msg('m-worker', texte, genre || 'sable'); }
 async function rejoindre() {
   if (!W.s || !W.j || !W.url) return msg('m-worker', 'Ce lien est incomplet. Redemande un QR code au PC (Rayle → ⚙ → Gestes → Caméra du téléphone).', 'ko');
   $('b-rejoindre').disabled = true; msg('m-worker', 'Connexion à Rayle…', 'sable');
@@ -65,12 +76,52 @@ async function rejoindre() {
     W.j = null;   // à usage unique : on ne le garde pas
     if (!r.ok || !j.cle) { $('b-rejoindre').disabled = false; $('b-rejoindre').hidden = true; return msg('m-worker', (j && j.error ? j.error : 'Connexion refusée') + '. (Chaque QR code ne sert qu’une fois et expire en 5 minutes.)', 'ko'); }
     W.cle = j.cle; W.expire = j.expire || 0; afficher('camera'); voyants();
-    W.minuteur = setInterval(vider, 120);
+    W.minuteur = setInterval(vider, 60); setInterval(voyants, 1000); ouvrirDirect();
   } catch (e) { $('b-rejoindre').disabled = false; msg('m-worker', 'Rayle ne répond pas (réseau ? Worker ?). Vérifie la connexion du téléphone, puis scanne un nouveau QR code.', 'ko'); }
+}
+/* ── liaison directe (WebRTC) ── le téléphone propose (offre), le PC répond ; messages de signalisation par le Worker, clé d'émission comme preuve. */
+const ICE = [{ urls: 'stun:stun.l.google.com:19302' }];
+const signal = (chemin, corps) => pt(chemin, Object.assign({ s: W.s, cle: W.cle }, corps));
+function fermerDirect() { clearInterval(D.sondeSig); try { D.canal && D.canal.close(); } catch (e) { /* déjà fermé */ } try { D.pc && D.pc.close(); } catch (e) { /* déjà fermée */ } D.canal = null; D.pc = null; D.ouvert = false; D.rtt = null; D.apercu = false; }
+async function ouvrirDirect() {
+  if (typeof RTCPeerConnection === 'undefined' || !W.cle || W.fin) { D.echec = 'WebRTC indisponible'; return; }
+  fermerDirect(); D.echec = ''; D.sigApres = 0; D.debut = Date.now(); const essai = ++D.essai;
+  const p = D.pc = new RTCPeerConnection({ iceServers: ICE }), c = D.canal = p.createDataChannel('points', { ordered: false, maxRetransmits: 0 });
+  c.onopen = () => { if (D.canal !== c) return; D.ouvert = true; D.echec = ''; W.sortie.length = 0; voyants(); };   // les trames en attente pour le Worker sont périmées : on repart sur le direct
+  c.onclose = () => { if (D.canal !== c) return; D.ouvert = false; D.apercu = false; voyants(); if (!W.fin && W.cle && essai === D.essai) setTimeout(() => { if (!D.ouvert && !W.fin && W.cle && essai === D.essai) ouvrirDirect(); }, 2000); };
+  c.onmessage = ev => {
+    let m; try { m = JSON.parse(ev.data); } catch (e) { return; } if (!m || typeof m !== 'object') return;
+    if (m.t === 'ping') { try { c.send(JSON.stringify({ t: 'pong', n: m.n })); } catch (e) { /* canal fermé */ } }
+    else if (m.t === 'apercu') D.apercu = !!m.actif;
+    else if (m.t === 'rtt' && Number.isFinite(m.ms)) D.rtt = m.ms;
+    else if (m.t === 'fin') finSession('Le PC a coupé la liaison. Pour reprendre, scanne un nouveau QR code.', 'sable');
+  };
+  p.onicecandidate = ev => { if (ev.candidate && D.pc === p) signal('/camera/signal', { m: { k: 'ice', c: { candidate: ev.candidate.candidate, sdpMLineIndex: ev.candidate.sdpMLineIndex, sdpMid: ev.candidate.sdpMid } } }).catch(() => {}); };
+  p.onconnectionstatechange = () => { if (D.pc === p && p.connectionState === 'failed') { D.echec = 'liaison directe impossible'; voyants(); } };
+  try {
+    const o = await p.createOffer(); await p.setLocalDescription(o);
+    const r = await signal('/camera/signal', { m: { k: 'offre', sdp: o.sdp } });
+    if (!r.ok) { D.echec = r.status === 404 || r.status === 400 ? 'Worker sans signalisation' : 'signalisation refusée'; voyants(); return; }
+  } catch (e) { D.echec = 'signalisation injoignable'; voyants(); return; }
+  clearInterval(D.sondeSig);
+  D.sondeSig = setInterval(async () => {   // la réponse et les candidats du PC
+    if (D.pc !== p || W.fin) return clearInterval(D.sondeSig);
+    if (D.ouvert && Date.now() - D.debut > 20000) return clearInterval(D.sondeSig);
+    if (!D.ouvert && Date.now() - D.debut > 25000) { D.echec = 'liaison directe non établie'; clearInterval(D.sondeSig); voyants(); return; }
+    try {
+      const r = await signal('/camera/signal-lire', { apres: D.sigApres }); if (!r.ok) return; const j = await r.json();
+      for (const x of (j.signaux || [])) {
+        D.sigApres = Math.max(D.sigApres, x.q); const m = x.m; if (!m || D.pc !== p) continue;
+        if (m.k === 'reponse') await p.setRemoteDescription({ type: 'answer', sdp: m.sdp });
+        else if (m.k === 'ice' && m.c) await p.addIceCandidate({ candidate: m.c.candidate, sdpMLineIndex: m.c.sdpMLineIndex, sdpMid: m.c.sdpMid }).catch(() => {});
+      }
+    } catch (e) { /* réseau capricieux : on réessaie au tour suivant */ }
+  }, 250);
 }
 let enVol = false;
 async function vider() {
   if (!W.cle || W.fin || enVol) return;
+  if (D.ouvert) { W.sortie.length = 0; return; }   // le direct est ouvert : rien ne passe plus par le Worker
   if (W.expire && Date.now() > W.expire) return finSession('La session de 15 minutes est terminée. Scanne un nouveau QR code pour continuer.', 'sable');
   if (!W.sortie.length) return;
   const trames = W.sortie.splice(0, 40); enVol = true;
@@ -96,8 +147,14 @@ $('b-oublier').onclick = () => { if (W.actif) return finSession('Session fermée
 // ── caméra et MediaPipe ──
 /* Banc d'essai (adresse locale seulement) : rejoue des points ENREGISTRÉS au lieu de la caméra, pour tester toute la chaîne sans main ni objectif. Test réel avec une vraie caméra : à valider par Justin. */
 function rejouerTest(suite) {
-  let i = 0; C.actif = true; montrer('apercu', false); $('b-cam').hidden = true; $('b-stop').hidden = false; msg('m-cam', 'Essai : points enregistrés (pas de caméra).', 'sable'); voyants();
-  C.test = setInterval(() => { const f = suite.frames[i++ % suite.frames.length]; envoyer({ a: 'mains', t: Date.now(), ratio: f.ratio || 4 / 3, mains: f.mains }); }, 33);
+  let i = 0, file = null, f0 = 0, ti = 0, boucleFile = 0; C.actif = true; montrer('apercu', false); $('b-cam').hidden = true; $('b-stop').hidden = false; msg('m-cam', 'Essai : points enregistrés (pas de caméra).', 'sable'); voyants();
+  const faux = document.createElement('canvas'); faux.width = 640; faux.height = 480; const fx = faux.getContext('2d'); fx.fillStyle = '#356'; fx.fillRect(0, 0, 640, 480); fx.fillStyle = '#fc4'; fx.fillRect(200, 140, 240, 200); C.video = faux; C.ctx = {};   // image factice : seulement pour tester l'aperçu (envoyerApercu)
+  window.__RAYLE_CAM_JOUER__ = frames => { file = frames; f0 = performance.now(); ti = Date.now(); i = 0; };   // essais : joue une suite UNE fois (aux temps d'origine), puis revient à la suite de fond
+  C.test = setInterval(() => {
+    envoyerApercu();
+    if (file) { const ecoule = performance.now() - f0; while (i < file.length && file[i].t <= ecoule) { const f = file[i++]; envoyer({ a: 'mains', t: ti + f.t, ratio: f.ratio || 4 / 3, mains: f.mains }); } if (i >= file.length) file = null; return; }
+    const f = suite.frames[boucleFile++ % suite.frames.length]; envoyer({ a: 'mains', t: Date.now(), ratio: f.ratio || 4 / 3, mains: f.mains });
+  }, 33);
 }
 async function demarrerCamera() {
   msg('m-cam', '');
@@ -121,7 +178,7 @@ async function demarrerCamera() {
   boucle();
 }
 function arreterCamera() {
-  clearInterval(C.test); C.actif = false; cancelAnimationFrame(C.boucle); if (C.flux) C.flux.getTracks().forEach(t => t.stop()); C.flux = null; try { C.detecteur && C.detecteur.close(); } catch (e) { /* déjà fermé */ } C.detecteur = null;
+  D.apercu = false; clearInterval(C.test); C.actif = false; cancelAnimationFrame(C.boucle); if (C.flux) C.flux.getTracks().forEach(t => t.stop()); C.flux = null; try { C.detecteur && C.detecteur.close(); } catch (e) { /* déjà fermé */ } C.detecteur = null;
   try { C.verrou && C.verrou.release(); } catch (e) { /* déjà libéré */ } C.verrou = null; envoyer({ a: 'mains', t: Date.now(), ratio: 4 / 3, mains: [] });
   montrer('apercu', false); $('b-cam').hidden = false; $('b-stop').hidden = true; voyants();
 }
@@ -133,12 +190,21 @@ function dessiner(mains) {
   c.strokeStyle = '#8fd0e3'; c.fillStyle = '#c9b27a'; c.lineWidth = 2;
   for (const m of mains) { c.beginPath(); for (const [a, b] of LIAISONS) { c.moveTo((1 - m.pts[a][0]) * w, m.pts[a][1] * h); c.lineTo((1 - m.pts[b][0]) * w, m.pts[b][1] * h); } c.stroke(); for (const p of m.pts) c.fillRect((1 - p[0]) * w - 2, p[1] * h - 2, 4, 4); }
 }
+/* Aperçu demandé par le PC (case cochée par Justin) : petit JPEG, 5 images par seconde au plus, par le canal DIRECT seulement. */
+function envoyerApercu() {
+  if (!D.apercu || !D.ouvert || !C.video || !C.ctx) return;
+  const t = performance.now(); if (t - D.dernierApercu < 200) return; D.dernierApercu = t;
+  try {
+    const mini = envoyerApercu.cv || (envoyerApercu.cv = document.createElement('canvas')); mini.width = 160; mini.height = 120; const x = mini.getContext('2d'); x.save(); x.translate(160, 0); x.scale(-1, 1); x.drawImage(C.video, 0, 0, 160, 120); x.restore();
+    const d = mini.toDataURL('image/jpeg', 0.45); if (d.length < 15000) D.canal.send(JSON.stringify({ a: 'image', d }));
+  } catch (e) { /* canal occupé : on saute cette image */ }
+}
 function boucle() {
   if (!C.actif) return; C.boucle = requestAnimationFrame(boucle);
   const t = performance.now(); if (t - C.dernierEnvoi < 1000 / 30 || C.video.readyState < 2) return; C.dernierEnvoi = t;
   let r; try { r = C.detecteur.detectForVideo(C.video, t); } catch (e) { return; }
   const mains = (r.landmarks || []).map((pts, i) => ({ lat: (r.handedness && r.handedness[i] && r.handedness[i][0] && r.handedness[i][0].categoryName) === 'Right' ? 'Right' : 'Left', pts: pts.map(p => [+p.x.toFixed(4), +p.y.toFixed(4), +(p.z || 0).toFixed(4)]) }));
-  dessiner(mains);
+  dessiner(mains); envoyerApercu();
   if (mains.length) { C.dernierVu = t; envoyer({ a: 'mains', t: Date.now(), ratio: C.video.videoWidth / (C.video.videoHeight || 1), mains }); }
   else if (t - C.dernierVide > 200) { C.dernierVide = t; envoyer({ a: 'mains', t: Date.now(), ratio: 4 / 3, mains: [] }); }
 }

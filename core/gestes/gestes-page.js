@@ -11,6 +11,7 @@ const Gestes = (() => {
   const ecrire = o => { try { localStorage.setItem(CLE, JSON.stringify(o)); } catch (e) { /* stockage refusé : réglages perdus à la fermeture */ } };
   let prefs = Object.assign({ seuilFerme: C.DEFAUTS.seuilFerme, seuilOuvre: C.DEFAUTS.seuilOuvre, zoneUtile: C.DEFAUTS.zoneUtile, miroir: true, droitier: true, source: 'locale', apercu: false }, lire());
   const E = { actif: false, source: null, erreur: '', info: '', mains: 0, derniere: '', pause: false, fps: 0, charge: false, camera: false, enregistrement: null, rejeu: false, nbMessages: 0 };
+  let decalageTel = null;   // horloge du téléphone -> horloge de la page (le moteur veut un temps qui avance, dans le même repère que la webcam)
   const ecouteurs = []; let calib = null, moteur = null, flux = null, video = null, detecteur = null, boucle = 0, tPrec = 0, vusRecents = 0, dernierEnvoiVide = 0, ws = null, voulu = false, apercuCtx = null, adaptatif = { fps: 30, sansMain: 0 };
   const surEvenement = f => { ecouteurs.push(f); return () => { const i = ecouteurs.indexOf(f); if (i >= 0) ecouteurs.splice(i, 1); }; };
   const prevenir = (type, d) => { for (const f of ecouteurs.slice()) { try { f(type, d); } catch (e) { /* un écouteur fautif n'arrête pas les autres */ } } };
@@ -41,6 +42,14 @@ const Gestes = (() => {
     E.dernierT = frame.t; if (calib) calib(frame);
     if (E.enregistrement) E.enregistrement.frames.push({ t: frame.t, ratio: frame.ratio, mains: frame.mains.map(m => ({ lat: m.lat, pts: m.pts.map(p => [+p[0].toFixed(4), +p[1].toFixed(4), +(p[2] || 0).toFixed(4)]) })) });
     const s = moteur.traiter(frame); appliquer(s); return s;
+  }
+
+  /* Les trames du téléphone portent l'heure du téléphone (Date.now) : on les ramène à l'horloge de la page en gardant leur espacement exact, et on ne laisse jamais le temps reculer. */
+  function injecterTelephone(f) {
+    const maintenant = performance.now(); if (decalageTel === null) decalageTel = maintenant - f.t;
+    let t = f.t + decalageTel; if (t > maintenant + 1500 || t < maintenant - 4000) { decalageTel = maintenant - f.t; t = maintenant; }   // horloge qui dérive ou rafale très en retard : on recale
+    if (E.dernierT && t <= E.dernierT) t = E.dernierT + 1;
+    return injecter({ t, ratio: f.ratio, mains: f.mains });
   }
 
   // ── source 1 : webcam du PC (MediaPipe local) ──
@@ -78,9 +87,9 @@ const Gestes = (() => {
   }
   /* source 3 : caméra du téléphone par HTTPS et Worker (phase 4 V3) : la session doit déjà exister (QR affiché), les trames arrivent par CameraRelais, revalidées. */
   async function connecterRelais() {
-    const R = window.CameraRelais; if (!R) throw new Error('Module CameraRelais absent.');
-    if (!R.etat().session) { const ok = await R.demarrer({ aSurTrames: f => injecter(f) }); if (!ok) throw new Error(R.etat().erreur || 'Session impossible.'); }
-    else R.definirSurTrames(f => injecter(f));
+    const R = window.CameraRelais; if (!R) throw new Error('Module CameraRelais absent.'); decalageTel = null;
+    if (!R.etat().session) { const ok = await R.demarrer({ aSurTrames: f => injecterTelephone(f) }); if (!ok) throw new Error(R.etat().erreur || 'Session impossible.'); }
+    else R.definirSurTrames(f => injecterTelephone(f));
   }
   const api = (chemin, corps) => fetch('/__cam/' + chemin, corps === undefined ? { headers: { 'X-Rayle-Cam': '1' } } : { method: 'POST', headers: { 'X-Rayle-Cam': '1' }, body: JSON.stringify(corps) }).then(r => r.json());
 
@@ -92,12 +101,23 @@ const Gestes = (() => {
     if (nom === 'NotReadableError') return 'La caméra est utilisée par un autre programme.';
     return 'Les gestes n’ont pas pu démarrer : ' + String(e && e.message || e);
   }
+  const telephoneConnecte = () => { const R = window.CameraRelais, e = R && R.etat(); return !!(e && e.session && (e.etat === 'connecte' || e.etat === 'attente')); };
+  /* La case « Activer les gestes » et la voix ne dépendent PAS d'une webcam : un téléphone connecté suffit. Sans téléphone, c'est la webcam du PC, sauf si le choix mémorisé est le téléphone. */
+  async function activerAuto() {
+    if (telephoneConnecte()) return activer({ source: 'telephone-https' });
+    return activer({ source: prefs.source === 'rejeu' ? 'locale' : prefs.source });
+  }
   async function activer({ source = prefs.source, memoriser = true } = {}) {
+    if (E.actif && E.source === source && source === 'telephone-https') { E.erreur = ''; prevenir('maj', E); return true; }   // déjà branché : surtout ne pas refermer la session du téléphone
     if (E.actif) await desactiver(); E.erreur = ''; E.source = source; E.actif = true; creerMoteur(); prevenir('maj', E);
     if (!window.Telecommande || !window.Telecommande.appliquer) { E.actif = false; E.erreur = 'Les gestes pilotent la page par la télécommande interne, disponible dans l’application PC (127.0.0.1) : ici ils sont indisponibles.'; prevenir('maj', E); return false; }
     try {
       if (source === 'locale') await demarrerWebcam(); else if (source === 'telephone') connecterPont(); else if (source === 'telephone-https') await connecterRelais();
-    } catch (e) { E.actif = false; E.camera = false; E.erreur = messageErreur(e); arreterFlux(); prevenir('maj', E); return false; }
+    } catch (e) {
+      arreterFlux();
+      if (source === 'locale' && telephoneConnecte() && e && (e.name === 'NotFoundError' || e.name === 'OverconstrainedError' || e.name === 'NotSupportedError')) { E.actif = false; return activer({ source: 'telephone-https', memoriser }); }   // pas de webcam mais un téléphone connecté : on prend le téléphone
+      E.actif = false; E.camera = false; E.erreur = messageErreur(e); prevenir('maj', E); return false;
+    }
     if (memoriser) { prefs.source = source; ecrire(prefs); }
     prevenir('maj', E); return true;
   }
@@ -167,10 +187,10 @@ const Gestes = (() => {
     if (/\b(?:pause)\b/.test(n)) { mettreEnPause(true); return 'Gestes en pause. Deux poings tenus les reprennent.'; }
     if (/\b(?:reprends|reprend|reprise)\b/.test(n)) { mettreEnPause(false); return 'Gestes repris.'; }
     if (/\btelephone\b/.test(n) && /\b(?:active|allume|lance|demarre)\b/.test(n)) { if (window.GestesUI) window.GestesUI.telephone(); return 'Je prépare la caméra du téléphone : scanne le QR code affiché.'; }
-    if (/\b(?:active|allume|lance|demarre)\b/.test(n)) { const ok = await activer({ source: 'locale' }); return ok ? 'Gestes activés. Dis « aide des gestes » pour la liste.' : E.erreur; }
+    if (/\b(?:active|allume|lance|demarre)\b/.test(n)) { const ok = await activerAuto(); return ok ? 'Gestes activés. Dis « aide des gestes » pour la liste.' : E.erreur; }
     return null;
   }
 
-  return { activer, desactiver, mettreEnPause, injecter, rejouer, enregistrer, telecharger, calibrer, regler, reglages, reinitialiserReglages, etat: () => ({ ...E }), surEvenement, brancherApercu, traiterVoix, api, rangerFenetres, moteur: () => moteur, messageErreur };
+  return { activer, activerAuto, telephoneConnecte, desactiver, mettreEnPause, injecter, rejouer, enregistrer, telecharger, calibrer, regler, reglages, reinitialiserReglages, etat: () => ({ ...E }), surEvenement, brancherApercu, traiterVoix, api, rangerFenetres, moteur: () => moteur, messageErreur };
 })();
 window.Gestes = Gestes;

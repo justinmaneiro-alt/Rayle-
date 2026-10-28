@@ -122,7 +122,37 @@ v('le compteur d’essais repart à la minute suivante', (await appeler('POST', 
 // ── méthodes et routes ──
 v('GET sur /camera/points : route inconnue', (await appeler('GET', '/camera/points')).status === 404);
 v('route inconnue', (await appeler('POST', '/camera/zzz')).status === 404);
-v('routes publiques = rejoindre + points seulement', R.ROUTES_PUBLIQUES.length === 2 && R.ROUTES_PUBLIQUES.includes('/camera/rejoindre') && R.ROUTES_PUBLIQUES.includes('/camera/points'));
+v('routes publiques = rejoindre, points et les deux routes de signalisation du téléphone (jamais celle du PC)', R.ROUTES_PUBLIQUES.length === 4 && ['/camera/rejoindre', '/camera/points', '/camera/signal', '/camera/signal-lire'].every(x => R.ROUTES_PUBLIQUES.includes(x)) && !R.ROUTES_PUBLIQUES.includes('/camera/signal-pc'));
+
+// ── signalisation WebRTC (liaison directe téléphone <-> PC) ──
+env.DB = fausseD1();
+const sg = await appeler('POST', '/camera/session'), rg = await appeler('POST', '/camera/rejoindre', { jeton: sg.j.jeton }), SG = sg.j.id, CG = rg.j.cle;
+const SDP = 'v=0\r\no=- 1 2 IN IP4 127.0.0.1\r\ns=-\r\n';
+const offre = await appeler('POST', '/camera/signal', { s: SG, cle: CG, m: { k: 'offre', sdp: SDP } });
+v('le téléphone dépose son offre avec sa clé', offre.status === 200 && offre.j.ok === true);
+v('sans clé valable : refusé (403)', (await appeler('POST', '/camera/signal', { s: SG, cle: 'x'.repeat(30), m: { k: 'offre', sdp: SDP } })).status === 403);
+v('session inconnue : refusé (403)', (await appeler('POST', '/camera/signal', { s: 'inconnue', cle: CG, m: { k: 'offre', sdp: SDP } })).status === 403);
+v('un message qui n’est pas de la signalisation est refusé (400)', (await appeler('POST', '/camera/signal', { s: SG, cle: CG, m: { k: 'script', sdp: '<script>' } })).status === 400);
+v('un sdp qui ne commence pas par v=0 est refusé (400)', (await appeler('POST', '/camera/signal', { s: SG, cle: CG, m: { k: 'offre', sdp: 'rien' } })).status === 400);
+v('une vidéo ou une image ne passe pas par la signalisation (400)', (await appeler('POST', '/camera/signal', { s: SG, cle: CG, m: { k: 'ice', c: { candidate: 'data:image/png;base64,' + 'A'.repeat(900) } } })).status === 400);
+v('un message trop gros est refusé (413)', (await appeler('POST', '/camera/signal', { s: SG, cle: CG, m: { k: 'offre', sdp: SDP }, remplissage: 'x'.repeat(7000) })).status === 413);
+await appeler('POST', '/camera/signal', { s: SG, cle: CG, m: { k: 'ice', c: { candidate: 'candidate:1 1 udp 2122260223 192.168.1.20 54321 typ host', sdpMLineIndex: 0, sdpMid: '0', extra: 'ignoré' } } });
+const luPc = await appeler('GET', '/camera/lire?s=' + SG + '&apres=0&sig=0');
+v('le PC relit l’offre puis le candidat, dans l’ordre', luPc.j.signaux.length === 2 && luPc.j.signaux[0].m.k === 'offre' && luPc.j.signaux[1].m.k === 'ice', JSON.stringify(luPc.j.signaux).slice(0, 120));
+v('les champs inconnus sont supprimés au passage', !('extra' in luPc.j.signaux[1].m.c));
+const luPc2 = await appeler('GET', '/camera/lire?s=' + SG + '&apres=0&sig=' + luPc.j.signaux[1].q);
+v('relire avec sig = dernier numéro ne rend plus rien (pas de doublon)', luPc2.j.signaux.length === 0);
+const rep = await appeler('POST', '/camera/signal-pc', { s: SG, m: { k: 'reponse', sdp: SDP } });
+v('le PC dépose sa réponse (route protégée)', rep.status === 200);
+const luTel = await appeler('POST', '/camera/signal-lire', { s: SG, cle: CG, apres: 0 });
+v('le téléphone relit la réponse du PC, mais pas ses propres messages', luTel.status === 200 && luTel.j.signaux.length === 1 && luTel.j.signaux[0].m.k === 'reponse');
+v('lire la signalisation sans clé : refusé (403)', (await appeler('POST', '/camera/signal-lire', { s: SG, cle: 'y'.repeat(30), apres: 0 })).status === 403);
+const nSig = []; for (let i = 0; i < R.MAX_SIGNAUX + 3; i++) nSig.push((await appeler('POST', '/camera/signal', { s: SG, cle: CG, m: { k: 'ice', c: { candidate: 'candidate:' + i } } })).status);
+v('au plus ' + R.MAX_SIGNAUX + ' messages de signalisation par session (429 ensuite)', nSig.includes(429) && nSig.filter(x => x === 200).length <= R.MAX_SIGNAUX);
+await appeler('POST', '/camera/fin', { s: SG });
+v('session fermée : la signalisation est effacée et refusée', (await appeler('POST', '/camera/signal', { s: SG, cle: CG, m: { k: 'offre', sdp: SDP } })).status === 403 && env.DB._db.prepare('SELECT COUNT(*) AS n FROM camera_signaux WHERE s = ?').get(SG).n === 0);
+v('signal-pc sur une session fermée : 404', (await appeler('POST', '/camera/signal-pc', { s: SG, m: { k: 'fin' } })).status === 404);
+
 
 // ── parité avec la validation du PC ──
 const cas = [trame(1), trame(1, []), trame(1, [main(), main(0.3)]), { a: 'mains', t: 5, mains: [{ lat: 'Left', pts: main().pts.map(p => [p[0] * 9, p[1] * -9, p[2] * 9]) }] }, { a: 'mains', t: -4, ratio: 99, mains: [] }, ...mauvaises, null, 'x', { a: 'mains' }, { a: 'mains', t: NaN, mains: [] }, { a: 'mains', t: 1, mains: [{ lat: 'Left', pts: main().pts.map((p, i) => i === 3 ? [1, 2, 3, 4] : p) }] }];

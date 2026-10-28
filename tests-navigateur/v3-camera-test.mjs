@@ -22,13 +22,14 @@ function fausseD1() {
   const stmt = (sql, vals = []) => ({ bind: (...x) => stmt(sql, x), run: async () => { const r = db.prepare(sql).run(...vals); return { meta: { changes: Number(r.changes) } }; }, all: async () => ({ results: db.prepare(sql).all(...vals).map(r => ({ ...r })) }), first: async () => { const r = db.prepare(sql).get(...vals); return r ? { ...r } : null; }, _run: () => db.prepare(sql).run(...vals) });
   return { prepare: sql => stmt(sql), batch: async list => { for (const s of list) s._run(); return []; } };
 }
-const env = { DB: fausseD1() }, vus = { points: [], corps: [], sansJeton: 0 };
+const env = { DB: fausseD1() }, vus = { points: [], corps: [], sansJeton: 0 };   // ce test vérifie le RELAIS par lots du Worker : la liaison directe a son propre test (v3-pont-gestes-test.mjs), la signalisation est donc refusée ici
 const CORS = { 'Access-Control-Allow-Origin': '*', 'Access-Control-Allow-Headers': '*', 'Access-Control-Allow-Methods': '*' };
 const faux = http.createServer(async (req, res) => {
   if (req.method === 'OPTIONS') { res.writeHead(204, CORS); return res.end(); }
   const chunks = []; for await (const c of req) chunks.push(c); const corps = Buffer.concat(chunks);
   const url = new URL(req.url, 'http://x');
   if (!R.ROUTES_PUBLIQUES.includes(url.pathname) && url.pathname.startsWith('/camera/') && req.headers['x-rayle-token'] !== 'local') { vus.sansJeton++; res.writeHead(401, { ...CORS, 'Content-Type': 'application/json' }); return res.end('{"error":"jeton refusé"}'); }
+  if (url.pathname.startsWith('/camera/signal')) { res.writeHead(404, { ...CORS, 'Content-Type': 'application/json' }); return res.end('{"error":"route inconnue"}'); }
   if (url.pathname === '/camera/points') vus.corps.push(corps.toString('utf8'));
   if (!url.pathname.startsWith('/camera/')) { res.writeHead(404, { ...CORS, 'Content-Type': 'application/json' }); return res.end('{"error":"route inconnue"}'); }
   const rr = await R.routeCamera(new Request('http://w' + req.url, { method: req.method, body: ['GET', 'HEAD'].includes(req.method) ? undefined : corps }), url, env, {}, CORS);
@@ -119,7 +120,7 @@ try {
   await evpc(() => document.querySelector('#gm-https [data-h="fermer"]').click()); await attendre(1500);
   verifier('le PC ferme la session : gestes arrêtés', await evpc(() => Gestes.etat().actif === false && CameraRelais.etat().etat === 'inactive'));
   await attendre(800);
-  verifier('le téléphone apprend la fin de session', await tel.evaluate(() => /terminée|fermée/.test(document.getElementById('m-worker').textContent) && document.getElementById('s-camera').hidden), await tel.evaluate(() => document.getElementById('m-worker').textContent));
+  verifier('le téléphone apprend la fin de session', await tel.evaluate(() => /terminée|fermée|coupé/.test(document.getElementById('m-worker').textContent) && document.getElementById('s-camera').hidden), await tel.evaluate(() => document.getElementById('m-worker').textContent));
   verifier('plus aucune caméra active sur le téléphone', await tel.evaluate(() => /caméra arrêtée/.test(document.getElementById('t-cam').textContent) || document.getElementById('s-camera').hidden));
 
   // ── expiration du QR (jamais scanné) ──

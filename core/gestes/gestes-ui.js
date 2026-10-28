@@ -4,7 +4,7 @@ const GestesUI = (() => {
   const G = window.Gestes, cfg = document.getElementById('cfg');
   const esc = s => String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
   const $ = id => document.getElementById(id);
-  let sect = null, modale = null, pastille = null, minuteurTel = 0, etatTel = null;
+  let sect = null, modale = null, pastille = null, minuteurTel = 0, etatTel = null, avaitTel = false, messageBouton = null;
 
   const VOCABULAIRE = [
     ['☝', 'Pointer', 'Index tendu, les autres doigts repliés : le curseur suit ton doigt.'],
@@ -23,13 +23,21 @@ const GestesUI = (() => {
     sect.innerHTML = '<h3>Gestes (caméra)</h3><div class="hint" id="gs-etat" role="status"></div>' +
       '<label class="chk"><input type="checkbox" id="gs-actif"> Activer les gestes de la main (la caméra analyse les points de ta main, rien ne part sur Internet)</label>' +
       '<label for="gs-source">Caméra</label><select id="gs-source"><option value="locale">Webcam du PC</option><option value="telephone-https">Caméra du téléphone (QR sécurisé HTTPS)</option><option value="telephone">Caméra du téléphone (réseau local, avancé)</option></select>' +
-      '<div class="row"><button type="button" class="ghost" id="gs-aide">Aide des gestes</button><button type="button" class="ghost" id="gs-calib">Calibrer</button><button type="button" class="ghost" id="gs-tel">Caméra du téléphone…</button><button type="button" class="ghost" id="gs-pause">Pause</button><button type="button" class="ghost" id="gs-enreg">Enregistrer 5 s</button></div>' +
+      '<div class="row"><button type="button" class="ghost" id="gs-aide">Aide des gestes</button><button type="button" class="ghost" id="gs-calib">Calibrer</button><button type="button" class="ghost" id="gs-tel">Caméra du téléphone…</button><button type="button" class="ghost" id="gs-suivi">Fenêtre de suivi</button><button type="button" class="ghost" id="gs-pause">Pause</button><button type="button" class="ghost" id="gs-enreg">Enregistrer 5 s</button></div>' +
       '<label class="chk"><input type="checkbox" id="gs-miroir"> Image en miroir (caméra de face)</label><label class="chk"><input type="checkbox" id="gs-droitier"> Main droite pour le curseur</label>' +
       '<div class="hint">Désactivé par défaut. Sans caméra, la souris et le toucher marchent comme avant. Alt+G : pause rapide. Procédure et limites : docs/GESTES.md.</div>';
     h3.parentNode.insertBefore(sect, h3);
-    $('gs-actif').addEventListener('change', async e => { if (e.target.checked) { const src = $('gs-source').value; if (src === 'telephone-https' && window.CameraRelais && !window.CameraRelais.etat().session) { e.target.checked = false; telephone(); return; } await G.activer({ source: src }); } else await G.desactiver(); maj(); });
+    /* La case marche avec la caméra du téléphone dès qu'il est connecté (ou en attente) ; sans téléphone, avec le choix de la liste (webcam du PC par défaut). */
+    $('gs-actif').addEventListener('change', async e => {
+      if (e.target.checked) {
+        const src = $('gs-source').value;
+        if (!G.telephoneConnecte() && src === 'telephone-https' && window.CameraRelais) { e.target.checked = false; telephone(); return; }
+        if (G.telephoneConnecte()) await G.activer({ source: 'telephone-https' }); else await G.activer({ source: src });
+      } else await G.desactiver();
+      maj();
+    });
     $('gs-source').addEventListener('change', async e => { G.regler({ source: e.target.value }); if (G.etat().actif) await G.activer({ source: e.target.value }); maj(); });
-    $('gs-aide').addEventListener('click', aide); $('gs-calib').addEventListener('click', calibration); $('gs-tel').addEventListener('click', telephone);
+    $('gs-aide').addEventListener('click', aide); $('gs-calib').addEventListener('click', calibration); $('gs-tel').addEventListener('click', telephone); $('gs-suivi').addEventListener('click', () => { if (window.GestesTel) window.GestesTel.ouvrir(); });
     $('gs-pause').addEventListener('click', () => { G.mettreEnPause(!G.etat().pause); });
     $('gs-miroir').addEventListener('change', e => G.regler({ miroir: e.target.checked })); $('gs-droitier').addEventListener('change', e => G.regler({ droitier: e.target.checked }));
     $('gs-enreg').addEventListener('click', async () => { try { $('gs-etat').textContent = 'Enregistrement de 5 secondes… bouge la main.'; const j = await G.enregistrer(5); G.telecharger(j, 'gestes-' + Date.now() + '.json'); $('gs-etat').textContent = 'Enregistré : ' + j.frames.length + ' images (fichier téléchargé, rejouable pour les tests).'; } catch (e) { $('gs-etat').textContent = e.message; } });
@@ -41,20 +49,25 @@ const GestesUI = (() => {
   }
   function libelle(e) {
     if (!e.actif) return e.erreur ? 'Gestes : ' + e.erreur : 'Gestes désactivés';
-    const src = { locale: 'webcam', telephone: 'téléphone (réseau local)', 'telephone-https': 'téléphone (HTTPS)', rejeu: 'rejeu' }[e.source] || e.source;
+    const src = { locale: 'webcam', telephone: 'téléphone (réseau local)', 'telephone-https': 'caméra du téléphone', rejeu: 'rejeu' }[e.source] || e.source;
+    if (e.source === 'telephone-https' && window.CameraRelais) { const r = window.CameraRelais.etat(); return (e.pause ? '⏸ Gestes en pause' : '✋ Gestes') + ' · ' + src + ' · ' + (r.etat === 'attente' ? 'en attente du téléphone' : r.liaison === 'direct' ? 'connecté (direct, ' + r.debit + ' paquets/s' + (r.delai != null ? ', ' + r.delai + ' ms' : '') + ')' : r.etat === 'connecte' ? 'connecté (par le Worker, lent)' : 'non connecté') + (r.etat === 'connecte' ? ' · ' + e.mains + ' main' + (e.mains > 1 ? 's' : '') : '') + (e.derniere ? ' · ' + e.derniere : ''); }
     return (e.pause ? '⏸ Gestes en pause' : '✋ Gestes') + ' · ' + src + (e.camera || e.source !== 'locale' ? ' · ' + e.mains + ' main' + (e.mains > 1 ? 's' : '') : (e.info ? ' · ' + e.info : '')) + (e.derniere ? ' · ' + e.derniere : '');
   }
   function maj() {
     const e = G.etat(), r = G.reglages(), p = pastilleEl();
     p.hidden = !e.actif; p.textContent = libelle(e); p.dataset.etat = e.pause ? 'pause' : e.mains ? 'main' : 'attente';
-    if (sect) { $('gs-etat').textContent = libelle(e) + (e.erreur ? '' : ''); $('gs-actif').checked = e.actif; $('gs-source').value = r.source === 'telephone' || r.source === 'telephone-https' ? r.source : 'locale'; $('gs-miroir').checked = r.miroir; $('gs-droitier').checked = r.droitier; $('gs-pause').textContent = e.pause ? 'Reprendre' : 'Pause'; if (e.erreur) $('gs-etat').textContent = e.erreur; }
+    const tel = e.actif && e.source === 'telephone-https';
+    if (tel && !avaitTel && window.GestesTel) window.GestesTel.ouvrir();   // la fenêtre de suivi s'ouvre quand la caméra du téléphone s'active
+    if (!tel && avaitTel && window.GestesTel && !(e.erreur)) window.GestesTel.fermer();
+    avaitTel = tel;
+    if (sect) { $('gs-etat').textContent = libelle(e) + (e.erreur ? '' : ''); $('gs-actif').checked = e.actif; const sv = e.actif ? e.source : r.source; $('gs-source').value = sv === 'telephone' || sv === 'telephone-https' ? sv : 'locale'; $('gs-miroir').checked = r.miroir; $('gs-droitier').checked = r.droitier; $('gs-pause').textContent = e.pause ? 'Reprendre' : 'Pause'; if (e.erreur) $('gs-etat').textContent = e.erreur; }
   }
 
   function modaleEl() {
     if (modale) return modale; modale = document.createElement('section'); modale.id = 'gestes-modale'; modale.hidden = true; modale.setAttribute('role', 'dialog'); document.body.appendChild(modale);
     modale.addEventListener('click', e => { if (e.target.closest('[data-g="fermer"]') || e.target === modale) fermer(); }); return modale;
   }
-  function fermer() { if (!modale) return; modale.hidden = true; modale.innerHTML = ''; G.brancherApercu(null); clearInterval(minuteurTel); }
+  function fermer() { messageBouton = null; if (!modale) return; modale.hidden = true; modale.innerHTML = ''; G.brancherApercu(null); clearInterval(minuteurTel); }
   function ouvrirModale(titre, html) { const m = modaleEl(); m.hidden = false; m.innerHTML = '<div class="gm-boite"><header><b>' + esc(titre) + '</b><button type="button" data-g="fermer" aria-label="Fermer">✕</button></header><div class="gm-corps">' + html + '</div></div>'; return m; }
 
   function aide() {
@@ -97,12 +110,14 @@ const GestesUI = (() => {
     if (e.etat === 'attente' && e.qr) {
       h += '<div class="gm-qr">' + svgQR(e.qr.map(l => l.map(x => x ? '1' : '0').join(''))) + '</div><p class="gm-note">Scanne ce QR code avec le téléphone : il ouvre une page <b>HTTPS</b> (aucun avertissement de certificat). Le code ne sert <b>qu’une fois</b> et expire dans <b>' + mmss + '</b>. Seuls les points de ta main transitent, jamais la vidéo.</p>';
     } else if (e.etat === 'connecte') {
-      h += '<p class="gm-note"><b>Téléphone connecté.</b> ' + e.recues + ' trames de points reçues' + (e.dernierEnvoi ? ' · dernier envoi il y a ' + Math.max(0, Math.round((Date.now() - e.dernierEnvoi) / 1000)) + ' s' : '') + '. Session valable encore ' + mmss + '. Sur le téléphone, appuie sur « Démarrer la caméra ».</p>';
+      h += '<p class="gm-note"><b>Téléphone connecté.</b> ' + e.recues + ' trames de points reçues · liaison ' + (e.liaison === 'direct' ? '<b>directe</b> : ' + e.debit + ' paquets/s' + (e.delai != null ? ', délai ' + e.delai + ' ms' : '') : e.liaison === 'negociation' ? 'directe en cours d’ouverture…' : 'par le Worker (lente)' + (e.directEchec ? ' : ' + esc(e.directEchec) : '')) + (e.dernierEnvoi ? ' · dernier envoi il y a ' + Math.max(0, Math.round((Date.now() - e.dernierEnvoi) / 1000)) + ' s' : '') + '. Session valable encore ' + mmss + '. Sur le téléphone, appuie sur « Démarrer la caméra ».</p>';
     } else if (e.etat === 'expiree') h += '<div class="gm-err">Le code a expiré (ou la session est terminée). Génère-en un nouveau.</div>';
     else if (e.etat === 'fermee') h += '<p class="gm-note">Session fermée.</p>';
     else h += '<p class="gm-note">Un QR code à usage unique, valable 5 minutes, lie le téléphone à cette session. Il passe par ton Worker Cloudflare : le téléphone n’a besoin d’aucune configuration.</p>';
     if (e.erreur) h += '<div class="gm-err">' + esc(e.erreur) + '</div>';
-    h += '<div class="gm-actions">' + (e.etat === 'attente' || e.etat === 'connecte' ? '<button type="button" data-h="utiliser">Utiliser la caméra du téléphone pour les gestes</button><button type="button" class="sec" data-h="fermer">Fermer la session</button>' : '<button type="button" data-h="creer">Générer un QR code sécurisé</button>') + '</div>';
+    const g = G.etat(), actifTel = g.actif && g.source === 'telephone-https';
+    if (e.etat === 'attente' || e.etat === 'connecte') h += '<div class="gm-etat ' + (messageBouton && messageBouton.ko ? 'ko' : actifTel ? 'ok' : '') + '" role="status" id="gm-etat-gestes">' + esc(messageBouton ? messageBouton.t : actifTel ? 'Gestes activés avec la caméra du téléphone. Lève la main devant le téléphone.' : 'Gestes éteints. Appuie sur « Utiliser la caméra du téléphone pour les gestes ».') + '</div>';
+    h += '<div class="gm-actions">' + (e.etat === 'attente' || e.etat === 'connecte' ? '<button type="button" data-h="utiliser">Utiliser la caméra du téléphone pour les gestes</button><button type="button" class="sec" data-h="suivi">Fenêtre de suivi</button><button type="button" class="sec" data-h="fermer">Fermer la session</button>' : '<button type="button" data-h="creer">Générer un QR code sécurisé</button>') + '</div>';
     if (z.dataset.sig !== h) { z.dataset.sig = h; z.innerHTML = h; }
   }
   async function majTelephone() {
@@ -123,7 +138,12 @@ const GestesUI = (() => {
       const b = e.target.closest('[data-h]'); if (!b || !window.CameraRelais) return;
       if (b.dataset.h === 'creer') { await window.CameraRelais.demarrer({ aSurTrames: f => G.injecter(f) }); }
       else if (b.dataset.h === 'fermer') { await window.CameraRelais.arreter(); if (G.etat().actif && G.etat().source === 'telephone-https') await G.desactiver(); }
-      else if (b.dataset.h === 'utiliser') { await G.activer({ source: 'telephone-https' }); maj(); }
+      else if (b.dataset.h === 'utiliser') {
+        messageBouton = { t: 'Activation des gestes…' }; majHttps();
+        const ok = await G.activer({ source: 'telephone-https' }); const g = G.etat();
+        messageBouton = ok ? { t: 'Gestes activés avec la caméra du téléphone. Lève la main devant le téléphone.' } : { t: g.erreur || 'Les gestes n’ont pas pu s’activer.', ko: true };
+        maj();
+      } else if (b.dataset.h === 'suivi') { if (window.GestesTel) window.GestesTel.ouvrir(); }
       majHttps();
     });
     if (window.CameraRelais) window.CameraRelais.surEvenement(majHttps);
@@ -140,7 +160,7 @@ const GestesUI = (() => {
   }
 
   window.addEventListener('keydown', e => { if (e.altKey && !e.ctrlKey && !e.metaKey && (e.key === 'g' || e.key === 'G') && G.etat().actif) { e.preventDefault(); G.mettreEnPause(!G.etat().pause); } });
-  G.surEvenement(maj); section(); maj();
+  G.surEvenement(maj); section(); maj(); setInterval(() => { const e = G.etat(); if (e.actif && e.source === "telephone-https") maj(); }, 1000);
   return { aide, calibration, telephone, maj, fermer, VOCABULAIRE };
 })();
 window.GestesUI = GestesUI;
