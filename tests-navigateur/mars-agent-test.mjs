@@ -40,16 +40,17 @@ await ev(() => window.Mars.placerInterieur({ yaw: 0, pitch: -0.06, avancee: 0.3 
 
 // ── table : l'agent annonce honnêtement qu'il n'a pas d'historique ──
 let fr = await ev(() => window.Mars.fenetresReelles()); const agentFen = () => fr.find(f => f.id === 'agent-btc');
-verifier('table : fenêtre « Agent BTC » : sans historique, elle dit « en préparation » (aucun chiffre inventé)', agentFen() && agentFen().etat === 'bientot', JSON.stringify(agentFen()));
+verifier('table : fenêtre « Agent BTC » : lit l’agent Kepler (service du PC) ou dit « indisponible » (jamais l’ancienne page)', agentFen() && ['ok', 'indisponible'].includes(agentFen().etat) && !/PAS DE RECHERCHE|pas de recherche/i.test(JSON.stringify(agentFen())), JSON.stringify(agentFen()));   // V3b : la fenêtre lit l'agent Kepler (service PC), plus l'ancien agent du navigateur
 await page.screenshot({ path: 'captures-mars/test-agent-table-vide.png' });
 
-// ── ouverture du panneau en grand ──
+// ── ouverture du panneau en grand : V3b, la page simple de Kepler d'abord ; l'ancienne page (testée ici) est dans l'onglet « Détails » ──
 // M5 : le clic sur la fenêtre « Agent BTC » de la table ouvre désormais le POSTE DE PILOTAGE ; l'ancien panneau reste accessible dans l'espace de travail (onglet du bas)
 await ev(() => window.Mars.ouvrirFenetre('agent-btc')); await attendre(3500);
 verifier('M5 : un clic sur la fenêtre « Agent BTC » de la table ouvre le poste de pilotage (grande fenêtre dédiée)', await ev(() => !!document.querySelector('.pa-poste')));
 await ev(() => window.PosteAgent && window.PosteAgent.fermer()); await attendre(800);
 await ev(async () => { const M = await import('/planetes/mars/pc/trading/fenetre.js'); await M.ouvrirEspace({ dock: 'agent', focus: 'agent' }); }); await attendre(2500);
 verifier('un clic sur la fenêtre ouvre l’espace sur l’onglet « Agent BTC », agrandi', await ev(() => { const o = document.querySelector('.tg-onglet.actif'); return o && o.dataset.panneau === 'agent' && document.querySelector('.tg-espace').classList.contains('tg-agent-ouvert') && !!document.querySelector('.tg-agent'); }));
+await ev(() => { const b = document.querySelector('.tg-agent-v3 [data-av3-vue="details"]'); if (b) b.click(); }); await attendre(2500);
 verifier('sans historique : le panneau propose d’activer l’agent, dit « pas de recherche », « pas de setup »', await ev(() => { const t = document.querySelector('.tg-agent').textContent; return /Activer l’agent/.test(t) && /PAS DE RECHERCHE/.test(t) && /Pas de setup|Pas encore évalué/.test(t) && /Aucun historique/.test(t); }));
 await page.screenshot({ path: 'captures-mars/test-agent-vide.png' });
 
@@ -72,7 +73,7 @@ await page.screenshot({ path: 'captures-mars/test-agent-donnees.png' });
 // ── recherche en arrière-plan : l'interface ne gèle pas ──
 await ev(() => window.__agentBtc.reglages({ charge: 'douce' }));
 await ev(() => { window.__battements = []; let d = performance.now(); window.__timer = setInterval(() => { const n = performance.now(); window.__battements.push(n - d); d = n; }, 50); });
-await ev(() => document.querySelector('.tg-agent [data-a="recherche"]').click());
+await ev(async () => { const S = await import('/planetes/mars/pc/trading/session-agent.js'); const a = await S.obtenirAgent({ demarrer: true }); a.lancerRecherche({ generationsMax: 2 }); });   // V3b : le bouton « Lancer la recherche » n'existe plus, on lance l'ancien moteur par son API
 await attendre(1500);
 verifier('recherche : état « EN RECHERCHE » avec famille et compteur de variantes', await ev(() => /EN RECHERCHE/.test(document.querySelector('[data-s="haut"]').textContent)));
 await page.waitForFunction(() => !/EN RECHERCHE/.test(document.querySelector('[data-s="haut"]').textContent), { timeout: 240000 });

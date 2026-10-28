@@ -54,12 +54,11 @@ export function reelPropositions(lecture, maintenant = Date.now()) {
     return { etat: 'ok', etiquette: 'SIMULÉ', entete: 'Entrées proposées par l’agent', liste, pied: 'compte simulé · aucun ordre n’est passé' };
   }
   liste.push({ g: 'Pourquoi pas de setup ?', d: c.validees ? 'aucune entrée en ce moment' : 'aucune stratégie validée', c: '#ffb347' });
-  const essais = meilleursEssais(etat);
-  for (const p of ['BTC', 'SOL', 'DOGE']) { const e = essais[p]; if (e) liste.push({ g: NOM[p] + ' · meilleure piste', d: sg(e.esperance) + ' R/trade' + ' · ' + (e.ratees ? e.ratees.length : '?') + ' critères ratés' }); }
-  const meilleure = Object.entries(essais).sort((x, y) => y[1].esperance - x[1].esperance)[0];
-  if (meilleure) liste.push({ g: 'Il manque (' + NOM[meilleure[0]] + ')', d: resumeManque(meilleure[1]) });
-  liste.push({ g: 'Variantes testées', d: fr.format(c.variantes) });
+  const essais = meilleursEssais(etat), meilleure = Object.entries(essais).sort((x, y) => y[1].esperance - x[1].esperance)[0];
   liste.push({ g: 'Pour valider', d: '≥ ' + CRITERES3.horsEchantillon.tradesMin + ' trades hors échantillon · ≥ ' + sg(CRITERES3.horsEchantillon.esperanceMin) + ' R/trade · confiance 95 % > 0 · Sharpe déflaté ≥ ' + Math.round(CRITERES3.deflation.dsrMin * 100) + ' %' });
+  if (meilleure) liste.push({ g: 'Il manque (' + NOM[meilleure[0]] + ')', d: resumeManque(meilleure[1]) });
+  for (const p of ['BTC', 'SOL', 'DOGE']) { const e = essais[p]; if (e) liste.push({ g: NOM[p] + ' · meilleure piste', d: sg(e.esperance) + ' R/trade' + ' · ' + (e.ratees ? e.ratees.length : '?') + ' critères ratés' }); }
+  liste.push({ g: 'Variantes testées', d: fr.format(c.variantes) });
   return { etat: 'ok', etiquette: 'RÉEL', entete: 'Pas de setup : l’agent ne propose rien sans stratégie validée', liste, pied: 'critères écrits d’avance, jamais assouplis · aucun ordre n’est passé' };
 }
 
