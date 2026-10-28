@@ -159,14 +159,14 @@ export async function demarrer() {
   }
   const ui = creerInterface();
   /* Planètes dont le module prend le relais à l'arrivée (manifeste modules.pc.entree) : un clic suffit pour y aller. Seule la Terre en a un pour l'instant. */
-  const AVEC_MODULE = new Set(PLANETES.filter(p => (p.id === 'terre' || p.id === 'mars' || p.id === 'saturne' || p.id === 'neptune') && p.etat === 'active' && p.modules && p.modules.pc && p.modules.pc.entree).map(p => p.id));
+  const AVEC_MODULE = new Set(PLANETES.filter(p => (p.id === 'terre' || p.id === 'mars' || p.id === 'saturne' || p.id === 'neptune' || p.id === 'jupiter') && p.etat === 'active' && p.modules && p.modules.pc && p.modules.pc.entree).map(p => p.id));
   /* Module d'une planète : celui du PC, sauf la Terre sur tablette et téléphone (carte plate légère, manifeste modules.tablette / telephone) ; réglage rayle_terre_vue : 'auto' | 'leger' | '3d'. */
   const cheminModule = p => {
     if (p.id === 'terre' && p.modules) {
       let pref = 'auto'; try { pref = localStorage.getItem('rayle_terre_vue') || 'auto'; } catch (e) { /* stockage refusé : automatique */ }
       const a = appareil(), leger = pref === 'leger' || (pref !== '3d' && a !== 'pc'), m = leger && (p.modules[a === 'pc' ? 'tablette' : a] || p.modules.tablette);
       if (m && m.entree) return m.entree;
-    }
+    } else if (p.modules && appareil() !== 'pc' && p.modules[appareil()] && p.modules[appareil()].entree) return p.modules[appareil()].entree;   // autre planète avec un module tablette / téléphone (Jupiter : terminal 2D)
     return p.modules.pc.entree;
   };
   const entreePlanete = (id, rapide = false) => {

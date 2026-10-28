@@ -84,6 +84,9 @@ async function brancher(a) {
     // Neptune : atelier 3D (importer, fabriquer, présenter pièce par pièce)
     try { const m = await import(new URL('planetes/neptune/pc/ordres-neptune.js', document.baseURI).href); m.brancher({ O, galaxie: a, ouvrirGalaxie }); }
     catch (e) { console.warn('ordres de Neptune indisponibles :', e); }
+    // Jupiter : structure vide (les ordres existent mais répondent « pas encore construit »)
+    try { const m = await import(new URL('planetes/jupiter/pc/ordres-jupiter.js', document.baseURI).href); m.brancher({ O, galaxie: a, ouvrirGalaxie }); }
+    catch (e) { console.warn('ordres de Jupiter indisponibles :', e); }
   }
   try { if (window.RayleGalaxie) await window.RayleGalaxie.preparer(); } catch (e) { console.warn('ordres de base indisponibles :', e); }   // mode_jeu, enregistré côté application
   publier();
