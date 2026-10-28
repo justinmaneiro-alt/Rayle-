@@ -24,12 +24,13 @@ import { tranche } from '../planetes/mars/pc/agent-btc/colonnes.js';
 import { ORDRE_PAIRES } from '../planetes/mars/pc/agent-m6/paires.js';
 import { creerDetecteurJeu } from '../app-pc/veilleur/charge-systeme.mjs';
 import { dossierVeilleur } from '../app-pc/veilleur/dossier.mjs';
+import { assurerEnregistreur, statutFlux } from './flux/service-flux.mjs';
 
 export const VERSION_SERVICE = 1;
 export const CYCLE_MS = 30000, FENETRE_LIVE = 3000, TRANCHE_MS = 4 * 60e3, JEUX_PAR_DEFAUT = ['valorant', 'cs2', 'csgo', 'fortniteclient-win64-shipping', 'eldenring', 'leagueclient', 'league of legends', 'overwatch', 'rocketleague', 'gta5', 'cyberpunk2077', 'baldursgate3', 'minecraft'];
 const semaineISO = t => { const d = new Date(t), j = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate())), n = j.getUTCDay() || 7; j.setUTCDate(j.getUTCDate() + 4 - n); const a = new Date(Date.UTC(j.getUTCFullYear(), 0, 1)); return j.getUTCFullYear() + '-S' + String(Math.ceil(((j - a) / 86400e3 + 1) / 7)).padStart(2, '0'); };
 
-export function creerService({ dossier = dossierAgent(), maintenant = () => Date.now(), donnees = null, sync = null, ecrire = ecrireRapport, executer = executerTache, detecteur = null, fetchImpl = globalThis.fetch, paires = ORDRE_PAIRES, tranchesMs = TRANCHE_MS, sansPriorite = false } = {}) {
+export function creerService({ dossier = dossierAgent(), maintenant = () => Date.now(), donnees = null, sync = null, ecrire = ecrireRapport, executer = executerTache, detecteur = null, fetchImpl = globalThis.fetch, paires = ORDRE_PAIRES, tranchesMs = TRANCHE_MS, sansPriorite = false, avecFlux = false } = {}) {
   const F = fichiersAgent(dossier); fs.mkdirSync(dossier, { recursive: true });
   const config = lireConfig(dossier), S = sync || creerSync({ config, fetchImpl }), D = donnees || creerDonnees({ dossier: F.donnees, paires, maintenant, journal: m => journal('donnees', m) });
   const jeu = detecteur || creerDetecteurJeu({ dossier: dossierVeilleur() });
@@ -190,6 +191,7 @@ export function creerService({ dossier = dossierAgent(), maintenant = () => Date
     if (!etat.parametresRisque.pause) {
       try { cr.donnees = await donneesDuJour(); } catch (e) { erreur('données', e); }
       try { const maj = await D.actualiser(); info.derniereMaj = { t: maintenant(), ...maj }; } catch (e) { erreur('bougies', e); }
+      if (avecFlux) { try { const r = assurerEnregistreur(dossier, { maintenant: maintenant() }); if (r === 'lance') journal('flux', 'Enregistreur du carnet (re)lancé.'); } catch (e) { erreur('flux', e); } }   // V4 : carnet d'ordres 24 h/24, relancé s'il s'arrête
       try { cr.alertes = await surveiller(); } catch (e) { erreur('surveillance', e); }
       try { cr.recherche = await chercher(); } catch (e) { erreur('recherche', e); }
       try { const d = new Date(maintenant()); if (d.getUTCDay() === 0 && d.getUTCHours() >= 17) await faireRapport(); await aucuneStrategie(); } catch (e) { erreur('rapport', e); }
@@ -213,7 +215,7 @@ if (estPrincipal()) {
   const demander = c => { const loc = path.join(dossier, 'commandes.json'), l = lireJson(loc, []) || []; l.push(c); ecrireJson(loc, l); console.log('Commande « ' + c.type + ' » transmise au service' + (lireJson(F.service) && vivant((lireJson(F.service) || {}).pid) ? '.' : ' (il n’est pas démarré : elle sera appliquée à son prochain démarrage).')); };
   if (a === '--statut') {
     const e = chargerEtat(dossier), i = lireJson(F.service, null), st = statutAgent(e, { pcVivant: !!(i && vivant(i.pid)) });
-    console.log(JSON.stringify({ agent: e.identite.nom, statut: st.texte, phrase: st.phrase, versionActive: e.active, strategies: strategiesActives(e).map(s => s.nom + ' ' + s.paire + ' (' + s.phase + ')'), variantesTestees: Object.values(e.compteurVariantes).reduce((x, y) => x + y, 0), service: i ? { pid: i.pid, enMarche: vivant(i.pid) && Date.now() - i.vivantLe < 120000, phase: i.phase, raison: i.raison, worker: i.worker } : 'jamais démarré', rapport: e.rapport && e.rapport.lignes }, null, 1)); process.exit(0);
+    console.log(JSON.stringify({ agent: e.identite.nom, statut: st.texte, phrase: st.phrase, versionActive: e.active, strategies: strategiesActives(e).map(s => s.nom + ' ' + s.paire + ' (' + s.phase + ')'), variantesTestees: Object.values(e.compteurVariantes).reduce((x, y) => x + y, 0), service: i ? { pid: i.pid, enMarche: vivant(i.pid) && Date.now() - i.vivantLe < 120000, phase: i.phase, raison: i.raison, worker: i.worker } : 'jamais démarré', rapport: e.rapport && e.rapport.lignes, carnetOrdres: (() => { try { const f = statutFlux(dossier); return { resume: f.phrase, enregistre: f.enregistre, jours: f.jours, goUtilises: f.octets != null ? +(f.octets / 1024 ** 3).toFixed(2) : null, quotaGo: f.quotaGo, trous: f.trous, flux: f.fluxPrets }; } catch (x) { return 'indisponible : ' + x.message; } })() }, null, 1)); process.exit(0);
   }
   if (a === '--arreter') { fs.writeFileSync(F.arret, String(Date.now())); console.log('Arrêt demandé.'); process.exit(0); }
   if (a === '--pause') { demander({ type: 'pause' }); process.exit(0); }
@@ -223,7 +225,7 @@ if (estPrincipal()) {
   if (a === '--retour-arriere') { demander({ type: 'retour_arriere', numero: args[1] ? Number(args[1]) : null }); process.exit(0); }
   try { const pid = Number(fs.readFileSync(F.verrou, 'utf8')); if (pid && pid !== process.pid && vivant(pid)) { console.log('Le service tourne déjà (pid ' + pid + ').'); process.exit(0); } } catch (e) { /* pas de verrou */ }
   fs.writeFileSync(F.verrou, String(process.pid)); try { fs.unlinkSync(F.arret); } catch (e) { /* rien */ }
-  const s = creerService({ dossier }); s.priorite();
+  const s = creerService({ dossier, avecFlux: true }); s.priorite();
   let fini = false; const sortir = () => { if (fini) return; fini = true; try { s.info().phase = 'arrete'; s.cycle; fs.unlinkSync(F.verrou); } catch (e) { /* fini */ } process.exit(0); };
   process.on('SIGINT', sortir); process.on('SIGTERM', sortir);
   process.on('uncaughtException', e => { try { ajouterJournal({ type: 'erreur', texte: 'non gérée : ' + (e && e.message) }, dossier); } catch (x) { /* rien */ } });
