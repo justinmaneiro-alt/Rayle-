@@ -65,6 +65,7 @@ if (estPrincipal()) {
   process.on('SIGINT', sortir); process.on('SIGTERM', sortir);
   process.on('uncaughtException', e => { erreursRecentes.unshift({ t: Date.now(), msg: 'non gérée : ' + (e && e.message) }); });
   process.on('unhandledRejection', e => { erreursRecentes.unshift({ t: Date.now(), msg: 'promesse : ' + (e && e.message) }); });
+  if (prior.vivantLe && demarreLe - prior.vivantLe > 45000) { try { stockage.noterTrou({ t: prior.vivantLe, flux: 'tous', de: prior.vivantLe, a: demarreLe, raison: 'enregistreur arrêté (PC éteint, en veille ou service coupé)' }); } catch (e) { /* disque */ } }   // l'arrêt entre deux démarrages est un trou aussi
   rec.demarrer();
   setInterval(() => {
     if (fs.existsSync(F.arret)) return sortir();

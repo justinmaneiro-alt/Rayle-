@@ -13,7 +13,7 @@ export const ACTIFS = Object.freeze({
   SOL: { binance: 'SOLUSDT', kraken: 'SOL/USD', plancherUsd: 20000 },
   DOGE: { binance: 'DOGEUSDT', kraken: 'DOGE/USD', plancherUsd: 10000 }
 });
-export const PARAMS = Object.freeze({ pasPct: 0.02, demiLargeurPct: 3, uniteUsd: 100 });
+export const PARAMS = Object.freeze({ pasPct: 0.02, demiLargeurPct: 3, uniteUsd: 1000 })   // 16 bits log : plafond 65 535 × 1 000 $ ≈ 65 M$ par tranche (100 $ saturait à 6,5 M$ sur BTC);
 export const URLS = Object.freeze({
   binanceSpotWs: 'wss://stream.binance.com:9443/stream?streams=', binanceFutWs: 'wss://fstream.binance.com/stream?streams=', krakenWs: 'wss://ws.kraken.com/v2',
   binanceSpotDepth: s => 'https://api.binance.com/api/v3/depth?symbol=' + s + '&limit=5000', binanceFutDepth: s => 'https://fapi.binance.com/fapi/v1/depth?symbol=' + s + '&limit=1000',

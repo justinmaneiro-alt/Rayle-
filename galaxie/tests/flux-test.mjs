@@ -46,6 +46,8 @@ v('livre : vide → null', new Livre().tranches() === null);
   const r2 = S.instantane({ lastUpdateId: 140, bids: [['9', '5']], asks: [['11', '5']] });
   v('synchro : instantané 140 plus récent que l’événement tamponné (u = 135) → synchro, événement jeté', r2 === 'synchro' && S.pret());
   v('synchro : ensuite l’événement U ≤ 141 ≤ u est accepté', S.recevoir(ev(138, 145, [['10', '1']])) === true);
+  const T2 = []; const S5 = creerSynchro({ surTrou: t => T2.push(t) }); S5.recevoir(ev(1, 2)); S5.instantane({ lastUpdateId: 2, bids: [['9', '1']], asks: [['11', '1']] }); S5.recevoir(ev(50, 51));
+  v('synchro : un instantané trop ancien PENDANT la synchro initiale n’est pas un trou (rien n’était enregistré)', T2.length === 0 && !S5.pret());
 }
 {
   let demandes = 0; const S = creerSynchro({ surBesoinSnapshot: () => demandes++ });

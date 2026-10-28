@@ -13,7 +13,7 @@ export function creerSynchro({ futures = false, surBesoinSnapshot = () => {}, su
   function appliquer(ev, surChangement) { if (ev.b && ev.b.length) livre.appliquer('bid', ev.b, surChangement); if (ev.a && ev.a.length) livre.appliquer('ask', ev.a, surChangement); dernierU = ev.u; dernierEvenement = maintenant(); }
   const chaineOk = ev => (futures ? ev.pu === dernierU : ev.U === dernierU + 1);
   function rompre(raison, ev) {
-    if (etat === 'synchro') { stats.resynchronisations++; trou(raison, dernierU, ev ? ev.U : null); }
+    if (etat === 'synchro' && !premier) { stats.resynchronisations++; trou(raison, dernierU, ev ? ev.U : null); }           // pendant la synchro initiale (premier événement) rien n'était encore enregistré : pas un trou
     etat = 'attente'; livre.vider(); dernierU = null; premier = false; tampon = ev ? [ev] : []; demande = false; demander();
   }
   return {
