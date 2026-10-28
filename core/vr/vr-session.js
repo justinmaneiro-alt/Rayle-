@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { rasteriser, cibleDans, cliquerSur, rouler } from './vr-rasterizer.js';
+import { clavierVR } from './vr-clavier.js';
 
 /* ═════════════ RÉALITÉ VIRTUELLE (V2, phase 12) : WebXR + Three.js, DERRIÈRE UN DRAPEAU ═════════════
    Casque visé : Quest 2 (navigateur du casque, ou PC par Link / Air Link) et casques WMR / OpenXR (Acer…) : on teste l'API standard `immersive-vr`, pas le matériel.
@@ -13,7 +14,7 @@ const CLE = 'rayle_vr';
 const lire = () => { try { return JSON.parse(localStorage.getItem(CLE) || '{}') || {}; } catch (e) { return {}; } };
 const ecrire = o => { try { localStorage.setItem(CLE, JSON.stringify(o)); } catch (e) { /* stockage refusé */ } };
 let prefs = Object.assign({ actif: false, vignette: true, force: 1, cran: 30, vitesse: 2.2, deplacement: 'fluide', rayonFenetres: 1.7 }, lire());
-const SELECTEURS = ['.gf:not([hidden])', '.saf:not([hidden])', '#panneaux .pn', '#tableau .tb-f', '#g1Fen', '#tele-fenetre'];
+const SELECTEURS = ['.gf:not([hidden])', '.saf:not([hidden])', '#panneaux .pn', '#tableau .tb-f', '#g1Fen', '#tele-fenetre', '#vr-clavier'];   // #vr-clavier : le clavier virtuel (V3), présent seulement quand un champ de texte a le focus
 const drapeauActif = () => { try { return prefs.actif || /[?&]vr=1\b/.test(location.search); } catch (e) { return false; } };
 const horloge = () => performance.now();
 
@@ -82,10 +83,17 @@ export const VR = (() => {
     E.panneaux = panneaux.length; prevenir();
   }
   function placer(liste, tout) {
-    camera.getWorldPosition(tmpV); camera.getWorldQuaternion(tmpQ); const cap = V.lacetDe([tmpQ.x, tmpQ.y, tmpQ.z, tmpQ.w]);
-    const base = tout ? 0 : panneaux.length - liste.length, total = tout ? liste.length : panneaux.length;
-    const poses = V.disposerPanneaux(total, { centre: [tmpV.x, 0, tmpV.z], rayon: prefs.rayonFenetres, hauteurOeil: tmpV.y > 0.6 ? tmpV.y - 0.05 : 1.55, capCentre: cap, parRang: 6, arcDeg: 170 });
+    camera.getWorldPosition(tmpV); camera.getWorldQuaternion(tmpQ); const cap = V.lacetDe([tmpQ.x, tmpQ.y, tmpQ.z, tmpQ.w]), tx = tmpV.x, ty = tmpV.y, tz = tmpV.z;
+    const estClavier = p => p.el.id === 'vr-clavier', clavier = liste.filter(estClavier); liste = liste.filter(p => !estClavier(p));
+    const nonClavier = panneaux.filter(p => !estClavier(p)), base = tout ? 0 : nonClavier.length - liste.length, total = tout ? liste.length : nonClavier.length;
+    const poses = V.disposerPanneaux(total, { centre: [tx, 0, tz], rayon: prefs.rayonFenetres, hauteurOeil: ty > 0.6 ? ty - 0.05 : 1.55, capCentre: cap, parRang: 6, arcDeg: 170 });
     liste.forEach((p, i) => { const pose = poses[base + i] || poses[poses.length - 1]; p.mesh.position.set(pose.pos[0], pose.pos[1], pose.pos[2]); p.mesh.quaternion.setFromAxisAngle(new THREE.Vector3(0, 1, 0), pose.yaw); p.echelle = 1; p.mesh.scale.set(p.l, p.h, 1); p.derniere = 0; });
+    // clavier virtuel : à portée de main, devant et sous les yeux, incliné vers le visage ; petit (environ 0,9 m de large)
+    for (const p of clavier) {
+      const avance = 0.62, devant = [-Math.sin(cap), -Math.cos(cap)], y = (ty > 0.6 ? ty : 1.55) - 0.48;
+      p.echelle = Math.min(1, 0.9 / p.l); p.mesh.position.set(tx + devant[0] * avance, y, tz + devant[1] * avance);
+      p.mesh.quaternion.setFromEuler(new THREE.Euler(-0.62, cap, 0, 'YXZ')); p.mesh.scale.set(p.l * p.echelle, p.h * p.echelle, 1); p.derniere = 0;
+    }
   }
   const recentrer = () => { if (renderer) synchroniser({ tout: true }); };
 
@@ -272,7 +280,7 @@ export const VR = (() => {
     if (!renderer) { renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false, powerPreference: 'high-performance' }); renderer.setPixelRatio(1); renderer.xr.enabled = true; renderer.xr.setReferenceSpaceType('local-floor'); try { renderer.xr.setFoveation(0.5); } catch (e) { /* non disponible */ } renderer.outputColorSpace = THREE.SRGBColorSpace; construire(); }
     const s = await navigator.xr.requestSession('immersive-vr', { requiredFeatures: [], optionalFeatures: ['local-floor', 'bounded-floor', 'hand-tracking', 'layers'] });
     session = s; await renderer.xr.setSession(s); E.entre = true; E.mode = 'salle'; mode = 'salle'; dolly.position.set(0, 0, 0); dolly.scale.setScalar(1);
-    s.addEventListener('end', fin); synchroniser({ tout: true });
+    s.addEventListener('end', fin); clavierVR.monter(); synchroniser({ tout: true });
     setTimeout(() => { if (E.entre && mode === 'salle') recentrer(); }, 800);   // la vraie hauteur des yeux n'est connue qu'après la première image
     tPrec = 0; renderer.setAnimationLoop(boucle); prevenir();
     if (m === 'galaxie') basculerMode('galaxie');
@@ -281,7 +289,7 @@ export const VR = (() => {
   function fin() {
     try { renderer.setAnimationLoop(null); } catch (e) { /* déjà arrêtée */ }
     if (mode === 'galaxie') { try { basculerMode('salle'); } catch (e) { /* retour à la salle impossible : on ferme quand même */ } }
-    session = null; E.entre = false; E.controleurs = 0; for (const c of ctrls) { c.tenu = null; c.source = null; } prevenir();
+    clavierVR.demonter(); session = null; E.entre = false; E.controleurs = 0; for (const c of ctrls) { c.tenu = null; c.source = null; } prevenir();
     if (carteAide) { carteAide.remove(); carteAide = null; }
     for (const p of panneaux.slice()) liberer(p);
   }
