@@ -13,7 +13,10 @@ import { dossierAgent, fichiersAgent, chargerEtat, sauverEtat, ajouterJournal, l
 import { creerDonnees, jourDe } from './donnees-agent.mjs';
 import { creerSync, etatPourWorker } from './sync-worker.mjs';
 import { ecrireRapport } from './llm.mjs';
-import { planifier, lireCache, ecrireCache, executerTache, integrerResultat, CHARGES, GENERATIONS_MAX } from './recherche.mjs';
+import { planifier, lireCache, ecrireCache, executerTache, integrerResultat, CHARGES, GENERATIONS_MAX, empreinteTache } from './recherche.mjs';
+import { lireEquipe, ecrireEquipe, executerChercheur, tachesHypotheses, marquerTest, ecrireRapportAuditeur, resumeEquipe, noter as noterEquipe } from './equipe/equipe.mjs';
+import { enregistrerHypothese, construireFaitsChercheur } from '../strategies/equipe/chercheur.js';
+import { calculerDiagnostic } from './diagnostic.mjs';
 import { journaliser, creerVersion, retourArriere, strategiesActives, statutAgent, promouvoir, mettreEnPause, jalon, versionActive, exporterRegles } from '../strategies/agent-etat.js';
 import { surveillerRegle } from '../strategies/surveillance-commune.js';
 import { enregistrerAlertes, construireAlerte, filtrerAlertes } from '../strategies/alertes-v3.js';
@@ -30,7 +33,7 @@ export const VERSION_SERVICE = 1;
 export const CYCLE_MS = 30000, FENETRE_LIVE = 3000, TRANCHE_MS = 4 * 60e3, JEUX_PAR_DEFAUT = ['valorant', 'cs2', 'csgo', 'fortniteclient-win64-shipping', 'eldenring', 'leagueclient', 'league of legends', 'overwatch', 'rocketleague', 'gta5', 'cyberpunk2077', 'baldursgate3', 'minecraft'];
 const semaineISO = t => { const d = new Date(t), j = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate())), n = j.getUTCDay() || 7; j.setUTCDate(j.getUTCDate() + 4 - n); const a = new Date(Date.UTC(j.getUTCFullYear(), 0, 1)); return j.getUTCFullYear() + '-S' + String(Math.ceil(((j - a) / 86400e3 + 1) / 7)).padStart(2, '0'); };
 
-export function creerService({ dossier = dossierAgent(), maintenant = () => Date.now(), donnees = null, sync = null, ecrire = ecrireRapport, executer = executerTache, detecteur = null, fetchImpl = globalThis.fetch, paires = ORDRE_PAIRES, tranchesMs = TRANCHE_MS, sansPriorite = false, avecFlux = false } = {}) {
+export function creerService({ dossier = dossierAgent(), maintenant = () => Date.now(), donnees = null, sync = null, ecrire = ecrireRapport, executer = executerTache, detecteur = null, fetchImpl = globalThis.fetch, paires = ORDRE_PAIRES, tranchesMs = TRANCHE_MS, sansPriorite = false, avecFlux = false, avecEquipe = false } = {}) {
   const F = fichiersAgent(dossier); fs.mkdirSync(dossier, { recursive: true });
   const config = lireConfig(dossier), S = sync || creerSync({ config, fetchImpl }), D = donnees || creerDonnees({ dossier: F.donnees, paires, maintenant, journal: m => journal('donnees', m) });
   const jeu = detecteur || creerDetecteurJeu({ dossier: dossierVeilleur() });
@@ -127,6 +130,19 @@ export function creerService({ dossier = dossierAgent(), maintenant = () => Date
     return nouvellesAlertes;
   }
 
+  /* ── (2 bis) l'équipe : le Chercheur écrit ses hypothèses (une fois par jour, et quand la recherche stagne) ── */
+  const occasionsResume = () => null, exemplesResume = () => null;           // branchés en phase 8 (occasions manquées, exemples de Justin)
+  async function equipeDuJour(force = false) {
+    const eq = lireEquipe(dossier), t = maintenant(), derniere = eq.chercheur.derniereExecution, memeJour = derniere && jourDe(derniere) === jourDe(t), stagne = !!(etat.recherche && etat.recherche.epuise);
+    if (memeJour && !force && !(stagne && t - derniere > 6 * 3600e3)) return null;
+    const series = {}; for (const p of paires) series[p] = D.serie(p); let diag = null;
+    try { diag = calculerDiagnostic(etat, series, { rapide: true, maintenant: t }); ecrireJson(path.join(dossier, 'diagnostic.json'), diag); } catch (e) { erreur('diagnostic', e); }
+    const faits = construireFaitsChercheur({ entonnoir: diag && diag.entonnoir, parFamille: diag && diag.parFamille, occasions: occasionsResume(), exemples: exemplesResume(), dejaTestees: eq.hypotheses.length, diagnosticVerdict: diag && diag.conclusion.verdict });
+    const r = await executerChercheur({ dossier, equipe: eq, faits, maintenant: t, force: true, fetchImpl, preference: (lireJson(F.config, {}) || {}).modele || null, config, occasions: occasionsResume(), exemples: exemplesResume() });
+    ecrireEquipe(r.equipe, dossier); for (const h of r.acceptees) enregistrerHypothese(h);
+    journal('equipe', 'Le Chercheur a proposé ' + r.acceptees.length + ' hypothèse(s) (' + r.source + ')' + (stagne ? ' : la recherche avait épuisé son espace.' : '.')); return r;
+  }
+
   /* ── (3) recherche permanente ── */
   const debutFinalPar = () => { const o = {}; for (const p of paires) { const c = etat.coffre && etat.coffre[p]; if (c && c.debutFinal) { o[p] = c.debutFinal; continue; } const s = D.serie(p); if (!s || s.n < 5000) continue; const d = decouper(s); if (d.ok) { (etat.coffre = etat.coffre || {})[p] = { debutFinal: d.debutFinal, ouvertures: [], fixeLe: maintenant() }; o[p] = d.debutFinal; journal('coffre', 'Jeu final de ' + p + ' fixé à partir du ' + jourDe(d.debutFinal) + ' (il ne bougera plus ; ouvert une seule fois par stratégie).'); } } return o; };
   async function peutChercher() {
@@ -140,6 +156,7 @@ export function creerService({ dossier = dossierAgent(), maintenant = () => Date
     const ok = await peutChercher(); if (!ok.ok) { info.phase = ok.raison.startsWith('pause :') ? 'pause_jeu' : 'attente'; info.raison = ok.raison; return { fait: false, raison: ok.raison }; }
     const dfp = debutFinalPar(); if (!Object.keys(dfp).length) { info.raison = 'pas assez de données pour fixer le jeu final'; return { fait: false }; }
     const caches = { has: emp => !!lireCache(F.cache, emp) }, taches = planifier(etat, { paires, debutFinal: dfp, cache: caches });
+    const equipe = lireEquipe(dossier); taches.unshift(...tachesHypotheses({ equipe, paires, debutFinal: dfp, cache: caches, empreinteTache }));                // V4 : les hypothèses du Chercheur passent en premier
     if (!taches.length) { info.phase = 'attente'; info.raison = 'espace de recherche défini épuisé (' + GENERATIONS_MAX + ' générations) : j’attends de nouvelles données ou de nouvelles idées'; etat.recherche.enCours = null; etat.recherche.epuise = true; return { fait: false, raison: info.raison }; }
     etat.recherche.epuise = false; enCalcul = true; info.phase = 'recherche'; info.raison = null; ecrireInfo();
     const debut = maintenant(); let faites = 0;
@@ -150,7 +167,11 @@ export function creerService({ dossier = dossierAgent(), maintenant = () => Date
         const contexte = { paires, dossierDonnees: F.donnees, variantesAvant: total, ouverturesParPaire: Object.fromEntries(paires.map(p => [p, ((etat.coffre && etat.coffre[p]) ? etat.coffre[p].ouvertures.length : 0)])) };
         const res = await Promise.all(lot.map(t => executer(t, contexte).catch(e => ({ resumes: [{ famille: t.famille, paire: t.paire, type: t.type, statut: 'erreur', raison: String(e.message).slice(0, 150), t: maintenant() }] }))));
         const candidates = [];
-        res.forEach((r, k) => { const t = lot[k]; for (const resume of r.resumes) { if (resume.statut === 'erreur') { erreur('recherche ' + t.famille + ' ' + t.paire, new Error(resume.raison)); continue; } candidates.push(...integrerResultat(etat, resume, { ...t, type: resume.type || t.type, grille: resume.grille || t.grille }, maintenant())); } if (!r.resumes.some(x => x.statut === 'erreur')) ecrireCache(F.cache, t.empreinte, { t: maintenant(), statuts: r.resumes.map(x => x.statut) }); faites++; });
+        const eq = lireEquipe(dossier);
+        res.forEach((r, k) => { const t = lot[k]; for (const resume of r.resumes) { if (resume.statut === 'erreur') { erreur('recherche ' + t.famille + ' ' + t.paire, new Error(resume.raison)); continue; }
+          if (resume.auditeur) { try { ecrireRapportAuditeur(dossier, eq, { ok: resume.auditeur.ok, candidate: resume.auditeur.candidate, rapport: resume.auditeur.rapport, resume: resume.auditeur.resume, tests: resume.auditeur.tests }, maintenant()); } catch (e) { /* disque */ } delete resume.auditeur.rapport; }     // le rapport écrit va dans rapports/auditeur/ ; l'état garde le résumé
+          candidates.push(...integrerResultat(etat, resume, { ...t, type: resume.type || t.type, grille: resume.grille || t.grille }, maintenant())); if (t.type === 'hypothese') marquerTest(eq, t, resume, paires, maintenant()); } if (!r.resumes.some(x => x.statut === 'erreur')) ecrireCache(F.cache, t.empreinte, { t: maintenant(), statuts: r.resumes.map(x => x.statut) }); faites++; });
+        ecrireEquipe(eq, dossier);
         if (candidates.length) await nouvelleVersion(candidates);
         etat.recherche.derniere = maintenant(); etat.recherche.cycles++; sauver();
         const pc = await peutChercher(); if (!pc.ok) break;                                              // un jeu démarre : on s'arrête entre deux lots
@@ -192,6 +213,7 @@ export function creerService({ dossier = dossierAgent(), maintenant = () => Date
       try { cr.donnees = await donneesDuJour(); } catch (e) { erreur('données', e); }
       try { const maj = await D.actualiser(); info.derniereMaj = { t: maintenant(), ...maj }; } catch (e) { erreur('bougies', e); }
       if (avecFlux) { try { const r = assurerEnregistreur(dossier, { maintenant: maintenant() }); if (r === 'lance') journal('flux', 'Enregistreur du carnet (re)lancé.'); } catch (e) { erreur('flux', e); } }   // V4 : carnet d'ordres 24 h/24, relancé s'il s'arrête
+      if (avecEquipe) { try { cr.equipe = await equipeDuJour(); } catch (e) { erreur('équipe', e); } }
       try { cr.alertes = await surveiller(); } catch (e) { erreur('surveillance', e); }
       try { cr.recherche = await chercher(); } catch (e) { erreur('recherche', e); }
       try { const d = new Date(maintenant()); if (d.getUTCDay() === 0 && d.getUTCHours() >= 17) await faireRapport(); await aucuneStrategie(); } catch (e) { erreur('rapport', e); }
@@ -201,11 +223,12 @@ export function creerService({ dossier = dossierAgent(), maintenant = () => Date
   }
   async function demarrer() {
     journal('service', 'Service de l’agent démarré (pid ' + process.pid + ').'); try { await D.charger(); } catch (e) { erreur('chargement des données', e); }
+    try { for (const h of lireEquipe(dossier).hypotheses) enregistrerHypothese(h); } catch (e) { erreur('équipe', e); }     // les familles issues des hypothèses du Chercheur doivent exister pour la surveillance
     await reprendreDepuisWorker(); sauver(); ecrireInfo();
   }
   function battementSepare() { if (!S.configure) return; S.battement(pcInfo()).then(r => { info.worker = { configure: true, ok: true, t: maintenant(), msg: null }; return r; }).catch(e => { info.worker = { configure: true, ok: false, t: maintenant(), msg: String(e.message).slice(0, 100) }; }); }
   function priorite() { if (sansPriorite) return; try { os.setPriority(process.pid, os.constants.priority.PRIORITY_LOW); } catch (e) { journal('service', 'priorité basse impossible : ' + e.message); } }
-  return { cycle, demarrer, battementSepare, priorite, etat: () => etat, suivi: () => suivi, info: () => info, donnees: D, fichiers: F, faireRapport, appliquerCommande, chercher, surveiller, donneesDuJour, pousserEtat, arreter: () => { arretDemande = true; }, statut: () => statutAgent(etat, { pcVivant: true, rechercheEnCours: enCalcul, enPreparation: pcInfo().enPreparation, positionOuverte: pcInfo().positionOuverte }) };
+  return { cycle, demarrer, battementSepare, priorite, equipeDuJour, resumeEquipe: () => resumeEquipe(lireEquipe(dossier), etat, maintenant()), etat: () => etat, suivi: () => suivi, info: () => info, donnees: D, fichiers: F, faireRapport, appliquerCommande, chercher, surveiller, donneesDuJour, pousserEtat, arreter: () => { arretDemande = true; }, statut: () => statutAgent(etat, { pcVivant: true, rechercheEnCours: enCalcul, enPreparation: pcInfo().enPreparation, positionOuverte: pcInfo().positionOuverte }) };
 }
 
 /* ── ligne de commande ── */
@@ -225,7 +248,7 @@ if (estPrincipal()) {
   if (a === '--retour-arriere') { demander({ type: 'retour_arriere', numero: args[1] ? Number(args[1]) : null }); process.exit(0); }
   try { const pid = Number(fs.readFileSync(F.verrou, 'utf8')); if (pid && pid !== process.pid && vivant(pid)) { console.log('Le service tourne déjà (pid ' + pid + ').'); process.exit(0); } } catch (e) { /* pas de verrou */ }
   fs.writeFileSync(F.verrou, String(process.pid)); try { fs.unlinkSync(F.arret); } catch (e) { /* rien */ }
-  const s = creerService({ dossier, avecFlux: true }); s.priorite();
+  const s = creerService({ dossier, avecFlux: true, avecEquipe: true }); s.priorite();
   let fini = false; const sortir = () => { if (fini) return; fini = true; try { s.info().phase = 'arrete'; s.cycle; fs.unlinkSync(F.verrou); } catch (e) { /* fini */ } process.exit(0); };
   process.on('SIGINT', sortir); process.on('SIGTERM', sortir);
   process.on('uncaughtException', e => { try { ajouterJournal({ type: 'erreur', texte: 'non gérée : ' + (e && e.message) }, dossier); } catch (x) { /* rien */ } });

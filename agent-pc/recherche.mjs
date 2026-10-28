@@ -37,6 +37,8 @@ export const tailleGrilleGen = (id, gen) => Object.values(grilleDe(id, gen)).red
 export const cleVariante = (f, paire, p) => f + ':' + paire + ':' + Object.keys(p).sort().map(k => k + '=' + p[k]).join(',');
 /* Ordre de recherche : les familles les plus simples (plus petite grille) d'abord ; à égalité, l'ordre de la bibliothèque. */
 export const ORDRE_TOUT = Object.freeze([...ORDRE_V3, ...ORDRE_V4]), NOMS_TOUT = Object.freeze({ ...NOMS_V3, ...NOMS_V4 });
+/* Nom d'usage d'une tâche : famille connue, sinon le titre de l'hypothèse du Chercheur. */
+export const nomDe = tache => NOMS_TOUT[tache.famille] || (tache.hypothese && tache.hypothese.titre) || tache.famille;
 export const ORDRE_SIMPLICITE = Object.freeze([...ORDRE_TOUT].sort((a, b) => tailleGrille(a) - tailleGrille(b) || ORDRE_TOUT.indexOf(a) - ORDRE_TOUT.indexOf(b)));
 export const ORDRE_SIMPLICITE_GEN = gen => [...ORDRE_TOUT].sort((a, b) => tailleGrilleGen(a, gen) - tailleGrilleGen(b, gen) || ORDRE_TOUT.indexOf(a) - ORDRE_TOUT.indexOf(b));
 
@@ -73,7 +75,7 @@ export const ecrireCache = (dossierCache, emp, v) => ecrireJson(path.join(dossie
 export function courbeReduite(c, max = 200) { if (!Array.isArray(c) || c.length < 2) return null; const pas = Math.max(1, (c.length - 1) / (max - 1)), out = []; for (let i = 0; i < c.length - 1; i += pas) out.push(+c[Math.round(i)].toFixed(2)); out.push(+c[c.length - 1].toFixed(2)); return out; }
 /* Résumé court d'un résultat de validation (ce qui est gardé dans l'état et envoyé au Worker : jamais les listes de trades). */
 export function resumerValidation(r, tache) {
-  const base = { id: tache.famille + ':' + tache.paire + ':' + tache.type, famille: tache.famille, nom: NOMS_TOUT[tache.famille], paire: tache.paire, type: tache.type, statut: r.statut, t: Date.now(), empreinteCriteres: r.criteres, jeuFinalOuvert: !!r.jeuFinal && r.jeuFinal.ouvert === true };
+  const base = { id: tache.famille + ':' + tache.paire + ':' + tache.type, famille: tache.famille, nom: nomDe(tache), paire: tache.paire, type: tache.type, statut: r.statut, t: Date.now(), empreinteCriteres: r.criteres, jeuFinalOuvert: !!r.jeuFinal && r.jeuFinal.ouvert === true };
   if (!r.ok || !r.lignes) return { ...base, grille: tache.grille, raison: r.raison || null };
   const st = r.wf.stats;
   return { ...base, grille: tache.grille, gen: tache.gen || 0, retenus: r.retenus, nVariantes: r.nVariantes, variantesCetteEvaluation: r.variantesDeCetteEvaluation, trades: st.n, esperance: st.esperance, tauxReussite: st.tauxReussite, factProfit: st.factProfit, ddR: st.ddR, parSemaine: st.parSemaine,
@@ -104,13 +106,14 @@ export function integrerResultat(etat, resume, tache, maintenant = Date.now()) {
   if (resume.grille) for (const p of combinaisons(resume.grille)) { const k = cleVariante(resume.famille, resume.paire, p); if (!vues[k]) { vues[k] = 1; nouvelles++; } }
   etat.compteurVariantes[tache.paire] = (etat.compteurVariantes[tache.paire] || 0) + nouvelles; resume.variantesNouvelles = nouvelles;
   const jf = resume.jeuFinal;
-  if (resume.statut === 'validee_backtest' && jf && jf.ouvert) {
+  if (resume.statut === 'validee_backtest' && jf && jf.ouvert) {                                  // (le jeu final n'est ouvert qu'APRÈS un audit réussi : voir travailleur.mjs)
     const coffre = (etat.coffre = etat.coffre || {})[tache.paire] = etat.coffre[tache.paire] || { debutFinal: tache.debutFinal, ouvertures: [] };
     coffre.ouvertures.push({ famille: tache.famille, params: resume.retenus, t: maintenant, resultat: jf.statut, rang: jf.rang });
-    if (jf.ok) { journaliser(etat, 'validation', NOMS_TOUT[tache.famille] + ' ' + tache.paire + ' : validée en backtest ET sur le jeu final (ouvert une seule fois).', maintenant); return [{ famille: tache.famille, paire: tache.paire, params: resume.retenus, validation: { statut: 'validee_backtest', jeuFinal: jf.statut, esperance: resume.esperance, trades: resume.trades, criteres: empreinteV3(), t: maintenant } }]; }
-    journaliser(etat, 'rejet', NOMS_TOUT[tache.famille] + ' ' + tache.paire + ' : validée en backtest mais RECALÉE sur le jeu final (ne revient jamais).', maintenant);
-  } else if (resume.statut === 'rejetee_causalite') journaliser(etat, 'rejet', NOMS_TOUT[tache.famille] + ' ' + tache.paire + ' : REJETÉE, elle regarde le futur.', maintenant);
-  else journaliser(etat, 'essai', NOMS_TOUT[tache.famille] + ' ' + tache.paire + ' (' + tache.type + ') : ' + ({ non_validee: 'non validée (' + (resume.ratees || []).length + ' critères ratés)', insuffisant: 'historique insuffisant', validee_backtest: 'validée en backtest (jeu final en attente)' }[resume.statut] || resume.statut), maintenant);
+    if (jf.ok && !(resume.auditeur && resume.auditeur.ok)) { journaliser(etat, 'rejet', nomDe(tache) + ' ' + tache.paire + ' : jeu final réussi mais AUCUN rapport de l’Auditeur : elle n’est PAS validée (rien n’est validé sans son rapport écrit).', maintenant); return []; }
+    if (jf.ok) { journaliser(etat, 'validation', nomDe(tache) + ' ' + tache.paire + ' : validée en backtest ET sur le jeu final (ouvert une seule fois).', maintenant); return [{ famille: tache.famille, paire: tache.paire, params: resume.retenus, validation: { statut: 'validee_backtest', jeuFinal: jf.statut, esperance: resume.esperance, trades: resume.trades, criteres: empreinteV3(), t: maintenant } }]; }
+    journaliser(etat, 'rejet', nomDe(tache) + ' ' + tache.paire + ' : validée en backtest mais RECALÉE sur le jeu final (ne revient jamais).', maintenant);
+  } else if (resume.statut === 'rejetee_causalite') journaliser(etat, 'rejet', nomDe(tache) + ' ' + tache.paire + ' : REJETÉE, elle regarde le futur.', maintenant);
+  else journaliser(etat, 'essai', nomDe(tache) + ' ' + tache.paire + ' (' + tache.type + ') : ' + ({ non_validee: 'non validée (' + (resume.ratees || []).length + ' critères ratés)', insuffisant: 'historique insuffisant', validee_backtest: 'validée en backtest (jeu final en attente)', rejetee_auditeur: 'rejetée par l’Auditeur (jeu final PRÉSERVÉ, jamais ouvert)' }[resume.statut] || resume.statut), maintenant);
   return [];
 }
 export { combinaisons, CRITERES3 };

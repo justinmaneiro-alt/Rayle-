@@ -36,3 +36,24 @@ export async function ecrireRapport(faits, { fetchImpl = globalThis.fetch, prefe
   }
   return { lignes: rapportTemplate(faits), source: 'texte écrit par le code (aucun modèle utilisé)', essais };
 }
+
+/* Complétion libre pour les rôles de l'équipe (le Chercheur) : même ordre que le rapport (LM Studio, Dolphin si demandé, puis l'API gratuite du Worker), mais avec un prompt système au choix. Rend
+   { texte, source, essais } ; texte = null si aucun modèle n'a répondu (l'appelant utilise alors son secours déterministe). Le modèle ne calcule rien et ne passe aucun ordre. */
+export async function completer({ systeme, utilisateur, fetchImpl = globalThis.fetch, preference = null, config = null, base = LM_STUDIO, temperature = 0.4, maxTokens = 2200, delai = 120000 } = {}) {
+  const essais = [], m = await choisirModele({ fetchImpl, preference, base });
+  if (m) {
+    try {
+      const rep = await json(fetchImpl, base + '/chat/completions', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ model: m.id, temperature, max_tokens: maxTokens, stream: false, messages: [{ role: 'system', content: systeme }, { role: 'user', content: utilisateur }] }) }, delai);
+      const texte = rep.choices && rep.choices[0] && rep.choices[0].message && rep.choices[0].message.content; if (texte) return { texte, source: 'LM Studio (' + m.id + ')', essais };
+      essais.push('LM Studio : réponse vide');
+    } catch (e) { essais.push('LM Studio : ' + String(e.message).slice(0, 80)); }
+  } else essais.push('LM Studio injoignable ou sans modèle');
+  if (config && config.url && config.jeton) {
+    try {
+      const rep = await json(fetchImpl, String(config.url).replace(/\/+$/, '') + '/chat', { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Rayle-Token': config.jeton }, body: JSON.stringify({ text: systeme + '\n\n' + utilisateur }) }, delai);
+      if (rep.reply) return { texte: rep.reply, source: 'API gratuite (' + (rep.engine || 'Worker') + ')', essais };
+      essais.push('API gratuite : réponse vide');
+    } catch (e) { essais.push('API gratuite : ' + String(e.message).slice(0, 80)); }
+  }
+  return { texte: null, source: 'aucun modèle', essais };
+}

@@ -2,6 +2,7 @@ import { basAvant, hautAvant } from './contexte.js';
 import { construireMicro } from './micro-mesures.js';
 import { ema } from './indic.js';
 import { alea } from '../mars-calcul.js';
+import { absorptionVec, divergenceVec, balayagesVec, attacherFluxBougies } from '../../../../strategies/liquidite/contexte-flux.js';
 
 /* ═════════════ RÈGLES DU LABORATOIRE (M5 ; module pur, testé : m5-regles-test.mjs) ═════════════
    Une RÈGLE est une description structurée (JSON) d'une idée de trade : des conditions sur la phase, le volume, le delta, les zones, les sessions, les indicateurs, sur M15, H1 ou H4,
@@ -28,7 +29,12 @@ export const CATALOGUE = Object.freeze({
   meche: { nom: 'Mèche de rejet dans le sens du trade', champs: { ratio: [0.3, 0.8] } },
   zone: { nom: 'Prix près d’une zone', champs: { nom: ['poc', 'val', 'vah', 'vwap', 'asie_haut', 'asie_bas', 'veille_haut', 'veille_bas'], distance: [0.1, 2] } },
   regime: { nom: 'Régime de marché (phases H4 et H1, volatilité) ; haussier / baissier sont ABSOLUS (pas relatifs au côté du trade)', champs: { valeurs: ['haussier', 'baissier', 'range', 'volatil'] } },
-  volatilite: { nom: 'Volatilité H1 (rang sur 30 jours, 0 à 1)', champs: { min: [0, 1], max: [0, 1] } }
+  volatilite: { nom: 'Volatilité H1 (rang sur 30 jours, 0 à 1)', champs: { min: [0, 1], max: [0, 1] } },
+  // V4 : flux et liquidité (événements causaux sur les bougies M15 fermées)
+  absorption: { nom: 'Absorption : gros delta agressif sans que le prix avance (événement)', champs: { facteur: [1.5, 4] } },
+  divergence_cvd: { nom: 'Divergence prix / CVD aux extrêmes (événement)', champs: { fenetre: [12, 120] } },
+  balayage_liquidite: { nom: 'Balayage de plus hauts / bas égaux ou d’un extrême du jour ou de la semaine précédents, refermé à l’intérieur (événement)', champs: { minTouches: [2, 4] } },
+  flux_persistant: { nom: 'Delta de même sens sur k bougies de suite (état)', champs: { k: [2, 8], seuil: [0.03, 0.3] } }
 });
 export const STOPS = Object.freeze({ atr: { k: [0.8, 4], tf: ['h1', 'h4'] }, structure: { L: [8, 96], pad: [0.1, 1] } });
 export const LIMITES = Object.freeze({ conditionsMax: 6, R: [1, 8] });
@@ -50,7 +56,7 @@ export function validerRegle(brut) {
       if (champ === 'valeurs') { if (!Array.isArray(val) || !val.length || !val.every(x => domaine.includes(x))) { erreurs.push(c.type + ' : valeurs invalides'); continue; } n[champ] = [...new Set(val)]; }
       else if (Array.isArray(domaine) && typeof domaine[0] === 'string') { if (!domaine.includes(val)) { erreurs.push(c.type + ' : ' + champ + ' invalide'); continue; } n[champ] = val; }
       else if (champ === 'min' || champ === 'max' || champ === 'ratioMin') { if (val == null) { if (champ === 'ratioMin') val = 0; else if (c.type === 'volatilite') { n[champ] = champ === 'min' ? 0 : 1; continue; } } if (!estNombre(val) || val < domaine[0] || val > domaine[1]) { erreurs.push(c.type + ' : ' + champ + ' hors bornes ' + domaine.join(' à ')); continue; } n[champ] = val; }
-      else { if (!estNombre(val) || val < domaine[0] || val > domaine[1]) { erreurs.push(c.type + ' : ' + champ + ' hors bornes ' + domaine.join(' à ')); continue; } n[champ] = champ === 'periode' || champ === 'N' ? Math.round(val) : val; }
+      else { if (!estNombre(val) || val < domaine[0] || val > domaine[1]) { erreurs.push(c.type + ' : ' + champ + ' hors bornes ' + domaine.join(' à ')); continue; } n[champ] = champ === 'periode' || champ === 'N' || champ === 'fenetre' || champ === 'minTouches' || champ === 'k' ? Math.round(val) : val; }
     }
     regle.conditions.push(n);
   }
@@ -136,6 +142,14 @@ export function masque(ctx, c, s) {
     case 'regime': {                                          // M6 : régime causal à la clôture de i (phases H4 et H1 connues, rang de volatilité H1) ; une stratégie peut donc être conditionnelle à un régime
       const v = new Set(c.valeurs), r = rangVol(ctx), p4 = ctx.h4.phase, p1 = ctx.h1.phase;
       for (let i = 0; i < n; i++) { const code = r[i] >= 0.85 ? 'volatil' : p4[i] === 1 && p1[i] !== 2 ? 'haussier' : p4[i] === 2 && p1[i] !== 1 ? 'baissier' : p4[i] === 3 || p1[i] === 3 ? 'range' : 'transition'; m[i] = v.has(code) ? 1 : 0; }
+      break;
+    }
+    // V4 : flux et liquidité (mêmes vecteurs causaux que les familles de strategies/familles-v4.js)
+    case 'absorption': { const a = absorptionVec(ctx, c.facteur, 0.25).sens; for (let i = 0; i < n; i++) m[i] = a[i] === s ? 1 : 0; break; }
+    case 'divergence_cvd': { const d = divergenceVec(ctx, c.fenetre); for (let i = 0; i < n; i++) m[i] = d[i] === s ? 1 : 0; break; }
+    case 'balayage_liquidite': { const b = balayagesVec(ctx, c.minTouches).sens; for (let i = 0; i < n; i++) m[i] = b[i] === s ? 1 : 0; break; }
+    case 'flux_persistant': {
+      const fl = attacherFluxBougies(ctx); for (let i = c.k; i < n; i++) { let somme = 0, vol = 0, bons = 0, ok2 = true; for (let j = i - c.k + 1; j <= i; j++) { const d = fl.delta[j]; if (!Number.isFinite(d)) { ok2 = false; break; } somme += d; vol += fl.achat[j] + fl.vente[j]; if (d * s > 0) bons++; } m[i] = ok2 && bons >= c.k - 1 && vol > 0 && somme * s / vol >= c.seuil ? 1 : 0; }
       break;
     }
     default: break;
@@ -241,6 +255,10 @@ export function decrireCondition(c) {
     case 'meche': return 'mèche de rejet ≥ ' + Math.round(c.ratio * 100) + ' % de la bougie';
     case 'zone': return 'prix à moins de ' + c.distance + ' ATR de ' + ({ poc: 'le POC', val: 'le bas de la zone de valeur', vah: 'le haut de la zone de valeur', vwap: 'le VWAP', asie_haut: 'le haut de l’Asie', asie_bas: 'le bas de l’Asie', veille_haut: 'le haut de la veille', veille_bas: 'le bas de la veille' }[c.nom]);
     case 'regime': return 'régime ' + c.valeurs.join(' ou ');
+    case 'absorption': return 'absorption : delta ≥ ' + c.facteur + ' × le delta typique sans que le prix avance';
+    case 'divergence_cvd': return 'divergence prix / CVD sur ' + c.fenetre + ' bougies';
+    case 'balayage_liquidite': return 'balayage d’une piscine de stops (≥ ' + c.minTouches + ' touches) refermé à l’intérieur';
+    case 'flux_persistant': return 'delta de même sens sur ' + c.k + ' bougies (≥ ' + Math.round(c.seuil * 100) + ' % du volume)';
     case 'volatilite': return 'volatilité H1 entre ' + Math.round(c.min * 100) + ' % et ' + Math.round(c.max * 100) + ' % de sa plage récente';
     default: return c.type;
   }
@@ -251,7 +269,7 @@ export function decrireRegle(r) {
 }
 
 /* ── État des conditions à la bougie j (pour la PRÉPARATION et l'explication) : pour chaque côté, la liste { condition, ok, evenement }. ── */
-const EVENEMENTS = new Set(['cassure', 'croisement', 'balayage', 'meche', 'rsi', 'zone']);
+const EVENEMENTS = new Set(['cassure', 'croisement', 'balayage', 'meche', 'rsi', 'zone', 'absorption', 'divergence_cvd', 'balayage_liquidite']);
 export function etatConditions(ctx, regle, j) {
   const cotes = regle.cote === 'long' ? [1] : regle.cote === 'short' ? [-1] : [1, -1];
   return cotes.map(s => ({ sens: s, conditions: regle.conditions.map(c => ({ type: c.type, texte: decrireCondition(c), ok: !!masque(ctx, c, s)[j], declencheur: EVENEMENTS.has(c.type) })) }));

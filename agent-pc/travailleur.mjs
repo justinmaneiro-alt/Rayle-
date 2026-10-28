@@ -12,12 +12,16 @@ import { chargerCompact } from './flux/compact-flux.mjs';
 import { ACTIFS_HIST } from './flux/historique-trades.mjs';
 import { attacherEmpreinte } from '../strategies/liquidite/contexte-flux.js';
 import { EXIGENCES_V4 } from '../strategies/familles-v4.js';
+import { auditer } from '../strategies/equipe/auditeur.js';
+import { enregistrerHypothese } from '../strategies/equipe/chercheur.js';
+import { tranche } from '../planetes/mars/pc/agent-btc/colonnes.js';
 
 export async function chargerSerie(dossierDonnees, paire) {
   const h = creerHistorique({ stockage: stockageFichier(path.join(dossierDonnees, paire.toLowerCase())), lire: null }); await h.charger(); return h.serie();
 }
 /* Exécute une tâche avec des séries fournies (testable sans disque). `series` = { BTC: m15, SOL: m15, … }. */
 export function executerTacheSync(tache, contexte, series, compacts = {}) {
+  if (tache.hypothese) enregistrerHypothese(tache.hypothese);                                         // V4 : une hypothèse du Chercheur devient une petite famille testable dans ce processus
   const m15 = series[tache.paire]; if (!m15 || !m15.n) return { resumes: [{ famille: tache.famille, paire: tache.paire, type: tache.type, statut: 'insuffisant', raison: 'pas de données pour ' + tache.paire, t: Date.now() }] };
   const autres = Object.keys(series).filter(p => p !== tache.paire && series[p] && series[p].n).map(p => ({ nom: p, m15: series[p] }));
   const config = configMoteurDe(tache.paire), debutFinal = tache.debutFinal, resumes = [];
@@ -32,9 +36,16 @@ export function executerTacheSync(tache, contexte, series, compacts = {}) {
     resumes.push(resumerValidation(r2, t2)); retenu = r2.statut === 'validee_backtest' ? r2 : r;
     if (r2.statut === 'validee_backtest') tache = t2;
   }
-  if (retenu.statut === 'validee_backtest') {                                                         // jeu final : UNE seule ouverture, paramètres figés
-    const jf = ouvrirJeuFinalV3(m15, retenu.retenus, tache.famille, { debutFinal, rang: (contexte.ouverturesParPaire || {})[tache.paire] + 1 || 1, config, preparer });
-    const dernier = resumes[resumes.length - 1]; dernier.jeuFinal = { ...jf, lignes: (jf.lignes || []).map(l => ({ critere: l.critere, valeur: l.valeur, seuil: l.seuil, ok: l.ok })) };
+  if (retenu.statut === 'validee_backtest') {
+    // V4 : l'AUDITEUR essaie de casser la candidate AVANT l'ouverture du jeu final (qui ne peut servir qu'une fois) ; rien n'est validé sans son rapport écrit
+    const dernier = resumes[resumes.length - 1]; let idx = 0; while (idx < m15.n && m15.t[idx] < debutFinal) idx++;
+    const aud = auditer({ id: tache.famille, params: retenu.retenus, paire: tache.paire, nom: dernier.nom }, tranche(m15, 0, idx), { config, preparer, resultatValidation: retenu });
+    dernier.auditeur = { ok: aud.ok, t: aud.t, resume: aud.resume, tests: aud.tests.map(t => ({ nom: t.nom, ok: t.ok, valeur: t.valeur, seuil: t.seuil })), rapport: aud.rapport, candidate: aud.candidate };
+    if (!aud.ok) { dernier.statut = 'rejetee_auditeur'; dernier.ratees = [...(dernier.ratees || []), 'Auditeur : ' + aud.tests.filter(t => !t.ok).map(t => t.nom).join(' ; ')]; }
+    else {                                                                                              // jeu final : UNE seule ouverture, paramètres figés
+      const jf = ouvrirJeuFinalV3(m15, retenu.retenus, tache.famille, { debutFinal, rang: (contexte.ouverturesParPaire || {})[tache.paire] + 1 || 1, config, preparer });
+      dernier.jeuFinal = { ...jf, lignes: (jf.lignes || []).map(l => ({ critere: l.critere, valeur: l.valeur, seuil: l.seuil, ok: l.ok })) };
+    }
   }
   return { resumes };
 }

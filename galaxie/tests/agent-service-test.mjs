@@ -37,7 +37,7 @@ const executeur = async (tache, contexte) => {
   executions.push({ famille: tache.famille, paire: tache.paire, gen: tache.gen, variantesAvant: contexte.variantesAvant });
   const valide = tache.famille === 'tendance_ma' && tache.paire === 'BTC' && !tache.gen;
   const base = { famille: tache.famille, paire: tache.paire, type: 'exploration', t: horloge, grille: tache.grille, gen: tache.gen || 0, esperance: valide ? 0.4 : -0.1, trades: 180 };
-  if (valide) return { resumes: [{ ...base, statut: 'validee_backtest', retenus: { touche: 0.3, stopATR: 1, R: 4, exigeH4: 1 }, jeuFinal: { ok: true, ouvert: true, statut: 'reussi', rang: 1 } }] };
+  if (valide) return { resumes: [{ ...base, statut: 'validee_backtest', retenus: { touche: 0.3, stopATR: 1, R: 4, exigeH4: 1 }, jeuFinal: { ok: true, ouvert: true, statut: 'reussi', rang: 1 }, auditeur: { ok: true, resume: ['L’Auditeur n’a pas réussi à casser cette stratégie.'], tests: [] } }] };    // V4 : rien n'est validé sans le rapport de l'Auditeur
   return { resumes: [{ ...base, statut: 'non_validee', ratees: ['Espérance nette'] }] };
 };
 

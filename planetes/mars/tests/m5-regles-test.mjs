@@ -18,7 +18,7 @@ v('stop absent refusé', !validerRegle({ ...base, stop: null }).ok);
 v('aucune condition refusée', !validerRegle({ ...base, conditions: [] }).ok);
 v('trop de conditions refusé', !validerRegle({ ...base, conditions: Array.from({ length: 9 }, () => ({ type: 'volume', min: 1 })) }).ok);
 v('champs inconnus supprimés (injection)', (() => { const r = validerRegle({ ...base, evil: 'x', conditions: [{ type: 'volume', min: 1, code: 'alert(1)' }] }); return r.ok && !('evil' in r.regle) && !('code' in r.regle.conditions[0]); })());
-v('le catalogue contient 14 types', Object.keys(CATALOGUE).length === 14);
+v('le catalogue contient 18 types (14 d’origine + 4 de flux ajoutés en V4 : absorption, divergence_cvd, balayage_liquidite, flux_persistant)', Object.keys(CATALOGUE).length === 18 && ['absorption', 'divergence_cvd', 'balayage_liquidite', 'flux_persistant'].every(k => CATALOGUE[k]));
 
 // ── signaux : causalité (poison du futur par coupure), déterminisme ──
 const m15 = marcheMixte(24000, 5), ctx = construireContexte(m15);
