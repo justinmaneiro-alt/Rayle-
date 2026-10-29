@@ -2,6 +2,7 @@
 // et plus rapide). Mêmes garde-fous que le Veilleur : hôte local, même origine, en-tête X-Rayle-Multi pour les actions. Aucun secret n'est renvoyé (le jeton du Worker reste dans config.local.json).
 //   GET  /__agent/etat      { ok, enMarche, service, etat, suivi }   (état complet de l'agent, comme /agent/etat du Worker)
 //   GET  /__agent/equipe      { ok, equipe (3 rôles), hypotheses, pepiniere }          (V4 : onglet Équipe)
+//   GET  /__agent/pistes      { ok, pistes (5), toutes, profil, frais, couts, recherche, voieCorrigee }   (V6 : onglet Meilleures pistes)
 //   GET  /__agent/occasions   { ok, occasions, exemples }                               (V4 : onglet Occasions manquées)
 //   GET  /__agent/donnees     { ok, flux, historique, disque }                          (V4 : onglet Données)
 //   POST /__agent/commande  { type: 'pause' | 'reprendre' | 'charge' | 'retour_arriere' | 'rapport', valeur?, numero? }  → écrit commandes.json, lu par le service à son prochain cycle
@@ -14,6 +15,10 @@ import { lirePepiniere, resumePepiniere } from '../agent-pc/pepiniere.mjs';
 import { statutFlux } from '../agent-pc/flux/service-flux.mjs';
 import { creerHistorique } from '../agent-pc/flux/historique-trades.mjs';
 import { resumeOccasions, resumeExemples } from '../strategies/autonomie.js';
+import { pistesDepuis, meilleuresPistes, PROFIL_45_RR2 } from '../strategies/pistes.js';
+import { phraseFraisEtat, fraisMoyenR } from '../strategies/agent-etat.js';
+import { cleParams } from '../planetes/mars/pc/agent-btc/hypotheses.js';
+import { lireCoutsReglage, phraseSource } from '../agent-pc/couts-reglage.mjs';
 
 const COMMANDES = ['pause', 'reprendre', 'charge', 'retour_arriere', 'rapport', 'observation', 'rapport_quotidien'];
 export function creerRoutesAgent(env = process.env) {
@@ -33,6 +38,15 @@ export function creerRoutesAgent(env = process.env) {
       if (route === 'equipe' && req.method === 'GET') {
         const e = lireEquipe(dossier()), etat = fs.existsSync(F.etat) ? chargerEtat(dossier()) : null, now = Date.now();
         return json(200, { ok: true, equipe: resumeEquipe(e, etat, now), hypotheses: e.hypotheses.slice(-30).reverse().map(h => ({ id: h.id, titre: h.titre, raison: h.raison, statut: h.statut, source: h.source, t: h.t, resultats: h.resultats })), pepiniere: resumePepiniere(lirePepiniere(dossier()), now), rapportQuotidien: etat && etat.rapportQuotidien || null });
+      }
+      if (route === 'pistes' && req.method === 'GET') {   // V6 : onglet « Meilleures pistes »
+        if (!fs.existsSync(F.etat)) return json(200, { ok: true, existe: false });
+        const etat = chargerEtat(dossier()), toutes = pistesDepuis(etat.backtests), top = meilleuresPistes(etat.backtests, { n: 5 }), pep = lirePepiniere(dossier()), service = lireJson(F.service, null), now = Date.now();
+        const parCle = new Map(pep.candidates.filter(c => c.type !== 'carnet').map(c => [c.famille + ':' + c.paire + ':' + cleParams(c.params || {}), c]));
+        const marquer = p => { const c = p.retenus ? parCle.get(p.famille + ':' + p.paire + ':' + cleParams(p.retenus)) : null; return c ? { ...p, enPepiniere: true, pepiniere: { statut: c.statut, trades: c.trades.length, jours: Math.floor((now - c.debut) / 86400e3), moyenne: c.trades.length ? c.trades.reduce((a, x) => a + x.R, 0) / c.trades.length : null, decision: c.sprt && c.sprt.decision || null } } : p; };
+        toutes.sort((a, b) => (b.bootstrapBas == null ? -9 : b.bootstrapBas) - (a.bootstrapBas == null ? -9 : a.bootstrapBas));
+        return json(200, { ok: true, existe: true, pistes: top.map(marquer), toutes: toutes.slice(0, 150).map(marquer), profil: PROFIL_45_RR2, frais: { phrase: phraseFraisEtat(etat), coutMoyenR: fraisMoyenR(etat) }, couts: phraseSource(lireCoutsReglage(dossier())),
+          recherche: { phase: service && service.phase, raison: service && service.raison, niveaux: etat.recherche.niveaux || null, attente: etat.recherche.attente || null }, voieCorrigee: !!etat.parametresRisque.testsMultiplesCorriges, variantes: Object.values(etat.compteurVariantes || {}).reduce((a, b) => a + b, 0) });
       }
       if (route === 'occasions' && req.method === 'GET') {
         const o = lireJson(path.join(dossier(), 'occasions.json'), {}) || {}, liste = Object.entries(o).flatMap(([p, j]) => ((j && j.liste) || []).map(x => ({ ...x, actif: p }))).sort((a, b) => b.t - a.t);

@@ -95,3 +95,9 @@ abbr.av3-t:hover::after, abbr.av3-t:focus::after, abbr.av3-t.av3-ouvert::after {
 .av4-indispo{color:#ffb3bc;background:rgba(255,93,110,.07);border:1px solid rgba(255,93,110,.3);padding:8px 12px}
 .av4-jauge{height:10px;border:1px solid rgba(143,208,227,.3);margin:6px 0}.av4-jauge i{display:block;height:100%;background:#8fd0e3}
 @media (max-width:820px){.av4{padding:10px 10px 24px}.av3-vues button{padding:0 12px}}
+/* V6 : onglet « Meilleures pistes » */
+.av4-sous{margin:14px 0 8px;font:600 12px system-ui;letter-spacing:.14em;text-transform:uppercase;color:#c9b27a}
+.av4-piste[data-statut="prouvee"]{border-color:rgba(47,209,139,.6)}.av4-piste[data-statut="validee"]{border-color:rgba(47,209,139,.35)}.av4-piste[data-statut="prometteuse"]{border-color:rgba(201,178,122,.5)}.av4-piste[data-statut="decevante"]{opacity:.8}
+.av4-tab{width:100%;border-collapse:collapse;font-size:13px}.av4-tab th{text-align:left;font-weight:500;color:#9db0bb;padding:3px 10px 3px 0;white-space:nowrap}.av4-tab td{padding:3px 14px 3px 0;font-family:ui-monospace,Consolas,monospace;color:#e6eef2}
+.av4-tag[data-s=prouvee],.av4-tag[data-s=validee]{color:#2fd18b;border-color:rgba(47,209,139,.45)}.av4-tag[data-s=prometteuse]{color:#c9b27a;border-color:rgba(201,178,122,.5)}.av4-tag[data-s=decevante]{color:#9db0bb}
+.av4-profil input{width:64px;min-height:30px;background:rgba(143,208,227,.08);color:#e6eef2;border:1px solid rgba(143,208,227,.35);padding:0 6px;font:13px ui-monospace,Consolas,monospace}
