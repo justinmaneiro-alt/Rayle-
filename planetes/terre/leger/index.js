@@ -1,4 +1,6 @@
-import * as THREE from 'three';
+/* V7b : la carte légère tourne aussi SANS la galaxie (hôte mobile : core/commun/hote-modules.js, G.hote = true) ; elle n'a alors pas besoin de three.js (scène factice). */
+const FAUX_THREE = { Scene: class { }, Color: class { }, PerspectiveCamera: class { } };
+let THREE = FAUX_THREE;
 import { creerCarte } from './carte.js';
 import * as C from './carte-calcul.js';
 import * as REG from '../pc/reglages-terre.js';
@@ -14,7 +16,7 @@ import { CREDITS, CREDITS_COURT } from '../pc/sources.js';
    du globe (fenetres-terre.js). Pas de relief, pas de bâtiments 3D, pas de nuages : la carte graphique dort, la batterie tient. Même API `window.Terre` que le globe pour les ordres vocaux. */
 let inst = null, enCours = null;
 export function entrer(G, options = {}) {
-  if (!enCours) enCours = (async () => { inst = inst || construire(G); await inst.entrer(options); })().finally(() => { enCours = null; });
+  if (!enCours) enCours = (async () => { if (!inst) { THREE = G && G.hote ? FAUX_THREE : await import('three'); inst = construire(G); } await inst.entrer(options); })().finally(() => { enCours = null; });
   return enCours;
 }
 export const sortir = () => inst && inst.sortir();
@@ -25,7 +27,7 @@ const lireVue = () => { try { return JSON.parse(localStorage.getItem('rayle_terr
 const ecrireVue = v => { try { localStorage.setItem('rayle_terre_leger_vue', JSON.stringify({ lon: +v.lon.toFixed(3), lat: +v.lat.toFixed(3), zoom: +v.zoom.toFixed(2) })); } catch (e) { /* stockage refusé : la vue ne sera pas retenue */ } };
 
 function construire(G) {
-  const racine = document.getElementById('vueGalaxie');
+  const racine = G.racine || document.getElementById('vueGalaxie');
   if (!document.getElementById('terre-leger-css')) { const l = document.createElement('link'); l.id = 'terre-leger-css'; l.rel = 'stylesheet'; l.href = new URL('./leger.css', import.meta.url).href; document.head.appendChild(l); }
   let actif = false, entreeFinie = false, carte = null, sujets = [], filCourant = null, choisi = null, sujetOuvert = null, reglages = REG.lire();
   const fenetres = creerFenetres();
@@ -34,7 +36,7 @@ function construire(G) {
   ui.innerHTML = `
     <div class="tl-zone"></div><div class="tl-epingles" aria-label="Actualités sur la carte"></div><div id="terre-fondu" class="tl-fondu"></div>
     <header class="tl-haut">
-      <button type="button" class="tl-b tl-retour" data-a="quitter" aria-label="Retour à la galaxie">‹ Galaxie</button>
+      <button type="button" class="tl-b tl-retour" data-a="quitter" aria-label="Retour">‹ ${G.hote ? 'Retour' : 'Galaxie'}</button>
       <form class="tl-recherche" role="search"><input type="search" enterkeyhint="search" autocomplete="off" placeholder="Chercher un lieu…" aria-label="Chercher un lieu"><button type="submit" aria-label="Chercher">⌕</button></form>
       <div class="tl-resultats" hidden></div>
     </header>

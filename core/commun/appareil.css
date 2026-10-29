@@ -1,0 +1,11 @@
+/* V7b : téléphone et tablette. Le mode Galaxie est réservé au PC : ses points d'entrée disparaissent, Jarvis reste le seul thème. */
+html.appareil-mobile #btnOuvrirGalaxie,
+html.appareil-mobile #vueGalaxie,
+html.appareil-mobile #g-reglages-btn,
+html.appareil-mobile [data-ouvrir="galaxie"]{display:none!important}
+/* cibles tactiles d'au moins 44 px, zones sûres (encoche, barre de navigation Android) */
+html.appareil-mobile button,html.appareil-mobile select,html.appareil-mobile input[type=checkbox]+label,html.appareil-mobile .gros{min-height:44px}
+html.appareil-mobile body{padding-left:env(safe-area-inset-left);padding-right:env(safe-area-inset-right)}
+html.appareil-mobile #panneaux .pn-fermer,html.appareil-mobile #panneaux .pn-x{min-width:44px;min-height:44px}
+.hote-modules{position:fixed;inset:0;z-index:60;background:#05080f}
+.hote-modules[hidden]{display:none}

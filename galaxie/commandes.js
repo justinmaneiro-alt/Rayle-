@@ -39,14 +39,38 @@
      planetes/terre/pc/ordres-terre.js (chargé à la demande) ; sa réponse parlée est ensuite lue segment par segment, la caméra suivant chaque sujet. */
   let terrePret=null;
   const terreModule=()=>terrePret||(terrePret=import(new URL('planetes/terre/pc/ordres-terre.js',document.baseURI).href).catch(e=>{ terrePret=null; throw e; }));
+  /* V7b : sur téléphone et tablette, jamais de galaxie : les ordres « Terre » de l'agent s'exécutent dans Jarvis (fenêtres d'actualités, météo) ; le reste dit honnêtement « réservé au PC ». */
+  const mobile=()=>!!(window.RayleAppareil&&RayleAppareil.estMobile());
+  const MSG_GALAXIE=()=>(window.RayleAppareil&&RayleAppareil.MESSAGE_GALAXIE)||'Le mode Galaxie est réservé au PC ; ici je reste sur Jarvis.';
+  async function terreMobile(a){
+    switch(a.op){
+      case 'actualites': {
+        if(a.portee==='pays'&&a.pays&&window.ActusPays){ await ActusPays.ouvrirPays(a.pays); return {ok:true}; }
+        if(window.ActusAccueil){ await ActusAccueil.ouvrir(a.portee==='monde'?'monde':'france',a.rubrique||null); return {ok:true}; }
+        return {ok:false};
+      }
+      case 'meteo': {
+        if(Number.isFinite(a.lat)&&Number.isFinite(a.lon)){ const F=await import(new URL('planetes/terre/pc/fenetres-terre.js',document.baseURI).href); return F.creerFenetres().meteo(a.lat,a.lon,a.nom); }
+        if(window.TableauBord) TableauBord.ouvrir('meteo'); return {ok:true};
+      }
+      case 'afficher': case 'aller': {      // carte plate légère (même planète, mêmes données), dans un plein écran à elle : jamais la galaxie
+        const T=await HoteModules.ouvrirTerre(); const l=a.lieu||{};
+        if(a.op==='aller'&&Number.isFinite(l.lat)&&Number.isFinite(l.lon)&&T&&T.aller) T.aller({nom:l.nom,lat:l.lat,lon:l.lon,distance:l.dist||25});
+        return {ok:true};
+      }
+      case 'eclairer': case 'evenements':
+        addLine('sys',MSG_GALAXIE()+' La carte du monde 3D n’existe pas ici : je te donne les actualités et la météo.'); return {ok:false,reservePC:true};
+      default: return {ok:false};
+    }
+  }
   window.TerreVoix={
     attente:false,
-    async executer(a){ const m=await terreModule(); try{ return await m.executer(a); }finally{ this.attente=m.enAttente(); } },
+    async executer(a){ if(mobile()) return terreMobile(a); const m=await terreModule(); try{ return await m.executer(a); }finally{ this.attente=m.enAttente(); } },
     enAttente(){ return this.attente; },
     propre(t){ return String(t==null?'':t).replace(/\s*\[\d{1,2}\]\s*/g,' ').replace(/\s+/g,' ').trim(); },
     async dire(reply,speak,annule){ const m=await terreModule(); this.attente=false; return m.dire(reply,speak,annule); }
   };
-  setTimeout(()=>{ galPreparer().catch(()=>{}); },5000);
+  if(!mobile()) setTimeout(()=>{ galPreparer().catch(()=>{}); },5000);      // sur téléphone / tablette : rien de la galaxie n'est préparé
 
   /* Terminal de Mars : « montre-moi l'or en H1 », « passe en H4 », « mets le nasdaq ». Pris avant les commandes du terminal 2D, mais SEULEMENT quand Mars est ouverte
      (ou que la phrase dit « sur Mars » / « dans la base ») : sinon le terminal 2D garde ses commandes. L'analyse de la phrase est pure : planetes/mars/pc/trading/instruments.js. */
@@ -165,6 +189,12 @@
   async function commandeGalaxie(texte){
     const n=cmdNorm(norm(texte)).replace(/['’\-\/]/g,' ').replace(/\s+/g,' ').trim();
     if(!n || n.split(' ').length>9) return null;
+    if(mobile()){      // V7b : aucune galaxie ici, mais une réponse claire et polie
+      if(/\b(?:carte|planisphere)\b.*\b(?:monde|terre)\b|\b(?:ouvre|affiche|montre)\b.*\b(?:la terre|carte)\b/.test(n) && !/galaxie/.test(n) && window.HoteModules){ try{ await HoteModules.ouvrirTerre(); return 'Voici la carte de la Terre.'; }catch(e){ return 'La carte n’est pas disponible : '+(e&&e.message||e)+'.'; } }
+      if(/\b(?:galaxie|systeme solaire)\b/.test(n) && /\b(?:ouvre|ouvrir|affiche|afficher|montre|montrer|va|retour|mode|active|lance|visite|entre)\b/.test(n)) return MSG_GALAXIE();
+      if(/\b(?:va|vas|aller|emmene|amene|vole|direction|visite|zoome|approche)\b.*\b(?:mars|saturne|jupiter|neptune|uranus|venus|mercure|soleil)\b/.test(n)) return MSG_GALAXIE()+' Je peux ouvrir le terminal, l’agent, les actualités ou la météo.';
+      return null;
+    }
     if(!galGrammaire && !GAL_AMORCE.test(n)) return null;
     try{ await galPreparer(); }catch(e){ return null; }
     const vue=RayleBus.demander('vue');

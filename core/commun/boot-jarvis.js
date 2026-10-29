@@ -15,7 +15,8 @@
   const reduit=!!(window.matchMedia&&matchMedia('(prefers-reduced-motion: reduce)').matches);
   const direct=/^#(terminal|galaxie)/.test(location.hash);
   const piloteParTest=navigator.webdriver===true&&!/[?&]boot=1/.test(location.search);
-  if(window.RAYLE_SATELLITE||lire()==='0'||reduit||direct||piloteParTest||!document.getElementById('reactor')||!window.JarvisSvg) return;
+  const mobile=!!(window.RayleAppareil&&RayleAppareil.estMobile());   // V7b : pas de séquence de démarrage sur téléphone et tablette (Jarvis s'ouvre tout de suite)
+  if(window.RAYLE_SATELLITE||lire()==='0'||reduit||direct||piloteParTest||mobile||!document.getElementById('reactor')||!window.JarvisSvg) return;
 
   const DUREES={complet:3800,normal:2900,leger:1500};
   const NOMS={complet:'COMPLET',normal:'NORMAL',leger:'LÉGER'};

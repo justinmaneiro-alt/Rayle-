@@ -6,6 +6,7 @@
 <meta name="theme-color" content="#030103">
 <title>RAYLÉ // Market &amp; Neural Core</title>
 <link rel="icon" type="image/svg+xml" href="favicon.svg">
+<script src="core/commun/appareil.js"></script>
 <script src="core/multi/satellite-tot.js"></script>
 <script type="importmap">
 { "imports": { "three": "./galaxie/vendor/three.module.min.js", "three/addons/": "./galaxie/vendor/addons/" } }
@@ -16,7 +17,7 @@
 <link rel="stylesheet" href="core/commun/actus-accueil.css">
 <link rel="stylesheet" href="terminal/css/terminal.css">
 <link rel="stylesheet" href="terminal/css/terminal-pro.css">
-<link rel="stylesheet" href="galaxie/galaxie.css">
+<script>if(!window.RayleAppareil||RayleAppareil.estPC())document.write('<link rel="stylesheet" href="galaxie/galaxie.css">');</script>
 <link rel="stylesheet" href="core/multi/multi.css">
 <link rel="stylesheet" href="core/commun/veilleur.css">
 <link rel="stylesheet" href="core/direct/direct.css">
@@ -27,6 +28,7 @@
 <link rel="stylesheet" href="core/gestes/gestes.css">
 <link rel="stylesheet" href="core/gestes/gestes-v5.css">
 <link rel="stylesheet" href="core/commun/v1-theme.css">
+<link rel="stylesheet" href="core/commun/appareil.css">
 <link rel="stylesheet" href="core/commun/g1-accueil.css">
 <link rel="stylesheet" href="core/commun/g1-mini.css">
 <link rel="stylesheet" href="core/commun/actus-pays.css">
@@ -298,16 +300,18 @@
 <script src="core/commun/jarvis-svg.js"></script>
 <script src="core/commun/sons.js"></script>
 <script src="core/commun/interrupteur-ancien.js"></script>
+<script src="core/commun/appareil-ui.js"></script>
+<script src="core/commun/hote-modules.js"></script>
 <script src="core/commun/jarvis-bureau-page.js"></script>
 <script src="core/commun/jarvis.js"></script>
 <script src="core/commun/tableau-bord-contenu.js"></script>
 <script src="core/commun/tableau-bord.js"></script>
-<script src="core/commun/g1-contenu.js"></script>
-<script src="core/commun/g1-fenetres-calcul.js"></script>
-<script src="core/commun/graphique-bougies-calcul.js"></script>
-<script src="core/commun/graphique-bougies.js"></script>
-<script src="core/commun/g1-accueil.js"></script>
-<script src="core/commun/g1-mini.js"></script>
+<script>if(!window.RayleAppareil||RayleAppareil.estPC())document.write('<script src="core/commun/g1-contenu.js"><\/script>');</script>
+<script>if(!window.RayleAppareil||RayleAppareil.estPC())document.write('<script src="core/commun/g1-fenetres-calcul.js"><\/script>');</script>
+<script>if(!window.RayleAppareil||RayleAppareil.estPC())document.write('<script src="core/commun/graphique-bougies-calcul.js"><\/script>');</script>
+<script>if(!window.RayleAppareil||RayleAppareil.estPC())document.write('<script src="core/commun/graphique-bougies.js"><\/script>');</script>
+<script>if(!window.RayleAppareil||RayleAppareil.estPC())document.write('<script src="core/commun/g1-accueil.js"><\/script>');</script>
+<script>if(!window.RayleAppareil||RayleAppareil.estPC())document.write('<script src="core/commun/g1-mini.js"><\/script>');</script>
 <script src="core/commun/fenetres-anim.js"></script>
 <script src="core/commun/boot-jarvis.js"></script>
 <script src="core/commun/reponses-contenu.js"></script>

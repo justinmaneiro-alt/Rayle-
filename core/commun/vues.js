@@ -11,6 +11,14 @@
       charger:()=>import(new URL('galaxie/vue.js',document.baseURI).href)}
   };
   let vue='rayle', pousse=false;
+  /* V7b : le mode Galaxie est RÉSERVÉ AU PC. Sur téléphone et tablette on reste sur Jarvis : la demande est refusée poliment, rien de la galaxie n'est chargé (ni scripts, ni textures, ni three.js). */
+  const galaxieRefusee=v=>v==='galaxie'&&window.RayleAppareil&&!RayleAppareil.galaxieAutorisee();
+  function refuserGalaxie(){
+    const m=(window.RayleAppareil&&RayleAppareil.MESSAGE_GALAXIE)||'Le mode Galaxie est réservé au PC ; ici je reste sur Jarvis.';
+    try{ RayleBus.fusion('galaxie',{ouvert:false,erreur:m,refusee:true}); }catch(e){}
+    RayleBus.emit('vue:erreur',{message:m}); RayleBus.emit('vue:refusee',{vue:'galaxie',message:m});
+    try{ if(location.hash==='#galaxie') history.replaceState(null,'',location.pathname+location.search); }catch(e){}
+  }
   const modules={}, chargements={};
 
   function charger(nom){
@@ -23,6 +31,7 @@
     if(modules[nom]) modules[nom].fermer();
   }
   async function afficher(v){
+    if(galaxieRefusee(v)){ refuserGalaxie(); v='rayle'; }
     if(v===vue) return;
     let m=null;
     if(v!=='rayle'){
@@ -42,6 +51,7 @@
   }
   const depuisHash=h=>Object.keys(VUES).find(k=>VUES[k].hash===h)||'rayle';
   function ouvrir(v){
+    if(galaxieRefusee(v)){ refuserGalaxie(); return Promise.resolve(); }
     if(vue===v) return Promise.resolve();
     const h=VUES[v].hash;
     if(location.hash!==h){
