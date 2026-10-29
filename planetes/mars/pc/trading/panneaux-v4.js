@@ -4,8 +4,9 @@ const esc = t => String(t == null ? '' : t).replace(/[&<>"]/g, c => ({ '&': '&am
 const fr = (x, d = 1) => (x == null || !Number.isFinite(x) ? '—' : x.toFixed(d).replace('.', ','));
 const quand = t => (t ? new Date(t).toLocaleString('fr-FR', { timeZone: 'Europe/Paris', day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }) : '—');
 import { filtrerProfil, PROFIL_45_RR2 } from '../../../../strategies/pistes.js';
-export const VUES_V4 = Object.freeze(['pistes', 'liquidite', 'equipe', 'occasions', 'donnees']);
-export const LIBELLES_V4 = Object.freeze({ pistes: 'Meilleures pistes', liquidite: 'Liquidité', equipe: 'Équipe', occasions: 'Occasions manquées', donnees: 'Données' });
+import { htmlPositions, htmlBilan, htmlPourquoi, htmlReglages, htmlExemples, svgBougies, pointDepuisClic, indisponible as indispoV7 } from '../agent-v7/vue-positions.js';
+export const VUES_V4 = Object.freeze(['positions', 'bilan', 'pourquoi', 'exemples', 'reglages_pos', 'pistes', 'liquidite', 'equipe', 'occasions', 'donnees']);
+export const LIBELLES_V4 = Object.freeze({ positions: 'Positions du jour', bilan: 'Bilan', pourquoi: 'Pourquoi pas plus', exemples: 'Exemples', reglages_pos: 'Réglages positions', pistes: 'Meilleures pistes', liquidite: 'Liquidité', equipe: 'Équipe', occasions: 'Occasions manquées', donnees: 'Données' });
 const json = async (u, ms = 8000) => { const c = new AbortController(), t = setTimeout(() => c.abort(), ms); try { const r = await fetch(u, { cache: 'no-store', signal: c.signal }); if (!r.ok) throw new Error('HTTP ' + r.status); return await r.json(); } finally { clearTimeout(t); } };
 const indispo = raison => '<p class="av4-indispo">Le service du PC ne répond pas (' + esc(raison) + '). Cet onglet lit ce que Kepler enregistre sur ton PC : lance-le (node agent-pc/service.mjs) ou ouvre Rayle depuis l’application PC.</p>';
 const carte = (titre, corps, cls = '') => '<section class="av4-carte ' + cls + '"><h4>' + esc(titre) + '</h4>' + corps + '</section>';
@@ -79,12 +80,21 @@ export function htmlDonnees(d) {
 
 export function creerPanneauxV4({ conteneur, ouvrirCarte = actif => import('../liquidite/fenetre-liquidite.js').then(m => m.ouvrirCarte({ actif })) }) {
   const racine = document.createElement('div'); racine.className = 'av4'; conteneur.appendChild(racine); let vue = null, minuteur = 0, detruit = false;
-  let cachePistes = null, profil = { ...PROFIL_45_RR2 };
+  let cachePistes = null, profil = { ...PROFIL_45_RR2 }, cachePos = null, actifEx = 'BTC', marquage = null;
+  const poster = async (url, corps) => { try { await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Rayle-Multi': '1' }, body: JSON.stringify(corps) }); return true; } catch (e) { return false; } };
+  const envoyerReglages = valeur => poster('/__agent/positions/commande', { type: 'reglages', valeur });
   async function rendre() {
     if (detruit || !vue) return; const v = vue;
+    if (v === 'exemples' && marquage) return;      // un marquage est en cours : on ne redessine pas sous le doigt
     try {
       let html = '';
       if (v === 'liquidite') { let a = null, s = null; try { s = await json('/__flux/statut', 4000); } catch (e) { /* absent */ } try { const j = await json('/__flux/analyse?actif=BTC&venue=binance-spot&minutes=20', 20000); a = j.analyse; } catch (e) { /* absent */ } html = s ? htmlLiquidite(a, s) : indispo('/__flux/statut') + htmlLiquidite(null, null); }
+      else if (v === 'positions' || v === 'bilan' || v === 'pourquoi' || v === 'exemples' || v === 'reglages_pos') {
+        if (!(v === 'exemples' && cachePos && marquage && racine.dataset.garder === '1')) cachePos = await json('/__agent/positions');
+        if (v === 'positions') html = htmlPositions(cachePos); else if (v === 'bilan') html = htmlBilan(cachePos); else if (v === 'reglages_pos') html = htmlReglages(cachePos);
+        else if (v === 'exemples') html = htmlExemples(cachePos, { actif: actifEx, marquage });
+        else { let pi = null; try { pi = await json('/__agent/pistes'); } catch (e) { /* pistes absentes */ } html = htmlPourquoi(cachePos, pi); }
+      }
       else if (v === 'pistes') { cachePistes = await json('/__agent/pistes'); html = htmlPistes(cachePistes, profil); }
       else if (v === 'equipe') html = htmlEquipe(await json('/__agent/equipe'));
       else if (v === 'occasions') html = htmlOccasions(await json('/__agent/occasions'));
@@ -95,5 +105,33 @@ export function creerPanneauxV4({ conteneur, ouvrirCarte = actif => import('../l
   racine.addEventListener('change', ev => { const c = ev.target.closest && ev.target.closest('[data-av4-profil]'); if (!c || !cachePistes) return; const k = c.dataset.av4Profil, x = Number(c.value); if (!Number.isFinite(x)) return; profil = { ...profil, nom: 'profil choisi', [k]: k === 'rrMin' ? x : x / 100 }; racine.innerHTML = '<h3 class="av4-titre">' + esc(LIBELLES_V4.pistes) + '</h3>' + htmlPistes(cachePistes, profil); });
   racine.addEventListener('click', ev => { const b = ev.target.closest('[data-av4-carte]'); if (b) ouvrirCarte(b.dataset.av4Carte).catch(() => {}); });
   racine.addEventListener('change', async ev => { if (ev.target.matches('[data-av4-observation]')) { try { await fetch('/__agent/commande', { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Rayle-Multi': '1' }, body: JSON.stringify({ type: 'observation', valeur: ev.target.checked }) }); } catch (e) { /* service absent */ } } });
+  const redessiner = () => { if (vue === 'exemples' && cachePos) racine.innerHTML = '<h3 class="av4-titre">' + esc(LIBELLES_V4.exemples) + '</h3>' + htmlExemples(cachePos, { actif: actifEx, marquage }); };
+  racine.addEventListener('click', async ev => {
+    const svg = ev.target.closest && ev.target.closest('[data-av7-graphe] svg');
+    if (svg && cachePos && cachePos.vue) {
+      const r = svg.getBoundingClientRect(), vb = svg.viewBox.baseVal, px = (ev.clientX - r.left) * vb.width / r.width, py = (ev.clientY - r.top) * vb.height / r.height, g = svgBougies((cachePos.vue.bougies || {})[actifEx], {}), pt = pointDepuisClic(g.echelle, px, py); if (!pt) return;
+      marquage = marquage || {}; if (marquage.entree == null) Object.assign(marquage, { t: pt.t, entree: pt.prix }); else if (marquage.stop == null) marquage.stop = pt.prix; else marquage.cible = pt.prix;
+      racine.dataset.garder = '1'; redessiner(); return;
+    }
+    const a = ev.target.closest && ev.target.closest('[data-av7-actif-ex]'); if (a) { actifEx = a.dataset.av7ActifEx; marquage = null; redessiner(); return; }
+    if (ev.target.closest && ev.target.closest('[data-av7-ex-raz]')) { marquage = null; redessiner(); return; }
+    const aj = ev.target.closest && ev.target.closest('[data-av7-ex-ajouter]');
+    if (aj && marquage && marquage.entree != null) {
+      const avis = aj.dataset.av7ExAjouter, achat = marquage.stop != null ? marquage.entree > marquage.stop : (marquage.cible != null ? marquage.cible > marquage.entree : true);
+      await poster('/__agent/positions/commande', { type: 'exemple', valeur: { actif: actifEx, sens: achat ? 'achat' : 'vente', avis, t: marquage.t, entree: marquage.entree, stop: marquage.stop ?? null, cible: marquage.cible ?? null, tf: 'M15' } });
+      marquage = null; racine.dataset.garder = '0'; racine.innerHTML = '<p class="av4-doux">Exemple envoyé à Kepler : il l’analyse (≈ 30 s) et te dira s’il l’avait vu. Un exemple ne valide jamais rien.</p>'; setTimeout(rendre, 4000);
+    }
+  });
+  racine.addEventListener('change', async ev => {
+    const t = ev.target; if (!t.matches) return; let valeur = null; const r = cachePos && cachePos.vue && cachePos.vue.reglages; if (!r) return;
+    if (t.matches('[data-av7-agent]')) valeur = { agents: { ...r.agents, [t.dataset.av7Agent]: t.checked } };
+    else if (t.matches('[data-av7-actif]')) valeur = { actifs: ['BTC', 'SOL', 'DOGE'].filter(a => (a === t.dataset.av7Actif ? t.checked : r.actifs.includes(a))) };
+    else if (t.matches('[data-av7-unite]')) valeur = { unites: ['M15', 'H1'].filter(u => (u === t.dataset.av7Unite ? t.checked : r.unites.includes(u))) };
+    else if (t.matches('[data-av7-reg]')) valeur = { [t.dataset.av7Reg]: t.checked };
+    else if (t.matches('[data-av7-num]')) valeur = { [t.dataset.av7Num]: Number(t.value) };
+    else if (t.matches('[data-av7-sel]')) valeur = { [t.dataset.av7Sel]: t.value };
+    else if (t.matches('[data-av7-niveau-preuve]')) { await poster('/__agent/commande', { type: 'niveau_preuve', valeur: t.dataset.av7NiveauPreuve }); return; }
+    if (valeur) { if (valeur.actifs && !valeur.actifs.length) return; if (valeur.unites && !valeur.unites.length) return; await envoyerReglages(valeur); }
+  });
   return { montrer(v) { vue = v; racine.innerHTML = '<p class="av4-doux">Chargement…</p>'; rendre(); clearInterval(minuteur); minuteur = setInterval(rendre, 20000); }, cacher() { vue = null; clearInterval(minuteur); }, racine, detruire() { detruit = true; clearInterval(minuteur); racine.remove(); } };
 }

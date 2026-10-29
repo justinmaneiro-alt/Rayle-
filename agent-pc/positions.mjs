@@ -18,10 +18,10 @@ import { configMoteurDe } from '../planetes/mars/pc/agent-m6/couts.js';
 import { configRicheDe, lireCoutsReglage } from './couts-reglage.mjs';
 import { executerPositionsSync } from './positions-travailleur.mjs';
 import { NIVEAUX, VERSIONS_CRITERES, empreinteV4 } from '../strategies/criteres-v4.js';
-import { AGENTS } from '../strategies/positions/agents.js';
+import { AGENTS, ORDRE_V7 } from '../strategies/positions/agents.js';
 
 export const FICHIER_POSITIONS = 'positions.json', FICHIER_COMMANDES = 'positions-commandes.json';
-const JOUR = 86400e3, FENETRE_LIVE = 30000, MESURE_TOUS_LES = 24 * 3600e3;
+const JOUR = 86400e3, FENETRE_LIVE = 30000, MESURE_TOUS_LES = 24 * 3600e3, EXPLORER_TOUS_LES = 7 * JOUR;
 export const AVERTISSEMENT = 'Propositions et simulations seulement : aucun ordre n’est passé, aucun gain n’est garanti. Chaque position affiche son niveau de preuve réel.';
 
 /* Exécute une tâche lourde dans un worker_thread (ou en direct dans les tests via `executer`). */
@@ -97,18 +97,48 @@ export function creerPositions({ dossier, D, paires, maintenant = () => Date.now
       if (!paires.includes(a)) continue; const m = etat.mesures[a]; if (m && t - m.dateMesure < MESURE_TOUS_LES && m.versionCriteres === R.versionCriteres) continue;
       const serie = serieDe(a); if (!serie || serie.n < 30000) continue;
       enCours.mesure = a; journal('positions', 'Mesure des types de setup sur ' + a + ' (zone de recherche).');
-      executer({ type: 'mesure', actif: a, version: R.versionCriteres, risquePct: R.risquePct, etatPreuves: { variantes: etat.variantes, jeuFinal: etat.jeuFinal, live: liveEtatPreuves(a) } }, contexteCouts()).then(r => {
+      executer({ type: 'mesure', actif: a, version: R.versionCriteres, risquePct: R.risquePct, parametres: parametresRetenusPour(a), etatPreuves: { variantes: etat.variantes, jeuFinal: etat.jeuFinal, live: liveEtatPreuves(a) } }, contexteCouts()).then(r => {
         if (r && r.ok) integrerMesure(a, r.resultat); else erreur('mesure ' + a, new Error((r && r.raison) || 'échec'));
       }).catch(e => erreur('mesure ' + a, e)).finally(() => { enCours.mesure = null; sauver(); });
       return;      // une seule mesure à la fois
     }
+    lancerExploration(R);
   }
+  /* Recherche autonome orientée positions : une famille à la fois, quand rien d'autre ne tourne (au plus une exploration par actif et par famille et par semaine). */
+  function lancerExploration(R) {
+    if (enCours.mesure || R.explorer === false) return; const t = maintenant();
+    for (const a of R.actifs) for (const id of ORDRE_V7) {
+      if (!paires.includes(a) || !etat.mesures[a]) continue; const cle = a + '|' + id, ex = etat.exploration[cle]; if (ex && t - ex.t < EXPLORER_TOUS_LES) continue;
+      const serie = serieDe(a); if (!serie || serie.n < 30000) continue;
+      enCours.mesure = cle; journal('positions', 'Exploration de la grille ' + id + ' sur ' + a + ' (zone de recherche, chaque variante est comptée).');
+      executer({ type: 'grille', actif: a, famille: id, etatPreuves: { variantes: etat.variantes } }, contexteCouts()).then(async r => {
+        if (r && r.ok) await integrerExploration(a, id, r.resultat); else erreur('exploration ' + cle, new Error((r && r.raison) || 'échec'));
+      }).catch(e => erreur('exploration ' + cle, e)).finally(() => { enCours.mesure = null; sauver(); });
+      return;
+    }
+  }
+  async function integrerExploration(actif, id, res) {
+    for (const e of res.nouveauxEssais || []) etat.variantes[e] = 1;
+    etat.exploration[actif + '|' + id] = { t: maintenant(), classement: res.classement, meilleurs: Object.fromEntries(Object.entries(res.meilleurs).map(([k, l]) => [k, { params: l.params, n: l.n, esperance: l.esperance, bas: l.bas }])), lignes: res.lignes.length };
+    journal('positions', 'Exploration ' + id + ' sur ' + actif + ' : ' + res.classement.map(c => c.type.split(':')[1] + ' ' + c.tendance).join(', ') + '.');
+    // la meilleure variante de chaque type n'est retenue qu'après une mesure COMPLÈTE où le nombre d'essais inclut toutes les variantes essayées
+    const prometteuses = Object.values(res.meilleurs).filter(l => l.esperance >= 0.05); if (!prometteuses.length) { delete etat.parametresRetenus[actif + '|' + id]; return; }
+    const meilleure = prometteuses.sort((a, b) => (b.bas ?? -9) - (a.bas ?? -9))[0], R = reglages();
+    const r = await executer({ type: 'mesure', actif, version: R.versionCriteres, risquePct: R.risquePct, familles: [id], parametres: { [id]: meilleure.params }, etatPreuves: { variantes: etat.variantes, jeuFinal: etat.jeuFinal, live: liveEtatPreuves(actif) } }, contexteCouts());
+    if (!(r && r.ok)) return; const types = Object.values(r.resultat.types), bon = types.some(t => t.niveau === 'candidate' || t.niveau === 'validee');
+    for (const e of r.resultat.nouveauxEssais || []) etat.variantes[e] = 1;
+    integrerMesure(actif, r.resultat, { partielle: true });
+    if (bon) { etat.parametresRetenus[actif + '|' + id] = meilleure.params; journal('positions', 'Variante retenue pour ' + id + ' sur ' + actif + ' : ' + JSON.stringify(meilleure.params) + ' (Candidate ou mieux, essais de toute la grille comptés).'); }
+    else { delete etat.parametresRetenus[actif + '|' + id]; journal('positions', 'Aucune variante de ' + id + ' sur ' + actif + ' ne tient une fois tous les essais comptés : les paramètres d’origine restent.'); }
+  }
+  const parametresRetenusPour = a => { const o = {}; for (const id of ORDRE_V7) if (etat.parametresRetenus[a + '|' + id]) o[id] = etat.parametresRetenus[a + '|' + id]; return o; };
   const liveEtatPreuves = a => { const l = liveParType(etat, maintenant()), o = {}; for (const [cle, v] of Object.entries(l)) if (cle.startsWith(a + '|')) o[cle.slice(a.length + 1)] = { semaines: v.semaines, esperance: v.esperance, n: v.n }; return o; };
-  function integrerMesure(actif, res) {
+  function integrerMesure(actif, res, { partielle = false } = {}) {
     for (const e of res.nouveauxEssais || []) etat.variantes[e] = 1;
     for (const t of Object.values(res.types)) if (t.jeuFinal && t.jeuFinal.ouvert) etat.jeuFinal[t.cle] = t.jeuFinal;       // le coffre : un jeu final ouvert n'est JAMAIS rouvert
     const evenements = majNiveaux(etat, { ...res, versionCriteres: reglages().versionCriteres }, maintenant());
-    etat.mesures[actif] = { dateMesure: res.dateMesure, zone: res.zone, nVariantes: res.nVariantes, nEffectif: res.nEffectif, versionCriteres: res.version, versionTexte: res.versionTexte, empreinte: res.empreinte, profil: res.profil, types: Object.fromEntries(Object.entries(res.types).map(([k, t]) => [k, { ...t, lignesCandidate: undefined, lignesValidee: undefined, periodes: t.periodes }])) };
+    const ancienne = partielle && etat.mesures[actif] ? etat.mesures[actif] : null;
+    etat.mesures[actif] = { dateMesure: ancienne ? ancienne.dateMesure : res.dateMesure, zone: res.zone, nVariantes: res.nVariantes, nEffectif: res.nEffectif, versionCriteres: res.version, versionTexte: res.versionTexte, empreinte: res.empreinte, profil: res.profil, types: { ...(ancienne ? ancienne.types : {}), ...Object.fromEntries(Object.entries(res.types).map(([k, t]) => [k, { ...t, lignesCandidate: undefined, lignesValidee: undefined, periodes: t.periodes }])) } };
     journal('positions', 'Mesure ' + actif + ' : ' + Object.values(res.types).map(t => t.nomType + ' ' + t.n + ' trades → ' + NIVEAUX[t.niveau]).join(' · '));
     for (const e of evenements) { journal('positions', e.texte); if (e.sens === 'promotion' || e.sens === 'retrogradation') envoyer(['Types de setup — ' + (e.sens === 'promotion' ? 'PROMOTION' : 'RÉTROGRADATION'), e.texte, AVERTISSEMENT].join('\n'), 'OBSERVATION').catch(() => {}); }
     sauver();
@@ -118,11 +148,12 @@ export function creerPositions({ dossier, D, paires, maintenant = () => Date.now
   async function calculerActif(a, R) {
     const s = serieDe(a); if (!s || s.n < FENETRE_LIVE) return null; const derniere = s.t[s.n - 1];
     if (etat.dernierCalcul[a] === derniere) return null;
-    const fen = tranche(s, s.n - FENETRE_LIVE, s.n), r = proposerPourActif(fen, a, { reglages: R, preuves: preuvesPourActif(etat, a), config: configDe(a) });
+    const fen = tranche(s, s.n - FENETRE_LIVE, s.n), r = proposerPourActif(fen, a, { reglages: R, preuves: preuvesPourActif(etat, a), config: configDe(a), profil: etat.mesures[a] && etat.mesures[a].profil, parametres: parametresRetenusPour(a) });
     etat.dernierCalcul[a] = derniere;
     const profil = etat.mesures[a] && etat.mesures[a].profil;
     const { nouvelles } = enregistrer(etat, r.propositions.filter(p => p.statut === 'en_attente' || p.statut === 'ouverte'), maintenant(), { maxParJour: R.maxNouvellesParJour });
-    etat.vue = etat.vue || {}; etat.vue[a] = { t: r.t, prix: r.prix, hypothese: r.hypothese && { ...r.hypothese, confluence: r.hypothese.confluence && { n: r.hypothese.confluence.n, score: r.hypothese.confluence.score, diamant: r.hypothese.confluence.diamant, elements: r.hypothese.confluence.elements.map(e => e.texte) } }, zonesDiamant: r.zonesDiamant, ecartees: r.ecartees.length, actives: r.propositions.map(p => p.id) };
+    etat.vue = etat.vue || {}; const bg = []; for (let q = Math.max(0, s.n - 140); q < s.n; q++) bg.push([s.t[q], s.o[q], s.h[q], s.l[q], s.c[q]]);
+    etat.vue[a] = { t: r.t, prix: r.prix, bougies: bg, hypothese: r.hypothese && { ...r.hypothese, confluence: r.hypothese.confluence && { n: r.hypothese.confluence.n, score: r.hypothese.confluence.score, diamant: r.hypothese.confluence.diamant, elements: r.hypothese.confluence.elements.map(e => e.texte) } }, zonesDiamant: r.zonesDiamant, ecartees: r.ecartees.length, actives: r.propositions.map(p => p.id) };
     for (const p of nouvelles) await alerterNouvelle(p, R);
     if (R.surveillance) for (const z of r.zonesDiamant.filter(z => z.enApproche)) { const cle = 'surv|' + a + '|' + z.tf + '|' + Math.round(z.niveau) + '|' + Math.floor(maintenant() / JOUR); if (!(etat.alertes || []).includes(cle)) { etat.alertes.push(cle); if (etat.alertes.length > 400) etat.alertes.shift(); await envoyer(alerteSurveillance(z, a).join('\n'), 'PREPARATION').catch(() => {}); } }
     void profil; return r;
@@ -172,9 +203,9 @@ export function creerPositions({ dossier, D, paires, maintenant = () => Date.now
     const hyp = []; for (const a of Object.keys(etat.vue || {})) if (etat.vue[a].hypothese) hyp.push({ actif: a, ...etat.vue[a].hypothese });
     const jf = Object.keys(etat.jeuFinal).length;
     return { ok: true, t, reglages: R, avertissement: AVERTISSEMENT, versionCriteres: VERSIONS_CRITERES[R.versionCriteres], empreinteV4: empreinteV4(), niveaux: NIVEAUX, agents: AGENTS,
-      propositions: actives.slice(0, 40), recentes: etat.propositions.slice(-60).reverse(), hypotheses_du_moment: hyp, zonesDiamant: Object.fromEntries(Object.entries(etat.vue || {}).map(([a, v]) => [a, v.zonesDiamant])), prix: Object.fromEntries(Object.entries(etat.vue || {}).map(([a, v]) => [a, { prix: v.prix, t: v.t }])),
+      bougies: Object.fromEntries(Object.entries(etat.vue || {}).map(([a, v]) => [a, v.bougies || []])), propositions: actives.slice(0, 40), recentes: etat.propositions.slice(-60).reverse(), hypotheses_du_moment: hyp, zonesDiamant: Object.fromEntries(Object.entries(etat.vue || {}).map(([a, v]) => [a, v.zonesDiamant])), prix: Object.fromEntries(Object.entries(etat.vue || {}).map(([a, v]) => [a, { prix: v.prix, t: v.t }])),
       bilan, phraseHebdo: phraseHebdo(bilan.tous), types, mesures, journalNiveaux: etat.journalNiveaux.slice(-30).reverse(), exemples: etat.exemples.slice(-30).reverse().map(e => ({ ...e })), resumeExemples: resumeExemplesV7(etat.exemples), gardeExemples: GARDE_FOU_EXEMPLES,
-      hypotheses: etat.hypotheses.slice(-30).reverse(), occasions: resumeOccasions(etat.occasions), essais: { total: Object.keys(etat.variantes).length, jeuxFinauxOuverts: jf }, mesureEnCours: enCours.mesure, dernierCycle: etat.dernierCycle || null };
+      hypotheses: etat.hypotheses.slice(-30).reverse(), occasions: resumeOccasions(etat.occasions), essais: { total: Object.keys(etat.variantes).length, jeuxFinauxOuverts: jf }, exploration: Object.entries(etat.exploration || {}).map(([cle, e]) => ({ cle, t: e.t, classement: e.classement })), parametresRetenus: etat.parametresRetenus || {}, mesureEnCours: enCours.mesure, dernierCycle: etat.dernierCycle || null };
   }
   /* Lignes du rapport du matin. */
   function lignesRapport(pistes = []) {

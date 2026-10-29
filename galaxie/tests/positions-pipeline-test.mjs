@@ -11,7 +11,7 @@ import { creerEtatPositions, enregistrer, majSuivi, majNiveaux, preuvesPourActif
 import { bilanAgent, bilanComplet, resultatsHebdo, fourchetteHebdo, pireSerie, phraseEtat, phraseHebdo, baselineHasard, PAS_UNE_PROMESSE } from '../../strategies/positions/bilan.js';
 import { ligneProposition, alertePosition, alerteSurveillance, lignesRapportPositions, phrasePreuve, PIED } from '../../strategies/positions/rapport.js';
 import { exempleValide, analyserExemple, hypotheseDepuisExemple, testerHypothese, resumeExemplesV7, GARDE_FOU_EXEMPLES } from '../../strategies/positions/exemples.js';
-import { mesurerActif, resumerTrades, walkForwardBlocs, auditerType, profilActif, contexteEcarte, doubler } from '../../strategies/positions/preuves.js';
+import { mesurerActif, explorerGrille, resumerTrades, walkForwardBlocs, auditerType, profilActif, contexteEcarte, doubler } from '../../strategies/positions/preuves.js';
 import { creerPositions } from '../../agent-pc/positions.mjs';
 import { executerPositionsSync } from '../../agent-pc/positions-travailleur.mjs';
 import { NIVEAUX } from '../../strategies/criteres-v4.js';
@@ -184,5 +184,13 @@ await svc.rapportDuMatin(true);
 v('rapport du matin envoyé avec l’avertissement, sans ordre', envoyes.some(e => /Kepler — positions du/.test(e.texte) && /aucun ordre/i.test(e.texte)), JSON.stringify(envoyes.map(e => e.texte.slice(0, 40))));
 const vue = svc.vue();
 v('la vue contient réglages, bilan, types, journal des niveaux, exemples, version de critères', vue.reglages && vue.bilan.tous && Array.isArray(vue.types) && Array.isArray(vue.journalNiveaux) && vue.versionCriteres === 'équilibré (v4)' && vue.empreinteV4 && /exemple/.test(vue.resumeExemples));
+/* ── 9. recherche autonome : exploration de la petite grille, essais comptés, monter / descendre ── */
+const eg = explorerGrille(long, 'BTC', 'continuation_m15', {});
+v('exploration : une ligne par variante et par type, chaque essai est compté', eg.ok && eg.lignes.length === 2 * 3 && eg.nouveauxEssais.length === 6, eg.lignes && eg.lignes.length);
+v('classement : chaque type « monte », « descend », « stable » ou manque de trades', eg.classement.length === 3 && eg.classement.every(c => ['monte', 'descend', 'stable', 'trop peu de trades'].includes(c.tendance)));
+v('un second passage ne recompte pas les mêmes essais (le compteur ne baisse ni ne double)', explorerGrille(long, 'BTC', 'continuation_m15', { etatPreuves: { variantes: Object.fromEntries(eg.nouveauxEssais.map(e => [e, 1])) } }).nouveauxEssais.length === 0);
+v('seules les variantes à espérance positive et ≥ 50 trades peuvent être retenues', Object.values(eg.meilleurs).every(l => l.esperance > 0 && l.n >= 50));
+const viaTravailleur = executerPositionsSync({ type: 'grille', actif: 'BTC', famille: 'extremes_h1' }, {}, { BTC: long });
+v('le travailleur sait explorer une grille', viaTravailleur.ok && viaTravailleur.resultat.lignes.length === 2 * 2);
 fs.rmSync(dossier, { recursive: true, force: true });
 console.log('Circuit des positions : ' + ok + ' vérifications réussies, ' + ko + ' échec(s).'); process.exit(ko ? 1 : 0);

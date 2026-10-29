@@ -4,6 +4,7 @@ import { simulerRiche } from '../simulateur-riche.js';
 import { FAMILLES_V7, ORDRE_V7, AGENTS, parametresDefaut, TYPES_SETUP, fmt } from './agents.js';
 import { elementsVue, confluence, vue, resumeConfluence, SEUIL_DIAMANT } from './zones.js';
 import { NIVEAUX } from '../criteres-v4.js';
+import { contexteEcarte } from './preuves.js';
 
 /* ═════════════ PROPOSER, CLASSER, EXPLIQUER LES POSITIONS DU MOMENT (V7, phases 3 et 3 bis ; module pur, testé : galaxie/tests/positions-moteur-test.mjs) ═════════════
    À chaque clôture de bougie M15 / H1, les trois agents évaluent TOUTES les zones candidates ; ce module garde celles qui sont encore valables (ordre limite pas encore touché ou position ouverte), les
@@ -44,10 +45,10 @@ export function qualite(p, preuve) {
 
 /* Cherche les propositions encore valables à la fin des données pour UN actif. `preuves` : { 'agent:type|tf': { niveau, esperance, … } } (clé = `typeCle`). Rend { propositions, hypothese, zonesDiamant, balayees }. */
 export const typeCle = (famille, type) => famille + '|' + type;
-export function proposerPourActif(m15, actif, { reglages = REGLAGES_DEFAUT, preuves = {}, config = {}, murs = null, maintenant = null } = {}) {
+export function proposerPourActif(m15, actif, { reglages = REGLAGES_DEFAUT, preuves = {}, config = {}, murs = null, maintenant = null, profil = null, parametres = {} } = {}) {
   const R = { ...REGLAGES_DEFAUT, ...reglages }, ctx = construireContexte(m15), n = ctx.n, propositions = [], resume = [];
   for (const tf of R.unites) for (const agent of Object.keys(AGENTS)) {
-    if (!R.agents[agent]) continue; const id = agent + '_' + tf.toLowerCase(), fam = FAMILLES_V7[id], params = { ...parametresDefaut(id), conf: agent === 'extremes' ? Math.max(1, R.confluenceMin - 1) : R.confluenceMin }          // pour les extrêmes, le déclencheur (cascade ou bord de range) compte déjà comme un premier élément;
+    if (!R.agents[agent]) continue; const id = agent + '_' + tf.toLowerCase(), fam = FAMILLES_V7[id], params = { ...parametresDefaut(id), ...(parametres[id] || {}), conf: agent === 'extremes' ? Math.max(1, R.confluenceMin - 1) : R.confluenceMin }          // pour les extrêmes, le déclencheur (cascade ou bord de range) compte déjà comme un premier élément;
     const sig = fam.signaux(ctx, params), borne = n - 1 - (sig.ttl + 4); let nb = 0;
     for (let i = n - 1; i > borne && i > 0; i--) {
       if (!sig.sens[i]) continue; const meta = sig.meta.get(i); if (!meta) continue; nb++;
@@ -63,6 +64,7 @@ export function proposerPourActif(m15, actif, { reglages = REGLAGES_DEFAUT, preu
   propositions.sort((a, b) => b.qualite - a.qualite || b.t - a.t);
   const retenues = [], parAgent = {};
   for (const p of propositions) {
+    const exclu = contexteEcarte(p, profil); if (exclu && p.preuve.niveau !== 'validee') { p.ecartee = exclu; continue; }          // un contexte qui perd de façon répétée est masqué (sauf pour un type Validée)
     if (!niveauAssezHaut(p.preuve.niveau, R.afficherIdees ? 'non_testee' : R.niveauPreuveMin)) { p.ecartee = 'niveau de preuve trop bas pour l’affichage choisi'; continue; }
     parAgent[p.agent] = (parAgent[p.agent] || 0) + 1; if (parAgent[p.agent] > R.maxParAgent) { p.ecartee = 'plafond par agent atteint'; continue; }
     retenues.push(p);

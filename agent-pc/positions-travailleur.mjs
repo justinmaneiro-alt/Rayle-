@@ -6,7 +6,7 @@ import { creerHistorique } from '../planetes/mars/pc/agent-btc/historique.js';
 import { stockageFichier } from '../app-pc/veilleur/stockage-fichier.mjs';
 import { configMoteurDe } from '../planetes/mars/pc/agent-m6/couts.js';
 import { configRicheDe } from './couts-reglage.mjs';
-import { mesurerActif } from '../strategies/positions/preuves.js';
+import { mesurerActif, explorerGrille } from '../strategies/positions/preuves.js';
 import { analyserExemple, hypotheseDepuisExemple, testerHypothese } from '../strategies/positions/exemples.js';
 
 export async function chargerSerie(dossierDonnees, paire) {
@@ -24,8 +24,13 @@ const coutsDe = (paire, contexte) => (contexte.couts ? configRicheDe(paire, cont
 export function executerPositionsSync(tache, contexte, series) {
   if (tache.type === 'mesure') {
     const m15 = series[tache.actif]; if (!m15 || !m15.n) return { ok: false, raison: 'pas de données pour ' + tache.actif };
-    const brut = mesurerActif(m15, tache.actif, { config: coutsDe(tache.actif, contexte), version: tache.version || 'equilibre', risquePct: tache.risquePct || 0.5, etatPreuves: tache.etatPreuves || {}, plancher: tache.plancher || 0, simulationsAuditeur: tache.simulations || 60 });
+    const brut = mesurerActif(m15, tache.actif, { config: coutsDe(tache.actif, contexte), version: tache.version || 'equilibre', risquePct: tache.risquePct || 0.5, etatPreuves: tache.etatPreuves || {}, plancher: tache.plancher || 0, simulationsAuditeur: tache.simulations || 60, familles: tache.familles || undefined, parametres: tache.parametres || {} });
     return { ok: brut.ok !== false, resultat: compacter(brut) };
+  }
+  if (tache.type === 'grille') {
+    const m15 = series[tache.actif]; if (!m15 || !m15.n) return { ok: false, raison: 'pas de données pour ' + tache.actif };
+    const r = explorerGrille(m15, tache.actif, tache.famille, { config: coutsDe(tache.actif, contexte), etatPreuves: tache.etatPreuves || {} });
+    return r.ok ? { ok: true, resultat: { ...r, lignes: r.lignes.map(l => ({ ...l, params: l.params })) } } : { ok: false, raison: r.raison };
   }
   if (tache.type === 'exemple') {
     const m15 = series[tache.exemple.actif]; if (!m15) return { ok: false, raison: 'pas de données pour ' + tache.exemple.actif };
@@ -43,7 +48,7 @@ export function executerPositionsSync(tache, contexte, series) {
 if (workerData && workerData.tache) {
   (async () => {
     try {
-      const { tache, contexte } = workerData, actifs = tache.type === 'mesure' ? [tache.actif] : tache.type === 'exemple' ? [tache.exemple.actif] : (tache.actifs || ['BTC', 'SOL', 'DOGE']), series = {};
+      const { tache, contexte } = workerData, actifs = (tache.type === 'mesure' || tache.type === 'grille') ? [tache.actif] : tache.type === 'exemple' ? [tache.exemple.actif] : (tache.actifs || ['BTC', 'SOL', 'DOGE']), series = {};
       for (const a of actifs) series[a] = await chargerSerie(contexte.dossierDonnees, a);
       parentPort.postMessage(executerPositionsSync(tache, contexte, series));
     } catch (e) { parentPort.postMessage({ ok: false, raison: String(e && e.message || e).slice(0, 200) }); }

@@ -9,6 +9,8 @@ import { verifierCausalite } from '../validation-v3.js';
 import { evaluerNiveau, CRITERES4, empreinteV4, periodes } from '../criteres-v4.js';
 import { FAMILLES_V7, ORDRE_V7, parametresDefaut, TYPES_SETUP } from './agents.js';
 import { nombreEffectifPrudent } from '../faux-positifs.js';
+import { combinaisons, cleParams } from '../../planetes/mars/pc/agent-btc/hypotheses.js';
+import { intervalleEsperance } from '../../planetes/mars/pc/agent-btc/stats-m5.js';
 
 /* ═════════════ PREUVES PAR TYPE DE SETUP (V7, phases 3 bis, 4 et 5 ; module pur, testé : galaxie/tests/positions-preuves-test.mjs) ═════════════
    Pour chaque (actif, agent, unité, TYPE de setup) : on rejoue l'agent sur la ZONE DE RECHERCHE (75 % premiers de l'historique, le jeu final n'est pas lu), avec le simulateur honnête de la V6 (ordres limites
@@ -68,12 +70,12 @@ export function auditerType(contexte, { simulations = 60, graine = 20261029, cau
 
 /* Mesure TOUS les types de setup d'un actif sur la zone de recherche. Rend { actif, zone, types: {cleType: {...}}, familles, nouveauxEssais, profil }.
    `etatPreuves` (facultatif) : { variantes: Set/obj des essais déjà comptés, jeuFinal: { cleType: résultat } (coffre : jamais rouvert), live: { cleType: {semaines, esperance, n} } }. */
-export function mesurerActif(m15, actif, { config = {}, c4 = CRITERES4, version = 'equilibre', risquePct = 0.5, etatPreuves = {}, auditer = true, plancher = 0, ouvrirJeuFinal = true, familles = ORDRE_V7, simulationsAuditeur = 60 } = {}) {
+export function mesurerActif(m15, actif, { config = {}, c4 = CRITERES4, version = 'equilibre', risquePct = 0.5, etatPreuves = {}, auditer = true, plancher = 0, ouvrirJeuFinal = true, familles = ORDRE_V7, simulationsAuditeur = 60, parametres = {} } = {}) {
   const dec = decouper(m15); if (!dec.ok) return { actif, ok: false, raison: dec.raison, types: {} };
   const zone = tranche(m15, 0, dec.finA), ctx = construireContexte(zone), t0 = zone.t[0], t1 = zone.t[zone.n - 1] + 900e3, brut = {}, nouveauxEssais = [], vus = etatPreuves.variantes || {};
   const cfg2 = doubler(config);
   for (const id of familles) {
-    const fam = FAMILLES_V7[id], params = parametresDefaut(id), sig = fam.signaux(ctx, params), sim = simulerRiche(ctx.m15, sig, config, {}), sim2 = simulerRiche(ctx.m15, sig, cfg2, {});
+    const fam = FAMILLES_V7[id], params = parametres[id] || parametresDefaut(id), sig = fam.signaux(ctx, params), sim = simulerRiche(ctx.m15, sig, config, {}), sim2 = simulerRiche(ctx.m15, sig, cfg2, {});
     const parType = {}, parType2 = {};
     for (const t of sim.trades) { const m = sig.meta.get(t.signal); if (m) (parType[m.type] = parType[m.type] || []).push({ ...t, meta: m }); }
     for (const t of sim2.trades) { const m = sig.meta.get(t.signal); if (m) (parType2[m.type] = parType2[m.type] || []).push(t); }
@@ -147,5 +149,26 @@ export function contexteEcarte(prop, profil) {
   const reg = prop.regime === 'tendance haussière' ? 'hausse' : prop.regime === 'tendance baissière' ? 'baisse' : prop.regime === 'range' ? 'range' : null; if (reg) valeurs['régime'] = reg;
   for (const e of profil.ecartes) if (valeurs[e.dim] === e.valeur) return 'contexte écarté : ' + e.dim + ' « ' + e.valeur + ' » perd de façon répétée';
   return null;
+}
+
+/* ── Recherche autonome orientée positions : explore la PETITE grille d'une famille sur la zone de recherche (jamais le jeu final). Chaque variante est un essai COMPTÉ (le compteur ne baisse jamais) ;
+      les types qui réussissent « montent » (meilleure borne basse de confiance), ceux qui échouent « descendent ». La meilleure variante n'est retenue qu'après une mesure complète où le nombre d'essais
+      inclut TOUTES les variantes essayées : choisir la meilleure sur la même zone est exactement le biais que la correction doit absorber. ── */
+export function explorerGrille(m15, actif, id, { config = {}, etatPreuves = {} } = {}) {
+  const dec = decouper(m15); if (!dec.ok) return { ok: false, raison: dec.raison };
+  const zone = tranche(m15, 0, dec.finA), ctx = construireContexte(zone), fam = FAMILLES_V7[id], vus = etatPreuves.variantes || {}, lignes = [], nouveauxEssais = [];
+  for (const params of combinaisons(fam.grille())) {
+    const sig = fam.signaux(ctx, params), sim = simulerRiche(ctx.m15, sig, config, {}), parType = {};
+    for (const t of sim.trades) { const m = sig.meta.get(t.signal); if (m) (parType[m.type] = parType[m.type] || []).push(t.R); }
+    for (const type of Object.keys(TYPES_SETUP)) {
+      if (!type.startsWith(fam.agent + ':')) continue; const essai = [actif, id, type, JSON.stringify(params)].join('|'); if (!vus[essai]) nouveauxEssais.push(essai);
+      const R = parType[type] || [], ic = R.length >= 30 ? intervalleEsperance(R) : null;
+      lignes.push({ params, cleParams: cleParams(params), type, n: R.length, esperance: moy(R), bas: ic ? ic.bas : null, haut: ic ? ic.haut : null });
+    }
+  }
+  const meilleurs = {};
+  for (const l of lignes) { if (l.n < 50 || l.esperance == null || !(l.esperance > 0)) continue; const m = meilleurs[l.type]; if (!m || (l.bas ?? -9) > (m.bas ?? -9)) meilleurs[l.type] = l; }
+  const classement = Object.keys(TYPES_SETUP).filter(t => t.startsWith(fam.agent + ':')).map(type => { const l = lignes.filter(x => x.type === type && x.n >= 30); const e = l.length ? Math.max(...l.map(x => x.esperance)) : null; return { type, variantes: lignes.filter(x => x.type === type).length, meilleureEsperance: e, bonnes: l.filter(x => x.esperance > 0).length, tendance: e == null ? 'trop peu de trades' : e > 0.08 ? 'monte' : e < 0 ? 'descend' : 'stable' }; });
+  return { ok: true, actif, famille: id, lignes, meilleurs, classement, nouveauxEssais, zone: { de: zone.t[0], a: zone.t[zone.n - 1] + 900e3 } };
 }
 export { ORDRE_V7 };

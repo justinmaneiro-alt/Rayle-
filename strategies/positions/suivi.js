@@ -7,7 +7,7 @@ import { NIVEAUX } from '../criteres-v4.js';
    le résultat n'est jamais retouché. Les types de setup sont promus (Candidate → Validée) ou rétrogradés quand leurs statistiques le justifient, et l'écrit dans le journal.
    L'état est un objet JSON simple (sauvé par le service du PC, relu au démarrage). Aucun ordre n'est exécuté. */
 export const SCHEMA_POSITIONS = 1;
-export const creerEtatPositions = () => ({ schema: SCHEMA_POSITIONS, propositions: [], emises: [], types: {}, journalNiveaux: [], variantes: {}, jeuFinal: {}, exemples: [], hypotheses: [], occasions: { liste: [] }, mesures: {}, reglages: {}, dernierCalcul: {}, alertes: [], vue: {}, hasard: null });
+export const creerEtatPositions = () => ({ schema: SCHEMA_POSITIONS, propositions: [], emises: [], types: {}, journalNiveaux: [], variantes: {}, jeuFinal: {}, exemples: [], hypotheses: [], occasions: { liste: [] }, mesures: {}, reglages: {}, dernierCalcul: {}, alertes: [], vue: {}, hasard: null, exploration: {}, parametresRetenus: {} });
 const JOUR = 86400e3;
 
 /* Enregistre les nouvelles propositions (une seule fois chacune, plafond quotidien respecté). Rend { nouvelles, refusees }. */
@@ -67,7 +67,7 @@ export function majNiveaux(etat, mesure, maintenant) {
         texte: (ancien == null ? 'Première mesure : ' : monte ? 'PROMOTION : ' : 'RÉTROGRADATION : ') + t.nomType + ' (' + mesure.actif + ', ' + t.tf + ') passe de « ' + (ancien ? NIVEAUX[ancien] : '—') + ' » à « ' + NIVEAUX[niveau] + ' ». ' + raison };
       if (ancien != null || niveau === 'validee' || niveau === 'candidate') { evenements.push(e); etat.journalNiveaux.push(e); }
     }
-    etat.types[cle] = { niveau, depuis: ancien === niveau && etat.types[cle] ? etat.types[cle].depuis : maintenant, esperance: t.esperance, n: t.n, nomType: t.nomType, actif: mesure.actif, tf: t.tf, agent: t.agent, type: t.type, famille: t.famille, fourchette: t.fourchette, tauxReussite: t.tauxReussite, rrMoyen: t.rrMoyen, coutMoyenR: t.coutMoyenR, versionCriteres: t.versionCriteres, pourquoi: raison, ratees: t.ratees, jeuFinal: t.jeuFinal, auditeur: t.auditeur ? { fait: t.auditeur.fait, ok: t.auditeur.ok } : null };
+    etat.types[cle] = { ordres: t.ordres || null, niveau, depuis: ancien === niveau && etat.types[cle] ? etat.types[cle].depuis : maintenant, esperance: t.esperance, n: t.n, nomType: t.nomType, actif: mesure.actif, tf: t.tf, agent: t.agent, type: t.type, famille: t.famille, fourchette: t.fourchette, tauxReussite: t.tauxReussite, rrMoyen: t.rrMoyen, coutMoyenR: t.coutMoyenR, versionCriteres: t.versionCriteres, pourquoi: raison, ratees: t.ratees, jeuFinal: t.jeuFinal, auditeur: t.auditeur ? { fait: t.auditeur.fait, ok: t.auditeur.ok } : null };
   }
   if (etat.journalNiveaux.length > 300) etat.journalNiveaux.splice(0, etat.journalNiveaux.length - 300);
   return evenements;
