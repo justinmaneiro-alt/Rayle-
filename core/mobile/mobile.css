@@ -1,0 +1,148 @@
+/* ═════════════ COQUE MOBILE DE RAYLÉ (V8 : téléphone et tablette, thème Jarvis, jamais de Galaxie) ═════════════
+   Même identité que le PC (fond noir, cyan froid #8fd0e3, sable #c9b27a, verre sombre, traits fins, coins coupés) mais pensée pour le doigt :
+   cibles ≥ 48 px, zones sûres (encoche, barre de gestes), contenus en plein écran ou en feuilles qui montent du bas, aucune micro-fenêtre.
+   Les animations n'utilisent que transform et opacity. Chargé SEULEMENT hors PC (index.html). */
+html.appareil-mobile{
+  --m-fond:#05080c; --m-verre:rgba(10,17,25,.82); --m-verre2:rgba(16,26,37,.7); --m-trait:rgba(143,208,227,.22); --m-trait-fort:rgba(143,208,227,.5);
+  --m-texte:#e6eef2; --m-doux:#9db0bb; --m-faible:#6e808b; --m-accent:#8fd0e3; --m-accent-vif:#6fd3ee; --m-sable:#c9b27a; --m-haut:#2fd18b; --m-bas:#ff5d6e; --m-alerte:#e9a23b;
+  --m-mono:"JetBrains Mono","Cascadia Mono",Consolas,"Courier New",monospace; --m-sans:"Segoe UI Variable","Segoe UI",system-ui,-apple-system,Roboto,sans-serif;
+  --m-haut-h:calc(52px + env(safe-area-inset-top,0px)); --m-nav-h:calc(68px + env(safe-area-inset-bottom,0px)); --m-cible:48px;
+}
+html.appareil-mobile body{background:var(--m-fond);overscroll-behavior:none}
+
+/* ───── ce qui disparaît de l'ancienne interface sur mobile (la logique reste, on la pilote par le menu « Plus ») ───── */
+html.appareil-mobile .barre,html.appareil-mobile #tfBouton,html.appareil-mobile .tf-bouton,html.appareil-mobile .titre,html.appareil-mobile #bridgeStatus,
+html.appareil-mobile .state,html.appareil-mobile #tableau{display:none!important}
+html.appareil-mobile.m-pret #scene{position:fixed;inset:0;z-index:0;display:block;padding:0;pointer-events:none}
+html.appareil-mobile.m-pret #reactor{position:absolute;left:50%;top:calc(var(--m-haut-h) + 2vh);width:min(64vw,36vh,300px);transform:translateX(-50%);pointer-events:auto;transition:opacity .25s;will-change:opacity}
+html.appareil-mobile.m-pret[data-m-ecran="accueil"] .soustitre{position:absolute;left:16px;right:16px;top:calc(var(--m-haut-h) + 2vh + min(64vw,36vh,300px) + 4px);text-align:center;font:14px var(--m-sans);color:var(--m-doux)}
+html.appareil-mobile.m-pret:not([data-m-ecran="accueil"]) #reactor,html.appareil-mobile.m-pret:not([data-m-ecran="accueil"]) .soustitre{display:none}
+html.appareil-mobile.m-pret.m-vue-externe #reactor{display:none}
+
+/* ───── enveloppe ───── */
+#m-app{position:fixed;inset:0;z-index:20;display:flex;flex-direction:column;font:15px/1.45 var(--m-sans);color:var(--m-texte);pointer-events:none}
+#m-app>*{pointer-events:auto}
+.m-haut{flex:none;display:flex;align-items:flex-end;justify-content:space-between;gap:10px;height:var(--m-haut-h);padding:0 16px 8px calc(16px + env(safe-area-inset-left,0px));background:linear-gradient(180deg,rgba(5,8,12,.92),rgba(5,8,12,0));pointer-events:none}
+.m-haut>*{pointer-events:auto}
+.m-marque{font:600 15px var(--m-sans);letter-spacing:.42em;color:#fff}
+.m-puces{display:flex;gap:8px;align-items:center}
+.m-puce{display:inline-flex;align-items:center;gap:6px;min-height:32px;padding:0 10px;font:600 11px var(--m-sans);letter-spacing:.1em;color:var(--m-doux);border:1px solid var(--m-trait);background:rgba(8,13,19,.6);clip-path:polygon(8px 0,100% 0,100% calc(100% - 8px),calc(100% - 8px) 100%,0 100%,0 8px)}
+.m-puce i{width:7px;height:7px;border-radius:50%;background:var(--m-faible);flex:none}
+.m-puce[data-etat="ok"] i{background:var(--m-haut);box-shadow:0 0 8px var(--m-haut)}
+.m-puce[data-etat="mal"] i{background:var(--m-bas)}
+.m-puce[data-etat="att"] i{background:var(--m-alerte)}
+.m-ecrans{position:relative;flex:1;min-height:0}
+.m-ecran{position:absolute;inset:0;overflow-y:auto;overflow-x:hidden;-webkit-overflow-scrolling:touch;overscroll-behavior:contain;padding:calc(var(--m-haut-h) - 30px) calc(14px + env(safe-area-inset-right,0px)) calc(var(--m-nav-h) + 18px) calc(14px + env(safe-area-inset-left,0px));
+  opacity:0;visibility:hidden;transform:translateY(10px);transition:opacity .2s,transform .2s,visibility 0s .2s;scrollbar-width:none}
+.m-ecran::-webkit-scrollbar{display:none}
+.m-ecran.m-actif{opacity:1;visibility:visible;transform:none;transition:opacity .22s,transform .22s}
+#m-accueil{padding-top:calc(var(--m-haut-h) + min(64vw,36vh,300px) + 4vh)}
+
+/* ───── barre du bas ───── */
+.m-nav{position:relative;flex:none;display:grid;grid-template-columns:1fr 1fr 78px 1fr 1fr;align-items:end;height:var(--m-nav-h);padding:0 env(safe-area-inset-right,0px) env(safe-area-inset-bottom,0px) env(safe-area-inset-left,0px);
+  background:linear-gradient(0deg,rgba(5,8,12,.97) 60%,rgba(5,8,12,.82));border-top:1px solid var(--m-trait)}
+.m-nav button{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;min-height:var(--m-cible);height:64px;padding:4px 2px;font:600 11px var(--m-sans);letter-spacing:.06em;color:var(--m-faible);background:none;border:0;cursor:pointer;touch-action:manipulation;-webkit-tap-highlight-color:transparent}
+.m-nav button svg{width:24px;height:24px;fill:none;stroke:currentColor;stroke-width:1.6;stroke-linecap:round;stroke-linejoin:round;transition:transform .18s}
+.m-nav button[aria-current="page"]{color:var(--m-accent)}
+.m-nav button[aria-current="page"] svg{transform:translateY(-2px)}
+.m-nav button:active svg{transform:scale(.9)}
+.m-nav .m-voix{position:relative;height:auto;align-self:start;margin-top:-18px;color:#fff}
+.m-voix b{display:grid;place-items:center;width:64px;height:64px;border-radius:50%;background:radial-gradient(circle at 35% 30%,rgba(143,208,227,.5),rgba(20,60,80,.9));border:1px solid var(--m-trait-fort);box-shadow:0 0 0 4px rgba(5,8,12,.9),0 0 22px rgba(111,211,238,.35)}
+.m-voix b svg{width:28px;height:28px}
+.m-voix[data-etat="ecoute"] b{animation:m-pulse 1.1s ease-in-out infinite;background:radial-gradient(circle at 35% 30%,rgba(255,255,255,.55),rgba(30,120,150,.95))}
+.m-voix[data-etat="parle"] b{animation:m-pulse 1.6s ease-in-out infinite}
+.m-voix[data-etat="reflechit"] b{border-color:#b69cf0}
+.m-voix[data-etat="coupe"] b{filter:saturate(.3) brightness(.7)}
+.m-voix small{font:600 10px var(--m-sans);letter-spacing:.08em;color:var(--m-doux);margin-top:2px}
+@keyframes m-pulse{0%,100%{transform:scale(1)}50%{transform:scale(1.07)}}
+html.m-vue-externe .m-nav,html.m-vue-externe .m-haut{display:none}
+
+/* ───── cartes ───── */
+.m-grille{display:grid;gap:12px;grid-template-columns:1fr}
+.m-carte{position:relative;display:block;width:100%;text-align:left;color:inherit;font:inherit;padding:14px 16px;background:var(--m-verre);border:1px solid var(--m-trait);cursor:pointer;touch-action:manipulation;-webkit-tap-highlight-color:transparent;
+  clip-path:polygon(14px 0,100% 0,100% calc(100% - 14px),calc(100% - 14px) 100%,0 100%,0 14px);opacity:0;transform:translateY(14px);animation:m-entree .5s cubic-bezier(.2,.7,.2,1) forwards;animation-delay:calc(var(--i,0)*70ms)}
+.m-carte:active{background:var(--m-verre2);border-color:var(--m-trait-fort)}
+.m-carte h3{margin:0 0 8px;font:600 11px var(--m-sans);letter-spacing:.2em;text-transform:uppercase;color:var(--m-doux);display:flex;align-items:center;justify-content:space-between;gap:8px}
+.m-carte h3 em{font-style:normal;font-size:10px;letter-spacing:.12em;color:var(--m-sable)}
+.m-carte[data-alerte="1"]{border-color:var(--m-alerte);animation:m-entree .5s forwards,m-halo 2.4s ease-in-out infinite}
+@keyframes m-entree{to{opacity:1;transform:none}}
+@keyframes m-halo{0%,100%{box-shadow:0 0 0 rgba(233,162,59,0)}50%{box-shadow:0 0 18px rgba(233,162,59,.4)}}
+.m-grand{font:500 38px/1.05 var(--m-mono);letter-spacing:-.01em;font-variant-numeric:tabular-nums}
+.m-doux{color:var(--m-doux)}.m-faible{color:var(--m-faible);font-size:13px}
+.m-mono{font-family:var(--m-mono);font-variant-numeric:tabular-nums}
+.m-haut-c{color:var(--m-haut)}.m-bas-c{color:var(--m-bas)}
+.m-ligne{display:flex;align-items:center;justify-content:space-between;gap:10px}
+
+/* ───── états : squelette, erreur, copie ancienne ───── */
+.m-squelette{display:grid;gap:10px}
+.m-squelette i{display:block;height:14px;border-radius:2px;background:linear-gradient(90deg,rgba(143,208,227,.06),rgba(143,208,227,.16),rgba(143,208,227,.06));background-size:200% 100%;animation:m-brille 1.3s linear infinite}
+.m-squelette i:nth-child(2){width:70%}.m-squelette i:nth-child(3){width:45%}.m-squelette.m-image i:first-child{height:120px}
+@keyframes m-brille{to{background-position:-200% 0}}
+.m-bandeau{display:flex;align-items:center;justify-content:space-between;gap:10px;margin:0 0 10px;padding:8px 12px;font-size:13px;color:var(--m-doux);border:1px solid var(--m-trait);background:rgba(143,208,227,.05)}
+.m-bandeau[hidden]{display:none}
+.m-bandeau[data-genre="erreur"]{border-color:rgba(255,93,110,.45);color:#ffb3bb}
+.m-bandeau[data-genre="ancien"]{border-color:rgba(233,162,59,.45);color:#f0c98a}
+.m-bouton{display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:var(--m-cible);padding:0 18px;font:600 13px var(--m-sans);letter-spacing:.08em;color:var(--m-accent);background:transparent;border:1px solid var(--m-trait-fort);cursor:pointer;touch-action:manipulation;
+  clip-path:polygon(10px 0,100% 0,100% calc(100% - 10px),calc(100% - 10px) 100%,0 100%,0 10px)}
+.m-bouton:active{background:rgba(143,208,227,.16)}
+.m-bouton[disabled]{opacity:.45}
+.m-vide{padding:26px 8px;text-align:center;color:var(--m-doux)}
+
+/* ───── titres d'écran ───── */
+.m-titre{display:flex;align-items:baseline;justify-content:space-between;gap:10px;margin:0 2px 12px}
+.m-titre h1{margin:0;font:600 20px var(--m-sans);letter-spacing:.04em;color:#fff}
+.m-titre small{font-size:12px;color:var(--m-faible)}
+
+/* ───── feuilles qui montent du bas ───── */
+.m-voile{position:fixed;inset:0;z-index:40;background:rgba(2,4,8,.6);opacity:0;transition:opacity .22s;pointer-events:auto}
+.m-voile.m-ouvert{opacity:1}
+.m-feuille{position:fixed;left:0;right:0;bottom:0;z-index:41;display:flex;flex-direction:column;max-height:92dvh;height:var(--m-h,auto);min-height:40dvh;background:rgba(8,13,19,.98);border-top:1px solid var(--m-trait-fort);transform:translateY(102%);transition:transform .28s cubic-bezier(.2,.8,.2,1);will-change:transform;
+  padding-bottom:env(safe-area-inset-bottom,0px);border-radius:14px 14px 0 0}
+.m-feuille.m-ouvert{transform:none}
+.m-feuille.m-plein{height:100dvh;max-height:100dvh;border-radius:0}
+.m-poignee{flex:none;display:grid;place-items:center;height:26px;cursor:grab;touch-action:none}
+.m-poignee i{width:42px;height:4px;border-radius:2px;background:var(--m-trait-fort)}
+.m-feuille-tete{flex:none;display:flex;align-items:center;justify-content:space-between;gap:10px;padding:0 8px 6px 16px}
+.m-feuille-tete h2{margin:0;font:600 16px var(--m-sans);letter-spacing:.06em;color:#fff;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.m-fermer{flex:none;width:var(--m-cible);height:var(--m-cible);display:grid;place-items:center;font-size:20px;color:var(--m-doux);background:none;border:0;cursor:pointer}
+.m-feuille-corps{flex:1;min-height:0;overflow-y:auto;-webkit-overflow-scrolling:touch;overscroll-behavior:contain;padding:4px 16px 18px}
+
+/* ───── bannière de mise à jour ───── */
+.m-maj{position:fixed;left:12px;right:12px;bottom:calc(var(--m-nav-h) + 10px);z-index:60;display:flex;align-items:center;justify-content:space-between;gap:10px;padding:10px 12px;background:rgba(10,17,25,.97);border:1px solid var(--m-sable);color:var(--m-texte);font-size:14px;animation:m-entree .3s forwards;opacity:0}
+.m-maj[hidden]{display:none}
+.m-hors-ligne{position:fixed;top:calc(var(--m-haut-h) - 6px);left:50%;transform:translateX(-50%);z-index:55;padding:4px 12px;font:600 11px var(--m-sans);letter-spacing:.1em;color:#f0c98a;background:rgba(10,17,25,.95);border:1px solid rgba(233,162,59,.5)}
+.m-hors-ligne[hidden]{display:none}
+
+/* ───── réponses de Raylé, fenêtres Panneaux et vues existantes : au-dessus de la barre, jamais en micro-fenêtre ───── */
+html.appareil-mobile.m-pret .pn-wrap{left:8px!important;right:8px!important;top:auto!important;bottom:calc(var(--m-nav-h) + 8px)!important;max-height:calc(100dvh - var(--m-haut-h) - var(--m-nav-h) - 24px);overflow-y:auto;z-index:45}
+html.appareil-mobile.m-pret .pn,html.appareil-mobile.m-pret .pn.large{max-height:72dvh}
+html.appareil-mobile.m-pret .pn-x{min-width:var(--m-cible);min-height:var(--m-cible)}
+html.appareil-mobile.m-pret #cfg{z-index:70}
+html.appareil-mobile.m-pret #vueTerminal{z-index:65}
+html.appareil-mobile.m-pret .hote-modules{z-index:65}
+html.appareil-mobile.m-pret.vue-terminal .m-nav,html.appareil-mobile.m-pret.hote-ouvert .m-nav,html.appareil-mobile.m-pret.hote-ouvert .m-haut,html.appareil-mobile.m-pret.vue-terminal .m-haut{display:none}
+html.appareil-mobile.m-pret body.avec-panneaux .reactor{width:min(64vw,36vh,300px)}
+
+/* ───── tablette : deux colonnes là où c'est utile ───── */
+@media (min-width:700px){
+  .m-grille{grid-template-columns:1fr 1fr}
+  .m-grille .m-large{grid-column:1/-1}
+  .m-ecran{padding-left:calc(28px + env(safe-area-inset-left,0px));padding-right:calc(28px + env(safe-area-inset-right,0px))}
+  .m-feuille{left:50%;right:auto;width:min(720px,100%);transform:translate(-50%,102%);}
+  .m-feuille.m-ouvert{transform:translate(-50%,0)}
+  .m-feuille.m-plein{width:100%;left:0;transform:translateY(102%)}
+  .m-feuille.m-plein.m-ouvert{transform:none}
+}
+@media (orientation:landscape) and (max-height:520px){
+  :root{--m-nav-h:calc(56px + env(safe-area-inset-bottom,0px))}
+  html.appareil-mobile.m-pret #reactor{width:min(30vh,200px);top:calc(var(--m-haut-h) - 6px);left:auto;right:6vw;transform:none}
+  #m-accueil{padding-top:calc(var(--m-haut-h) - 20px);padding-right:calc(30vh + 8vw)}
+  .m-nav button{height:52px}.m-nav .m-voix{margin-top:-10px}.m-voix b{width:54px;height:54px}
+}
+@media (prefers-reduced-motion:reduce){
+  .m-carte,.m-ecran,.m-feuille,.m-voile{animation:none!important;transition:none!important}
+  .m-carte{opacity:1;transform:none}
+  .m-squelette i,.m-voix b{animation:none!important}
+}
+html.m-eco .m-carte,html.m-eco .m-squelette i{animation-duration:.01s}
+html.m-niveau-2 *{animation-iteration-count:1!important}

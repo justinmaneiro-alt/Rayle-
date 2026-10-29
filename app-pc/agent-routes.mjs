@@ -6,6 +6,7 @@
 //   GET  /__agent/positions   { ok, vue }   (V7 : onglets Positions du jour, Bilan, Pourquoi pas plus, Exemples)
 //   POST /__agent/positions/commande  { type: 'reglages' | 'exemple' | 'supprimer_exemple', valeur }   → positions-commandes.json, lu par le service
 //   GET  /__agent/occasions   { ok, occasions, exemples }                               (V4 : onglet Occasions manquées)
+//   GET  /__agent/mobile     { ok, existe, paquet, recuLe, pcVivantLe, origine:'PC' }   (V8 : paquet compact de la fenêtre Agent, le même que celui publié vers le Worker ; la coque mobile le lit en priorité)
 //   GET  /__agent/donnees     { ok, flux, historique, disque }                          (V4 : onglet Données)
 //   POST /__agent/commande  { type: 'pause' | 'reprendre' | 'charge' | 'retour_arriere' | 'rapport', valeur?, numero? }  → écrit commandes.json, lu par le service à son prochain cycle
 import fs from 'node:fs';
@@ -21,10 +22,12 @@ import { pistesDepuis, meilleuresPistes, PROFIL_45_RR2 } from '../strategies/pis
 import { phraseFraisEtat, fraisMoyenR } from '../strategies/agent-etat.js';
 import { cleParams } from '../planetes/mars/pc/agent-btc/hypotheses.js';
 import { lireCoutsReglage, phraseSource } from '../agent-pc/couts-reglage.mjs';
+import { construirePaquet, plafonner } from '../agent-pc/bundle-mobile.mjs';   // V8 : même paquet que celui publié vers le Worker pour le téléphone
 
 const COMMANDES = ['pause', 'reprendre', 'charge', 'retour_arriere', 'rapport', 'observation', 'rapport_quotidien', 'niveau_preuve'];
 const COMMANDES_POSITIONS = ['reglages', 'exemple', 'supprimer_exemple'];
 export function creerRoutesAgent(env = process.env) {
+  let memoMobile = null;
   const dossier = () => dossierAgent(env);
   const lireCorps = req => new Promise((resolve, reject) => { let n = 0; const m = []; req.on('data', c => { n += c.length; if (n > 4096) { reject(new Error('corps trop gros')); req.destroy(); } else m.push(c); }); req.on('end', () => { try { resolve(JSON.parse(Buffer.concat(m).toString('utf8') || '{}')); } catch (e) { reject(new Error('JSON invalide')); } }); req.on('error', reject); });
   async function gerer(req, res, chemin) {
@@ -67,6 +70,12 @@ export function creerRoutesAgent(env = process.env) {
         const o = lireJson(path.join(dossier(), 'occasions.json'), {}) || {}, liste = Object.entries(o).flatMap(([p, j]) => ((j && j.liste) || []).map(x => ({ ...x, actif: p }))).sort((a, b) => b.t - a.t);
         let ex = []; try { ex = fs.readFileSync(path.join(dossier(), 'exemples.jsonl'), 'utf8').split('\n').filter(Boolean).map(x => JSON.parse(x)); } catch (e) { /* aucun */ }
         return json(200, { ok: true, occasions: { ...resumeOccasions({ liste }), recentes: liste.filter(x => !x.prise).slice(0, 25) }, exemples: { ...resumeExemples(ex), recents: ex.slice(-20).reverse() } });
+      }
+      if (route === 'mobile' && req.method === 'GET') {   // V8 : même paquet que le Worker (copie de 20 s : la construction lit l'état complet)
+        const now = Date.now();
+        if (!memoMobile || now - memoMobile.t > 20000) memoMobile = { t: now, paquet: plafonner(construirePaquet(dossier(), now)) };
+        const service = lireJson(F.service, null);
+        return json(200, { ok: true, existe: true, paquet: memoMobile.paquet, recuLe: memoMobile.t, pcVivantLe: service && service.vivantLe || null, origine: 'PC' });
       }
       if (route === 'donnees' && req.method === 'GET') {
         let libre = null; try { const st = fs.statfsSync(dossier()); libre = Number(st.bavail) * Number(st.bsize) / 1024 ** 3; } catch (e) { /* inconnu */ }
