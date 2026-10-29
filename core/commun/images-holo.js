@@ -63,6 +63,7 @@
   /* Ouvre la galerie avec la réponse du Worker. Retourne les images affichées (liste vide si aucune). */
   function ouvrirGalerie(res,sujetDemande){
     const images=IC.filtrerImages(res,modeLeger()?1:IC.MAX_IMAGES);
+    if(window.MobileGalerie&&window.RayleAppareil&&RayleAppareil.estMobile()){ const im=IC.filtrerImages(res,IC.MAX_IMAGES); if(im.length&&res.sujet){ MobileGalerie.ouvrir(res,im); return im; } }   // V8 : galerie plein écran sur téléphone et tablette
     if(!images.length||!res.sujet){ ouvrirMessage('Images · aucune image libre trouvée','aucune image libre trouvée',IC.messageSansImage(res,sujetDemande||(res&&res.q)||'')); return []; }
     courant={res,images,etat:IC.etatGalerie(images.length),sujet:res.sujet,el:null};
     ouvrirPanneau('Images · '+res.sujet.titre,(el)=>{ courant.el=el; construire(el,res,images); afficher(); return ()=>{ if(courant&&courant.el===el) courant.el=null; }; });

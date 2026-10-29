@@ -32,10 +32,9 @@ for (const cle of ['telephone', 'tablette']) {
   v('…même par un appel direct du code : la galaxie ne s’ouvre pas', (await vueCourante(page)) === 'rayle' && galaxieChargee(o.requetes).length === 0);
   // actualités
   const dA = await dire(page, 'Donne-moi l’actualité en France', 2600);
-  const pA = await panneaux(page);
-  v('« l’actualité en France » ouvre une fenêtre d’actualités dans Jarvis', pA.some(id => /actu|ac-|france/i.test(id)) && (await vueCourante(page)) === 'rayle', pA.join(',') + ' | ' + dA);
-  const largeurFen = await page.evaluate(() => { const e = document.querySelector('#panneaux .pn:not(.hud-out)'); if (!e) return null; const r = e.getBoundingClientRect(); return { x: r.x, w: r.width, iw: innerWidth }; });
-  v('la fenêtre tient dans l’écran (pas de débordement)', largeurFen && largeurFen.x >= -1 && largeurFen.x + largeurFen.w <= largeurFen.iw + 1, JSON.stringify(largeurFen));
+  v('« l’actualité en France » ouvre l’écran Actualités de Jarvis (coque mobile V8)', /actualité en France/.test(dA) && (await page.evaluate(() => document.documentElement.dataset.mEcran)) === 'actus' && (await vueCourante(page)) === 'rayle', dA);
+  const largeurFen = await page.evaluate(() => { const e = document.querySelector('#m-actus'); const r = e.getBoundingClientRect(); return { x: r.x, w: r.width, iw: innerWidth }; });
+  v('l’écran tient dans l’écran (pas de débordement)', largeurFen && largeurFen.x >= -1 && largeurFen.x + largeurFen.w <= largeurFen.iw + 1, JSON.stringify(largeurFen));
   await page.screenshot({ path: 'docs/captures-v7b/' + cle + '-actualites.png' });
   await page.evaluate(() => Panneaux.fermerTout());
   // terminal
@@ -48,11 +47,10 @@ for (const cle of ['telephone', 'tablette']) {
   v('retour à Jarvis', (await vueCourante(page)) === 'rayle');
   // agent Kepler : positions du jour
   const dK = await dire(page, 'Ouvre l’agent', 3500);
-  const pK = await page.evaluate(() => ({ ouvert: !!document.querySelector('.pn[data-id*="agent"]'), onglets: Array.from(document.querySelectorAll('[data-av3-vue]')).map(b => b.dataset.av3Vue), sw: document.documentElement.scrollWidth, iw: innerWidth }));
-  v('« ouvre l’agent » : la fenêtre Kepler s’ouvre avec les onglets Positions du jour, Bilan, Pourquoi pas plus', pK.ouvert && ['positions', 'bilan', 'pourquoi', 'exemples', 'reglages_pos'].every(x => pK.onglets.includes(x)), JSON.stringify(pK) + dK);
-  await page.evaluate(() => { const b = document.querySelector('[data-av3-vue="positions"]'); if (b) b.click(); }); await attendre(1500);
-  const tpos = await page.evaluate(() => ({ texte: (document.querySelector('.av4') || {}).innerText || '', sw: document.documentElement.scrollWidth, iw: innerWidth }));
-  v('l’onglet « Positions du jour » répond honnêtement (service du PC absent : message clair, pas de chiffre inventé)', /Positions du jour|service du PC|pas encore calcul/i.test(tpos.texte), tpos.texte.slice(0, 120));
+  const pK = await page.evaluate(() => ({ ecran: document.documentElement.dataset.mEcran, onglets: Array.from(document.querySelectorAll('#m-agent .m-onglets [data-o]')).map(b => b.dataset.o), sw: document.documentElement.scrollWidth, iw: innerWidth }));
+  v('« ouvre l’agent » : l’écran Kepler s’ouvre avec Positions du jour, Graphique, Performance…', pK.ecran === 'agent' && ['positions', 'graphique', 'performance', 'strategies', 'reglages'].every(x => pK.onglets.includes(x) || (x === 'graphique' && cle === 'tablette')), JSON.stringify(pK) + dK);
+  const tpos = await page.evaluate(() => ({ texte: (document.querySelector('#m-agent') || {}).innerText || '', sw: document.documentElement.scrollWidth, iw: innerWidth }));
+  v('l’onglet « Positions du jour » répond honnêtement (service du PC absent, serveur verrouillé : message clair, pas de chiffre inventé)', /Positions du jour|verrouillée|pas encore calcul|indisponible|Aucune position/i.test(tpos.texte), tpos.texte.slice(0, 160));
   v('…sans débordement horizontal', tpos.sw <= tpos.iw + 1, tpos.sw + '/' + tpos.iw);
   await page.screenshot({ path: 'docs/captures-v7b/' + cle + '-agent.png' });
   await page.evaluate(() => Panneaux.fermerTout());

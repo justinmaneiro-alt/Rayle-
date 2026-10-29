@@ -134,6 +134,7 @@ function construire(G) {
     else if (a === 'meteo-point' && feuille._ll) meteo(feuille._ll.lat, feuille._ll.lon, 'Point choisi');
     else if (a === 'meteo-sujet' && sujetOuvert && sujetOuvert.lieu) meteo(sujetOuvert.lieu.lat, sujetOuvert.lieu.lon, sujetOuvert.lieu.nom || sujetOuvert.lieu.texte);
     else if (a === 'fermer-feuille') { fermerFeuille(); choisi = null; poserPins(); }
+    else if (a === 'globe' && window.RayleAppareil && window.RayleAppareil.estMobile()) { dire('Le globe 3D est réservé au PC ; ici je reste sur la carte plate.', 7000); }   // V8 : jamais de Galaxie ni de 3D lourde sur téléphone et tablette
     else if (a === 'globe') { try { localStorage.setItem(CLE_VUE, '3d'); } catch (x) { /* stockage refusé */ } dire('Le globe 3D s’ouvrira au prochain passage sur la Terre (rechargez la page pour l’avoir tout de suite).', 9000); }
     else if (a === 'credits') ouvrirCredits();
   });

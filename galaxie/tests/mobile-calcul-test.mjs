@@ -21,6 +21,7 @@ d = M.decisionCache({ ttl: 300e3, maintenant: T }); v('pas de cache : rien à mo
 // erreurs
 v('503 « en préparation » devient une phrase claire', /préparent/.test(M.messageErreur(new Error('HTTP 503 · actualités en préparation'))) && !/503/.test(M.messageErreur(new Error('HTTP 503 · actualités en préparation'))));
 v('limite D1 : phrase claire', /limitée/.test(M.messageErreur(new Error('La liaison Worker est limitée'))));
+v('HTTP 503 de limite : « limitée » (pas « actualités en préparation »)', /limitée/.test(M.messageErreur(new Error('HTTP 503 : La liaison Worker est limitée aujourd’hui'))) && /momentanément/.test(M.messageErreur(new Error('HTTP 502 sur /x'))));
 v('verrouillé : phrase claire', /verrouillée/.test(M.messageErreur(new Error('Worker verrouillé'))));
 v('réseau : phrase claire', /réseau/.test(M.messageErreur(new TypeError('Failed to fetch'))));
 v('jamais [object Object]', !/object/.test(M.messageErreur({})));
@@ -76,6 +77,7 @@ v('« mode galaxie » / « ouvre la galaxie » : refus poli', r('ouvre la galaxi
 v('« donne-moi l’actualité en France » : actus', r('donne-moi l’actualité en France') === 'actus' && r('les infos') === 'actus' && r('affiche les actualités') === 'actus');
 v('« affiche le terminal » : terminal', r('affiche le terminal') === 'terminal' && r('ouvre le terminal de trading') === 'terminal');
 v('« ouvre l’agent », positions du jour : agent', r('ouvre l’agent') === 'agent' && r('montre-moi les positions du jour') === 'agent' && r('affiche kepler') === 'agent');
+v('« montre-moi le bilan » : agent ; « le bilan de la France » n’est pas intercepté', r('montre-moi le bilan') === 'agent' && r('affiche les performances') === 'agent' && r('donne-moi le bilan de la semaine') === 'agent' && r('montre-moi le bilan de la France') === null);
 v('carte et réglages', r('ouvre la carte') === 'carte' && r('ouvre les réglages') === 'reglages');
 v('une phrase ordinaire n’est pas interceptée', r('quelle heure est-il') === null && r('parle-moi de Napoléon') === null);
 console.log(`\nCoque mobile : ${ok} vérifications réussies, ${ko} échec(s).`); process.exit(ko ? 1 : 0);

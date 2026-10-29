@@ -25,8 +25,9 @@ export async function ouvrirAppareil(cle, { url = '/index.html', storage = {}, a
   if (A.ua) await page.setUserAgent(A.ua, A.meta);
   await page.setViewport({ ...A.viewport, ...(paysage ? { width: A.viewport.height, height: A.viewport.width } : {}) });
   const erreurs = [], requetes = [], octets = { total: 0 }, parId = new Map();
-  page.on('console', m => { if (['error'].includes(m.type())) erreurs.push(m.text().slice(0, 240)); });
+  page.on('console', m => { if (['error'].includes(m.type())) { erreurs.push(m.text().slice(0, 240)); if (process.env.RAYLE_DEBUG_404) console.log('CONSOLE', m.text().slice(0, 100), (m.location() || {}).url); } });
   page.on('pageerror', e => erreurs.push('pageerror: ' + e.message.slice(0, 240)));
+  if (process.env.RAYLE_DEBUG_404) page.on('response', r => { if (r.status() >= 400) console.log('HTTP', r.status(), r.url().slice(0, 140)); });
   const cdp = await page.createCDPSession(); await cdp.send('Network.enable');
   cdp.on('Network.requestWillBeSent', e => { parId.set(e.requestId, e.request.url); });
   cdp.on('Network.loadingFinished', e => { const u = parId.get(e.requestId); if (u) { octets.total += e.encodedDataLength || 0; requetes.push({ url: u.replace(BASE, ''), octets: e.encodedDataLength || 0 }); } });

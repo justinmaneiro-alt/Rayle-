@@ -24,7 +24,7 @@
   async function commande(type,valeur){
     if(!['pause','reprendre','charge','rapport','reglages','niveau_preuve','observation'].includes(type)) throw new Error('commande inconnue');
     if(local()){
-      try{ const r=await fetch(type==='reglages'?'/__agent/positions/commande':'/__agent/commande',{method:'POST',headers:{'Content-Type':'application/json','X-Rayle-Multi':'1'},body:JSON.stringify({type,valeur}),signal:AbortSignal.timeout(8000)}); if(r.ok) return {ok:true,via:'PC'}; }catch(e){ /* Worker */ }
+      try{ const r=await fetch(type==='reglages'?'/__agent/positions/commande':'/__agent/commande',{method:'POST',headers:{'Content-Type':'application/json','X-Rayle-Multi':'1'},body:JSON.stringify({type,valeur}),signal:AbortSignal.timeout(8000)}); if(r.ok){ const j=await r.json().catch(()=>null); if(j&&j.ok===true) return {ok:true,via:'PC'}; } }catch(e){ /* Worker */ }
     }
     if(!window.wfetch) throw new Error('liaison indisponible');
     const r=await window.wfetch('/agent/commande',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({type,valeur})},15000);
@@ -34,12 +34,24 @@
   /* Marquer un exemple (« ici j'aurais pris ça ») : transmis au service du PC, directement ou par le Worker (le PC l'analyse à son prochain battement). */
   async function exemple(valeur){
     if(local()){
-      try{ const r=await fetch('/__agent/positions/commande',{method:'POST',headers:{'Content-Type':'application/json','X-Rayle-Multi':'1'},body:JSON.stringify({type:'exemple',valeur}),signal:AbortSignal.timeout(8000)}); if(r.ok) return {ok:true,via:'PC'}; }catch(e){}
+      try{ const r=await fetch('/__agent/positions/commande',{method:'POST',headers:{'Content-Type':'application/json','X-Rayle-Multi':'1'},body:JSON.stringify({type:'exemple',valeur}),signal:AbortSignal.timeout(8000)}); if(r.ok){ const j=await r.json().catch(()=>null); if(j&&j.ok===true) return {ok:true,via:'PC'}; } }catch(e){}
     }
     if(!window.wfetch) throw new Error('liaison indisponible');
     const r=await window.wfetch('/agent/commande',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({type:'exemple',valeur})},15000);
     if(!r.ok) throw new Error('HTTP '+r.status);
     return {ok:true,via:'Worker',note:'transmis ; le PC l’analysera à son prochain battement (PC éteint : il attend)'};
   }
-  window.MobileAgentDonnees={lire,commande,exemple,local};
+  /* Un seul abonnement aux données de l'agent pour toute la coque (accueil, écran Agent) : une copie en cache (rafraîchie toutes les 2 min tant que l'écran est visible) ; les abonnés reçoivent
+     { data, meta: { t, perime }, bandeau: { genre, texte } }. */
+  let ctrl=null, courant={data:null,meta:null,bandeau:null}; const abonnes=new Set();
+  const diffuser=()=>abonnes.forEach(f=>{ try{ f(courant); }catch(e){ console.error(e); } });
+  function demarrer(){
+    if(ctrl||!window.MobileDonnees) return;
+    ctrl=window.MobileDonnees.suivre({cle:'agent',zone:document.createElement('div'),ttl:2*60e3,charger:lire,squelette:'carte',
+      rendre:(c,d,meta)=>{ courant={...courant,data:d,meta}; diffuser(); },
+      surEtat:b=>{ courant={...courant,bandeau:b.genre?b:null}; diffuser(); }});
+  }
+  function observer(f){ abonnes.add(f); demarrer(); if(courant.data||courant.bandeau) f(courant); return ()=>abonnes.delete(f); }
+  const rafraichir=()=>{ demarrer(); return ctrl&&ctrl.rafraichir(); };
+  window.MobileAgentDonnees={lire,commande,exemple,local,observer,rafraichir,etat:()=>courant};
 })();

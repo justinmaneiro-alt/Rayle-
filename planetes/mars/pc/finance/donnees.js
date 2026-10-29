@@ -24,7 +24,8 @@ export function reseauNavigateur() {
   const workerPret = () => { try { return typeof workerReady === 'function' && !!workerReady(); } catch (e) { return false; } };
   return {
     workerPret,
-    async direct(url, { json = false } = {}) { const r = await fetch(url, { cache: 'no-store' }); if (!r.ok) throw new Error('HTTP ' + r.status); return json ? r.json() : r.text(); },
+    /* V8 : jamais de lecture infinie (délai de 15 s) */
+    async direct(url, { json = false } = {}) { const r = await fetch(url, { cache: 'no-store', signal: AbortSignal.timeout(15000) }); if (!r.ok) throw new Error('HTTP ' + r.status); return json ? r.json() : r.text(); },
     async brut(id) {
       if (!workerPret()) throw new Error('Worker non configuré (⚙ Réglages de Raylé)');
       const r = await window.wfetch('/finance/brut?id=' + encodeURIComponent(id), { method: 'GET' }, 25000);

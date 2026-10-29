@@ -33,9 +33,11 @@ export function construireHub(conteneur, { onglet = 'evenements', surTerre = nul
     const mon = ++enCours; arreter(); corps.innerHTML = '<p class="dx-vide">Chargement…</p>';
     let h = '';
     try {
-      if (courant === 'evenements') h = await vueEvenements(); else if (courant === 'communiques') h = await vueCommuniques(); else if (courant === 'tv') h = vueTv();
-      else if (courant === 'social') h = await vueSocial(); else if (courant === 'podcasts') h = await vuePodcasts(); else h = await vueAujourdhui();
-    } catch (e) { h = '<p class="dx-vide ko">INDISPONIBLE : ' + esc(e && e.message || e) + '</p>'; }
+      const produire = () => (courant === 'evenements' ? vueEvenements() : courant === 'communiques' ? vueCommuniques() : courant === 'tv' ? vueTv()
+        : courant === 'social' ? vueSocial() : courant === 'podcasts' ? vuePodcasts() : vueAujourdhui());
+      let minuterie; const delai = new Promise((_, ko) => { minuterie = setTimeout(() => ko(new Error('délai dépassé : la source ne répond pas')), 30000); });   // V8 : jamais un « Chargement… » infini
+      try { h = await Promise.race([Promise.resolve().then(produire), delai]); } finally { clearTimeout(minuterie); }
+    } catch (e) { h = '<p class="dx-vide ko">INDISPONIBLE : ' + esc(e && e.message || e) + '</p><p class="dx-vide"><button type="button" class="dx-chip" data-reessayer>Réessayer</button></p>'; }
     if (mon !== enCours || !conteneur.isConnected) return; corps.innerHTML = h;
   }
 
@@ -123,7 +125,8 @@ export function construireHub(conteneur, { onglet = 'evenements', surTerre = nul
 
   conteneur.addEventListener('click', ev => {
     const b = ev.target.closest('button'); if (!b) return;
-    if (b.dataset.onglet) { courant = b.dataset.onglet; for (const o of barre.children) o.classList.toggle('actif', o.dataset.onglet === courant); rendre(); }
+    if (b.dataset.reessayer != null) { rendre(); }
+    else if (b.dataset.onglet) { courant = b.dataset.onglet; for (const o of barre.children) o.classList.toggle('actif', o.dataset.onglet === courant); rendre(); }
     else if (b.dataset.type) { if (f.types.has(b.dataset.type)) f.types.delete(b.dataset.type); else f.types.add(b.dataset.type); rendre(); }
     else if (b.dataset.grav != null && b.dataset.grav !== '') { f.severiteMin = +b.dataset.grav; rendre(); }
     else if (b.dataset.source !== undefined) { f.source = b.dataset.source || null; rendre(); }

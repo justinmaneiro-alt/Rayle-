@@ -10,7 +10,7 @@ import { lirePepiniere, resumePepiniere } from './pepiniere.mjs';
 import { statutFlux } from './flux/service-flux.mjs';
 import { resumeOccasions, resumeExemples } from '../strategies/autonomie.js';
 import { pistesDepuis, meilleuresPistes, PROFIL_45_RR2 } from '../strategies/pistes.js';
-import { phraseFraisEtat, fraisMoyenR } from '../strategies/agent-etat.js';
+import { phraseFraisEtat, fraisMoyenR, strategiesActives } from '../strategies/agent-etat.js';
 import { entonnoir } from '../strategies/diagnostic-v4.js';
 
 /* Performance simulée pour les courbes du téléphone : propositions CLÔTURÉES seulement (jamais d'invention). Rend, pour « tous », chaque agent et chaque actif : courbe cumulée en R (≤ 200 points) et résultat par jour. */
@@ -55,7 +55,9 @@ export function construirePaquet(dossier, maintenant = Date.now()) {
       recherche: { phase: service && service.phase, raison: service && service.raison }, variantes: Object.values(etat.compteurVariantes || {}).reduce((a, b) => a + b, 0), entonnoir: ent };
     const eq = lireEquipe(dossier);
     paquet.equipe = { equipe: resumeEquipe(eq, etat, maintenant), hypotheses: eq.hypotheses.slice(-10).reverse().map(h => ({ id: h.id, titre: h.titre, raison: h.raison, statut: h.statut, t: h.t })), pepiniere: resumePepiniere(pep, maintenant), rapportQuotidien: etat.rapportQuotidien || null };
-    paquet.agent = { enMarche: !!(service && maintenant - service.vivantLe < 120000), versionActive: etat.active || null, alertes: (etat.alertes || []).slice(-8).reverse(), rapport: etat.rapport || null, pause: !!(etat.parametresRisque && etat.parametresRisque.pause) };
+    paquet.agent = { enMarche: !!(service && maintenant - service.vivantLe < 120000), versionActive: etat.active || null, alertes: (etat.alertes || []).slice(-8).reverse(), rapport: etat.rapport || null, pause: !!(etat.parametresRisque && etat.parametresRisque.pause), charge: etat.parametresRisque && etat.parametresRisque.charge || null,
+      versions: (etat.versions || []).slice(-8).reverse().map(v => ({ numero: v.numero, t: v.creeLe, raison: String(v.raison || '').slice(0, 160), nStrategies: (v.strategies || []).length, active: !!v.active })),
+      strategies: strategiesActives(etat).slice(0, 20).map(x => ({ id: x.id, nom: x.nom, paire: x.paire, phase: x.phase, debut: x.debutSimulation || null })) };
   }
   const o = lireJson(path.join(dossier, 'occasions.json'), {}) || {}, liste = Object.entries(o).flatMap(([p, j]) => ((j && j.liste) || []).map(x => ({ ...x, actif: p }))).sort((a, b) => b.t - a.t);
   let ex = []; try { ex = fs.readFileSync(path.join(dossier, 'exemples.jsonl'), 'utf8').split('\n').filter(Boolean).map(x => JSON.parse(x)); } catch (e) { /* aucun */ }
@@ -83,13 +85,13 @@ export const empreintePaquet = p => {
 };
 
 /* Pousseur : appelé à chaque cycle du service ; n'envoie que si le contenu a changé ET que l'intervalle minimal est écoulé (ou si `forcer`). */
-export function creerPousseur({ dossier, S, journal = () => {}, maintenant = () => Date.now() }) {
+export function creerPousseur({ dossier, S, journal = () => {}, maintenant = () => Date.now(), construire = construirePaquet }) {
   let derniere = null, dernierEssai = 0, dernierEnvoi = 0;
   return async function pousser(forcer = false) {
     if (!S || !S.configure || !S.publierMobile) return { envoye: false, raison: 'Worker non configuré' };
     const t = maintenant();
     if (!forcer && t - dernierEssai < INTERVALLE_MS) return { envoye: false, raison: 'trop tôt' };
-    const p = plafonner(construirePaquet(dossier, t)), h = empreintePaquet(p);
+    const p = plafonner(construire(dossier, t)), h = empreintePaquet(p);
     dernierEssai = t;
     if (!forcer && h === derniere && t - dernierEnvoi < 30 * 60e3) { return { envoye: false, raison: 'inchangé' }; }   // inchangé : on ne réécrit pas (rafraîchi toutes les 30 min au plus tard)
     try { await S.publierMobile(p); derniere = h; dernierEnvoi = t; return { envoye: true, octets: Buffer.byteLength(JSON.stringify(p)) }; }

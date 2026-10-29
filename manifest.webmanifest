@@ -1,0 +1,23 @@
+{
+  "name": "Raylé",
+  "short_name": "Raylé",
+  "description": "Raylé, l'IA personnelle : actualités, marchés, agent de trading Kepler, météo, voix.",
+  "lang": "fr",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#05080c",
+  "theme_color": "#05080c",
+  "categories": ["productivity", "finance", "news"],
+  "icons": [
+    { "src": "icones/rayle-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "icones/rayle-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "icones/rayle-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" },
+    { "src": "favicon.svg", "sizes": "any", "type": "image/svg+xml" }
+  ],
+  "shortcuts": [
+    { "name": "Agents trading", "short_name": "Agent", "url": "./index.html#agent" },
+    { "name": "Actualités", "short_name": "Actus", "url": "./index.html#actus" }
+  ]
+}

@@ -9,6 +9,7 @@
    « réduire les animations » et onglet caché : tout est figé ; hors accueil (terminal, galaxie, satellite multi-écrans) : rien ne tourne. Contenu pur : tableau-bord-contenu.js (testé). */
 (function(){
   if(window.RAYLE_SATELLITE) return;
+  if(window.RayleAppareil&&RayleAppareil.estMobile()) return;       // V8 : téléphone et tablette ont leur propre accueil (core/mobile/) ; ce tableau de bord du PC ne charge rien et ne fait aucun appel
   const T=window.TableauBordContenu, scene=document.getElementById('scene');
   if(!T||!scene||!window.RayleBus) return;
   const corps=document.body, $=id=>document.getElementById(id);

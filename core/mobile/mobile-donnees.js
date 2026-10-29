@@ -30,6 +30,7 @@
   function suivre(o){
     const {cle,zone,ttl=5*60e3,charger,rendre,squelette,vide,delai=12000}=o;
     const S=structure(zone,squelette);
+    const band=(g,t,a)=>{ bandeau(S.bandeau,g,t,a); if(o.surEtat) try{ o.surEtat({genre:g,texte:t||''}); }catch(e){} };
     let enVol=null, essais=0, minuterie=null, arrete=false, derniere=null, montre=null;
     const enLigne=()=>navigator.onLine!==false;
     const afficher=(data,t,perime,erreur)=>{
@@ -47,25 +48,25 @@
         try{
           const data=await Promise.race([Promise.resolve().then(charger),new Promise((_,rej)=>setTimeout(()=>rej(new Error('délai dépassé')),delai))]);
           if(arrete) return;
-          const t=Date.now(); ecrire(cle,t,data); derniere={t,data}; essais=0; bandeau(S.bandeau,null); afficher(data,t,false);
+          const t=Date.now(); ecrire(cle,t,data); derniere={t,data}; essais=0; band(null); afficher(data,t,false);
           if(ttl) { clearTimeout(minuterie); minuterie=setTimeout(()=>{ if(!document.hidden) lancer(); else planifier(); },ttl); }
         }catch(e){
           if(arrete) return;
           const msg=C.messageErreur(e), c=lire(cle);
-          if(c){ afficher(c.data,c.t,true,msg); bandeau(S.bandeau,'ancien','Copie ancienne ('+C.age(c.t)+') : '+msg,'Réessayer'); }
-          else { S.corps.innerHTML='<p class="m-vide">'+esc(msg)+'</p>'; bandeau(S.bandeau,'erreur','Source indisponible.','Réessayer'); }
+          if(c){ afficher(c.data,c.t,true,msg); band('ancien','Copie ancienne ('+C.age(c.t)+') : '+msg,'Réessayer'); }
+          else { S.corps.innerHTML=''; band('erreur',msg,'Réessayer'); }
           essais++; planifier();
         }finally{ enVol=null; }
       })();
       return enVol;
     }
-    zone.addEventListener('click',ev=>{ if(arrete) return; if(ev.target.closest('[data-m-reessayer]')){ ev.stopPropagation(); essais=0; bandeau(S.bandeau,null); if(!lire(cle)) S.corps.innerHTML=SQUELETTES[squelette||'liste']||SQUELETTES.liste; lancer(true); } });
+    zone.addEventListener('click',ev=>{ if(arrete) return; if(ev.target.closest('[data-m-reessayer]')){ ev.stopPropagation(); essais=0; band(null); if(!lire(cle)) S.corps.innerHTML=SQUELETTES[squelette||'liste']||SQUELETTES.liste; lancer(true); } });
     document.addEventListener('visibilitychange',()=>{ if(!document.hidden&&!arrete){ const c=lire(cle); if(!c||Date.now()-c.t>=ttl) lancer(); } });
     window.addEventListener('online',()=>{ if(!arrete) lancer(); });
     // 1) la copie, tout de suite ; 2) le rechargement si elle est ancienne ou absente
     const c0=lire(cle), d=C.decisionCache({t:c0&&c0.t,ttl,enLigne:enLigne()});
-    if(d.montrer){ derniere=c0; afficher(c0.data,c0.t,d.perime); if(d.perime) bandeau(S.bandeau,'ancien','Copie ancienne ('+C.age(c0.t)+') : mise à jour en cours…'); }
-    if(d.rafraichir||!d.montrer){ if(enLigne()) lancer(); else if(!d.montrer){ S.corps.innerHTML='<p class="m-vide">Pas de réseau pour le moment.</p>'; bandeau(S.bandeau,'erreur','Hors ligne.','Réessayer'); } }
+    if(d.montrer){ derniere=c0; afficher(c0.data,c0.t,d.perime); if(d.perime) band('ancien','Copie ancienne ('+C.age(c0.t)+') : mise à jour en cours…'); }
+    if(d.rafraichir||!d.montrer){ if(enLigne()) lancer(); else if(!d.montrer){ S.corps.innerHTML='<p class="m-vide">Pas de réseau pour le moment.</p>'; band('erreur','Hors ligne.','Réessayer'); } }
     else if(d.montrer&&ttl){ minuterie=setTimeout(()=>{ if(!document.hidden) lancer(); else planifier(); },Math.max(5000,ttl-(Date.now()-c0.t))); }
     return {rafraichir:()=>{ essais=0; return lancer(true); },arreter:()=>{ arrete=true; clearTimeout(minuterie); },derniere:()=>derniere,zone:S};
   }

@@ -11,13 +11,14 @@
   addLine('sys','Terminal : intégré à cette page (dis « ouvre le terminal » ou touche 📈 OUVRIR LE TERMINAL)');
   if(OLD_KEYS.some(k=>store.get(k))) addLine('sys','Anciennes clés encore présentes dans ce navigateur : ⚙ Réglages → Effacer les anciennes clés');
   pingWorker();
-  setTimeout(()=>{
-    fetchCalendar(false)
+  const lireCalendrier=()=>fetchCalendar(false)
       .then(ev=>addLine('sys','Calendrier économique : '+ev.length+' annonces ('+calVia+')'))
       .catch(e=>addLine('sys','Calendrier économique indisponible : '+errMsg(e)));
-  },1500);
+  const surMobile=!!(window.RayleAppareil&&RayleAppareil.estMobile());
+  if(surMobile){ const off=RayleBus.on('vue:changee',e=>{ if(e&&e.vue==='terminal'){ off(); lireCalendrier(); } }); }   // V8 : sur mobile le calendrier se lit à l'ouverture du terminal, pas au démarrage
+  else setTimeout(lireCalendrier,1500);
   const hh=new Date().getHours();
-  addLine('ray',(hh>=18||hh<5?'Bonsoir':'Bonjour')+", Justin. "+(modeToucher()
+  if(!surMobile) addLine('ray',(hh>=18||hh<5?'Bonsoir':'Bonjour')+", Justin. "+(modeToucher()
     ? fx('Touchez','Touche')+" le bouton du bas, "+fx('parlez','parle')+", je réponds."
     : fx('Touchez','Touche')+" le bouton ci-dessous pour m'activer, puis "+fx('dites','dis')+" « Raylé »."));
   updateBridgeStatus();

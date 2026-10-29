@@ -41,11 +41,12 @@
   /* Texte d'erreur lisible (jamais « HTTP 503 » brut, jamais d'objet). */
   function messageErreur(e){
     let m=String((e&&e.message)||e||'').trim(); if(m.indexOf('[object ')===0) m='';
-    if(/503|en préparation|prépar/i.test(m)) return 'Les actualités se préparent : le serveur lit ses médias par petits lots.';
     if(/limit|D1_ERROR|liaison Worker/i.test(m)) return 'La liaison avec le serveur est limitée aujourd’hui. Elle revient toute seule.';
+    if(/en préparation|prépar/i.test(m)) return 'Les actualités se préparent : le serveur lit ses médias par petits lots.';
     if(/verrouill|401|403|code d.accès|PIN/i.test(m)) return 'Raylé est verrouillée : entre ton code dans les réglages.';
     if(/Failed to fetch|NetworkError|réseau|network|offline|Load failed/i.test(m)) return 'Pas de réseau pour le moment.';
     if(/abort|timeout|délai/i.test(m)) return 'Le serveur met trop de temps à répondre.';
+    if(/HTTP 5\d\d/.test(m)) return 'Le serveur est momentanément indisponible. Réessaie dans un instant.';
     return m?m.slice(0,140):'Source indisponible.';
   }
 
@@ -157,10 +158,11 @@
   /* ───── commandes vocales : équivalents mobiles ───── */
   /* Demande → écran mobile. Renvoie { ecran, feuille? } ou null (la phrase est pour l'agent). Sert au routage et à la documentation (docs/APPAREILS.md). */
   function routeCommande(texte){
-    const t=' '+String(texte||'').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/[’']/g,' ').replace(/\s+/g,' ').trim()+' ';
+    const t=' '+String(texte||'').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/[’'\-]/g,' ').replace(/\s+/g,' ').trim()+' ';
     const a=re=>re.test(t);
     if(a(/ (la )?galaxie | mode galaxie /)) return {ecran:'galaxie-refus'};
-    if(a(/ (ouvre|affiche|montre|va sur|vas sur|mets?) (moi )?(l |le |la |les )?(agent|kepler|positions?|bilan)/)||a(/ positions du jour /)||a(/ (ouvre|affiche|montre) (moi )?(les )?agents? (de )?trading/)) return {ecran:'agent'};
+    if(a(/ (ouvre|affiche|montre|va sur|vas sur|mets?) (moi )?(l |le |la |les )?(agent|kepler|positions?)/)||a(/ positions du jour /)||a(/ (ouvre|affiche|montre) (moi )?(les )?agents? (de )?trading/)) return {ecran:'agent'};
+    if(a(/ (ouvre|affiche|montre|donne)( moi)? (le |mon |les )?(bilan|performances?|strategies?)( de (kepler|l agent|la veille|hier|la semaine|du jour))? $/)) return {ecran:'agent'};
     if(a(/ (ouvre|affiche|montre|lance) (moi )?(le )?terminal/)) return {ecran:'terminal'};
     if(a(/ (donne|lis|presente|affiche|montre)( moi)? (l |les )?(actualites?|infos?|news|nouvelles)/)||a(/ (l )?actualite(s)? (en|de|du|sur) /)||a(/ les infos /)||a(/ actus /)) return {ecran:'actus'};
     if(a(/ (ouvre|affiche|montre)( moi)? (la )?carte/)) return {ecran:'carte'};

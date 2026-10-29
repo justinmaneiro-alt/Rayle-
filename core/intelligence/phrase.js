@@ -8,6 +8,9 @@
     const cmdS=await commandeSecurite(text);    // « déverrouille », « verrouille », « journal de sécurité »…
     if(my!==epoch) return;
     if(cmdS){ diagAction('commande de sécurité'); addLine('ray',cmdS); await speak(cmdS); return; }
+    const cmdMo=window.MobileVoix?await MobileVoix.commande(text):null;    // V8 : téléphone et tablette (coque mobile) : « l'actualité en France », « affiche le terminal », « ouvre l'agent », « mode galaxie » → équivalent Jarvis
+    if(my!==epoch) return;
+    if(cmdMo){ diagAction('commande mobile'); addLine('ray',cmdMo); await speak(cmdMo); return; }
     const cmdV=window.VeilleurPage?await VeilleurPage.commande(text):null;    // « active le veilleur », « montre-moi les alertes » : alertes de l'agent Bitcoin
     if(my!==epoch) return;
     if(cmdV){ diagAction('veilleur d alertes'); addLine('ray',cmdV); await speak(cmdV); return; }

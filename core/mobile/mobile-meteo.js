@@ -82,7 +82,7 @@
       return;
     }
     if(suivi) suivi.arreter();
-    suivi=D.suivre({cle:'meteo:'+l.lat+','+l.lon,zone,ttl:15*60e3,squelette:'carte',charger:()=>chargerMeteo(l),rendre:(corps,m,meta)=>{ corps.innerHTML=html(m); zone.dataset.m=JSON.stringify(m); }});
+    suivi=D.suivre({cle:'meteo:'+l.lat+','+l.lon,zone,ttl:15*60e3,squelette:'carte',charger:()=>chargerMeteo(l),rendre:(corps,m0,meta)=>{ const m={...m0,nom:l.nom}; corps.innerHTML=html(m); zone.dataset.m=JSON.stringify(m); }});   // le nom du lieu n'est pas dans la copie (deux noms pour les mêmes coordonnées)
   }
   window.MobileMeteo={lieu,definir,localiser,monterCarte,detail,choisirLieu,icone,recharger:()=>{ if(zoneCarte) monterCarte(zoneCarte); },donneesCarte:()=>{ try{ return JSON.parse(zoneCarte.dataset.m); }catch(e){ return null; } }};
 })();
