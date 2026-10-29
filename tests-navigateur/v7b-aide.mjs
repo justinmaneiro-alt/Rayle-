@@ -36,7 +36,7 @@ export async function ouvrirAppareil(cle, { url = '/index.html', storage = {}, a
   return { navigateur, page, erreurs, requetes, octets, chargeMs, appareil: A, cdp };
 }
 /* Fichiers de Galaxie (lourds) demandés : 3D, textures, planètes, vendor three.js. `galaxie/commandes.js` (la colle vocale, légère) et le CSS de la galaxie sur PC ne comptent pas ici. */
-export const FICHIER_GALAXIE_LOURD = /\/galaxie\/(?!commandes\.js|reseau\.js|qualite\.js)|\/planetes\/[^/]+\/pc\/(?!fil-actus|actus-sujets|actus-contenu|meteo-contenu|geocodage|fenetres-terre|sources)|three\.module|\/assets-lourds\//;
+export const FICHIER_GALAXIE_LOURD = /\/galaxie\/(?!commandes\.js|reseau\.js|qualite\.js)|\/planetes\/(?:saturne|neptune|jupiter)\/|\/planetes\/mars\/pc\/(?:index|orbite|interieur|paysage|hologrammes|base-exterieur|dessin-exemples|exemples|ordres-mars)\.js|\/planetes\/terre\/pc\/(?:index|globe|tuiles|quadtree|shaders-terre|camera-orbite|charge|worker-tuiles|marqueurs|radar|meteo-anim|balises-actus|balises-lointaines|ombres|etiquettes|interface-terre)\.js|three\.module|\/assets-lourds\//;   // les modules de données (actualités, météo, finance, agent) ne sont pas de la galaxie
 export const galaxieChargee = requetes => requetes.filter(r => FICHIER_GALAXIE_LOURD.test(r.url.split('?')[0]));
 export const ko = o => (o / 1024).toFixed(0) + ' Ko';
 /* Envoie une phrase comme la voix le fait (addLine + respond) en capturant ce que Rayle dirait. Rend le texte dit. */

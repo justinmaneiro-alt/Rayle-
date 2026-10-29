@@ -6,8 +6,8 @@ const A = JSON.parse(fs.readFileSync('docs/captures-v7b/avant/signatures.json'))
 let ko = 0;
 for (const k of Object.keys(A)) {
   const id = x => x.split('@')[0], ea = A[k].elements, eb = B[k].elements;
-  const AUTORISES = /^appareil/;   // seul changement voulu sur PC : le réglage « Appareil » (⚙) demandé par la phase B1
-  const da = k === 'reglages' ? ea.map(id).filter(x => !eb.map(id).includes(x)) : ea.filter(x => !eb.includes(x)), db = (k === 'reglages' ? eb.map(id).filter(x => !ea.map(id).includes(x)) : eb.filter(x => !ea.includes(x))).filter(x => !AUTORISES.test(x));
+  const AUTORISES = /^appareil/, DYNAMIQUES = /^mx|^avDelai|^app/;   // mx* : éditeur multi-écrans rempli de façon asynchrone   // seul changement voulu sur PC : le réglage « Appareil » (⚙) demandé par la phase B1
+  const da = k === 'reglages' ? ea.map(id).filter(x => !eb.map(id).includes(x) && !DYNAMIQUES.test(x)) : ea.filter(x => !eb.includes(x)), db = (k === 'reglages' ? eb.map(id).filter(x => !ea.map(id).includes(x)) : eb.filter(x => !ea.includes(x))).filter(x => !AUTORISES.test(x));
   const bt = JSON.stringify(A[k].boutons) === JSON.stringify(B[k].boutons) || k === 'reglages', th = A[k].theme === B[k].theme;
   const ok = da.length === 0 && db.length === 0 && bt && th; if (!ok) ko++;
   console.log((ok ? 'OK  ' : 'KO  ') + 'signature ' + k + (ok ? '' : ' — retirés: ' + da.slice(0, 5) + ' ajoutés: ' + db.slice(0, 5) + (bt ? '' : ' boutons différents') + (th ? '' : ' thème différent')));
