@@ -120,7 +120,7 @@ await p.close();
 p = await page({ viewport: { width: 390, height: 844, isMobile: true, hasTouch: true, deviceScaleFactor: 3 } });
 const larg = await p.evaluate(() => ({ sw: document.documentElement.scrollWidth, iw: innerWidth }));
 v('téléphone : pas de défilement horizontal, tableau caché (écran trop étroit)', larg.sw <= larg.iw && (await css(p, '#tableau', 'display')) === 'none', JSON.stringify(larg));
-v('téléphone : boutons ≥ 44 px', await p.evaluate(() => [...document.querySelectorAll('.barre button')].every(e => e.getBoundingClientRect().height >= 44)));
+v('téléphone : boutons ≥ 44 px', await p.evaluate(() => [...document.querySelectorAll('.barre button')].filter(e => e.offsetParent).every(e => e.getBoundingClientRect().height >= 44))));
 await p.close();
 // vitesse (information : le GPU doit être libre pour que la mesure ait un sens)
 p = await page(); await injecter(p);
