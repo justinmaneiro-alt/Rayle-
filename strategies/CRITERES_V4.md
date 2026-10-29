@@ -32,3 +32,16 @@ Le niveau **strict (v3)** reste sélectionnable : un seul niveau (« Validée »
 - Aucun ordre réel : paper trading et alertes uniquement.
 
 *Les résultats passés ne garantissent rien. Aucun ordre n'est exécuté.*
+
+## Addendum (écrit le 2026-10-29, avant toute mesure des agents de positions) : comment un TYPE de setup passe de Candidate à Validée
+
+Les agents de positions ont des paramètres FIXES (pas d'optimisation par type) : les statistiques de la zone de recherche (les 75 % premiers de l'historique) sont donc des mesures hors échantillon au sens du walk-forward, avec ces définitions :
+
+- **Walk-forward positif** : la zone est découpée en 4 blocs successifs de même durée ; l'espérance cumulée est positive ET au moins la moitié des blocs (ayant ≥ 10 trades) sont positifs.
+- **Périodes distinctes** (Candidate) : 2 moitiés successives des trades, chacune avec ≥ 20 trades.
+- **Frais doublés** : tous les coûts (frais taker et maker, spread, glissement) sont multipliés par 2 et le type est resimulé.
+- **Contrôles de l'Auditeur** : causalité (« poison du futur » sur 6 coupes), frais doublés ≥ 0, sans les 3 meilleurs trades l'espérance reste positive, au moins 55 % des mois (≥ 2 trades) positifs, positions tirées au hasard (même distance de stop et même rapport) : l'espérance observée bat 95 % des tirages. Le rapport est écrit dans le dossier de l'agent (`auditeur-positions.md`).
+- **Jeu final** : seulement pour un type qui passe TOUT le niveau Validée sur la zone de recherche ; ouvert **une seule fois** par type (coffre persistant, jamais rouvert) ; il faut ≥ 6 mois et ≥ 30 trades ; il est réussi si l'espérance finale est ≥ +0,08 R. Un type qui échoue au jeu final ne revient jamais.
+- **Nombre d'essais** : chaque (famille, actif, type de setup, variante de la petite grille) testé est compté, le compteur ne baisse jamais ; le nombre EFFECTIF d'essais regroupe ceux dont les rendements journaliers sont corrélés à 0,8 ou plus.
+- **Promotion / rétrogradation** : après la validation, les trades SIMULÉS EN DIRECT s'ajoutent ; un type Validée dont la dérive (CUSUM) devient significative est rétrogradé en Candidate, puis en « non concluante » si l'espérance en direct reste négative sur ≥ 30 trades. Un type Candidate qui atteint tous les critères Validée passe en Validée avec le rapport de l'Auditeur.
+- **Premier regard** : le tout premier essai des agents (avant l'écriture de cet addendum) a regardé l'espérance moyenne sur l'ensemble de l'historique BTC pour vérifier que le code fonctionne ; toutes les explorations suivantes ont été faites sur la zone de recherche seulement, le jeu final n'est jamais lu avant l'ouverture décrite ci-dessus.

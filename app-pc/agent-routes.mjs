@@ -3,6 +3,8 @@
 //   GET  /__agent/etat      { ok, enMarche, service, etat, suivi }   (état complet de l'agent, comme /agent/etat du Worker)
 //   GET  /__agent/equipe      { ok, equipe (3 rôles), hypotheses, pepiniere }          (V4 : onglet Équipe)
 //   GET  /__agent/pistes      { ok, pistes (5), toutes, profil, frais, couts, recherche, voieCorrigee }   (V6 : onglet Meilleures pistes)
+//   GET  /__agent/positions   { ok, vue }   (V7 : onglets Positions du jour, Bilan, Pourquoi pas plus, Exemples)
+//   POST /__agent/positions/commande  { type: 'reglages' | 'exemple' | 'supprimer_exemple', valeur }   → positions-commandes.json, lu par le service
 //   GET  /__agent/occasions   { ok, occasions, exemples }                               (V4 : onglet Occasions manquées)
 //   GET  /__agent/donnees     { ok, flux, historique, disque }                          (V4 : onglet Données)
 //   POST /__agent/commande  { type: 'pause' | 'reprendre' | 'charge' | 'retour_arriere' | 'rapport', valeur?, numero? }  → écrit commandes.json, lu par le service à son prochain cycle
@@ -20,7 +22,8 @@ import { phraseFraisEtat, fraisMoyenR } from '../strategies/agent-etat.js';
 import { cleParams } from '../planetes/mars/pc/agent-btc/hypotheses.js';
 import { lireCoutsReglage, phraseSource } from '../agent-pc/couts-reglage.mjs';
 
-const COMMANDES = ['pause', 'reprendre', 'charge', 'retour_arriere', 'rapport', 'observation', 'rapport_quotidien'];
+const COMMANDES = ['pause', 'reprendre', 'charge', 'retour_arriere', 'rapport', 'observation', 'rapport_quotidien', 'niveau_preuve'];
+const COMMANDES_POSITIONS = ['reglages', 'exemple', 'supprimer_exemple'];
 export function creerRoutesAgent(env = process.env) {
   const dossier = () => dossierAgent(env);
   const lireCorps = req => new Promise((resolve, reject) => { let n = 0; const m = []; req.on('data', c => { n += c.length; if (n > 4096) { reject(new Error('corps trop gros')); req.destroy(); } else m.push(c); }); req.on('end', () => { try { resolve(JSON.parse(Buffer.concat(m).toString('utf8') || '{}')); } catch (e) { reject(new Error('JSON invalide')); } }); req.on('error', reject); });
@@ -47,6 +50,18 @@ export function creerRoutesAgent(env = process.env) {
         toutes.sort((a, b) => (b.bootstrapBas == null ? -9 : b.bootstrapBas) - (a.bootstrapBas == null ? -9 : a.bootstrapBas));
         return json(200, { ok: true, existe: true, pistes: top.map(marquer), toutes: toutes.slice(0, 150).map(marquer), profil: PROFIL_45_RR2, frais: { phrase: phraseFraisEtat(etat), coutMoyenR: fraisMoyenR(etat) }, couts: phraseSource(lireCoutsReglage(dossier())),
           recherche: { phase: service && service.phase, raison: service && service.raison, niveaux: etat.recherche.niveaux || null, attente: etat.recherche.attente || null }, voieCorrigee: !!etat.parametresRisque.testsMultiplesCorriges, variantes: Object.values(etat.compteurVariantes || {}).reduce((a, b) => a + b, 0) });
+      }
+      if (route === 'positions' && req.method === 'GET') {   // V7 : positions du jour, bilan, types de setup (lu dans positions.json écrit par le service)
+        const p = lireJson(path.join(dossier(), 'positions.json'), null);
+        if (!p) return json(200, { ok: true, existe: false, note: 'Le service n’a pas encore calculé de positions (il le fait à chaque clôture de bougie M15).' });
+        const service = lireJson(F.service, null), enMarche = !!(service && service.pid && vivant(service.pid) && Date.now() - service.vivantLe < 120000);
+        return json(200, { ok: true, existe: true, enMarche, vue: p.vuePubliee || null });
+      }
+      if (route === 'positions/commande' && req.method === 'POST') {
+        const b = await lireCorps(req);
+        if (!COMMANDES_POSITIONS.includes(b.type)) return json(400, { ok: false, erreur: 'commande inconnue' });
+        const loc = path.join(dossier(), 'positions-commandes.json'), liste = lireJson(loc, []) || []; liste.push({ type: b.type, valeur: b.valeur ?? null }); ecrireJson(loc, liste.slice(-20));
+        return json(200, { ok: true, note: 'transmise au service (appliquée à son prochain cycle, ≈ 30 s)' });
       }
       if (route === 'occasions' && req.method === 'GET') {
         const o = lireJson(path.join(dossier(), 'occasions.json'), {}) || {}, liste = Object.entries(o).flatMap(([p, j]) => ((j && j.liste) || []).map(x => ({ ...x, actif: p }))).sort((a, b) => b.t - a.t);

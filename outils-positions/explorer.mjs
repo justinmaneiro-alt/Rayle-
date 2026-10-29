@@ -1,0 +1,23 @@
+// Exploration PAR CARACTÉRISTIQUES sur la zone de recherche SEULEMENT (premiers 75 % ; le jeu final n'est pas lu). node outils-positions/explorer.mjs BTC rebond_h1
+import path from 'node:path';
+import { creerHistorique } from '../planetes/mars/pc/agent-btc/historique.js';
+import { stockageFichier } from '../app-pc/veilleur/stockage-fichier.mjs';
+import { dossierAgent } from '../agent-pc/etat-agent.mjs';
+import { construireContexte } from '../planetes/mars/pc/agent-btc/contexte.js';
+import { tranche } from '../planetes/mars/pc/agent-btc/colonnes.js';
+import { FAMILLES_V7, parametresDefaut } from '../strategies/positions/agents.js';
+import { simulerRiche } from '../strategies/simulateur-riche.js';
+import { configMoteurDe } from '../planetes/mars/pc/agent-m6/couts.js';
+const [, , p = 'BTC', id = 'rebond_h1', conf] = process.argv;
+const h = creerHistorique({ stockage: stockageFichier(path.join(dossierAgent(), 'donnees', p.toLowerCase())), lire: null }); await h.charger(); const full = h.serie();
+const s = tranche(full, 0, Math.floor(full.n * 0.75)); const ctx = construireContexte(s);
+const params = { ...parametresDefaut(id), ...(conf ? { conf: +conf } : {}) };
+const sig = FAMILLES_V7[id].signaux(ctx, params), sim = simulerRiche(ctx.m15, sig, configMoteurDe(p), {});
+const grp = (nom, f) => { const m = {}; for (const t of sim.trades) { const meta = sig.meta.get(t.signal); if (!meta) continue; const k = f(meta, t); (m[k] = m[k] || []).push(t.R); } console.log('— ' + nom); for (const [k, v] of Object.entries(m).sort()) console.log('  ', k.padEnd(22), String(v.length).padStart(5), (v.reduce((a, b) => a + b, 0) / v.length).toFixed(3), 'gagnants', (v.filter(x => x > 0).length / v.length * 100).toFixed(0) + '%'); };
+console.log(p, id, params, 'barres', s.n, 'trades', sim.trades.length, 'E', (sim.trades.reduce((a, b) => a + b.R, 0) / sim.trades.length).toFixed(3));
+grp('nb éléments', m => m.confluence.n); grp('diamant', m => (m.confluence.diamant ? 'diamant' : 'non')); grp('sens', m => (m.sens > 0 ? 'achat' : 'vente'));
+grp('type', m => m.type); grp('RR prévu', m => (m.rr < 2 ? '1.5-2' : m.rr < 3 ? '2-3' : '3+'));
+grp('éléments', (m) => m.confluence.elements.map(e => e.cle).sort().join('+').slice(0, 40));
+grp('heure UTC', (m, t) => String(Math.floor(new Date(t.t).getUTCHours() / 4) * 4).padStart(2, '0') + 'h');
+grp('année', (m, t) => new Date(t.t).getUTCFullYear());
+grp('mène à', (m, t) => t.motif);

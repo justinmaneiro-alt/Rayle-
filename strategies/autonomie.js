@@ -105,6 +105,7 @@ export function rapportQuotidien(f, maintenant = Date.now()) {
   if (f.exemples && f.exemples.total) L.push(f.exemples.phrase);
   const g = f.flux; if (g) L.push(g.enregistre ? 'Carnet : ' + g.phrase.replace(/^Enregistre /, 'enregistré ') : 'ATTENTION carnet : ' + g.phrase);
   if (f.donnees && f.donnees.trous) L.push('Données : ' + f.donnees.trous + ' trou(s) de bougies signalé(s).');
+  if (f.positions && f.positions.length) L.push(...f.positions);   // V7 : positions du jour, bilan de la veille
   L.push('PC : ' + (f.pcVivant === false ? 'service arrêté' : 'service en marche') + (f.disqueLibreGo != null ? ', ' + fr(f.disqueLibreGo, 0) + ' Go libres' : '') + (f.disqueLibreGo != null && f.disqueLibreGo < 10 ? ' (ATTENTION : disque presque plein)' : '') + '.');
   L.push('Rappel : aucun ordre n’est passé et rien n’est garanti.');
   return L;
