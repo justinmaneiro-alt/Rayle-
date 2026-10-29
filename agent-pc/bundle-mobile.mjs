@@ -13,6 +13,24 @@ import { pistesDepuis, meilleuresPistes, PROFIL_45_RR2 } from '../strategies/pis
 import { phraseFraisEtat, fraisMoyenR } from '../strategies/agent-etat.js';
 import { entonnoir } from '../strategies/diagnostic-v4.js';
 
+/* Performance simulée pour les courbes du téléphone : propositions CLÔTURÉES seulement (jamais d'invention). Rend, pour « tous », chaque agent et chaque actif : courbe cumulée en R (≤ 200 points) et résultat par jour. */
+export function performanceMobile(propositions, { risquePct = 0.5, maxPoints = 200 } = {}) {
+  const closes = (propositions || []).filter(p => p && p.statut === 'cloturee' && p.resultat && Number.isFinite(p.resultat.R)).sort((a, b) => a.resultat.tSortie - b.resultat.tSortie);
+  const jourDe = t => new Date(t).toISOString().slice(0, 10);
+  const serie = l => {
+    let cum = 0, pts = l.map(p => [p.resultat.tSortie, +(cum += p.resultat.R).toFixed(3)]);
+    if (pts.length > maxPoints) { const pas = pts.length / maxPoints; pts = Array.from({ length: maxPoints }, (_, i) => pts[Math.min(pts.length - 1, Math.round(i * pas))]); }
+    const jours = {}; for (const p of l) { const j = jourDe(p.resultat.tSortie); jours[j] = +((jours[j] || 0) + p.resultat.R).toFixed(3); }
+    const R = l.map(p => p.resultat.R), g = R.filter(x => x > 0), pe = R.filter(x => x <= 0);
+    let pg = 0, pp = 0, c = 0, d = 0; for (const x of R) { if (x > 0) { c++; d = 0; pg = Math.max(pg, c); } else { d++; c = 0; pp = Math.max(pp, d); } }
+    let pic = 0, dd = 0, acc = 0; for (const x of R) { acc += x; pic = Math.max(pic, acc); dd = Math.max(dd, pic - acc); }
+    return { n: l.length, Rtotal: +R.reduce((a, b) => a + b, 0).toFixed(3), pct: +(R.reduce((a, b) => a + b, 0) * risquePct).toFixed(3), reussite: l.length ? g.length / l.length : null, rrMoyen: g.length && pe.length ? (g.reduce((a, b) => a + b, 0) / g.length) / -(pe.reduce((a, b) => a + b, 0) / pe.length) : null,
+      esperance: l.length ? R.reduce((a, b) => a + b, 0) / l.length : null, drawdownR: +dd.toFixed(3), meilleureSerie: pg, pireSerie: pp, courbe: pts, jours };
+  };
+  const groupes = cle => { const m = {}; for (const p of closes) (m[p[cle]] = m[p[cle]] || []).push(p); return Object.fromEntries(Object.entries(m).map(([k, l]) => [k, serie(l)])); };
+  return { risquePct, tous: serie(closes), parAgent: groupes('agent'), parActif: groupes('actif'), pasUnePromesse: 'Simulation avec frais et glissement ; estimation à partir du passé, pas une promesse.' };
+}
+
 export const MAX_OCTETS = 300 * 1024, INTERVALLE_MS = 5 * 60e3, VERSION_PAQUET = 1;
 
 const sans = (o, cles) => { const c = { ...o }; for (const k of cles) delete c[k]; return c; };
@@ -26,6 +44,7 @@ export function construirePaquet(dossier, maintenant = Date.now()) {
     v.types = (v.types || []).slice(0, 60);
     v.exploration = (v.exploration || []).slice(0, 12);
     paquet.positions = v;
+    paquet.performance = performanceMobile(pos.propositions, { risquePct: (v.reglages && v.reglages.risquePct) || 0.5 });
   }
   if (fs.existsSync(F.etat)) {
     const etat = chargerEtat(dossier), toutes = pistesDepuis(etat.backtests), top = meilleuresPistes(etat.backtests, { n: 5 }), pep = lirePepiniere(dossier);

@@ -1,7 +1,7 @@
 // V8 : paquet mobile publié par le service Kepler (agent-pc/bundle-mobile.mjs). Lancer : node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON galaxie/tests/mobile-paquet-test.mjs
 import fs from 'node:fs';
 import { dossierAgent } from '../../agent-pc/etat-agent.mjs';
-import { construirePaquet, plafonner, empreintePaquet, creerPousseur, MAX_OCTETS, INTERVALLE_MS } from '../../agent-pc/bundle-mobile.mjs';
+import { performanceMobile, construirePaquet, plafonner, empreintePaquet, creerPousseur, MAX_OCTETS, INTERVALLE_MS } from '../../agent-pc/bundle-mobile.mjs';
 let ok = 0, ko = 0; const v = (n, c, d = '') => { if (c) ok++; else { ko++; console.log('KO  ' + n + (d !== '' ? ' — ' + d : '')); } };
 const dossier = dossierAgent();
 if (!fs.existsSync(dossier)) { console.log('dossier de l\u2019agent absent : test ignoré'); process.exit(0); }
@@ -25,4 +25,17 @@ t += 31 * 60e3; a = await pousser(); v('rafraîchi après 30 minutes même incha
 a = await creerPousseur({ dossier, S: { configure: false }, maintenant: () => t })(); v('Worker non configuré : rien, sans erreur', a.envoye === false);
 const panne = creerPousseur({ dossier, S: { configure: true, publierMobile: async () => { throw new Error('HTTP 503'); } }, maintenant: () => t, journal: () => {} });
 a = await panne(true); v('Worker en panne : message, pas d\u2019exception', a.envoye === false && /503/.test(a.raison));
+// performance simulée : jamais d'invention, seulement les propositions clôturées
+const J = 86400e3, T0 = Date.UTC(2026, 9, 1);
+const props = [{ statut: 'cloturee', agent: 'rebond', actif: 'BTC', resultat: { R: 2, tSortie: T0 } }, { statut: 'cloturee', agent: 'rebond', actif: 'SOL', resultat: { R: -1, tSortie: T0 + J } }, { statut: 'cloturee', agent: 'continuation', actif: 'BTC', resultat: { R: -1, tSortie: T0 + 2 * J } },
+  { statut: 'cloturee', agent: 'rebond', actif: 'BTC', resultat: { R: 1.5, tSortie: T0 + 3 * J } }, { statut: 'en_attente', agent: 'rebond', actif: 'BTC' }, { statut: 'ouverte', agent: 'extremes', actif: 'DOGE' }];
+const perf = performanceMobile(props, { risquePct: 0.5 });
+v('performance : 4 trades clôturés comptés, les autres ignorés', perf.tous.n === 4 && perf.parAgent.extremes === undefined);
+v('performance : courbe cumulée juste (2, 1, 0, 1,5)', JSON.stringify(perf.tous.courbe.map(x => x[1])) === '[2,1,0,1.5]');
+v('performance : résultat en % au risque choisi', Math.abs(perf.tous.pct - 0.5 * 1.5) < 1e-9);
+v('performance : par agent et par actif', perf.parAgent.rebond.n === 3 && perf.parActif.BTC.n === 3 && perf.parActif.SOL.Rtotal === -1);
+v('performance : drawdown et séries', perf.tous.drawdownR === 2 && perf.tous.pireSerie === 2 && perf.tous.meilleureSerie === 1);
+v('performance : résultat par jour', perf.tous.jours['2026-10-01'] === 2 && perf.tous.jours['2026-10-02'] === -1);
+const vide = performanceMobile([], {}); v('performance : sans trade, rien d’inventé', vide.tous.n === 0 && vide.tous.reussite === null && vide.tous.courbe.length === 0);
+v('performance : la mention « pas une promesse » accompagne les chiffres', /pas une promesse/.test(vide.pasUnePromesse));
 console.log(`\nPaquet mobile : ${ok} vérifications réussies, ${ko} échec(s).`); process.exit(ko ? 1 : 0);
