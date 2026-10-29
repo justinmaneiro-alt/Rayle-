@@ -7,6 +7,7 @@
 // et ne double pas les alertes ; PC éteint = le Worker prend le relais) ; (5) rapport hebdomadaire. Aucun ordre n'est passé, aucune clé de courtier n'existe ici.
 import fs from 'node:fs';
 import os from 'node:os';
+import { createHash } from 'node:crypto';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { dossierAgent, fichiersAgent, chargerEtat, sauverEtat, ajouterJournal, lireConfig, lireJson, ecrireJson, vivant } from './etat-agent.mjs';
@@ -64,7 +65,7 @@ export function creerService({ dossier = dossierAgent(), maintenant = () => Date
     if (c.type === 'pause') { etat.parametresRisque.pause = true; journal('commande', 'Agent mis en pause.'); }
     else if (c.type === 'reprendre') { etat.parametresRisque.pause = false; journal('commande', 'Agent repris.'); }
     else if (c.type === 'charge' && CHARGES[c.valeur]) { etat.parametresRisque.charge = c.valeur; journal('commande', 'Charge de calcul : ' + c.valeur + '.'); }
-    else if (c.type === 'retour_arriere') { const r = retourArriere(etat, c.numero || null, maintenant()); if (r.ok) { await pousserEtat(); await alerter([construireAlerte('RAPPORT', { extra: { lignes: ['Retour arrière : la version v' + r.numero + ' est de nouveau active.'], semaine: 'retour-' + maintenant() } }, maintenant())]); } }
+    else if (c.type === 'retour_arriere') { const r = retourArriere(etat, c.numero || null, maintenant()); if (r.ok) { await pousserEtat({ forcer: true }); await alerter([construireAlerte('RAPPORT', { extra: { lignes: ['Retour arrière : la version v' + r.numero + ' est de nouveau active.'], semaine: 'retour-' + maintenant() } }, maintenant())]); } }
     else if (c.type === 'rapport') await faireRapport(true);
     else if (c.type === 'observation') { etat.parametresRisque.observation = !!c.valeur; journal('commande', 'Alertes observation (non validé) : ' + (c.valeur ? 'ACTIVÉES' : 'désactivées') + '.'); }
     else if (c.type === 'rapport_quotidien') await autonomieDuJour(true);
@@ -78,12 +79,18 @@ export function creerService({ dossier = dossierAgent(), maintenant = () => Date
     const loc = path.join(dossier, 'commandes.json'), liste = lireJson(loc, null);                               // commandes locales (--pause, --reprendre… écrites par la ligne de commande)
     if (Array.isArray(liste) && liste.length) { try { fs.unlinkSync(loc); } catch (e) { /* déjà pris */ } for (const c of liste) await appliquerCommande(c); }
   }
-  async function pousserEtat() {
+  /* Synchronisation avec le Worker, ESPACÉE (limites gratuites de la base D1) : rien n'est envoyé si l'état n'a pas changé depuis le dernier envoi réussi (sauf un envoi de contrôle toutes les 10 minutes),
+     et jamais plus d'un envoi toutes les 2 minutes, sauf `forcer` (nouvelle version, retour arrière). Le Worker refuse aussi ce qui n'a pas changé : double protection. */
+  let dernierEnvoi = { h: null, t: 0 };
+  async function pousserEtat({ forcer = false } = {}) {
     if (!S.configure) return null;
+    const corps = etatPourWorker(etat), h = createHash('sha1').update(JSON.stringify([corps, suivi])).digest('hex'), t = maintenant();
+    if (!forcer && dernierEnvoi.t && ((h === dernierEnvoi.h && t - dernierEnvoi.t < 10 * 60e3) || t - dernierEnvoi.t < 2 * 60e3)) return null;
     try {
-      const r = await S.synchroniser(etatPourWorker(etat), suivi, pausesLevees); pausesLevees = {};
-      for (const [id, s] of Object.entries(r.suiviWorker || {})) if (s && (suivi[id] == null || (s.derniereBarre || 0) > (suivi[id].derniereBarre || 0))) { suivi[id] = s; journal('sync', 'Le Worker a surveillé ' + id + ' pendant que le PC était éteint : son suivi est repris.'); }
-      info.worker = { configure: true, ok: true, t: maintenant(), msg: null }; return r;
+      const r = await S.synchroniser(corps, suivi, pausesLevees, forcer); pausesLevees = {};
+      if (!r || !r.differe) dernierEnvoi = { h, t };                                    // « différé » = le Worker est près de sa limite : on réessaiera au prochain cycle
+      for (const [id, s] of Object.entries((r && r.suiviWorker) || {})) if (s && (suivi[id] == null || (s.derniereBarre || 0) > (suivi[id].derniereBarre || 0))) { suivi[id] = s; journal('sync', 'Le Worker a surveillé ' + id + ' pendant que le PC était éteint : son suivi est repris.'); }
+      info.worker = { configure: true, ok: true, t: maintenant(), msg: r && r.differe ? 'Worker près de sa limite du jour : envoi différé' : null }; return r;
     } catch (e) { info.worker = { configure: true, ok: false, t: maintenant(), msg: String(e.message).slice(0, 100) }; return null; }
   }
   /* Au démarrage : reprendre ce que le Worker a fait pendant que le PC était éteint (suivi plus récent, alertes, règles en pause pour dérive). */
@@ -264,7 +271,7 @@ export function creerService({ dossier = dossierAgent(), maintenant = () => Date
     const deja = new Set(actuelles.map(a => a.famille + a.paire + JSON.stringify(a.params))), neuves = candidates.filter(c => !deja.has(c.famille + c.paire + JSON.stringify(c.params)));
     if (!neuves.length) return;
     const v = creerVersion(etat, { candidates: [...actuelles, ...neuves], raison: neuves.map(n => n.famille + ' sur ' + n.paire).join(', ') + ' validée(s) (backtest hors échantillon + jeu final, ouvert une seule fois)' }, maintenant());
-    await pousserEtat();
+    await pousserEtat({ forcer: true });
     await alerter([construireAlerte('RAPPORT', { extra: { lignes: ['Nouvelle version v' + v.numero + ' active : ' + v.raison + '.', 'Elle commence par une simulation en direct (4 semaines et 30 trades) : ses alertes sont marquées SIMULATION jusque-là.'], semaine: 'version-' + v.numero }, }, maintenant())]);
   }
 

@@ -19,8 +19,15 @@ export async function lireEtatAgent({ fetchImpl = fetch } = {}) {
     if (window.wjson && typeof workerReady !== 'undefined' && workerReady()) {
       const j = await window.wjson('/agent/etat', 15000); if (j && j.etat) { const m = j.meta || {}; return { origine: 'Worker', enMarche: !!(m.pcVivantLe && (m.maintenant || Date.now()) - m.pcVivantLe < 4 * 60e3), etat: j.etat, suivi: j.suivi || {}, t: m.maintenant || Date.now(), meta: m }; }
     }
-  } catch (e) { return { erreur: window.errMsg ? window.errMsg(e) : String(e.message) }; }
+  } catch (e) { return { erreur: messageWorker(e), limite: workerLimite(e) }; }
   return null;
+}
+/* Worker limité (limite gratuite de la base D1 : erreur 500/503 « daily row read limit ») : un message simple en français, jamais l'erreur brute. */
+export const MESSAGE_LIMITE = 'La liaison Worker est limitée aujourd’hui.';
+export function workerLimite(e) { const m = String((e && e.message) || e || ''); return /D1_ERROR|row (read|written)|limit|HTTP 5[0-9][0-9]|liaison Worker/i.test(m); }
+export function messageWorker(e) {
+  if (workerLimite(e)) return MESSAGE_LIMITE + ' Elle revient d’elle-même (remise à zéro à minuit UTC). Pour l’état en direct, lance le service de l’agent sur le PC : la page le lit alors directement.';
+  return window.errMsg ? window.errMsg(e) : String((e && e.message) || e);
 }
 export async function envoyerCommande(cmd) {
   try { const r = await fetch('/__agent/commande', { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Rayle-Multi': '1' }, body: JSON.stringify(cmd) }); if (r.ok) return { ok: true, via: 'PC', ...(await r.json()) }; } catch (e) { /* pas de serveur local */ }
@@ -43,14 +50,15 @@ export function creerAccueilAgent({ conteneur, intervalle = 15000, lire = lireEt
     if (S.detruit || enCours) return; enCours = true;
     try {
       const d = await lire(); S.donnees = d;
-      if (!d || d.erreur || !d.etat) { racine.innerHTML = htmlIndisponible(d && d.erreur ? d.erreur : 'Ni le service du PC ni le Worker ne m’ont répondu.'); S.dernierHtml = ''; return; }
+      if (!d || d.erreur || !d.etat) { echecs++; racine.innerHTML = htmlIndisponible(d && d.erreur ? d.erreur : 'Ni le service du PC ni le Worker ne m’ont répondu.'); S.dernierHtml = ''; return; }
+      echecs = 0;
       const e = d.etat, suivi = d.suivi || {}, ctx = { pcVivant: d.enMarche, rechercheEnCours: !!(e.recherche && e.recherche.enCours), enPreparation: Object.values(suivi).some(s => s && s.pendante), positionOuverte: Object.values(suivi).some(s => s && s.position) };
       const html = htmlAccueil(e, { ctx, source: { origine: d.origine, enMarche: d.enMarche, t: d.t }, suivi, maintenant: d.t || Date.now() });
       if (html !== S.dernierHtml) {                                                    // ne redessine que si quelque chose a changé (le graphique n'est pas reconstruit pour rien)
         const ancienScroll = racine.scrollTop; S.dernierHtml = html; racine.innerHTML = html; racine.scrollTop = ancienScroll; S.chart = null; S.serie = null; S.courbes = [];
         brancher(); await dessiner();
       } else await dessiner(true);
-    } catch (err) { racine.innerHTML = htmlIndisponible(String(err && err.message || err)); S.dernierHtml = ''; }
+    } catch (err) { echecs++; racine.innerHTML = htmlIndisponible(messageWorker(err)); S.dernierHtml = ''; }
     finally { enCours = false; }
   }
   function brancher() {
@@ -125,7 +133,14 @@ export function creerAccueilAgent({ conteneur, intervalle = 15000, lire = lireEt
     const b2 = carte('Backtest hors échantillon (le passé rejoué)', bt ? bt.nom + ' · ' + bt.paire + ' · ' + bt.trades + ' trades mis bout à bout' + (bt.statut === 'validee_backtest' ? '' : ' · NON validé') : 'aucun backtest', btc.length < 2 ? 'Pas de courbe de backtest disponible.' : '');
     if (btc.length >= 2) tracer(b2, btc, 'i', '#c9b27a');
   }
-  rafraichir(); minuteur = setInterval(rafraichir, intervalle);
-  return { rafraichir, detruire() { S.detruit = true; clearInterval(minuteur); try { if (S.chart) S.chart.remove(); S.courbes.forEach(c => c.remove()); } catch (e) { /* déjà détruit */ } racine.remove(); }, racine, etat: () => S };
+  /* Rafraîchissement raisonnable : 4× plus lent quand l'état vient du Worker, 5× plus lent quand la fenêtre est masquée, retrait progressif (×2 jusqu'à 10 min) après une erreur. */
+  let echecs = 0;
+  function prochain() {
+    if (S.detruit) return;
+    const masque = typeof document !== 'undefined' && document.hidden, base = (S.donnees && S.donnees.origine === 'Worker' ? intervalle * 4 : intervalle) * (masque ? 5 : 1);
+    minuteur = setTimeout(async () => { await rafraichir(); prochain(); }, Math.min(base * Math.pow(2, Math.min(echecs, 6)), Math.max(base, 600e3)));
+  }
+  rafraichir().then(prochain);
+  return { rafraichir, detruire() { S.detruit = true; clearTimeout(minuteur); try { if (S.chart) S.chart.remove(); S.courbes.forEach(c => c.remove()); } catch (e) { /* déjà détruit */ } racine.remove(); }, racine, etat: () => S };
 }
 export { versionActive };
