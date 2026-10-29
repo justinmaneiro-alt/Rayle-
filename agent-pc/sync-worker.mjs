@@ -23,6 +23,7 @@ export function creerSync({ config, fetchImpl = globalThis.fetch, delai = 20000 
     battement: info => appel('POST', '/agent/battement', info),                      // → { commandes: [...] }
     synchroniser: (etat, suivi, pausesLevees = {}, forcer = false) => appel('POST', '/agent/sync', { etat, suivi, pausesLevees, forcer }),   // → { regles, suiviWorker }
     etat: () => appel('GET', '/agent/etat'),
+    publierMobile: paquet => appel('POST', '/agent/mobile', { paquet }),                // V8 : copie compacte de la fenêtre Agent pour le téléphone et la tablette
     commandesTraitees: ids => appel('POST', '/agent/commandes/traitees', { ids }),
     telegram: (texte, type) => appel('POST', '/telegram/envoyer', { texte, type })
   };

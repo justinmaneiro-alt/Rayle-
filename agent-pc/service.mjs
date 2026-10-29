@@ -13,6 +13,7 @@ import { pathToFileURL } from 'node:url';
 import { dossierAgent, fichiersAgent, chargerEtat, sauverEtat, ajouterJournal, lireConfig, lireJson, ecrireJson, vivant } from './etat-agent.mjs';
 import { creerDonnees, jourDe } from './donnees-agent.mjs';
 import { creerSync, etatPourWorker } from './sync-worker.mjs';
+import { creerPousseur } from './bundle-mobile.mjs';   // V8 : paquet mobile (téléphone et tablette) publié vers le Worker
 import { ecrireRapport } from './llm.mjs';
 import { planifier, lireCache, ecrireCache, executerTache, integrerResultat, CHARGES, GENERATIONS_MAX, empreinteTache } from './recherche.mjs';
 import { lireEquipe, ecrireEquipe, executerChercheur, tachesHypotheses, marquerTest, ecrireRapportAuditeur, resumeEquipe, noter as noterEquipe } from './equipe/equipe.mjs';
@@ -93,6 +94,7 @@ export function creerService({ dossier = dossierAgent(), maintenant = () => Date
       info.worker = { configure: true, ok: true, t: maintenant(), msg: r && r.differe ? 'Worker près de sa limite du jour : envoi différé' : null }; return r;
     } catch (e) { info.worker = { configure: true, ok: false, t: maintenant(), msg: String(e.message).slice(0, 100) }; return null; }
   }
+  const pousserMobile = creerPousseur({ dossier, S, journal: m => journal('mobile', m), maintenant });
   /* Au démarrage : reprendre ce que le Worker a fait pendant que le PC était éteint (suivi plus récent, alertes, règles en pause pour dérive). */
   async function reprendreDepuisWorker() {
     if (!S.configure) return;
@@ -309,6 +311,7 @@ export function creerService({ dossier = dossierAgent(), maintenant = () => Date
       try { const d = new Date(maintenant()); if (d.getUTCDay() === 0 && d.getUTCHours() >= 17) await faireRapport(); await aucuneStrategie(); } catch (e) { erreur('rapport', e); }
     } else { info.phase = 'pause'; info.raison = 'agent en pause'; }
     try { await pousserEtat(); } catch (e) { erreur('synchronisation', e); }
+    try { await pousserMobile(); } catch (e) { erreur('paquet mobile', e); }
     sauver(); ecrireInfo(); return cr;
   }
   async function demarrer() {
