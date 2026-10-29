@@ -16,7 +16,7 @@ export const NIVEAUX = Object.freeze([
 const jours = h => (h < 36 ? 'environ ' + Math.max(1, Math.round(h)) + ' heure' + (Math.round(h) > 1 ? 's' : '') : 'environ ' + Math.round(h / 24) + ' jour' + (Math.round(h / 24) > 1 ? 's' : ''));
 
 /* Combien de temps avant que le Chercheur ne reparle ? (une session par jour UTC) */
-export const heuresAvantChercheur = (derniere, maintenant) => { const j = Math.floor(maintenant / 86400e3); if (!derniere || Math.floor(derniere / 86400e3) < j) return 0; return (j + 1) * 24 - maintenant / 3600e3; };
+export const heuresAvantChercheur = (derniere, maintenant, epuise = false) => { const j = Math.floor(maintenant / 86400e3); if (!derniere || Math.floor(derniere / 86400e3) < j) return 0; const jour = (j + 1) * 24 - maintenant / 3600e3; if (!epuise) return jour; return Math.max(0, Math.min(jour, 2 - (maintenant - derniere) / 3600e3)); };   // V6 : recherche épuisée = le Chercheur revient toutes les 2 h (au lieu de 6 h)
 
 /* Estimation du temps qu'il faut à une candidate de la pépinière pour atteindre la simulation directe réglementaire (4 semaines ET 30 trades) d'après SON rythme réel. */
 export function resteSimulation(c, maintenant, c3 = { semainesMin: 4, tradesMin: 30 }) {
@@ -38,7 +38,7 @@ export function planAttente({ niveaux = [], pistes = [], pepiniere = null, equip
   if (actives.length) { const x = actives[0]; att.push('les trades en direct de la pépinière : « ' + (x.c.nom || x.c.id) + ' ' + x.c.paire + ' » a ' + x.r.trades + ' trade(s) simulé(s) ; il lui faut encore ' + (x.r.semaines < 1 ? 'moins d’une semaine' : Math.ceil(x.r.semaines) + ' semaine(s)') + ' pour atteindre la simulation réglementaire (4 semaines et 30 trades)'); cand.push(x.r.semaines * 168); }
   else if (pep.some(c => c.statut === 'active')) att.push('les trades en direct de la pépinière (aucune candidate n’a encore assez de recul pour une estimation)');
   // 2. le Chercheur
-  const hC = heuresAvantChercheur(equipe && equipe.derniereExecution, maintenant);
+  const hC = heuresAvantChercheur(equipe && equipe.derniereExecution, maintenant, true);
   att.push('de nouvelles hypothèses du Chercheur (' + (hC <= 0 ? 'je le sollicite maintenant' : 'sa prochaine séance est dans ' + jours(hC)) + ')'); cand.push(Math.max(0.1, hC));
   // 3. ce que Justin peut décider
   const toi = []; if (!reglage || !reglage.fichierPresent) toi.push('remplir `couts.json` avec tes vrais frais (maker / taker / spread)'); if (!actifsExtra.length) toi.push('ajouter un actif liquide (`node agent-pc/service.mjs --ajouter-actif ETH`)');

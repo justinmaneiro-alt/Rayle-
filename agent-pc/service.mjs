@@ -27,13 +27,14 @@ import { journaliser, creerVersion, retourArriere, strategiesActives, statutAgen
 import { surveillerRegle } from '../strategies/surveillance-commune.js';
 import { enregistrerAlertes, construireAlerte, filtrerAlertes } from '../strategies/alertes-v3.js';
 import { faitsRapport, rapportTemplate } from '../strategies/rapport-v3.js';
+import { phraseFraisEtat } from '../strategies/agent-etat.js';
 import { simulationTerminee } from '../strategies/agent-etat.js';
 import { decouper } from '../planetes/mars/pc/agent-btc/evaluation.js';
 import { tranche } from '../planetes/mars/pc/agent-btc/colonnes.js';
 import { ORDRE_PAIRES, PAIRES_EXTRA } from '../planetes/mars/pc/agent-m6/paires.js';
 import { planifierNiveaux } from './extension.mjs';
 import { planAttente } from '../strategies/extension-recherche.js';
-import { meilleuresPistes } from '../strategies/pistes.js';
+import { meilleuresPistes, lignesRapportPistes } from '../strategies/pistes.js';
 import { creerDetecteurJeu } from '../app-pc/veilleur/charge-systeme.mjs';
 import { dossierVeilleur } from '../app-pc/veilleur/dossier.mjs';
 import { assurerEnregistreur, statutFlux } from './flux/service-flux.mjs';
@@ -166,7 +167,8 @@ export function creerService({ dossier = dossierAgent(), maintenant = () => Date
       try {
         let libre = null; try { const st = fs.statfsSync(dossier); libre = Number(st.bavail) * Number(st.bsize) / 1024 ** 3; } catch (e) { /* inconnu */ }
         diag = diag || lireJson(path.join(dossier, 'diagnostic.json'), null);
-        const lignes = rapportQuotidien({ diag, etat, pepiniere: resumePepiniere(lirePepiniere(dossier), t), equipe: resumeEquipe(lireEquipe(dossier), etat, t), flux: (() => { try { return statutFlux(dossier); } catch (e) { return null; } })(), donnees: { trous: (etat.donnees && etat.donnees.paires || []).reduce((a, x) => a + (x.trous || 0), 0) }, disqueLibreGo: libre, pcVivant: true, occasions: occasionsResume(), exemples: exemplesResume() }, t);
+        const pistesL = lignesRapportPistes(meilleuresPistes(etat.backtests, { n: 3 }), phraseFraisEtat(etat)), att = etat.recherche.attente, niv = etat.recherche.niveaux, prochaine = att && att.attente ? 'Ce que je vais tenter : ' + (att.lignes[1] || att.phrase) : niv && etat.recherche.niveau != null ? 'Ce que je vais tenter : niveau ' + etat.recherche.niveau + ' de la recherche (' + niv[etat.recherche.niveau].nom + '), ' + (niv[etat.recherche.niveau].total - niv[etat.recherche.niveau].faits) + ' tâches restantes.' : null;
+        const lignes = rapportQuotidien({ pistes: pistesL, prochaine, diag, etat, pepiniere: resumePepiniere(lirePepiniere(dossier), t), equipe: resumeEquipe(lireEquipe(dossier), etat, t), flux: (() => { try { return statutFlux(dossier); } catch (e) { return null; } })(), donnees: { trous: (etat.donnees && etat.donnees.paires || []).reduce((a, x) => a + (x.trous || 0), 0) }, disqueLibreGo: libre, pcVivant: true, occasions: occasionsResume(), exemples: exemplesResume() }, t);
         A.jourRapport = jour; etat.rapportQuotidien = { t, lignes }; journal('autonomie', 'Rapport quotidien écrit (' + lignes.length + ' lignes).'); await alerter([construireAlerte('RAPPORT', { extra: { lignes, semaine: 'quotidien-' + jour } }, t)]);
       } catch (e) { erreur('rapport quotidien', e); }
     }
@@ -187,7 +189,7 @@ export function creerService({ dossier = dossierAgent(), maintenant = () => Date
   const exemplesResume = () => { const l = lireExemples(); return l.length ? resumeExemples(l) : null; };
   async function equipeDuJour(force = false) {
     const eq = lireEquipe(dossier), t = maintenant(), derniere = eq.chercheur.derniereExecution, memeJour = derniere && jourDe(derniere) === jourDe(t), stagne = !!(etat.recherche && etat.recherche.epuise);
-    if (memeJour && !force && !(stagne && t - derniere > 6 * 3600e3)) return null;
+    if (memeJour && !force && !(stagne && t - derniere > 2 * 3600e3)) return null;
     const series = {}; for (const p of paires) series[p] = D.serie(p); let diag = null;
     try { diag = calculerDiagnostic(etat, series, { rapide: true, maintenant: t }); ecrireJson(path.join(dossier, 'diagnostic.json'), diag); } catch (e) { erreur('diagnostic', e); }
     const faits = construireFaitsChercheur({ entonnoir: diag && diag.entonnoir, parFamille: diag && diag.parFamille, occasions: occasionsResume(), exemples: exemplesResume(), dejaTestees: eq.hypotheses.length, diagnosticVerdict: diag && diag.conclusion.verdict });

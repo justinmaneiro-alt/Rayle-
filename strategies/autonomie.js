@@ -97,6 +97,8 @@ export function rapportQuotidien(f, maintenant = Date.now()) {
   const L = []; const jour = new Date(maintenant).toISOString().slice(0, 10);
   L.push('Kepler — rapport du ' + jour.split('-').reverse().join('/') + '.');
   L.push(...pourquoiRienValide(f.diag, f.etat).slice(0, 2));
+  if (f.pistes) L.push(...f.pistes);   // V6 : meilleure piste, preuve manquante, frais moyens
+  if (f.prochaine) L.push(f.prochaine);   // V6 : ce que l'agent va tenter
   if (f.pepiniere) L.push('Pépinière : ' + f.pepiniere.actives + ' candidate(s) en simulation, ' + f.pepiniere.tradesTotal + ' trades simulés, ' + f.pepiniere.acceptees + ' acceptée(s) par le test séquentiel (à valider par Justin).');
   if (f.equipe) L.push('Équipe : ' + (f.hypothesesAcceptees != null ? f.hypothesesAcceptees : 0) + ' nouvelle(s) hypothèse(s) aujourd’hui, ' + (f.equipe.chercheur.hypotheses.total) + ' au total ; l’Auditeur a rejeté ' + f.equipe.auditeur.rejetes + ' candidate(s).');
   if (f.occasions && f.occasions.total) L.push('Occasions manquées : ' + f.occasions.ratees + ' sur ' + f.occasions.total + ' (pistes seulement, jamais des preuves).');
