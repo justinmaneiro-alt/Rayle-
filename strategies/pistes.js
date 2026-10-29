@@ -3,6 +3,7 @@ import { tauxEquilibre, esperanceProfil } from './couts-r.js';
 import { NOMS_V3 } from './familles-v3.js';
 import { NOMS_V4 } from './familles-v4.js';
 import { NOMS_V6 } from './familles-v6.js';
+import { evaluerNiveauResume } from './criteres-v4.js';
 
 /* ═════════════ MEILLEURES PISTES (V6, phase 3 ; module pur, testé : galaxie/tests/pistes-test.mjs) ═════════════
    Transforme les résultats de la recherche (résumés de validation gardés dans l'état de l'agent) en une liste lisible : les 5 meilleures pistes avec taux de réussite, rapport gain / risque moyen,
@@ -50,7 +51,8 @@ export function pistesDepuis(backtests, { c3 = CRITERES3, nMin = 20 } = {}) {
     const p = b.tauxReussite, rr = b.rrMoyen != null ? b.rrMoyen : (p > 0 && p < 1 && b.factProfit != null && Number.isFinite(b.factProfit) ? b.factProfit * (1 - p) / p : null), couts = b.coutMoyenR, st = statutPiste(b), manque = preuveManquante(b, c3);
     return { id: b.id || b.famille + ':' + b.paire, famille: b.famille, nom: nomDe(b), paire: b.paire, statut: st, tauxReussite: p, rrMoyen: rr, tauxEquilibre: rr != null && couts != null ? tauxEquilibre(rr, couts) : null, coutMoyenR: couts, esperanceApres: b.esperance,
       esperanceAvant: couts != null && b.esperance != null ? b.esperance + couts : null, trades: b.trades, tradesParMois: b.moisTest > 0 ? b.trades / b.moisTest : (b.zone && b.zone.mois > 12 ? b.trades / (b.zone.mois - 12) : null), ddR: b.ddR, ddPct: b.propDdPct, dsr: b.dsr, bootstrapBas: b.bootstrapBas,
-      retenus: b.retenus || null, manque, nVariantes: b.nVariantes, jeuFinal: b.jeuFinal ? { ok: !!b.jeuFinal.ok, ouvert: !!b.jeuFinal.ouvert } : null, enPepiniere: false, t: b.t || null };
+      retenus: b.retenus || null, manque, nVariantes: b.nVariantes, jeuFinal: b.jeuFinal ? { ok: !!b.jeuFinal.ok, ouvert: !!b.jeuFinal.ouvert } : null, enPepiniere: false, t: b.t || null,
+      niveaux: { strict: evaluerNiveauResume(b, { version: 'strict' }), equilibre: evaluerNiveauResume(b, { version: 'equilibre' }) } };   // V7 : « validée au niveau strict ? équilibré ? pourquoi pas »
   });
 }
 const rang = p => (p.statut.code === 'prouvee' ? 4 : p.statut.code === 'validee_backtest' ? 3 : p.statut.code === 'prometteuse' ? 2 : p.statut.code === 'decevante' ? 1 : 0);

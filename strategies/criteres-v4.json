@@ -1,0 +1,59 @@
+{
+  "empreinte": "2436e9bf",
+  "criteres": {
+    "version": 4,
+    "figesLe": "2026-10-29",
+    "decision": "Décision de Justin le 2026-10-29 : proposer des positions concrètes chaque jour avec deux niveaux de preuve, en restant totalement honnête sur le niveau atteint. Seuils écrits avant de mesurer quoi que ce soit.",
+    "base": {
+      "v1": 1,
+      "v2": 2,
+      "v3": 3,
+      "empreinteV3": "c9b4ddd4"
+    },
+    "candidate": {
+      "esperanceMin": 0.08,
+      "tradesMin": 100,
+      "periodesPositivesMin": 2,
+      "periodesMin": 2,
+      "tradesParPeriodeMin": 20,
+      "fraisDoublesMin": 0,
+      "auditeurObligatoire": true
+    },
+    "validee": {
+      "esperanceMin": 0.12,
+      "tradesMin": 150,
+      "alternative": {
+        "tradesMin": 100,
+        "semainesLiveMin": 4,
+        "liveEsperanceMin": 0
+      },
+      "bootstrap": {
+        "tirages": 5000,
+        "niveau": 0.95,
+        "basMin": 0,
+        "graine": 20261029
+      },
+      "deflation": {
+        "dsrMin": 0.95,
+        "nombreEffectif": true
+      },
+      "walkForwardPositif": true,
+      "prop": {
+        "drawdownMaxPct": 6,
+        "perteJourMaxPct": 3
+      },
+      "jeuFinal": {
+        "moisMin": 6,
+        "ouvertures": 1,
+        "rapportAuditeur": true
+      },
+      "simulationDirect": {
+        "semainesMin": 4,
+        "tradesMin": 30
+      }
+    },
+    "confluenceMin": 2,
+    "rrMin": 1.5,
+    "aucunePosition": "Aucune position ne passe le filtre qualité pour l’instant."
+  }
+}
