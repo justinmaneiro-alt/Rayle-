@@ -21,7 +21,7 @@ await new Promise(r => serveur.listen(PORT, '127.0.0.1', r));
 const suite0 = JSON.parse(fs.readFileSync(path.join(RACINE, 'tests-navigateur/fixtures-gestes/pointer-droite.json'), 'utf8'));
 const suite = { ...suite0, ips: 60 };
 const mediane = l => { const s = l.slice().sort((a, b) => a - b); return s.length ? s[s.length >> 1] : 0; };
-const nav = await puppeteer.launch({ executablePath: CHROME, headless: 'new', args: ['--use-angle=d3d11', '--enable-gpu', '--ignore-gpu-blocklist', '--no-first-run'] });
+const nav = await puppeteer.launch({ executablePath: CHROME, headless: 'new', args: ['--use-angle=d3d11', '--enable-gpu', '--ignore-gpu-blocklist', '--no-first-run', '--disable-background-timer-throttling', '--disable-renderer-backgrounding', '--disable-backgrounding-occluded-windows'] });
 const erreurs = [];
 async function scenario(nom, { sansRtc = false, sansWs = false, attente = 9000 }) {
   console.log('\n── ' + nom + ' ──');

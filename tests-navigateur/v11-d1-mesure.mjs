@@ -17,7 +17,7 @@ const PORT = 8131, PW = 8799, BASE = 'http://127.0.0.1:' + PORT, DUREE = 40;
 const suite = { ...JSON.parse(fs.readFileSync(path.join(RACINE, 'tests-navigateur/fixtures-gestes/pointer-droite.json'), 'utf8')), ips: 60 };
 const serveur = creerServeur({ portReseau: 0, dossierDonnees: fs.mkdtempSync(path.join(os.tmpdir(), 'rayle-v11d-')), ip: '127.0.0.1' });
 await new Promise(r => serveur.listen(PORT, '127.0.0.1', r));
-const nav = await puppeteer.launch({ executablePath: CHROME, headless: 'new', args: ['--use-angle=d3d11', '--enable-gpu', '--ignore-gpu-blocklist', '--no-first-run'] });
+const nav = await puppeteer.launch({ executablePath: CHROME, headless: 'new', args: ['--use-angle=d3d11', '--enable-gpu', '--ignore-gpu-blocklist', '--no-first-run', '--disable-background-timer-throttling', '--disable-renderer-backgrounding', '--disable-backgrounding-occluded-windows'] });
 function lireBudget(dossier) {
   const trouver = d => { for (const e of fs.readdirSync(d, { withFileTypes: true })) { const p = path.join(d, e.name); if (e.isDirectory()) { const r = trouver(p); if (r) return r; } else if (e.name.endsWith('.sqlite') && !/metadata/.test(e.name)) { try { const db = new DatabaseSync(p, { readOnly: true }); const t = db.prepare("select name from sqlite_master where name = 'agent_budget'").get(); if (t) { const l = db.prepare('select * from agent_budget').all(); db.close(); return l; } db.close(); } catch (x) { /* base verrouillée ou autre */ } } } return null; };
   return trouver(dossier);
@@ -57,7 +57,7 @@ try {
   const C = await mesurer('C', { sansRtc: true, sansWs: true });
   const B = await mesurer('B', { sansRtc: true });
   const A = await mesurer('A', {});
-  const parMin = (r, champ) => r[champ] == null ? null : Math.round((r[champ] - (base[champ] || 0)) / (r.secondes / 60));
+  const parMin = (r, champ) => r[champ] == null ? null : Math.round(Math.max(0, r[champ] - (base[champ] || 0)) / (r.secondes / 60));   // la ligne de base (démarrage du Worker : création des tables, budget) est retranchée, jamais en dessous de 0
   for (const r of [base, C, B, A]) console.log(r.nom.padEnd(5), 'chemin', String(r.chemin).padEnd(7), 'D1 lignes lues', r.lectures, '· écrites', r.ecritures, '· POST /camera/points', r.req.tel['/camera/points'] || 0, '· GET /camera/lire', r.req.pc['/camera/lire'] || 0, '· signal-lire', r.req.tel['/camera/signal-lire'] || 0);
   console.log('\nPar minute, ligne de base retranchée (budget compté par le Worker) :');
   for (const r of [C, B, A]) console.log('  ' + r.nom + ' : ' + parMin(r, 'ecritures') + ' lignes écrites/min, ' + parMin(r, 'lectures') + ' lignes lues/min  (chemin mesuré : ' + r.chemin + ')');

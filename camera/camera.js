@@ -19,7 +19,7 @@ const D = { pc: null, canal: null, ouvert: false, envoyes: 0, fenetre: [], rtt: 
 const R = { ws: null, ouvert: false, pc: false, essais: 0, retard: 0, etat: 'aucun', code: null, raison: '', depuis: 0, rtt: null };
 const X = { ice: { etat: '', conn: '', local: { host: 0, srflx: 0, relay: 0, mdns: 0 }, distant: { host: 0, srflx: 0, relay: 0, mdns: 0 }, paire: '' }, signal: { offre: false, reponse: false, erreur: '' }, serveurs: [{ urls: ['stun:stun.cloudflare.com:3478', 'stun:stun.l.google.com:19302'] }], rttA: null, rttB: null, chemin: 'worker', worker: { joignable: null, version: null, relais: null, turn: null, raison: '' }, retardDirect: 0 };
 const LC = () => self.LiaisonCalcul;
-if (/^(127\.0\.0\.1|localhost)$/.test(location.hostname)) window.__RAYLE_CAM_ETAT__ = () => ({ D, R, X, K, W });   // essais en local seulement : permet de couper un chemin pour vérifier la bascule
+if (/^(127\.0\.0\.1|localhost)$/.test(location.hostname)) window.__RAYLE_CAM_ETAT__ = () => ({ D, R, X, K, W, C, S });   // essais en local seulement : permet de couper un chemin pour vérifier la bascule
 const L = { jeton: null, ws: null, ouvert: false, pc: false, rtt: null, n: 0, envoyes: {}, dernierPong: 0, delaiMax: 5000, pings: 0, garde: 0, retard: 0, tentative: 0 };
 const K = { binaire: false, seq: 0, dt: 0, conf: 1, eco: false, dernierDessin: 0, sautes: 0, stats: null, dernierT: 0 };
 try { K.eco = localStorage.getItem('rayle_cam_eco') === '1'; } catch (e) { /* stockage refusé */ }
@@ -181,7 +181,7 @@ async function lirePaire(p) {
 }
 
 /* ── chemin B : relais temps réel (WebSocket vers le Durable Object du Worker) ── */
-function planifierRelais() { clearTimeout(R.retard); if (!W.cle || W.fin) return; R.essais++; R.retard = setTimeout(ouvrirRelais, Math.min(8000, 400 * Math.pow(2, Math.min(R.essais, 5)))); }
+function planifierRelais() { clearTimeout(R.retard); if (!W.cle || W.fin) return; R.essais++; R.retard = setTimeout(ouvrirRelais, Math.min(R.essais > 6 ? 30000 : 8000, 400 * Math.pow(2, Math.min(R.essais, 5)))); }
 function ouvrirRelais() {
   clearTimeout(R.retard); if (!W.cle || W.fin || typeof WebSocket === 'undefined' || (R.ws && R.ws.readyState <= 1)) return;
   R.etat = 'connexion'; let w, ouvert = false;

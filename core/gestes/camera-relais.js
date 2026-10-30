@@ -168,7 +168,7 @@ const CameraRelais = (() => {
     c.onmessage = ev => traiterMessage(ev, 'a');
   }
   /* ── chemin B : relais temps réel (WebSocket vers le Durable Object du Worker). Ticket de 2 minutes fabriqué par le Worker (route protégée), jamais de D1 par paquet. ── */
-  const planifierRelais = () => { clearTimeout(wsRetard); if (voulu && E.session) { wsEssais++; wsRetard = setTimeout(ouvrirRelais, Math.min(8000, 400 * Math.pow(2, Math.min(wsEssais, 5)))); } };
+  const planifierRelais = () => { clearTimeout(wsRetard); if (voulu && E.session) { wsEssais++; wsRetard = setTimeout(ouvrirRelais, Math.min(wsEssais > 6 ? 30000 : 8000, 400 * Math.pow(2, Math.min(wsEssais, 5)))); } };
   async function verifierWorker() {
     try { const r = await wfetch('/camera/version', { method: 'GET' }, 8000), j = r.ok ? await r.json() : null; E.workerInfo.joignable = true;
       if (j) { E.workerInfo.version = Number(j.v) || null; E.workerInfo.relais = !!j.relais; E.workerInfo.turn = !!j.turn; } else { E.workerInfo.version = null; E.workerInfo.relais = false; E.versionAlerte = 'mise à jour du Worker requise'; }
@@ -179,7 +179,7 @@ const CameraRelais = (() => {
     clearTimeout(wsRetard); if (!voulu || !E.session) return; if (typeof WebSocket === 'undefined') { E.ws = { etat: 'refuse', code: null, raison: 'WebSocket indisponible dans ce navigateur', rtt: null, depuis: 0 }; prevenir(); return; } if (ws && ws.readyState <= 1) return;
     E.ws = { ...E.ws, etat: 'connexion', raison: '' }; prevenir(); let ticket;
     try { ticket = (await api('/camera/ticket', { s: E.session })).ticket; }
-    catch (e) { E.ws = { etat: 'refuse', code: e.status || null, raison: e.status === 404 ? 'Worker sans relais temps réel (mise à jour requise)' : messageErreur(e), rtt: null, depuis: 0 }; if (e.status === 404) { E.workerInfo.joignable = true; E.workerInfo.version = null; E.versionAlerte = 'mise à jour du Worker requise'; } prevenir(); return planifierRelais(); }
+    catch (e) { E.ws = { etat: 'refuse', code: e.status || null, raison: e.status === 404 ? 'Worker sans relais temps réel (mise à jour requise)' : messageErreur(e), rtt: null, depuis: 0 }; if (e.status === 404) { E.workerInfo.joignable = true; E.workerInfo.version = null; E.versionAlerte = 'mise à jour du Worker requise'; prevenir(); return; } prevenir(); return planifierRelais(); }   // 404 : ce Worker n'a pas le relais, inutile de réessayer
     if (!voulu || !E.session) return;
     const adresse = workerUrl().replace(/^http/i, 'ws') + '/camera/ws?s=' + encodeURIComponent(E.session); let w;
     try { w = new WebSocket(adresse, ['rayle.v1', 't.' + ticket]); } catch (e) { E.ws = { etat: 'refuse', code: null, raison: 'WebSocket impossible dans ce navigateur', rtt: null, depuis: 0 }; prevenir(); return; }

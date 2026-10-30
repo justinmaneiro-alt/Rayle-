@@ -12,7 +12,8 @@ export async function demarrerWorker({ port = 8799, origine = 'http://127.0.0.1:
   if (!fs.existsSync(path.join(dossier, 'wrangler.toml'))) return null;
   const donnees = fs.mkdtempSync(path.join(os.tmpdir(), 'rayle-wr-'));
   const args = ['/c', 'npx.cmd', 'wrangler', 'dev', '--local', '--port', String(port), '--persist-to', donnees, '--var', 'RAYLE_TOKEN:' + jeton, 'ORIGINE:' + origine, ...vars.flatMap(v => ['--var', v])];
-  const enfant = spawn('cmd', args, { cwd: dossier, stdio: 'ignore', windowsHide: true });
+  const sortie = process.env.WRLOG ? fs.openSync(process.env.WRLOG, 'a') : 'ignore';
+  const enfant = spawn('cmd', args, { cwd: dossier, stdio: ['ignore', sortie, sortie], windowsHide: true });
   const url = 'http://127.0.0.1:' + port;
   const debut = Date.now();
   for (;;) {

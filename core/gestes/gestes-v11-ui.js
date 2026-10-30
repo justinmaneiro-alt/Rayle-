@@ -22,7 +22,7 @@ const GestesV11UI = (() => {
     panneau = document.createElement('aside'); panneau.id = 'gv11-aide'; panneau.hidden = true; panneau.setAttribute('aria-label', 'Aide des gestes');
     panneau.innerHTML = '<button type="button" class="gv11-tete" data-a="plier" aria-expanded="true"><span class="gv11-sig">✋</span><b>Que puis-je faire ?</b><i class="gv11-chev" aria-hidden="true"></i></button>' +
       '<div class="gv11-corps"><ol class="gv11-liste">' + C().GESTES_SIMPLES.map(g => '<li><span class="gv11-pic gv11-pic-' + g.pictogramme + '" aria-hidden="true">' + PIC[g.pictogramme] + '</span><span class="gv11-txt"><b>' + esc(g.titre) + '</b><small>' + esc(g.texte) + '</small></span></li>').join('') + '</ol>' +
-      '<div class="gv11-boutons"><button type="button" data-a="pause">Pause</button><button type="button" data-a="apprendre">Apprendre (2 min)</button><button type="button" data-a="avance">Mode avancé : non</button></div>' +
+      '<div class="gv11-boutons"><button type="button" data-a="pause">Pause</button><button type="button" data-a="apprendre">Apprendre (2 min)</button><button type="button" data-a="reglages">Réglages</button><button type="button" data-a="avance">Mode avancé : non</button></div>' +
       '<p class="gv11-note">Pause : ce bouton, ou dis « pause les gestes ». Aucun geste ne met en pause tout seul.</p></div>';
     document.body.appendChild(panneau);
     etiquette = document.createElement('div'); etiquette.id = 'gv11-etiquette'; etiquette.hidden = true; etiquette.setAttribute('aria-hidden', 'true'); etiquette.innerHTML = '<span class="gv11-t"></span><i class="gv11-bar"></i>'; document.body.appendChild(etiquette);
@@ -31,6 +31,7 @@ const GestesV11UI = (() => {
       if (a === 'plier') { replie = !replie; try { localStorage.setItem(CLE, replie ? 'ferme' : 'ouvert'); } catch (x) { /* stockage refusé */ } maj(); }
       else if (a === 'pause') { const g = G(); g.mettreEnPause(!g.etat().pause); maj(); }
       else if (a === 'apprendre') { if (window.GestesV5UI) window.GestesV5UI.apprendre(); }
+      else if (a === 'reglages') { if (window.GestesV5UI) window.GestesV5UI.reglagesSimples(); }
       else if (a === 'avance') { G().regler({ gestesAvances: !G().reglages().gestesAvances }); maj(); }
     });
   }

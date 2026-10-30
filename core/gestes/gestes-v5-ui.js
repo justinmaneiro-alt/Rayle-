@@ -50,6 +50,22 @@ const GestesV5UI = (() => {
     maj();
   }
 
+  // ── V11 : réglages simples (le panneau « Que puis-je faire ? » y mène) : sensibilité du clic, zone d'action, taille du pointeur, main dominante, calibrage de 20 s ──
+  function reglagesSimples() {
+    const ui = window.GestesUI; if (!ui || !ui.ouvrirModale) return null;
+    const q = G().reglages(), voulus = ['clic', 'zone', 'taille'], defs = CURSEURS.filter(c => voulus.includes(c[0]));
+    const m = ui.ouvrirModale('Réglages des gestes', defs.map(([id, nom, mn, mx, pas, u, lire]) => '<label class="gv5-l">' + nom + '<output id="gv11-o-' + id + '">' + lire(q) + u + '</output><input type="range" id="gv11-r-' + id + '" min="' + mn + '" max="' + mx + '" step="' + pas + '" value="' + lire(q) + '"></label>').join('') +
+      '<label class="gv5-l">Main qui commande le curseur<select id="gv11-main"><option value="1">Droite</option><option value="0">Gauche</option></select></label>' +
+      '<div class="gm-actions"><button type="button" id="gv11-calib">Calibrage personnel (20 s)</button><button type="button" id="gv11-restaurer" class="ghost">Restaurer</button></div>' +
+      '<p class="gm-note">Clic trop facile à déclencher : baisse la sensibilité. Le curseur n’atteint pas les bords : agrandis la zone. Tous les réglages détaillés sont dans ⚙ → Gestes.</p>');
+    document.getElementById('gv11-main').value = q.droitier ? '1' : '0';
+    for (const [id, , , , , u, lire, versPrefs] of defs) document.getElementById('gv11-r-' + id).addEventListener('input', e => { G().regler(versPrefs(+e.target.value)); document.getElementById('gv11-o-' + id).textContent = lire(G().reglages()) + u; });
+    document.getElementById('gv11-main').addEventListener('change', e => G().regler({ droitier: e.target.value === '1' }));
+    document.getElementById('gv11-calib').addEventListener('click', () => calibrageRapide());
+    document.getElementById('gv11-restaurer').addEventListener('click', () => { G().reinitialiserReglages(); if (m && m.remove) m.remove(); });
+    return m;
+  }
+
   // ── calibrage rapide (10 s) ──
   function calibrageRapide() {
     const ui = window.GestesUI; if (!ui || !ui.ouvrirModale) return;
@@ -159,6 +175,6 @@ const GestesV5UI = (() => {
   function fermer() { fermee = true; if (courant) { try { courant.saute(); } catch (e) { /* déjà terminé */ } courant = null; } if (racine) { racine.remove(); racine = null; } }
   const statistiques = () => lireStats();
 
-  return { installer, apprendre, fermer, calibrageRapide, statistiques, EXERCICES: EXERCICES.map(e => ({ id: e.id, titre: e.titre })), ouverte: () => !fermee };
+  return { installer, apprendre, fermer, calibrageRapide, reglagesSimples, statistiques, EXERCICES: EXERCICES.map(e => ({ id: e.id, titre: e.titre })), ouverte: () => !fermee };
 })();
 window.GestesV5UI = GestesV5UI;

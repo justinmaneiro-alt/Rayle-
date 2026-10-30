@@ -18,7 +18,7 @@ verifier('gestes éteints : le panneau d’aide est caché', await ev(() => { co
 await ev(() => Gestes.activer({ source: 'rejeu', memoriser: false }));
 verifier('gestes actifs : le panneau « Que puis-je faire ? » apparaît avec les 5 gestes', await ev(() => { const a = document.getElementById('gv11-aide'); return !a.hidden && a.querySelectorAll('li').length === 5 && /Que puis-je faire/.test(a.textContent); }));
 verifier('les 5 gestes ont un pictogramme animé', await ev(() => document.querySelectorAll('#gv11-aide .gv11-pic svg').length === 5));
-verifier('le panneau propose Pause, Apprendre et Mode avancé', await ev(() => { const b = [...document.querySelectorAll('#gv11-aide .gv11-boutons button')].map(x => x.textContent); return /Pause/.test(b[0]) && /Apprendre/.test(b[1]) && /Mode avancé : non/.test(b[2]); }));
+verifier('le panneau propose Pause, Apprendre, Réglages et Mode avancé', await ev(() => { const b = [...document.querySelectorAll('#gv11-aide .gv11-boutons button')].map(x => x.textContent); return /Pause/.test(b[0]) && /Apprendre/.test(b[1]) && /Réglages/.test(b[2]) && /Mode avancé : non/.test(b[3]); }));
 
 // ── engagement en 0,4 s, sans pose particulière ──
 const p0 = await pos();
@@ -74,6 +74,14 @@ verifier('mode avancé : poing immobile tenu 2 s = pause', (await etat()).pause)
 await ev(() => document.querySelector('#gv11-aide [data-a="pause"]').click());
 await ev(() => document.querySelector('#gv11-aide [data-a="avance"]').click());
 verifier('retour au mode simple', await ev(() => Gestes.reglages().gestesAvances === false && !Gestes.etat().pause));
+
+// ── réglages simples ──
+await ev(() => document.querySelector('#gv11-aide [data-a="reglages"]').click()); await attendre(300);
+const rs = await ev(() => ({ n: document.querySelectorAll('[id^="gv11-r-"]').length, main: !!document.getElementById('gv11-main'), calib: !!document.getElementById('gv11-calib') }));
+verifier('« Réglages » : sensibilité du clic, zone d’action, taille du pointeur, main dominante et calibrage de 20 s', rs.n === 3 && rs.main && rs.calib, JSON.stringify(rs));
+await ev(() => { const r = document.getElementById('gv11-r-taille'); r.value = 100; r.dispatchEvent(new Event('input', { bubbles: true })); });
+verifier('le curseur de taille change vraiment le réglage', await ev(() => Gestes.reglages().taillePointeur === 100));
+await ev(() => { const m = document.getElementById('gv11-calib').closest('.gm-modale, [role="dialog"], #gm-modale') || document.getElementById('gv11-calib').parentElement.parentElement; if (m) m.remove(); Gestes.regler({ taillePointeur: 76 }); });
 
 // ── tutoriel ──
 await ev(() => document.querySelector('#gv11-aide [data-a="apprendre"]').click()); await attendre(500);
