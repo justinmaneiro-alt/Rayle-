@@ -211,21 +211,26 @@ const Gestes = (() => {
     return r;
   }
   function reinitialiserReglages() { prefs = Object.assign(prefs, { seuilFerme: C.DEFAUTS.seuilFerme, seuilOuvre: C.DEFAUTS.seuilOuvre, zoneUtile: C.DEFAUTS.zoneUtile, miroir: true, droitier: true }, DEFAUTS_V5, { moteur: prefs.moteur }); ecrire(prefs); regler({}); }
-  /* Calibrage automatique (≈ 10 s) : balayer l'écran avec l'index (zone confortable), puis pincer et rouvrir plusieurs fois (seuils) ; la taille de la main dit si on est à la bonne distance. */
-  async function calibrerAuto({ secondes = 10, etape = () => {}, attente = ms => new Promise(r => setTimeout(r, ms)) } = {}) {
+  /* Calibrage personnel (≈ 20 s) : balayer l'écran avec l'index (zone confortable et vitesse), pincer et rouvrir plusieurs fois (seuils), puis garder l'index IMMOBILE (le tremblement réel de cette
+     main et de cette caméra règle la zone morte) ; la taille de la main dit si on est à la bonne distance. Tout est enregistré sur cet appareil. */
+  async function calibrerAuto({ secondes = 20, etape = () => {}, attente = ms => new Promise(r => setTimeout(r, ms)) } = {}) {
     if (!E.actif) throw new Error('Active d’abord les gestes.'); if (!window.GestesV5) throw new Error('Moteur V5 indisponible.');
-    const ratios = [], pointes = [], echelles = []; let phase = null;
+    const ratios = [], pointes = [], echelles = [], repos = [], vitesses = []; let phase = null, prec = null;
     calib = frame => {
       if (!frame.mains.length) return; const m = frame.mains[0], ratio = frame.ratio || 4 / 3, pts = m.pts.map(p => [(prefs.miroir ? 1 - p[0] : p[0]) * ratio, p[1], p[2] || 0]), r = C.pincement(pts);
-      ratios.push(r); echelles.push(C.echelleMain(pts)); if (phase === 'zone' && r > 0.5) pointes.push([pts[8][0] / ratio, pts[8][1]]);
+      ratios.push(r); echelles.push(C.echelleMain(pts)); if (phase === 'zone' && r > 0.5) { pointes.push([pts[8][0] / ratio, pts[8][1]]); if (prec && frame.t > prec.t) { const v = Math.hypot(pts[8][0] / ratio - prec.u, pts[8][1] - prec.v) / ((frame.t - prec.t) / 1000); if (v < 6) vitesses.push(v); } prec = { t: frame.t, u: pts[8][0] / ratio, v: pts[8][1] }; }
+      if (phase === 'repos' && r > 0.5 && moteur && moteur.options) repos.push(window.GestesV5.versEcran(pts[8][0] / ratio, pts[8][1], moteur.options));
     };
     try {
-      phase = 'zone'; etape(1, 'Index tendu : balaie lentement TOUT l’écran avec le doigt, coins compris.'); await attente(secondes * 600);
+      phase = 'zone'; etape(1, 'Index tendu : balaie lentement TOUT l’écran avec le doigt, coins compris.'); await attente(secondes * 400);
       phase = 'pince'; etape(2, 'Maintenant pince le pouce et l’index puis rouvre la main, quatre ou cinq fois, franchement.'); await attente(secondes * 400);
+      phase = 'repos'; etape(3, 'Index tendu et IMMOBILE, comme si tu visais un bouton : ne bouge plus pendant quelques secondes.'); await attente(secondes * 200);
     } finally { calib = null; phase = null; }
-    const r = window.GestesV5.calibrerAuto({ ratios, pointes, echelles });
+    const r = window.GestesV5.calibrerAuto({ ratios, pointes, echelles, repos, vitesses });
     if (r.zone) regler({ zoneL: r.zone.l, zoneH: r.zone.h, zoneCx: r.zone.cx, zoneCy: r.zone.cy });
     if (r.seuils) regler({ seuilFerme: r.seuils.seuilFerme, seuilOuvre: r.seuils.seuilOuvre, sensibiliteClic: 1 });
+    if (r.zoneMorte != null) regler({ zoneMorte: r.zoneMorte });
+    if (r.lissage != null) regler({ lissage: r.lissage });
     return r;
   }
 

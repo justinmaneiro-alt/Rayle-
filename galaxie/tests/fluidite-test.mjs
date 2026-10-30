@@ -99,6 +99,15 @@ for (const [hz, g] of [[30, 0], [30, 25], [15, 0]]) {
 { const c = F.calibrerFiltre(tr0); v('calibrage du filtre : trouve un lissage qui tient le tremblement', c.tenu && c.lissage >= 0.15 && c.lissage <= 0.9, JSON.stringify(c)); }
 { const o = F.optimiserSeuils(tr0, sess.intentions); v('seuils de pincement : tous les clics voulus, moins d’un faux par minute', o.fauxTenu && o.choix.rappel === 1 && o.choix.fauxParMinute < 1, JSON.stringify(o.choix)); }
 
+// ── calibrage personnel de 20 s : zone morte et lissage mesurés sur la personne ──
+{ const V5 = R('../../core/gestes/gestes-v5-calcul.js'), al = R('../../core/gestes/main-synthetique.js').alea(9), gs = () => Math.sqrt(-2 * Math.log(Math.max(1e-9, al()))) * Math.cos(2 * Math.PI * al());
+  const repos = Array.from({ length: 80 }, () => [960 + gs() * 2, 540 + gs() * 2]), calme = Array.from({ length: 80 }, () => [960, 540]), agite = Array.from({ length: 80 }, () => [960 + gs() * 9, 540 + gs() * 9]);
+  const c = V5.calibrerAuto({ repos, vitesses: Array.from({ length: 30 }, () => 1) }); v('calibrage : zone morte réglée sur un tremblement de ~2 px (entre 4 et 8 px)', c.zoneMorte >= 4 && c.zoneMorte <= 8, JSON.stringify(c));
+  v('calibrage : main très calme = zone morte minimale (4 px)', V5.calibrerAuto({ repos: calme }).zoneMorte === 4);
+  v('calibrage : main très agitée = zone morte plafonnée à 14 px', V5.calibrerAuto({ repos: agite }).zoneMorte === 14);
+  v('calibrage : doigt rapide = lissage plus léger, doigt lent = plus fort', V5.calibrerAuto({ vitesses: Array(20).fill(2.2) }).lissage === 0.35 && V5.calibrerAuto({ vitesses: Array(20).fill(0.4) }).lissage === 0.6);
+  v('calibrage : pas assez de points à l’arrêt = dit quoi faire, ne règle rien', (() => { const x = V5.calibrerAuto({ repos: repos.slice(0, 5) }); return x.zoneMorte === undefined && x.raisons.some(t => /immobile/.test(t)); })()); }
+
 // ── téléphone ou PC : recommandation ──
 { const lentTel = F.calculer(S.trace(sess, { degradation: { ips: 15 }, telephone: { det: 14, detMs: 71 } })), rapidePc = F.calculer(S.trace(sess, { telephone: { calcul: 'pc' } }));
   const reco = F.recommander(lentTel, rapidePc);

@@ -88,8 +88,9 @@
   }
 
   /* ── calibrage automatique (10 s) : taille de la main, zone confortable, seuils de pincement ──
-     échantillons : { ratios:[pouce–index / taille], pointes:[[u,v]] (bout de l'index, miroir, 0…1), echelles:[taille de la main en largeur d'image] } */
-  function calibrerAuto({ ratios = [], pointes = [], echelles = [] } = {}) {
+     échantillons : { ratios:[pouce–index / taille], pointes:[[u,v]] (bout de l'index, miroir, 0…1), echelles:[taille de la main en largeur d'image],
+                      repos:[[x,y]] (bout de l'index IMMOBILE, en pixels d'écran : sert à régler la zone morte sur le tremblement réel de cette main et de cette caméra), vitesses:[largeurs d'image par seconde pendant le balayage] } */
+  function calibrerAuto({ ratios = [], pointes = [], echelles = [], repos = [], vitesses = [] } = {}) {
     const q = (l, f) => { const s = l.slice().sort((a, b) => a - b); return s[Math.floor((s.length - 1) * f)]; };
     const sortie = { ok: true, raisons: [] };
     if (pointes.length >= 20) {
@@ -107,7 +108,15 @@
       const e = q(echelles, 0.5); sortie.tailleMain = +e.toFixed(4);
       sortie.distance = e < 0.07 ? 'trop loin : rapproche la main (40 à 60 cm)' : e > 0.3 ? 'trop près : éloigne la main (40 à 60 cm)' : 'bonne distance';
     }
-    sortie.ok = !!(sortie.zone || sortie.seuils);
+    if (repos.length >= 15) {   // V10 : zone morte réglée sur le bruit mesuré (2,5 écarts-types, entre 4 et 14 px)
+      const mx = repos.reduce((a, p) => a + p[0], 0) / repos.length, my = repos.reduce((a, p) => a + p[1], 0) / repos.length;
+      const sigma = Math.sqrt(repos.reduce((a, p) => a + (p[0] - mx) * (p[0] - mx) + (p[1] - my) * (p[1] - my), 0) / repos.length / 2);
+      sortie.zoneMorte = +borne(sigma * 2.5, 4, 14).toFixed(1); sortie.tremblementBrut = +(sigma * 2).toFixed(1);
+    } else sortie.raisons.push('Pas assez de points à l’arrêt pour régler la zone morte : garde l’index immobile quelques secondes.');
+    if (vitesses.length >= 10) {   // V10 : vitesse habituelle du doigt → lissage (rapide : plus réactif ; lent et précis : plus stable)
+      const v = q(vitesses, 0.9); sortie.vitesse = +v.toFixed(2); sortie.lissage = v > 1.5 ? 0.35 : v < 0.6 ? 0.6 : 0.5;
+    }
+    sortie.ok = !!(sortie.zone || sortie.seuils || sortie.zoneMorte);
     return sortie;
   }
 
