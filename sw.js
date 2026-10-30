@@ -5,7 +5,7 @@
    • Jamais interceptés : le Worker de Raylé et toutes les API (la page gère son propre cache), la page caméra du téléphone (/camera/), les routes locales du PC (/__…), les requêtes non GET.
    • Mise à jour : changer VERSION (= window.RAYLE_VERSION de index.html) installe une nouvelle version qui ATTEND ; la page affiche « Nouvelle version disponible — Actualiser » ; au toucher, la page lui dit de prendre la main (SKIP_WAITING) puis se recharge.
    • Chaque version a ses caches : les anciens sont supprimés à l'activation. */
-const VERSION = '2026.10.29.8';
+const VERSION = '2026.10.30.9';
 const SHELL = 'rayle-shell-' + VERSION, IMAGES = 'rayle-images-1';
 const COEUR = ['./', 'index.html', 'manifest.webmanifest', 'favicon.svg', 'icones/rayle-192.png', 'core/commun/appareil.js', 'core/mobile/mobile.css', 'core/mobile/mobile-contenus.css', 'core/mobile/mobile-agent.css',
   'core/mobile/mobile-calcul.js', 'core/mobile/mobile-donnees.js', 'core/mobile/mobile-coque.js', 'core/mobile/mobile-accueil.js'];
