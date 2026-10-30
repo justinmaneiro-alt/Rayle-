@@ -205,6 +205,8 @@ const GestesV5Actions = (() => {
         }
         case 'vue_initiale': {
           const cv = canevasSous(a.x, a.y) || (window.CartePad && window.CartePad.canevasPrincipal());
+          const objets = (window.Objets3DPad ? window.Objets3DPad.liste() : []).some(o => o.actif);
+          if (!cv && !objets && !document.body.classList.contains('vue-galaxie')) { t.appliquer({ a: 'accueil3' }); break; }   // V11 : rien à remettre à zéro ici → la paume ramène à l'accueil
           window.dispatchEvent(new CustomEvent('rayle:vue-initiale', { detail: { x: a.x, y: a.y, canvas: cv || null } }));
           for (const o of (window.Objets3DPad ? window.Objets3DPad.liste() : [])) { const r = window.Objets3DPad.obtenir(o.id); if (r && typeof r.reinitialiser === 'function' && o.actif) { try { r.reinitialiser(); } catch (e) { /* vue sans remise à zéro */ } } }
           if (document.body.classList.contains('vue-galaxie') && cv) window.dispatchEvent(new KeyboardEvent('keydown', { key: 'h', code: 'KeyH', bubbles: true }));   // la galaxie : H = vue d'ensemble
@@ -224,8 +226,10 @@ const GestesV5Actions = (() => {
   }
 
   /* Rend l'état (anneau, indicateur, diagnostic) : appelé à chaque image avec l'état du moteur. */
+  const ecouteEtat = [];
   function afficher(etat) {
     derniereEtat = etat; if (!etat) return; creer();
+    for (const f of ecouteEtat) { try { f(etat); } catch (e) { /* un écouteur fautif n'arrête pas l'affichage */ } }
     let e = 'repos';
     if (etat.mode === 'pause') e = 'pause'; else if (etat.mode === 'repos' || etat.mode === 'sans-main') e = 'inactif';
     else if (etat.saisie) e = 'prise'; else if (etat.progres && etat.progres.type === 'fermer') e = 'fermer'; else if (etat.progres && etat.progres.type === 'pince') e = 'pince';
@@ -249,12 +253,12 @@ const GestesV5Actions = (() => {
     const pc = etat.pincement, o = window.Gestes && window.Gestes.reglages ? window.Gestes.reglages() : {};
     diag.querySelector('pre').textContent = ['état    : ' + etat.mode + (etat.saisie ? ' · prise' : '') + (etat.deux ? ' · deux mains (' + etat.deux + ')' : ''), 'pose    : ' + (etat.pose || '—') + ' · mains ' + etat.mains,
       'pince   : index ' + (pc ? pc.index.toFixed(2) : '—') + ' · majeur ' + (pc ? pc.majeur.toFixed(2) : '—'), 'seuils  : fermé < ' + ((o.seuilFerme || 0.3) * (o.sensibiliteClic || 1)).toFixed(2) + ' · ouvert > ' + ((o.seuilOuvre || 0.45) * (o.sensibiliteClic || 1)).toFixed(2),
-      r ? 'liaison : ' + r.liaison + ' · ' + r.debit + ' paq/s · délai ' + (r.delaiTotal != null ? r.delaiTotal + ' ms' : '—') + ' · perte ' + Math.round((r.perte || 0) * 100) + ' %' : 'liaison : webcam du PC'].join('\n');
+      r ? 'liaison : ' + (r.chemin || r.liaison) + ' · ' + r.debit + ' paq/s · délai ' + (r.delaiTotal != null ? r.delaiTotal + ' ms' : '—') + ' · perte ' + Math.round((r.perte || 0) * 100) + ' %' : 'liaison : webcam du PC'].join('\n');
   }
 
   function arreter() { inertieStop(true); lacherMarques(); deuxFin(); marquerSurvol(null); if (fermerEl) { fermerEl.classList.remove('gv5-ferme-prevu'); fermerEl = null; } cacher(); if (diag) diag.hidden = true; if (T()) T().lacher(); prise = null; }
   function reglages(patch) { Object.assign(P, patch || {}); if (rendu) rendu.regler({ tampon: P.tamponMs || 0 }); appliquerTaille(); if (!P.diagnostic && diag) diag.hidden = true; }
 
-  return { appliquer, afficher, arreter, reglages, ecouterImage: f => { ecouteImage = f; }, aimanter, fenetreSous, actualiserCibles, curseur: () => el, etat: () => ({ prise: !!prise, inertie: !!inertie, deux: deux ? deux.mode : null, survol: !!survolEl }) };
+  return { surEtat: f => { ecouteEtat.push(f); }, appliquer, afficher, arreter, reglages, ecouterImage: f => { ecouteImage = f; }, aimanter, fenetreSous, actualiserCibles, curseur: () => el, etat: () => ({ prise: !!prise, inertie: !!inertie, deux: deux ? deux.mode : null, survol: !!survolEl }) };
 })();
 window.GestesV5Actions = GestesV5Actions;

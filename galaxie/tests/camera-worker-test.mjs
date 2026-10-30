@@ -122,7 +122,7 @@ v('le compteur d’essais repart à la minute suivante', (await appeler('POST', 
 // ── méthodes et routes ──
 v('GET sur /camera/points : route inconnue', (await appeler('GET', '/camera/points')).status === 404);
 v('route inconnue', (await appeler('POST', '/camera/zzz')).status === 404);
-v('routes publiques = rejoindre, points et les deux routes de signalisation du téléphone (jamais celle du PC)', R.ROUTES_PUBLIQUES.length === 4 && ['/camera/rejoindre', '/camera/points', '/camera/signal', '/camera/signal-lire'].every(x => R.ROUTES_PUBLIQUES.includes(x)) && !R.ROUTES_PUBLIQUES.includes('/camera/signal-pc'));
+v('routes publiques = rejoindre, points, signalisation du téléphone, version, ice et ws (jamais signal-pc, ticket ni ice-pc)', R.ROUTES_PUBLIQUES.length === 7 && ['/camera/rejoindre', '/camera/points', '/camera/signal', '/camera/signal-lire'].every(x => R.ROUTES_PUBLIQUES.includes(x)) && ['/camera/version', '/camera/ice', '/camera/ws'].every(x => R.ROUTES_PUBLIQUES.includes(x)) && !R.ROUTES_PUBLIQUES.includes('/camera/signal-pc') && !R.ROUTES_PUBLIQUES.includes('/camera/ticket') && !R.ROUTES_PUBLIQUES.includes('/camera/ice-pc'));
 
 // ── signalisation WebRTC (liaison directe téléphone <-> PC) ──
 env.DB = fausseD1();

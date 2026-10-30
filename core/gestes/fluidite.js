@@ -52,7 +52,7 @@ const Fluidite = (() => {
         clearInterval(iv); off1(); if (A && A.ecouterImage) A.ecouterImage(null); if (relais && relais.definirSurTelephone) relais.definirSurTelephone(null);
         const annule = enCours && enCours.annule; enCours = null; bandeauEl().hidden = true;
         const trace = rec.fin(performance.now() - debut); const r = relais && relais.etat ? relais.etat() : {};
-        trace.decalage = { ms: r.decalage, rttMs: r.rttMin }; trace.duree = Math.round(trace.duree);
+        trace.decalage = { ms: r.decalage, rttMs: r.rttMin }; trace.liaison = { chemin: r.chemin || (r.liaison === 'direct' ? 'direct' : 'worker'), rttDirect: r.rttDirect, rttRelais: r.rttRelais, ws: r.ws ? r.ws.etat : null, versionAlerte: r.versionAlerte || '' };   // V11 : par quel chemin les points sont arrivés trace.duree = Math.round(trace.duree);
         if (annule && trace.frames.length < 30) return reject(new Error('Test interrompu.'));
         dernierTrace = trace; resolve(trace);
       }
@@ -86,6 +86,7 @@ const Fluidite = (() => {
       '<table class="gm-tab fl-obj"><thead><tr><th>Objectif</th><th>Mesuré</th><th>Visé</th><th></th></tr></thead><tbody>' + a.objectifs.map(ligneObjectif).join('') + '</tbody></table>' + cmp + constats +
       '<h4 class="gm-h">Détail des mesures</h4><div class="gm-note fl-detail">' + [
         'Trames : ' + m.images + ' en ' + m.duree + ' s' + (trace.origine === 'simulation' ? ' (trace SIMULÉE)' : ''),
+        'Liaison : ' + (m.liaison ? ({ direct: 'Direct', relais: 'Relais temps réel', worker: 'Worker lent (dernier recours)' }[m.liaison.chemin] || m.liaison.chemin) + (m.liaison.rttDirect != null ? ' · aller-retour direct ' + m.liaison.rttDirect + ' ms' : '') + (m.liaison.rttRelais != null ? ' · relais ' + m.liaison.rttRelais + ' ms' : '') : 'non enregistrée (trace ancienne)'),
         'Caméra du téléphone : ' + fmt(m.camera.fps, ' images/s') + ' · détection : ' + fmt(m.detection.fps, ' images/s') + ', ' + fmt(m.detection.msParImage, ' ms') + ' par image',
         'Réseau : ' + (m.octets.moyen == null ? 'paquets JSON ou relais' : m.octets.moyen + ' octets par paquet, ' + m.octets.debitKo + ' ko/s') + ' · gigue ' + fmt(m.gigue.p95, ' ms') + ' (p95) · pertes ' + (m.perte == null ? '—' : Math.round(m.perte * 100) + ' %') + ' · pertes de main ' + m.pertesDeMain,
         'Délai : ' + fmt(m.delai.p50, ' ms') + ' (médiane) · composantes (téléphone / réseau / moteur / affichage) ' + [m.delai.composantes.telephone, m.delai.composantes.reseau, m.delai.composantes.moteurPc, m.delai.composantes.affichage].map(x => fmt(x)).join(' / ') + ' ms',

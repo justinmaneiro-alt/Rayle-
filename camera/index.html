@@ -63,6 +63,8 @@
     <div class="apercu" id="apercu" hidden><canvas id="cv"></canvas></div>
     <button id="b-cam">Démarrer la caméra</button>
     <button class="sec" id="b-stop" hidden>Arrêter</button>
+    <button class="sec" id="b-diag">Diagnostic de liaison</button>
+    <pre id="t-diag" class="msg sable" hidden style="white-space:pre-wrap;font-size:12px;text-align:left"></pre>
     <button class="sec" id="b-eco">Économie : couper l’aperçu</button>
     <details class="reglages"><summary>Réglages de fluidité</summary>
       <label for="r-res">Résolution de la caméra</label><select id="r-res"><option value="auto">Automatique (recommandé : s’adapte à la cadence)</option><option value="320">320 × 240 (le plus rapide)</option><option value="480">480 × 360</option><option value="640">640 × 480 (le plus précis)</option></select>
@@ -82,6 +84,7 @@
   <section class="carte" id="s-erreur" hidden><div class="msg ko" id="t-erreur"></div></section>
 </main>
 <script src="paquet-binaire.js"></script>
+<script src="liaison-calcul.js"></script>
 <script src="adaptation.js"></script>
 <script type="module" src="camera.js"></script>
 </body>

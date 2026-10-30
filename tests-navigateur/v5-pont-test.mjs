@@ -41,7 +41,7 @@ const navTel = await puppeteer.launch({ executablePath: CHROME, headless: 'new',
 try {
   const pc = await nav.newPage(); await pc.setViewport({ width: 1400, height: 900 }); const errPc = [];
   pc.on('pageerror', e => errPc.push(e.message.slice(0, 200)));
-  await pc.evaluateOnNewDocument((w) => { try { localStorage.setItem('rayle_entite_version', '2'); localStorage.setItem('rayle_boot', '0'); localStorage.removeItem('rayle_gestes'); localStorage.setItem('rayle_worker_url', w); localStorage.setItem('rayle_worker_token', 'local'); window.RAYLE_CAMERA_PAGE = location.origin + '/camera/index.html'; } catch (e) { /* stockage refusé */ } }, WORKER);
+  await pc.evaluateOnNewDocument((w) => { try { localStorage.setItem('rayle_entite_version', '2'); localStorage.setItem('rayle_boot', '0'); localStorage.setItem('rayle_gestes', '{"gestesAvances":true}'); localStorage.setItem('rayle_worker_url', w); localStorage.setItem('rayle_worker_token', 'local'); window.RAYLE_CAMERA_PAGE = location.origin + '/camera/index.html'; } catch (e) { /* stockage refusé */ } }, WORKER);
   await pc.goto(BASE + '/index.html', { waitUntil: 'load' }); await attendre(2500);
   await pc.addScriptTag({ path: path.join(RACINE, 'core/gestes/main-synthetique.js') }); await pc.evaluate(code => { window.__T = eval(code); }, BIBLIOTHEQUE);
   const ev = (f, ...a) => pc.evaluate(f, ...a);
@@ -113,9 +113,9 @@ try {
   await tel.evaluate(() => document.getElementById('b-eco').click()); await attendre(1200);
   verifier('bouton « Économie » du téléphone : aperçu coupé, mémorisé, le débit reste ≥ 55', await tel.evaluate(() => document.getElementById('apercu').hidden && localStorage.getItem('rayle_cam_eco') === '1') && await ev(() => CameraRelais.etat().debit) >= 55);
   // fenêtre « Pause » (poing) sur la chaîne
-  const f4 = await T(`const s = new T.Suite(); s.pointer(700, 450, 200).poing(700, 450, 1300); return s.frames.map(f => ({ t: f.t, ratio: f.ratio, mains: f.mains }));`);
+  const f4 = await T(`const s = new T.Suite(); s.pointer(700, 450, 200).poing(700, 450, 2500); return s.frames.map(f => ({ t: f.t, ratio: f.ratio, mains: f.mains }));`);
   await tel.evaluate((f) => window.__RAYLE_CAM_JOUER__(f), f4); await attendre(f4.at(-1).t + 700);
-  verifier('poing tenu 1 s depuis le téléphone : pause', await ev(() => Gestes.etat().pause));
+  verifier('poing immobile tenu 2 s depuis le téléphone (mode avancé) : pause', await ev(() => Gestes.etat().pause));
   await tel.close();
 
   // ── repli : un PC qui ne sait pas lire le binaire reçoit du JSON ──

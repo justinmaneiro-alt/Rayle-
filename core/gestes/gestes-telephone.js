@@ -32,9 +32,10 @@ const GestesTel = (() => {
     if (r.etat === 'attente') return { t: 'en attente du téléphone (scanne le QR)', c: 'att' };
     if (r.etat === 'expiree' || r.etat === 'fermee') return { t: 'session terminée', c: 'ko' };
     if (r.etat === 'erreur' || r.erreur) return { t: 'erreur : ' + (r.erreur || 'liaison'), c: 'ko' };
-    if (r.liaison === 'direct') return { t: 'connecté · liaison directe (WebRTC)', c: 'ok' };
-    if (r.liaison === 'negociation') return { t: 'connecté · ouverture de la liaison directe…', c: 'att' };
-    if (r.etat === 'connecte') return { t: 'connecté · par le Worker (lent)' + (r.directEchec ? ' · ' + r.directEchec : ''), c: 'att' };
+    const LC = window.LiaisonCalcul, ch = r.chemin || (r.liaison === 'direct' ? 'direct' : 'worker'), txt = LC ? LC.libelleChemin({ chemin: ch, debit: r.debit, delai: r.delaiTotal != null ? r.delaiTotal : r.delai }) : ch;
+    if (ch === 'direct' || ch === 'relais') return { t: 'connecté · ' + txt, c: LC ? LC.classeChemin({ chemin: ch, debit: r.debit }) : 'ok' };
+    if (r.liaison === 'negociation') return { t: 'connecté · ouverture de la liaison rapide…', c: 'att' };
+    if (r.etat === 'connecte') return { t: 'connecté · par l’ancien relais du Worker (lent)' + (r.versionAlerte ? ' · ' + r.versionAlerte : '') + (r.directEchec ? ' · ' + r.directEchec : ''), c: 'att' };
     return { t: 'non connecté', c: 'ko' };
   }
   const R = () => window.CameraRelais;
@@ -55,17 +56,25 @@ const GestesTel = (() => {
     if (!fen) return; const r = R() ? R().etat() : {}, e = G.etat(), l = libelleLiaison(r), mot = G.moteur() ? G.moteur().etat() : null;
     const set = (id, v) => { const el = fen.querySelector('[data-k="' + id + '"]'); if (el && el.textContent !== v) el.textContent = v; };
     const pt = fen.querySelector('[data-k="pt"]'); if (pt) pt.className = 'gt-pt ' + l.c;
-    set('liaison', l.t); set('debit', r.liaison === 'direct' || r.etat === 'connecte' ? (r.debit || 0) + ' paquets/s' + (r.binaire ? ' (binaires)' : '') : '—');
-    set('delai', r.delaiTotal != null ? r.delaiTotal + ' ms de bout en bout (téléphone ' + r.dtTel + ' · réseau ' + r.delai + ' · PC ' + (r.traitement || 0).toFixed(1) + ')' : r.delai != null ? r.delai + ' ms (aller-retour ' + r.rtt + ' ms)' : (r.liaison === 'direct' ? 'mesure…' : '—'));
-    set('perte', r.liaison === 'direct' ? Math.round((r.perte || 0) * 100) + ' % perdus · ' + (r.ecartes || 0) + ' en retard écartés · gigue ' + (r.gigue || 0) + ' ms' : '—');
+    set('liaison', l.t); set('debit', r.chemin === 'direct' || r.chemin === 'relais' || r.liaison === 'direct' || r.etat === 'connecte' ? (r.debit || 0) + ' paquets/s' + (r.binaire ? ' (binaires)' : '') : '—');
+    set('delai', r.delaiTotal != null ? r.delaiTotal + ' ms de bout en bout (téléphone ' + r.dtTel + ' · réseau ' + r.delai + ' · PC ' + (r.traitement || 0).toFixed(1) + ')' : r.delai != null ? r.delai + ' ms (aller-retour ' + r.rtt + ' ms)' : (r.chemin === 'direct' || r.chemin === 'relais' ? 'mesure…' : '—'));
+    set('perte', r.chemin === 'direct' || r.chemin === 'relais' ? Math.round((r.perte || 0) * 100) + ' % perdus · ' + (r.ecartes || 0) + ' en retard écartés · gigue ' + (r.gigue || 0) + ' ms' : '—');
     const cf = fen.querySelector('[data-k="conf"]'); if (cf) cf.value = r.confiance == null ? 0 : r.confiance; set('confT', r.confiance == null ? '—' : Math.round(r.confiance * 100) + ' %');
     set('geste', libelleGeste(e, mot)); set('mains', String(e.mains || 0)); set('recues', String(r.recues || 0) + ' trames reçues');
     const t = r.tel; set('tel', t ? [t.calcul === 'pc' ? 'calcul sur le PC' : 'calcul sur le téléphone', t.cam != null ? 'caméra ' + Math.round(t.cam) + ' im/s' : null, t.det != null ? 'détection ' + Math.round(t.det) + ' im/s' : null, t.detMs != null ? Math.round(t.detMs) + ' ms' : null, t.res ? t.res + ' px' : null, t.mode === 'worker' ? 'Worker' : t.mode === 'principal' ? 'fil principal' : null, t.bat != null ? 'batterie ' + Math.round(t.bat * 100) + ' %' : null].filter(Boolean).join(' · ') : '—');
     const cmp = fen.querySelector('[data-g="comparer"]'); if (cmp) cmp.hidden = !(G.reglages().calculPc && r.liaison === 'direct');
     const lim = fen.querySelector('[data-k="note"]');
-    if (lim) lim.textContent = r.liaison === 'direct' ? (r.conseil || '') : (r.etat === 'connecte' ? 'Sans la liaison directe le débit reste faible : le Worker doit être à jour (voir docs/GESTES.md).' : '');
+    if (lim) lim.textContent = r.chemin === 'direct' || r.chemin === 'relais' ? (r.conseil || '') : (r.etat === 'connecte' ? (r.versionAlerte ? 'Mise à jour du Worker requise (commande dans docs/DIAGNOSTIC_LIAISON.md). ' : '') + 'Ni la liaison directe ni le relais temps réel ne sont établis : appuie sur « Diagnostic de liaison ».' : '');
     if (imgApercu) { if (r.apercu && imgApercu.src !== r.apercu) imgApercu.src = r.apercu; imgApercu.hidden = !r.apercu; }
   }
+  /* Bouton « Diagnostic de liaison » : l'état de chaque étape en français, la cause probable et quoi faire (calcul pur : camera/liaison-calcul.js). */
+  function texteDiagnostic() {
+    const R0 = R(), LC = window.LiaisonCalcul; if (!R0 || !LC) return 'Le module de diagnostic n’est pas chargé.';
+    const d = R0.diagnostic(); let t = LC.texteDiagnostic(d); const tel = d.faits && d.faits.telephone;
+    if (tel) { const l = tel.ice.local; t += '\n\nCôté téléphone : liaison directe ' + (tel.direct.ouvert ? 'ouverte' : 'fermée') + (tel.direct.echec ? ' (' + tel.direct.echec + ')' : '') + ' · relais ' + (tel.ws.etat || '?') + (tel.ws.raison ? ' (' + tel.ws.raison + ')' : '') + ' · adresses obtenues : local ' + l.host + (l.mdns ? ' (dont ' + l.mdns + ' masquées)' : '') + ', public ' + l.srflx + ', relais ' + l.relay; }
+    return t;
+  }
+  function diagnostic() { if (!fen) return; const z = fen.querySelector('[data-k="diag"]'); if (!z) return; z.textContent = texteDiagnostic(); z.hidden = !z.hidden; if (!z.hidden) { try { navigator.clipboard && navigator.clipboard.writeText(z.textContent); } catch (e) { /* presse-papiers refusé */ } } }
   function ouvrir() {
     if (fen) { fen.hidden = false; return fen; }
     fen = document.createElement('section'); fen.id = 'gestes-tel'; fen.setAttribute('role', 'region'); fen.setAttribute('aria-label', 'Suivi de la caméra du téléphone');
@@ -73,7 +82,7 @@ const GestesTel = (() => {
       '<div class="gt-corps"><canvas width="280" height="210" aria-label="Squelette des mains reçu du téléphone"></canvas><img alt="Aperçu de la caméra du téléphone" hidden>' +
       '<dl><dt>Liaison</dt><dd data-k="liaison">…</dd><dt>Débit</dt><dd data-k="debit">—</dd><dt>Délai</dt><dd data-k="delai">—</dd><dt>Geste</dt><dd data-k="geste">—</dd><dt>Perte</dt><dd data-k="perte">—</dd><dt>Confiance</dt><dd><meter data-k="conf" min="0" max="1" low="0.5" high="0.8" optimum="1" value="0" style="width:90px"></meter> <span data-k="confT">—</span></dd><dt>Mains vues</dt><dd data-k="mains">0</dd><dt>Reçu</dt><dd data-k="recues">0</dd><dt>Téléphone</dt><dd data-k="tel">—</dd></dl>' +
       '<div class="gt-note" data-k="note"></div>' +
-      '<div class="gt-fl"><button type="button" data-g="test">Test de fluidité (60 s)</button><button type="button" data-g="cibles">Jeu Cibles (3 min)</button><button type="button" data-g="comparer" hidden>Comparer téléphone / PC</button></div>' +
+      '<div class="gt-fl"><button type="button" data-g="test">Test de fluidité (60 s)</button><button type="button" data-g="cibles">Jeu Cibles (3 min)</button><button type="button" data-g="comparer" hidden>Comparer téléphone / PC</button><button type="button" data-g="diag">Diagnostic de liaison</button></div><pre class="gt-diag" data-k="diag" hidden></pre>' +
       '<label class="gt-chk gt-pcc"><input type="checkbox" data-g="calculpc"> Autoriser le calcul sur le PC (mode performance : la vidéo basse résolution part en direct du téléphone vers ce PC, sans serveur, sans enregistrement ; le téléphone doit aussi accepter). Désactivé par défaut : sans cela, seuls les points de ta main quittent le téléphone.</label>' +
       '<label class="gt-chk"><input type="checkbox" data-g="apercu"> Aperçu vidéo de la caméra (désactivé par défaut : une petite image part du téléphone, seulement tant que c’est coché)</label></div>';
     document.body.appendChild(fen); cv = fen.querySelector('canvas'); ctx = cv.getContext('2d'); imgApercu = fen.querySelector('img');
@@ -82,6 +91,7 @@ const GestesTel = (() => {
       else if (e.target.closest('[data-g="test"]') && window.Fluidite) window.Fluidite.lancer();
       else if (e.target.closest('[data-g="cibles"]') && window.CiblesJeu) window.CiblesJeu.jouer();
       else if (e.target.closest('[data-g="comparer"]') && window.Fluidite) window.Fluidite.lancerComparaison();
+      else if (e.target.closest('[data-g="diag"]')) diagnostic();
     });
     const cc = fen.querySelector('[data-g="calculpc"]'); cc.checked = !!G.reglages().calculPc;
     cc.addEventListener('change', e => { G.regler({ calculPc: e.target.checked }); if (window.Fluidite) { window.Fluidite.brancherPiste(); window.Fluidite.activerCalculPc(e.target.checked); } });
@@ -97,6 +107,6 @@ const GestesTel = (() => {
     if (!fen) return; if (R()) R().definirApercu(false);
     cancelAnimationFrame(raf); raf = 0; fen.remove(); fen = null; cv = ctx = imgApercu = null;
   }
-  return { ouvrir, fermer, ouverte: () => !!fen, libelleGeste, libelleLiaison };
+  return { ouvrir, fermer, ouverte: () => !!fen, libelleGeste, libelleLiaison, texteDiagnostic, diagnostic };
 })();
 window.GestesTel = GestesTel;

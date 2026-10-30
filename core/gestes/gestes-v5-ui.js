@@ -24,7 +24,8 @@ const GestesV5UI = (() => {
     d.innerHTML = '<summary>Réglages de la souris dans l’air (V5)</summary>' +
       CURSEURS.map(([id, nom, mn, mx, pas, u, lire]) => '<label class="gv5-l">' + nom + '<output id="gv5-o-' + id + '">' + lire(p) + u + '</output><input type="range" id="gv5-r-' + id + '" min="' + mn + '" max="' + mx + '" step="' + pas + '" value="' + lire(p) + '"></label>').join('') +
       '<label class="gv5-l">Main qui commande le curseur<select id="gv5-main"><option value="1">Droite</option><option value="0">Gauche</option></select></label>' +
-      '<label class="chk"><input type="checkbox" id="gv5-exiger"> Engager avec la main ouverte avant d’agir (anti-gestes accidentels)</label>' +
+      '<label class="chk"><input type="checkbox" id="gv5-avance"> Mode avancé : poing (pause 2 s, fermer), ranger, recul, deux doigts… (par défaut : 5 gestes simples, jamais de pause par un geste)</label>' +
+      '<label class="chk"><input type="checkbox" id="gv5-exiger"> Engager avec la main avant d’agir (mode simple : 0,4 s ; avancé : main ouverte ≈ 0,7 s)</label>' +
       '<label class="chk"><input type="checkbox" id="gv5-recul"> Main ouverte qui recule = retour à l’accueil</label>' +
       '<label class="chk"><input type="checkbox" id="gv5-relatif"> Mode relatif (comme une souris : on peut reposer la main)</label>' +
       '<label class="chk"><input type="checkbox" id="gv5-diag-case"> Superposition de diagnostic (squelette, distance de pincement, débit, délai)</label>' +
@@ -34,10 +35,11 @@ const GestesV5UI = (() => {
     sect.appendChild(d);
     const maj = () => {
       const q = G().reglages(); for (const [id, , , , , u, lire] of CURSEURS) { const r = document.getElementById('gv5-r-' + id), o = document.getElementById('gv5-o-' + id); if (r && document.activeElement !== r) r.value = lire(q); if (o) o.textContent = lire(q) + u; }
-      document.getElementById('gv5-main').value = q.droitier ? '1' : '0'; document.getElementById('gv5-exiger').checked = !!q.exigerEngagement; document.getElementById('gv5-relatif').checked = !!q.modeRelatif; document.getElementById('gv5-recul').checked = q.reculActif !== false; document.getElementById('gv5-diag-case').checked = !!q.diagnostic; document.getElementById('gv5-moteur').value = q.moteur === 'v2' ? 'v2' : 'v5';
+      document.getElementById('gv5-main').value = q.droitier ? '1' : '0'; document.getElementById('gv5-avance').checked = !!q.gestesAvances; document.getElementById('gv5-exiger').checked = !!q.exigerEngagement; document.getElementById('gv5-relatif').checked = !!q.modeRelatif; document.getElementById('gv5-recul').checked = q.reculActif !== false; document.getElementById('gv5-diag-case').checked = !!q.diagnostic; document.getElementById('gv5-moteur').value = q.moteur === 'v2' ? 'v2' : 'v5';
     };
     for (const [id, , , , , , , versPrefs] of CURSEURS) document.getElementById('gv5-r-' + id).addEventListener('input', e => { G().regler(versPrefs(+e.target.value)); maj(); });
     document.getElementById('gv5-main').addEventListener('change', e => G().regler({ droitier: e.target.value === '1' }));
+    document.getElementById('gv5-avance').addEventListener('change', e => { G().regler({ gestesAvances: e.target.checked }); if (window.GestesV11UI) window.GestesV11UI.maj(); });
     document.getElementById('gv5-exiger').addEventListener('change', e => G().regler({ exigerEngagement: e.target.checked }));
     document.getElementById('gv5-recul').addEventListener('change', e => G().regler({ reculActif: e.target.checked }));
     document.getElementById('gv5-relatif').addEventListener('change', e => G().regler({ modeRelatif: e.target.checked }));
@@ -46,6 +48,22 @@ const GestesV5UI = (() => {
     document.getElementById('gv5-apprendre').addEventListener('click', apprendre); document.getElementById('gv5-calib10').addEventListener('click', calibrageRapide);
     document.getElementById('gv5-restaurer').addEventListener('click', () => { G().reinitialiserReglages(); maj(); });
     maj();
+  }
+
+  // ── V11 : réglages simples (le panneau « Que puis-je faire ? » y mène) : sensibilité du clic, zone d'action, taille du pointeur, main dominante, calibrage de 20 s ──
+  function reglagesSimples() {
+    const ui = window.GestesUI; if (!ui || !ui.ouvrirModale) return null;
+    const q = G().reglages(), voulus = ['clic', 'zone', 'taille'], defs = CURSEURS.filter(c => voulus.includes(c[0]));
+    const m = ui.ouvrirModale('Réglages des gestes', defs.map(([id, nom, mn, mx, pas, u, lire]) => '<label class="gv5-l">' + nom + '<output id="gv11-o-' + id + '">' + lire(q) + u + '</output><input type="range" id="gv11-r-' + id + '" min="' + mn + '" max="' + mx + '" step="' + pas + '" value="' + lire(q) + '"></label>').join('') +
+      '<label class="gv5-l">Main qui commande le curseur<select id="gv11-main"><option value="1">Droite</option><option value="0">Gauche</option></select></label>' +
+      '<div class="gm-actions"><button type="button" id="gv11-calib">Calibrage personnel (20 s)</button><button type="button" id="gv11-restaurer" class="ghost">Restaurer</button></div>' +
+      '<p class="gm-note">Clic trop facile à déclencher : baisse la sensibilité. Le curseur n’atteint pas les bords : agrandis la zone. Tous les réglages détaillés sont dans ⚙ → Gestes.</p>');
+    document.getElementById('gv11-main').value = q.droitier ? '1' : '0';
+    for (const [id, , , , , u, lire, versPrefs] of defs) document.getElementById('gv11-r-' + id).addEventListener('input', e => { G().regler(versPrefs(+e.target.value)); document.getElementById('gv11-o-' + id).textContent = lire(G().reglages()) + u; });
+    document.getElementById('gv11-main').addEventListener('change', e => G().regler({ droitier: e.target.value === '1' }));
+    document.getElementById('gv11-calib').addEventListener('click', () => calibrageRapide());
+    document.getElementById('gv11-restaurer').addEventListener('click', () => { G().reinitialiserReglages(); if (m && m.remove) m.remove(); });
+    return m;
   }
 
   // ── calibrage rapide (10 s) ──
@@ -72,7 +90,7 @@ const GestesV5UI = (() => {
   function ecouterGeste(type, fn) { return G().surEvenement((t, d) => { if (t === 'geste' && d.type === type) fn(d); }); }
   /* Chaque exercice : installe ses éléments dans `sc` (la scène), appelle `reussi()` quand le geste est fait, renvoie une fonction de nettoyage. */
   const EXERCICES = [
-    { id: 'engager', titre: 'Engager', consigne: 'Ouvre la main devant la caméra et tiens-la immobile environ une seconde : l’anneau se remplit, puis les gestes sont engagés.',
+    { id: 'engager', avance: true, titre: 'Engager', consigne: 'Ouvre la main devant la caméra et tiens-la immobile environ une seconde : l’anneau se remplit, puis les gestes sont engagés.',
       installer: (sc, reussi) => { if (G().etat().engage) reussi(); const off = ecouterGeste('engage', reussi), off2 = ecouterGeste('reprise', reussi); return () => { off(); off2(); }; } },
     { id: 'pointer', titre: 'Pointer', consigne: 'Index tendu, les autres doigts repliés : touche les quatre cibles avec le curseur.',
       installer: (sc, reussi) => {
@@ -97,7 +115,7 @@ const GestesV5UI = (() => {
         window.addEventListener('pointermove', fm = e => { if (!o) return; const r = f.getBoundingClientRect(); f.style.width = Math.max(180, e.clientX + o.dx - r.left) + 'px'; f.style.height = Math.max(120, e.clientY + o.dy - r.top) + 'px'; if (f.offsetWidth > l0 + 90) reussi(); });
         window.addEventListener('pointerup', fu = () => { o = null; });
         return () => { window.removeEventListener('pointermove', fm); window.removeEventListener('pointerup', fu); f.remove(); }; } },
-    { id: 'tourner', titre: 'Tourner un objet 3D', consigne: 'Pointe le cube, pince et garde pincé, bouge la main : le cube tourne. Relâche en mouvement : il continue un instant (inertie).',
+    { id: 'tourner', avance: true, titre: 'Tourner un objet 3D', consigne: 'Pointe le cube, pince et garde pincé, bouge la main : le cube tourne. Relâche en mouvement : il continue un instant (inertie).',
       installer: (sc, reussi) => {
         const cv = document.createElement('canvas'); cv.className = 'gv5-demo-cv'; cv.width = 320; cv.height = 240; sc.appendChild(cv); const c = cv.getContext('2d');
         let ay = 0.6, ax = 0.4, o = null, total = 0, fm, fu;
@@ -109,9 +127,13 @@ const GestesV5UI = (() => {
         return () => { window.removeEventListener('pointermove', fm); window.removeEventListener('pointerup', fu); cv.remove(); }; } },
     { id: 'balayer', titre: 'Balayer', consigne: 'Main ouverte, balaie vite de gauche à droite (ou l’inverse) : c’est ce qui fait défiler les piles de fenêtres.',
       installer: (sc, reussi) => { const z = document.createElement('div'); z.className = 'gv5-zone-balayage'; z.textContent = '← balaie la main ouverte →'; sc.appendChild(z); const off = ecouterGeste('balayage', reussi); return () => { off(); z.remove(); }; } },
-    { id: 'ranger', titre: 'Ranger', consigne: 'Main ouverte, descends-la vite, comme pour pousser une fenêtre vers le bas : elle se range dans la pile.',
+    { id: 'ranger', avance: true, titre: 'Ranger', consigne: 'Main ouverte, descends-la vite, comme pour pousser une fenêtre vers le bas : elle se range dans la pile.',
       installer: (sc, reussi) => { const z = document.createElement('div'); z.className = 'gv5-zone-balayage'; z.textContent = '↓ pousse la main ouverte vers le bas ↓'; sc.appendChild(z); const off = ecouterGeste('ranger_bas', reussi); return () => { off(); z.remove(); }; } },
-    { id: 'pause', titre: 'Pause', consigne: 'Ferme le poing et tiens-le une seconde : les gestes se mettent en pause (anneau barré). Puis ouvre la main une seconde pour reprendre.',
+    { id: 'deuxmains', titre: 'Deux mains', consigne: 'Mets les DEUX mains devant la caméra (pincées ou ouvertes), écarte-les puis rapproche-les : c’est agrandir / rétrécir. Garde le geste une seconde.',
+      installer: (sc, reussi) => { const z = document.createElement('div'); z.className = 'gv5-zone-balayage'; z.textContent = '← écarte les deux mains →'; sc.appendChild(z); let t0 = 0; const o1 = ecouterGeste('debut_zoom', () => { t0 = performance.now(); }), o2 = ecouterGeste('fin_deux', () => { if (t0 && performance.now() - t0 >= 700) reussi(); t0 = 0; }); return () => { o1(); o2(); z.remove(); }; } },
+    { id: 'accueil', titre: 'Paume : accueil', consigne: 'Montre la paume ouverte, bien droite (doigts vers le haut), et ne bouge plus pendant 1,5 s : l’anneau se remplit puis tu reviens à l’accueil / à la vue d’origine.',
+      installer: (sc, reussi) => { const z = document.createElement('div'); z.className = 'gv5-zone-balayage'; z.textContent = '✋ paume droite, immobile 1,5 s'; sc.appendChild(z); const off = ecouterGeste('vue_initiale', reussi); return () => { off(); z.remove(); }; } },
+    { id: 'pause', avance: true, titre: 'Pause', consigne: 'Ferme le poing, IMMOBILE, et tiens-le 2 secondes : la barre se remplit puis les gestes se mettent en pause (rouvre la main avant la fin pour annuler). Reprise : bouton ou voix.',
       installer: (sc, reussi) => { let enPause = false; const o1 = ecouterGeste('pause', () => { enPause = true; sc.dataset.pause = '1'; }), o2 = ecouterGeste('reprise', () => { if (enPause) reussi(); }); return () => { o1(); o2(); delete sc.dataset.pause; }; } }
   ];
 
@@ -126,11 +148,11 @@ const GestesV5UI = (() => {
   }
   async function apprendre() {
     if (!fermee) return; fermee = false;
-    const stats = lireStats(); racine = document.createElement('section'); racine.id = 'gv5-appr'; racine.setAttribute('role', 'dialog'); racine.setAttribute('aria-label', 'Apprendre les gestes');
+    const liste = EXERCICES.filter(e => !!G().reglages().gestesAvances || !e.avance), stats = lireStats(); racine = document.createElement('section'); racine.id = 'gv5-appr'; racine.setAttribute('role', 'dialog'); racine.setAttribute('aria-label', 'Apprendre les gestes');
     racine.innerHTML = '<header><b>APPRENDRE LES GESTES</b><button type="button" data-a="passer">Passer cet exercice</button><button type="button" data-a="fermer">Fermer</button></header><div class="gv5-pas"></div><div class="gv5-consigne"></div><div class="gv5-retour"></div><div class="gv5-scene"></div><div class="gv5-pied"><span></span></div>';
     document.body.appendChild(racine);
     const pas = racine.querySelector('.gv5-pas'), consigne = racine.querySelector('.gv5-consigne'), retour = racine.querySelector('.gv5-retour'), scene = racine.querySelector('.gv5-scene'), pied = racine.querySelector('.gv5-pied span');
-    pas.innerHTML = EXERCICES.map(e => '<i data-id="' + e.id + '">' + esc(e.titre) + '</i>').join('');
+    pas.innerHTML = liste.map(e => '<i data-id="' + e.id + '">' + esc(e.titre) + '</i>').join('');
     racine.addEventListener('click', e => { const b = e.target.closest('[data-a]'); if (!b) return; if (b.dataset.a === 'fermer') fermer(); else if (b.dataset.a === 'passer' && courant) courant.saute(); });
     const aide = (t, ok) => { retour.textContent = t; retour.classList.toggle('ok', !!ok); };
     if (!G().etat().actif) {
@@ -138,21 +160,21 @@ const GestesV5UI = (() => {
     } else lancer();
     async function lancer() {
       let reussis = 0;
-      for (const ex of EXERCICES) {
+      for (const ex of liste) {
         if (fermee) return; const li = pas.querySelector('[data-id="' + ex.id + '"]'); li.dataset.s = 'en-cours'; consigne.textContent = ex.titre + ' — ' + ex.consigne; aide('', false); scene.textContent = '';
         const r = await attendreExercice(ex, scene, aide); if (fermee) return;
         const s = stats[ex.id] = stats[ex.id] || { essais: 0, reussis: 0, meilleurMs: null }; s.essais++;
         if (r.resultat === 'ok') { s.reussis++; reussis++; s.meilleurMs = s.meilleurMs == null ? r.ms : Math.min(s.meilleurMs, r.ms); li.dataset.s = 'ok'; aide('Bien ! (' + (r.ms / 1000).toFixed(1) + ' s)', true); } else { li.dataset.s = 'saute'; aide('Exercice passé. Tu pourras le refaire plus tard.', false); }
-        ecrireStats(stats); pied.textContent = 'Réussis : ' + reussis + ' / ' + EXERCICES.length; await attente(r.resultat === 'ok' ? 1100 : 500);
+        ecrireStats(stats); pied.textContent = 'Réussis : ' + reussis + ' / ' + liste.length; await attente(r.resultat === 'ok' ? 1100 : 500);
       }
-      scene.textContent = ''; consigne.textContent = 'Terminé : ' + reussis + ' exercice' + (reussis > 1 ? 's' : '') + ' réussi' + (reussis > 1 ? 's' : '') + ' sur ' + EXERCICES.length + '.';
-      aide(reussis === EXERCICES.length ? 'Tout est bon. Si un geste se déclenche mal ensuite, lance le calibrage rapide (⚙ → Gestes).' : 'Tu peux relancer « Apprendre les gestes » pour les exercices passés.', reussis === EXERCICES.length);
-      scene.innerHTML = '<div style="padding:20px">' + EXERCICES.map(e => { const s = stats[e.id]; return '<div>' + esc(e.titre) + ' : ' + (s ? s.reussis + ' réussi(s) sur ' + s.essais + ' essai(s)' + (s.meilleurMs != null ? ', meilleur temps ' + (s.meilleurMs / 1000).toFixed(1) + ' s' : '') : 'pas encore fait') + '</div>'; }).join('') + '</div>';
+      scene.textContent = ''; consigne.textContent = 'Terminé : ' + reussis + ' exercice' + (reussis > 1 ? 's' : '') + ' réussi' + (reussis > 1 ? 's' : '') + ' sur ' + liste.length + '.';
+      aide(reussis === liste.length ? 'Tout est bon. Si un geste se déclenche mal ensuite, lance le calibrage rapide (⚙ → Gestes).' : 'Tu peux relancer « Apprendre les gestes » pour les exercices passés.', reussis === liste.length);
+      scene.innerHTML = '<div style="padding:20px">' + liste.map(e => { const s = stats[e.id]; return '<div>' + esc(e.titre) + ' : ' + (s ? s.reussis + ' réussi(s) sur ' + s.essais + ' essai(s)' + (s.meilleurMs != null ? ', meilleur temps ' + (s.meilleurMs / 1000).toFixed(1) + ' s' : '') : 'pas encore fait') + '</div>'; }).join('') + '</div>';
     }
   }
   function fermer() { fermee = true; if (courant) { try { courant.saute(); } catch (e) { /* déjà terminé */ } courant = null; } if (racine) { racine.remove(); racine = null; } }
   const statistiques = () => lireStats();
 
-  return { installer, apprendre, fermer, calibrageRapide, statistiques, EXERCICES: EXERCICES.map(e => ({ id: e.id, titre: e.titre })), ouverte: () => !fermee };
+  return { installer, apprendre, fermer, calibrageRapide, reglagesSimples, statistiques, EXERCICES: EXERCICES.map(e => ({ id: e.id, titre: e.titre })), ouverte: () => !fermee };
 })();
 window.GestesV5UI = GestesV5UI;

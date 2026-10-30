@@ -5,7 +5,7 @@ import { createRequire } from 'node:module';
 const R = createRequire(import.meta.url);
 R('../../core/gestes/gestes-calcul.js'); const V = R('../../core/gestes/gestes-v5-calcul.js'), H = R('../../core/gestes/main-synthetique.js'); R('../../core/gestes/fluidite-calcul.js'); const SIM = R('../../core/gestes/fluidite-simulation.js');
 let ok = 0, ko = 0; const v = (n, c, d = '') => { c ? ok++ : ko++; if (!c) console.log('KO  ' + n + (d ? ' — ' + d : '')); };
-const S = H.suites, OPT = { ecran: { l: 1920, h: 1080 } };
+const S = H.suites, OPT = { ecran: { l: 1920, h: 1080 }, gestesAvances: true, pauseMs: 1000 };   // mode avancé (V10) ; le mode simple : gestes-v11-test.mjs
 const concat = (...p) => { const out = []; let base = 0; for (const f of p) { for (const x of f) out.push({ ...x, t: Math.round(base + x.t - f[0].t) }); base = out[out.length - 1].t + 1000 / 30; } return out; };
 function jouer(frames, opt = {}) { const m = V.creerMoteur({ ...OPT, ...opt }), actions = [], ev = []; for (const f of frames) { const s = m.traiter(f); actions.push(...s.actions); ev.push(...s.evenements); } return { actions, ev, m }; }
 const compter = (l, a) => l.filter(x => x.a === a).length, types = e => e.map(x => x.type);

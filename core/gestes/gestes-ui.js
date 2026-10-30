@@ -6,22 +6,25 @@ const GestesUI = (() => {
   const $ = id => document.getElementById(id);
   let sect = null, modale = null, pastille = null, minuteurTel = 0, etatTel = null, avaitTel = false, messageBouton = null;
 
-  const VOCABULAIRE = [
-    ['✋', 'Engager', 'Main ouverte face à la caméra, immobile ≈ 0,7 s : les gestes agissent. Sans cela, rien ne se passe (anti-gestes accidentels).'],
-    ['☝', 'Pointer', 'Index tendu, les autres doigts repliés : le curseur (grand anneau) suit ton doigt sur TOUT l’écran. Il est attiré par les boutons.'],
-    ['🤏', 'Pincer et relâcher vite', 'Pouce + index : un clic, là où le curseur était avant de pincer. Deux pincements rapprochés : double clic (maximiser / restaurer une fenêtre).'],
-    ['🤏…', 'Pincer et tenir (0,3 s)', 'Saisir : barre de titre = déplacer la fenêtre ; coin ou bord = la redimensionner ; objet 3D = le faire tourner (avec inertie).'],
+  /* V11 : MODE SIMPLE (par défaut) = 5 gestes ; le reste est réservé au MODE AVANCÉ (⚙ → Gestes → « Mode avancé »). */
+  const VOCABULAIRE_SIMPLE = [
+    ['☝', '1. Pointer', 'Index tendu : la POINTE de l’index déplace le curseur (grand anneau) sur tout l’écran. Il est attiré par les boutons. Pas besoin de « s’engager » : une main visible et stable 0,4 s suffit ; sortir la main du cadre désactive.'],
+    ['🤏', '2. Pincer = clic · pincer et bouger = glisser', 'Pouce + index qui se touchent puis se rouvrent vite : un clic (deux de suite : double clic). Pincer, GARDER pincé et bouger : déplacer une fenêtre, la redimensionner par son coin, faire tourner un objet 3D.'],
+    ['✋→', '3. Balayer', 'Main ouverte qui balaie vite à gauche ou à droite : parcourir les piles de fenêtres, revenir.'],
+    ['🤲', '4. Deux mains qui s’écartent / se rapprochent', 'Les deux mains (pincées ou ouvertes) : écarter = agrandir une fenêtre ou zoomer un objet 3D ; rapprocher = rétrécir.'],
+    ['✋…', '5. Paume ouverte immobile 1,5 s', 'Paume bien droite (doigts vers le haut), immobile : retour à la vue d’origine de l’objet 3D, ou à l’accueil s’il n’y a rien à remettre à zéro. Un anneau se remplit pendant la tenue.']
+  ];
+  const VOCABULAIRE_AVANCE = [
     ['🤏🖕', 'Pouce + majeur', 'Clic droit / menu.'],
     ['✌', 'Deux doigts (index + majeur)', 'Monter / descendre la main : faire défiler.'],
-    ['🤏🤏', 'Deux mains pincées', 'Sur une fenêtre : écarter / rapprocher = agrandir / rétrécir. Sur un objet 3D : écarter = zoom, tourner = pivoter, déplacer ensemble = déplacer.'],
-    ['✋→', 'Main ouverte qui balaie', 'Vite à gauche ou à droite : faire défiler les piles.'],
     ['✋↓', 'Main ouverte qui descend vite', 'Ranger la fenêtre sous le curseur dans la pile.'],
     ['✊→✋', 'Poing court puis main qui s’ouvre', 'Fermer la fenêtre sous le curseur (0,5 s de confirmation : ferme le poing pour annuler).'],
     ['✋⤴', 'Main ouverte qui recule', 'Retour à l’accueil.'],
     ['☝…', 'Index immobile 1 s sur un objet 3D', 'Le suivre / le centrer (double clic sur l’objet).'],
-    ['✋…', 'Main ouverte immobile 1,5 s', 'Revenir à la vue d’origine de l’objet 3D.'],
-    ['✊…', 'Poing tenu 1 s', 'Pause (anneau barré). Main ouverte 0,7 s pour reprendre. Arrête net un objet 3D qui tourne encore.']
+    ['🤲↻', 'Deux mains ouvertes qui tournent', 'Pivoter l’objet 3D (en mode simple, deux mains ouvertes servent à agrandir / rétrécir).'],
+    ['✊…', 'Poing IMMOBILE tenu 2 s', 'Pause (une barre se remplit ; rouvre la main avant la fin pour annuler). Reprise : bouton « Reprendre » ou « reprends les gestes ».']
   ];
+  const VOCABULAIRE = [...VOCABULAIRE_SIMPLE, ...VOCABULAIRE_AVANCE];
 
   function section() {
     const h3 = cfg && [...cfg.querySelectorAll('h3')].find(h => /^Tests/i.test(h.textContent.trim())); if (!h3 || $('gestes-section')) return;
@@ -59,7 +62,7 @@ const GestesUI = (() => {
     const src = { locale: 'webcam', telephone: 'téléphone (réseau local)', 'telephone-https': 'caméra du téléphone', rejeu: 'rejeu' }[e.source] || e.source;
     const etatV5 = e.moteurV === 5 ? ({ 'sans-main': 'pas de main', repos: 'main vue : ouvre-la ≈ 1 s pour engager', engage: 'ENGAGÉ', pause: 'PAUSE' }[e.mode] || '') : '';
     const tete = e.pause ? '⏸ Gestes en pause' : e.moteurV === 5 && e.engage ? '✋ Gestes engagés' : '✋ Gestes';
-    if (e.source === 'telephone-https' && window.CameraRelais) { const r = window.CameraRelais.etat(); return tete + ' · ' + src + ' · ' + (r.etat === 'attente' ? 'en attente du téléphone' : r.liaison === 'direct' ? 'connecté (direct, ' + r.debit + ' paquets/s' + (r.delaiTotal != null ? ', ' + r.delaiTotal + ' ms' : r.delai != null ? ', ' + r.delai + ' ms' : '') + ')' : r.etat === 'connecte' ? 'connecté (par le Worker, lent)' : 'non connecté') + (r.etat === 'connecte' ? ' · ' + (etatV5 || e.mains + ' main' + (e.mains > 1 ? 's' : '')) : '') + (e.derniere ? ' · ' + e.derniere : ''); }
+    if (e.source === 'telephone-https' && window.CameraRelais) { const r = window.CameraRelais.etat(); return tete + ' · ' + src + ' · ' + (r.etat === 'attente' ? 'en attente du téléphone' : (r.chemin === 'direct' || r.chemin === 'relais') ? 'connecté (' + (r.chemin === 'relais' ? 'relais temps réel' : 'direct') + ', ' + r.debit + ' paquets/s' + (r.delaiTotal != null ? ', ' + r.delaiTotal + ' ms' : r.delai != null ? ', ' + r.delai + ' ms' : '') + ')' : r.etat === 'connecte' ? 'connecté (ancien relais, lent)' : 'non connecté') + (r.etat === 'connecte' ? ' · ' + (etatV5 || e.mains + ' main' + (e.mains > 1 ? 's' : '')) : '') + (e.derniere ? ' · ' + e.derniere : ''); }
     return tete + ' · ' + src + (e.camera || e.source !== 'locale' ? ' · ' + (etatV5 || e.mains + ' main' + (e.mains > 1 ? 's' : '')) : (e.info ? ' · ' + e.info : '')) + (e.derniere ? ' · ' + e.derniere : '');
   }
   function maj() {
@@ -80,8 +83,9 @@ const GestesUI = (() => {
   function ouvrirModale(titre, html) { const m = modaleEl(); m.hidden = false; m.innerHTML = '<div class="gm-boite"><header><b>' + esc(titre) + '</b><button type="button" data-g="fermer" aria-label="Fermer">✕</button></header><div class="gm-corps">' + html + '</div></div>'; return m; }
 
   function aide() {
-    ouvrirModale('Les gestes de la main', '<table class="gm-tab"><tbody>' + VOCABULAIRE.map(([i, n, d]) => '<tr><td class="gm-ic">' + i + '</td><td><b>' + esc(n) + '</b><br><span>' + esc(d) + '</span></td></tr>').join('') + '</tbody></table>' +
-      '<p class="gm-note">Les gestes passent par le même curseur virtuel que le pad de la tablette : ils marchent sur les fenêtres de Mars, de l’accueil, les piles et les objets 3D. Si un geste se déclenche tout seul, mets les gestes en pause (Alt+G, ou deux poings tenus) et refais la calibration. Dis « Raylé, désactive les gestes » pour tout couper.</p>' +
+    const ligne = ([i, n, d]) => '<tr><td class="gm-ic">' + i + '</td><td><b>' + esc(n) + '</b><br><span>' + esc(d) + '</span></td></tr>', avance = !!(window.Gestes && window.Gestes.reglages().gestesAvances);
+    ouvrirModale('Les gestes de la main', '<table class="gm-tab"><tbody>' + VOCABULAIRE_SIMPLE.map(ligne).join('') + '</tbody></table>' + (avance ? '<h4 class="gm-h">Mode avancé (activé)</h4><table class="gm-tab"><tbody>' + VOCABULAIRE_AVANCE.map(ligne).join('') + '</tbody></table>' : '<p class="gm-note">Mode simple : 5 gestes, et <b>aucun geste ne met en pause</b>. Poing, ranger, fermer, recul… sont dans le « Mode avancé » (⚙ → Gestes).</p>') +
+      '<p class="gm-note">Les gestes passent par le même curseur virtuel que le pad de la tablette : ils marchent sur les fenêtres de Mars, de l’accueil, les piles et les objets 3D. Pause : le bouton « Pause » du panneau « Que puis-je faire ? », Alt+G, ou dis « pause les gestes » ; aucun geste ne met en pause tout seul. Si un geste se déclenche mal, refais la calibration (20 s). Dis « Raylé, désactive les gestes » pour tout couper.</p>' +
       '<div class="gm-actions"><button type="button" id="gm-calib">Calibrer maintenant</button></div>');
     $('gm-calib').addEventListener('click', calibration);
   }
@@ -119,7 +123,7 @@ const GestesUI = (() => {
     if (e.etat === 'attente' && e.qr) {
       h += '<div class="gm-qr">' + svgQR(e.qr.map(l => l.map(x => x ? '1' : '0').join(''))) + '</div><p class="gm-note">Scanne ce QR code avec le téléphone : il ouvre une page <b>HTTPS</b> (aucun avertissement de certificat). Le code ne sert <b>qu’une fois</b> et expire dans <b>' + mmss + '</b>. Seuls les points de ta main transitent, jamais la vidéo.</p>';
     } else if (e.etat === 'connecte') {
-      h += '<p class="gm-note"><b>Téléphone connecté.</b> ' + e.recues + ' trames de points reçues · liaison ' + (e.liaison === 'direct' ? '<b>directe</b> : ' + e.debit + ' paquets/s' + (e.delai != null ? ', délai ' + e.delai + ' ms' : '') : e.liaison === 'negociation' ? 'directe en cours d’ouverture…' : 'par le Worker (lente)' + (e.directEchec ? ' : ' + esc(e.directEchec) : '')) + (e.dernierEnvoi ? ' · dernier envoi il y a ' + Math.max(0, Math.round((Date.now() - e.dernierEnvoi) / 1000)) + ' s' : '') + '. Session valable encore ' + mmss + '. Sur le téléphone, appuie sur « Démarrer la caméra ».</p>';
+      h += '<p class="gm-note"><b>Téléphone connecté.</b> ' + e.recues + ' trames de points reçues · liaison ' + (e.chemin === 'relais' ? '<b>relais temps réel</b> : ' + e.debit + ' paquets/s' + (e.delai != null ? ', délai ' + e.delai + ' ms' : '') : e.liaison === 'direct' ? '<b>directe</b> : ' + e.debit + ' paquets/s' + (e.delai != null ? ', délai ' + e.delai + ' ms' : '') : e.liaison === 'negociation' ? 'directe en cours d’ouverture…' : 'par l’ancien relais du Worker (lente)' + (e.versionAlerte ? ' — ' + esc(e.versionAlerte) : '') + (e.directEchec ? ' : ' + esc(e.directEchec) : '')) + (e.dernierEnvoi ? ' · dernier envoi il y a ' + Math.max(0, Math.round((Date.now() - e.dernierEnvoi) / 1000)) + ' s' : '') + '. Session valable encore ' + mmss + '. Sur le téléphone, appuie sur « Démarrer la caméra ».</p>';
     } else if (e.etat === 'expiree') h += '<div class="gm-err">Le code a expiré (ou la session est terminée). Génère-en un nouveau.</div>';
     else if (e.etat === 'fermee') h += '<p class="gm-note">Session fermée.</p>';
     else h += '<p class="gm-note">Un QR code à usage unique, valable 5 minutes, lie le téléphone à cette session. Il passe par ton Worker Cloudflare : le téléphone n’a besoin d’aucune configuration.</p>';
@@ -170,6 +174,6 @@ const GestesUI = (() => {
 
   window.addEventListener('keydown', e => { if (e.altKey && !e.ctrlKey && !e.metaKey && (e.key === 'g' || e.key === 'G') && G.etat().actif) { e.preventDefault(); G.mettreEnPause(!G.etat().pause); } });
   G.surEvenement(maj); section(); maj(); setInterval(() => { const e = G.etat(); if (e.actif && e.source === "telephone-https") maj(); }, 1000);
-  return { aide, calibration, telephone, maj, fermer, VOCABULAIRE, ouvrirModale };
+  return { aide, calibration, telephone, maj, fermer, VOCABULAIRE, VOCABULAIRE_SIMPLE, VOCABULAIRE_AVANCE, ouvrirModale };
 })();
 window.GestesUI = GestesUI;

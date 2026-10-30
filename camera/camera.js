@@ -15,6 +15,11 @@ const CLE = 'rayle_cam_jeton';
 const MP = '0.10.21', CDN = 'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@' + MP + '/', MODELE_CDN = 'https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/1/hand_landmarker.task';
 const W = { actif: false, s: null, j: null, url: null, cle: null, expire: 0, sortie: [], minuteur: 0, envoyes: 0, erreurs: 0, fin: false };
 const D = { pc: null, canal: null, ouvert: false, envoyes: 0, fenetre: [], rtt: null, apercu: false, dernierApercu: 0, sigApres: 0, sondeSig: 0, essai: 0, debut: 0, echec: '' };
+/* V11 : chemin B (relais temps réel du Worker, WebSocket) et état de la liaison pour le diagnostic. Le chemin A (direct) est D ; le chemin C (ancien relais par D1) est W.sortie. */
+const R = { ws: null, ouvert: false, pc: false, essais: 0, retard: 0, etat: 'aucun', code: null, raison: '', depuis: 0, rtt: null };
+const X = { ice: { etat: '', conn: '', local: { host: 0, srflx: 0, relay: 0, mdns: 0 }, distant: { host: 0, srflx: 0, relay: 0, mdns: 0 }, paire: '' }, signal: { offre: false, reponse: false, erreur: '' }, serveurs: [{ urls: ['stun:stun.cloudflare.com:3478', 'stun:stun.l.google.com:19302'] }], rttA: null, rttB: null, chemin: 'worker', worker: { joignable: null, version: null, relais: null, turn: null, raison: '' }, retardDirect: 0 };
+const LC = () => self.LiaisonCalcul;
+if (/^(127\.0\.0\.1|localhost)$/.test(location.hostname)) window.__RAYLE_CAM_ETAT__ = () => ({ D, R, X, K, W, C, S });   // essais en local seulement : permet de couper un chemin pour vérifier la bascule
 const L = { jeton: null, ws: null, ouvert: false, pc: false, rtt: null, n: 0, envoyes: {}, dernierPong: 0, delaiMax: 5000, pings: 0, garde: 0, retard: 0, tentative: 0 };
 const K = { binaire: false, seq: 0, dt: 0, conf: 1, eco: false, dernierDessin: 0, sautes: 0, stats: null, dernierT: 0 };
 try { K.eco = localStorage.getItem('rayle_cam_eco') === '1'; } catch (e) { /* stockage refusé */ }
@@ -39,12 +44,16 @@ const montrer = (id, oui) => { $(id).hidden = !oui; };
 const msg = (id, texte, genre) => { $(id).innerHTML = texte ? '<div class="msg ' + (genre || '') + '">' + String(texte).replace(/[<>&]/g, c => ({ '<': '&lt;', '>': '&gt;', '&': '&amp;' }[c])) + '</div>' : ''; };
 
 // ── liaison avec le PC ──
+const dOk = () => !!(D.ouvert && D.canal && D.canal.readyState === 'open'), rOk = () => !!(R.ouvert && R.ws && R.ws.readyState === 1);
+/* Le lien rapide à utiliser : A (direct) ou B (relais temps réel), d'après le choix de l'heure (hystérésis dans LiaisonCalcul). Rend l'objet qui sait envoyer, ou null (alors chemin C). */
+function lienRapide() { const a = dOk(), b = rOk(); if (!a && !b) return null; return (a && (!b || X.chemin !== 'relais')) ? D.canal : R.ws; }
 function envoyer(o) {
-  if (o.a === 'mains' && K.binaire && W.actif && D.ouvert && D.canal && D.canal.readyState === 'open' && self.PaquetBinaire) {   // binaire seulement si le PC l'a annoncé (PC et téléphone peuvent ne pas être à la même version)   // liaison directe : paquet binaire
-    if (D.canal.bufferedAmount > 4096) { K.sautes++; return false; }   // la liaison est encombrée : on SAUTE ce paquet au lieu de l'empiler
-    try { D.canal.send(self.PaquetBinaire.encoder({ t: o.t, ratio: o.ratio, mains: o.mains, seq: K.seq++, dt: K.dt, conf: K.conf })); D.envoyes++; D.fenetre.push(Date.now()); return true; } catch (e) { /* canal en difficulté : repli ci-dessous */ }
+  const lien = W.actif ? lienRapide() : null;
+  if (o.a === 'mains' && K.binaire && lien && self.PaquetBinaire) {   // binaire seulement si le PC l'a annoncé (PC et téléphone peuvent ne pas être à la même version)
+    if (lien.bufferedAmount > 4096) { K.sautes++; return false; }   // la liaison est encombrée : on SAUTE ce paquet au lieu de l'empiler (le plus récent écrase l'ancien)
+    try { lien.send(self.PaquetBinaire.encoder({ t: o.t, ratio: o.ratio, mains: o.mains, seq: K.seq++, dt: K.dt, conf: K.conf })); D.envoyes++; D.fenetre.push(Date.now()); return true; } catch (e) { /* lien en difficulté : repli ci-dessous */ }
   }
-  if (W.actif && D.ouvert && D.canal && D.canal.readyState === 'open') { try { D.canal.send(JSON.stringify(o)); if (o.a === 'mains') { D.envoyes++; D.fenetre.push(Date.now()); } return true; } catch (e) { /* canal en difficulté : repli par le Worker ci-dessous */ } }
+  if (lien) { try { if (lien.bufferedAmount > 16000 && o.a === 'mains') { K.sautes++; return false; } lien.send(JSON.stringify(o)); if (o.a === 'mains') { D.envoyes++; D.fenetre.push(Date.now()); } return true; } catch (e) { /* lien en difficulté : repli par le Worker ci-dessous */ } }
   if (W.actif) { if (!W.cle || W.fin) return false; W.sortie.push(o); if (W.sortie.length > 60) W.sortie.splice(0, W.sortie.length - 60); return true; }
   if (L.ws && L.ws.readyState === 1) { try { L.ws.send(JSON.stringify(o)); return true; } catch (e) { return false; } } return false;
 }
@@ -54,12 +63,13 @@ function voyants() {
   $('t-lat').textContent = L.rtt != null ? '· ' + L.rtt + ' ms' : '';
   $('pt-cam').className = 'pt ' + (C.actif ? 'ok' : ''); $('t-cam').textContent = C.actif ? 'caméra active' : 'caméra arrêtée';
 }
-function ctrlEnvoyer(o) { const s = JSON.stringify(o); for (const k of [D.ctrl, D.canal]) { if (k && k.readyState === 'open') { try { k.send(s); return true; } catch (e) { /* canal en difficulté : on essaie l'autre */ } } } return false; }
+function ctrlEnvoyer(o) { const s = JSON.stringify(o); for (const k of [D.ctrl, D.canal]) { if (k && k.readyState === 'open') { try { k.send(s); return true; } catch (e) { /* canal en difficulté : on essaie l'autre */ } } } if (o.t !== 'sdp' && rOk()) { try { R.ws.send(s); return true; } catch (e) { /* relais en difficulté */ } } return false; }
 function debitEnvoi() { const lim = Date.now() - 1000; D.fenetre = D.fenetre.filter(t => t >= lim); return D.fenetre.length; }
 function statsLiaison() {
-  if (D.ouvert) { const st = K.stats && Date.now() - K.stats.recu < 3000 ? K.stats : null; return '· direct · ' + debitEnvoi() + ' paquets/s' + (st && st.delai != null ? ' · délai ' + st.delai + ' ms' : D.rtt != null ? ' · ' + Math.max(1, Math.round(D.rtt / 2)) + ' ms' : '') + (st && st.perte > 0.02 ? ' · perte ' + Math.round(st.perte * 100) + ' %' : '') + (K.eco ? ' · économie' : ''); }
-  if (D.pc && !D.echec) return '· liaison directe en cours…';
-  return W.envoyes ? '· relais Worker (lent)' + (D.echec ? ' : ' + D.echec : '') : '';
+  if (rOk() && !dOk() && LC()) return '· ' + LC().libelleChemin({ chemin: 'relais', debit: debitEnvoi(), delai: X.rttB != null ? X.rttB / 2 : (R.rtt != null ? R.rtt / 2 : null) }) + (K.eco ? ' · économie' : '');
+  if (D.ouvert) { const st = K.stats && Date.now() - K.stats.recu < 3000 ? K.stats : null; return '· ' + (X.chemin === 'relais' && rOk() ? 'relais temps réel' : 'direct') + ' · ' + debitEnvoi() + ' paquets/s' + (st && st.delai != null ? ' · délai ' + st.delai + ' ms' : D.rtt != null ? ' · ' + Math.max(1, Math.round(D.rtt / 2)) + ' ms' : '') + (st && st.perte > 0.02 ? ' · perte ' + Math.round(st.perte * 100) + ' %' : '') + (K.eco ? ' · économie' : ''); }
+  if (D.pc && !D.echec) return '· liaison rapide en cours…';
+  return W.envoyes ? '· ancien relais Worker (lent)' + (D.echec ? ' : ' + D.echec : '') + (X.worker.version == null && X.worker.joignable ? ' — mise à jour du Worker requise' : '') : '';
 }
 function fermerLiaison() { clearInterval(L.pings); clearInterval(L.garde); clearTimeout(L.retard); try { L.ws && L.ws.close(); } catch (e) { /* déjà fermée */ } L.ws = null; }
 function connecter() {
@@ -83,7 +93,7 @@ function afficher(ecran, raison) { montrer('s-worker', ecran === 'worker'); mont
 
 // ── mode HTTPS par le Worker (V3 phase 4) ──
 const pt = (url, corps) => fetch(W.url + url, { method: 'POST', headers: { 'Content-Type': 'text/plain' }, body: JSON.stringify(corps), cache: 'no-store', referrerPolicy: 'no-referrer' });   // text/plain : pas de pré-requête CORS
-function finSession(texte, genre) { W.fin = true; clearInterval(W.minuteur); fermerDirect(); arreterCamera(); W.cle = null; voyants(); afficher('worker'); $('b-rejoindre').hidden = true; msg('m-worker', texte, genre || 'sable'); }
+function finSession(texte, genre) { W.fin = true; clearInterval(W.minuteur); clearTimeout(X.retardDirect); fermerRelais(); fermerDirect(); arreterCamera(); W.cle = null; voyants(); afficher('worker'); $('b-rejoindre').hidden = true; msg('m-worker', texte, genre || 'sable'); }
 async function rejoindre() {
   if (!W.s || !W.j || !W.url) return msg('m-worker', 'Ce lien est incomplet. Redemande un QR code au PC (Rayle → ⚙ → Gestes → Caméra du téléphone).', 'ko');
   $('b-rejoindre').disabled = true; msg('m-worker', 'Connexion à Rayle…', 'sable');
@@ -91,61 +101,122 @@ async function rejoindre() {
     const r = await pt('/camera/rejoindre', { jeton: W.j }), j = await r.json().catch(() => ({}));
     W.j = null;   // à usage unique : on ne le garde pas
     if (!r.ok || !j.cle) { $('b-rejoindre').disabled = false; $('b-rejoindre').hidden = true; return msg('m-worker', (j && j.error ? j.error : 'Connexion refusée') + '. (Chaque QR code ne sert qu’une fois et expire en 5 minutes.)', 'ko'); }
-    W.cle = j.cle; W.expire = j.expire || 0; afficher('camera'); voyants();
-    W.minuteur = setInterval(vider, 60); setInterval(voyants, 1000); ouvrirDirect();
-  } catch (e) { $('b-rejoindre').disabled = false; msg('m-worker', 'Rayle ne répond pas (réseau ? Worker ?). Vérifie la connexion du téléphone, puis scanne un nouveau QR code.', 'ko'); }
+    W.cle = j.cle; W.expire = j.expire || 0; X.worker.joignable = true; X.worker.version = Number(j.v) || null; afficher('camera'); voyants();
+    W.minuteur = setInterval(vider, 60); setInterval(() => { voyants(); tickLiaison(); }, 1000); ouvrirRelais(); verifierVersion(); ouvrirDirect();
+  } catch (e) { X.worker.joignable = false; $('b-rejoindre').disabled = false; msg('m-worker', 'Rayle ne répond pas (réseau ? Worker ?). Vérifie la connexion du téléphone, puis scanne un nouveau QR code.', 'ko'); }
 }
 /* ── liaison directe (WebRTC) ── le téléphone propose (offre), le PC répond ; messages de signalisation par le Worker, clé d'émission comme preuve. */
-const ICE = [{ urls: 'stun:stun.l.google.com:19302' }];
 const signal = (chemin, corps) => pt(chemin, Object.assign({ s: W.s, cle: W.cle }, corps));
+/* Signalisation : par le relais temps réel quand le PC y est (rapide, sans D1), sinon par le Worker et D1. */
+const envoyerSig = m => (rOk() && R.pc) ? (R.ws.send(JSON.stringify({ t: 'sig', m })), Promise.resolve({ ok: true })) : signal('/camera/signal', { m });
+async function chargerIce() {   // serveurs STUN + TURN fournis par le Worker (identifiants temporaires) ; sans eux, STUN seul
+  try { const r = await Promise.race([signal('/camera/ice', {}), new Promise((_, no) => setTimeout(() => no(new Error('délai')), 3000))]); if (r.ok) { const j = await r.json(); if (Array.isArray(j.iceServers) && j.iceServers.length) X.serveurs = j.iceServers; X.worker.turn = !!j.turn; X.worker.raison = j.raison || ''; X.worker.version = Number(j.v) || X.worker.version; } else if (r.status === 404 || r.status === 400) { X.worker.version = null; } } catch (e) { /* STUN seul */ }
+}
+async function verifierVersion() {
+  try { const r = await fetch(W.url + '/camera/version', { cache: 'no-store', referrerPolicy: 'no-referrer' }); X.worker.joignable = true; if (r.ok) { const j = await r.json(); X.worker.version = Number(j.v) || null; X.worker.relais = !!j.relais; X.worker.turn = !!j.turn; } else { X.worker.version = null; X.worker.relais = false; } } catch (e) { X.worker.joignable = false; }
+  voyants();
+}
 function fermerDirect() { S.sender = null; if (S.calcul === 'pc') { S.calcul = 'telephone'; reprendreLocal(); } try { D.ctrl && D.ctrl.close(); } catch (e) { /* déjà fermé */ } D.ctrl = null; K.binaire = false; clearInterval(D.sondeSig); try { D.canal && D.canal.close(); } catch (e) { /* déjà fermé */ } try { D.pc && D.pc.close(); } catch (e) { /* déjà fermée */ } D.canal = null; D.pc = null; D.ouvert = false; D.rtt = null; D.apercu = false; }
+/* Un message de contrôle venu du PC par n'importe quel lien (canal direct, canal de contrôle ou relais temps réel). */
+const gerer = (src, ev) => {
+  let m; try { m = JSON.parse(ev.data); } catch (e) { return; } if (!m || typeof m !== 'object') return;
+  if (m.t === 'ping') { try { src.send(JSON.stringify({ t: 'pong', n: m.n, l: m.l, h: Date.now() })); } catch (e) { /* canal fermé */ } }
+  else if (m.t === 'sig') { if (m.m) traiterSignalPc(m.m); }
+  else if (m.t === 'bienvenue') { R.pc = !!m.pair; X.worker.version = Number(m.v) || X.worker.version; voyants(); }
+  else if (m.t === 'pair') { R.pc = !!m.present; voyants(); }   // h : l'heure de ce téléphone, pour que le PC mesure le vrai délai
+  else if (m.t === 'cfg') appliquerCfg(m);
+  else if (m.t === 'sdp') traiterSdp(m);
+  else if (m.t === 'apercu') D.apercu = !!m.actif;
+  else if (m.t === 'rtt' && Number.isFinite(m.ms)) D.rtt = m.ms;
+  else if (m.t === 'caps') K.binaire = !!m.binaire;
+  else if (m.t === 'stats') { if (Number.isFinite(m.rttA)) X.rttA = m.rttA; else if (!dOk()) X.rttA = null; if (Number.isFinite(m.rttB)) X.rttB = m.rttB; else if (!rOk()) X.rttB = null; K.stats = { delai: Number.isFinite(m.delai) ? m.delai : null, perte: Number.isFinite(m.perte) ? m.perte : 0, debit: Number.isFinite(m.debit) ? m.debit : 0, conseil: typeof m.conseil === 'string' ? m.conseil.slice(0, 160) : '', recu: Date.now() }; const z = $('t-conseil'); if (z) z.textContent = K.stats.conseil; }
+  else if (m.t === 'fin') finSession('Le PC a coupé la liaison. Pour reprendre, scanne un nouveau QR code.', 'sable');
+};
 async function ouvrirDirect() {
   if (typeof RTCPeerConnection === 'undefined' || !W.cle || W.fin) { D.echec = 'WebRTC indisponible'; return; }
-  fermerDirect(); D.echec = ''; D.sigApres = 0; D.debut = Date.now(); const essai = ++D.essai;
-  const p = D.pc = new RTCPeerConnection({ iceServers: ICE }), c = D.canal = p.createDataChannel('points', { ordered: false, maxRetransmits: 0 });
+  fermerDirect(); D.echec = ''; D.sigApres = 0; D.tourSig = 0; D.debut = Date.now(); const essai = ++D.essai; clearTimeout(X.retardDirect);
+  X.signal = { offre: false, reponse: false, erreur: '' }; X.ice = { etat: 'new', conn: 'new', local: LC() ? LC().candidatsVides() : { host: 0, srflx: 0, relay: 0, mdns: 0 }, distant: LC() ? LC().candidatsVides() : { host: 0, srflx: 0, relay: 0, mdns: 0 }, paire: '' };
+  await chargerIce(); if (!W.cle || W.fin || essai !== D.essai) return;
+  const p = D.pc = new RTCPeerConnection({ iceServers: X.serveurs }), c = D.canal = p.createDataChannel('points', { ordered: false, maxRetransmits: 0 });
   D.ctrl = p.createDataChannel('ctrl', { ordered: true });   // V10 : canal FIABLE pour les réglages et la négociation du mode « calcul sur le PC » (les points, eux, restent non fiables)
 
-  c.onopen = () => { if (D.canal !== c) return; D.ouvert = true; D.echec = ''; W.sortie.length = 0; voyants(); };   // les trames en attente pour le Worker sont périmées : on repart sur le direct
+  c.onopen = () => { if (D.canal !== c) return; D.ouvert = true; D.echec = ''; W.sortie.length = 0; lirePaire(p); voyants(); };   // les trames en attente pour le Worker sont périmées : on repart sur le direct
   c.onclose = () => { if (D.canal !== c) return; D.ouvert = false; D.apercu = false; voyants(); if (!W.fin && W.cle && essai === D.essai) setTimeout(() => { if (!D.ouvert && !W.fin && W.cle && essai === D.essai) ouvrirDirect(); }, 2000); };
   /* Les deux canaux (points non fiable, contrôle fiable) sont traités pareil : un PC plus ancien, qui ne connaît pas le canal de contrôle, peut envoyer ses messages sur l'un ou sur l'autre. */
-  const gerer = (src, ev) => {
-    let m; try { m = JSON.parse(ev.data); } catch (e) { return; } if (!m || typeof m !== 'object') return;
-    if (m.t === 'ping') { try { src.send(JSON.stringify({ t: 'pong', n: m.n, h: Date.now() })); } catch (e) { /* canal fermé */ } }   // h : l'heure de ce téléphone, pour que le PC mesure le vrai délai
-    else if (m.t === 'cfg') appliquerCfg(m);
-    else if (m.t === 'sdp') traiterSdp(m);
-    else if (m.t === 'apercu') D.apercu = !!m.actif;
-    else if (m.t === 'rtt' && Number.isFinite(m.ms)) D.rtt = m.ms;
-    else if (m.t === 'caps') K.binaire = !!m.binaire;
-    else if (m.t === 'stats') { K.stats = { delai: Number.isFinite(m.delai) ? m.delai : null, perte: Number.isFinite(m.perte) ? m.perte : 0, debit: Number.isFinite(m.debit) ? m.debit : 0, conseil: typeof m.conseil === 'string' ? m.conseil.slice(0, 160) : '', recu: Date.now() }; const z = $('t-conseil'); if (z) z.textContent = K.stats.conseil; }
-    else if (m.t === 'fin') finSession('Le PC a coupé la liaison. Pour reprendre, scanne un nouveau QR code.', 'sable');
-  };
   c.onmessage = ev => gerer(c, ev); D.ctrl.onmessage = ev => gerer(D.ctrl, ev);
-  p.onicecandidate = ev => { if (ev.candidate && D.pc === p) signal('/camera/signal', { m: { k: 'ice', c: { candidate: ev.candidate.candidate, sdpMLineIndex: ev.candidate.sdpMLineIndex, sdpMid: ev.candidate.sdpMid } } }).catch(() => {}); };
-  p.onconnectionstatechange = () => { if (D.pc === p && p.connectionState === 'failed') { D.echec = 'liaison directe impossible'; voyants(); } };
+  p.onicecandidate = ev => { if (ev.candidate && D.pc === p) { if (LC()) LC().compterCandidat(X.ice.local, ev.candidate.candidate); envoyerSig({ k: 'ice', c: { candidate: ev.candidate.candidate, sdpMLineIndex: ev.candidate.sdpMLineIndex, sdpMid: ev.candidate.sdpMid } }).catch(() => {}); } };
+  p.oniceconnectionstatechange = () => { if (D.pc !== p) return; X.ice.etat = p.iceConnectionState; X.ice.conn = p.connectionState; voyants(); };
+  p.onconnectionstatechange = () => { X.ice.conn = p.connectionState; if (D.pc === p && p.connectionState === 'failed') { D.echec = 'liaison directe impossible'; planifierDirect(); voyants(); } };
   try {
     const o = await p.createOffer(); await p.setLocalDescription(o);
-    const r = await signal('/camera/signal', { m: { k: 'offre', sdp: o.sdp } });
-    if (!r.ok) { D.echec = r.status === 404 || r.status === 400 ? 'Worker sans signalisation' : 'signalisation refusée'; voyants(); return; }
-  } catch (e) { D.echec = 'signalisation injoignable'; voyants(); return; }
+    const r = await envoyerSig({ k: 'offre', sdp: o.sdp }); X.signal.offre = true;
+    if (!r.ok) { D.echec = r.status === 404 || r.status === 400 ? 'Worker sans signalisation' : 'signalisation refusée'; X.signal.erreur = D.echec; voyants(); return; }
+  } catch (e) { D.echec = 'signalisation injoignable'; X.signal.erreur = D.echec; voyants(); return; }
   clearInterval(D.sondeSig);
   D.sondeSig = setInterval(async () => {   // la réponse et les candidats du PC
     if (D.pc !== p || W.fin) return clearInterval(D.sondeSig);
     if (D.ouvert && Date.now() - D.debut > 20000) return clearInterval(D.sondeSig);
-    if (!D.ouvert && Date.now() - D.debut > 25000) { D.echec = 'liaison directe non établie'; clearInterval(D.sondeSig); voyants(); return; }
+    if (!D.ouvert && Date.now() - D.debut > 25000) { D.echec = 'liaison directe non établie'; clearInterval(D.sondeSig); planifierDirect(); voyants(); return; }
+    if (rOk() && R.pc && ++D.tourSig % 8) return;   // le PC répond par le relais temps réel : on ne regarde D1 qu'une fois sur huit (filet de sécurité)
     try {
       const r = await signal('/camera/signal-lire', { apres: D.sigApres }); if (!r.ok) return; const j = await r.json();
-      for (const x of (j.signaux || [])) {
-        D.sigApres = Math.max(D.sigApres, x.q); const m = x.m; if (!m || D.pc !== p) continue;
-        if (m.k === 'reponse') await p.setRemoteDescription({ type: 'answer', sdp: m.sdp });
-        else if (m.k === 'ice' && m.c) await p.addIceCandidate({ candidate: m.c.candidate, sdpMLineIndex: m.c.sdpMLineIndex, sdpMid: m.c.sdpMid }).catch(() => {});
-      }
+      for (const x of (j.signaux || [])) { D.sigApres = Math.max(D.sigApres, x.q); await traiterSignalPc(x.m); }
     } catch (e) { /* réseau capricieux : on réessaie au tour suivant */ }
   }, 250);
+}
+/* Un message de signalisation du PC (réponse, candidat), arrivé par le relais temps réel ou par D1. */
+async function traiterSignalPc(m) {
+  const p = D.pc; if (!m || !p) return;
+  try {
+    if (m.k === 'reponse' && typeof m.sdp === 'string' && p.signalingState === 'have-local-offer') { await p.setRemoteDescription({ type: 'answer', sdp: m.sdp }); X.signal.reponse = true; }
+    else if (m.k === 'ice' && m.c) { if (LC()) LC().compterCandidat(X.ice.distant, m.c.candidate); await p.addIceCandidate({ candidate: m.c.candidate, sdpMLineIndex: m.c.sdpMLineIndex, sdpMid: m.c.sdpMid }).catch(() => {}); }
+  } catch (e) { X.signal.erreur = 'réponse du PC illisible'; }
+}
+/* La liaison directe a échoué : on réessaie en arrière-plan toutes les 25 s tant que la session vit (le relais temps réel assure l'intérim). */
+function planifierDirect() { clearTimeout(X.retardDirect); if (!W.cle || W.fin) return; const essai = D.essai; X.retardDirect = setTimeout(() => { if (!D.ouvert && !W.fin && W.cle && essai === D.essai) ouvrirDirect(); }, 25000); }
+/* Candidat choisi par WebRTC une fois la liaison établie (réseau local, adresse publique ou relais). */
+async function lirePaire(p) {
+  try { const st = await p.getStats(); let tr = null; st.forEach(r => { if (r.type === 'transport' && r.selectedCandidatePairId) tr = r.selectedCandidatePairId; });
+    st.forEach(r => { if (r.type === 'candidate-pair' && (r.id === tr || (r.nominated && r.state === 'succeeded'))) { const l = st.get(r.localCandidateId); if (l && l.candidateType) X.ice.paire = l.candidateType; } }); } catch (e) { /* statistiques non disponibles */ }
+}
+
+/* ── chemin B : relais temps réel (WebSocket vers le Durable Object du Worker) ── */
+function planifierRelais() { clearTimeout(R.retard); if (!W.cle || W.fin) return; R.essais++; R.retard = setTimeout(ouvrirRelais, Math.min(R.essais > 6 ? 30000 : 8000, 400 * Math.pow(2, Math.min(R.essais, 5)))); }
+function ouvrirRelais() {
+  clearTimeout(R.retard); if (!W.cle || W.fin || typeof WebSocket === 'undefined' || (R.ws && R.ws.readyState <= 1)) return;
+  R.etat = 'connexion'; let w, ouvert = false;
+  try { w = new WebSocket(W.url.replace(/^http/i, 'ws') + '/camera/ws?s=' + encodeURIComponent(W.s), ['rayle.v1', 'k.' + W.cle]); } catch (e) { R.etat = 'refuse'; R.raison = 'WebSocket impossible dans ce navigateur'; return; }
+  w.binaryType = 'arraybuffer'; R.ws = w;
+  w.onopen = () => { if (R.ws !== w) return; ouvert = true; R.ouvert = true; R.essais = 0; R.etat = 'ouvert'; R.code = null; R.raison = ''; R.depuis = Date.now(); W.sortie.length = 0; voyants(); };
+  w.onmessage = ev => { if (typeof ev.data === 'string' && ev.data.length <= 24000) gerer(w, ev); };
+  w.onclose = ev => {
+    if (R.ws !== w) return; R.ws = null; R.ouvert = false; R.pc = false; R.rtt = null; R.code = ev.code || null; R.raison = ev.reason || (ouvert ? '' : 'connexion refusée ou impossible'); R.etat = 'ferme';
+    if (!ouvert) verifierVersion(); voyants();
+    if (ev.code === 4003) return finSession('Le PC a coupé la liaison. Pour reprendre, scanne un nouveau QR code.', 'sable');
+    if (ev.code === 4002 || ev.code === 4000) return;   // clé expirée / remplacée par une autre connexion de ce téléphone : pas d'acharnement
+    planifierRelais();
+  };
+  w.onerror = () => { /* le détail arrive dans onclose */ };
+}
+function fermerRelais() { clearTimeout(R.retard); const w = R.ws; R.ws = null; R.ouvert = false; R.pc = false; try { w && w.close(1000, 'fin'); } catch (e) { /* déjà fermé */ } }
+/* Une fois par seconde : chemin retenu (A ou B, avec hystérésis), état envoyé au PC pour son diagnostic. */
+let tDiag = 0;
+function tickLiaison() {
+  if (!LC() || W.fin) return;
+  X.chemin = LC().choisirChemin({ directOuvert: dOk(), rttDirect: X.rttA, relaisOuvert: rOk(), rttRelais: X.rttB, courant: X.chemin });
+  if (Date.now() - tDiag > 3000) { tDiag = Date.now(); ctrlEnvoyer({ t: 'diag', ice: X.ice, ws: { etat: R.etat, code: R.code, raison: R.raison, rtt: X.rttB }, direct: { ouvert: dOk(), echec: D.echec }, chemin: X.chemin, signal: X.signal }); }
+}
+function faitsDiagnostic() {
+  return { worker: { ...X.worker }, signal: { ...X.signal }, ice: { ...X.ice }, ws: { etat: R.etat, code: R.code, raison: R.raison, rtt: X.rttB }, direct: { ouvert: dOk(), rtt: X.rttA, echec: D.echec }, chemin: dOk() || rOk() ? X.chemin : (W.envoyes ? 'worker' : 'aucun'), debit: debitEnvoi(), delai: null };
+}
+function montrerDiagnostic() {
+  const z = $('t-diag'); if (!z) return; if (!LC()) { z.textContent = 'Module de diagnostic indisponible.'; z.hidden = false; return; }
+  z.textContent = LC().texteDiagnostic(LC().diagnostiquer(faitsDiagnostic())); z.hidden = false;
 }
 let enVol = false;
 async function vider() {
   if (!W.cle || W.fin || enVol) return;
-  if (D.ouvert) { W.sortie.length = 0; return; }   // le direct est ouvert : rien ne passe plus par le Worker
+  if (dOk() || rOk()) { W.sortie.length = 0; return; }   // un lien rapide (direct ou relais temps réel) est ouvert : rien ne passe plus par D1
   if (W.expire && Date.now() > W.expire) return finSession('La session de 15 minutes est terminée. Scanne un nouveau QR code pour continuer.', 'sable');
   if (!W.sortie.length) return;
   const trames = W.sortie.splice(0, 40); enVol = true;
@@ -156,6 +227,7 @@ async function vider() {
   } catch (e) { W.erreurs++; } finally { enVol = false; voyants(); }
 }
 $('b-rejoindre').onclick = rejoindre;
+const bd = $('b-diag'); if (bd) bd.onclick = montrerDiagnostic;
 
 // ── appairage ──
 $('b-appairer').onclick = () => {

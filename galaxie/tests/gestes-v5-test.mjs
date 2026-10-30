@@ -17,7 +17,7 @@ function a60(frames) {
   }
   return out;
 }
-const OPT = { ecran: { l: 1920, h: 1080 } };
+const OPT = { ecran: { l: 1920, h: 1080 }, gestesAvances: true, pauseMs: 1000 };   // V11 : ces tests décrivent le MODE AVANCÉ (poing, ranger, recul…) ; le mode simple a son test : gestes-v11-test.mjs
 function jouer(frames, opt = {}, fn) { const m = V.creerMoteur({ ...OPT, ...opt }), actions = [], ev = []; let derniere = null; for (const f of frames) { const s = m.traiter(f); actions.push(...s.actions); ev.push(...s.evenements); derniere = s; if (fn) fn(s, f); } return { m, actions, ev, derniere }; }
 const compter = (l, a) => l.filter(x => x.a === a).length, types = ev => ev.map(e => e.type);
 const ENGAGER = () => H.suites.immobile('ouverte', 1.0);

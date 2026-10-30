@@ -35,6 +35,7 @@
 #gestes-tel .gt-pt{width:10px;height:10px;border-radius:50%;background:#555}
 #gestes-tel .gt-pt.ok{background:#27d98a}#gestes-tel .gt-pt.att{background:#c9b27a}#gestes-tel .gt-pt.ko{background:#ff6b6b}
 #gestes-tel .gt-note{color:#c9b27a;font-size:12px;margin-top:6px}#gestes-tel .gt-note:empty{display:none}
+#gestes-tel .gt-diag{white-space:pre-wrap;font:11px/1.4 ui-monospace,Consolas,monospace;color:#cfe3ea;background:rgba(0,0,0,.35);border:1px solid rgba(143,208,227,.3);padding:8px;margin:8px 0 0;max-height:260px;overflow:auto}
 #gestes-tel .gt-chk{display:flex;gap:8px;align-items:flex-start;margin-top:10px;color:#9fb3bd;font-size:12px}
 #gestes-tel[hidden]{display:none}
 #gestes-modale .gm-etat{margin:8px 0;padding:8px 10px;border-left:3px solid #8fd0e3;background:rgba(143,208,227,.08)}#gestes-modale .gm-etat.ok{border-color:#27d98a}#gestes-modale .gm-etat.ko{border-color:#ff6b6b}

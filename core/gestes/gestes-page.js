@@ -10,7 +10,7 @@ const Gestes = (() => {
   const lire = () => { try { return JSON.parse(localStorage.getItem(CLE) || '{}') || {}; } catch (e) { return {}; } };
   const ecrire = o => { try { localStorage.setItem(CLE, JSON.stringify(o)); } catch (e) { /* stockage refusé : réglages perdus à la fermeture */ } };
   /* V5 : réglages de la « souris dans l'air » (moteur 'v5'). Le moteur de la V2 reste disponible : { moteur: 'v2' }. */
-  const DEFAUTS_V5 = { moteur: 'v5', zoneL: 0.7, zoneH: 0.7, zoneCx: 0.5, zoneCy: 0.5, lissage: 0.5, sensibiliteClic: 1, taillePointeur: 76, aimantation: 0.6, engagementMs: 700, exigerEngagement: true, reculActif: true, modeRelatif: false, diagnostic: false, priseLarge: true, predictionMs: 30, zoneMorte: 6, tamponMs: 0, calculPc: false };
+  const DEFAUTS_V5 = { moteur: 'v5', zoneL: 0.7, zoneH: 0.7, zoneCx: 0.5, zoneCy: 0.5, lissage: 0.5, sensibiliteClic: 1, taillePointeur: 76, aimantation: 0.6, engagementMs: 700, exigerEngagement: true, gestesAvances: false, reculActif: true, modeRelatif: false, diagnostic: false, priseLarge: true, predictionMs: 30, zoneMorte: 6, tamponMs: 0, calculPc: false };
   let prefs = Object.assign({ seuilFerme: C.DEFAUTS.seuilFerme, seuilOuvre: C.DEFAUTS.seuilOuvre, zoneUtile: C.DEFAUTS.zoneUtile, miroir: true, droitier: true, source: 'locale', apercu: false }, DEFAUTS_V5, lire());
   const E = { actif: false, source: null, erreur: '', info: '', mains: 0, derniere: '', pause: false, fps: 0, charge: false, camera: false, enregistrement: null, rejeu: false, nbMessages: 0, moteurV: 5, mode: 'sans-main', engage: false, saisie: false };
   let decalageTel = null;   // horloge du téléphone -> horloge de la page (le moteur veut un temps qui avance, dans le même repère que la webcam)
@@ -20,7 +20,7 @@ const Gestes = (() => {
   const reglages = () => ({ ...prefs });
   const v5 = () => prefs.moteur !== 'v2' && !!window.GestesV5;
   /* Réglages de la page -> options du moteur V5 (la zone active, le lissage, la sensibilité du clic, l'engagement… sont tous réglables). */
-  const optionsV5 = () => ({ ecran: { l: innerWidth, h: innerHeight }, miroir: prefs.miroir, droitier: prefs.droitier, zone: { l: prefs.zoneL, h: prefs.zoneH, cx: prefs.zoneCx, cy: prefs.zoneCy }, modeRelatif: prefs.modeRelatif, lissage: prefs.lissage, sensibiliteClic: prefs.sensibiliteClic, seuilFerme: prefs.seuilFerme, seuilOuvre: prefs.seuilOuvre, engagementMs: prefs.engagementMs, exigerEngagement: prefs.exigerEngagement, reculActif: prefs.reculActif, predictionMs: prefs.predictionMs, zoneMorte: prefs.zoneMorte });
+  const optionsV5 = () => ({ ecran: { l: innerWidth, h: innerHeight }, miroir: prefs.miroir, droitier: prefs.droitier, zone: { l: prefs.zoneL, h: prefs.zoneH, cx: prefs.zoneCx, cy: prefs.zoneCy }, modeRelatif: prefs.modeRelatif, lissage: prefs.lissage, sensibiliteClic: prefs.sensibiliteClic, seuilFerme: prefs.seuilFerme, seuilOuvre: prefs.seuilOuvre, engagementMs: prefs.engagementMs, exigerEngagement: prefs.exigerEngagement, gestesAvances: !!prefs.gestesAvances, reculActif: prefs.reculActif, predictionMs: prefs.predictionMs, zoneMorte: prefs.zoneMorte });
   function creerMoteur() {
     E.moteurV = v5() ? 5 : 2;
     moteur = v5() ? window.GestesV5.creerMoteur(optionsV5()) : C.creerMoteur({ seuilFerme: prefs.seuilFerme, seuilOuvre: prefs.seuilOuvre, zoneUtile: prefs.zoneUtile, miroir: prefs.miroir, droitier: prefs.droitier, ecran: { l: innerWidth, h: innerHeight } });
@@ -238,11 +238,11 @@ const Gestes = (() => {
   async function traiterVoix(texte) {
     const n = String(texte || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/['’\-]/g, ' ');
     if (!/\bgestes?\b/.test(n)) return null;
-    if (/\b(?:aide|vocabulaire|liste|explique)\b/.test(n)) { if (window.GestesUI) window.GestesUI.aide(); return 'Voici les gestes. Pointer avec l’index déplace le curseur. Pincer et relâcher clique, pincer et tenir saisit. Deux mains pincées qui s’écartent redimensionnent. Une main ouverte qui balaie fait défiler les piles. Un poing tenu range les fenêtres. Deux poings tenus mettent les gestes en pause.'; }
+    if (/\b(?:aide|vocabulaire|liste|explique)\b/.test(n)) { if (window.GestesUI) window.GestesUI.aide(); return window.GestesV11 ? window.GestesV11.texteAide(!!prefs.gestesAvances) : 'Voici les gestes.'; }
     if (/\b(?:apprend\w*|appren\w*|entraine\w*|exerc\w*)\b/.test(n)) { if (window.GestesV5UI) window.GestesV5UI.apprendre(); return 'Je lance l’apprentissage des gestes : suis les consignes à l’écran.'; }
     if (/\b(?:calibr\w*|regle\w*)\b/.test(n)) { if (window.GestesUI) window.GestesUI.calibration(); return 'Je lance la calibration : suis les consignes à l’écran.'; }
     if (/\b(?:desactive|coupe|arrete|eteins|stop)\b/.test(n)) { await desactiver(); return 'Gestes désactivés.'; }
-    if (/\b(?:pause)\b/.test(n)) { mettreEnPause(true); return 'Gestes en pause. Deux poings tenus les reprennent.'; }
+    if (/\b(?:pause)\b/.test(n)) { mettreEnPause(true); return 'Gestes en pause. Dis « reprends les gestes », ou appuie sur le bouton Reprendre.'; }
     if (/\b(?:reprends|reprend|reprise)\b/.test(n)) { mettreEnPause(false); return 'Gestes repris.'; }
     if (/\btelephone\b/.test(n) && /\b(?:active|allume|lance|demarre)\b/.test(n)) { if (window.GestesUI) window.GestesUI.telephone(); return 'Je prépare la caméra du téléphone : scanne le QR code affiché.'; }
     if (/\b(?:active|allume|lance|demarre)\b/.test(n)) { const ok = await activerAuto(); return ok ? 'Gestes activés. Dis « aide des gestes » pour la liste.' : E.erreur; }
