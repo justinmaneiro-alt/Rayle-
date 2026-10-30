@@ -97,6 +97,7 @@ const GestesV5Actions = (() => {
     const racine = e.closest('.gf,.saf');
     if (racine) for (const api of (window.RayleGestionnaires || [])) { let liste = []; try { liste = api.liste(); } catch (err) { continue; } for (const f of liste) { const o = api.obtenir(f.id); if (o && o.el === racine) return { api, id: f.id, o, el: racine }; } }
     const pn = e.closest('.pn'); if (pn) return { pn, el: pn };
+    const g1 = e.closest('#g1Fen'); if (g1 && window.G1) return { g1: true, el: g1 };   // la grande fenêtre de l'accueil (thème Aurore)
     return null;
   }
   const canevasSous = (x, y) => { const e = document.elementFromPoint(x, y); return e && e.tagName === 'CANVAS' ? e : null; };
@@ -190,6 +191,8 @@ const GestesV5Actions = (() => {
         case 'ranger': {
           const f = fenetreSous(a.x, a.y);
           if (f && f.api) { try { if (!f.api.ranger(f.id)) f.api.reduire(f.id, true); } catch (e) { /* fenêtre non rangeable */ } }
+          else if (f && f.g1) { try { window.G1.fermer(); } catch (e) { /* déjà fermée */ } }   // la grande fenêtre de l'accueil n'a pas de pile : la ranger, c'est revenir à l'accueil
+          else if (f && f.pn) { const x = f.pn.querySelector('.pn-x'); if (x) x.click(); }
           else if (window.Gestes && window.Gestes.rangerFenetres) window.Gestes.rangerFenetres();
           break;
         }
@@ -197,7 +200,7 @@ const GestesV5Actions = (() => {
         case 'fermer_annule': if (fermerEl) { fermerEl.classList.remove('gv5-ferme-prevu'); fermerEl = null; } break;
         case 'fermer': {
           const f = fenetreSous(a.x, a.y); if (fermerEl) { fermerEl.classList.remove('gv5-ferme-prevu'); fermerEl = null; }
-          if (f) { try { if (f.api) f.api.fermer(f.id); else if (f.pn) { const x = f.pn.querySelector('.pn-x'); if (x) x.click(); } } catch (e) { /* déjà fermée */ } }
+          if (f) { try { if (f.api) f.api.fermer(f.id); else if (f.pn) { const x = f.pn.querySelector('.pn-x'); if (x) x.click(); } else if (f.g1) window.G1.fermer(); } catch (e) { /* déjà fermée */ } }
           break;
         }
         case 'vue_initiale': {
