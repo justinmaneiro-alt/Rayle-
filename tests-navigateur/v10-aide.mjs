@@ -21,9 +21,10 @@ export async function monter({ port = 8160, portWorker = 8799, fausseCamera = fa
   const db = new DatabaseSync(':memory:');
   const stmt = (sql, vals = []) => ({ bind: (...x) => stmt(sql, x), run: async () => { const r = db.prepare(sql).run(...vals); return { meta: { changes: Number(r.changes) } }; }, all: async () => ({ results: db.prepare(sql).all(...vals).map(r => ({ ...r })) }), first: async () => { const r = db.prepare(sql).get(...vals); return r ? { ...r } : null; }, _run: () => db.prepare(sql).run(...vals) });
   const env = { DB: { prepare: sql => stmt(sql), batch: async list => { for (const s of list) s._run(); return []; } } }, CORS = { 'Access-Control-Allow-Origin': '*', 'Access-Control-Allow-Headers': '*', 'Access-Control-Allow-Methods': '*' };
+  const appels = {};   // nombre d'appels au Worker par route (budget D1 : en liaison directe, presque rien ne doit passer par lui)
   const faux = http.createServer(async (req, res) => {
     if (req.method === 'OPTIONS') { res.writeHead(204, CORS); return res.end(); }
-    const chunks = []; for await (const c of req) chunks.push(c); const corps = Buffer.concat(chunks), url = new URL(req.url, 'http://x');
+    const chunks = []; for await (const c of req) chunks.push(c); const corps = Buffer.concat(chunks), url = new URL(req.url, 'http://x'); appels[url.pathname] = (appels[url.pathname] || 0) + 1;
     if (!R.ROUTES_PUBLIQUES.includes(url.pathname) && url.pathname.startsWith('/camera/') && req.headers['x-rayle-token'] !== 'local') { res.writeHead(401, { ...CORS, 'Content-Type': 'application/json' }); return res.end('{"error":"jeton refusé"}'); }
     if (!url.pathname.startsWith('/camera/')) { res.writeHead(404, { ...CORS, 'Content-Type': 'application/json' }); return res.end('{"error":"route inconnue"}'); }
     const rr = await R.routeCamera(new Request('http://w' + req.url, { method: req.method, body: ['GET', 'HEAD'].includes(req.method) ? undefined : corps }), url, env, {}, CORS);
@@ -58,5 +59,5 @@ export async function monter({ port = 8160, portWorker = 8799, fausseCamera = fa
   }
   async function direct(max = 10000) { let ok = false; for (let t = 0; t < max && !ok; t += 250) { await attendre(250); ok = await ev(() => CameraRelais.etat().liaison === 'direct'); } return ok; }
   const fermer = async () => { try { await nav.close(); } catch (e) { /* déjà fermé */ } try { await navTel.close(); } catch (e) { /* déjà fermé */ } serveur.close(); faux.close(); };
-  return { pc, ev, T, telephone, direct, nav, navTel, BASE, WORKER, errPc, fermer };
+  return { pc, ev, T, telephone, direct, nav, navTel, BASE, WORKER, errPc, fermer, appels };
 }

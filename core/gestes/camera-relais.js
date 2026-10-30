@@ -14,7 +14,7 @@ const CameraRelais = (() => {
   const DELAI_DIRECT_MS = 15000, TAILLE_IMAGE_MAX = 16000;
   const E = { etat: 'inactive', session: null, jeton: null, expire: 0, url: '', erreur: '', recues: 0, derniere: 0, dernierEnvoi: null, qr: null, liaison: 'aucune', rtt: null, delai: null, apercu: null, apercuVoulu: false, derniereTrame: null, directEchec: '', perte: 0, ecartes: 0, gigue: 0, dtTel: 0, confiance: null, traitement: 0, delaiTotal: null, conseil: '', binaire: false, decalage: null, rttMin: null, delaiMesure: null, tel: null, calcul: 'telephone', calculVoulu: false, piste: null, reglagesEnvoyes: null };
   const ecouteurs = []; let minuteur = 0, apres = 0, sigApres = 0, enVol = false, surTrames = null, voulu = false;
-  let pair = null, canal = null, ctrl = null, pings = 0, sondes = {}, sondesDate = {}, echHorloge = [], latRecentes = [], debutNegociation = 0, vus = [], surTelephone = null, surPiste = null;
+  let dernierOct = 0, pair = null, canal = null, ctrl = null, pings = 0, sondes = {}, sondesDate = {}, echHorloge = [], latRecentes = [], debutNegociation = 0, vus = [], surTelephone = null, surPiste = null;
   const PB = () => window.PaquetBinaire, suivi = window.PaquetBinaire ? window.PaquetBinaire.creerSuivi() : null;   // V5 : paquets binaires, séquence, pertes
   const prevenir = () => { for (const f of ecouteurs.slice()) { try { f(E); } catch (e) { /* un écouteur fautif n'arrête pas les autres */ } } };
   const surEvenement = f => { ecouteurs.push(f); return () => { const i = ecouteurs.indexOf(f); if (i >= 0) ecouteurs.splice(i, 1); }; };
@@ -50,7 +50,7 @@ const CameraRelais = (() => {
     const maintenant = Date.now(); E.recues++; E.derniere = maintenant; vus.push(maintenant); if (vus.length > 200) vus = vus.slice(-100);
     E.derniereTrame = { t: v.t, ratio: v.ratio, mains: v.mains }; if (v.dt != null) E.dtTel = v.dt; if (v.conf != null) E.confiance = v.conf;
     let lat = null; if (E.decalage != null) { const reseau = maintenant - (v.t - E.decalage); if (reseau > -50 && reseau < 3000) { lat = Math.max(0, reseau) + (v.dt || 0); latRecentes.push(lat); if (latRecentes.length > 90) latRecentes.shift(); } }
-    const p0 = performance.now(); if (surTrames) surTrames({ t: v.t, ratio: v.ratio, mains: v.mains, seq: v.seq, dt: v.dt, conf: v.conf, lat }); E.traitement = E.traitement * 0.9 + (performance.now() - p0) * 0.1;
+    const p0 = performance.now(); if (surTrames) surTrames({ t: v.t, ratio: v.ratio, mains: v.mains, seq: v.seq, dt: v.dt, conf: v.conf, lat, oct: dernierOct }); dernierOct = 0; E.traitement = E.traitement * 0.9 + (performance.now() - p0) * 0.1;
     return true;
   }
   /* Trames reçues pendant la dernière seconde (par n'importe quel chemin). */
@@ -116,7 +116,7 @@ const CameraRelais = (() => {
       if (ev.data instanceof ArrayBuffer && PB()) {   // V5 : paquet binaire (100 à 184 octets)
         if (ev.data.byteLength > 400) return; const t = PB().decoder(ev.data); if (!t) return;
         if (suivi.noter(t.seq) !== 'ok') return;   // plus vieux que le dernier vu, ou doublon : écarté, jamais traité en retard
-        E.binaire = true; recevoir(t); return;
+        E.binaire = true; dernierOct = ev.data.byteLength; recevoir(t); return;
       }
       if (typeof ev.data !== 'string' || ev.data.length > 24000) return;   // un message de points fait ~ 2 Ko ; une image d'aperçu 16 Ko au plus
       let m; try { m = JSON.parse(ev.data); } catch (e) { return; } if (!m || typeof m !== 'object') return;

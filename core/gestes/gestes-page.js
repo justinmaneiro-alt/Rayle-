@@ -75,7 +75,7 @@ const Gestes = (() => {
     const maintenant = performance.now(); if (decalageTel === null) decalageTel = maintenant - f.t;
     let t = f.t + decalageTel; if (t > maintenant + 1500 || t < maintenant - 4000) { decalageTel = maintenant - f.t; t = maintenant; }   // horloge qui dérive ou rafale très en retard : on recale
     if (E.dernierT && t <= E.dernierT) t = E.dernierT + 1;
-    return injecter({ t, ratio: f.ratio, mains: f.mains, seq: f.seq, dt: f.dt, conf: f.conf, lat: f.lat, tt: f.t });
+    return injecter({ t, ratio: f.ratio, mains: f.mains, seq: f.seq, dt: f.dt, conf: f.conf, lat: f.lat, oct: f.oct, tt: f.t });
   }
   /* Mode « calcul sur le PC » : les mains sont détectées ICI (DetectionPc), l'horloge est déjà celle de la page. */
   function injecterPc(f) { let t = f.t; if (E.dernierT && t <= E.dernierT) t = E.dernierT + 1; return injecter({ ...f, t }); }

@@ -19,6 +19,7 @@ v('débit médian ≈ cadence d’entrée (60/s)', m0.debit.mediane >= 55 && m0.
 v('aucune perte sur une trace parfaite', m0.perte === 0 && m0.pertesDeMain === 0);
 v('délai : p95 présent et petit sur trace saine', m0.delai.p95 != null && m0.delai.p95 < 80, m0.delai.p95);
 v('composantes du délai présentes (téléphone, réseau, moteur, affichage)', ['telephone', 'reseau', 'moteurPc', 'affichage'].every(k => m0.delai.composantes[k] != null));
+v('taille des paquets (100 octets pour une main) et débit réseau (ko/s) mesurés', m0.octets.moyen === 100 && m0.octets.debitKo > 4 && m0.octets.debitKo < 10, JSON.stringify(m0.octets));
 v('cadence du téléphone lue (caméra, détection)', m0.camera.fps === 58 && m0.detection.fps === 58 && m0.detection.msParImage === 12);
 
 // ── tremblement : la zone morte (V10) supprime le tremblement au repos ──

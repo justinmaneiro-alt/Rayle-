@@ -43,6 +43,12 @@ try {
   verifier('aucun clic suspect dans une session propre', m.clicsSuspects === 0, JSON.stringify(m.raisonsSuspects));
   verifier('l’analyse répond en français', typeof rec.goulot === 'string' && rec.goulot.length > 10, rec.goulot);
 
+  // ── budget du Worker / de D1 : en liaison directe, les points ne passent PAS par lui ──
+  { const avantAppels = { ...M.appels }; await attendre(6000); const apres = { ...M.appels }, d = r => (apres[r] || 0) - (avantAppels[r] || 0);
+    verifier('liaison directe : aucun point envoyé par le Worker (0 appel à /camera/points en 6 s)', d('/camera/points') === 0, JSON.stringify({ points: d('/camera/points'), lire: d('/camera/lire') }));
+    verifier('liaison directe : le PC ne consulte le Worker qu’environ une fois par seconde (≤ 9 appels en 6 s, lecture seule)', d('/camera/lire') <= 9, d('/camera/lire'));
+    verifier('liaison directe : aucune signalisation en plus une fois connecté', d('/camera/signal') + d('/camera/signal-pc') <= 3, d('/camera/signal') + ' / ' + d('/camera/signal-pc')); }
+
   // ── goulot « détection sur le téléphone » : le téléphone annonce 14 détections/s alors que la caméra tourne à 58 ──
   await tel.evaluate(() => { const t = window.__RAYLE_CAM_TEST__; t.camIps = 58; t.detFraction = 14 / 60; t.detMs = 71; });
   await attendre(1500);

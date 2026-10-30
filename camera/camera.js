@@ -284,12 +284,23 @@ function secondeStats() {
     if (S.adapt) {
       const d = S.adapt.echantillon({ t: maintenant / 1000, camFps: cam, detFps: det, detMs: detMs == null ? 0 : detMs });
       if (d.action === 'baisser' || d.action === 'monter') { S.niveau = d.niveau; changerResolution(); msg('m-cam', d.raison, 'sable'); }
-      if (d.lumiere) $('t-conseil').textContent = d.raison; else if (d.proposerPc) $('t-conseil').textContent = d.raison + ' (Dans Rayle : Test de fluidité → calcul sur le PC.)'; else if (d.eco && !K.eco) { K.eco = true; try { localStorage.setItem('rayle_cam_eco', '1'); } catch (e) { /* stockage refusé */ } appliquerEco(); $('t-conseil').textContent = d.raison; }
+      if (d.lumiere) { $('t-conseil').textContent = d.raison; essayerPoseCourte(cam); } else if (d.proposerPc) $('t-conseil').textContent = d.raison + ' (Dans Rayle : Test de fluidité → calcul sur le PC.)'; else if (d.eco && !K.eco) { K.eco = true; try { localStorage.setItem('rayle_cam_eco', '1'); } catch (e) { /* stockage refusé */ } appliquerEco(); $('t-conseil').textContent = d.raison; }
     }
   } else { $('pt-det').className = 'pt ok'; $('t-det').textContent = 'calcul sur le PC · caméra ' + Math.round(cam) + ' images/s'; }
-  ctrlEnvoyer({ t: 'tel', cam: +cam.toFixed(1), det: det == null ? null : +det.toFixed(1), detMs: detMs == null ? null : +detMs.toFixed(1), sautes: S.sautes, bat: S.bat, charge: S.charge, eco: !!K.eco, res: n.l, calcul: S.calcul, lum: S.lum, mode, delegate: C.detecteur ? C.detecteur.delegate : '', mains: CFG.mains, noir: !!CFG.noir, auto: CFG.res === 'auto' });
+  if (S.pose && maintenant - S.pose.t > 6000) { const gagne = cam >= S.pose.avant * 1.25; if (!gagne) revenirPoseAuto(); else { S.pose.garde = true; S.pose.t = 1e15; } }   // la pose courte n'a pas fait gagner 25 % de cadence : on revient à l'automatique
+  ctrlEnvoyer({ t: 'tel', cam: +cam.toFixed(1), det: det == null ? null : +det.toFixed(1), detMs: detMs == null ? null : +detMs.toFixed(1), sautes: S.sautes, bat: S.bat, charge: S.charge, eco: !!K.eco, res: n.l, calcul: S.calcul, pose: S.pose ? 'courte' : 'auto', lum: S.lum, mode, delegate: C.detecteur ? C.detecteur.delegate : '', mains: CFG.mains, noir: !!CFG.noir, auto: CFG.res === 'auto' });
   S.sautes = 0;
 }
+/* Lumière faible : la caméra allonge son temps de pose et fait chuter la cadence. Si l'appareil le permet (exposureTime), on essaie une pose COURTE (10 ms, sensibilité maximale) : image plus bruitée
+   mais cadence tenue. Une seule tentative par session ; retour à l'automatique si la cadence ne gagne pas au moins 25 % en 6 s. Appareil sans ce réglage : on conseille seulement « plus de lumière ». */
+async function essayerPoseCourte(camFps) {
+  if (S.pose || S.poseEssayee) return; const piste = C.flux && C.flux.getVideoTracks()[0]; if (!piste || !piste.getCapabilities) return;
+  let cap; try { cap = piste.getCapabilities(); } catch (e) { return; }
+  if (!cap.exposureTime || !(cap.exposureMode || []).includes('manual')) return; S.poseEssayee = true;
+  try { await piste.applyConstraints({ advanced: [{ exposureMode: 'manual', exposureTime: Math.max(cap.exposureTime.min, Math.min(cap.exposureTime.max, 100)) }, ...(cap.iso ? [{ iso: cap.iso.max }] : [])] }); S.pose = { t: performance.now(), avant: camFps }; msg('m-cam', 'Lumière faible : pose courte essayée pour garder la cadence (retour à l’automatique si ça n’aide pas).', 'sable'); }
+  catch (e) { S.pose = null; }
+}
+async function revenirPoseAuto() { const piste = C.flux && C.flux.getVideoTracks()[0]; S.pose = null; try { if (piste) await piste.applyConstraints({ advanced: [{ exposureMode: 'continuous' }] }); } catch (e) { /* réglage non pris en charge */ } msg('m-cam', 'La pose courte n’a pas amélioré la cadence : exposition automatique rétablie. Plus de lumière sur la main aide davantage.', 'sable'); }
 async function changerResolution() {
   const n = NIV[S.niveau]; try { const piste = C.flux && C.flux.getVideoTracks()[0]; if (piste) await piste.applyConstraints({ width: { ideal: n.l }, height: { ideal: n.h }, frameRate: { ideal: 60, min: 30 } }); } catch (e) { /* le téléphone garde sa résolution : la réduction se fait alors à la copie */ }
   if (C.detecteur && C.detecteur.regler) C.detecteur.regler({ taille: n });

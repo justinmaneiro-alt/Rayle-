@@ -102,7 +102,7 @@
     return {
       duree: arrondi(duree), images: fr.length,
       debit: { mediane: deb.mediane, p5: deb.p5, min: deb.min, sous30: deb.sous30 == null ? null : arrondi(deb.sous30, 2) },
-      perte: per.perte == null ? null : arrondi(per.perte, 3), gigue: gig, pertesDeMain: pertesDeMain(fr),
+      octets: octetsParPaquet(fr, duree), perte: per.perte == null ? null : arrondi(per.perte, 3), gigue: gig, pertesDeMain: pertesDeMain(fr),
       delai: { p50: arrondi(mediane(lat)), p95: arrondi(percentile(lat, 0.95)), composantes: { telephone: comp('tel'), reseau: comp('reseau'), moteurPc: comp('pc'), affichage: comp('aff') } },
       camera: { fps: arrondi(mediane(tel.map(s => s.cam))), min: arrondi(Math.min(...nombres(tel.map(s => s.cam))) === Infinity ? null : Math.min(...nombres(tel.map(s => s.cam)))) },
       detection: { fps: arrondi(mediane(tel.map(s => s.det))), msParImage: arrondi(mediane(tel.map(s => s.detMs))), msP95: arrondi(percentile(tel.map(s => s.detMs), 0.95)), tendance: tendance(tel.map(s => s.det)) },
@@ -114,6 +114,8 @@
       clics: cl.clics, clicsSuspects: cl.suspects, fauxParMinute: arrondi(cl.suspects / (duree / 60), 2), raisonsSuspects: cl.raisons
     };
   }
+  /* Taille des paquets binaires reçus (octets) et débit réseau en ko/s : null si les trames n'ont pas la taille (JSON, relais). */
+  function octetsParPaquet(frames, duree) { const o = frames.map(f => f.oct).filter(x => x > 0); return o.length ? { moyen: arrondi(moyenne(o), 0), max: Math.max(...o), debitKo: arrondi(o.reduce((a, b) => a + b, 0) / 1000 / duree, 1) } : { moyen: null, max: null, debitKo: null }; }
   const dernier = (l, k) => { for (let i = l.length - 1; i >= 0; i--) if (l[i] && l[i][k] != null) return l[i][k]; return null; };
   /* Chute de cadence entre le premier et le dernier tiers (limitation thermique du téléphone) : fraction perdue, 0 si stable. */
   function tendance(v) { const s = nombres(v); if (s.length < 9) return null; const t = Math.floor(s.length / 3), a = mediane(s.slice(0, t)), b = mediane(s.slice(-t)); return a > 0 ? arrondi(Math.max(0, (a - b) / a), 2) : null; }
@@ -219,7 +221,7 @@
       for (const a of s.actions) if (a.a === 'clic' || a.a === 'prise' || a.a === 'ranger' || a.a === 'fermer' || a.a === 'accueil') sortie.actions.push({ t: f.tp, a: a.a, n: a.n, x: a.x, y: a.y });
       for (const e of s.evenements) sortie.evenements.push({ t: f.tp, type: e.type });
       const main = f.mains[0], ref = main ? refEcran(main, m.options, ecran) : null;
-      sortie.frames.push({ tp: f.tp, tt: f.t, seq: f.seq, dt: f.dt || 0, n: f.mains.length, conf: f.conf, lat: f.lat, mot: 0, aff: 0, ref, cur: cur ? [cur.x, cur.y] : (s.etat && s.etat.curseur ? [s.etat.curseur.x, s.etat.curseur.y] : null), pose: s.etat && s.etat.pose, mains: f.mains });
+      sortie.frames.push({ tp: f.tp, tt: f.t, seq: f.seq, dt: f.dt || 0, n: f.mains.length, conf: f.conf, lat: f.lat, oct: f.oct, mot: 0, aff: 0, ref, cur: cur ? [cur.x, cur.y] : (s.etat && s.etat.curseur ? [s.etat.curseur.x, s.etat.curseur.y] : null), pose: s.etat && s.etat.pose, mains: f.mains });
       if (cur) sortie.affiche.push([f.tp, cur.x, cur.y]);
     }
     if (rendu) sortie.affiche = simulerRendu(sortie.frames.filter(f => f.cur).map(f => ({ ta: f.tp, t: f.tt != null ? f.tt : f.tp, x: f.cur[0], y: f.cur[1] })), rendu).positions;

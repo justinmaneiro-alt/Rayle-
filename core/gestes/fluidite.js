@@ -32,7 +32,7 @@ const Fluidite = (() => {
       const off1 = g.ecouterTrames((frame, sortie, ms) => {
         const tp = performance.now(), main = frame.mains && frame.mains[0], et = sortie.etat || {};
         let ref = null; try { if (main && GV5) ref = calc.refEcran(main, mot.options, ecran); } catch (x) { ref = null; }
-        rec.trame({ tp, tt: frame.tt != null ? frame.tt : null, seq: frame.seq, dt: frame.dt, n: frame.mains.length, conf: frame.conf, lat: frame.lat, mot: +ms.toFixed(3), aff: null, ref: ref && [+ref[0].toFixed(1), +ref[1].toFixed(1)], cur: et.curseur ? [+et.curseur.x.toFixed(1), +et.curseur.y.toFixed(1)] : null, pose: et.pose || null, ratio: frame.ratio, mains: frame.mains.map(m => ({ lat: m.lat, pts: m.pts.map(p => [p[0], p[1]]) })) });
+        rec.trame({ tp, tt: frame.tt != null ? frame.tt : null, seq: frame.seq, dt: frame.dt, n: frame.mains.length, conf: frame.conf, lat: frame.lat, oct: frame.oct || undefined, mot: +ms.toFixed(3), aff: null, ref: ref && [+ref[0].toFixed(1), +ref[1].toFixed(1)], cur: et.curseur ? [+et.curseur.x.toFixed(1), +et.curseur.y.toFixed(1)] : null, pose: et.pose || null, ratio: frame.ratio, mains: frame.mains.map(m => ({ lat: m.lat, pts: m.pts.map(p => [p[0], p[1]]) })) });
         const idx = rec.trace.frames.length - 1; if (idx >= 0) requestAnimationFrame(t => { const f = rec.trace.frames[idx]; if (f) f.aff = +(t - tp).toFixed(2); });   // arrivée → image affichée
         for (const a of sortie.actions) if (a.a !== 'curseur' && a.a !== 'deplace' && a.a !== 'defile' && a.a !== 'deux') rec.action(tp, { a: a.a, n: a.n, x: a.x == null ? undefined : Math.round(a.x), y: a.y == null ? undefined : Math.round(a.y) });
         for (const ev of sortie.evenements) rec.evenement(tp, ev.type);
@@ -87,7 +87,7 @@ const Fluidite = (() => {
       '<h4 class="gm-h">Détail des mesures</h4><div class="gm-note fl-detail">' + [
         'Trames : ' + m.images + ' en ' + m.duree + ' s' + (trace.origine === 'simulation' ? ' (trace SIMULÉE)' : ''),
         'Caméra du téléphone : ' + fmt(m.camera.fps, ' images/s') + ' · détection : ' + fmt(m.detection.fps, ' images/s') + ', ' + fmt(m.detection.msParImage, ' ms') + ' par image',
-        'Réseau : gigue ' + fmt(m.gigue.p95, ' ms') + ' (p95) · pertes ' + (m.perte == null ? '—' : Math.round(m.perte * 100) + ' %') + ' · pertes de main ' + m.pertesDeMain,
+        'Réseau : ' + (m.octets.moyen == null ? 'paquets JSON ou relais' : m.octets.moyen + ' octets par paquet, ' + m.octets.debitKo + ' ko/s') + ' · gigue ' + fmt(m.gigue.p95, ' ms') + ' (p95) · pertes ' + (m.perte == null ? '—' : Math.round(m.perte * 100) + ' %') + ' · pertes de main ' + m.pertesDeMain,
         'Délai : ' + fmt(m.delai.p50, ' ms') + ' (médiane) · composantes (téléphone / réseau / moteur / affichage) ' + [m.delai.composantes.telephone, m.delai.composantes.reseau, m.delai.composantes.moteurPc, m.delai.composantes.affichage].map(x => fmt(x)).join(' / ') + ' ms',
         'PC : ' + fmt(m.rendu.fps, ' images/s') + ' (pire 1 % : ' + fmt(m.rendu.pire1pc) + ') · moteur ' + fmt(m.moteurMs, ' ms'),
         'Curseur : tremblement au repos ' + fmt(m.tremblementPx, ' px') + ' (' + m.tremblementFenetres + ' fenêtres) · retard en mouvement ' + fmt(m.retardMs, ' ms'),
