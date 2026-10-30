@@ -25,6 +25,10 @@
   .apercu canvas{position:absolute;inset:0;width:100%;height:100%}
   .msg{padding:9px 11px;margin:10px 0;border-left:3px solid var(--cyan);background:rgba(143,208,227,.08);font-size:14px}
   .msg.ko{border-color:var(--ko);background:rgba(255,107,107,.08)}.msg.sable{border-color:var(--sable);background:rgba(201,178,122,.08)}
+  select{width:100%;font:inherit;font-size:16px;color:var(--texte);background:#0a1220;border:1px solid var(--trait);padding:10px 12px;min-height:44px}
+  .chk{display:flex;gap:10px;align-items:flex-start;color:var(--texte);font-size:14px}.chk input{width:22px;min-height:22px;margin-top:2px}
+  details.reglages{margin:12px 0 0;border:1px solid var(--trait);padding:8px 12px}details.reglages summary{cursor:pointer;color:var(--cyan);min-height:32px;display:flex;align-items:center}
+  body.noir{background:#000}body.noir .apercu,body.noir .carte:not(#s-camera){display:none}
   ul{margin:6px 0 0;padding-left:20px;color:var(--doux);font-size:14px}
   [hidden]{display:none!important}
 </style>
@@ -55,10 +59,19 @@
   <section class="carte" id="s-camera" hidden>
     <h2>2 · Caméra</h2>
     <div class="etat"><span class="pt" id="pt-pc"></span><span id="t-pc">PC : …</span><span class="pt" id="pt-cam"></span><span id="t-cam">caméra arrêtée</span><span id="t-lat"></span></div>
+    <div class="etat" title="Images traitées par seconde sur ce téléphone"><span class="pt" id="pt-det"></span><span id="t-det">détection : —</span></div>
     <div class="apercu" id="apercu" hidden><canvas id="cv"></canvas></div>
     <button id="b-cam">Démarrer la caméra</button>
     <button class="sec" id="b-stop" hidden>Arrêter</button>
     <button class="sec" id="b-eco">Économie : couper l’aperçu</button>
+    <details class="reglages"><summary>Réglages de fluidité</summary>
+      <label for="r-res">Résolution de la caméra</label><select id="r-res"><option value="auto">Automatique (recommandé : s’adapte à la cadence)</option><option value="320">320 × 240 (le plus rapide)</option><option value="480">480 × 360</option><option value="640">640 × 480 (le plus précis)</option></select>
+      <label for="r-mains">Mains détectées</label><select id="r-mains"><option value="2">Deux mains</option><option value="1">Une main (plus rapide)</option></select>
+      <label class="chk"><input type="checkbox" id="r-worker" checked> Détection hors du fil principal (plus fluide ; coche pour revenir à l’ancienne méthode si l’écran se fige)</label>
+      <label class="chk"><input type="checkbox" id="r-noir"> Écran noir (économie de batterie : plus aucun dessin pendant l’envoi)</label>
+    </details>
+    <div class="msg sable" id="s-pc" hidden><b>Rayle demande le calcul sur le PC.</b><br>Si tu acceptes, la <b>vidéo basse résolution</b> de la caméra part en direct vers ton PC (liaison pair-à-pair : elle ne passe par aucun serveur, n’est jamais enregistrée), et c’est le PC qui détecte ta main. Tu peux arrêter à tout moment.<button id="b-pc-oui">Accepter</button><button class="sec" id="b-pc-non">Refuser</button></div>
+    <div class="msg sable" id="t-pc-actif" hidden><b>Calcul sur le PC actif.</b> La vidéo part en direct vers ton PC (ni serveur, ni enregistrement).<button class="sec" id="b-pc-stop">Revenir au calcul sur ce téléphone</button></div>
     <div id="t-conseil" class="msg sable" style="min-height:0"></div>
     <div id="m-cam"></div>
     <div class="msg sable"><b>Installation en 3 lignes :</b><br>1. Pose le téléphone sur un support stable, caméra avant vers ta main, à 40–60 cm.<br>2. Laisse l’écran allumé et cette page au premier plan.<br>3. Bonne lumière de face sur la main (pas de contre-jour). Si ça saccade : « Économie ».</div>
@@ -69,6 +82,7 @@
   <section class="carte" id="s-erreur" hidden><div class="msg ko" id="t-erreur"></div></section>
 </main>
 <script src="paquet-binaire.js"></script>
+<script src="adaptation.js"></script>
 <script type="module" src="camera.js"></script>
 </body>
 </html>
