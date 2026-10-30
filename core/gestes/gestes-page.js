@@ -10,7 +10,7 @@ const Gestes = (() => {
   const lire = () => { try { return JSON.parse(localStorage.getItem(CLE) || '{}') || {}; } catch (e) { return {}; } };
   const ecrire = o => { try { localStorage.setItem(CLE, JSON.stringify(o)); } catch (e) { /* stockage refusé : réglages perdus à la fermeture */ } };
   /* V5 : réglages de la « souris dans l'air » (moteur 'v5'). Le moteur de la V2 reste disponible : { moteur: 'v2' }. */
-  const DEFAUTS_V5 = { moteur: 'v5', zoneL: 0.7, zoneH: 0.7, zoneCx: 0.5, zoneCy: 0.5, lissage: 0.5, sensibiliteClic: 1, taillePointeur: 76, aimantation: 0.6, engagementMs: 700, exigerEngagement: true, reculActif: true, modeRelatif: false, diagnostic: false, priseLarge: true };
+  const DEFAUTS_V5 = { moteur: 'v5', zoneL: 0.7, zoneH: 0.7, zoneCx: 0.5, zoneCy: 0.5, lissage: 0.5, sensibiliteClic: 1, taillePointeur: 76, aimantation: 0.6, engagementMs: 700, exigerEngagement: true, reculActif: true, modeRelatif: false, diagnostic: false, priseLarge: true, predictionMs: 30, zoneMorte: 6, tamponMs: 0, calculPc: false };
   let prefs = Object.assign({ seuilFerme: C.DEFAUTS.seuilFerme, seuilOuvre: C.DEFAUTS.seuilOuvre, zoneUtile: C.DEFAUTS.zoneUtile, miroir: true, droitier: true, source: 'locale', apercu: false }, DEFAUTS_V5, lire());
   const E = { actif: false, source: null, erreur: '', info: '', mains: 0, derniere: '', pause: false, fps: 0, charge: false, camera: false, enregistrement: null, rejeu: false, nbMessages: 0, moteurV: 5, mode: 'sans-main', engage: false, saisie: false };
   let decalageTel = null;   // horloge du téléphone -> horloge de la page (le moteur veut un temps qui avance, dans le même repère que la webcam)
@@ -20,11 +20,11 @@ const Gestes = (() => {
   const reglages = () => ({ ...prefs });
   const v5 = () => prefs.moteur !== 'v2' && !!window.GestesV5;
   /* Réglages de la page -> options du moteur V5 (la zone active, le lissage, la sensibilité du clic, l'engagement… sont tous réglables). */
-  const optionsV5 = () => ({ ecran: { l: innerWidth, h: innerHeight }, miroir: prefs.miroir, droitier: prefs.droitier, zone: { l: prefs.zoneL, h: prefs.zoneH, cx: prefs.zoneCx, cy: prefs.zoneCy }, modeRelatif: prefs.modeRelatif, lissage: prefs.lissage, sensibiliteClic: prefs.sensibiliteClic, seuilFerme: prefs.seuilFerme, seuilOuvre: prefs.seuilOuvre, engagementMs: prefs.engagementMs, exigerEngagement: prefs.exigerEngagement, reculActif: prefs.reculActif });
+  const optionsV5 = () => ({ ecran: { l: innerWidth, h: innerHeight }, miroir: prefs.miroir, droitier: prefs.droitier, zone: { l: prefs.zoneL, h: prefs.zoneH, cx: prefs.zoneCx, cy: prefs.zoneCy }, modeRelatif: prefs.modeRelatif, lissage: prefs.lissage, sensibiliteClic: prefs.sensibiliteClic, seuilFerme: prefs.seuilFerme, seuilOuvre: prefs.seuilOuvre, engagementMs: prefs.engagementMs, exigerEngagement: prefs.exigerEngagement, reculActif: prefs.reculActif, predictionMs: prefs.predictionMs, zoneMorte: prefs.zoneMorte });
   function creerMoteur() {
     E.moteurV = v5() ? 5 : 2;
     moteur = v5() ? window.GestesV5.creerMoteur(optionsV5()) : C.creerMoteur({ seuilFerme: prefs.seuilFerme, seuilOuvre: prefs.seuilOuvre, zoneUtile: prefs.zoneUtile, miroir: prefs.miroir, droitier: prefs.droitier, ecran: { l: innerWidth, h: innerHeight } });
-    if (window.GestesV5Actions) window.GestesV5Actions.reglages({ taille: prefs.taillePointeur, aimantation: prefs.aimantation, priseLarge: prefs.priseLarge, diagnostic: prefs.diagnostic });
+    if (window.GestesV5Actions) window.GestesV5Actions.reglages({ taille: prefs.taillePointeur, aimantation: prefs.aimantation, priseLarge: prefs.priseLarge, diagnostic: prefs.diagnostic, tamponMs: prefs.tamponMs });
     return moteur;
   }
   window.addEventListener('resize', () => { if (moteur) moteur.regler({ ecran: { l: innerWidth, h: innerHeight } }); });
@@ -63,16 +63,22 @@ const Gestes = (() => {
     if (!E.actif || !moteur) return null;
     E.dernierT = frame.t; if (calib) calib(frame);
     if (E.enregistrement) E.enregistrement.frames.push({ t: frame.t, ratio: frame.ratio, mains: frame.mains.map(m => ({ lat: m.lat, pts: m.pts.map(p => [+p[0].toFixed(4), +p[1].toFixed(4), +(p[2] || 0).toFixed(4)]) })) });
-    const s = moteur.traiter(frame); appliquer(s); return s;
+    const m0 = performance.now(), s = moteur.traiter(frame), ms = performance.now() - m0; appliquer(s);
+    for (const f of surTrame) { try { f(frame, s, ms); } catch (e) { /* un écouteur fautif n'arrête pas les gestes */ } }   // banc de mesure de fluidité (Test de fluidité), jamais actif sans que l'utilisateur le lance
+    return s;
   }
+  const surTrame = [];
+  const ecouterTrames = f => { surTrame.push(f); return () => { const i = surTrame.indexOf(f); if (i >= 0) surTrame.splice(i, 1); }; };
 
   /* Les trames du téléphone portent l'heure du téléphone (Date.now) : on les ramène à l'horloge de la page en gardant leur espacement exact, et on ne laisse jamais le temps reculer. */
   function injecterTelephone(f) {
     const maintenant = performance.now(); if (decalageTel === null) decalageTel = maintenant - f.t;
     let t = f.t + decalageTel; if (t > maintenant + 1500 || t < maintenant - 4000) { decalageTel = maintenant - f.t; t = maintenant; }   // horloge qui dérive ou rafale très en retard : on recale
     if (E.dernierT && t <= E.dernierT) t = E.dernierT + 1;
-    return injecter({ t, ratio: f.ratio, mains: f.mains });
+    return injecter({ t, ratio: f.ratio, mains: f.mains, seq: f.seq, dt: f.dt, conf: f.conf, lat: f.lat, oct: f.oct, tt: f.t });
   }
+  /* Mode « calcul sur le PC » : les mains sont détectées ICI (DetectionPc), l'horloge est déjà celle de la page. */
+  function injecterPc(f) { let t = f.t; if (E.dernierT && t <= E.dernierT) t = E.dernierT + 1; return injecter({ ...f, t }); }
 
   // ── source 1 : webcam du PC (MediaPipe local) ──
   async function chargerModele() {
@@ -116,6 +122,8 @@ const Gestes = (() => {
   const api = (chemin, corps) => fetch('/__cam/' + chemin, corps === undefined ? { headers: { 'X-Rayle-Cam': '1' } } : { method: 'POST', headers: { 'X-Rayle-Cam': '1' }, body: JSON.stringify(corps) }).then(r => r.json());
 
   // ── cycle de vie ──
+  /* Dossier du modèle MediaPipe (le même pour la webcam du PC et pour le mode « calcul sur le PC »). */
+  const baseModele = () => BASE;
   function messageErreur(e) {
     const nom = e && e.name;
     if (nom === 'NotAllowedError' || nom === 'SecurityError') return 'Permission de la caméra refusée. Les gestes restent éteints ; la souris et le toucher marchent comme avant. Tu peux l’autoriser dans les réglages du site (cadenas de la barre d’adresse).';
@@ -182,7 +190,7 @@ const Gestes = (() => {
   function regler(patch) {
     prefs = Object.assign(prefs, patch); ecrire(prefs);
     if (moteur) { if (E.moteurV === 5) moteur.regler(optionsV5()); else moteur.regler({ seuilFerme: prefs.seuilFerme, seuilOuvre: prefs.seuilOuvre, zoneUtile: prefs.zoneUtile, miroir: prefs.miroir, droitier: prefs.droitier }); }
-    if (window.GestesV5Actions) window.GestesV5Actions.reglages({ taille: prefs.taillePointeur, aimantation: prefs.aimantation, priseLarge: prefs.priseLarge, diagnostic: prefs.diagnostic });
+    if (window.GestesV5Actions) window.GestesV5Actions.reglages({ taille: prefs.taillePointeur, aimantation: prefs.aimantation, priseLarge: prefs.priseLarge, diagnostic: prefs.diagnostic, tamponMs: prefs.tamponMs });
     prevenir('maj', E); return reglages();
   }
   /* Calibration guidée : trois mesures prises sur la personne (main ouverte, main pincée, balayage de l'écran avec le doigt). `etape(n, texte)` affiche la consigne ; chaque étape dure `secondes`. */
@@ -203,21 +211,26 @@ const Gestes = (() => {
     return r;
   }
   function reinitialiserReglages() { prefs = Object.assign(prefs, { seuilFerme: C.DEFAUTS.seuilFerme, seuilOuvre: C.DEFAUTS.seuilOuvre, zoneUtile: C.DEFAUTS.zoneUtile, miroir: true, droitier: true }, DEFAUTS_V5, { moteur: prefs.moteur }); ecrire(prefs); regler({}); }
-  /* Calibrage automatique (≈ 10 s) : balayer l'écran avec l'index (zone confortable), puis pincer et rouvrir plusieurs fois (seuils) ; la taille de la main dit si on est à la bonne distance. */
-  async function calibrerAuto({ secondes = 10, etape = () => {}, attente = ms => new Promise(r => setTimeout(r, ms)) } = {}) {
+  /* Calibrage personnel (≈ 20 s) : balayer l'écran avec l'index (zone confortable et vitesse), pincer et rouvrir plusieurs fois (seuils), puis garder l'index IMMOBILE (le tremblement réel de cette
+     main et de cette caméra règle la zone morte) ; la taille de la main dit si on est à la bonne distance. Tout est enregistré sur cet appareil. */
+  async function calibrerAuto({ secondes = 20, etape = () => {}, attente = ms => new Promise(r => setTimeout(r, ms)) } = {}) {
     if (!E.actif) throw new Error('Active d’abord les gestes.'); if (!window.GestesV5) throw new Error('Moteur V5 indisponible.');
-    const ratios = [], pointes = [], echelles = []; let phase = null;
+    const ratios = [], pointes = [], echelles = [], repos = [], vitesses = []; let phase = null, prec = null;
     calib = frame => {
       if (!frame.mains.length) return; const m = frame.mains[0], ratio = frame.ratio || 4 / 3, pts = m.pts.map(p => [(prefs.miroir ? 1 - p[0] : p[0]) * ratio, p[1], p[2] || 0]), r = C.pincement(pts);
-      ratios.push(r); echelles.push(C.echelleMain(pts)); if (phase === 'zone' && r > 0.5) pointes.push([pts[8][0] / ratio, pts[8][1]]);
+      ratios.push(r); echelles.push(C.echelleMain(pts)); if (phase === 'zone' && r > 0.5) { pointes.push([pts[8][0] / ratio, pts[8][1]]); if (prec && frame.t > prec.t) { const v = Math.hypot(pts[8][0] / ratio - prec.u, pts[8][1] - prec.v) / ((frame.t - prec.t) / 1000); if (v < 6) vitesses.push(v); } prec = { t: frame.t, u: pts[8][0] / ratio, v: pts[8][1] }; }
+      if (phase === 'repos' && r > 0.5 && moteur && moteur.options) repos.push(window.GestesV5.versEcran(pts[8][0] / ratio, pts[8][1], moteur.options));
     };
     try {
-      phase = 'zone'; etape(1, 'Index tendu : balaie lentement TOUT l’écran avec le doigt, coins compris.'); await attente(secondes * 600);
+      phase = 'zone'; etape(1, 'Index tendu : balaie lentement TOUT l’écran avec le doigt, coins compris.'); await attente(secondes * 400);
       phase = 'pince'; etape(2, 'Maintenant pince le pouce et l’index puis rouvre la main, quatre ou cinq fois, franchement.'); await attente(secondes * 400);
+      phase = 'repos'; etape(3, 'Index tendu et IMMOBILE, comme si tu visais un bouton : ne bouge plus pendant quelques secondes.'); await attente(secondes * 200);
     } finally { calib = null; phase = null; }
-    const r = window.GestesV5.calibrerAuto({ ratios, pointes, echelles });
+    const r = window.GestesV5.calibrerAuto({ ratios, pointes, echelles, repos, vitesses });
     if (r.zone) regler({ zoneL: r.zone.l, zoneH: r.zone.h, zoneCx: r.zone.cx, zoneCy: r.zone.cy });
     if (r.seuils) regler({ seuilFerme: r.seuils.seuilFerme, seuilOuvre: r.seuils.seuilOuvre, sensibiliteClic: 1 });
+    if (r.zoneMorte != null) regler({ zoneMorte: r.zoneMorte });
+    if (r.lissage != null) regler({ lissage: r.lissage });
     return r;
   }
 
@@ -236,6 +249,6 @@ const Gestes = (() => {
     return null;
   }
 
-  return { activer, activerAuto, telephoneConnecte, desactiver, mettreEnPause, injecter, rejouer, enregistrer, telecharger, calibrer, calibrerAuto, regler, reglages, reinitialiserReglages, etat: () => ({ ...E }), surEvenement, brancherApercu, traiterVoix, api, rangerFenetres, moteur: () => moteur, messageErreur };
+  return { ecouterTrames, injecterPc, baseModele, activer, activerAuto, telephoneConnecte, desactiver, mettreEnPause, injecter, rejouer, enregistrer, telecharger, calibrer, calibrerAuto, regler, reglages, reinitialiserReglages, etat: () => ({ ...E }), surEvenement, brancherApercu, traiterVoix, api, rangerFenetres, moteur: () => moteur, messageErreur };
 })();
 window.Gestes = Gestes;

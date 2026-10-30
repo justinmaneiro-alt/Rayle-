@@ -1,0 +1,22 @@
+/* GESTES V10 : bandeau du test de fluidité, jeu « Cibles », tableaux de résultat (même palette que les gestes : fond noir, cyan froid #8fd0e3, sable #c9b27a) */
+#fluidite-bandeau{position:fixed;left:50%;top:10px;transform:translateX(-50%);z-index:2147483000;display:flex;gap:10px;align-items:center;flex-wrap:wrap;max-width:min(760px,calc(100vw - 20px));padding:8px 12px;background:rgba(5,8,13,.92);border:1px solid rgba(143,208,227,.6);color:#e6eef2;font:13px/1.4 system-ui,sans-serif}
+#fluidite-bandeau progress{width:140px;height:8px}
+#fluidite-bandeau button{font:inherit;color:#fff;background:rgba(143,208,227,.18);border:1px solid #8fd0e3;padding:4px 12px;min-height:30px;cursor:pointer}
+#gestes-modale .fl-obj th{text-align:left;color:#8fd0e3;font-weight:600;padding:4px 6px}
+#gestes-modale .fl-obj tr.ok td:last-child{color:#27d98a}#gestes-modale .fl-obj tr.ko td:last-child{color:#ff6b6b}
+#gestes-modale .fl-constat{margin:8px 0;padding:8px 10px;border-left:3px solid #c9b27a;background:rgba(201,178,122,.08);font-size:13px}
+#gestes-modale .fl-constat.rouge{border-color:#ff6b6b;background:rgba(255,107,107,.08)}
+#gestes-modale .fl-corr{margin-top:6px;color:#9fb3bd}
+#gestes-modale .fl-corr button,#gestes-modale .gm-actions button{font:inherit;color:#fff;background:rgba(143,208,227,.18);border:1px solid #8fd0e3;padding:6px 14px;min-height:34px;cursor:pointer}
+#gestes-modale .fl-detail div{margin:2px 0}
+#gestes-tel .gt-fl{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
+#gestes-tel .gt-fl button{font:inherit;font-size:12px;color:#fff;background:rgba(143,208,227,.16);border:1px solid rgba(143,208,227,.7);padding:5px 10px;min-height:30px;cursor:pointer}
+#gestes-tel .gt-pcc{margin-top:8px;font-size:12px;color:#9fb3bd}
+#cibles-jeu{position:fixed;inset:0;z-index:2147482000;background:rgba(3,6,10,.94);color:#e6eef2;font:14px/1.45 system-ui,sans-serif}
+#cibles-jeu .cj-haut{position:absolute;left:0;right:0;top:0;display:flex;gap:12px;align-items:center;padding:10px 14px;border-bottom:1px solid rgba(143,208,227,.3)}
+#cibles-jeu .cj-haut progress{flex:1;max-width:320px;height:8px}
+#cibles-jeu .cj-haut button,#cibles-jeu .cj-accueil button{font:inherit;color:#fff;background:rgba(143,208,227,.2);border:1px solid #8fd0e3;padding:10px 22px;min-height:48px;cursor:pointer}
+#cibles-jeu .cj-aire{position:absolute;left:0;right:0;top:56px;bottom:0}
+#cibles-jeu .cj-accueil{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:min(520px,calc(100vw - 30px));padding:20px;background:#07101a;border:1px solid rgba(143,208,227,.6);text-align:center}
+#cibles-jeu .cj-note{color:#9fb3bd;font-size:13px}
+.cj-cible{position:fixed;z-index:2147482500;border-radius:50%;background:radial-gradient(circle,#8fd0e3 0 22%,rgba(143,208,227,.28) 24% 100%);border:2px solid #8fd0e3;box-shadow:0 0 18px rgba(143,208,227,.5);cursor:pointer}

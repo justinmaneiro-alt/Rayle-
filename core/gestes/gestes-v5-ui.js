@@ -29,7 +29,7 @@ const GestesV5UI = (() => {
       '<label class="chk"><input type="checkbox" id="gv5-relatif"> Mode relatif (comme une souris : on peut reposer la main)</label>' +
       '<label class="chk"><input type="checkbox" id="gv5-diag-case"> Superposition de diagnostic (squelette, distance de pincement, débit, délai)</label>' +
       '<label class="gv5-l">Moteur de gestes<select id="gv5-moteur"><option value="v5">V5 : souris dans l’air (recommandé)</option><option value="v2">V2 : ancien moteur, curseur relatif</option></select></label>' +
-      '<div class="row"><button type="button" class="ghost" id="gv5-apprendre">Apprendre les gestes</button><button type="button" class="ghost" id="gv5-calib10">Calibrage rapide (10 s)</button><button type="button" class="ghost" id="gv5-restaurer">Restaurer les réglages</button></div>' +
+      '<div class="row"><button type="button" class="ghost" id="gv5-apprendre">Apprendre les gestes</button><button type="button" class="ghost" id="gv5-calib10">Calibrage personnel (20 s)</button><button type="button" class="ghost" id="gv5-restaurer">Restaurer les réglages</button></div>' +
       '<div class="hint">Zone active : 70 % du cadre de la caméra couvrent tout l’écran. Pince plus facile = sensibilité plus haute. Le moteur V2 reste disponible si besoin.</div>';
     sect.appendChild(d);
     const maj = () => {
@@ -51,14 +51,14 @@ const GestesV5UI = (() => {
   // ── calibrage rapide (10 s) ──
   function calibrageRapide() {
     const ui = window.GestesUI; if (!ui || !ui.ouvrirModale) return;
-    const e = G().etat(), m = ui.ouvrirModale('Calibrage rapide (10 secondes)', '<p class="gm-note">Pendant 10 secondes : d’abord tu balaies l’écran avec l’index (la zone confortable de ta main), puis tu pinces et rouvres la main quelques fois. Rayle règle la zone active et les seuils de pincement d’après TOI, et dit si ta main est à la bonne distance.</p>' +
+    const e = G().etat(), m = ui.ouvrirModale('Calibrage personnel (20 secondes)', '<p class="gm-note">Pendant 20 secondes : tu balaies l’écran avec l’index (zone confortable et vitesse de ta main), tu pinces et rouvres la main quelques fois (seuils de pincement), puis tu gardes l’index immobile (le tremblement réel de ta main règle la zone morte). Rayle règle tout d’après TOI et dit si ta main est à la bonne distance. Les réglages restent sur cet appareil.</p>' +
       '<div id="gv5-cal-consigne" class="gm-consigne">' + (e.actif ? 'Prêt.' : 'Active d’abord les gestes (⚙ → Gestes), puis reviens ici.') + '</div><div id="gv5-cal-res" class="gm-note"></div><div class="gm-actions"><button type="button" id="gv5-cal-go"' + (e.actif ? '' : ' disabled') + '>Démarrer</button></div>');
     document.getElementById('gv5-cal-go').addEventListener('click', async () => {
       const b = document.getElementById('gv5-cal-go'); b.disabled = true;
       try {
-        const r = await G().calibrerAuto({ etape: (n, t) => { document.getElementById('gv5-cal-consigne').textContent = 'Étape ' + n + '/2 — ' + t; } });
+        const r = await G().calibrerAuto({ etape: (n, t) => { document.getElementById('gv5-cal-consigne').textContent = 'Étape ' + n + '/3 — ' + t; } });
         document.getElementById('gv5-cal-consigne').textContent = 'Terminé.';
-        document.getElementById('gv5-cal-res').innerHTML = (r.zone ? 'Zone active : ' + Math.round(r.zone.l * 100) + ' % × ' + Math.round(r.zone.h * 100) + ' % du cadre. ' : '') + (r.seuils ? 'Pincement : fermé sous ' + r.seuils.seuilFerme + ', ouvert au-dessus de ' + r.seuils.seuilOuvre + '. ' : '') + (r.distance ? 'Distance : ' + esc(r.distance) + '. ' : '') + (r.raisons.length ? '<br><b>Pas réglé :</b> ' + r.raisons.map(esc).join(' ') : '');
+        document.getElementById('gv5-cal-res').innerHTML = (r.zone ? 'Zone active : ' + Math.round(r.zone.l * 100) + ' % × ' + Math.round(r.zone.h * 100) + ' % du cadre. ' : '') + (r.seuils ? 'Pincement : fermé sous ' + r.seuils.seuilFerme + ', ouvert au-dessus de ' + r.seuils.seuilOuvre + '. ' : '') + (r.zoneMorte != null ? 'Zone morte : ' + r.zoneMorte + ' px (tremblement mesuré ' + r.tremblementBrut + ' px). ' : '') + (r.vitesse != null ? 'Vitesse du doigt : ' + r.vitesse + ' largeurs d’image/s, lissage ' + Math.round(r.lissage * 100) + ' %. ' : '') + (r.distance ? 'Distance : ' + esc(r.distance) + '. ' : '') + (r.raisons.length ? '<br><b>Pas réglé :</b> ' + r.raisons.map(esc).join(' ') : '');
       } catch (err) { document.getElementById('gv5-cal-res').textContent = err.message; }
       b.disabled = false;
     });

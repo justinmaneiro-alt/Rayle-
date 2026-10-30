@@ -23,9 +23,12 @@
     modeRelatif: false, gainRelatif: 1.5,            // relatif : la main peut se reposer ; gain = déplacement d'écran par déplacement de main (en « zones »)
     lissage: 0.5,                                    // 0 réactif … 1 très lissé
     predictionMs: 30,
+    zoneMorte: 6, zoneAuto: true, zoneMorteMax: 16, facteurBruit: 1.6,   // zoneAuto : la zone morte grandit toute seule (jusqu'à zoneMorteMax) si le tremblement mesuré à l'arrêt est plus fort que prévu
+                                       // V10 : rayon (px) de la zone morte du curseur : la main immobile qui tremble ne le bouge pas (0 = désactivée) ; en mouvement il suit à 6 px près
     sensibiliteClic: 1,                              // multiplie les seuils de pincement (plus grand = plus facile à pincer)
     seuilFerme: 0.30, seuilOuvre: 0.45,              // distance pouce–index / taille de la main : sous seuilFerme = pincé, au-dessus de seuilOuvre = ouvert
-    clicMin: 25, clicMax: 420, delaiMaintien: 260, doubleClic: 650, deriveClic: 0.25,
+    clicMin: 60, clicMax: 420, relacheImages: 2, rejetAberrant: true,   // V10 : un pincement de moins de 60 ms est un parasite de la détection (une image à 30/s), pas un clic ; une image « ouverte » isolée ne relâche pas (il faut 2 images de suite)
+    delaiMaintien: 260, doubleClic: 650, deriveClic: 0.25,
     engagementMs: 700, pauseMs: 1000, deuxPoingsMs: 1500, exigerEngagement: true,
     perteMainMs: 500, desengageMs: 2500, stabiliteMs: 55,
     balayage: { vitesseMin: 1.15, distanceMin: 0.2, dureeMax: 520, recharge: 850 },
@@ -87,8 +90,9 @@
   }
 
   /* ── calibrage automatique (10 s) : taille de la main, zone confortable, seuils de pincement ──
-     échantillons : { ratios:[pouce–index / taille], pointes:[[u,v]] (bout de l'index, miroir, 0…1), echelles:[taille de la main en largeur d'image] } */
-  function calibrerAuto({ ratios = [], pointes = [], echelles = [] } = {}) {
+     échantillons : { ratios:[pouce–index / taille], pointes:[[u,v]] (bout de l'index, miroir, 0…1), echelles:[taille de la main en largeur d'image],
+                      repos:[[x,y]] (bout de l'index IMMOBILE, en pixels d'écran : sert à régler la zone morte sur le tremblement réel de cette main et de cette caméra), vitesses:[largeurs d'image par seconde pendant le balayage] } */
+  function calibrerAuto({ ratios = [], pointes = [], echelles = [], repos = [], vitesses = [] } = {}) {
     const q = (l, f) => { const s = l.slice().sort((a, b) => a - b); return s[Math.floor((s.length - 1) * f)]; };
     const sortie = { ok: true, raisons: [] };
     if (pointes.length >= 20) {
@@ -106,7 +110,15 @@
       const e = q(echelles, 0.5); sortie.tailleMain = +e.toFixed(4);
       sortie.distance = e < 0.07 ? 'trop loin : rapproche la main (40 à 60 cm)' : e > 0.3 ? 'trop près : éloigne la main (40 à 60 cm)' : 'bonne distance';
     }
-    sortie.ok = !!(sortie.zone || sortie.seuils);
+    if (repos.length >= 15) {   // V10 : zone morte réglée sur le bruit mesuré (2,5 écarts-types, entre 4 et 14 px)
+      const mx = repos.reduce((a, p) => a + p[0], 0) / repos.length, my = repos.reduce((a, p) => a + p[1], 0) / repos.length;
+      const sigma = Math.sqrt(repos.reduce((a, p) => a + (p[0] - mx) * (p[0] - mx) + (p[1] - my) * (p[1] - my), 0) / repos.length / 2);
+      sortie.zoneMorte = +borne(sigma * 2.5, 4, 14).toFixed(1); sortie.tremblementBrut = +(sigma * 2).toFixed(1);
+    } else sortie.raisons.push('Pas assez de points à l’arrêt pour régler la zone morte : garde l’index immobile quelques secondes.');
+    if (vitesses.length >= 10) {   // V10 : vitesse habituelle du doigt → lissage (rapide : plus réactif ; lent et précis : plus stable)
+      const v = q(vitesses, 0.9); sortie.vitesse = +v.toFixed(2); sortie.lissage = v > 1.5 ? 0.35 : v < 0.6 ? 0.6 : 0.5;
+    }
+    sortie.ok = !!(sortie.zone || sortie.seuils || sortie.zoneMorte);
     return sortie;
   }
 
@@ -118,7 +130,7 @@
     const cfgEcran = () => ({ minCutoff: lerp(6, 1.2, o.lissage), beta: 0.006, dCutoff: 1 });   // curseur à l'écran, en pixels
     const S = {
       mains: new Map(), mode: 'sans-main', modeDepuis: 0, dernierClic: -1e9, derniereRecharge: -1e9, derniereRangee: -1e9, dernierRecul: -1e9,
-      cur: { x: o.ecran.l / 2, y: o.ecran.h / 2 }, libre: { x: o.ecran.l / 2, y: o.ecran.h / 2 }, stable: { x: o.ecran.l / 2, y: o.ecran.h / 2 }, hist: [], fx: creerOneEuro(cfgEcran()), fy: creerOneEuro(cfgEcran()), vit: { x: 0, y: 0 }, tCur: 0,
+      cur: { x: o.ecran.l / 2, y: o.ecran.h / 2 }, libre: { x: o.ecran.l / 2, y: o.ecran.h / 2 }, stable: { x: o.ecran.l / 2, y: o.ecran.h / 2 }, hist: [], dz: { x: o.ecran.l / 2, y: o.ecran.h / 2 }, fh: [], verrou: false, bruit: null, fx: creerOneEuro(cfgEcran()), fy: creerOneEuro(cfgEcran()), vit: { x: 0, y: 0 }, tCur: 0,
       prise: null, deux: null, deuxPoingsDepuis: 0, sansMainDepuis: 0, ouverteDepuis: 0, poingDepuis: 0, progres: null, fermer: null, arretDepuis: 0, arretPos: null, suivreFait: false, resetFait: false,
       derniereVue: 0, tDernier: 0, rel: null
     };
@@ -127,8 +139,15 @@
     function lisser(h, main, t) {
       const x0 = (o.miroir ? 1 - main.pts[0][0] : main.pts[0][0]) * o.ratio;
       if (h.brut && h.derniereVue) {
-        const dt = t - h.derniereVue, saut = d2(h.brut[0], [x0, main.pts[0][1]]);
-        if (dt > o.perteMainMs || saut / Math.max(0.016, dt / 1000) > 6) { for (const f of h.filtres) f.reset(); h.doigts = {}; h.pince = null; h.enPince = null; h.histo.length = 0; h.pose = 'autre'; h.candidate = 'autre'; }
+        const dt = t - h.derniereVue, saut = d2(h.brut[0], [x0, main.pts[0][1]]), vite = saut / Math.max(0.016, dt / 1000) > 6;
+        const remise = () => { for (const f of h.filtres) f.reset(); h.doigts = {}; h.pince = null; h.enPince = null; h.histo.length = 0; h.pose = 'autre'; h.candidate = 'autre'; h.suspect = null; };
+        if (dt > o.perteMainMs) remise();
+        else if (vite && (!o.rejetAberrant || !(h.pince || h.enPince))) remise();   // le rejet ne protège que les pincements en cours (clic, saisie) : en pointant, un saut est suivi tout de suite comme avant
+        else if (vite) {   // V10 : un saut énorme d'UNE seule image est une détection aberrante (la main ne téléporte pas) : elle est IGNORÉE ; si l'image suivante confirme le saut, c'est réel
+          const s = h.suspect;
+          if (s && (s.n >= 2 || d2([s.x, s.y], [x0, main.pts[0][1]]) / Math.max(0.016, (t - s.t) / 1000) < 6)) remise();   // jamais plus de 2 images ignorées de suite : un vrai geste très vif est accepté
+          else { h.suspect = { x: x0, y: main.pts[0][1], t, n: s ? s.n + 1 : 1 }; return h.pts; }
+        } else h.suspect = null;
       }
       const pts = [], brut = [];
       for (let i = 0; i < 21; i++) {
@@ -150,16 +169,34 @@
 
     /* curseur filtré + prédiction ; renvoie la position à AFFICHER */
     function suivreCurseur(brut, t) {
-      if (!S.tCur || t - S.tCur > 500) { S.fx.reset(); S.fy.reset(); S.vit = { x: 0, y: 0 }; S.cur = { x: brut[0], y: brut[1] }; S.tCur = t - 16; }   // premier point, ou main revenue après une absence : on repart d'ici sans « glissade »
-      const x = S.fx.filtrer(brut[0], t), y = S.fy.filtrer(brut[1], t), dt = Math.max(1e-3, (t - (S.tCur || t - 16)) / 1000); S.tCur = t;
+      if (!S.tCur || t - S.tCur > 500) { S.fx.reset(); S.fy.reset(); S.vit = { x: 0, y: 0 }; S.cur = { x: brut[0], y: brut[1] }; S.dz = { x: brut[0], y: brut[1] }; S.fh = []; S.verrou = false; S.tCur = t - 16; }   // premier point, ou main revenue après une absence : on repart d'ici sans « glissade »
+      let x = S.fx.filtrer(brut[0], t), y = S.fy.filtrer(brut[1], t);
+      if (o.zoneMorte > 0) {
+        if (o.zoneAuto) {   // bruit mesuré en ligne : écart entre la mesure brute et sa version filtrée, retenu seulement quand le doigt est presque immobile
+          const e = Math.hypot(brut[0] - x, brut[1] - y), vit = Math.hypot(S.vit.x, S.vit.y);
+          if (vit < 60 && e < 60) S.bruit = S.bruit == null ? e : S.bruit * 0.97 + e * 0.03;
+        }
+        const zone = o.zoneAuto && S.bruit != null ? Math.max(o.zoneMorte, Math.min(o.zoneMorteMax, S.bruit * o.facteurBruit)) : o.zoneMorte;
+        const dx = x - S.dz.x, dy = y - S.dz.y, d = Math.hypot(dx, dy);
+        S.fh.push({ t, x, y }); while (S.fh.length > 1 && t - S.fh[0].t > 150) S.fh.shift();
+        const dep = Math.hypot(x - S.fh[0].x, y - S.fh[0].y);   // déplacement du point filtré sur 150 ms : le geste volontaire le dépasse, le tremblement non
+        if (S.verrou) { if (d > zone * 1.8 || dep > zone * 1.2) S.verrou = false; }
+        else if (dep < zone * 0.6 && d <= zone * 1.2) S.verrou = true;   // la main s'est calmée : le curseur se verrouille (aucune marche d'escalier due au bruit)
+        const zoneVive = zone * Math.max(0, Math.min(1, 1 - (dep / 0.15 - 60) / 300));   // en mouvement rapide la zone morte fond (de 60 à 360 px/s) : aucun retard sur un geste vif
+        if (!S.verrou && d > zoneVive) { const k = (d - zoneVive) / d; S.dz.x += dx * k; S.dz.y += dy * k; }
+        x = S.dz.x; y = S.dz.y;
+      }   // zone morte : le curseur ne bouge que si le point filtré s'éloigne de plus de `zoneMorte` px
+      const dt = Math.max(1e-3, (t - (S.tCur || t - 16)) / 1000); S.tCur = t;
       const vx = (x - S.cur.x) / dt, vy = (y - S.cur.y) / dt; S.vit.x = S.vit.x * 0.5 + vx * 0.5; S.vit.y = S.vit.y * 0.5 + vy * 0.5;
       const v = Math.hypot(S.vit.x, S.vit.y); let px = x, py = y;
-      if (v > 120 && o.predictionMs > 0) { const avance = Math.min(70, v * o.predictionMs / 1000); px = x + S.vit.x / v * avance; py = y + S.vit.y / v * avance; }   // extrapolation de 1 à 2 images, bornée à 70 px
+      const cadence = S.dtEma ? Math.max(0, Math.min(1, (1000 / S.dtEma - 12) / 18)) : 1;   // V10 : la prédiction s’éteint sous 12 images/s (elle dépasserait la cible) et est complète à partir de 30
+      if (v > 120 && o.predictionMs > 0 && cadence > 0) { const avance = Math.min(70, v * o.predictionMs * cadence / 1000); px = x + S.vit.x / v * avance; py = y + S.vit.y / v * avance; }   // extrapolation de 1 à 2 images, bornée à 70 px
       return [borne(px, 0, o.ecran.l - 1), borne(py, 0, o.ecran.h - 1), x, y];
     }
 
     function traiter(frame) {
-      const t = frame.t, sortie = { actions: [], evenements: [], etat: null };
+      const t = frame.t, sortie = { actions: [], evenements: [], etat: null, t };
+      if (S.tDernier) { const d = t - S.tDernier; if (d > 0 && d < 500) S.dtEma = S.dtEma ? S.dtEma * 0.9 + d * 0.1 : d; }   // intervalle moyen entre deux images
       S.tDernier = t;
       if (frame.ratio && Math.abs(frame.ratio - o.ratio) > 1e-3) o.ratio = frame.ratio;
       const vues = new Set(), actives = [], sc = seuils();
@@ -171,9 +208,12 @@
         h.rI = d2(b[P.pouceBout], b[P.indexBout]) / ech; h.rM = d2(b[P.pouceBout], b[P.majeurBout]) / ech;
         h.iOk = boutAvance(b, P.indexBout, P.indexMcp); h.mOk = boutAvance(b, P.majeurBout, P.majeurMcp);
         // pincement avec hystérésis, deux sortes : pouce–index (clic, saisie) et pouce–majeur (clic droit)
-        if (h.pince === 'index' && (h.rI > sc.o || !h.iOk)) h.pince = null;
-        else if (h.pince === 'majeur' && (h.rM > sc.o || !h.mOk)) h.pince = null;
+        const ouvre = (h.pince === 'index' && (h.rI > sc.o || !h.iOk)) || (h.pince === 'majeur' && (h.rM > sc.o || !h.mOk));
+        if (ouvre) { h.ouvreN = (h.ouvreN || 0) + 1; if (h.ouvreN >= o.relacheImages) { h.pince = null; h.ouvreN = 0; } }
+        else h.ouvreN = 0;
+        h.relachePend = !!(h.pince && h.ouvreN > 0);
         if (!h.pince) { if (h.rI < sc.f && h.iOk && h.rI <= h.rM) h.pince = 'index'; else if (h.rM < sc.f && h.mOk && h.rM < h.rI) h.pince = 'majeur'; }
+        if (h.pince && !ouvre) h.pinceVueT = t;   // pinceVueT : dernier instant où le pincement était RÉELLEMENT vu (la durée d'un clic ne compte pas l'image de doute)
         h.proche = h.pince ? true : ((h.rI < sc.o && h.iOk && h.rI <= h.rM) || (h.rM < sc.o && h.mOk && h.rM < h.rI));   // le pincement s'amorce : le curseur se fige
         majDoigts(h.doigts, b);
         const brute = h.pince ? 'pince' : poseDoigts(h.doigts);
@@ -268,7 +308,8 @@
       let affiche = ptCurseur ? { x: ptCurseur[0], y: ptCurseur[1] } : (S.affiche || S.libre);
       if (h.proche && !S.prise) affiche = { x: S.libre.x, y: S.libre.y };
       if (h.pose === 'deux') affiche = { x: S.libre.x, y: S.libre.y };
-      if (S.prise && h.enPince) {   // saisie : la position suit le déplacement de la main depuis le début du pincement
+      if (S.prise && h.enPince && h.relachePend && S.affiche) { affiche = { x: S.affiche.x, y: S.affiche.y }; }   // image de doute (peut-être un relâchement) : la position tenue ne bouge pas
+      else if (S.prise && h.enPince) {   // saisie : la position suit le déplacement de la main depuis le début du pincement
         const dx = ancrePaume[0] - h.enPince.depart[0], dy = ancrePaume[1] - h.enPince.depart[1];
         const c = suivreCurseur([borne(S.prise.x0 + dx, 0, o.ecran.l - 1), borne(S.prise.y0 + dy, 0, o.ecran.h - 1)], t); affiche = { x: c[0], y: c[1] };
       }
@@ -278,7 +319,7 @@
       const finClic = (hh) => {
         const ep = hh.enPince; hh.enPince = null; if (!ep) return;
         if (ep.grabbe) { if (S.prise) { sortie.actions.push({ a: 'lache' }); sortie.evenements.push({ type: 'lacher', raison: 'relâché' }); S.prise = null; } return; }
-        const derive = d2(hh.centre, ep.centre0) / ep.ech, duree = t - ep.t0;
+        const derive = d2(hh.centre, ep.centre0) / ep.ech, duree = (hh.pinceVueT || t) - ep.t0;
         if (duree >= o.clicMin && duree <= o.clicMax && derive <= o.deriveClic) {
           const n = ep.type === 'index' && t - S.dernierClic <= o.doubleClic ? 2 : 1; if (ep.type === 'index') S.dernierClic = t;
           sortie.actions.push({ a: 'clic', n, bouton: ep.type === 'majeur' ? 2 : 0, x: ep.x, y: ep.y }); sortie.evenements.push({ type: ep.type === 'majeur' ? 'clic_droit' : 'clic', n });

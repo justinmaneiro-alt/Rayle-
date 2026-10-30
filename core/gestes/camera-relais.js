@@ -12,9 +12,9 @@ const CameraRelais = (() => {
   const PAGE_PAR_DEFAUT = 'https://justinmaneiro-alt.github.io/Rayle-/camera/';
   const ICE = [{ urls: 'stun:stun.l.google.com:19302' }];   // gratuit, sans compte ; sur le Wi-Fi de la maison les adresses locales suffisent (le STUN sert hors du réseau)
   const DELAI_DIRECT_MS = 15000, TAILLE_IMAGE_MAX = 16000;
-  const E = { etat: 'inactive', session: null, jeton: null, expire: 0, url: '', erreur: '', recues: 0, derniere: 0, dernierEnvoi: null, qr: null, liaison: 'aucune', rtt: null, delai: null, apercu: null, apercuVoulu: false, derniereTrame: null, directEchec: '', perte: 0, ecartes: 0, gigue: 0, dtTel: 0, confiance: null, traitement: 0, delaiTotal: null, conseil: '', binaire: false };
+  const E = { etat: 'inactive', session: null, jeton: null, expire: 0, url: '', erreur: '', recues: 0, derniere: 0, dernierEnvoi: null, qr: null, liaison: 'aucune', rtt: null, delai: null, apercu: null, apercuVoulu: false, derniereTrame: null, directEchec: '', perte: 0, ecartes: 0, gigue: 0, dtTel: 0, confiance: null, traitement: 0, delaiTotal: null, conseil: '', binaire: false, decalage: null, rttMin: null, delaiMesure: null, tel: null, calcul: 'telephone', calculVoulu: false, piste: null, reglagesEnvoyes: null };
   const ecouteurs = []; let minuteur = 0, apres = 0, sigApres = 0, enVol = false, surTrames = null, voulu = false;
-  let pair = null, canal = null, pings = 0, sondes = {}, debutNegociation = 0, vus = [];
+  let dernierOct = 0, pair = null, canal = null, ctrl = null, pings = 0, sondes = {}, sondesDate = {}, echHorloge = [], latRecentes = [], debutNegociation = 0, vus = [], surTelephone = null, surPiste = null;
   const PB = () => window.PaquetBinaire, suivi = window.PaquetBinaire ? window.PaquetBinaire.creerSuivi() : null;   // V5 : paquets binaires, séquence, pertes
   const prevenir = () => { for (const f of ecouteurs.slice()) { try { f(E); } catch (e) { /* un écouteur fautif n'arrête pas les autres */ } } };
   const surEvenement = f => { ecouteurs.push(f); return () => { const i = ecouteurs.indexOf(f); if (i >= 0) ecouteurs.splice(i, 1); }; };
@@ -49,7 +49,8 @@ const CameraRelais = (() => {
     const g = window.GestesCalcul, v = g ? g.validerMains(brut) : null; if (!v) return false;
     const maintenant = Date.now(); E.recues++; E.derniere = maintenant; vus.push(maintenant); if (vus.length > 200) vus = vus.slice(-100);
     E.derniereTrame = { t: v.t, ratio: v.ratio, mains: v.mains }; if (v.dt != null) E.dtTel = v.dt; if (v.conf != null) E.confiance = v.conf;
-    const p0 = performance.now(); if (surTrames) surTrames({ t: v.t, ratio: v.ratio, mains: v.mains }); E.traitement = E.traitement * 0.9 + (performance.now() - p0) * 0.1;
+    let lat = null; if (E.decalage != null) { const reseau = maintenant - (v.t - E.decalage); if (reseau > -50 && reseau < 3000) { lat = Math.max(0, reseau) + (v.dt || 0); latRecentes.push(lat); if (latRecentes.length > 90) latRecentes.shift(); } }
+    const p0 = performance.now(); if (surTrames) surTrames({ t: v.t, ratio: v.ratio, mains: v.mains, seq: v.seq, dt: v.dt, conf: v.conf, lat, oct: dernierOct }); dernierOct = 0; E.traitement = E.traitement * 0.9 + (performance.now() - p0) * 0.1;
     return true;
   }
   /* Trames reçues pendant la dernière seconde (par n'importe quel chemin). */
@@ -58,7 +59,8 @@ const CameraRelais = (() => {
   // ── liaison directe ──
   const envoyerSignal = m => api('/camera/signal-pc', { s: E.session, m }).catch(() => { /* Worker sans signalisation : le relais continue tout seul */ });
   function fermerPair() {
-    clearInterval(pings); pings = 0; sondes = {};
+    clearInterval(pings); pings = 0; sondes = {}; sondesDate = {}; echHorloge = []; latRecentes = [];
+    try { ctrl && ctrl.close(); } catch (e) { /* déjà fermé */ } ctrl = null; E.piste = null; E.calcul = 'telephone'; E.decalage = null; E.tel = null;
     try { canal && canal.close(); } catch (e) { /* déjà fermé */ } try { pair && pair.close(); } catch (e) { /* déjà fermée */ }
     canal = null; pair = null; debutNegociation = 0;
     if (E.liaison === 'direct' || E.liaison === 'negociation') E.liaison = E.session ? 'worker' : 'aucune';
@@ -67,17 +69,44 @@ const CameraRelais = (() => {
   /* Une fois par seconde : débit, pertes, délai bout en bout et conseil, sur la fenêtre de suivi ET renvoyés au téléphone. */
   function mesures() {
     if (!suivi || !PB()) return; const st = suivi.stats(); E.perte = st.perte; E.ecartes = st.ecartes; E.gigue = st.gigue;
-    E.delaiTotal = PB().delaiBoutEnBout(E.dtTel, E.rtt, E.traitement);
+    E.delaiTotal = PB().delaiBoutEnBout(E.dtTel, E.rtt, E.traitement); if (latRecentes.length >= 10) { const s = latRecentes.slice().sort((a, b) => a - b); E.delaiMesure = Math.round(s[Math.floor(s.length * 0.5)]); E.delaiMesureP95 = Math.round(s[Math.floor(s.length * 0.95)]); E.delaiTotal = E.delaiMesure; }   // V10 : le vrai délai (horloges synchronisées) remplace l'estimation
     const actif = E.liaison === 'direct' && E.etat === 'connecte', mainsVues = !!(E.derniereTrame && E.derniereTrame.mains.length && Date.now() - E.derniere < 700);
     E.conseil = PB().conseil({ debit: debit(), perte: E.perte, delai: E.delaiTotal, mainsVues, actif });
     envoyerCanal({ t: 'stats', delai: E.delaiTotal, perte: +E.perte.toFixed(3), debit: debit(), conseil: E.conseil });
+  }
+  /* Décalage d'horloge téléphone − PC : le pong porte l'heure du téléphone (m.h) ; on suppose l'aller et le retour égaux et on garde l'échantillon de plus petit aller-retour des 12 derniers (le moins faussé). */
+  function echantillonHorloge(m, rtt) {
+    const d = sondesDate[m.n]; delete sondesDate[m.n]; if (!Number.isFinite(m.h) || d == null) return;
+    echHorloge.push({ rtt, off: m.h - (d + rtt / 2) }); if (echHorloge.length > 12) echHorloge.shift();
+    const meilleur = echHorloge.reduce((a, b) => (b.rtt < a.rtt ? b : a)); E.decalage = meilleur.off; E.rttMin = meilleur.rtt;
+  }
+  function envoyerCtrl(o) { const s = JSON.stringify(o); for (const k of [ctrl, canal]) { if (k && k.readyState === 'open') { try { k.send(s); return true; } catch (e) { /* canal en difficulté : on essaie l'autre */ } } } return false; }
+  /* Réglages envoyés au téléphone (résolution, mains, aperçu, calcul…) : le téléphone les applique et les affiche. */
+  function envoyerReglages(patch) { E.reglagesEnvoyes = { ...patch }; return envoyerCtrl({ t: 'cfg', ...patch }); }
+  /* Mode « calcul sur le PC » : désactivé par défaut. `voulu` autorise le PC à accepter la vidéo ; le téléphone doit ENCORE accepter de son côté. */
+  function demanderCalculPc(oui) { E.calculVoulu = !!oui; if (!oui && E.piste) { E.piste = null; if (surPiste) surPiste(null); } return envoyerReglages({ calcul: oui ? 'pc' : 'telephone' }); }
+  /* Un message du canal de contrôle (fiable) ou du canal de points. */
+  async function traiterControle(m) {
+    if (!m || typeof m !== 'object') return;
+    if (m.t === 'tel') {
+      const b = x => (typeof x === 'number' && isFinite(x) ? x : null), s = { cam: b(m.cam), det: b(m.det), detMs: b(m.detMs), sautes: b(m.sautes), bat: b(m.bat), charge: typeof m.charge === 'boolean' ? m.charge : null, eco: !!m.eco, res: b(m.res), calcul: m.calcul === 'pc' ? 'pc' : 'telephone', lum: b(m.lum), mode: String(m.mode || '').slice(0, 12), delegate: String(m.delegate || '').slice(0, 6), mains: m.mains === 1 ? 1 : 2, noir: !!m.noir, auto: !!m.auto };
+      E.tel = s; if (surTelephone) surTelephone(s);
+    } else if (m.t === 'calcul') { E.calcul = m.etat === 'pc' ? 'pc' : 'telephone'; if (m.etat === 'refuse') E.calculVoulu = false; if (E.calcul !== 'pc') { E.piste = null; if (surPiste) surPiste(null); } prevenir(); }
+    else if (m.t === 'sdp' && m.type === 'offer' && typeof m.sdp === 'string' && pair) {
+      if (!E.calculVoulu) return;   // le PC n'a pas demandé la vidéo : une offre ne change rien (le réglage est ici, par défaut éteint)
+      try { await pair.setRemoteDescription({ type: 'offer', sdp: m.sdp }); const a = await pair.createAnswer(); await pair.setLocalDescription(a); envoyerCtrl({ t: 'sdp', type: 'answer', sdp: a.sdp }); } catch (e) { E.directEchec = 'négociation de la vidéo impossible'; }
+    }
+  }
+  function brancherCtrl(c) {
+    ctrl = c; c.onmessage = ev => { if (typeof ev.data !== 'string' || ev.data.length > 24000) return; let m; try { m = JSON.parse(ev.data); } catch (e) { return; } traiterControle(m); };
+    c.onclose = () => { if (ctrl === c) ctrl = null; };
   }
   function envoyerCanal(o) { if (canal && canal.readyState === 'open') { try { canal.send(JSON.stringify(o)); return true; } catch (e) { return false; } } return false; }
   function brancherCanal(c) {
     canal = c; try { c.binaryType = 'arraybuffer'; } catch (e) { /* navigateur sans binaryType : texte seulement */ }
     c.onopen = () => {
       E.liaison = 'direct'; E.directEchec = ''; debutNegociation = 0; E.erreur = '';
-      clearInterval(pings); pings = setInterval(() => { const n = ++sondes.n || (sondes.n = 1); sondes[n] = performance.now(); envoyerCanal({ t: 'ping', n }); envoyerCanal({ t: 'caps', binaire: !!PB() }); mesures(); for (const k of Object.keys(sondes)) if (k !== 'n' && performance.now() - sondes[k] > 6000) delete sondes[k]; }, 1000);
+      clearInterval(pings); pings = setInterval(() => { const n = ++sondes.n || (sondes.n = 1); sondes[n] = performance.now(); sondesDate[n] = Date.now(); envoyerCanal({ t: 'ping', n }); envoyerCanal({ t: 'caps', binaire: !!PB() }); mesures(); for (const k of Object.keys(sondes)) if (k !== 'n' && performance.now() - sondes[k] > 6000) delete sondes[k]; }, 1000);
       if (E.apercuVoulu) envoyerCanal({ t: 'apercu', actif: true });
       envoyerCanal({ t: 'caps', binaire: !!PB() });   // annonce : « je sais lire les paquets binaires »
       prevenir();
@@ -87,13 +116,14 @@ const CameraRelais = (() => {
       if (ev.data instanceof ArrayBuffer && PB()) {   // V5 : paquet binaire (100 à 184 octets)
         if (ev.data.byteLength > 400) return; const t = PB().decoder(ev.data); if (!t) return;
         if (suivi.noter(t.seq) !== 'ok') return;   // plus vieux que le dernier vu, ou doublon : écarté, jamais traité en retard
-        E.binaire = true; recevoir(t); return;
+        E.binaire = true; dernierOct = ev.data.byteLength; recevoir(t); return;
       }
       if (typeof ev.data !== 'string' || ev.data.length > 24000) return;   // un message de points fait ~ 2 Ko ; une image d'aperçu 16 Ko au plus
       let m; try { m = JSON.parse(ev.data); } catch (e) { return; } if (!m || typeof m !== 'object') return;
       if (m.a === 'mains') { recevoir(m); }
       else if (m.t === 'ping') envoyerCanal({ t: 'pong', n: m.n });
-      else if (m.t === 'pong') { const t0 = sondes[m.n]; if (t0 != null) { delete sondes[m.n]; E.rtt = Math.round(performance.now() - t0); E.delai = Math.max(1, Math.round(E.rtt / 2)); envoyerCanal({ t: 'rtt', ms: E.rtt }); } }
+      else if (m.t === 'pong') { const t0 = sondes[m.n]; if (t0 != null) { delete sondes[m.n]; E.rtt = Math.round(performance.now() - t0); echantillonHorloge(m, E.rtt); E.delai = Math.max(1, Math.round(E.rtt / 2)); envoyerCanal({ t: 'rtt', ms: E.rtt }); } }
+      else if (m.t === 'tel' || m.t === 'calcul' || m.t === 'sdp') traiterControle(m);
       else if (m.a === 'image') { if (E.apercuVoulu && typeof m.d === 'string' && m.d.length <= TAILLE_IMAGE_MAX && /^data:image\/jpeg;base64,[A-Za-z0-9+/=]+$/.test(m.d)) { E.apercu = m.d; prevenir(); } }   // aperçu : seulement si Justin l'a demandé, seulement du JPEG
     };
   }
@@ -103,7 +133,8 @@ const CameraRelais = (() => {
       if (typeof RTCPeerConnection === 'undefined') return;
       fermerPair(); E.liaison = 'negociation'; debutNegociation = Date.now();
       const p = pair = new RTCPeerConnection({ iceServers: ICE });
-      p.ondatachannel = ev => { if (pair === p) brancherCanal(ev.channel); };
+      p.ondatachannel = ev => { if (pair !== p) return; if (ev.channel.label === 'ctrl') brancherCtrl(ev.channel); else brancherCanal(ev.channel); };
+      p.ontrack = ev => { if (pair !== p || !E.calculVoulu) return; E.piste = ev.streams && ev.streams[0] ? ev.streams[0] : new MediaStream([ev.track]); E.calcul = 'pc'; try { ev.receiver.jitterBufferTarget = 0; } catch (e) { /* non pris en charge */ } try { ev.receiver.playoutDelayHint = 0; } catch (e) { /* non pris en charge */ } if (surPiste) surPiste(E.piste); prevenir(); };
       p.onicecandidate = ev => { if (ev.candidate && pair === p) envoyerSignal({ k: 'ice', c: { candidate: ev.candidate.candidate, sdpMLineIndex: ev.candidate.sdpMLineIndex, sdpMid: ev.candidate.sdpMid } }); };
       p.onconnectionstatechange = () => { if (pair === p && (p.connectionState === 'failed' || p.connectionState === 'closed')) { E.directEchec = 'la liaison directe a échoué'; fermerPair(); prevenir(); } };
       try { await p.setRemoteDescription({ type: 'offer', sdp: m.sdp }); const r = await p.createAnswer(); await p.setLocalDescription(r); await envoyerSignal({ k: 'reponse', sdp: r.sdp }); }
@@ -150,6 +181,6 @@ const CameraRelais = (() => {
     if (E.etat !== 'erreur') E.etat = 'inactive';
     if (prevenirAussi) prevenir();
   }
-  return { demarrer, arreter, mesures, etat: () => ({ ...E, qr: E.qr, debit: debit() }), debit, surEvenement, pageCamera, adresseQR, definirSurTrames: f => { surTrames = f; }, definirApercu, recevoirTrame: recevoir };
+  return { demarrer, arreter, mesures, envoyerReglages, demanderCalculPc, definirSurTelephone: f => { surTelephone = f; }, definirSurPiste: f => { surPiste = f; }, delaisRecents: () => latRecentes.slice(), etat: () => ({ ...E, qr: E.qr, debit: debit() }), debit, surEvenement, pageCamera, adresseQR, definirSurTrames: f => { surTrames = f; }, definirApercu, recevoirTrame: recevoir };
 })();
 window.CameraRelais = CameraRelais;

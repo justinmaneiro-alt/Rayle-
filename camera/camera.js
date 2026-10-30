@@ -9,6 +9,7 @@
    (case cochée par Justin) ; alors un petit JPEG part par le canal direct seulement (jamais par le Worker).
    V5 : une détection par image de la caméra (requestVideoFrameCallback, 60 images/s demandées, jamais en retard), paquets BINAIRES de 100 à 184 octets (camera/paquet-binaire.js) envoyés SEULEMENT si la liaison
    n'est pas encombrée (un paquet en retard est sauté, jamais mis en file), aperçu réduit et coupable (« Économie »), écran gardé allumé (Wake Lock, redemandé au retour sur la page). */
+import { creerDetecteur } from './detection.js';
 const $ = id => document.getElementById(id);
 const CLE = 'rayle_cam_jeton';
 const MP = '0.10.21', CDN = 'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@' + MP + '/', MODELE_CDN = 'https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/1/hand_landmarker.task';
@@ -17,6 +18,12 @@ const D = { pc: null, canal: null, ouvert: false, envoyes: 0, fenetre: [], rtt: 
 const L = { jeton: null, ws: null, ouvert: false, pc: false, rtt: null, n: 0, envoyes: {}, dernierPong: 0, delaiMax: 5000, pings: 0, garde: 0, retard: 0, tentative: 0 };
 const K = { binaire: false, seq: 0, dt: 0, conf: 1, eco: false, dernierDessin: 0, sautes: 0, stats: null, dernierT: 0 };
 try { K.eco = localStorage.getItem('rayle_cam_eco') === '1'; } catch (e) { /* stockage refusé */ }
+/* V10 : réglages du téléphone (mémorisés ici ; modifiables ici ou depuis le PC par « Test de fluidité → Appliquer »). */
+const CFG_CLE = 'rayle_cam_cfg';
+const CFG = Object.assign({ res: 'auto', mains: 2, worker: true, noir: false }, (() => { try { return JSON.parse(localStorage.getItem(CFG_CLE) || '{}') || {}; } catch (e) { return {}; } })());
+const sauverCfg = () => { try { localStorage.setItem(CFG_CLE, JSON.stringify(CFG)); } catch (e) { /* stockage refusé */ } };
+const NIV = self.AdaptationCamera ? self.AdaptationCamera.NIVEAUX : [{ id: 0, l: 320, h: 240 }, { id: 1, l: 480, h: 360 }, { id: 2, l: 640, h: 480 }];
+const S = { adapt: null, niveau: 2, camN: 0, detN: 0, sautes: 0, detMs: [], chrono: 0, lum: null, bat: null, charge: null, calcul: 'telephone', sender: null, bilan: null, histDet: [] };
 const C = { flux: null, video: null, detecteur: null, boucle: 0, actif: false, dernierEnvoi: 0, dernierVu: 0, dernierVide: 0, ctx: null, verrou: null };
 try { L.jeton = localStorage.getItem(CLE) || null; } catch (e) { /* stockage refusé */ }
 /* Lecture du fragment du QR, puis effacement immédiat de l'adresse (le jeton ne reste ni dans l'historique ni dans un signet). */
@@ -47,6 +54,7 @@ function voyants() {
   $('t-lat').textContent = L.rtt != null ? '· ' + L.rtt + ' ms' : '';
   $('pt-cam').className = 'pt ' + (C.actif ? 'ok' : ''); $('t-cam').textContent = C.actif ? 'caméra active' : 'caméra arrêtée';
 }
+function ctrlEnvoyer(o) { const s = JSON.stringify(o); for (const k of [D.ctrl, D.canal]) { if (k && k.readyState === 'open') { try { k.send(s); return true; } catch (e) { /* canal en difficulté : on essaie l'autre */ } } } return false; }
 function debitEnvoi() { const lim = Date.now() - 1000; D.fenetre = D.fenetre.filter(t => t >= lim); return D.fenetre.length; }
 function statsLiaison() {
   if (D.ouvert) { const st = K.stats && Date.now() - K.stats.recu < 3000 ? K.stats : null; return '· direct · ' + debitEnvoi() + ' paquets/s' + (st && st.delai != null ? ' · délai ' + st.delai + ' ms' : D.rtt != null ? ' · ' + Math.max(1, Math.round(D.rtt / 2)) + ' ms' : '') + (st && st.perte > 0.02 ? ' · perte ' + Math.round(st.perte * 100) + ' %' : '') + (K.eco ? ' · économie' : ''); }
@@ -90,22 +98,28 @@ async function rejoindre() {
 /* ── liaison directe (WebRTC) ── le téléphone propose (offre), le PC répond ; messages de signalisation par le Worker, clé d'émission comme preuve. */
 const ICE = [{ urls: 'stun:stun.l.google.com:19302' }];
 const signal = (chemin, corps) => pt(chemin, Object.assign({ s: W.s, cle: W.cle }, corps));
-function fermerDirect() { K.binaire = false; clearInterval(D.sondeSig); try { D.canal && D.canal.close(); } catch (e) { /* déjà fermé */ } try { D.pc && D.pc.close(); } catch (e) { /* déjà fermée */ } D.canal = null; D.pc = null; D.ouvert = false; D.rtt = null; D.apercu = false; }
+function fermerDirect() { S.sender = null; if (S.calcul === 'pc') { S.calcul = 'telephone'; reprendreLocal(); } try { D.ctrl && D.ctrl.close(); } catch (e) { /* déjà fermé */ } D.ctrl = null; K.binaire = false; clearInterval(D.sondeSig); try { D.canal && D.canal.close(); } catch (e) { /* déjà fermé */ } try { D.pc && D.pc.close(); } catch (e) { /* déjà fermée */ } D.canal = null; D.pc = null; D.ouvert = false; D.rtt = null; D.apercu = false; }
 async function ouvrirDirect() {
   if (typeof RTCPeerConnection === 'undefined' || !W.cle || W.fin) { D.echec = 'WebRTC indisponible'; return; }
   fermerDirect(); D.echec = ''; D.sigApres = 0; D.debut = Date.now(); const essai = ++D.essai;
   const p = D.pc = new RTCPeerConnection({ iceServers: ICE }), c = D.canal = p.createDataChannel('points', { ordered: false, maxRetransmits: 0 });
+  D.ctrl = p.createDataChannel('ctrl', { ordered: true });   // V10 : canal FIABLE pour les réglages et la négociation du mode « calcul sur le PC » (les points, eux, restent non fiables)
+
   c.onopen = () => { if (D.canal !== c) return; D.ouvert = true; D.echec = ''; W.sortie.length = 0; voyants(); };   // les trames en attente pour le Worker sont périmées : on repart sur le direct
   c.onclose = () => { if (D.canal !== c) return; D.ouvert = false; D.apercu = false; voyants(); if (!W.fin && W.cle && essai === D.essai) setTimeout(() => { if (!D.ouvert && !W.fin && W.cle && essai === D.essai) ouvrirDirect(); }, 2000); };
-  c.onmessage = ev => {
+  /* Les deux canaux (points non fiable, contrôle fiable) sont traités pareil : un PC plus ancien, qui ne connaît pas le canal de contrôle, peut envoyer ses messages sur l'un ou sur l'autre. */
+  const gerer = (src, ev) => {
     let m; try { m = JSON.parse(ev.data); } catch (e) { return; } if (!m || typeof m !== 'object') return;
-    if (m.t === 'ping') { try { c.send(JSON.stringify({ t: 'pong', n: m.n })); } catch (e) { /* canal fermé */ } }
+    if (m.t === 'ping') { try { src.send(JSON.stringify({ t: 'pong', n: m.n, h: Date.now() })); } catch (e) { /* canal fermé */ } }   // h : l'heure de ce téléphone, pour que le PC mesure le vrai délai
+    else if (m.t === 'cfg') appliquerCfg(m);
+    else if (m.t === 'sdp') traiterSdp(m);
     else if (m.t === 'apercu') D.apercu = !!m.actif;
     else if (m.t === 'rtt' && Number.isFinite(m.ms)) D.rtt = m.ms;
     else if (m.t === 'caps') K.binaire = !!m.binaire;
     else if (m.t === 'stats') { K.stats = { delai: Number.isFinite(m.delai) ? m.delai : null, perte: Number.isFinite(m.perte) ? m.perte : 0, debit: Number.isFinite(m.debit) ? m.debit : 0, conseil: typeof m.conseil === 'string' ? m.conseil.slice(0, 160) : '', recu: Date.now() }; const z = $('t-conseil'); if (z) z.textContent = K.stats.conseil; }
     else if (m.t === 'fin') finSession('Le PC a coupé la liaison. Pour reprendre, scanne un nouveau QR code.', 'sable');
   };
+  c.onmessage = ev => gerer(c, ev); D.ctrl.onmessage = ev => gerer(D.ctrl, ev);
   p.onicecandidate = ev => { if (ev.candidate && D.pc === p) signal('/camera/signal', { m: { k: 'ice', c: { candidate: ev.candidate.candidate, sdpMLineIndex: ev.candidate.sdpMLineIndex, sdpMid: ev.candidate.sdpMid } } }).catch(() => {}); };
   p.onconnectionstatechange = () => { if (D.pc === p && p.connectionState === 'failed') { D.echec = 'liaison directe impossible'; voyants(); } };
   try {
@@ -160,7 +174,9 @@ function rejouerTest(suite) {
   let i = 0, file = null, f0 = 0, ti = 0, boucleFile = 0; C.actif = true; montrer('apercu', false); $('b-cam').hidden = true; $('b-stop').hidden = false; msg('m-cam', 'Essai : points enregistrés (pas de caméra).', 'sable'); voyants();
   const faux = document.createElement('canvas'); faux.width = 640; faux.height = 480; const fx = faux.getContext('2d'); fx.fillStyle = '#356'; fx.fillRect(0, 0, 640, 480); fx.fillStyle = '#fc4'; fx.fillRect(200, 140, 240, 200); C.video = faux; C.ctx = {};   // image factice : seulement pour tester l'aperçu (envoyerApercu)
   window.__RAYLE_CAM_JOUER__ = frames => { file = frames; f0 = performance.now(); ti = Date.now(); i = 0; };   // essais : joue une suite UNE fois (aux temps d'origine), puis revient à la suite de fond
+  demarrerStats(); initAdaptation();
   C.test = setInterval(() => {
+    S.camN += (suite.camIps || suite.ips || 30) / (suite.ips || 30); S.detN += suite.detFraction == null ? 1 : suite.detFraction; S.detMs.push(suite.detMs || 8);   // essais : la caméra peut aller plus vite que la détection (suite.camIps)
     envoyerApercu();
     if (file) { const ecoule = performance.now() - f0; while (i < file.length && file[i].t <= ecoule) { const f = file[i++]; envoyer({ a: 'mains', t: ti + f.t, ratio: f.ratio || 4 / 3, mains: f.mains }); } if (i >= file.length) file = null; return; }
     const f = suite.frames[boucleFile++ % suite.frames.length]; envoyer({ a: 'mains', t: Date.now(), ratio: f.ratio || 4 / 3, mains: f.mains });
@@ -172,11 +188,14 @@ async function demarrerCamera() {
   if (!window.isSecureContext || !navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) return msg('m-cam', 'Ce navigateur refuse la caméra sur une page non sécurisée. Ouvre l’adresse en https:// et accepte le certificat du PC (Avancé → Continuer). Voir docs/GESTES.md.', 'ko');
   $('b-cam').disabled = true; msg('m-cam', 'Chargement du modèle de détection de main…', 'sable');
   try {
-    const BASE = W.actif ? CDN : '/camera/vendor/', vision = await import(W.actif ? CDN + 'vision_bundle.mjs' : '/camera/vendor/vision_bundle.mjs');
-    const fichiers = await vision.FilesetResolver.forVisionTasks(W.actif ? CDN + 'wasm' : '/camera/vendor/wasm');
-    const creer = delegate => vision.HandLandmarker.createFromOptions(fichiers, { baseOptions: { modelAssetPath: W.actif ? MODELE_CDN : '/camera/vendor/hand_landmarker.task', delegate }, runningMode: 'VIDEO', numHands: 2, minHandDetectionConfidence: 0.55, minHandPresenceConfidence: 0.5, minTrackingConfidence: 0.5 });
-    try { C.detecteur = await creer('GPU'); } catch (e) { C.detecteur = await creer('CPU'); }
-    C.flux = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user', width: { ideal: 640 }, height: { ideal: 480 }, frameRate: { ideal: 60, min: 30 } }, audio: false });
+    const base = window.__RAYLE_CAM_VENDOR__ && /^(127\.0\.0\.1|localhost)$/.test(location.hostname) ? window.__RAYLE_CAM_VENDOR__ : (W.actif ? CDN : location.origin + '/camera/vendor/');   // __RAYLE_CAM_VENDOR__ : essais en local seulement
+    initAdaptation();
+    C.detecteur = await creerDetecteur({ mjs: base + 'vision_bundle.mjs', wasm: base + 'wasm', modele: W.actif && base === CDN ? MODELE_CDN : base + 'hand_landmarker.task', delegate: 'GPU', mains: CFG.mains, worker: CFG.worker, urlWorker: new URL('detection-worker.js', import.meta.url).href, taille: NIV[S.niveau] });
+    if (C.detecteur.avertissement) msg('m-cam', C.detecteur.avertissement, 'sable');
+    const n0 = NIV[S.niveau];
+    /* Contraintes de la plus exigeante à la plus souple : certaines caméras refusent « au moins 30 images/s » (OverconstrainedError) ; on retombe alors sur l'idéal seul, puis sur n'importe quelle caméra. */
+    const essais = [{ facingMode: 'user', width: { ideal: n0.l }, height: { ideal: n0.h }, frameRate: { ideal: 60, min: 30 } }, { facingMode: 'user', width: { ideal: n0.l }, height: { ideal: n0.h }, frameRate: { ideal: 60 } }, true];
+    for (let i = 0; i < essais.length && !C.flux; i++) { try { C.flux = await navigator.mediaDevices.getUserMedia({ video: essais[i], audio: false }); } catch (e) { if (!(e && e.name === 'OverconstrainedError') || i === essais.length - 1) throw e; } }
   } catch (e) {
     $('b-cam').disabled = false; const nom = e && e.name;
     return msg('m-cam', nom === 'NotAllowedError' || nom === 'SecurityError' ? 'Caméra refusée. Rien n’est envoyé à Rayle. Pour l’autoriser : Chrome → cadenas (ou ⋮) → Autorisations → Caméra → Autoriser ; Safari → aA → Réglages du site web → Caméra. Puis recharge cette page : si le QR code a servi, redemande-en un au PC.' : nom === 'NotFoundError' ? 'Aucune caméra trouvée sur ce téléphone.' : 'Impossible de démarrer : ' + (e && e.message || e), 'ko');
@@ -185,13 +204,14 @@ async function demarrerCamera() {
   const cv = $('cv'); cv.width = 320; cv.height = Math.round(320 * (C.video.videoHeight || 480) / (C.video.videoWidth || 640)); C.ctx = cv.getContext('2d');
   C.actif = true; montrer('apercu', true); $('b-cam').hidden = true; $('b-stop').hidden = false; $('b-cam').disabled = false; msg('m-cam', ''); voyants();
   verrouEcran();
-  appliquerEco(); boucle();
+  appliquerEco(); appliquerNoir(); boucle(); demarrerStats();
 }
 async function verrouEcran() { try { if (navigator.wakeLock && C.actif && !C.verrou) { C.verrou = await navigator.wakeLock.request('screen'); C.verrou.addEventListener('release', () => { C.verrou = null; }); } } catch (e) { /* écran : à garder allumé à la main */ } }
 function appliquerEco() { const b = $('b-eco'); if (b) b.textContent = K.eco ? 'Aperçu coupé (économie) · le rétablir' : 'Économie : couper l’aperçu'; if (C.actif) montrer('apercu', !K.eco); }
 $('b-eco').onclick = () => { K.eco = !K.eco; try { localStorage.setItem('rayle_cam_eco', K.eco ? '1' : '0'); } catch (e) { /* stockage refusé */ } appliquerEco(); voyants(); };
 function arreterCamera() {
-  D.apercu = false; clearInterval(C.test); C.actif = false; cancelAnimationFrame(C.boucle); try { C.video && C.video.cancelVideoFrameCallback && C.video.cancelVideoFrameCallback(C.rvfc); } catch (e) { /* déjà annulé */ } if (C.flux) C.flux.getTracks().forEach(t => t.stop()); C.flux = null; try { C.detecteur && C.detecteur.close(); } catch (e) { /* déjà fermé */ } C.detecteur = null;
+  arreterStats(); if (S.calcul === 'pc') { S.calcul = 'telephone'; try { S.sender && D.pc && D.pc.removeTrack(S.sender); } catch (e) { /* déjà retirée */ } S.sender = null; }
+  D.apercu = false; clearInterval(C.test); C.actif = false; cancelAnimationFrame(C.boucle); try { C.video && C.video.cancelVideoFrameCallback && C.video.cancelVideoFrameCallback(C.rvfc); } catch (e) { /* déjà annulé */ } if (C.flux) C.flux.getTracks().forEach(t => t.stop()); C.flux = null; try { C.detecteur && C.detecteur.fermer(); } catch (e) { /* déjà fermé */ } C.detecteur = null;
   try { C.verrou && C.verrou.release(); } catch (e) { /* déjà libéré */ } C.verrou = null; envoyer({ a: 'mains', t: Date.now(), ratio: 4 / 3, mains: [] });
   montrer('apercu', false); $('b-cam').hidden = false; $('b-stop').hidden = true; voyants();
 }
@@ -213,25 +233,118 @@ function envoyerApercu() {
     const d = mini.toDataURL('image/jpeg', 0.45); if (d.length < 15000) D.canal.send(JSON.stringify({ a: 'image', d }));
   } catch (e) { /* canal occupé : on saute cette image */ }
 }
-/* Une détection par image de la caméra : l'image suivante n'est demandée qu'APRÈS la détection, donc jamais de retard qui s'accumule (une image trop lente est simplement sautée). */
+/* Une détection par image de la caméra, TOUJOURS la dernière : l'image suivante est demandée tout de suite, et si la détection précédente n'est pas finie la nouvelle image est SAUTÉE
+   (jamais de file d'attente, donc jamais de retard qui s'accumule). Avec le Worker, la détection ne bloque ni la caméra, ni le réseau, ni l'affichage. */
 function boucle() {
   if (!C.actif) return;
   const suite = () => { if (!C.actif) return; if (C.video.requestVideoFrameCallback) C.rvfc = C.video.requestVideoFrameCallback(image); else C.boucle = requestAnimationFrame(image); };
-  function image(maintenant, meta) {
+  async function image(maintenant, meta) {
     if (!C.actif) return;
-    if (C.video.readyState < 2) return suite();
-    const t0 = performance.now(), age = meta && Number.isFinite(meta.captureTime) ? Math.max(0, t0 - meta.captureTime) : 0, stamp = Math.max(t0, K.dernierT + 1); K.dernierT = stamp;
-    let r; try { r = C.detecteur.detectForVideo(C.video, stamp); } catch (e) { return suite(); }
-    K.dt = Math.min(255, Math.round(age + (performance.now() - t0)));
-    const mains = (r.landmarks || []).map((pts, i) => ({ lat: (r.handedness && r.handedness[i] && r.handedness[i][0] && r.handedness[i][0].categoryName) === 'Right' ? 'Right' : 'Left', pts: pts.map(p => [+p.x.toFixed(4), +p.y.toFixed(4), +(p.z || 0).toFixed(4)]) }));
-    K.conf = (r.handedness || []).reduce((m, h) => Math.max(m, h && h[0] && Number.isFinite(h[0].score) ? h[0].score : 0), 0) || (mains.length ? 0.5 : 1);
+    suite(); S.camN++;
+    if (S.calcul === 'pc' || !C.detecteur || C.video.readyState < 2) return;
+    const t0 = performance.now(), age = meta && Number.isFinite(meta.captureTime) ? Math.max(0, Math.min(250, t0 - meta.captureTime)) : 0, stamp = Math.max(t0, K.dernierT + 1); K.dernierT = stamp;
+    const r = await C.detecteur.detecter(C.video, stamp); if (!r || !C.actif) { if (!r) S.sautes++; return; }
+    const fin = performance.now(); S.detN++; S.detMs.push(r.total != null ? r.total : fin - t0);
+    K.dt = Math.min(255, Math.round(age + (fin - t0))); K.conf = r.conf;
+    const mains = r.mains;
     if (mains.length) { C.dernierVu = t0; envoyer({ a: 'mains', t: Date.now(), ratio: C.video.videoWidth / (C.video.videoHeight || 1), mains }); }
-    else if (t0 - C.dernierVide > 100) { C.dernierVide = t0; envoyer({ a: 'mains', t: Date.now(), ratio: 4 / 3, mains: [] }); }   // sans main : 10 battements par seconde, le PC garde l'état moins d'une demi-seconde
-    if (t0 - K.dernierDessin > 80) { K.dernierDessin = t0; dessiner(mains); envoyerApercu(); }   // aperçu : 12 images par seconde au plus, jamais à chaque détection
-    suite();
+    else if (t0 - C.dernierVide > 500) { C.dernierVide = t0; envoyer({ a: 'mains', t: Date.now(), ratio: 4 / 3, mains: [] }); }   // sans main : un battement toutes les 0,5 s (le PC garde l'état moins d'une demi-seconde)
+    if (!CFG.noir && t0 - K.dernierDessin > 80) { K.dernierDessin = t0; dessiner(mains); envoyerApercu(); }   // aperçu : 12 images par seconde au plus, jamais à chaque détection
   }
   suite();
 }
+
+// ── V10 : statistiques d'une seconde, adaptation de la résolution, réglages reçus du PC, mode « calcul sur le PC » ──
+const mediane = l => { const s = l.filter(Number.isFinite).sort((a, b) => a - b); return s.length ? s[(s.length - 1) >> 1] : null; };
+function initAdaptation() {
+  S.niveau = CFG.res === 'auto' ? 2 : Math.max(0, NIV.findIndex(n => n.l === +CFG.res));
+  S.adapt = self.AdaptationCamera ? self.AdaptationCamera.creerAdaptation({ niveau: S.niveau, niveauMax: CFG.res === 'auto' ? 2 : S.niveau, auto: CFG.res === 'auto' }) : null;
+}
+function appliquerNoir() { document.body.classList.toggle('noir', !!CFG.noir && C.actif); if (CFG.noir) montrer('apercu', false); else if (C.actif) montrer('apercu', !K.eco); }
+function demarrerStats() {
+  S.camN = S.detN = S.sautes = 0; S.detMs = []; S.chrono = performance.now(); S.histDet = [];
+  try { navigator.getBattery && navigator.getBattery().then(b => { S.bat = b.level; S.charge = b.charging; b.addEventListener('levelchange', () => { S.bat = b.level; }); b.addEventListener('chargingchange', () => { S.charge = b.charging; }); }).catch(() => {}); } catch (e) { /* batterie non lisible */ }
+  clearInterval(S.minuteur); S.minuteur = setInterval(secondeStats, 1000);
+}
+function arreterStats() { clearInterval(S.minuteur); S.minuteur = 0; }
+function luminosite() {
+  try {
+    if (!C.video || C.video.readyState < 2) return S.lum;
+    const cv = luminosite.cv || (luminosite.cv = document.createElement('canvas')); cv.width = 16; cv.height = 12; const x = cv.getContext('2d', { willReadFrequently: true }); x.drawImage(C.video, 0, 0, 16, 12);
+    const d = x.getImageData(0, 0, 16, 12).data; let s = 0; for (let i = 0; i < d.length; i += 4) s += 0.299 * d[i] + 0.587 * d[i + 1] + 0.114 * d[i + 2]; return Math.round(s / (d.length / 4));
+  } catch (e) { return S.lum; }
+}
+let tLum = 0;
+function secondeStats() {
+  const maintenant = performance.now(), dt = Math.max(0.5, (maintenant - S.chrono) / 1000); S.chrono = maintenant;
+  const cam = S.camN / dt, det = S.calcul === 'pc' ? null : S.detN / dt, detMs = mediane(S.detMs); S.camN = S.detN = 0; S.detMs = [];
+  if (maintenant - tLum > 2000) { tLum = maintenant; S.lum = luminosite(); }
+  const mode = C.detecteur ? C.detecteur.mode : '', n = NIV[S.niveau];
+  if (S.calcul !== 'pc') {
+    S.histDet.push(det);
+    $('pt-det').className = 'pt ' + (det >= 45 ? 'ok' : det >= 30 ? 'att' : 'ko'); $('t-det').textContent = 'détection : ' + Math.round(det) + ' images/s' + (detMs != null ? ' · ' + Math.round(detMs) + ' ms' : '') + ' · ' + n.l + '×' + n.h + (mode === 'worker' ? ' · Worker' : '');
+    if (S.adapt) {
+      const d = S.adapt.echantillon({ t: maintenant / 1000, camFps: cam, detFps: det, detMs: detMs == null ? 0 : detMs });
+      if (d.action === 'baisser' || d.action === 'monter') { S.niveau = d.niveau; changerResolution(); msg('m-cam', d.raison, 'sable'); }
+      if (d.lumiere) { $('t-conseil').textContent = d.raison; essayerPoseCourte(cam); } else if (d.proposerPc) $('t-conseil').textContent = d.raison + ' (Dans Rayle : Test de fluidité → calcul sur le PC.)'; else if (d.eco && !K.eco) { K.eco = true; try { localStorage.setItem('rayle_cam_eco', '1'); } catch (e) { /* stockage refusé */ } appliquerEco(); $('t-conseil').textContent = d.raison; }
+    }
+  } else { $('pt-det').className = 'pt ok'; $('t-det').textContent = 'calcul sur le PC · caméra ' + Math.round(cam) + ' images/s'; }
+  if (S.pose && maintenant - S.pose.t > 6000) { const gagne = cam >= S.pose.avant * 1.25; if (!gagne) revenirPoseAuto(); else { S.pose.garde = true; S.pose.t = 1e15; } }   // la pose courte n'a pas fait gagner 25 % de cadence : on revient à l'automatique
+  ctrlEnvoyer({ t: 'tel', cam: +cam.toFixed(1), det: det == null ? null : +det.toFixed(1), detMs: detMs == null ? null : +detMs.toFixed(1), sautes: S.sautes, bat: S.bat, charge: S.charge, eco: !!K.eco, res: n.l, calcul: S.calcul, pose: S.pose ? 'courte' : 'auto', lum: S.lum, mode, delegate: C.detecteur ? C.detecteur.delegate : '', mains: CFG.mains, noir: !!CFG.noir, auto: CFG.res === 'auto' });
+  S.sautes = 0;
+}
+/* Lumière faible : la caméra allonge son temps de pose et fait chuter la cadence. Si l'appareil le permet (exposureTime), on essaie une pose COURTE (10 ms, sensibilité maximale) : image plus bruitée
+   mais cadence tenue. Une seule tentative par session ; retour à l'automatique si la cadence ne gagne pas au moins 25 % en 6 s. Appareil sans ce réglage : on conseille seulement « plus de lumière ». */
+async function essayerPoseCourte(camFps) {
+  if (S.pose || S.poseEssayee) return; const piste = C.flux && C.flux.getVideoTracks()[0]; if (!piste || !piste.getCapabilities) return;
+  let cap; try { cap = piste.getCapabilities(); } catch (e) { return; }
+  if (!cap.exposureTime || !(cap.exposureMode || []).includes('manual')) return; S.poseEssayee = true;
+  try { await piste.applyConstraints({ advanced: [{ exposureMode: 'manual', exposureTime: Math.max(cap.exposureTime.min, Math.min(cap.exposureTime.max, 100)) }, ...(cap.iso ? [{ iso: cap.iso.max }] : [])] }); S.pose = { t: performance.now(), avant: camFps }; msg('m-cam', 'Lumière faible : pose courte essayée pour garder la cadence (retour à l’automatique si ça n’aide pas).', 'sable'); }
+  catch (e) { S.pose = null; }
+}
+async function revenirPoseAuto() { const piste = C.flux && C.flux.getVideoTracks()[0]; S.pose = null; try { if (piste) await piste.applyConstraints({ advanced: [{ exposureMode: 'continuous' }] }); } catch (e) { /* réglage non pris en charge */ } msg('m-cam', 'La pose courte n’a pas amélioré la cadence : exposition automatique rétablie. Plus de lumière sur la main aide davantage.', 'sable'); }
+async function changerResolution() {
+  const n = NIV[S.niveau]; try { const piste = C.flux && C.flux.getVideoTracks()[0]; if (piste) await piste.applyConstraints({ width: { ideal: n.l }, height: { ideal: n.h }, frameRate: { ideal: 60, min: 30 } }); } catch (e) { /* le téléphone garde sa résolution : la réduction se fait alors à la copie */ }
+  if (C.detecteur && C.detecteur.regler) C.detecteur.regler({ taille: n });
+}
+/* Réglages reçus du PC (« Appliquer » du Test de fluidité) ou choisis ici. Rien n'est appliqué sans trace : le message est affiché. */
+function appliquerCfg(m) {
+  const dit = [];
+  if (m.res != null && [320, 480, 640].includes(+m.res)) { CFG.res = String(+m.res); S.niveau = NIV.findIndex(x => x.l === +m.res); if (S.adapt) S.adapt.regler({ auto: false, niveau: S.niveau, niveauMax: S.niveau }); changerResolution(); dit.push('résolution ' + m.res + ' × ' + Math.round(m.res * 0.75)); }
+  if (m.res === 'auto') { CFG.res = 'auto'; if (S.adapt) S.adapt.regler({ auto: true, niveauMax: 2 }); dit.push('résolution automatique'); }
+  if (m.mains === 1 || m.mains === 2) { CFG.mains = m.mains; dit.push(m.mains + ' main' + (m.mains > 1 ? 's' : '')); if (C.detecteur && C.detecteur.regler) C.detecteur.regler({ mains: m.mains }); }
+  if (typeof m.eco === 'boolean') { K.eco = m.eco; try { localStorage.setItem('rayle_cam_eco', m.eco ? '1' : '0'); } catch (e) { /* stockage refusé */ } appliquerEco(); if (m.eco) { CFG.noir = true; dit.push('aperçu coupé'); } }
+  if (typeof m.noir === 'boolean') { CFG.noir = m.noir; appliquerNoir(); }
+  if (m.calcul === 'pc') { if (S.calcul !== 'pc') { montrer('s-pc', true); dit.push('demande du calcul sur le PC (à accepter ici)'); } }
+  else if (m.calcul === 'telephone' && S.calcul === 'pc') arreterVideoPc();
+  sauverCfg(); synchroReglages(); if (dit.length) msg('m-cam', 'Rayle a réglé ce téléphone : ' + dit.join(', ') + '.', 'sable');
+}
+function synchroReglages() { const r = $('r-res'); if (r) r.value = CFG.res; const m = $('r-mains'); if (m) m.value = String(CFG.mains); const w = $('r-worker'); if (w) w.checked = !!CFG.worker; const n = $('r-noir'); if (n) n.checked = !!CFG.noir; }
+$('r-res').onchange = e => appliquerCfg({ res: e.target.value === 'auto' ? 'auto' : +e.target.value });
+$('r-mains').onchange = e => appliquerCfg({ mains: +e.target.value });
+$('r-worker').onchange = e => { CFG.worker = e.target.checked; sauverCfg(); msg('m-cam', 'Réglage mémorisé : il s’applique au prochain démarrage de la caméra.', 'sable'); };
+$('r-noir').onchange = e => appliquerCfg({ noir: e.target.checked });
+synchroReglages();
+
+/* Mode « calcul sur le PC » : DÉSACTIVÉ par défaut, demandé par le PC, ACCEPTÉ ici. La vidéo basse résolution part par la même liaison pair-à-pair (jamais par le Worker ni un serveur), n'est jamais enregistrée. */
+async function demarrerVideoPc() {
+  if (!D.pc || !D.ouvert || !C.flux) { msg('m-cam', 'Le calcul sur le PC demande la liaison directe (elle n’est pas établie).', 'ko'); return; }
+  const piste = C.flux.getVideoTracks()[0]; if (!piste) return;
+  S.sender = D.pc.addTrack(piste, C.flux); S.calcul = 'pc';
+  try { const p = S.sender.getParameters(); if (!p.encodings || !p.encodings.length) p.encodings = [{}]; p.encodings[0].maxBitrate = 900000; p.encodings[0].maxFramerate = 60; p.degradationPreference = 'maintain-framerate'; await S.sender.setParameters(p); } catch (e) { /* réglages d'encodage non disponibles : valeurs par défaut */ }
+  try { await renegocier(); } catch (e) { S.calcul = 'telephone'; msg('m-cam', 'Négociation de la vidéo impossible : le calcul reste sur ce téléphone.', 'ko'); return; }
+  montrer('t-pc-actif', true); montrer('s-pc', false); ctrlEnvoyer({ t: 'calcul', etat: 'pc' });
+}
+async function renegocier() { const o = await D.pc.createOffer(); await D.pc.setLocalDescription(o); if (!ctrlEnvoyer({ t: 'sdp', type: 'offer', sdp: o.sdp })) throw new Error('canal de contrôle fermé'); }
+async function traiterSdp(m) { try { if (m.type === 'answer' && typeof m.sdp === 'string' && D.pc) await D.pc.setRemoteDescription({ type: 'answer', sdp: m.sdp }); } catch (e) { /* réponse périmée */ } }
+async function arreterVideoPc() {
+  try { S.sender && D.pc && D.pc.removeTrack(S.sender); } catch (e) { /* déjà retirée */ } S.sender = null; S.calcul = 'telephone'; montrer('t-pc-actif', false);
+  try { if (D.pc && D.ouvert) await renegocier(); } catch (e) { /* liaison fermée */ }
+  reprendreLocal(); ctrlEnvoyer({ t: 'calcul', etat: 'telephone' });
+}
+function reprendreLocal() { montrer('t-pc-actif', false); S.histDet = []; }
+$('b-pc-oui').onclick = demarrerVideoPc; $('b-pc-non').onclick = () => { montrer('s-pc', false); ctrlEnvoyer({ t: 'calcul', etat: 'refuse' }); };
+$('b-pc-stop').onclick = arreterVideoPc;
 
 // ── démarrage ──
 if (W.actif) { afficher('worker'); $('t-worker-url').textContent = W.url ? W.url.replace(/^https?:\/\//, '') : '(adresse absente)'; if (!W.s || !W.j || !W.url) { $('b-rejoindre').hidden = true; msg('m-worker', 'Ce lien est incomplet ou périmé. Redemande un QR code au PC (Rayle → ⚙ → Gestes → Caméra du téléphone).', 'ko'); } }
