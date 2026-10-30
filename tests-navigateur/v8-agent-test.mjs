@@ -10,7 +10,7 @@ const onglet = async (p, id, ms = 700) => { await ev(p, i => MobileAgent.aller(i
 {
   console.log('\n══ téléphone : écran Agents ══');
   const o = await ouvrirMobile('telephone', { attente: 3800 }), p = o.page, w = o.worker;
-  await ev(p, () => MobileCoque.aller('agent')); await attendre(1500);
+  await ev(p, () => { MobileCoque.aller('agent'); if (window.MobileAgent && MobileAgent.details) MobileAgent.details(true); }); await attendre(1500);
   const ids = await ev(p, () => MobileAgent.onglets());
   v('11 onglets défilants, les trois premiers : Positions du jour, Graphique, Performance', ids.length === 11 && ids.slice(0, 3).join() === 'positions,graphique,performance', ids.join());
   v('avertissement « aucun ordre » toujours visible', /aucun ordre/.test(await texte(p, '#m-agent .m-garde')));
@@ -143,7 +143,7 @@ const onglet = async (p, id, ms = 700) => { await ev(p, i => MobileAgent.aller(i
   console.log('\n══ états de chargement ══');
   // 1. agent en panne, sans copie : message clair + Réessayer, puis tout rentre dans l'ordre
   let o = await ouvrirMobile('telephone', { scenario: { agent: 'panne' }, attente: 3500 }), p = o.page;
-  await ev(p, () => MobileCoque.aller('agent')); await attendre(1000);
+  await ev(p, () => { MobileCoque.aller('agent'); if (window.MobileAgent && MobileAgent.details) MobileAgent.details(true); }); await attendre(1000);
   let t = await texte(p, '#m-agent');
   v('agent en panne (sans copie) : message clair et bouton Réessayer, jamais un chargement infini', /Réessayer/.test(t) && !/Chargement…/.test(t) && !(await existe(p, '#m-agent .m-squelette')), t.slice(0, 200));
   o.worker.scenario.agent = 'ok';
@@ -157,23 +157,23 @@ const onglet = async (p, id, ms = 700) => { await ev(p, i => MobileAgent.aller(i
   await o.fermer();
   // 3. limite D1 : phrase claire
   o = await ouvrirMobile('telephone', { scenario: { agent: 'limite' }, attente: 3500 }); p = o.page;
-  await ev(p, () => MobileCoque.aller('agent')); await attendre(1000);
+  await ev(p, () => { MobileCoque.aller('agent'); if (window.MobileAgent && MobileAgent.details) MobileAgent.details(true); }); await attendre(1000);
   t = await texte(p, '#m-agent');
   v('limite du jour du Worker : « liaison limitée », pas d’erreur brute', /limitée/.test(t) && !/D1_ERROR|HTTP 5/.test(t), t.slice(0, 200));
   await o.fermer();
   // 4. PC éteint : bandeau honnête
   o = await ouvrirMobile('telephone', { scenario: { agent: 'pc-eteint' }, attente: 3500 }); p = o.page;
-  await ev(p, () => MobileCoque.aller('agent')); await attendre(1000);
+  await ev(p, () => { MobileCoque.aller('agent'); if (window.MobileAgent && MobileAgent.details) MobileAgent.details(true); }); await attendre(1000);
   v('PC éteint : dernières données du PC avec leur heure', /PC éteint/.test(await texte(p, '#m-agent')) && (await ev(p, () => document.querySelectorAll('#m-agent .m-pos').length)) === 3);
   await o.fermer();
   // 5. rien de publié
   o = await ouvrirMobile('telephone', { scenario: { agent: 'vide' }, attente: 3500 }); p = o.page;
-  await ev(p, () => MobileCoque.aller('agent')); await attendre(1000);
+  await ev(p, () => { MobileCoque.aller('agent'); if (window.MobileAgent && MobileAgent.details) MobileAgent.details(true); }); await attendre(1000);
   v('rien publié par le PC : phrase explicite', /pas encore publié/.test(await texte(p, '#m-agent')));
   await o.fermer();
   // 6. Worker verrouillé : la coque le dit au lieu de charger sans fin
   o = await ouvrirMobile('telephone', { deverrouille: false, attente: 3500 }); p = o.page;
-  await ev(p, () => MobileCoque.aller('agent')); await attendre(1000);
+  await ev(p, () => { MobileCoque.aller('agent'); if (window.MobileAgent && MobileAgent.details) MobileAgent.details(true); }); await attendre(1000);
   t = await texte(p, '#m-agent');
   v('Raylé verrouillée : message clair sur l’agent, la voyant « verrouillée »', /verrouillée/.test(t) && /VERROUILLÉE/.test(await texte(p, '#m-puce-lien')), t.slice(0, 160));
   await ev(p, () => MobileCoque.aller('actus')); await attendre(1000);
@@ -214,7 +214,7 @@ const onglet = async (p, id, ms = 700) => { await ev(p, i => MobileAgent.aller(i
 {
   console.log('\n══ tablette ══');
   const o = await ouvrirMobile('tablette', { attente: 3800 }), p = o.page;
-  await ev(p, () => MobileCoque.aller('agent')); await attendre(3000);
+  await ev(p, () => { MobileCoque.aller('agent'); if (window.MobileAgent && MobileAgent.details) MobileAgent.details(true); }); await attendre(3000);
   const ids = await ev(p, () => MobileAgent.onglets());
   v('tablette (portrait) : le graphique est toujours présent, plus d’onglet « Graphique » séparé', !ids.includes('graphique') && (await visible(p, '#m-agent .m-graphe-chart')), ids.join());
   v('tablette : le graphique affiche des bougies', (await ev(p, () => document.querySelectorAll('#m-agent .m-graphe-chart canvas').length)) >= 2);
@@ -222,7 +222,7 @@ const onglet = async (p, id, ms = 700) => { await ev(p, i => MobileAgent.aller(i
   await p.screenshot({ path: 'docs/captures-v8/agent-tablette-portrait.png' });
   await o.fermer();
   const o2 = await ouvrirMobile('tablette', { paysage: true, attente: 3800 }), p2 = o2.page;
-  await ev(p2, () => MobileCoque.aller('agent')); await attendre(3000);
+  await ev(p2, () => { MobileCoque.aller('agent'); if (window.MobileAgent && MobileAgent.details) MobileAgent.details(true); }); await attendre(3000);
   const mise = await ev(p2, () => { const g = document.querySelector('#m-agent [data-graphe-panneau]').getBoundingClientRect(), c = document.querySelector('#m-agent [data-corps]').getBoundingClientRect(); return { gx: g.x, gw: g.width, cx: c.x, cw: c.width, iw: innerWidth, sw: document.documentElement.scrollWidth }; });
   v('tablette paysage : graphique à gauche, positions et performance à droite', mise.cx > mise.gx + mise.gw - 4 && mise.gw > 300 && mise.cw > 300 && mise.sw <= mise.iw + 1, JSON.stringify(mise));
   await p2.screenshot({ path: 'docs/captures-v8/agent-tablette-paysage.png' });

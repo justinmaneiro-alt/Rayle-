@@ -14,15 +14,30 @@
   if(!ONGLETS.some(o=>o.id===S.onglet)) S.onglet='positions';
 
   /* ───── squelette de l'écran ───── */
+  /* V13 : la vue principale est la fenêtre Agent lisible (composant partagé avec le PC) ; tout le reste (onglets d'avant) est derrière le bouton « Détails ». */
+  function monterLisible(zone){
+    const AL=window.AgentLisible; if(!AL){ zone.innerHTML='<p class="m-vide">Affichage indisponible.</p>'; return null; }
+    const lecture=async()=>{
+      const e=DA.etat(); if(e.bandeau&&e.bandeau.genre==='erreur'&&!e.data) return null; const d=e.data; if(!d) return {vue:null,service:null,origine:null,recuLe:null};
+      return {vue:d.paquet&&d.paquet.trader||null,service:{enMarche:!!d.pcVivant,arretDepuis:d.pcVivant?null:(d.pcVivantLe?Date.now()-d.pcVivantLe:null)},origine:d.origine,recuLe:d.recuLe};
+    };
+    const bougies=async actif=>{ const b=await window.MobileMarche.bougies(actif,'M15',500); return b.slice(0,-1).map(x=>({time:Math.floor(x[0]/1000),open:x[1],high:x[2],low:x[3],close:x[4]})); };
+    return AL.monter(zone,{mobile:true,lire:lecture,chargerBougies:window.MobileMarche?bougies:null,bibliotheque:window.MobileGraphique.bibliotheque,intervalle:20000,surDetails:()=>vueDetails(true)});
+  }
+  function vueDetails(oui){ if(!S.racine) return; S.vue=oui?'details':'agent'; const r=S.racine.parentNode; r.querySelector('[data-m-lisible]').hidden=oui; S.racine.hidden=!oui; if(oui) dessiner(); else if(S.lisible) S.lisible.rafraichir(); }
   function monter(el){
+    const lis=document.createElement('div'); lis.dataset.mLisible=''; lis.className='m-agent-lisible'; const det=document.createElement('div'); det.dataset.mDetails=''; det.className='m-agent-det'; det.hidden=true; el.textContent=''; el.append(lis,det);   // efface le squelette de la coque
+    S.lisible=monterLisible(lis); S.vue='agent'; monterDetails(det);
+  }
+  function monterDetails(el){
     S.racine=el;
-    el.innerHTML='<div class="m-titre"><h1>Agents trading</h1><small data-maj></small></div><p class="m-garde">Propositions et simulations seulement : aucun ordre n’est passé, aucun gain n’est garanti.</p><div data-lien></div>'
+    el.innerHTML='<div class="m-titre"><button type="button" class="m-bouton" data-retour-agent>← Agent</button><h1>Détails</h1><small data-maj></small></div><p class="m-garde">Propositions et simulations seulement : aucun ordre n’est passé, aucun gain n’est garanti.</p><div data-lien></div>'
       +'<div class="m-onglets" role="tablist" aria-label="Sections de l’agent">'+ONGLETS.map(o=>'<button type="button" role="tab" class="m-chip" data-o="'+o.id+'" aria-selected="'+(o.id===S.onglet?'true':'false')+'">'+esc(o.nom)+'</button>').join('')+'</div>'
       +'<div class="m-agent-grille"><div class="m-agent-g" data-graphe-panneau'+(tablette?'':' hidden')+'><div class="m-graphe-hote" data-hote></div></div><div class="m-agent-c" data-corps></div></div>';
     S.corps=el.querySelector('[data-corps]');
     el.querySelector('.m-onglets').addEventListener('click',ev=>{ const b=ev.target.closest('[data-o]'); if(b){ Coque.vibrer(6); aller(b.dataset.o); } });
-    el.addEventListener('click',clics);
-    DA.observer(e=>{ S.data=e.data; S.meta=e.meta; S.bandeau=e.bandeau; entete(); if(S.data) dessiner(); else vide(); });
+    el.addEventListener('click',ev=>{ if(ev.target.closest('[data-retour-agent]')){ vueDetails(false); return; } clics(ev); });
+    DA.observer(e=>{ S.data=e.data; S.meta=e.meta; S.bandeau=e.bandeau; if(S.lisible) S.lisible.rafraichir(); entete(); if(S.vue==='details'){ if(S.data) dessiner(); else vide(); } });
     if(tablette) graphe();
   }
   function aller(id){ S.onglet=id; ecrire('rayle_m_agent_onglet',id); S.racine.querySelectorAll('.m-onglets [data-o]').forEach(b=>b.setAttribute('aria-selected',b.dataset.o===id?'true':'false')); const b=S.racine.querySelector('.m-onglets [data-o="'+id+'"]'); if(b&&b.scrollIntoView) b.scrollIntoView({inline:'center',block:'nearest',behavior:'smooth'}); dessiner(); }
@@ -44,12 +59,12 @@
   /* ───── dispatcher ───── */
   function dessiner(){
     if(!S.corps||!S.data) return; const P=S.data.paquet, id=S.onglet, f=VUES[id]; if(!f) return;
-    const haut=S.corps.parentNode.scrollTop; const avant=S.racine.scrollTop;
+    const haut=S.corps.parentNode.scrollTop; const defil=S.racine.parentNode, avant=defil.scrollTop;
     const gh=S.racine.querySelector('[data-hote]');
     if(id==='graphique'&&!tablette){ S.corps.innerHTML='<div data-hote-tel></div>'; const t=S.corps.querySelector('[data-hote-tel]'); t.appendChild(gh); S.racine.querySelector('[data-graphe-panneau]').hidden=true; gh.hidden=false; graphe(); }
     else { if(!tablette){ const pan=S.racine.querySelector('[data-graphe-panneau]'); if(gh.parentNode!==pan) pan.appendChild(gh); pan.hidden=true; } S.corps.innerHTML=f(P,S.data); }
     if(tablette) { S.racine.querySelector('[data-graphe-panneau]').hidden=false; graphe(); }
-    S.racine.scrollTop=avant; S.racine.dataset.onglet=id;
+    defil.scrollTop=avant; S.racine.dataset.onglet=id;
     const apres=APRES[id]; if(apres) apres(S.corps,P,S.data);
   }
 
@@ -256,5 +271,5 @@
   }
 
   Coque.enregistrer('agent',{monter,montrer(){ DA.rafraichir&&S.data&&Date.now()-S.data.t>60e3&&DA.rafraichir(); if(S.graphe) S.graphe.redessiner(); },cacher(){}});
-  window.MobileAgent={etat:()=>S,aller:id=>{ Coque.aller('agent'); if(S.racine) aller(id); else S.onglet=id; },voir:graphe,onglets:()=>ONGLETS.map(o=>o.id)};
+  window.MobileAgent={etat:()=>S,lisible:()=>S.lisible,details:vueDetails,aller:id=>{ Coque.aller('agent'); if(S.racine){ vueDetails(true); aller(id); } else S.onglet=id; },voir:graphe,onglets:()=>ONGLETS.map(o=>o.id)};
 })();

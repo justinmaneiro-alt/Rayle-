@@ -1,7 +1,9 @@
 import { chargerBibliotheque } from './graphique.js';
 import '../../../../core/commun/trader-vue.js';
+import '../../../../core/commun/agent-lisible-calcul.js';
+import '../../../../core/commun/agent-lisible.js';
 import { htmlAccueil, htmlIndisponible, esc } from '../agent-v3/vue-accueil.js';
-import { courbeSimulee, courbeBacktest, positionsGraphique, positionsDemo, COULEURS_POSITION, libellePosition } from '../agent-v3/courbes-v3.js';
+import { courbeSimulee, courbeBacktest, positionsGraphique, COULEURS_POSITION, libellePosition } from '../agent-v3/courbes-v3.js';
 import { versionActive, strategiesActives } from '../../../../strategies/agent-etat.js';
 import { PAIRES } from '../agent-m6/paires.js';
 
@@ -48,7 +50,7 @@ async function bougies(paire, n = 500) {
 
 export function creerAccueilAgent({ conteneur, intervalle = 15000, lire = lireEtatAgent, commande = envoyerCommande, chargerBougies = bougies }) {
   const racine = document.createElement('div'); racine.className = 'av3'; conteneur.appendChild(racine);
-  const S = { donnees: null, paire: lireLocal('rayle_agent_paire') || 'BTC', strategie: '', version: '', demo: lireLocal('rayle_agent_demo') === '1', graphique: null, courbes: [], trader: null, detruit: false, dernierHtml: '', chart: null, serie: null, lignes: [], marqueurs: null, derniereBougies: [] };
+  const S = { donnees: null, paire: lireLocal('rayle_agent_paire') || 'BTC', strategie: '', version: '', graphique: null, courbes: [], trader: null, detruit: false, dernierHtml: '', chart: null, serie: null, lignes: [], marqueurs: null, derniereBougies: [] };
   let minuteur = null, enCours = false;
 
   function message(t) { let m = racine.querySelector('[data-av3-msg]'); if (!m) { m = document.createElement('div'); m.dataset.av3Msg = ''; m.setAttribute('role', 'status'); m.className = 'av3-msg'; racine.prepend(m); } m.textContent = t || ''; m.hidden = !t; if (t) setTimeout(() => { if (m.textContent === t) { m.textContent = ''; m.hidden = true; } }, 5000); }
@@ -95,13 +97,11 @@ export function creerAccueilAgent({ conteneur, intervalle = 15000, lire = lireEt
     const b = document.createElement('div'); b.className = 'av3-gbarre';
     b.innerHTML = '<span class="av3-paires" role="group" aria-label="Paire du graphique">' + ['BTC', 'SOL', 'DOGE'].map(p => '<button type="button" data-av3-paire="' + p + '" class="' + (p === S.paire ? 'actif' : '') + '">' + p + '</button>').join('') + '</span>'
       + '<label>Stratégie <select data-av3-strat><option value="">toutes</option>' + actives.map(s => '<option value="' + esc(s.id) + '"' + (S.strategie === s.id ? ' selected' : '') + '>' + esc(s.nom + ' · ' + s.paire) + '</option>').join('') + '</select></label>'
-      + '<label>Version <select data-av3-version><option value="">toutes</option>' + versions.map(n => '<option value="' + n + '"' + (String(S.version) === String(n) ? ' selected' : '') + '>v' + n + '</option>').join('') + '</select></label>'
-      + '<label class="av3-case"><input type="checkbox" data-av3-demo' + (S.demo ? ' checked' : '') + '> positions de démonstration (DÉMO)</label>';
+      + '<label>Version <select data-av3-version><option value="">toutes</option>' + versions.map(n => '<option value="' + n + '"' + (String(S.version) === String(n) ? ' selected' : '') + '>v' + n + '</option>').join('') + '</select></label>';
     boite.parentNode.insertBefore(b, boite);
     b.querySelectorAll('[data-av3-paire]').forEach(x => x.addEventListener('click', () => { S.paire = x.dataset.av3Paire; ecrireLocal('rayle_agent_paire', S.paire); S.dernierHtml = ''; rafraichir(); }));
     b.querySelector('[data-av3-strat]').addEventListener('change', ev => { S.strategie = ev.target.value; const s = e.strategies[S.strategie]; if (s && s.paire !== S.paire) { S.paire = s.paire; } S.dernierHtml = ''; rafraichir(); });
     b.querySelector('[data-av3-version]').addEventListener('change', ev => { S.version = ev.target.value; S.dernierHtml = ''; rafraichir(); });
-    b.querySelector('[data-av3-demo]').addEventListener('change', ev => { S.demo = ev.target.checked; ecrireLocal('rayle_agent_demo', S.demo ? '1' : '0'); S.dernierHtml = ''; rafraichir(); });
   }
   async function dessiner(leger = false) {
     const boite = racine.querySelector('[data-av3-graph]'); if (!boite) return;
@@ -119,7 +119,6 @@ export function creerAccueilAgent({ conteneur, intervalle = 15000, lire = lireEt
         creerCourbes();
       } else if (!leger) { S.derniereBougies = await chargerBougies(S.paire); S.serie.setData(S.derniereBougies); }
       if (S.trader && S.trader.vue && window.TraderVue) pos = pos.concat(window.TraderVue.positionsGraphique(S.trader.vue, S.paire));
-      if (S.demo && S.derniereBougies.length) { const d = S.derniereBougies[S.derniereBougies.length - 1]; pos = pos.concat(positionsDemo(d.close, d.time * 1000)); }
       afficherPositions(pos);
     } catch (err) { boite.innerHTML = '<p class="av3-vide">Graphique indisponible : ' + esc(String(err && err.message || err)) + '. Les chiffres ci-dessus restent valables.</p>'; }
   }
@@ -140,7 +139,7 @@ export function creerAccueilAgent({ conteneur, intervalle = 15000, lire = lireEt
     mk.sort((a, b) => a.time - b.time); S.marqueurs.setMarkers(mk);
     let liste = racine.querySelector('[data-av3-liste]'); if (!liste) { liste = document.createElement('div'); liste.dataset.av3Liste = ''; liste.className = 'av3-liste'; racine.querySelector('[data-av3-graph]').after(liste); }
     const recentes = pos.slice(-8).reverse();
-    liste.innerHTML = recentes.length ? '<ul>' + recentes.map(p => '<li class="' + (p.demo ? 'av3-demo' : '') + '"><b>' + esc(libellePosition(p)) + '</b> <span>' + esc(p.nom) + '</span>' + (p.entree != null ? '<small>entrée ' + p.entree.toFixed(p.entree < 10 ? 4 : 1).replace('.', ',') + ' · stop ' + p.stop.toFixed(p.stop < 10 ? 4 : 1).replace('.', ',') + (p.sortie != null ? ' · sortie ' + p.sortie.toFixed(p.sortie < 10 ? 4 : 1).replace('.', ',') + ' (' + (p.R >= 0 ? '+' : '−') + Math.abs(p.R).toFixed(1).replace('.', ',') + ' R)' : '') + '</small>' : '') + (p.tailles ? '<small>taille pour risquer 1 % : ' + p.tailles.quantite.toFixed(p.tailles.quantite < 10 ? 4 : 2).replace('.', ',') + ' unités (' + Math.round(p.tailles.valeur) + ' $)</small>' : '') + (p.raison && p.raison.length ? '<small>' + esc(p.raison.join(' ')) + '</small>' : '') + '</li>').join('') + '</ul>' : '<p class="av3-vide">Aucune position pour l’instant : l’agent attend un setup (une semaine sans setup vaut 0 R). Coche « positions de démonstration » pour voir à quoi ça ressemble.</p>';
+    liste.innerHTML = recentes.length ? '<ul>' + recentes.map(p => '<li class="' + (p.demo ? 'av3-demo' : '') + '"><b>' + esc(libellePosition(p)) + '</b> <span>' + esc(p.nom) + '</span>' + (p.entree != null ? '<small>entrée ' + p.entree.toFixed(p.entree < 10 ? 4 : 1).replace('.', ',') + ' · stop ' + p.stop.toFixed(p.stop < 10 ? 4 : 1).replace('.', ',') + (p.sortie != null ? ' · sortie ' + p.sortie.toFixed(p.sortie < 10 ? 4 : 1).replace('.', ',') + ' (' + (p.R >= 0 ? '+' : '−') + Math.abs(p.R).toFixed(1).replace('.', ',') + ' R)' : '') + '</small>' : '') + (p.tailles ? '<small>taille pour risquer 1 % : ' + p.tailles.quantite.toFixed(p.tailles.quantite < 10 ? 4 : 2).replace('.', ',') + ' unités (' + Math.round(p.tailles.valeur) + ' $)</small>' : '') + (p.raison && p.raison.length ? '<small>' + esc(p.raison.join(' ')) + '</small>' : '') + '</li>').join('') + '</ul>' : '<p class="av3-vide">Aucune position pour l’instant : l’agent attend un setup (une semaine sans setup vaut 0 R).</p>';
   }
   /* ── deux courbes de capital, séparées ── */
   function creerCourbes() {
@@ -168,3 +167,11 @@ export function creerAccueilAgent({ conteneur, intervalle = 15000, lire = lireEt
   return { rafraichir, detruire() { S.detruit = true; clearTimeout(minuteur); try { if (S.chart) S.chart.remove(); S.courbes.forEach(c => c.remove()); } catch (e) { /* déjà détruit */ } racine.remove(); }, racine, etat: () => S };
 }
 export { versionActive };
+
+/* ═════════════ V13 : LA VUE « AGENT » LISIBLE (PC) ═════════════
+   La vue principale de la fenêtre Agent est maintenant le composant partagé core/commun/agent-lisible.js (barre d'état, quatre chiffres, graphique, courbe, liste). Cette page-ci (creerAccueilAgent) est
+   l'ancien écran complet, rangé derrière « Détails › Rapport et stratégies » : rien n'est supprimé. Les données viennent de lireTrader() (PC d'abord, sinon la copie du Worker). */
+export function creerAgentLisible({ conteneur, surDetails, surCouche, lire = lireTrader, chargerBougies = bougies, intervalle = 15000 }) {
+  return window.AgentLisible.monter(conteneur, { lire: async () => { const t = await lire(); if (!t) return null; const sv = t.service || null; return { vue: t.vue, service: sv ? { enMarche: sv.enMarche, arretDepuis: sv.arretDepuis ? Date.now() - sv.arretDepuis : null } : (t.origine === 'Worker' ? { enMarche: !!(t.pcVivantLe && Date.now() - t.pcVivantLe < 4 * 60e3), arretDepuis: t.pcVivantLe ? Date.now() - t.pcVivantLe : null } : null), origine: t.origine, recuLe: t.recuLe || null }; },
+    bibliotheque: chargerBibliotheque, chargerBougies: async actif => chargerBougies(actif, 500), surDetails, surCouche, intervalle });
+}

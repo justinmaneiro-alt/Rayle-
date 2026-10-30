@@ -33,16 +33,16 @@ async function ouvrir({ largeur, hauteur, tactile = false }) {
   await page.setRequestInterception(true); page.on('request', r => { if (/data-api\.binance\.vision/.test(r.url())) r.respond({ status: 200, contentType: 'application/json', headers: { 'Access-Control-Allow-Origin': '*' }, body: '[]' }); else r.continue(); });
   await page.evaluateOnNewDocument(() => { localStorage.setItem('rayle_entite_version', '2'); localStorage.setItem('rayle_boot', '0'); });
   await page.goto(BASE + '/index.html', { waitUntil: 'load' }); await attendre(1200);
-  await page.evaluate(async () => { await import('/planetes/mars/pc/trading/fenetre-agent.js'); await window.PosteAgent.ouvrir({ vue: 'agent' }); }); await page.waitForSelector('.av3-vues', { timeout: 20000 }); await attendre(800);
+  await page.evaluate(async () => { await import('/planetes/mars/pc/trading/fenetre-agent.js'); await window.PosteAgent.ouvrir({ vue: 'rapport' }); }); await page.waitForSelector('.av3-vues', { timeout: 20000 }); await attendre(800);
   return { nav, page, erreurs };
 }
 let { nav, page, erreurs } = await ouvrir({ largeur: 1500, hauteur: 950 });
 const ev = (f, ...a) => page.evaluate(f, ...a), txt = s => ev(sel => (document.querySelector(sel) || {}).innerText || '', s), onglet = async k => { await ev(k2 => document.querySelector('[data-av3-vue="' + k2 + '"]').click(), k); await attendre(1800); };
-T.verifier('la barre de la fenêtre Agent a les 4 nouveaux onglets', await ev(() => ['liquidite', 'equipe', 'occasions', 'donnees'].every(k => !!document.querySelector('[data-av3-vue="' + k + '"]'))) && /Occasions manquées/.test(await txt('.av3-vues')));
+T.verifier('la barre de la fenêtre Agent a les 4 nouveaux onglets', await ev(() => ['liquidite', 'equipe', 'occasions', 'donnees'].every(k => !!document.querySelector('[data-av3-vue="' + k + '"]'))) && /Occasions manquées/.test(await ev(() => document.querySelector('.av3-vues').textContent)));
 await onglet('liquidite');
 T.verifier('Liquidité : lien « Ouvrir la carte de liquidité », preuve (jours de carnet) et « hypothèse, jamais une promesse »', /Ouvrir la carte de liquidité/.test(await txt('.av4')) && /3,0 jour/.test(await txt('.av4')) && /jamais une promesse/.test(await txt('.av4')) && /Historique des trades : des années/.test(await txt('.av4')), (await txt('.av4')).slice(0, 200));
 await ev(() => document.querySelector('[data-av4-carte="BTC"]').click()); await attendre(2500); T.verifier('le bouton ouvre la carte de liquidité', await ev(() => !!document.querySelector('.pn.lq-fenetre'))); await ev(() => window.CarteLiquidite && window.CarteLiquidite.fermer()); await attendre(400);
-if (!(await ev(() => !!document.querySelector('.av3-vues')))) { await ev(async () => { await window.PosteAgent.ouvrir({ vue: 'agent' }); }); await page.waitForSelector('.av3-vues', { timeout: 20000 }); await attendre(600); }   // le système de fenêtres ferme les autres grandes fenêtres : on rouvre l'Agent
+if (!(await ev(() => !!document.querySelector('.av3-vues')))) { await ev(async () => { await window.PosteAgent.ouvrir({ vue: 'rapport' }); }); await page.waitForSelector('.av3-vues', { timeout: 20000 }); await attendre(600); }   // le système de fenêtres ferme les autres grandes fenêtres : on rouvre l'Agent
 await onglet('equipe');
 T.verifier('Équipe : trois rôles (Kepler, Chercheur, Auditeur) avec leur rôle', await ev(() => document.querySelectorAll('.av4-role-carte').length === 3) && /Exécutant/.test(await txt('.av4')) && /n’a pas le droit de valider/.test(await txt('.av4')) && /Essaie de casser/.test(await txt('.av4')));
 T.verifier('Équipe : dernier rapport de chacun en trois lignes (dont celui de l’Auditeur rejetant)', await ev(() => [...document.querySelectorAll('.av4-role-carte')].every(c => c.querySelectorAll('li').length >= 1)) && /L’Auditeur la rejette/.test(await txt('.av4')));
