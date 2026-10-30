@@ -45,7 +45,10 @@ function creerSurWorker(o) {
           async detecter(source, ts) {
             if (occupe) return null;   // la précédente n'est pas revenue : cette image est sautée
             occupe = true; let bmp;
-            try { bmp = await createImageBitmap(source, o.taille ? { resizeWidth: o.taille.l, resizeHeight: o.taille.h, resizeQuality: 'low' } : undefined); } catch (e) { occupe = false; return null; }
+            try {
+              const vw = source.videoWidth || source.width || 0, vh = source.videoHeight || source.height || 0;   // on garde le rapport largeur / hauteur de la caméra : une image étirée fausserait les distances (pincement)
+              bmp = await createImageBitmap(source, o.taille && vw && vh && vw > o.taille.l ? { resizeWidth: o.taille.l, resizeHeight: Math.max(1, Math.round(o.taille.l * vh / vw)), resizeQuality: 'low' } : undefined);
+            } catch (e) { occupe = false; return null; }
             const mon = ++id, t0 = performance.now();
             return new Promise(res => { attente = { id: mon, res, t0 }; w.postMessage({ k: 'img', id: mon, bmp, ts }, [bmp]); });
           },

@@ -104,12 +104,13 @@ async function ouvrirDirect() {
   fermerDirect(); D.echec = ''; D.sigApres = 0; D.debut = Date.now(); const essai = ++D.essai;
   const p = D.pc = new RTCPeerConnection({ iceServers: ICE }), c = D.canal = p.createDataChannel('points', { ordered: false, maxRetransmits: 0 });
   D.ctrl = p.createDataChannel('ctrl', { ordered: true });   // V10 : canal FIABLE pour les réglages et la négociation du mode « calcul sur le PC » (les points, eux, restent non fiables)
-  D.ctrl.onmessage = ev => { let m; try { m = JSON.parse(ev.data); } catch (e) { return; } if (m && m.t === 'cfg') appliquerCfg(m); else if (m && m.t === 'sdp') traiterSdp(m); };
+
   c.onopen = () => { if (D.canal !== c) return; D.ouvert = true; D.echec = ''; W.sortie.length = 0; voyants(); };   // les trames en attente pour le Worker sont périmées : on repart sur le direct
   c.onclose = () => { if (D.canal !== c) return; D.ouvert = false; D.apercu = false; voyants(); if (!W.fin && W.cle && essai === D.essai) setTimeout(() => { if (!D.ouvert && !W.fin && W.cle && essai === D.essai) ouvrirDirect(); }, 2000); };
-  c.onmessage = ev => {
+  /* Les deux canaux (points non fiable, contrôle fiable) sont traités pareil : un PC plus ancien, qui ne connaît pas le canal de contrôle, peut envoyer ses messages sur l'un ou sur l'autre. */
+  const gerer = (src, ev) => {
     let m; try { m = JSON.parse(ev.data); } catch (e) { return; } if (!m || typeof m !== 'object') return;
-    if (m.t === 'ping') { try { c.send(JSON.stringify({ t: 'pong', n: m.n, h: Date.now() })); } catch (e) { /* canal fermé */ } }   // h : l'heure de ce téléphone, pour que le PC mesure le vrai délai
+    if (m.t === 'ping') { try { src.send(JSON.stringify({ t: 'pong', n: m.n, h: Date.now() })); } catch (e) { /* canal fermé */ } }   // h : l'heure de ce téléphone, pour que le PC mesure le vrai délai
     else if (m.t === 'cfg') appliquerCfg(m);
     else if (m.t === 'sdp') traiterSdp(m);
     else if (m.t === 'apercu') D.apercu = !!m.actif;
@@ -118,6 +119,7 @@ async function ouvrirDirect() {
     else if (m.t === 'stats') { K.stats = { delai: Number.isFinite(m.delai) ? m.delai : null, perte: Number.isFinite(m.perte) ? m.perte : 0, debit: Number.isFinite(m.debit) ? m.debit : 0, conseil: typeof m.conseil === 'string' ? m.conseil.slice(0, 160) : '', recu: Date.now() }; const z = $('t-conseil'); if (z) z.textContent = K.stats.conseil; }
     else if (m.t === 'fin') finSession('Le PC a coupé la liaison. Pour reprendre, scanne un nouveau QR code.', 'sable');
   };
+  c.onmessage = ev => gerer(c, ev); D.ctrl.onmessage = ev => gerer(D.ctrl, ev);
   p.onicecandidate = ev => { if (ev.candidate && D.pc === p) signal('/camera/signal', { m: { k: 'ice', c: { candidate: ev.candidate.candidate, sdpMLineIndex: ev.candidate.sdpMLineIndex, sdpMid: ev.candidate.sdpMid } } }).catch(() => {}); };
   p.onconnectionstatechange = () => { if (D.pc === p && p.connectionState === 'failed') { D.echec = 'liaison directe impossible'; voyants(); } };
   try {
