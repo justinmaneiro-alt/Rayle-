@@ -24,7 +24,17 @@ const GestesV5Actions = (() => {
   /* V10 : l'anneau est dessiné à CHAQUE image de l'écran (60 à 144 Hz), même si les points n'arrivent qu'à 30 Hz : FluiditeCalcul.creerRendu interpole entre les dernières mesures et prédit
      quelques millisecondes (jamais plus de 45) pour compenser le délai ; l'arrivée d'une mesure corrige en douceur, le curseur ne « saute » pas. Les événements (clics, prises) gardent les
      positions exactes du moteur : seule l'image de l'anneau est lissée. Sans FluiditeCalcul (page ancienne), l'anneau est posé à chaque mesure comme avant. */
-  let rendu = null, rafRendu = 0, tImageRendu = 0, ecouteImage = null, posAff = null, tTrace = 0;
+  let rendu = null, rafRendu = 0, tImageRendu = 0, ecouteImage = null, posAff = null, tTrace = 0, decalHorloge = null, tMesure = null, tPrecMes = null, dtMes = 0;
+  /* Heure de la MESURE (celle du moteur, espacement exact de la caméra) ramenée à l'horloge de l'écran : la vitesse se calcule sur l'espacement réel des mesures, jamais sur l'heure d'arrivée
+     (deux paquets qui arrivent collés par la gigue ne donnent pas une vitesse infinie). Le décalage est le plus petit « maintenant − mesure » vu (le paquet le moins retardé), recalé lentement. */
+  function noterMesure(tm) {
+    if (!Number.isFinite(tm)) { tMesure = null; return; }
+    const d = performance.now() - tm;
+    decalHorloge = decalHorloge === null || Math.abs(d - decalHorloge) > 5000 ? d : Math.min(d, decalHorloge + 0.02);
+    tMesure = tm + decalHorloge;
+    if (tPrecMes != null && tm > tPrecMes && tm - tPrecMes < 500) { dtMes = dtMes ? dtMes * 0.9 + (tm - tPrecMes) * 0.1 : tm - tPrecMes; if (rendu) { const f = Math.max(0, Math.min(1, (1000 / dtMes - 12) / 18)); rendu.regler({ predictionMax: 45 * f, avance: 8 * f }); } }   // sous 12 images/s la prédiction s’éteint (elle dépasserait la cible), pleine à partir de 30
+    tPrecMes = tm;
+  }
   function poserTransform(x, y, t) {
     if (posAff && Math.abs(posAff[0] - x) < 0.04 && Math.abs(posAff[1] - y) < 0.04) return; posAff = [x, y];
     el.style.transform = 'translate(' + x.toFixed(1) + 'px,' + y.toFixed(1) + 'px)';
@@ -44,7 +54,7 @@ const GestesV5Actions = (() => {
     creer(); el.hidden = false;
     const FC = window.FluiditeCalcul;
     if (FC && !rendu) { rendu = FC.creerRendu({ tampon: P.tamponMs }); }
-    if (rendu) { rendu.echantillon(performance.now(), x, y); if (!rafRendu) { tImageRendu = 0; rafRendu = requestAnimationFrame(boucleRendu); } }
+    if (rendu) { rendu.echantillon(tMesure != null ? Math.min(tMesure, performance.now()) : performance.now(), x, y); if (!rafRendu) { tImageRendu = 0; rafRendu = requestAnimationFrame(boucleRendu); } }
     else poserTransform(x, y, performance.now());
     clearTimeout(tCache);
   }
@@ -141,6 +151,7 @@ const GestesV5Actions = (() => {
 
   function appliquer(sortie) {
     const t = T(); if (!t || !sortie) return;
+    noterMesure(sortie.t);
     creer(); document.body.classList.add('gv5-actif');
     for (const a of sortie.actions) {
       if (inertie && a.a !== 'curseur' && a.a !== 'deplace') inertieStop(true);

@@ -222,7 +222,7 @@
       sortie.frames.push({ tp: f.tp, tt: f.t, seq: f.seq, dt: f.dt || 0, n: f.mains.length, conf: f.conf, lat: f.lat, mot: 0, aff: 0, ref, cur: cur ? [cur.x, cur.y] : (s.etat && s.etat.curseur ? [s.etat.curseur.x, s.etat.curseur.y] : null), pose: s.etat && s.etat.pose, mains: f.mains });
       if (cur) sortie.affiche.push([f.tp, cur.x, cur.y]);
     }
-    if (rendu) sortie.affiche = simulerRendu(sortie.frames.filter(f => f.cur).map(f => ({ ta: f.tp, t: f.tp, x: f.cur[0], y: f.cur[1] })), rendu).positions;
+    if (rendu) sortie.affiche = simulerRendu(sortie.frames.filter(f => f.cur).map(f => ({ ta: f.tp, t: f.tt != null ? f.tt : f.tp, x: f.cur[0], y: f.cur[1] })), rendu).positions;
     return sortie;
   }
   function refEcran(main, o, ecran) {
@@ -261,9 +261,12 @@
   /* Simule l'écran : `hz` images/s, positions d'entrée { ta (arrivée), t (mesure), x, y }. Renvoie la position affichée à chaque image, le plus grand saut et les statistiques de retard. */
   function simulerRendu(entrees, { hz = 120, naif = false, predictionMax, tau, tampon, avance } = {}) {
     if (!entrees.length) return { positions: [], sautMax: 0, sautP99: 0 };
-    const r = creerRendu({ predictionMax, tau, tampon, avance }), pas = 1000 / hz, t0 = entrees[0].ta, t1 = entrees[entrees.length - 1].ta + 100, positions = []; let k = 0, derniere = null, sauts = [];
+    const decal = Math.min(...entrees.map(e => e.ta - (e.t != null ? e.t : e.ta)));
+    const dts = []; for (let i = 1; i < entrees.length; i++) { const d = (entrees[i].t != null ? entrees[i].t - entrees[i - 1].t : entrees[i].ta - entrees[i - 1].ta); if (d > 0 && d < 500) dts.push(d); }
+    const dtm = dts.length ? mediane(dts) : 16, fCad = Math.max(0, Math.min(1, (1000 / dtm - 12) / 18));   // comme la page : la prédiction s'éteint sous 20 images/s   // comme la page : l'heure de mesure est ramenée à l'horloge de l'écran par le paquet le moins retardé
+    const r = creerRendu({ predictionMax: (predictionMax != null ? predictionMax : 45) * (naif ? 1 : fCad), tau, tampon, avance: (avance != null ? avance : 8) * (naif ? 1 : fCad) }), pas = 1000 / hz, t0 = entrees[0].ta, t1 = entrees[entrees.length - 1].ta + 100, positions = []; let k = 0, derniere = null, sauts = [];
     for (let t = t0; t <= t1; t += pas) {
-      while (k < entrees.length && entrees[k].ta <= t) { r.echantillon(entrees[k].ta, entrees[k].x, entrees[k].y); derniere = entrees[k]; k++; }
+      while (k < entrees.length && entrees[k].ta <= t) { r.echantillon(Math.min(entrees[k].ta, (entrees[k].t != null ? entrees[k].t : entrees[k].ta) + decal), entrees[k].x, entrees[k].y); derniere = entrees[k]; k++; }
       if (!derniere) continue;
       const p = naif ? { x: derniere.x, y: derniere.y } : r.position(t); if (!p) continue;
       if (positions.length) sauts.push(Math.hypot(p.x - positions[positions.length - 1][1], p.y - positions[positions.length - 1][2]));

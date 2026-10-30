@@ -189,7 +189,8 @@ v('retard du curseur à 800 px/s (lissage par défaut, prédiction comprise) : m
 v('retard à 300 px/s : moins de 55 ms ; à 1600 px/s : pas de dépassement de plus de 25 ms', retardMs(300) < 55 && retardMs(1600) > -25, retardMs(300).toFixed(1) + ' / ' + retardMs(1600).toFixed(1));
 const agitation = (bruit, opt = {}) => { const m = V.creerMoteur({ ...OPT, exigerEngagement: false, ...opt }), al = H.alea(7), xs = []; for (let i = 0; i < 180; i++) { const s = m.traiter({ t: i * 1000 / 60, ratio: 4 / 3, mains: [H.creerMain({ pose: 'pointer', cx: 0.5, cy: 0.7, bruit, alea: al })] }); const c = s.actions.filter(a => a.a === 'curseur').at(-1); if (c && i > 60) xs.push(c.x); } return Math.max(...xs) - Math.min(...xs); };
 v('tremblement de la main (σ 0,15 %) : le curseur bouge de moins de 6 px ; σ 0,3 % : moins de 10 px', agitation(0.0015) < 6 && agitation(0.003) < 10, agitation(0.0015).toFixed(1) + ' / ' + agitation(0.003).toFixed(1));
-v('plus de lissage = moins de tremblement', agitation(0.003, { lissage: 0.9 }) < agitation(0.003, { lissage: 0.1 }));
+v('plus de lissage = moins de tremblement (sans la zone morte V10, pour juger le filtre seul)', agitation(0.003, { lissage: 0.9, zoneMorte: 0 }) < agitation(0.003, { lissage: 0.1, zoneMorte: 0 }));
+v('V10 : la zone morte verrouillée supprime le tremblement d’une main immobile (σ 0,3 % : moins de 2 px, contre plus de 6 px sans)', agitation(0.003) < 2 && agitation(0.003, { zoneMorte: 0 }) > 6, agitation(0.003).toFixed(1) + ' / ' + agitation(0.003, { zoneMorte: 0 }).toFixed(1));
 // aimantation avec capture (clic)
 const boutonPetit = [{ id: 'p', x: 500, y: 300, l: 30, h: 24 }];
 const captee = V.aimanter(530 + 20, 312, boutonPetit, { capture: 28 }), horsCap = V.aimanter(530 + 40, 312, boutonPetit, { capture: 28 });
