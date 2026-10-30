@@ -1,4 +1,5 @@
 import { chargerBibliotheque } from './graphique.js';
+import '../../../../core/commun/trader-vue.js';
 import { htmlAccueil, htmlIndisponible, esc } from '../agent-v3/vue-accueil.js';
 import { courbeSimulee, courbeBacktest, positionsGraphique, positionsDemo, COULEURS_POSITION, libellePosition } from '../agent-v3/courbes-v3.js';
 import { versionActive, strategiesActives } from '../../../../strategies/agent-etat.js';
@@ -34,6 +35,12 @@ export async function envoyerCommande(cmd) {
   try { if (typeof workerReady !== 'undefined' && workerReady()) { const r = await window.wfetch('/agent/commande', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(cmd) }); if (r.ok) return { ok: true, via: 'Worker', ...(await r.json()) }; } } catch (e) { /* injoignable */ }
   return { ok: false };
 }
+/* Mode Trader (V12) : le PC d'abord (/__agent/trader), sinon la copie publiée par le PC sur le Worker (paquet mobile). Rend { vue, service, origine, recuLe } ou null. */
+export async function lireTrader({ fetchImpl = fetch } = {}) {
+  try { const r = await fetchImpl('/__agent/trader', { cache: 'no-store' }); if (r.ok) { const j = await r.json(); if (j && j.ok) return { vue: j.existe ? j.vue : null, service: j.service, origine: 'PC' }; } } catch (e) { /* pas de serveur local */ }
+  try { if (window.wjson && typeof workerReady !== 'undefined' && workerReady()) { const j = await window.wjson('/agent/mobile', 15000); if (j && j.paquet && j.paquet.trader) return { vue: j.paquet.trader, service: null, origine: 'Worker', recuLe: j.recuLe, pcVivantLe: j.pcVivantLe }; } } catch (e) { /* Worker injoignable ou limité */ }
+  return null;
+}
 async function bougies(paire, n = 500) {
   const sym = PAIRES[paire].binance, r = await fetch('https://data-api.binance.vision/api/v3/klines?symbol=' + sym + '&interval=15m&limit=' + n); if (!r.ok) throw new Error('Binance HTTP ' + r.status);
   const j = await r.json(); return j.slice(0, -1).map(k => ({ time: Math.floor(+k[0] / 1000), open: +k[1], high: +k[2], low: +k[3], close: +k[4] }));
@@ -41,7 +48,7 @@ async function bougies(paire, n = 500) {
 
 export function creerAccueilAgent({ conteneur, intervalle = 15000, lire = lireEtatAgent, commande = envoyerCommande, chargerBougies = bougies }) {
   const racine = document.createElement('div'); racine.className = 'av3'; conteneur.appendChild(racine);
-  const S = { donnees: null, paire: lireLocal('rayle_agent_paire') || 'BTC', strategie: '', version: '', demo: lireLocal('rayle_agent_demo') === '1', graphique: null, courbes: [], detruit: false, dernierHtml: '', chart: null, serie: null, lignes: [], marqueurs: null, derniereBougies: [] };
+  const S = { donnees: null, paire: lireLocal('rayle_agent_paire') || 'BTC', strategie: '', version: '', demo: lireLocal('rayle_agent_demo') === '1', graphique: null, courbes: [], trader: null, detruit: false, dernierHtml: '', chart: null, serie: null, lignes: [], marqueurs: null, derniereBougies: [] };
   let minuteur = null, enCours = false;
 
   function message(t) { let m = racine.querySelector('[data-av3-msg]'); if (!m) { m = document.createElement('div'); m.dataset.av3Msg = ''; m.setAttribute('role', 'status'); m.className = 'av3-msg'; racine.prepend(m); } m.textContent = t || ''; m.hidden = !t; if (t) setTimeout(() => { if (m.textContent === t) { m.textContent = ''; m.hidden = true; } }, 5000); }
@@ -52,12 +59,13 @@ export function creerAccueilAgent({ conteneur, intervalle = 15000, lire = lireEt
       const d = await lire(); S.donnees = d;
       if (!d || d.erreur || !d.etat) { echecs++; racine.innerHTML = htmlIndisponible(d && d.erreur ? d.erreur : 'Ni le service du PC ni le Worker ne m’ont répondu.'); S.dernierHtml = ''; return; }
       echecs = 0;
+      try { S.trader = await lireTrader(); } catch (e) { S.trader = null; }
       const e = d.etat, suivi = d.suivi || {}, ctx = { pcVivant: d.enMarche, rechercheEnCours: !!(e.recherche && e.recherche.enCours), enPreparation: Object.values(suivi).some(s => s && s.pendante), positionOuverte: Object.values(suivi).some(s => s && s.position) };
       const html = htmlAccueil(e, { ctx, source: { origine: d.origine, enMarche: d.enMarche, t: d.t }, suivi, maintenant: d.t || Date.now() });
       if (html !== S.dernierHtml) {                                                    // ne redessine que si quelque chose a changé (le graphique n'est pas reconstruit pour rien)
         const ancienScroll = racine.scrollTop; S.dernierHtml = html; racine.innerHTML = html; racine.scrollTop = ancienScroll; S.chart = null; S.serie = null; S.courbes = [];
-        brancher(); await dessiner();
-      } else await dessiner(true);
+        brancher(); blocTrader(); await dessiner();
+      } else { blocTrader(); await dessiner(true); }
     } catch (err) { echecs++; racine.innerHTML = htmlIndisponible(messageWorker(err)); S.dernierHtml = ''; }
     finally { enCours = false; }
   }
@@ -67,6 +75,20 @@ export function creerAccueilAgent({ conteneur, intervalle = 15000, lire = lireEt
     racine.querySelectorAll('abbr.av3-t').forEach(a => a.addEventListener('click', () => { a.classList.toggle('av3-ouvert'); }));
   }
 
+  /* Bloc « Mode Trader » : état du service en clair, âge des données, positions proposées du moment (niveau visible), lien vers les onglets complets. */
+  function blocTrader() {
+    const TV = window.TraderVue; if (!TV) return; let b = racine.querySelector('[data-av3-trader]');
+    if (!b) { b = document.createElement('section'); b.className = 'av3-trader tv-bloc'; b.dataset.av3Trader = ''; const g = racine.querySelector('[data-av3-graphique]'); if (g) g.before(b); else racine.append(b); }
+    const T = S.trader, v = T && T.vue, m = Date.now(); let h = '<h3>Mode Trader · positions proposées</h3>';
+    if (!T) h += '<div class="tv-bande tv-alerte"><b>Je ne vois ni le service du PC ni la copie du Worker.</b> Lance le service (une étape) : node agent-pc/service.mjs (ou double-clic sur agent-pc/RayleAgent.vbs).</div>';
+    else {
+      h += TV.serviceHtml(T.service, v, m);
+      if (T.origine === 'Worker') h += '<div class="tv-bande">Ce que le Worker voit : une copie publiée par ton PC ' + TV.esc(T.recuLe ? 'à ' + new Date(T.recuLe).toLocaleString('fr-FR', { timeZone: 'Europe/Paris', day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }) : '(heure inconnue)') + (T.pcVivantLe && m - T.pcVivantLe > 4 * 60e3 ? ' — ton PC ne s’est pas manifesté depuis plus de 4 minutes' : '') + '. Le Worker ne calcule pas de nouvelles positions.</div>';
+      if (v) { h += '<div class="tv-garde"><b>' + TV.esc(v.bandeau) + '</b></div>'; const a = v.actives || []; h += a.length ? '<div class="tv-liste">' + a.slice(0, 4).map(p => TV.carte(p, m)).join('') + '</div>' + (a.length > 4 ? '<p class="tv-doux">+ ' + (a.length - 4) + ' autre(s) dans l’onglet « Positions du jour ».</p>' : '') : '<p class="tv-doux">Aucune position à suivre en ce moment. ' + TV.esc(v.bilan.phrase) + '</p>'; }
+      else h += '<p class="tv-doux">Le mode Trader n’a pas encore calculé de position (à chaque clôture de bougie M15, service en marche).</p>';
+    }
+    b.innerHTML = h;
+  }
   /* ── graphique avec les positions ── */
   function barreGraphique(boite) {
     const e = S.donnees.etat, actives = strategiesActives(e), versions = e.versions.map(v => v.numero);
@@ -96,6 +118,7 @@ export function creerAccueilAgent({ conteneur, intervalle = 15000, lire = lireEt
         S.derniereBougies = await chargerBougies(S.paire); S.serie.setData(S.derniereBougies); S.chart.timeScale().fitContent();
         creerCourbes();
       } else if (!leger) { S.derniereBougies = await chargerBougies(S.paire); S.serie.setData(S.derniereBougies); }
+      if (S.trader && S.trader.vue && window.TraderVue) pos = pos.concat(window.TraderVue.positionsGraphique(S.trader.vue, S.paire));
       if (S.demo && S.derniereBougies.length) { const d = S.derniereBougies[S.derniereBougies.length - 1]; pos = pos.concat(positionsDemo(d.close, d.time * 1000)); }
       afficherPositions(pos);
     } catch (err) { boite.innerHTML = '<p class="av3-vide">Graphique indisponible : ' + esc(String(err && err.message || err)) + '. Les chiffres ci-dessus restent valables.</p>'; }
@@ -111,7 +134,8 @@ export function creerAccueilAgent({ conteneur, intervalle = 15000, lire = lireEt
       const pre = (p.demo ? 'DÉMO · ' : '') + (p.sens > 0 ? 'ACHAT' : 'VENTE');
       if (p.entree != null) S.lignes.push(S.serie.createPriceLine({ price: p.entree, color: COULEURS_POSITION.entree, lineWidth: 2, lineStyle: 0, axisLabelVisible: true, title: pre + ' · zone d’entrée' }));
       S.lignes.push(S.serie.createPriceLine({ price: p.stop, color: COULEURS_POSITION.stop, lineWidth: 2, lineStyle: 2, axisLabelVisible: true, title: 'stop' }));
-      if (p.entree != null && p.R != null) for (const r of [1, 2, p.R].filter((x, i, a) => a.indexOf(x) === i)) S.lignes.push(S.serie.createPriceLine({ price: p.entree + p.sens * r * Math.abs(p.entree - p.stop), color: COULEURS_POSITION.cible, lineWidth: 1, lineStyle: 2, axisLabelVisible: true, title: r.toFixed(r % 1 ? 1 : 0).replace('.', ',') + ' R' }));
+      if (p.entree != null && p.cibles) p.cibles.forEach((c, k) => { if (Number.isFinite(c)) S.lignes.push(S.serie.createPriceLine({ price: c, color: COULEURS_POSITION.cible, lineWidth: 1, lineStyle: 2, axisLabelVisible: true, title: 'cible ' + (k + 1) })); });
+      else if (p.entree != null && p.R != null) for (const r of [1, 2, p.R].filter((x, i, a) => a.indexOf(x) === i)) S.lignes.push(S.serie.createPriceLine({ price: p.entree + p.sens * r * Math.abs(p.entree - p.stop), color: COULEURS_POSITION.cible, lineWidth: 1, lineStyle: 2, axisLabelVisible: true, title: r.toFixed(r % 1 ? 1 : 0).replace('.', ',') + ' R' }));
     }
     mk.sort((a, b) => a.time - b.time); S.marqueurs.setMarkers(mk);
     let liste = racine.querySelector('[data-av3-liste]'); if (!liste) { liste = document.createElement('div'); liste.dataset.av3Liste = ''; liste.className = 'av3-liste'; racine.querySelector('[data-av3-graph]').after(liste); }

@@ -166,10 +166,11 @@
   /* ───── modules chargés APRÈS le chargement de la page ─────
      Le lot critique (calculs, données, coque, accueil) est synchrone : l'accueil s'affiche vite. Le reste (météo, actualités, marchés, agent, graphique, voix, menu Plus, mises à jour) arrive juste après,
      en parallèle mais exécuté dans l'ordre ; chaque module se branche à son arrivée (événement mobile:module). Un écran demandé avant l'arrivée de son module affiche un squelette. */
-  const LOT=['mobile-voix','mobile-marche','mobile-agent-donnees','mobile-meteo','mobile-actus','mobile-maj','mobile-plus','mobile-agent-calcul','mobile-graphique','mobile-agent'];
+  const LOT=['mobile-voix','mobile-marche','mobile-agent-donnees','mobile-meteo','mobile-actus','mobile-maj','mobile-plus','mobile-agent-calcul','mobile-graphique','core/commun/trader-vue','mobile-agent'];
   function chargerLot(){
     const l=document.createElement('link'); l.rel='stylesheet'; l.href='core/mobile/mobile-agent.css'; document.head.appendChild(l);
-    for(const f of LOT){ const s=document.createElement('script'); s.src='core/mobile/'+f+'.js'; s.async=false; s.onload=s.onerror=()=>{ try{ RayleBus.emit('mobile:module',{nom:f}); }catch(e){} }; document.head.appendChild(s); }
+    const lt=document.createElement('link'); lt.rel='stylesheet'; lt.href='core/commun/trader-vue.css'; document.head.appendChild(lt);
+    for(const f of LOT){ const s=document.createElement('script'); s.src=(f.indexOf('/')>=0?f:'core/mobile/'+f)+'.js'; s.async=false; s.onload=s.onerror=()=>{ try{ RayleBus.emit('mobile:module',{nom:f}); }catch(e){} }; document.head.appendChild(s); }
   }
   const apresChargement=()=>{ (window.requestIdleCallback||(f=>setTimeout(f,150)))(chargerLot,{timeout:1200}); };
   if(document.readyState==='complete') apresChargement(); else window.addEventListener('load',apresChargement);

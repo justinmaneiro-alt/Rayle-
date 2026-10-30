@@ -61,6 +61,7 @@
     const pe=t.closest('[data-perf]'); if(pe){ const [k,v]=pe.dataset.perf.split(':'); S.perf[k]=v==='*'?null:(k==='jours'?(v==='tout'?null:+v):v); if(k==='agent') S.perf.actif=null; if(k==='actif') S.perf.agent=null; dessiner(); return; }
     const la=t.closest('[data-liq]'); if(la){ S.liqActif=la.dataset.liq; dessiner(); return; }
     const ga=t.closest('[data-ga]'); if(ga){ S.actifGraphe=ga.dataset.ga; if(S.graphe) S.graphe.definirActif(S.actifGraphe); S.racine.querySelectorAll('[data-ga]').forEach(b=>b.setAttribute('aria-pressed',b.dataset.ga===S.actifGraphe?'true':'false')); return; }
+    const tvv=t.closest('[data-tv-voir]'); if(tvv){ const g=S.racine.querySelector('.tv-graphe'); if(g&&g.scrollIntoView) g.scrollIntoView({block:'center',behavior:'smooth'}); return; }
     const cm=t.closest('[data-cmd]'); if(cm){ commande(cm); return; }
     const sv=t.closest('[data-sauver]'); if(sv){ sauverReglages(); return; }
     const st=t.closest('[data-strat]'); if(st){ const l=S.racine.querySelector('[data-strat-liste="'+st.dataset.strat+'"]'); if(l) l.hidden=!l.hidden; return; }
@@ -131,6 +132,11 @@
   }
   const VUES={
     positions(P,d){
+      const TV=window.TraderVue; if(!TV||!P.trader) return VUES.positionsV7(P,d);
+      const age=d&&d.recuLe?'<div class="tv-bande">Copie du PC : '+esc(C.age(d.recuLe))+(d.origine==='PC'?' (PC en direct)':' (publiée par le PC sur le serveur)')+'.</div>':'';
+      return age+TV.positionsHtml(P.trader,{largeur:420,hauteur:230})+'<details class="tv-v7"><summary>Anciens agents V7 (niveaux Validée / Candidate seulement)</summary>'+(P.positions?VUES.positionsV7(P,d):'<p class="m-vide">Pas de données V7.</p>')+'</details>';
+    },
+    positionsV7(P,d){
       const v=P.positions; if(!v) return '<p class="m-vide">Le service Kepler n’a pas encore calculé de position (il le fait à chaque clôture de bougie M15).</p>';
       const cartes=A.cartesPositions(v,Date.now()); window.__cartesM=cartes.concat(A.aucunePosition(v).hypotheses.map(h=>h.carte).filter(Boolean));
       let h='<p class="m-faible" style="margin:0 2px 10px">Niveau de preuve : <b>'+esc(v.versionCriteres||'—')+'</b> · '+(v.mesureEnCours?'mesure en cours sur '+esc(v.mesureEnCours)+'…':'dernier calcul '+esc(C.age(v.dernierCycle)))+'</p>';
@@ -141,6 +147,10 @@
     },
     graphique(){ return ''; },
     performance(P){
+      const TV=window.TraderVue; if(TV&&P.trader) return TV.bilanHtml(P.trader,{largeur:420})+'<details class="tv-v7"><summary>Performance des anciens agents V7</summary>'+VUES.performanceV7(P)+'</details>';
+      return VUES.performanceV7(P);
+    },
+    performanceV7(P){
       const perf=P.performance, B=P.positions&&P.positions.bilan; if(!perf) return '<p class="m-vide">Aucune performance à montrer : Kepler n’a pas encore suivi de position.</p>';
       const sel=A.selectionPerformance(perf,{agent:S.perf.agent,actif:S.perf.actif,jours:S.perf.jours,maintenant:Date.now()});
       const chip=(k,v,t,actif)=>'<button type="button" class="m-chip" data-perf="'+k+':'+v+'" aria-selected="'+(actif?'true':'false')+'">'+esc(t)+'</button>';
