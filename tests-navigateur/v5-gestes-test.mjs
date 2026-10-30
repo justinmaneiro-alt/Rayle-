@@ -6,7 +6,7 @@ import { lancer } from './v5-aide.mjs';
    défilement et balayage, objets 3D (une main : rotation avec inertie ; deux mains : zoom, rotation, déplacement ; suivre ; vue initiale), pause et reprise, diagnostic, réglages, calibrage, mode « Apprendre ».
    Lancer : node tests-navigateur/v5-gestes-test.mjs   Ce qui ne peut PAS être testé ici : une vraie main devant un vrai téléphone (à valider par Justin, procédure dans docs/GESTES.md). */
 const { verifier, fin } = compteur();
-const { page, erreurs, fermer } = await lancer({ port: 8141 });
+const { page, erreurs, fermer } = await lancer({ port: 8141, prefs: { gestesAvances: true } });   // V11 : ce test décrit le MODE AVANCÉ (engagement par main ouverte, poing, ranger…) ; le mode simple : v11-gestes-test.mjs
 const ev = (f, ...a) => page.evaluate(f, ...a);
 const T = (code, ...a) => page.evaluate(new Function('...args', 'return (async () => { const T = window.__T; ' + code + ' })()'), ...a);
 
@@ -194,9 +194,9 @@ verifier('deux doigts tendus qui descendent : la page défile (molette verticale
 // ── 13. pause / reprise ──
 await ev(() => { window.__j.pm = 0; });
 const pPause = await pos();
-await T(`const s = new T.Suite(); s.pointer(600, 300, 300); s.poing(600, 300, 1300); await T.jouer(s);`);
+await T(`const s = new T.Suite(); s.pointer(600, 300, 300); s.poing(600, 300, 2500); await T.jouer(s);`);
 const cPause = await etatCur();
-verifier('poing tenu 1 s : pause (anneau barré, pastille « en pause »)', await ev(() => Gestes.etat().pause) && cPause.etat === 'pause' && await ev(() => /pause/i.test(document.getElementById('gestes-pastille').textContent)));
+verifier('poing immobile tenu 2 s (mode avancé) : pause (anneau barré, pastille « en pause »)', await ev(() => Gestes.etat().pause) && cPause.etat === 'pause' && await ev(() => /pause/i.test(document.getElementById('gestes-pastille').textContent)));
 const avantP = await pos(); await T(`const s = new T.Suite(); s.pointer(100, 100, 300).vers(1200, 800, 500); await T.jouer(s);`);
 verifier('en pause : le curseur de la page ne bouge plus', Math.abs((await pos()).x - avantP.x) < 2 && Math.abs((await pos()).y - avantP.y) < 2);
 await T(`const s = new T.Suite(); s.ouvrir(700, 450, 1100); await T.jouer(s);`);
@@ -234,8 +234,8 @@ verifier('calibrage rapide : zone et seuils obtenus puis appliqués aux réglage
 await ev(() => Gestes.reinitialiserReglages());
 
 // ── 16. mode « Apprendre les gestes » : les neuf exercices, faits avec de vrais gestes ──
-await ev(() => { GestesV5UI.apprendre(); }); await attendre(300);
-verifier('Apprendre : la scène s’ouvre avec neuf exercices et une consigne', await ev(() => document.querySelectorAll('#gv5-appr .gv5-pas i').length === 9 && /Engager/.test(document.querySelector('#gv5-appr .gv5-consigne').textContent)));
+await ev(() => { Gestes.regler({ gestesAvances: true }); GestesV5UI.apprendre(); }); await attendre(300);   // (« Restaurer les réglages » plus haut a remis le mode simple)
+verifier('Apprendre : la scène s’ouvre avec onze exercices (mode avancé) et une consigne', await ev(() => document.querySelectorAll('#gv5-appr .gv5-pas i').length === 11 && /Engager/.test(document.querySelector('#gv5-appr .gv5-consigne').textContent)));
 const etatEx = () => ev(() => [...document.querySelectorAll('#gv5-appr .gv5-pas i')].map(i => i.dataset.s || '').join(','));
 await attendre(1300);   // « engager » : déjà engagé, réussi tout de suite
 verifier('exercice « Engager » : validé (déjà engagé), retour « Bien ! »', (await etatEx()).startsWith('ok') || await ev(() => /Bien/.test(document.querySelector('#gv5-appr .gv5-retour').textContent)), await etatEx());
@@ -260,11 +260,15 @@ await T(`const s = new T.Suite(); s.ouvrir(300, 400, 700); s.aller('ouverte', 11
 verifier('exercice « Balayer » : validé', /^ok,ok,ok,ok,ok,ok,ok/.test(await etatEx()), await etatEx());
 await T(`const s = new T.Suite(); s.tenir('ouverte', 700, 250, 250); s.aller('ouverte', 700, 560, 200); s.tenir('ouverte', 700, 560, 400); await T.jouer(s);`); await attendre(1600);
 verifier('exercice « Ranger » : validé', /^ok,ok,ok,ok,ok,ok,ok,ok/.test(await etatEx()), await etatEx());
-await T(`const s = new T.Suite(); s.pointer(700, 450, 200); s.poing(700, 450, 1300); s.ouvrir(700, 450, 1100); await T.jouer(s);`); await attendre(2000);
-verifier('exercice « Pause » (pause puis reprise) : validé, les neuf sont faits', (await etatEx()) === 'ok,ok,ok,ok,ok,ok,ok,ok,ok', await etatEx());
+await T(`const s = new T.Suite(); s.pointer(300, 500, 400); s.deux('pince', 'pince', 500, 450, 700, 450, 350, 450, 850, 450, 1000); s.pointer(300, 500, 500); await T.jouer(s);`); await attendre(1800);
+verifier('exercice « Deux mains » : validé', /^ok,ok,ok,ok,ok,ok,ok,ok,ok/.test(await etatEx()), await etatEx());
+await T(`const s = new T.Suite(); s.pointer(300, 300, 300); s.ouvrir(700, 450, 2300); await T.jouer(s);`); await attendre(1800);
+verifier('exercice « Paume : accueil » : validé', /^ok,ok,ok,ok,ok,ok,ok,ok,ok,ok/.test(await etatEx()), await etatEx());
+await T(`const s = new T.Suite(); s.pointer(700, 450, 200); s.poing(700, 450, 2500); s.ouvrir(700, 450, 1100); await T.jouer(s);`); await attendre(2000);
+verifier('exercice « Pause » (pause puis reprise) : validé, les onze sont faits', (await etatEx()) === 'ok,ok,ok,ok,ok,ok,ok,ok,ok,ok,ok', await etatEx());
 const stats = await ev(() => GestesV5UI.statistiques());
-verifier('les statistiques de réussite sont gardées sur l’appareil (neuf exercices, 1 essai, 1 réussite chacun)', Object.keys(stats).length === 9 && Object.values(stats).every(s => s.essais === 1 && s.reussis === 1 && s.meilleurMs >= 0), JSON.stringify(stats).slice(0, 200));
-verifier('récapitulatif affiché à la fin', await ev(() => /Terminé : 9/.test(document.querySelector('#gv5-appr .gv5-consigne').textContent)));
+verifier('les statistiques de réussite sont gardées sur l’appareil (onze exercices, 1 essai, 1 réussite chacun)', Object.keys(stats).length === 11 && Object.values(stats).every(s => s.essais === 1 && s.reussis === 1 && s.meilleurMs >= 0), JSON.stringify(stats).slice(0, 200));
+verifier('récapitulatif affiché à la fin', await ev(() => /Terminé : 11/.test(document.querySelector('#gv5-appr .gv5-consigne').textContent)));
 await ev(() => GestesV5UI.fermer()); verifier('Apprendre se ferme', await ev(() => !document.getElementById('gv5-appr')));
 
 // ── 17. extinction ──
