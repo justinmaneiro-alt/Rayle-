@@ -1,6 +1,7 @@
 // V8 : « paquet mobile » de Kepler. Le téléphone et la tablette ne voient jamais le PC (GitHub Pages ne parle pas à 127.0.0.1) : le service du PC publie donc UNE copie compacte de ce que
 // montre la fenêtre Agent (positions du jour, bilan, types de setup, meilleures pistes, équipe, occasions, données) vers le Worker, qui la garde en UNE ligne et la rend avec l'heure de mise à jour.
 // Aucun secret, aucun ordre. La copie est plafonnée (MAX_OCTETS), n'est renvoyée que si elle change, et jamais plus d'une fois toutes les INTERVALLE_MS (budget de la base D1 du Worker).
+import { compacterVolume } from './volume-v14.mjs';
 import fs from 'node:fs';
 import path from 'node:path';
 import { createHash } from 'node:crypto';
@@ -53,6 +54,8 @@ export function construirePaquet(dossier, maintenant = Date.now()) {
     if (t.bilan) { t.bilan = { ...t.bilan, parType: (t.bilan.parType || []).slice(0, 14) }; delete t.bilan.parActif; delete t.bilan.parTf; delete t.bilan.parStyle; }
     paquet.trader = t;
   }
+  const vol = lireJson(path.join(dossier, 'volume-v14.json'), null);
+  if (vol && vol.vuePubliee) paquet.volume = compacterVolume(vol.vuePubliee);        // V14 : tableau vivant (volume net, profil, portefeuille virtuel, rejoué)
   if (fs.existsSync(F.etat)) {
     const etat = chargerEtat(dossier), toutes = pistesDepuis(etat.backtests), top = meilleuresPistes(etat.backtests, { n: 5 }), pep = lirePepiniere(dossier);
     toutes.sort((a, b) => (b.bootstrapBas == null ? -9 : b.bootstrapBas) - (a.bootstrapBas == null ? -9 : a.bootstrapBas));
@@ -77,7 +80,7 @@ export function construirePaquet(dossier, maintenant = Date.now()) {
 /* Réduit jusqu'à tenir dans MAX_OCTETS : on retire d'abord le plus lourd et le moins utile sur petit écran. */
 export function plafonner(paquet, max = MAX_OCTETS) {
   const taille = () => Buffer.byteLength(JSON.stringify(paquet));
-  const etapes = [() => { if (paquet.trader) paquet.trader.recentes = paquet.trader.recentes.slice(0, 10); }, () => { if (paquet.trader) delete paquet.trader.retro; }, () => { if (paquet.positions) paquet.positions.types = paquet.positions.types.slice(0, 25); }, () => { if (paquet.pistes) paquet.pistes.toutes = paquet.pistes.toutes.slice(0, 15); },
+  const etapes = [() => { if (paquet.volume && paquet.volume.actifs) for (const x of Object.values(paquet.volume.actifs)) { if (x.m15) x.m15.bougies = x.m15.bougies.slice(-32); delete x.footprint; } }, () => { if (paquet.volume) delete paquet.volume.recherche; }, () => { if (paquet.trader) paquet.trader.recentes = paquet.trader.recentes.slice(0, 10); }, () => { if (paquet.trader) delete paquet.trader.retro; }, () => { if (paquet.positions) paquet.positions.types = paquet.positions.types.slice(0, 25); }, () => { if (paquet.pistes) paquet.pistes.toutes = paquet.pistes.toutes.slice(0, 15); },
     () => { if (paquet.positions) delete paquet.positions.exploration; }, () => { if (paquet.positions) delete paquet.positions.types; }, () => { delete paquet.donnees; }];
   for (const e of etapes) { if (taille() <= max) break; e(); }
   return paquet;
@@ -88,6 +91,7 @@ export const empreintePaquet = p => {
   const pos = p.positions || {}, ag = p.agent || {};
   const utile = { propositions: pos.propositions, recentes: pos.recentes, types: (pos.types || []).map(x => [x.type, x.niveau, x.n, x.esperance]), bilan: pos.bilan, reglages: pos.reglages, pistes: p.pistes, equipe: p.equipe, occasions: p.occasions, exemples: p.exemples,
     trader: p.trader && { actives: (p.trader.actives || []).map(x => [x.id, x.statut, x.niveau]), recentes: (p.trader.recentes || []).slice(0, 12).map(x => [x.id, x.statut, x.resultat && x.resultat.R]), phrase: p.trader.bilan && p.trader.bilan.phrase, types: (p.trader.types || []).map(x => [x.cle, x.niveau, x.n]), reglages: p.trader.reglages },
+    volume: p.volume && { capital: p.volume.portefeuille && p.volume.portefeuille.capital, n: p.volume.portefeuille && p.volume.portefeuille.nTrades, verdict: p.volume.verdict && p.volume.verdict.texte, derniere: p.volume.derniereBarre, compteurs: p.volume.compteurs },
     alertes: ag.alertes, active: ag.versionActive, pause: ag.pause, phase: p.phase };
   return createHash('sha1').update(JSON.stringify(utile)).digest('hex').slice(0, 16);
 };

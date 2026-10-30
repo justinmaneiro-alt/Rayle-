@@ -8,7 +8,7 @@ const ev = (p, f, ...a) => p.evaluate(f, ...a);
 for (const cle of ['telephone', 'tablette']) {
   console.log('\n══ ' + cle + ' ══');
   const o = await ouvrirMobile(cle, { attente: 3800, scenario: { agent: 'trader' } }), p = o.page, erreurs = []; p.on('pageerror', e => erreurs.push(e.message.slice(0, 200)));
-  await ev(p, () => MobileCoque.aller('agent')); await p.waitForFunction(() => { const c = document.querySelector('#m-agent [data-al-chart]'); return c && c.dataset.nzones != null; }, { timeout: 25000 }).catch(() => {}); await attendre(1200);
+  await ev(p, () => MobileCoque.aller('agent')); await ev(p, () => { const d = document.querySelector('#m-agent .m-vv-simple'); if (d) d.open = true; }); await p.waitForFunction(() => { const c = document.querySelector('#m-agent [data-al-chart]'); return c && c.dataset.nzones != null; }, { timeout: 25000 }).catch(() => {}); await attendre(1200);
   const t = await texte(p, '#m-agent .al');
   v('la vue principale est la fenêtre lisible', await existe(p, '#m-agent .al-barre') && await existe(p, '#m-agent .al-chiffres'));
   v('barre d’état : service, dernière bougie, « simulation, aucun ordre réel »', /Service en marche/.test(t) && /Dernière bougie \d\d:\d\d/.test(t) && /simulation, aucun ordre réel/.test(t), t.slice(0, 160).replace(/\n/g, ' | '));
@@ -34,7 +34,7 @@ for (const cle of ['telephone', 'tablette']) {
 {
   console.log('\n══ état vide (aucune position) ══');
   const o = await ouvrirMobile('telephone', { attente: 3800, scenario: { agent: 'sans-position' } }), p = o.page;
-  await ev(p, () => MobileCoque.aller('agent')); await p.waitForFunction(() => { const c = document.querySelector('#m-agent [data-al-chart]'); return c && c.dataset.nzones != null; }, { timeout: 25000 }).catch(() => {}); await attendre(1200);
+  await ev(p, () => MobileCoque.aller('agent')); await ev(p, () => { const d = document.querySelector('#m-agent .m-vv-simple'); if (d) d.open = true; }); await p.waitForFunction(() => { const c = document.querySelector('#m-agent [data-al-chart]'); return c && c.dataset.nzones != null; }, { timeout: 25000 }).catch(() => {}); await attendre(1200);
   const t = await texte(p, '#m-agent .al');
   v('état vide : « Aucune position en attente. Kepler surveille BTC / SOL / DOGE. » + dernière analyse', /Aucune position en attente\. Kepler surveille BTC \/ SOL \/ DOGE\./.test(t) && /Dernière analyse : \d\d:\d\d/.test(t), t.slice(0, 200).replace(/\n/g, ' | '));
   v('état vide : « Pas encore de trade terminé », aucune ligne', /Pas encore de trade terminé/.test(t) && await ev(p, () => document.querySelectorAll('#m-agent .al-ligne').length === 0));

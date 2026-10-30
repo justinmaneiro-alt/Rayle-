@@ -27,7 +27,10 @@
   function vueDetails(oui){ if(!S.racine) return; S.vue=oui?'details':'agent'; const r=S.racine.parentNode; r.querySelector('[data-m-lisible]').hidden=oui; S.racine.hidden=!oui; if(oui) dessiner(); else if(S.lisible) S.lisible.rafraichir(); }
   function monter(el){
     const lis=document.createElement('div'); lis.dataset.mLisible=''; lis.className='m-agent-lisible'; const det=document.createElement('div'); det.dataset.mDetails=''; det.className='m-agent-det'; det.hidden=true; el.textContent=''; el.append(lis,det);   // efface le squelette de la coque
-    S.lisible=monterLisible(lis); S.vue='agent'; monterDetails(det);
+    // V14 : le TABLEAU VIVANT (volume net, profil, portefeuille virtuel, rejoué) est la vue principale ; la vue simple de la V13 et le bouton « Détails » sont juste dessous
+    const vv=document.createElement('div'); vv.dataset.mVv=''; lis.appendChild(vv); const simple=document.createElement('details'); simple.className='m-vv-simple'; simple.innerHTML='<summary>Vue simple de l’agent et Détails</summary>'; const zs=document.createElement('div'); simple.appendChild(zs); lis.appendChild(simple);
+    if(window.VolumeVivant){ const lecVV=async()=>{ const e=DA.etat(), d=e.data; if(!d) return (e.bandeau&&e.bandeau.genre==='erreur')?null:{vue:null,service:null,origine:null,note:'Chargement des données de l’agent…'}; const v=d.paquet&&d.paquet.volume; return {vue:v||null,service:{enMarche:!!d.pcVivant},origine:d.origine,recuLe:d.recuLe,note:'Le PC n’a pas encore publié le tableau de volume (service Kepler arrêté ou pas à jour).'}; }; S.vv=window.VolumeVivant.monter(vv,{lire:lecVV,intervalle:20000,leger:false}); }
+    S.lisible=monterLisible(zs); S.vue='agent'; monterDetails(det);
   }
   function monterDetails(el){
     S.racine=el;
@@ -37,7 +40,7 @@
     S.corps=el.querySelector('[data-corps]');
     el.querySelector('.m-onglets').addEventListener('click',ev=>{ const b=ev.target.closest('[data-o]'); if(b){ Coque.vibrer(6); aller(b.dataset.o); } });
     el.addEventListener('click',ev=>{ if(ev.target.closest('[data-retour-agent]')){ vueDetails(false); return; } clics(ev); });
-    DA.observer(e=>{ S.data=e.data; S.meta=e.meta; S.bandeau=e.bandeau; if(S.lisible) S.lisible.rafraichir(); entete(); if(S.vue==='details'){ if(S.data) dessiner(); else vide(); } });
+    DA.observer(e=>{ S.data=e.data; S.meta=e.meta; S.bandeau=e.bandeau; if(S.lisible) S.lisible.rafraichir(); if(S.vv) S.vv.rafraichir(); entete(); if(S.vue==='details'){ if(S.data) dessiner(); else vide(); } });
     if(tablette) graphe();
   }
   function aller(id){ S.onglet=id; ecrire('rayle_m_agent_onglet',id); S.racine.querySelectorAll('.m-onglets [data-o]').forEach(b=>b.setAttribute('aria-selected',b.dataset.o===id?'true':'false')); const b=S.racine.querySelector('.m-onglets [data-o="'+id+'"]'); if(b&&b.scrollIntoView) b.scrollIntoView({inline:'center',block:'nearest',behavior:'smooth'}); dessiner(); }

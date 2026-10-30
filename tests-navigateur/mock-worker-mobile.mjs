@@ -21,7 +21,9 @@ export function vueTraderFausse({ maintenant = Date.now(), vide = false } = {}) 
   return { ok: true, version: 12, t: maintenant, dernierCycle: maintenant - 120e3, actives, recentes, bilan: { phrase: '', tous: { stats } }, courbe: vide ? [] : [[fin - 20 * PAS, 1.4], [fin - 8 * PAS, 0.3]], bougies: { BTC: bougies, SOL: bougies.map(b => b.map((x, i) => (i ? x / 800 : x))), DOGE: bougies.map(b => b.map((x, i) => (i ? x / 1e6 : x))) },
     donnees: { BTC: { derniereBougie: fin, ageMin: 3 }, SOL: { derniereBougie: fin, ageMin: 3 }, DOGE: { derniereBougie: fin, ageMin: 3 } }, reglages: { niveauMin: 'a_lessai', style: 'equilibre' }, style: { nom: 'Équilibré', confluenceMin: 1, rrMin: 1.5, maxParJour: 4 }, styles: {}, setups: {}, bandeau: 'À l’essai', avertissement: 'Simulation.', types: [], pourquoi: [], analyses: {}, journalNiveaux: [] };
 }
-export function paquetAgent({ avecPositions = true, maintenant = Date.now(), avecTrader = false } = {}) {
+import fs from 'node:fs';
+const volumeFixture = () => { try { return JSON.parse(fs.readFileSync(new URL('./fixtures/volume-vue.json', import.meta.url), 'utf8')); } catch (e) { return null; } };   // V14 : vraies données, positions de test ajoutées par le test lui-même
+export function paquetAgent({ avecPositions = true, maintenant = Date.now(), avecTrader = false, avecVolume = false } = {}) {
   const J = 86400e3, jours = {}, courbe = []; let cum = 0;
   for (let k = 20; k >= 1; k--) { const R = k % 3 === 0 ? -1 : k % 4 === 0 ? 2.1 : 0.8; cum += R; courbe.push([maintenant - k * J, +cum.toFixed(3)]); jours[new Date(maintenant - k * J).toISOString().slice(0, 10)] = R; }
   const stats = n => ({ n, Rtotal: +cum.toFixed(3), pct: +(cum * 0.5).toFixed(3), reussite: 0.55, rrMoyen: 1.9, esperance: cum / n, drawdownR: 3, meilleureSerie: 4, pireSerie: 2, courbe, jours });
@@ -30,7 +32,7 @@ export function paquetAgent({ avecPositions = true, maintenant = Date.now(), ave
     { id: 'p2', agent: 'continuation', actif: 'SOL', tf: 'M15', sens: -1, limite: 100, stop: 101, cible: 98, rr: 2, raison: 'Repli sur la moyenne 20 dans une tendance baissière H1', invalidation: 'clôture M15 au-dessus de 101', tValide: maintenant + 3600e3, t: maintenant - 3600e3, statut: 'ouverte', nomType: 'Repli sur la moyenne 20', preuve: { niveau: 'non_concluante', n: 53, tauxReussite: 0.45, rrMoyen: 1.7, esperance: 0.25, fourchette: [-0.16, 0.67] } },
     { id: 'p3', agent: 'extremes', actif: 'DOGE', tf: 'H1', sens: 1, limite: 0.08, stop: 0.079, cible: 0.082, rr: 2, raison: 'Fin de range après une cascade de liquidations', invalidation: 'clôture H1 sous 0,079', tValide: maintenant + 2 * 3600e3, t: maintenant - 7200e3, statut: 'en_attente', nomType: 'Fin de range', preuve: { niveau: 'non_testee' } }
   ] : [];
-  return { v: 1, t: maintenant, serviceLe: maintenant, phase: 'attente', ...(avecTrader ? { trader: vueTraderFausse({ maintenant, vide: !avecPositions }) } : {}),
+  return { v: 1, t: maintenant, serviceLe: maintenant, phase: 'attente', ...(avecTrader ? { trader: vueTraderFausse({ maintenant, vide: !avecPositions }) } : {}), ...(avecVolume && volumeFixture() ? { volume: (() => { const v = volumeFixture(); v.t = maintenant; for (const a of Object.keys(v.actifs)) { v.actifs[a].m15.bougies = v.actifs[a].m15.bougies.slice(-64); v.actifs[a].h1.bougies = v.actifs[a].h1.bougies.slice(-72); } return v; })() } : {}),
     positions: { ok: true, t: maintenant, reglages: { agents: { rebond: true, continuation: true, extremes: true }, actifs: ['BTC', 'SOL', 'DOGE'], unites: ['M15', 'H1'], maxParAgent: 3, maxNouvellesParJour: 5, confluenceMin: 2, niveauPreuveMin: 'candidate', afficherIdees: false, risquePct: 0.5, alertesObservation: false, seuilDiamant: 5, surveillance: false, versionCriteres: 'equilibre' },
       versionCriteres: 'équilibré (v4)', dernierCycle: maintenant - 60e3, propositions: props, recentes: [],
       hypotheses_du_moment: avecPositions ? [] : [{ type: 'preuve', actif: 'BTC', tf: 'H1', limite: 80000, stop: 79500, cible: 81000, sens: 1, rr: 2, raison: 'Balayage du plus bas', invalidation: 'clôture sous 79 500', tValide: maintenant + 3600e3, t: maintenant, statut: 'en_attente', pourquoi: 'Confluence insuffisante (1 élément sur 2).', quand: 'Je la proposerais si le prix balaie 79 900.', preuve: { niveau: 'non_concluante', n: 40 } }],
@@ -76,7 +78,7 @@ export async function demarrerFauxWorkerMobile(port = 8797) {
           if (scenario.agent === 'limite') return rep({ error: 'La liaison Worker est limitée aujourd’hui.', limite: true }, 503);
           const now = Date.now();
           if (scenario.agent === 'vide') return rep({ existe: false, note: 'Le PC n’a pas encore publié de paquet pour le téléphone.' });
-          return rep({ existe: true, paquet: paquetAgent({ maintenant: now - 120e3, avecPositions: scenario.agent !== 'sans-position', avecTrader: scenario.agent === 'trader' || scenario.agent === 'sans-position' }), recuLe: now - 120e3, pcVivantLe: scenario.agent === 'pc-eteint' ? now - 3 * 3600e3 : now - 20e3, maintenant: now });
+          return rep({ existe: true, paquet: paquetAgent({ maintenant: now - 120e3, avecPositions: scenario.agent !== 'sans-position', avecTrader: scenario.agent === 'trader' || scenario.agent === 'sans-position', avecVolume: scenario.agent === 'trader' || scenario.agent === 'sans-position' || scenario.agent === 'volume' }), recuLe: now - 120e3, pcVivantLe: scenario.agent === 'pc-eteint' ? now - 3 * 3600e3 : now - 20e3, maintenant: now });
         }
         if (p === '/agent/commande' && req.method === 'POST') { let b = {}; try { b = JSON.parse(corps); } catch (e) { /* vide */ } commandes.push(b); return rep({ ok: true, id: 'c' + commandes.length }); }
         if (p === '/images') {

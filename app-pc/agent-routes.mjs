@@ -74,6 +74,16 @@ export function creerRoutesAgent(env = process.env) {
         if (!t) return json(200, { ok: true, existe: false, enMarche: sv.enMarche, service: sv, note: 'Le mode Trader n’a pas encore calculé de positions (il le fait à chaque clôture de bougie M15, service en marche).' });
         return json(200, { ok: true, existe: true, enMarche: sv.enMarche, service: sv, vue: t.vuePubliee || null });
       }
+      if (route === 'volume' && req.method === 'GET') {   // V14 : tableau vivant (volume net, profil, empreinte, portefeuille virtuel, rejoué), lu dans volume-v14.json écrit par le service
+        const service = lireJson(F.service, null), sv = statutService(service, !!(service && service.pid && vivant(service.pid)), Date.now());
+        const t = lireJson(path.join(dossier(), 'volume-v14.json'), null);
+        if (!t || !t.vuePubliee) return json(200, { ok: true, existe: false, enMarche: sv.enMarche, service: sv, note: 'Le tableau de volume n’a pas encore été calculé (le service le fait à chaque clôture de bougie M15).' });
+        return json(200, { ok: true, existe: true, enMarche: sv.enMarche, service: sv, vue: t.vuePubliee });
+      }
+      if (route === 'volume/carnet' && req.method === 'GET') {   // V14 : carnet d'ordres enregistré (échelle, déséquilibres, murs, heatmap)
+        const { vueCarnet } = await import('../agent-pc/volume-carnet.mjs'), u2 = new URL(req.url, 'http://x'), actif = ['BTC', 'SOL', 'DOGE'].includes(u2.searchParams.get('actif')) ? u2.searchParams.get('actif') : 'BTC';
+        return json(200, vueCarnet({ actif, dossier: dossier() }));
+      }
       if (route === 'trader/commande' && req.method === 'POST') {
         const b = await lireCorps(req);
         if (!COMMANDES_TRADER.includes(b.type)) return json(400, { ok: false, erreur: 'commande inconnue' });
