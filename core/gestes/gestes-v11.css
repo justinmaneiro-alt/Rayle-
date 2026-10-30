@@ -1,0 +1,45 @@
+/* GESTES V11 : panneau « Que puis-je faire ? » et étiquette du geste détecté. Fond noir, verre sombre, un accent cyan froid + sable, bords 1 px, coins coupés. */
+#gv11-aide{position:fixed;left:14px;bottom:14px;z-index:99990;width:min(330px,calc(100vw - 28px));font:13px/1.35 system-ui,sans-serif;color:#dbe9ee;background:rgba(8,12,16,.86);backdrop-filter:blur(8px);border:1px solid rgba(143,208,227,.45);clip-path:polygon(0 0,calc(100% - 12px) 0,100% 12px,100% 100%,0 100%)}
+#gv11-aide[hidden],#gv11-etiquette[hidden]{display:none}
+#gv11-aide .gv11-tete{display:flex;align-items:center;gap:8px;width:100%;padding:8px 12px;background:none;border:0;color:#8fd0e3;font:inherit;cursor:pointer;text-align:left}
+#gv11-aide .gv11-tete b{flex:1;font-weight:600;letter-spacing:.02em}
+#gv11-aide .gv11-chev{width:8px;height:8px;border-right:2px solid #8fd0e3;border-bottom:2px solid #8fd0e3;transform:rotate(45deg);transition:transform .2s}
+#gv11-aide.gv11-replie .gv11-chev{transform:rotate(-135deg)}
+#gv11-aide.gv11-replie .gv11-corps{display:none}
+#gv11-aide .gv11-corps{padding:0 12px 10px}
+#gv11-aide .gv11-liste{list-style:none;margin:0;padding:0;display:grid;gap:6px}
+#gv11-aide li{display:flex;gap:10px;align-items:center}
+#gv11-aide .gv11-pic{flex:0 0 44px;width:44px;height:44px;border:1px solid rgba(143,208,227,.28);background:rgba(143,208,227,.06)}
+#gv11-aide .gv11-pic svg{width:100%;height:100%;fill:#8fd0e3;stroke:none}
+#gv11-aide .gv11-txt b{display:block;color:#fff;font-weight:600}
+#gv11-aide .gv11-txt small{color:#9fb3bd;font-size:12px}
+#gv11-aide .gv11-boutons{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px}
+#gv11-aide .gv11-boutons button{font:inherit;font-size:12px;color:#fff;background:rgba(143,208,227,.14);border:1px solid rgba(143,208,227,.6);padding:5px 10px;min-height:30px;cursor:pointer}
+#gv11-aide .gv11-boutons button:hover,#gv11-aide .gv11-boutons button:focus-visible{background:rgba(143,208,227,.28);outline:none}
+#gv11-aide .gv11-boutons button.gv11-on{background:rgba(201,178,122,.28);border-color:#c9b27a}
+#gv11-aide .gv11-note{margin:8px 0 0;color:#9fb3bd;font-size:11.5px}
+/* animations des pictogrammes */
+#gv11-aide .gv11-doigt,#gv11-aide .gv11-paume{fill:#8fd0e3;opacity:.85}
+#gv11-aide .gv11-pic-pointer .gv11-pt{fill:#c9b27a;animation:gv11-pt 2.2s ease-in-out infinite}
+#gv11-aide .gv11-pic-pointer svg{animation:gv11-bal 2.2s ease-in-out infinite}
+#gv11-aide .gv11-p1{animation:gv11-p1 1.8s ease-in-out infinite}#gv11-aide .gv11-p2{animation:gv11-p2 1.8s ease-in-out infinite}
+#gv11-aide .gv11-onde{fill:none;stroke:#c9b27a;stroke-width:2;opacity:0;animation:gv11-onde 1.8s ease-out infinite}
+#gv11-aide .gv11-main{animation:gv11-bal 1.6s ease-in-out infinite}
+#gv11-aide .gv11-fl{stroke:#c9b27a;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;fill:none}
+#gv11-aide .gv11-m1{animation:gv11-m1 2s ease-in-out infinite}#gv11-aide .gv11-m2{animation:gv11-m2 2s ease-in-out infinite}
+#gv11-aide .gv11-fond{fill:none;stroke:rgba(143,208,227,.25);stroke-width:3}
+#gv11-aide .gv11-arc{fill:none;stroke:#c9b27a;stroke-width:3;stroke-dasharray:100;stroke-dashoffset:100;transform:rotate(-90deg);transform-origin:center;animation:gv11-arc 2.4s linear infinite}
+@keyframes gv11-pt{0%,100%{transform:translateX(-3px)}50%{transform:translateX(3px)}}
+@keyframes gv11-bal{0%,100%{transform:translateX(-5px)}50%{transform:translateX(5px)}}
+@keyframes gv11-p1{0%,35%{transform:translateX(0)}55%,80%{transform:translateX(5px)}100%{transform:translateX(0)}}
+@keyframes gv11-p2{0%,35%{transform:translateX(0)}55%,80%{transform:translateX(-5px)}100%{transform:translateX(0)}}
+@keyframes gv11-onde{0%,50%{opacity:0;r:4px}60%{opacity:.9}100%{opacity:0;r:13px}}
+@keyframes gv11-m1{0%,100%{transform:translateX(5px)}50%{transform:translateX(-4px)}}
+@keyframes gv11-m2{0%,100%{transform:translateX(-5px)}50%{transform:translateX(4px)}}
+@keyframes gv11-arc{0%{stroke-dashoffset:100}75%,100%{stroke-dashoffset:0}}
+@media (prefers-reduced-motion:reduce){#gv11-aide *{animation:none!important}}
+/* étiquette près du curseur */
+#gv11-etiquette{position:fixed;left:0;top:0;z-index:99991;pointer-events:none;max-width:min(320px,70vw);padding:4px 9px 6px;font:600 12.5px/1.25 system-ui,sans-serif;color:#eaf6fa;background:rgba(8,12,16,.82);border:1px solid rgba(143,208,227,.5);border-left-width:3px;white-space:nowrap;will-change:transform}
+#gv11-etiquette[data-ton="ok"]{border-color:rgba(143,208,227,.9);color:#fff}
+#gv11-etiquette[data-ton="att"]{border-color:#c9b27a;color:#f2e6c4}
+#gv11-etiquette .gv11-bar{display:block;height:2px;margin-top:4px;background:#c9b27a;transform-origin:left;transform:scaleX(0)}

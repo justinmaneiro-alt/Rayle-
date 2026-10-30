@@ -4,6 +4,11 @@
    Sortie : des ACTIONS en coordonnées d'écran ABSOLUES (pixels), appliquées par gestes-v5-actions.js :
      curseur {x,y} · clic {n,bouton} · prise {x,y} / deplace {x,y} / lache · defile {dx,dy} · deux_debut / deux {type,p1,p2,d,ang} / deux_fin
    et des ÉVÉNEMENTS pour l'interface (engage, pause, reprise, balayage, ranger_bas, vue_initiale, accueil, suivre, fermer_*…).
+   V11 — MODE SIMPLE (par défaut) : 5 gestes seulement, sans faux déclenchements.
+     pointer (la pointe de l'index déplace le curseur) · pincer = clic, pincer et bouger = glisser · balayer main ouverte = parcourir/revenir · deux mains qui s'écartent ou se rapprochent = agrandir/rétrécir ·
+     paume ouverte immobile 1,5 s = vue d'origine / accueil. Engagement : une main visible et stable 0,4 s suffit ; sortir la main du cadre désengage. AUCUNE pause par un geste (ni poing, ni main à plat, ni deux poings) :
+     la pause se fait par le bouton, par la voix, ou (mode avancé seulement) par un poing IMMOBILE tenu 2 s avec barre de progression, annulable en rouvrant la main.
+     MODE AVANCÉ (`gestesAvances: true`) : poing (pause, fermer), ranger vers le bas, recul = accueil, deux doigts = défiler, index immobile = suivre, deux mains ouvertes = pivoter.
    Principes :
      · zone active centrale réglable (70 % × 70 % du cadre par défaut) étirée sur tout l'écran ; mode relatif en option ;
      · lissage One Euro des repères PUIS du curseur, plus une légère prédiction (1 à 2 images) ; main sortie du cadre < 0,5 s : état conservé ;
@@ -29,7 +34,8 @@
     seuilFerme: 0.30, seuilOuvre: 0.45,              // distance pouce–index / taille de la main : sous seuilFerme = pincé, au-dessus de seuilOuvre = ouvert
     clicMin: 60, clicMax: 420, relacheImages: 2, rejetAberrant: true,   // V10 : un pincement de moins de 60 ms est un parasite de la détection (une image à 30/s), pas un clic ; une image « ouverte » isolée ne relâche pas (il faut 2 images de suite)
     delaiMaintien: 260, doubleClic: 650, deriveClic: 0.25,
-    engagementMs: 700, pauseMs: 1000, deuxPoingsMs: 1500, exigerEngagement: true,
+    engagementMs: 700, pauseMs: 2000, deuxPoingsMs: 1500, exigerEngagement: true,
+    gestesAvances: false, engagementRapideMs: 400, desengageRapideMs: 1000, vitesseStable: 1.6,   // V11 : mode simple par défaut ; engagement en 0,4 s (main visible et non agitée) ; désengagement 1 s après la sortie du cadre
     perteMainMs: 500, desengageMs: 2500, stabiliteMs: 55,
     balayage: { vitesseMin: 1.15, distanceMin: 0.2, dureeMax: 520, recharge: 850 },
     rangerBas: { vitesseMin: 1.0, distanceMin: 0.18 },
@@ -62,6 +68,8 @@
     return 'autre';
   }
   /* Un bout de doigt « utile » pour pincer : il pointe vers l'avant (loin du poignet), ce qui exclut le poing (bout recourbé contre la paume). */
+  /* V11 : paume « bien droite » (doigts vers le haut, à 40° près) : seule une main présentée ainsi, immobile 1,5 s, ramène à l'accueil. Une main qui se repose penchée ou de profil ne déclenche rien. */
+  const paumeDroite = (pts, ratio) => { const w = pts[P.poignet], m = pts[P.majeurMcp], dx = (m[0] - w[0]) * (ratio || 4 / 3), dy = m[1] - w[1]; return dy < 0 && Math.abs(dx) < Math.abs(dy) * 0.84; };
   const boutAvance = (pts, bout, mcp) => d2(pts[bout], pts[P.poignet]) > d2(pts[mcp], pts[P.poignet]) * 1.12;
 
   // ── projection image → écran (zone active) ──
@@ -216,7 +224,7 @@
         if (h.pince && !ouvre) h.pinceVueT = t;   // pinceVueT : dernier instant où le pincement était RÉELLEMENT vu (la durée d'un clic ne compte pas l'image de doute)
         h.proche = h.pince ? true : ((h.rI < sc.o && h.iOk && h.rI <= h.rM) || (h.rM < sc.o && h.mOk && h.rM < h.rI));   // le pincement s'amorce : le curseur se fige
         majDoigts(h.doigts, b);
-        const brute = h.pince ? 'pince' : poseDoigts(h.doigts);
+        let brute = h.pince ? 'pince' : poseDoigts(h.doigts); if (!o.gestesAvances && brute === 'deux') brute = 'pointer';   // V11 : index + majeur à demi tendus = un pointeur, pas un geste de défilement
         if (brute !== h.candidate) { h.candidate = brute; h.candidateDepuis = t; }
         if (h.candidate !== h.pose && (h.candidate === 'pince' || t - h.candidateDepuis >= o.stabiliteMs)) { h.precedente = h.pose; h.pose = h.candidate; h.aPoseDepuis = t; }
         h.centre = centrePaume(h.pts); h.pointe = h.pts[P.indexBout]; h.milieuPince = milieu(h.pts[P.pouceBout], h.pts[h.pince === 'majeur' ? P.majeurBout : P.indexBout]);
@@ -231,7 +239,9 @@
       else if (!S.sansMainDepuis) S.sansMainDepuis = t;
       // ── état d'engagement ──
       if (!nbVues) {
-        if (S.mode !== 'pause' && S.mode !== 'sans-main' && S.sansMainDepuis && t - S.sansMainDepuis >= o.desengageMs) { libererTout(sortie, 'plus de main'); changerMode('sans-main', t, sortie, { type: 'sans_main' }); }
+        S.vueDepuis = 0;
+        const desMs = o.gestesAvances ? o.desengageMs : Math.min(o.desengageMs, o.desengageRapideMs);
+        if (S.mode !== 'pause' && S.mode !== 'sans-main' && S.sansMainDepuis && t - S.sansMainDepuis >= desMs) { libererTout(sortie, 'plus de main'); changerMode('sans-main', t, sortie, { type: 'sans_main' }); }
         sortie.etat = etat(actives); return sortie;
       }
       if (S.mode === 'sans-main') changerMode(o.exigerEngagement ? 'repos' : 'engage', t, sortie, o.exigerEngagement ? null : { type: 'engage' });
@@ -242,11 +252,11 @@
       if (refMain) {
         const vite = (() => { const hh = refMain.histo; return hh.length > 3 && Math.hypot(refMain.centre[0] - hh[0].x, refMain.centre[1] - hh[0].y) / Math.max(0.05, (t - hh[0].t) / 1000) > 1.1; })();
         if (refMain.pose === 'ouverte' && !vite) S.ouverteDepuis = S.ouverteDepuis || t; else S.ouverteDepuis = 0;
-        if (refMain.pose === 'poing') S.poingDepuis = S.poingDepuis || t; else S.poingDepuis = 0;
+        if (refMain.pose === 'poing' && !vite) S.poingDepuis = S.poingDepuis || t; else S.poingDepuis = 0;
       }
       for (const h of actives) { h.histo.push({ t, x: h.centre[0], y: h.centre[1], e: h.ech }); while (h.histo.length && t - h.histo[0].t > Math.max(o.balayage.dureeMax, o.recul.fenetreMs)) h.histo.shift(); }
       // deux poings tenus = pause, et la reprise
-      if (actives.length === 2 && actives.every(h => h.pose === 'poing')) {
+      if (o.gestesAvances && actives.length === 2 && actives.every(h => h.pose === 'poing')) {
         S.deuxPoingsDepuis = S.deuxPoingsDepuis || t;
         if (t - S.deuxPoingsDepuis >= o.deuxPoingsMs) {
           S.deuxPoingsDepuis = 0; if (S.mode === 'pause') changerMode('engage', t, sortie, { type: 'reprise' }); else { libererTout(sortie, 'pause'); changerMode('pause', t, sortie, { type: 'pause', actif: true }); }
@@ -256,7 +266,14 @@
 
       if (S.mode === 'repos' || S.mode === 'pause') {
         const reprise = S.mode === 'pause';
-        if (S.ouverteDepuis) {
+        if (!o.gestesAvances && S.mode === 'pause') { S.vueDepuis = 0; sortie.etat = etat(actives); return sortie; }   // mode simple : la pause ne se lève ni ne s'enclenche par un geste (bouton ou voix)
+        if (!o.gestesAvances) {   // mode simple : une main visible et stable pendant 0,4 s engage le pointeur, quelle que soit sa pose
+          const hh = dom.histo; let trajet = 0; for (let i = 1; i < hh.length; i++) trajet += Math.hypot(hh[i].x - hh[i - 1].x, hh[i].y - hh[i - 1].y);
+          const agitee = hh.length > 3 && trajet / Math.max(0.05, (hh[hh.length - 1].t - hh[0].t) / 1000) > o.vitesseStable;   // chemin PARCOURU (un va-et-vient rapide compte, même s'il revient à son point de départ)
+          if (agitee || !S.vueDepuis) S.vueDepuis = t;
+          const v = (t - S.vueDepuis) / o.engagementRapideMs; S.progres = { type: 'engage', v: Math.min(1, v) };
+          if (v >= 1) { S.vueDepuis = 0; S.progres = null; changerMode('engage', t, sortie, { type: 'engage' }); }
+        } else if (S.ouverteDepuis) {
           const v = (t - S.ouverteDepuis) / o.engagementMs; S.progres = { type: 'engage', v: Math.min(1, v) };
           if (v >= 1) { S.ouverteDepuis = 0; changerMode('engage', t, sortie, reprise ? { type: 'reprise' } : { type: 'engage' }); }
         } else S.progres = null;
@@ -264,7 +281,7 @@
       }
       // ── mode engagé ──
       // poing tenu = pause
-      if (S.poingDepuis && actives.length === 1) {
+      if (o.gestesAvances && S.poingDepuis && actives.length === 1) {
         const v = (t - S.poingDepuis) / o.pauseMs; S.progres = { type: 'pause', v: Math.min(1, v) };
         if (v >= 1) { S.poingDepuis = 0; libererTout(sortie, 'pause'); changerMode('pause', t, sortie, { type: 'pause', actif: true }); sortie.etat = etat(actives); return sortie; }
       } else if (S.progres && S.progres.type === 'pause') S.progres = null;
@@ -274,7 +291,7 @@
         const [a, b] = actives.slice().sort((u, v) => u.centre[0] - v.centre[0]);
         const deuxPinces = a.pince === 'index' && b.pince === 'index', deuxOuvertes = a.pose === 'ouverte' && b.pose === 'ouverte';
         if (deuxPinces || deuxOuvertes) {
-          const type = deuxPinces ? 'pince' : 'ouvertes';
+          const type = (deuxPinces || !o.gestesAvances) ? 'pince' : 'ouvertes';   // V11 : en mode simple, deux mains (pincées ou ouvertes) qui s'écartent / se rapprochent = agrandir / rétrécir
           const p1 = ptEcran(a.centre), p2 = ptEcran(b.centre), c1 = deuxPinces ? ptEcran(a.milieuPince) : p1, c2 = deuxPinces ? ptEcran(b.milieuPince) : p2;   // p = paumes (distance et angle : stables quand les doigts se ferment), c = points visés (quelle fenêtre ou quel objet)
           const d = Math.hypot(p2[0] - p1[0], p2[1] - p1[1]), ang = Math.atan2(p2[1] - p1[1], p2[0] - p1[0]);
           if (!S.deux || S.deux.type !== type) {
@@ -342,7 +359,7 @@
       else if (suit && h.pose !== 'deux') sortie.actions.push({ a: 'curseur', x: affiche.x, y: affiche.y, fige: !!h.proche });
 
       // défilement à deux doigts
-      if (h.pose === 'deux') {
+      if (h.pose === 'deux' && o.gestesAvances) {
         const m = milieu(h.pts[P.indexBout], h.pts[P.majeurBout]);
         if (h.defile && t - h.defile.t < 120) { const dv = m[1] - h.defile.y; if (Math.abs(dv) > o.defileMort) sortie.actions.push({ a: 'defile', dx: 0, dy: Math.round(-dv * o.ecran.h * o.gainDefile), x: S.libre.x, y: S.libre.y }); }
         h.defile = { t, y: m[1] };
@@ -358,21 +375,21 @@
             const dt = (p1.t - p0.t) / 1000, dx = (p1.x - p0.x) / o.ratio, dy = p1.y - p0.y;
             if (dt <= 0.08) continue;
             if (t - S.derniereRecharge > o.balayage.recharge && Math.abs(dx) >= o.balayage.distanceMin && Math.abs(dx) / dt >= o.balayage.vitesseMin && Math.abs(dx) > Math.abs(dy) * 1.8) trouve = { type: 'balayage', sens: dx > 0 ? 1 : -1 };
-            else if (t - S.derniereRangee > o.balayage.recharge && dy >= o.rangerBas.distanceMin && dy / dt >= o.rangerBas.vitesseMin && dy > Math.abs(dx) * 1.8) trouve = { type: 'ranger_bas' };
+            else if (o.gestesAvances && t - S.derniereRangee > o.balayage.recharge && dy >= o.rangerBas.distanceMin && dy / dt >= o.rangerBas.vitesseMin && dy > Math.abs(dx) * 1.8) trouve = { type: 'ranger_bas' };
           }
           if (trouve && trouve.type === 'balayage') { S.derniereRecharge = t; hh.histo.length = 0; sortie.actions.push({ a: 'defile', dx: -trouve.sens * 700, dy: 0, x: S.stable.x, y: S.stable.y }); sortie.evenements.push({ type: 'balayage', sens: trouve.sens > 0 ? 'droite' : 'gauche' }); }
           else if (trouve && trouve.type === 'ranger_bas') { S.derniereRangee = t; hh.histo.length = 0; sortie.actions.push({ a: 'ranger', x: S.stable.x, y: S.stable.y }); sortie.evenements.push({ type: 'ranger_bas' }); }
           // la main recule : taille apparente qui diminue vite, sans balayer
-          if (!trouve && o.reculActif && t - S.dernierRecul > o.recul.recharge) {
+          if (!trouve && o.gestesAvances && o.reculActif && t - S.dernierRecul > o.recul.recharge) {
             const e0 = Math.max(...hh.histo.filter(p => t - p.t <= o.recul.fenetreMs).map(p => p.e)), dep = Math.hypot(p1.x - hh.histo[0].x, p1.y - hh.histo[0].y) / o.ratio;
             if (hh.histo.length > 6 && p1.e < e0 * o.recul.rapport && dep < 0.18) { S.dernierRecul = t; hh.histo.length = 0; sortie.evenements.push({ type: 'accueil' }); sortie.actions.push({ a: 'accueil' }); }
           }
         }
       }
       // main ouverte immobile 1,5 s : vue initiale
-      if (h.pose === 'ouverte' && !S.prise) {
+      if (h.pose === 'ouverte' && !S.prise && (o.gestesAvances || paumeDroite(h.brut, o.ratio))) {
         const hh = h.histo, immobile = hh.length > 4 && t - hh[0].t >= 250 && Math.hypot(h.centre[0] - hh[0].x, h.centre[1] - hh[0].y) / o.ratio < o.resetRayon;
-        if (immobile) { S.arretDepuis = S.arretDepuis || t; if (!S.resetFait && t - S.arretDepuis >= o.resetMs) { S.resetFait = true; sortie.actions.push({ a: 'vue_initiale', x: S.stable.x, y: S.stable.y }); sortie.evenements.push({ type: 'vue_initiale' }); } else if (!S.resetFait) S.progres = S.progres || { type: 'reset', v: Math.min(1, (t - S.arretDepuis) / o.resetMs) }; }
+        if (immobile) { S.arretDepuis = S.arretDepuis || t; if (!S.resetFait && t - S.arretDepuis >= o.resetMs) { S.resetFait = true; sortie.actions.push({ a: 'vue_initiale', x: S.stable.x, y: S.stable.y }); sortie.evenements.push({ type: 'vue_initiale' }); } else if (!S.resetFait && (!S.progres || S.progres.type === 'reset')) S.progres = { type: 'reset', v: Math.min(1, (t - S.arretDepuis) / o.resetMs) }; }   // V11 : l'anneau se remplit vraiment (avant, sa valeur restait figée à sa première image)
         else { S.arretDepuis = 0; S.resetFait = false; if (S.progres && S.progres.type === 'reset') S.progres = null; }
       } else { S.arretDepuis = 0; S.resetFait = false; if (S.progres && S.progres.type === 'reset') S.progres = null; }
 
@@ -380,14 +397,14 @@
       if (S.fermer) {   // la main doit RESTER ouverte pendant la confirmation : tout autre geste (poing, pincement, pointer) annule
         if (h.pose !== 'ouverte') { sortie.evenements.push({ type: 'fermer_annule' }); sortie.actions.push({ a: 'fermer_annule' }); S.fermer = null; if (S.progres && S.progres.type === 'fermer') S.progres = null; }
         else { const v = (t - S.fermer.t0) / o.fermer.confirmationMs; S.progres = { type: 'fermer', v: Math.min(1, v) }; if (v >= 1) { sortie.actions.push({ a: 'fermer', x: S.stable.x, y: S.stable.y }); sortie.evenements.push({ type: 'fermer' }); S.fermer = null; S.progres = null; } }
-      } else {
+      } else if (o.gestesAvances) {
         if (h.pose === 'poing') { if (!h.poingDebut) h.poingDebut = t; } else {
           if (h.poingDebut && (h.pose === 'ouverte') && h.precedente === 'poing') { const dur = t - h.poingDebut; if (dur >= o.fermer.poingMin && dur <= o.fermer.poingMax && t - h.aPoseDepuis <= o.fermer.ouvertureMs) { S.fermer = { t0: t }; sortie.evenements.push({ type: 'fermer_debut' }); sortie.actions.push({ a: 'fermer_debut', x: S.stable.x, y: S.stable.y }); } }
           h.poingDebut = 0;
         }
       }
       // pointer immobile 1 s : suivre / centrer
-      if (h.pose === 'pointer' && !S.prise) {
+      if (o.gestesAvances && h.pose === 'pointer' && !S.prise) {
         if (!S.arretPos || Math.hypot(affiche.x - S.arretPos.x, affiche.y - S.arretPos.y) > o.suivreRayon) { S.arretPos = { x: affiche.x, y: affiche.y, t }; S.suivreFait = false; if (S.progres && S.progres.type === 'suivre') S.progres = null; }
         else if (!S.suivreFait) { const v = (t - S.arretPos.t) / o.suivreMs; if (v >= 1) { S.suivreFait = true; if (S.progres && S.progres.type === 'suivre') S.progres = null; sortie.actions.push({ a: 'suivre', x: affiche.x, y: affiche.y }); sortie.evenements.push({ type: 'suivre' }); } else if (v > 0.25 && !S.progres) S.progres = { type: 'suivre', v }; else if (S.progres && S.progres.type === 'suivre') S.progres = { type: 'suivre', v }; }
       } else { S.arretPos = null; S.suivreFait = false; if (S.progres && S.progres.type === 'suivre') S.progres = null; }
@@ -397,9 +414,9 @@
 
     function etat(actives) {
       const h = actives && actives[0];
-      return { mode: S.mode, mains: actives ? actives.length : 0, poses: (actives || []).map(x => x.cle + ':' + x.pose), pose: h ? h.pose : null, pause: S.mode === 'pause', engage: S.mode === 'engage', saisie: !!S.prise, deux: S.deux ? S.deux.type : null, progres: S.progres, curseur: S.affiche ? { x: S.affiche.x, y: S.affiche.y } : null, pincement: h ? { index: +h.rI.toFixed(3), majeur: +h.rM.toFixed(3), type: h.pince } : null, points: (actives || []).map(x => x.pts) };
+      return { mode: S.mode, mains: actives ? actives.length : 0, poses: (actives || []).map(x => x.cle + ':' + x.pose), pose: h ? h.pose : null, pause: S.mode === 'pause', engage: S.mode === 'engage', saisie: !!S.prise, deux: S.deux ? S.deux.type : null, simple: !o.gestesAvances, progres: S.progres, curseur: S.affiche ? { x: S.affiche.x, y: S.affiche.y } : null, pincement: h ? { index: +h.rI.toFixed(3), majeur: +h.rM.toFixed(3), type: h.pince } : null, points: (actives || []).map(x => x.pts) };
     }
-    function pause(oui) { S.mode = oui ? 'pause' : 'engage'; S.modeDepuis = S.tDernier; S.progres = null; }
+    function pause(oui) { S.mode = oui ? 'pause' : 'engage'; S.modeDepuis = S.tDernier; S.progres = null; S.vueDepuis = 0; }
     function engager() { S.mode = 'engage'; S.modeDepuis = S.tDernier; S.progres = null; }
     function reinitialiser() { S.mains.clear(); S.deux = null; S.prise = null; S.fermer = null; S.deuxPoingsDepuis = 0; S.mode = 'sans-main'; S.progres = null; S.rel = null; }
     function regler(patch) {
