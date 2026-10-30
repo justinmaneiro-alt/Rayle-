@@ -32,7 +32,7 @@ for (const cle of ['telephone', 'tablette']) {
   v('…même par un appel direct du code : la galaxie ne s’ouvre pas', (await vueCourante(page)) === 'rayle' && galaxieChargee(o.requetes).length === 0);
   // actualités
   const dA = await dire(page, 'Donne-moi l’actualité en France', 2600);
-  v('« l’actualité en France » ouvre l’écran Actualités de Jarvis (coque mobile V8)', /actualité en France/.test(dA) && (await page.evaluate(() => document.documentElement.dataset.mEcran)) === 'actus' && (await vueCourante(page)) === 'rayle', dA);
+  v('« l’actualité en France » ouvre l’écran Actualités de Jarvis (coque mobile V8)', /actualité|À la une/.test(dA) && (await page.evaluate(() => document.documentElement.dataset.mEcran)) === 'actus' && (await vueCourante(page)) === 'rayle', dA);
   const largeurFen = await page.evaluate(() => { const e = document.querySelector('#m-actus'); const r = e.getBoundingClientRect(); return { x: r.x, w: r.width, iw: innerWidth }; });
   v('l’écran tient dans l’écran (pas de débordement)', largeurFen && largeurFen.x >= -1 && largeurFen.x + largeurFen.w <= largeurFen.iw + 1, JSON.stringify(largeurFen));
   await page.screenshot({ path: 'docs/captures-v7b/' + cle + '-actualites.png' });

@@ -10,7 +10,7 @@
   let reg=null, recharge=false;
   const proposer=()=>{ if(window.MobileCoque&&MobileCoque.bannièreMaj) MobileCoque.bannièreMaj('Nouvelle version disponible.',()=>{ if(reg&&reg.waiting) reg.waiting.postMessage({type:'SKIP_WAITING'}); else location.reload(); }); window.__mMajPrete=true; };
   navigator.serviceWorker.addEventListener('controllerchange',()=>{ if(recharge) return; recharge=true; location.reload(); });
-  window.addEventListener('load',async()=>{
+  const demarrer=async()=>{
     try{
       reg=await navigator.serviceWorker.register('sw.js',{scope:'./'});
       if(reg.waiting&&navigator.serviceWorker.controller) proposer();
@@ -18,5 +18,6 @@
       const verifier=()=>{ if(reg&&!document.hidden&&navigator.onLine!==false) reg.update().catch(()=>{}); };
       document.addEventListener('visibilitychange',verifier); setInterval(verifier,30*60e3); window.MobileMaj={verifier,etat:()=>({enregistre:!!reg,attend:!!(reg&&reg.waiting)}),version:()=>window.RAYLE_VERSION};
     }catch(e){ /* HTTPS refusé ou navigation privée : l'application marche sans service worker */ }
-  });
+  };
+  if(document.readyState==='complete') demarrer(); else window.addEventListener('load',demarrer);   // ce module arrive souvent APRÈS l'événement load
 })();

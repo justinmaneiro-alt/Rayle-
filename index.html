@@ -18,11 +18,11 @@
 <link rel="stylesheet" href="terminal/css/terminal.css">
 <link rel="stylesheet" href="terminal/css/terminal-pro.css">
 <script>if(!window.RayleAppareil||RayleAppareil.estPC())document.write('<link rel="stylesheet" href="galaxie/galaxie.css">');</script>
-<link rel="stylesheet" href="core/multi/multi.css">
+<script>if(!window.RayleAppareil||RayleAppareil.estPC())document.write('<link rel="stylesheet" href="core/multi/multi.css">');</script>
 <link rel="stylesheet" href="core/commun/veilleur.css">
 <link rel="stylesheet" href="core/direct/direct.css">
 <link rel="stylesheet" href="core/commun/medias.css">
-<link rel="stylesheet" href="core/commun/tableau-bord.css">
+<script>if(!window.RayleAppareil||RayleAppareil.estPC())document.write('<link rel="stylesheet" href="core/commun/tableau-bord.css">');</script>
 <link rel="stylesheet" href="core/commun/jarvis-bureau.css">
 <link rel="stylesheet" href="core/commun/telecommande.css">
 <link rel="stylesheet" href="core/gestes/gestes.css">
@@ -33,7 +33,7 @@
 <script>if(!window.RayleAppareil||RayleAppareil.estPC())document.write('<link rel="stylesheet" href="core/commun/g1-mini.css">');</script>
 <link rel="stylesheet" href="core/commun/actus-pays.css">
 <link rel="stylesheet" href="core/commun/images-actus.css">
-<script>if(window.RayleAppareil&&RayleAppareil.estMobile()){document.write('<link rel="manifest" href="manifest.webmanifest"><link rel="apple-touch-icon" href="icones/rayle-192.png"><meta name="mobile-web-app-capable" content="yes"><link rel="stylesheet" href="core/mobile/mobile.css"><link rel="stylesheet" href="core/mobile/mobile-contenus.css"><link rel="stylesheet" href="core/mobile/mobile-agent.css">');}</script>
+<script>if(window.RayleAppareil&&RayleAppareil.estMobile()){document.write('<link rel="manifest" href="manifest.webmanifest"><link rel="apple-touch-icon" href="icones/rayle-192.png"><meta name="mobile-web-app-capable" content="yes"><link rel="stylesheet" href="core/mobile/mobile.css"><link rel="stylesheet" href="core/mobile/mobile-contenus.css">');}</script>
 </head>
 <body>
   <main class="scene" id="scene">
@@ -306,7 +306,7 @@
 <script src="core/commun/jarvis-bureau-page.js"></script>
 <script src="core/commun/jarvis.js"></script>
 <script src="core/commun/tableau-bord-contenu.js"></script>
-<script src="core/commun/tableau-bord.js"></script>
+<script>if(!window.RayleAppareil||RayleAppareil.estPC())document.write('<script src="core/commun/tableau-bord.js"><\/script>');</script>
 <script>if(!window.RayleAppareil||RayleAppareil.estPC())document.write('<script src="core/commun/g1-contenu.js"><\/script>');</script>
 <script>if(!window.RayleAppareil||RayleAppareil.estPC())document.write('<script src="core/commun/g1-fenetres-calcul.js"><\/script>');</script>
 <script>if(!window.RayleAppareil||RayleAppareil.estPC())document.write('<script src="core/commun/graphique-bougies-calcul.js"><\/script>');</script>
@@ -356,10 +356,10 @@
 <script src="core/commun/veilleur-page.js"></script>
 <script src="core/commun/liquidite-voix.js"></script>
 <script src="core/direct/direct-page.js"></script>
-<script src="core/multi/multi-calcul.js"></script>
-<script src="core/multi/multi-modules.js"></script>
-<script src="core/multi/multi.js"></script>
-<script src="core/multi/multi-editeur.js"></script>
+<script>if(!window.RayleAppareil||RayleAppareil.estPC())document.write('<script src="core/multi/multi-calcul.js"><\/script>');</script>
+<script>if(!window.RayleAppareil||RayleAppareil.estPC())document.write('<script src="core/multi/multi-modules.js"><\/script>');</script>
+<script>if(!window.RayleAppareil||RayleAppareil.estPC())document.write('<script src="core/multi/multi.js"><\/script>');</script>
+<script>if(!window.RayleAppareil||RayleAppareil.estPC())document.write('<script src="core/multi/multi-editeur.js"><\/script>');</script>
 <script src="core/voice/activation.js"></script>
 <script src="core/commun/telecommande-calcul.js"></script>
 <script src="core/commun/carte-pad.js"></script>
@@ -377,7 +377,7 @@
 <script src="core/vr/vr-calcul.js"></script>
 <script src="core/vr/vr-clavier-calcul.js"></script>
 <script src="core/vr/vr-ui.js"></script>
-<script>if(window.RayleAppareil&&RayleAppareil.estMobile()){['mobile-calcul','mobile-donnees','mobile-marche','mobile-agent-donnees','mobile-coque','mobile-meteo','mobile-actus','mobile-agent-calcul','mobile-graphique','mobile-agent','mobile-accueil','mobile-plus','mobile-voix','mobile-maj'].forEach(function(f){document.write('<script src="core/mobile/'+f+'.js"><\/script>');});}</script>
+<script>if(window.RayleAppareil&&RayleAppareil.estMobile()){['mobile-calcul','mobile-donnees','mobile-coque','mobile-accueil'].forEach(function(f){document.write('<script src="core/mobile/'+f+'.js"><\/script>');});}</script>
 <script src="core/commun/demarrage.js"></script>
 </body>
 </html>

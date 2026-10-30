@@ -1,6 +1,10 @@
 import { ouvrirMobile, attendre } from './v8-aide.mjs';
-const o = await ouvrirMobile('tablette', { paysage: true, attente: 3000 }), p = o.page;
-await p.evaluate(() => MobileCoque.aller('agent')); await attendre(2500);
-await p.evaluate(() => MobileAgent.aller('performance')); await attendre(800);
-console.log(o.erreurs);
+const o = await ouvrirMobile('telephone', { attente: 4500 }), p = o.page;
+console.log('erreurs avant', o.erreurs);
+await p.evaluate(() => { MobileCoque.aller('plus'); });
+await attendre(800);
+console.log(await Promise.race([p.evaluate(() => { document.querySelector('#m-plus .m-tuile[data-id="sources"]').click(); return 'clic'; }), attendre(5000).then(() => 'blocage')]));
+await attendre(4000);
+console.log(JSON.stringify(await p.evaluate(() => ({ f: !!document.querySelector('.gf.gfx-fen'), t: (document.querySelector('.gf.gfx-fen') || {}).innerText && document.querySelector('.gf.gfx-fen').innerText.slice(0, 200) }))));
+console.log(o.erreurs.slice(0, 5));
 await o.fermer();

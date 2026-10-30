@@ -24,7 +24,7 @@
   /* ───── structure ───── */
   const app=document.createElement('div'); app.id='m-app'; app.setAttribute('aria-label','Raylé');
   app.innerHTML='<header class="m-haut"><span class="m-marque">RAYLÉ</span><div class="m-puces"><button type="button" class="m-puce" id="m-puce-lien" data-etat="att" aria-label="État de la liaison"><i></i><span>…</span></button><button type="button" class="m-puce" id="m-ecrire" aria-label="Écrire à Raylé"><span>⌨</span></button></div></header>'
-    +'<main class="m-ecrans" id="m-ecrans">'+C.ECRANS.map(id=>'<section class="m-ecran" id="m-'+id+'" data-ecran="'+id+'" aria-label="'+NOMS[id]+'"></section>').join('')+'</main>'
+    +'<main class="m-ecrans" id="m-ecrans">'+C.ECRANS.map(id=>'<section class="m-ecran" id="m-'+id+'" data-ecran="'+id+'" aria-label="'+NOMS[id]+'">'+(id==='accueil'?'':'<div class="m-squelette" style="margin-top:20px"><i></i><i></i><i></i></div>')+'</section>').join('')+'</main>'
     +'<nav class="m-nav" id="m-nav" aria-label="Navigation">'+C.ONGLETS.map(o=>o.central
       ?'<button type="button" class="m-voix" id="m-voix" data-etat="coupe" aria-label="Parler à Raylé"><b>'+ICONES.voix+'</b><small id="m-voix-txt">Parler</small></button>'
       :'<button type="button" data-ecran="'+o.id+'" aria-label="'+esc(o.nom)+'">'+ICONES[o.id]+'<span>'+esc(o.nom)+'</span></button>').join('')+'</nav>';
@@ -162,6 +162,21 @@
   }
 
   window.MobileCoque={enregistrer,aller,feuille,fermerFeuilles,ecran:()=>courant,vibrer,envoyer,bannièreMaj,niveau:()=>niveau,$:$};
+
+  /* ───── modules chargés APRÈS le chargement de la page ─────
+     Le lot critique (calculs, données, coque, accueil) est synchrone : l'accueil s'affiche vite. Le reste (météo, actualités, marchés, agent, graphique, voix, menu Plus, mises à jour) arrive juste après,
+     en parallèle mais exécuté dans l'ordre ; chaque module se branche à son arrivée (événement mobile:module). Un écran demandé avant l'arrivée de son module affiche un squelette. */
+  const LOT=['mobile-voix','mobile-marche','mobile-agent-donnees','mobile-meteo','mobile-actus','mobile-maj','mobile-plus','mobile-agent-calcul','mobile-graphique','mobile-agent'];
+  function chargerLot(){
+    const l=document.createElement('link'); l.rel='stylesheet'; l.href='core/mobile/mobile-agent.css'; document.head.appendChild(l);
+    for(const f of LOT){ const s=document.createElement('script'); s.src='core/mobile/'+f+'.js'; s.async=false; s.onload=s.onerror=()=>{ try{ RayleBus.emit('mobile:module',{nom:f}); }catch(e){} }; document.head.appendChild(s); }
+  }
+  const apresChargement=()=>{ (window.requestIdleCallback||(f=>setTimeout(f,150)))(chargerLot,{timeout:1200}); };
+  if(document.readyState==='complete') apresChargement(); else window.addEventListener('load',apresChargement);
+
+  /* ───── réglages : sections du PC sans objet sur mobile ───── */
+  (function(){ const cfg=$('cfg'); if(!cfg) return; const NOMS=/^(Tableau de bord|Mode multi-écrans|Mes écrans)/; let masque=false;
+    for(const h of cfg.querySelectorAll('h3')){ masque=NOMS.test(h.textContent.trim())?true:(masque&&false); if(masque){ h.hidden=true; let n=h.nextElementSibling; while(n&&n.tagName!=='H3'){ n.hidden=true; n=n.nextElementSibling; } } } })();
 
   /* ───── démarrage : écran mémorisé ou accueil ───── */
   RayleBus.emit('mobile:pret',{});

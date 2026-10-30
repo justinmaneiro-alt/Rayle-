@@ -14,10 +14,10 @@
     racine=el;
     el.innerHTML='<div class="m-bandeau-actus" data-bandeau hidden></div><div class="m-grille">'
       +'<section class="m-carte m-large" data-carte="heure" style="--i:0" tabindex="0" role="button" aria-label="Heure et date"><div class="m-heure"><svg class="m-arc" viewBox="0 0 44 44" aria-hidden="true"><circle class="fond" cx="22" cy="22" r="19"/><circle class="sec" cx="22" cy="22" r="19" pathLength="60"/></svg><div><b class="m-grand m-mono" data-h>--:--</b><span class="m-doux" data-d></span></div></div><p class="m-salut" data-salut></p></section>'
-      +'<section class="m-carte" data-carte="meteo" style="--i:1" tabindex="0" role="button" aria-label="Météo"><h3>Météo</h3><div data-z></div></section>'
+      +'<section class="m-carte" data-carte="meteo" style="--i:1" tabindex="0" role="button" aria-label="Météo"><h3>Météo</h3><div data-z><div class="m-squelette"><i></i><i></i></div></div></section>'
       +'<section class="m-carte" data-carte="agent" style="--i:2" tabindex="0" role="button" aria-label="Agent de trading"><h3>Agent trading <em data-ag-et></em></h3><div data-z><div class="m-squelette"><i></i><i></i></div></div></section>'
-      +'<section class="m-carte m-large m-carte-actus" data-carte="actus" style="--i:3" tabindex="0" role="button" aria-label="Actualités"><h3>À la une <em data-maj></em></h3><div data-z></div></section>'
-      +'<section class="m-carte m-large" data-carte="marche" style="--i:4" tabindex="0" role="button" aria-label="Marchés"><h3>Marchés <em data-m-et></em></h3><div data-z></div></section>'
+      +'<section class="m-carte m-large m-carte-actus" data-carte="actus" style="--i:3" tabindex="0" role="button" aria-label="Actualités"><h3>À la une <em data-maj></em></h3><div data-z><div class="m-squelette m-image"><i></i><i></i><i></i></div></div></section>'
+      +'<section class="m-carte m-large" data-carte="marche" style="--i:4" tabindex="0" role="button" aria-label="Marchés"><h3>Marchés <em data-m-et></em></h3><div data-z><div class="m-squelette"><i></i><i></i><i></i></div></div></section>'
       +'</div>';
     // cartes → écrans
     el.addEventListener('click',ev=>{
@@ -28,12 +28,19 @@
     });
     el.addEventListener('keydown',ev=>{ if((ev.key==='Enter'||ev.key===' ')&&ev.target.matches('[data-carte]')){ ev.preventDefault(); ev.target.click(); } });
     horlogeDemarrer();
-    // météo : sa propre logique (position, ville, cache)
-    if(window.MobileMeteo) MobileMeteo.monterCarte(el.querySelector('[data-carte=meteo] [data-z]')); else el.querySelector('[data-carte=meteo]').remove();
-    monterActus(); monterMarche(); monterAgent();
+    // les données arrivent par des modules chargés APRÈS le chargement de la page (accueil prêt plus vite) : chaque carte se branche quand son module est là
+    brancher(); RayleBus.on('mobile:module',brancher);
     // l'entité recule et s'estompe quand on fait défiler (transform/opacité seulement)
     const reactor=document.getElementById('reactor'); let pr=0;
     el.addEventListener('scroll',()=>{ if(pr) return; pr=requestAnimationFrame(()=>{ pr=0; if(reactor){ const p=Math.min(1,el.scrollTop/260); reactor.style.opacity=String(1-p*0.85); } }); },{passive:true});
+  }
+  const branche={};
+  function brancher(){
+    if(!racine) return;
+    if(!branche.meteo&&window.MobileMeteo){ branche.meteo=1; MobileMeteo.monterCarte(racine.querySelector('[data-carte=meteo] [data-z]')); }
+    if(!branche.actus&&window.MobileActus){ branche.actus=1; monterActus(); }
+    if(!branche.marche&&window.MobileMarche&&T){ branche.marche=1; monterMarche(); }
+    if(!branche.agent&&window.MobileAgentDonnees){ branche.agent=1; monterAgent(); }
   }
   const semaine=d=>{ const t=new Date(Date.UTC(d.getFullYear(),d.getMonth(),d.getDate())); const j=t.getUTCDay()||7; t.setUTCDate(t.getUTCDate()+4-j); return Math.ceil((((t-new Date(Date.UTC(t.getUTCFullYear(),0,1)))/864e5)+1)/7); };
 
