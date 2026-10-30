@@ -15,6 +15,7 @@ function chargerCss() {
   if (document.getElementById('mars-poste-css')) return;
   const l = document.createElement('link'); l.id = 'mars-poste-css'; l.rel = 'stylesheet'; l.href = new URL('./poste-agent.css', import.meta.url).href; document.head.appendChild(l);
   const a3 = document.createElement('link'); a3.id = 'mars-agent-v3-css'; a3.rel = 'stylesheet'; a3.href = new URL('./agent-accueil.css', import.meta.url).href; document.head.appendChild(a3);
+  const tv = document.createElement('link'); tv.id = 'mars-trader-vue-css'; tv.rel = 'stylesheet'; tv.href = new URL('../../../../core/commun/trader-vue.css', import.meta.url).href; document.head.appendChild(tv);
   const v = document.createElement('link'); v.id = 'mars-poste-css-v1'; v.rel = 'stylesheet'; v.href = new URL('./v1-agent.css', import.meta.url).href; document.head.appendChild(v);
 }
 export const posteOuvert = () => poste;

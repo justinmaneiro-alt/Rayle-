@@ -22,10 +22,12 @@ import { pistesDepuis, meilleuresPistes, PROFIL_45_RR2 } from '../strategies/pis
 import { phraseFraisEtat, fraisMoyenR } from '../strategies/agent-etat.js';
 import { cleParams } from '../planetes/mars/pc/agent-btc/hypotheses.js';
 import { lireCoutsReglage, phraseSource } from '../agent-pc/couts-reglage.mjs';
+import { statutService } from '../agent-pc/service-statut.mjs';
 import { construirePaquet, plafonner } from '../agent-pc/bundle-mobile.mjs';   // V8 : même paquet que celui publié vers le Worker pour le téléphone
 
 const COMMANDES = ['pause', 'reprendre', 'charge', 'retour_arriere', 'rapport', 'observation', 'rapport_quotidien', 'niveau_preuve'];
 const COMMANDES_POSITIONS = ['reglages', 'exemple', 'supprimer_exemple'];
+const COMMANDES_TRADER = ['reglages', 'reactiver'];
 export function creerRoutesAgent(env = process.env) {
   let memoMobile = null;
   const dossier = () => dossierAgent(env);
@@ -65,6 +67,18 @@ export function creerRoutesAgent(env = process.env) {
         if (!COMMANDES_POSITIONS.includes(b.type)) return json(400, { ok: false, erreur: 'commande inconnue' });
         const loc = path.join(dossier(), 'positions-commandes.json'), liste = lireJson(loc, []) || []; liste.push({ type: b.type, valeur: b.valeur ?? null }); ecrireJson(loc, liste.slice(-20));
         return json(200, { ok: true, note: 'transmise au service (appliquée à son prochain cycle, ≈ 30 s)' });
+      }
+      if (route === 'trader' && req.method === 'GET') {   // V12 : mode Trader (positions « À l'essai », bilan en direct), lu dans trader.json écrit par le service ; le statut du service est TOUJOURS donné en clair
+        const service = lireJson(F.service, null), sv = statutService(service, !!(service && service.pid && vivant(service.pid)), Date.now());
+        const t = lireJson(path.join(dossier(), 'trader.json'), null);
+        if (!t) return json(200, { ok: true, existe: false, enMarche: sv.enMarche, service: sv, note: 'Le mode Trader n’a pas encore calculé de positions (il le fait à chaque clôture de bougie M15, service en marche).' });
+        return json(200, { ok: true, existe: true, enMarche: sv.enMarche, service: sv, vue: t.vuePubliee || null });
+      }
+      if (route === 'trader/commande' && req.method === 'POST') {
+        const b = await lireCorps(req);
+        if (!COMMANDES_TRADER.includes(b.type)) return json(400, { ok: false, erreur: 'commande inconnue' });
+        const loc = path.join(dossier(), 'trader-commandes.json'), liste = lireJson(loc, []) || []; liste.push({ type: b.type, valeur: b.valeur ?? null }); ecrireJson(loc, liste.slice(-20));
+        return json(200, { ok: true, note: 'transmise au service (appliquée à son prochain cycle)' });
       }
       if (route === 'occasions' && req.method === 'GET') {
         const o = lireJson(path.join(dossier(), 'occasions.json'), {}) || {}, liste = Object.entries(o).flatMap(([p, j]) => ((j && j.liste) || []).map(x => ({ ...x, actif: p }))).sort((a, b) => b.t - a.t);

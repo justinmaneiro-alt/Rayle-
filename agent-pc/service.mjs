@@ -40,13 +40,15 @@ import { meilleuresPistes, lignesRapportPistes } from '../strategies/pistes.js';
 import { creerDetecteurJeu } from '../app-pc/veilleur/charge-systeme.mjs';
 import { dossierVeilleur } from '../app-pc/veilleur/dossier.mjs';
 import { assurerEnregistreur, statutFlux } from './flux/service-flux.mjs';
+import { statutService } from './service-statut.mjs';
+import { creerTrader } from './trader.mjs';      // V12 : mode Trader (positions réelles à chaque bougie, bilan en direct)
 import { creerPositions } from './positions.mjs';      // V7 : les trois agents de positions (Rebond, Continuation, Extrêmes)
 
 export const VERSION_SERVICE = 1;
 export const CYCLE_MS = 30000, FENETRE_LIVE = 3000, FENETRE_RICHE = 6000, TRANCHE_MS = 4 * 60e3, JEUX_PAR_DEFAUT = ['valorant', 'cs2', 'csgo', 'fortniteclient-win64-shipping', 'eldenring', 'leagueclient', 'league of legends', 'overwatch', 'rocketleague', 'gta5', 'cyberpunk2077', 'baldursgate3', 'minecraft'];
 const semaineISO = t => { const d = new Date(t), j = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate())), n = j.getUTCDay() || 7; j.setUTCDate(j.getUTCDate() + 4 - n); const a = new Date(Date.UTC(j.getUTCFullYear(), 0, 1)); return j.getUTCFullYear() + '-S' + String(Math.ceil(((j - a) / 86400e3 + 1) / 7)).padStart(2, '0'); };
 
-export function creerService({ dossier = dossierAgent(), maintenant = () => Date.now(), donnees = null, sync = null, ecrire = ecrireRapport, executer = executerTache, detecteur = null, fetchImpl = globalThis.fetch, paires: pairesBase = ORDRE_PAIRES, tranchesMs = TRANCHE_MS, sansPriorite = false, avecFlux = false, avecEquipe = false, avecPepiniere = false, avecPositions = false } = {}) {
+export function creerService({ dossier = dossierAgent(), maintenant = () => Date.now(), donnees = null, sync = null, ecrire = ecrireRapport, executer = executerTache, detecteur = null, fetchImpl = globalThis.fetch, paires: pairesBase = ORDRE_PAIRES, tranchesMs = TRANCHE_MS, sansPriorite = false, avecFlux = false, avecEquipe = false, avecPepiniere = false, avecPositions = false, avecTrader = false } = {}) {
   const F = fichiersAgent(dossier); fs.mkdirSync(dossier, { recursive: true });
   const extrasInit = (() => { const e = lireJson(F.etat, null); return Array.isArray(e && e.actifsExtra) ? e.actifsExtra.filter(x => PAIRES_EXTRA[x] && !pairesBase.includes(x)) : []; })();      // V6 : actifs ajoutés par Justin (--ajouter-actif)
   const paires = [...pairesBase, ...extrasInit];
@@ -224,6 +226,9 @@ export function creerService({ dossier = dossierAgent(), maintenant = () => Date
   const niveauPreuve = () => (etat.parametresRisque && etat.parametresRisque.niveauPreuve === 'strict' ? 'strict' : 'equilibre');
   const positions = avecPositions ? creerPositions({ dossier, D, paires, maintenant, journal, erreur, versionCriteres: niveauPreuve, pistesLignes: () => lignesRapportPistes(meilleuresPistes(etat.backtests, { n: 3 }), null), envoyer: async (texte, canal) => { if (S.configure) await S.telegram(texte, canal); } }) : null;
 
+  /* ── (2 sexies) V12 : mode Trader (propositions « À l'essai » à chaque clôture M15, suivi simulé, bilan en direct, promotion / désactivation) ── */
+  const trader = avecTrader ? creerTrader({ dossier, D, paires, maintenant, journal: (c, m) => journal(c, m), erreur, envoyer: async (texte, canal) => { if (S.configure) await S.telegram(texte, canal); } }) : null;
+
   /* ── (3) recherche permanente ── */
   const debutFinalPar = () => { const o = {}; for (const p of paires) { const c = etat.coffre && etat.coffre[p]; if (c && c.debutFinal) { o[p] = c.debutFinal; continue; } const s = D.serie(p); if (!s || s.n < 5000) continue; const d = decouper(s); if (d.ok) { (etat.coffre = etat.coffre || {})[p] = { debutFinal: d.debutFinal, ouvertures: [], fixeLe: maintenant() }; o[p] = d.debutFinal; journal('coffre', 'Jeu final de ' + p + ' fixé à partir du ' + jourDe(d.debutFinal) + ' (il ne bougera plus ; ouvert une seule fois par stratégie).'); } } return o; };
   async function peutChercher() {
@@ -305,6 +310,7 @@ export function creerService({ dossier = dossierAgent(), maintenant = () => Date
       if (avecFlux) { try { const r = assurerEnregistreur(dossier, { maintenant: maintenant() }); if (r === 'lance') journal('flux', 'Enregistreur du carnet (re)lancé.'); } catch (e) { erreur('flux', e); } }   // V4 : carnet d'ordres 24 h/24, relancé s'il s'arrête
       if (avecPepiniere) { try { cr.pepiniere = await pepiniereTick(); } catch (e) { erreur('pépinière', e); } }
       if (positions) { try { cr.positions = await positions.cycle(); } catch (e) { erreur('positions', e); } }
+      if (trader) { try { cr.trader = await trader.cycle(); info.trader = { t: maintenant(), derniereBougie: Object.fromEntries(Object.entries(trader.etat().dernierCalcul)), suivies: trader.etat().propositions.filter(p => p.statut === 'en_attente' || p.statut === 'ouverte').length }; } catch (e) { erreur('mode Trader', e); } }
       if (avecEquipe) { try { cr.autonomie = await autonomieDuJour(); } catch (e) { erreur('autonomie', e); } }
       if (avecEquipe) { try { cr.equipe = await equipeDuJour(); } catch (e) { erreur('équipe', e); } }
       try { cr.alertes = await surveiller(); } catch (e) { erreur('surveillance', e); }
@@ -322,7 +328,7 @@ export function creerService({ dossier = dossierAgent(), maintenant = () => Date
   }
   function battementSepare() { if (!S.configure) return; S.battement(pcInfo()).then(r => { info.worker = { configure: true, ok: true, t: maintenant(), msg: null }; return r; }).catch(e => { info.worker = { configure: true, ok: false, t: maintenant(), msg: String(e.message).slice(0, 100) }; }); }
   function priorite() { if (sansPriorite) return; try { os.setPriority(process.pid, os.constants.priority.PRIORITY_LOW); } catch (e) { journal('service', 'priorité basse impossible : ' + e.message); } }
-  return { positions: () => positions, cycle, demarrer, battementSepare, priorite, autonomieDuJour, alertesObservation, equipeDuJour, pepiniereTick, resumePepiniere: () => resumePepiniere(lirePepiniere(dossier), maintenant()), resumeEquipe: () => resumeEquipe(lireEquipe(dossier), etat, maintenant()), etat: () => etat, suivi: () => suivi, info: () => info, donnees: D, fichiers: F, faireRapport, appliquerCommande, chercher, surveiller, donneesDuJour, pousserEtat, arreter: () => { arretDemande = true; }, statut: () => statutAgent(etat, { pcVivant: true, rechercheEnCours: enCalcul, enPreparation: pcInfo().enPreparation, positionOuverte: pcInfo().positionOuverte }) };
+  return { positions: () => positions, trader: () => trader, cycle, demarrer, battementSepare, priorite, autonomieDuJour, alertesObservation, equipeDuJour, pepiniereTick, resumePepiniere: () => resumePepiniere(lirePepiniere(dossier), maintenant()), resumeEquipe: () => resumeEquipe(lireEquipe(dossier), etat, maintenant()), etat: () => etat, suivi: () => suivi, info: () => info, donnees: D, fichiers: F, faireRapport, appliquerCommande, chercher, surveiller, donneesDuJour, pousserEtat, arreter: () => { arretDemande = true; }, statut: () => statutAgent(etat, { pcVivant: true, rechercheEnCours: enCalcul, enPreparation: pcInfo().enPreparation, positionOuverte: pcInfo().positionOuverte }) };
 }
 
 /* ── ligne de commande ── */
@@ -332,7 +338,8 @@ if (estPrincipal()) {
   const demander = c => { const loc = path.join(dossier, 'commandes.json'), l = lireJson(loc, []) || []; l.push(c); ecrireJson(loc, l); console.log('Commande « ' + c.type + ' » transmise au service' + (lireJson(F.service) && vivant((lireJson(F.service) || {}).pid) ? '.' : ' (il n’est pas démarré : elle sera appliquée à son prochain démarrage).')); };
   if (a === '--statut') {
     const e = chargerEtat(dossier), i = lireJson(F.service, null), st = statutAgent(e, { pcVivant: !!(i && vivant(i.pid)) });
-    console.log(JSON.stringify({ agent: e.identite.nom, statut: st.texte, phrase: st.phrase, versionActive: e.active, strategies: strategiesActives(e).map(s => s.nom + ' ' + s.paire + ' (' + s.phase + ')'), variantesTestees: Object.values(e.compteurVariantes).reduce((x, y) => x + y, 0), service: i ? { pid: i.pid, enMarche: vivant(i.pid) && Date.now() - i.vivantLe < 120000, phase: i.phase, raison: i.raison, worker: i.worker } : 'jamais démarré', rapport: e.rapport && e.rapport.lignes, carnetOrdres: (() => { try { const f = statutFlux(dossier); return { resume: f.phrase, enregistre: f.enregistre, jours: f.jours, goUtilises: f.octets != null ? +(f.octets / 1024 ** 3).toFixed(2) : null, quotaGo: f.quotaGo, trous: f.trous, flux: f.fluxPrets }; } catch (x) { return 'indisponible : ' + x.message; } })() }, null, 1)); process.exit(0);
+    const clair = statutService(i, !!(i && vivant(i.pid)), Date.now());
+    console.log(JSON.stringify({ agent: e.identite.nom, serviceClair: clair.phrase, statut: st.texte, phrase: st.phrase, versionActive: e.active, strategies: strategiesActives(e).map(s => s.nom + ' ' + s.paire + ' (' + s.phase + ')'), variantesTestees: Object.values(e.compteurVariantes).reduce((x, y) => x + y, 0), service: i ? { pid: i.pid, enMarche: vivant(i.pid) && Date.now() - i.vivantLe < 120000, phase: i.phase, raison: i.raison, worker: i.worker } : 'jamais démarré', rapport: e.rapport && e.rapport.lignes, carnetOrdres: (() => { try { const f = statutFlux(dossier); return { resume: f.phrase, enregistre: f.enregistre, jours: f.jours, goUtilises: f.octets != null ? +(f.octets / 1024 ** 3).toFixed(2) : null, quotaGo: f.quotaGo, trous: f.trous, flux: f.fluxPrets }; } catch (x) { return 'indisponible : ' + x.message; } })() }, null, 1)); process.exit(0);
   }
   if (a === '--arreter') { fs.writeFileSync(F.arret, String(Date.now())); console.log('Arrêt demandé.'); process.exit(0); }
   if (a === '--pause') { demander({ type: 'pause' }); process.exit(0); }
@@ -347,7 +354,7 @@ if (estPrincipal()) {
   if (a === '--retour-arriere') { demander({ type: 'retour_arriere', numero: args[1] ? Number(args[1]) : null }); process.exit(0); }
   try { const pid = Number(fs.readFileSync(F.verrou, 'utf8')); if (pid && pid !== process.pid && vivant(pid)) { console.log('Le service tourne déjà (pid ' + pid + ').'); process.exit(0); } } catch (e) { /* pas de verrou */ }
   fs.writeFileSync(F.verrou, String(process.pid)); try { fs.unlinkSync(F.arret); } catch (e) { /* rien */ }
-  const s = creerService({ dossier, avecFlux: true, avecEquipe: true, avecPepiniere: true, avecPositions: true }); s.priorite();
+  const s = creerService({ dossier, avecFlux: true, avecEquipe: true, avecPepiniere: true, avecPositions: true, avecTrader: true }); s.priorite();
   let fini = false; const sortir = () => { if (fini) return; fini = true; try { s.info().phase = 'arrete'; s.cycle; fs.unlinkSync(F.verrou); } catch (e) { /* fini */ } process.exit(0); };
   process.on('SIGINT', sortir); process.on('SIGTERM', sortir);
   process.on('uncaughtException', e => { try { ajouterJournal({ type: 'erreur', texte: 'non gérée : ' + (e && e.message) }, dossier); } catch (x) { /* rien */ } });

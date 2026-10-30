@@ -102,7 +102,7 @@ export function statutAgent(etat, { pcVivant = true, rechercheEnCours = false, e
 function phraseStatut(etat, code) {
   const n = strategiesActives(etat).length;
   return ({ pause: 'L’agent est en pause (tu l’as demandé).', position: 'Une position est proposée : regarde le graphique.', preparation: 'Un setup se prépare : rien à faire pour l’instant, je te préviens si ça se confirme.',
-    pc_eteint: 'Ton PC est éteint : je surveille le marché depuis le serveur avec la dernière version validée (v' + etat.active + '), mais je ne cherche pas de nouvelles stratégies.', veille_recherche: 'Ton PC est éteint : pas de recherche en ce moment.',
+    pc_eteint: 'Ton PC est éteint : je surveille le marché depuis le serveur avec la dernière version validée (v' + etat.active + '), mais je ne cherche pas de nouvelles stratégies.', veille_recherche: 'Le service Kepler ne tourne pas sur ton PC : pas de recherche en ce moment (relance-le en une étape : node agent-pc/service.mjs). Regarde plus bas l’âge des dernières données et ce que le serveur voit.',
     recherche: 'Je cherche et teste des stratégies sur les données ' + (n ? 'et je surveille le marché avec ' + n + ' stratégie(s).' : '; aucune n’est encore validée.'), surveillance: 'Je surveille le marché avec ' + n + ' stratégie(s) (version v' + etat.active + ').', aucune: CRITERES3.aucuneStrategie })[code];
 }
 /* Frais moyens en R par trade (V6) : `etat.frais` = { coutMoyenR, t } mesuré chaque jour par le service sur tout ce qui a été testé ; sinon, moyenne pondérée des résumés de validation qui la contiennent. */

@@ -46,6 +46,13 @@ export function construirePaquet(dossier, maintenant = Date.now()) {
     paquet.positions = v;
     paquet.performance = performanceMobile(pos.propositions, { risquePct: (v.reglages && v.reglages.risquePct) || 0.5 });
   }
+  const tr = lireJson(path.join(dossier, 'trader.json'), null);
+  if (tr && tr.vuePubliee) {      // V12 : mode Trader (le même contenu que la fenêtre PC, allégé pour le téléphone)
+    const t = { ...tr.vuePubliee }; delete t.gestions; delete t.niveaux; t.recentes = (t.recentes || []).slice(0, 25); t.journalNiveaux = (t.journalNiveaux || []).slice(0, 10); t.pourquoi = (t.pourquoi || []).slice(0, 12);
+    t.bougies = Object.fromEntries(Object.entries(t.bougies || {}).map(([a, l]) => [a, (l || []).slice(-90)])); t.courbe = (t.courbe || []).slice(-120);
+    if (t.bilan) { t.bilan = { ...t.bilan, parType: (t.bilan.parType || []).slice(0, 14) }; delete t.bilan.parActif; delete t.bilan.parTf; delete t.bilan.parStyle; }
+    paquet.trader = t;
+  }
   if (fs.existsSync(F.etat)) {
     const etat = chargerEtat(dossier), toutes = pistesDepuis(etat.backtests), top = meilleuresPistes(etat.backtests, { n: 5 }), pep = lirePepiniere(dossier);
     toutes.sort((a, b) => (b.bootstrapBas == null ? -9 : b.bootstrapBas) - (a.bootstrapBas == null ? -9 : a.bootstrapBas));
@@ -70,7 +77,7 @@ export function construirePaquet(dossier, maintenant = Date.now()) {
 /* Réduit jusqu'à tenir dans MAX_OCTETS : on retire d'abord le plus lourd et le moins utile sur petit écran. */
 export function plafonner(paquet, max = MAX_OCTETS) {
   const taille = () => Buffer.byteLength(JSON.stringify(paquet));
-  const etapes = [() => { if (paquet.positions) paquet.positions.types = paquet.positions.types.slice(0, 25); }, () => { if (paquet.pistes) paquet.pistes.toutes = paquet.pistes.toutes.slice(0, 15); },
+  const etapes = [() => { if (paquet.trader) paquet.trader.recentes = paquet.trader.recentes.slice(0, 10); }, () => { if (paquet.trader) delete paquet.trader.retro; }, () => { if (paquet.positions) paquet.positions.types = paquet.positions.types.slice(0, 25); }, () => { if (paquet.pistes) paquet.pistes.toutes = paquet.pistes.toutes.slice(0, 15); },
     () => { if (paquet.positions) delete paquet.positions.exploration; }, () => { if (paquet.positions) delete paquet.positions.types; }, () => { delete paquet.donnees; }];
   for (const e of etapes) { if (taille() <= max) break; e(); }
   return paquet;
@@ -80,6 +87,7 @@ export function plafonner(paquet, max = MAX_OCTETS) {
 export const empreintePaquet = p => {
   const pos = p.positions || {}, ag = p.agent || {};
   const utile = { propositions: pos.propositions, recentes: pos.recentes, types: (pos.types || []).map(x => [x.type, x.niveau, x.n, x.esperance]), bilan: pos.bilan, reglages: pos.reglages, pistes: p.pistes, equipe: p.equipe, occasions: p.occasions, exemples: p.exemples,
+    trader: p.trader && { actives: (p.trader.actives || []).map(x => [x.id, x.statut, x.niveau]), recentes: (p.trader.recentes || []).slice(0, 12).map(x => [x.id, x.statut, x.resultat && x.resultat.R]), phrase: p.trader.bilan && p.trader.bilan.phrase, types: (p.trader.types || []).map(x => [x.cle, x.niveau, x.n]), reglages: p.trader.reglages },
     alertes: ag.alertes, active: ag.versionActive, pause: ag.pause, phase: p.phase };
   return createHash('sha1').update(JSON.stringify(utile)).digest('hex').slice(0, 16);
 };

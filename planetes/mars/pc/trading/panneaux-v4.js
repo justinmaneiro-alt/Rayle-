@@ -3,6 +3,7 @@
 const esc = t => String(t == null ? '' : t).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 const fr = (x, d = 1) => (x == null || !Number.isFinite(x) ? '—' : x.toFixed(d).replace('.', ','));
 const quand = t => (t ? new Date(t).toLocaleString('fr-FR', { timeZone: 'Europe/Paris', day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }) : '—');
+import '../../../../core/commun/trader-vue.js';
 import { filtrerProfil, PROFIL_45_RR2 } from '../../../../strategies/pistes.js';
 import { htmlPositions, htmlBilan, htmlPourquoi, htmlReglages, htmlExemples, svgBougies, pointDepuisClic, indisponible as indispoV7 } from '../agent-v7/vue-positions.js';
 export const VUES_V4 = Object.freeze(['positions', 'bilan', 'pourquoi', 'exemples', 'reglages_pos', 'pistes', 'liquidite', 'equipe', 'occasions', 'donnees']);
@@ -91,9 +92,12 @@ export function creerPanneauxV4({ conteneur, ouvrirCarte = actif => import('../l
       if (v === 'liquidite') { let a = null, s = null; try { s = await json('/__flux/statut', 4000); } catch (e) { /* absent */ } try { const j = await json('/__flux/analyse?actif=BTC&venue=binance-spot&minutes=20', 20000); a = j.analyse; } catch (e) { /* absent */ } html = s ? htmlLiquidite(a, s) : indispo('/__flux/statut') + htmlLiquidite(null, null); }
       else if (v === 'positions' || v === 'bilan' || v === 'pourquoi' || v === 'exemples' || v === 'reglages_pos') {
         if (!(v === 'exemples' && cachePos && marquage && racine.dataset.garder === '1')) cachePos = await json('/__agent/positions');
-        if (v === 'positions') html = htmlPositions(cachePos); else if (v === 'bilan') html = htmlBilan(cachePos); else if (v === 'reglages_pos') html = htmlReglages(cachePos);
+        let tr = null; try { tr = await json('/__agent/trader'); } catch (e) { /* service absent : le message de statut le dira */ }
+        const TV = window.TraderVue, vt = tr && tr.vue, opt = { service: tr && tr.service, largeur: 760 };
+        const v7 = h => '<details class="av4-v7"><summary>Anciens agents V7 (Rebond, Continuation, Extrêmes) — niveaux Validée / Candidate seulement</summary>' + h + '</details>';
+        if (v === 'positions') html = TV.positionsHtml(vt, opt) + v7(htmlPositions(cachePos)); else if (v === 'bilan') html = TV.bilanHtml(vt, opt) + v7(htmlBilan(cachePos)); else if (v === 'reglages_pos') html = TV.reglagesHtml(vt) + v7(htmlReglages(cachePos));
         else if (v === 'exemples') html = htmlExemples(cachePos, { actif: actifEx, marquage });
-        else { let pi = null; try { pi = await json('/__agent/pistes'); } catch (e) { /* pistes absentes */ } html = htmlPourquoi(cachePos, pi); }
+        else { let pi = null; try { pi = await json('/__agent/pistes'); } catch (e) { /* pistes absentes */ } html = TV.pourquoiHtml(vt, opt) + v7(htmlPourquoi(cachePos, pi)); }
       }
       else if (v === 'pistes') { cachePistes = await json('/__agent/pistes'); html = htmlPistes(cachePistes, profil); }
       else if (v === 'equipe') html = htmlEquipe(await json('/__agent/equipe'));
@@ -104,6 +108,14 @@ export function creerPanneauxV4({ conteneur, ouvrirCarte = actif => import('../l
   }
   racine.addEventListener('change', ev => { const c = ev.target.closest && ev.target.closest('[data-av4-profil]'); if (!c || !cachePistes) return; const k = c.dataset.av4Profil, x = Number(c.value); if (!Number.isFinite(x)) return; profil = { ...profil, nom: 'profil choisi', [k]: k === 'rrMin' ? x : x / 100 }; racine.innerHTML = '<h3 class="av4-titre">' + esc(LIBELLES_V4.pistes) + '</h3>' + htmlPistes(cachePistes, profil); });
   racine.addEventListener('click', ev => { const b = ev.target.closest('[data-av4-carte]'); if (b) ouvrirCarte(b.dataset.av4Carte).catch(() => {}); });
+  racine.addEventListener('click', async ev => {
+    const re = ev.target.closest && ev.target.closest('[data-tv-reactiver]'); if (re) { await poster('/__agent/trader/commande', { type: 'reactiver', valeur: re.dataset.tvReactiver }); setTimeout(rendre, 1500); return; }
+    const vo = ev.target.closest && ev.target.closest('[data-tv-voir]'); if (vo) { const g = racine.querySelector('.tv-bloc .tv-graphe'); if (g && g.scrollIntoView) g.scrollIntoView({ block: 'center', behavior: 'smooth' }); }
+  });
+  racine.addEventListener('change', async ev => {
+    const t = ev.target; if (!t.matches || !t.matches('[data-tv-reg]')) return; const k = t.dataset.tvReg;
+    await poster('/__agent/trader/commande', { type: 'reglages', valeur: { [k]: t.type === 'checkbox' ? t.checked : t.value } }); setTimeout(rendre, 1500);
+  });
   racine.addEventListener('change', async ev => { if (ev.target.matches('[data-av4-observation]')) { try { await fetch('/__agent/commande', { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Rayle-Multi': '1' }, body: JSON.stringify({ type: 'observation', valeur: ev.target.checked }) }); } catch (e) { /* service absent */ } } });
   const redessiner = () => { if (vue === 'exemples' && cachePos) racine.innerHTML = '<h3 class="av4-titre">' + esc(LIBELLES_V4.exemples) + '</h3>' + htmlExemples(cachePos, { actif: actifEx, marquage }); };
   racine.addEventListener('click', async ev => {
