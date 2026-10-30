@@ -23,6 +23,7 @@
     modeRelatif: false, gainRelatif: 1.5,            // relatif : la main peut se reposer ; gain = déplacement d'écran par déplacement de main (en « zones »)
     lissage: 0.5,                                    // 0 réactif … 1 très lissé
     predictionMs: 30,
+    zoneMorte: 6,                                    // V10 : rayon (px) de la zone morte du curseur : la main immobile qui tremble ne le bouge pas (0 = désactivée) ; en mouvement il suit à 6 px près
     sensibiliteClic: 1,                              // multiplie les seuils de pincement (plus grand = plus facile à pincer)
     seuilFerme: 0.30, seuilOuvre: 0.45,              // distance pouce–index / taille de la main : sous seuilFerme = pincé, au-dessus de seuilOuvre = ouvert
     clicMin: 25, clicMax: 420, delaiMaintien: 260, doubleClic: 650, deriveClic: 0.25,
@@ -118,7 +119,7 @@
     const cfgEcran = () => ({ minCutoff: lerp(6, 1.2, o.lissage), beta: 0.006, dCutoff: 1 });   // curseur à l'écran, en pixels
     const S = {
       mains: new Map(), mode: 'sans-main', modeDepuis: 0, dernierClic: -1e9, derniereRecharge: -1e9, derniereRangee: -1e9, dernierRecul: -1e9,
-      cur: { x: o.ecran.l / 2, y: o.ecran.h / 2 }, libre: { x: o.ecran.l / 2, y: o.ecran.h / 2 }, stable: { x: o.ecran.l / 2, y: o.ecran.h / 2 }, hist: [], fx: creerOneEuro(cfgEcran()), fy: creerOneEuro(cfgEcran()), vit: { x: 0, y: 0 }, tCur: 0,
+      cur: { x: o.ecran.l / 2, y: o.ecran.h / 2 }, libre: { x: o.ecran.l / 2, y: o.ecran.h / 2 }, stable: { x: o.ecran.l / 2, y: o.ecran.h / 2 }, hist: [], dz: { x: o.ecran.l / 2, y: o.ecran.h / 2 }, fx: creerOneEuro(cfgEcran()), fy: creerOneEuro(cfgEcran()), vit: { x: 0, y: 0 }, tCur: 0,
       prise: null, deux: null, deuxPoingsDepuis: 0, sansMainDepuis: 0, ouverteDepuis: 0, poingDepuis: 0, progres: null, fermer: null, arretDepuis: 0, arretPos: null, suivreFait: false, resetFait: false,
       derniereVue: 0, tDernier: 0, rel: null
     };
@@ -150,8 +151,10 @@
 
     /* curseur filtré + prédiction ; renvoie la position à AFFICHER */
     function suivreCurseur(brut, t) {
-      if (!S.tCur || t - S.tCur > 500) { S.fx.reset(); S.fy.reset(); S.vit = { x: 0, y: 0 }; S.cur = { x: brut[0], y: brut[1] }; S.tCur = t - 16; }   // premier point, ou main revenue après une absence : on repart d'ici sans « glissade »
-      const x = S.fx.filtrer(brut[0], t), y = S.fy.filtrer(brut[1], t), dt = Math.max(1e-3, (t - (S.tCur || t - 16)) / 1000); S.tCur = t;
+      if (!S.tCur || t - S.tCur > 500) { S.fx.reset(); S.fy.reset(); S.vit = { x: 0, y: 0 }; S.cur = { x: brut[0], y: brut[1] }; S.dz = { x: brut[0], y: brut[1] }; S.tCur = t - 16; }   // premier point, ou main revenue après une absence : on repart d'ici sans « glissade »
+      let x = S.fx.filtrer(brut[0], t), y = S.fy.filtrer(brut[1], t);
+      if (o.zoneMorte > 0) { const dx = x - S.dz.x, dy = y - S.dz.y, d = Math.hypot(dx, dy); if (d > o.zoneMorte) { const k = (d - o.zoneMorte) / d; S.dz.x += dx * k; S.dz.y += dy * k; } x = S.dz.x; y = S.dz.y; }   // zone morte : le curseur ne bouge que si le point filtré s'éloigne de plus de `zoneMorte` px
+      const dt = Math.max(1e-3, (t - (S.tCur || t - 16)) / 1000); S.tCur = t;
       const vx = (x - S.cur.x) / dt, vy = (y - S.cur.y) / dt; S.vit.x = S.vit.x * 0.5 + vx * 0.5; S.vit.y = S.vit.y * 0.5 + vy * 0.5;
       const v = Math.hypot(S.vit.x, S.vit.y); let px = x, py = y;
       if (v > 120 && o.predictionMs > 0) { const avance = Math.min(70, v * o.predictionMs / 1000); px = x + S.vit.x / v * avance; py = y + S.vit.y / v * avance; }   // extrapolation de 1 à 2 images, bornée à 70 px
