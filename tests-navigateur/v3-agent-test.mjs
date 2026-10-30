@@ -36,14 +36,14 @@ async function ouvrirPage({ largeur, hauteur, tactile = false }) {
   page.on('request', r => { if (/data-api\.binance\.vision/.test(r.url())) r.respond({ status: 200, contentType: 'application/json', headers: { 'Access-Control-Allow-Origin': '*' }, body: JSON.stringify(klines()) }); else r.continue(); });
   await page.evaluateOnNewDocument(() => { localStorage.setItem('rayle_entite_version', '2'); localStorage.setItem('rayle_boot', '0'); localStorage.removeItem('rayle_agent_vue'); localStorage.removeItem('rayle_agent_demo'); });
   await page.goto(BASE + '/index.html', { waitUntil: 'load' }); await attendre(1200);
-  await page.evaluate(async () => { await import('/planetes/mars/pc/trading/fenetre-agent.js'); await window.PosteAgent.ouvrir({ vue: 'agent' }); });
+  await page.evaluate(async () => { await import('/planetes/mars/pc/trading/fenetre-agent.js'); await window.PosteAgent.ouvrir({ vue: 'rapport' }); });
   await page.waitForSelector('.av3-phrase', { timeout: 15000 }); await attendre(1800);
   return { nav, page, erreurs };
 }
 let { nav, page, erreurs } = await ouvrirPage({ largeur: 1500, hauteur: 950 });
 const ev = (f, ...a) => page.evaluate(f, ...a), txt = s => ev(sel => (document.querySelector(sel) || {}).textContent || '', s);
 
-T.verifier('l’écran s’ouvre sur « Agent » (pas sur le poste chargé d’avant)', await ev(() => document.querySelector('.mars-poste [data-vue], [data-vue]').dataset.vue === 'agent') && await ev(() => getComputedStyle(document.querySelector('.av3-pane-agent')).display !== 'none' && getComputedStyle(document.querySelector('.av3-pane-details')).display === 'none'));
+T.verifier('l’écran s’ouvre sur « Rapport et stratégies » (ancien écran Agent, pas sur le poste chargé d’avant)', await ev(() => document.querySelector('.mars-poste [data-vue], [data-vue]').dataset.vue === 'rapport') && await ev(() => getComputedStyle(document.querySelector('.av3-pane-rapport')).display !== 'none' && getComputedStyle(document.querySelector('.av3-pane-details')).display === 'none'));
 T.verifier('en haut : UNE phrase « Que fait l’agent maintenant ? » et le statut', /Que fait l’agent maintenant/.test(await txt('.av3-phrase')) && /position proposée/i.test(await txt('.av3-rep')), await txt('.av3-rep'));
 T.verifier('pas de bouton « Lancer » : Pause et charge seulement', await ev(() => { const c = document.querySelector('.av3-ctl'); return !!c.querySelector('[data-av3="pause"]') && !!c.querySelector('[data-av3-charge]') && !/lancer/i.test(c.textContent) && ![...document.querySelectorAll('.av3 button')].some(b => /lancer/i.test(b.textContent)); }));
 T.verifier('trois chiffres : 4 813 variantes, 2 stratégies validées, alertes ; version v1 et sa date', await ev(() => { const t = document.querySelector('.av3-chiffres').textContent.replace(/\s/g, ' '); return /4 813/.test(t) && /2stratégies validées/.test(t) && /alertes actives/.test(t) && /v1/.test(t) && /validée le/.test(t); }), (await txt('.av3-chiffres')).replace(/\s+/g, ' '));
@@ -57,12 +57,9 @@ T.verifier('graphique : bougies tracées (canvas), barre paire / stratégie / ve
 T.verifier('position en cours : ACHAT, entrée, stop, objectifs, raison, taille pour 1 %', await ev(() => { const l = document.querySelector('.av3-liste').textContent; return /ACHAT en cours · 1 pour 4,0/.test(l) && /entrée 67 000|entrée 67000|entrée 67/.test(l.replace(/\s/g, ' ')) && /stop 66/.test(l) && /taille pour risquer 1 %/.test(l) && /Contexte : H1/.test(l); }), await txt('.av3-liste'));
 T.verifier('positions passées avec leur résultat en R (gain et perte)', await ev(() => { const l = document.querySelector('.av3-liste').textContent; return /clôturée \(gain\)/.test(l) && /clôturée \(perte\)/.test(l) && /\+3,7 R/.test(l) && /−1,1 R/.test(l); }));
 T.verifier('deux courbes de capital SÉPARÉES et étiquetées (simulé / backtest)', await ev(() => { const c = [...document.querySelectorAll('.av3-courbe h4')].map(x => x.textContent); return c.length === 2 && /simulé/i.test(c[0]) && /Backtest hors échantillon/.test(c[1]) && document.querySelectorAll('.av3-courbe canvas').length >= 2; }));
-// démo
-await ev(() => document.querySelector('[data-av3-demo]').click()); await attendre(1500);
-T.verifier('positions DÉMO : cochées, TOUTES marquées « DÉMO »', await ev(() => { const l = [...document.querySelectorAll('.av3-liste li.av3-demo')]; return l.length === 3 && l.every(x => /DÉMO/.test(x.textContent)); }));
+// V13 : plus aucune position de démonstration, nulle part
+T.verifier('V13 : plus de case ni de position DÉMO (jamais de fausse position)', await ev(() => !document.querySelector('[data-av3-demo]') && document.querySelectorAll('.av3-liste li.av3-demo').length === 0 && !/DÉMO/.test(document.querySelector('.av3').innerText)));
 await page.screenshot({ path: 'docs/captures-v3/agent-accueil-pc.png' });
-await ev(() => document.querySelector('[data-av3-demo]').click()); await attendre(1200);
-T.verifier('démo décochée : plus aucune position DÉMO', await ev(() => document.querySelectorAll('.av3-liste li.av3-demo').length === 0));
 // pause / reprise
 await ev(() => document.querySelector('[data-av3="pause"]').click()); await attendre(1500);
 let cmd = JSON.parse(fs.readFileSync(path.join(dossier, 'commandes.json'), 'utf8'));
@@ -80,8 +77,8 @@ T.verifier('mot technique expliqué en une ligne (title et data-def)', await ev(
 await ev(() => document.querySelector('[data-av3-vue="details"]').click()); await attendre(1200);
 T.verifier('« Détails » : le poste de pilotage d’avant est là (onglets marché, stratégies, portefeuille, gardien, journal…)', await ev(() => { const p = document.querySelector('.av3-pane-details'); return getComputedStyle(p).display !== 'none' && !!p.querySelector('.pa-poste') && p.querySelectorAll('.pa-onglets [data-onglet]').length >= 14; }));
 await page.screenshot({ path: 'docs/captures-v3/agent-details-pc.png' });
-await ev(() => document.querySelector('[data-av3-vue="agent"]').click()); await attendre(800);
-T.verifier('retour à « Agent »', await ev(() => getComputedStyle(document.querySelector('.av3-pane-agent')).display !== 'none'));
+await ev(() => document.querySelector('[data-av3-vue="rapport"]').click()); await attendre(800);
+T.verifier('retour à « Rapport et stratégies »', await ev(() => getComputedStyle(document.querySelector('.av3-pane-rapport')).display !== 'none'));
 T.verifier('aucune erreur JavaScript (PC)', erreurs.length === 0, erreurs.slice(0, 3).join(' | '));
 await nav.close();
 // tablette et téléphone : aucun débordement horizontal, graphique lisible
@@ -91,7 +88,6 @@ for (const [nom, l, h] of [['tablette', 1180, 820], ['telephone', 390, 844]]) {
   T.verifier(nom + ' : aucun défilement horizontal de la page', await ev2(() => document.documentElement.scrollWidth <= window.innerWidth + 1 && ![...document.querySelectorAll('.av3, .av3-pane-agent, .av3 section')].some(e => e.scrollWidth > e.clientWidth + 2)));
   T.verifier(nom + ' : boutons tactiles d’au moins 40 px', await ev2(() => [...document.querySelectorAll('.av3-btn, .av3-vues button, .av3-paires button')].every(b => b.getBoundingClientRect().height >= 40)));
   T.verifier(nom + ' : le graphique et les courbes s’affichent', await ev2(() => { const g = document.querySelector('.av3-graph-boite'); return g.getBoundingClientRect().width > 250 && g.querySelectorAll('canvas').length >= 1 && document.querySelectorAll('.av3-courbe canvas').length >= 2; }));
-  await ev2(() => document.querySelector('[data-av3-demo]').click()); await attendre(1200);
   await page.screenshot({ path: 'docs/captures-v3/agent-accueil-' + nom + '.png' });
   T.verifier(nom + ' : aucune erreur JavaScript', erreurs.length === 0, erreurs.slice(0, 2).join(' | '));
   await nav.close();

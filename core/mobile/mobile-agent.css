@@ -111,3 +111,7 @@ html.m-graphe-ouvert .m-nav,html.m-graphe-ouvert .m-haut{display:none}
   .m-agent-c{max-height:calc(100dvh - 240px);overflow-y:auto;padding-right:4px}
 }
 @media (max-width:699px){.m-agent-g{display:none}}
+
+/* V13 : vue Agent lisible / Détails */
+.m-agent-lisible[hidden],.m-agent-det[hidden]{display:none}
+.m-agent-lisible{padding:0 0 18px}

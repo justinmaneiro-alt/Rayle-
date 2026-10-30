@@ -40,7 +40,7 @@ import { meilleuresPistes, lignesRapportPistes } from '../strategies/pistes.js';
 import { creerDetecteurJeu } from '../app-pc/veilleur/charge-systeme.mjs';
 import { dossierVeilleur } from '../app-pc/veilleur/dossier.mjs';
 import { assurerEnregistreur, statutFlux } from './flux/service-flux.mjs';
-import { statutService } from './service-statut.mjs';
+import { statutService, verrouRespecte } from './service-statut.mjs';
 import { creerTrader } from './trader.mjs';      // V12 : mode Trader (positions réelles à chaque bougie, bilan en direct)
 import { creerPositions } from './positions.mjs';      // V7 : les trois agents de positions (Rebond, Continuation, Extrêmes)
 
@@ -352,7 +352,7 @@ if (estPrincipal()) {
   if (a === '--tests-multiples') { demander({ type: 'tests_multiples', valeur: args[1] === 'corriges' ? 'corriges' : 'anciens' }); process.exit(0); }
   if (a === '--ajouter-actif') { demander({ type: 'ajouter_actif', valeur: args[1] }); process.exit(0); }
   if (a === '--retour-arriere') { demander({ type: 'retour_arriere', numero: args[1] ? Number(args[1]) : null }); process.exit(0); }
-  try { const pid = Number(fs.readFileSync(F.verrou, 'utf8')); if (pid && pid !== process.pid && vivant(pid)) { console.log('Le service tourne déjà (pid ' + pid + ').'); process.exit(0); } } catch (e) { /* pas de verrou */ }
+  try { const pid = Number(fs.readFileSync(F.verrou, 'utf8')), v = verrouRespecte({ pidVerrou: pid, pidVivant: !!(pid && vivant(pid)), pidCourant: process.pid, info: lireJson(F.service, null), ageVerrou: Date.now() - fs.statSync(F.verrou).mtimeMs }); if (v.respecte) { console.log('Le service tourne déjà (pid ' + pid + ').'); process.exit(0); } if (pid && pid !== process.pid && vivant(pid)) console.log('Verrou périmé ignoré et remplacé : ' + v.raison + '.'); } catch (e) { /* pas de verrou */ }
   fs.writeFileSync(F.verrou, String(process.pid)); try { fs.unlinkSync(F.arret); } catch (e) { /* rien */ }
   const s = creerService({ dossier, avecFlux: true, avecEquipe: true, avecPepiniere: true, avecPositions: true, avecTrader: true }); s.priorite();
   let fini = false; const sortir = () => { if (fini) return; fini = true; try { s.info().phase = 'arrete'; s.cycle; fs.unlinkSync(F.verrou); } catch (e) { /* fini */ } process.exit(0); };

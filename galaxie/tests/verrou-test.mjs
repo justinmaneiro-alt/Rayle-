@@ -1,0 +1,13 @@
+import assert from 'node:assert/strict';
+import { verrouRespecte, SEUIL_VIVANT } from '../../agent-pc/service-statut.mjs';
+let n = 0; const ok = (nom, f) => { f(); n++; console.log('ok  ' + nom); };
+const t = 1e12, base = { pidVerrou: 4321, pidVivant: true, pidCourant: 1, maintenant: t };
+ok('PID vivant repris par un autre programme (service.json ancien) : verrou ignoré', () => assert.equal(verrouRespecte({ ...base, info: { pid: 4321, vivantLe: t - 3600e3 }, ageVerrou: 3600e3 }).respecte, false));
+ok('PID vivant mais service.json porte un autre PID : verrou ignoré', () => assert.equal(verrouRespecte({ ...base, info: { pid: 99, vivantLe: t - 1000 }, ageVerrou: 3600e3 }).respecte, false));
+ok('vrai service (même PID, battement récent) : verrou respecté', () => assert.equal(verrouRespecte({ ...base, info: { pid: 4321, vivantLe: t - 5000 }, ageVerrou: 3600e3 }).respecte, true));
+ok('battement juste sous le seuil : respecté', () => assert.equal(verrouRespecte({ ...base, info: { pid: 4321, vivantLe: t - SEUIL_VIVANT + 1 }, ageVerrou: 1e9 }).respecte, true));
+ok('verrou tout neuf (démarrage en cours) : respecté', () => assert.equal(verrouRespecte({ ...base, info: null, ageVerrou: 5000 }).respecte, true));
+ok('PID mort : pas de verrou', () => assert.equal(verrouRespecte({ ...base, pidVivant: false, info: null, ageVerrou: 5000 }).respecte, false));
+ok('verrou à notre propre PID : ignoré', () => assert.equal(verrouRespecte({ ...base, pidVerrou: 1, info: null, ageVerrou: 5 }).respecte, false));
+ok('aucun fichier service.json et verrou ancien : ignoré', () => assert.equal(verrouRespecte({ ...base, info: null, ageVerrou: 9e6 }).respecte, false));
+console.log(n + ' vérifications');

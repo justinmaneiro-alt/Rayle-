@@ -10,3 +10,14 @@ export function statutService(info, pidVivant, maintenant = Date.now()) {
   if (enMarche) return { enMarche: true, phraseCourte: 'Le service Kepler est en marche depuis ' + dureeTexte(maintenant - info.demarreLe) + '.', phrase: 'Le service Kepler est en marche depuis ' + dureeTexte(maintenant - info.demarreLe) + (bougies ? ' · dernière bougie traitée : ' + bougies : '') + (info.trader ? ' · ' + info.trader.suivies + ' position(s) suivie(s)' : '') + '.', depuis: info.demarreLe, arretDepuis: null, derniereBougie: bougies, positionsSuivies: info.trader ? info.trader.suivies : null };
   return { enMarche: false, phraseCourte: 'Le service est arrêté depuis ' + dureeTexte(age) + '.', phrase: 'Le service est arrêté depuis ' + dureeTexte(age) + ' (dernier battement : ' + new Date(info.vivantLe).toISOString().slice(0, 16).replace('T', ' ') + ' UTC). Redémarre-le avec : ' + COMMANDE_REDEMARRAGE + ' — une seule étape ; les positions suivies reprennent là où elles s’étaient arrêtées.', depuis: info.demarreLe, arretDepuis: info.vivantLe, derniereBougie: bougies, positionsSuivies: info.trader ? info.trader.suivies : null, commande: COMMANDE_REDEMARRAGE };
 }
+
+/* Verrou périmé (V13) : un PID encore vivant ne suffit pas, Windows réattribue les anciens numéros (ex. svchost). Le verrou n'est respecté que si le PID est vivant ET que service.json (écrit par le
+   service Kepler à chaque battement) porte ce même PID avec un battement récent, ou si le verrou vient d'être écrit (démarrage en cours). Pur, testé : galaxie/tests/verrou-test.mjs. */
+export const GRACE_VERROU = 60000;
+export function verrouRespecte({ pidVerrou, pidVivant, pidCourant, info, ageVerrou, maintenant = Date.now() }) {
+  if (!pidVerrou || pidVerrou === pidCourant || !pidVivant) return { respecte: false, raison: 'pas de verrou actif' };
+  const battementRecent = !!(info && info.pid === pidVerrou && maintenant - (info.vivantLe || 0) < SEUIL_VIVANT);
+  if (battementRecent) return { respecte: true, raison: 'le service Kepler tourne (battement récent)' };
+  if (ageVerrou != null && ageVerrou < GRACE_VERROU) return { respecte: true, raison: 'démarrage d’un autre service en cours' };
+  return { respecte: false, raison: 'verrou périmé : le PID ' + pidVerrou + ' n’est pas le service Kepler (numéro réutilisé par Windows)' };
+}

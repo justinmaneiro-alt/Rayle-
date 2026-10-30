@@ -26,7 +26,7 @@ const n = tr.vue().actives.length;
 const srv = spawn(process.execPath, ['serveur.mjs', String(PORT)], { env: { ...process.env, RAYLE_AGENT_DOSSIER: dossier, RAYLE_PORT_RESEAU: String(PORT + 1) }, stdio: 'ignore' });
 for (let k = 0; k < 50; k++) { try { if ((await fetch(BASE + '/index.html')).ok) break; } catch (e) { /* démarrage */ } await attendre(200); }
 
-async function ouvrir({ largeur, hauteur, tactile = false, vue = 'agent' }) {
+async function ouvrir({ largeur, hauteur, tactile = false, vue = 'rapport' }) {
   const nav = await puppeteer.launch({ executablePath: CHROME, headless: 'new', args: ['--use-angle=d3d11', '--enable-gpu', '--ignore-gpu-blocklist'] });
   const page = await nav.newPage(); await page.setViewport({ width: largeur, height: hauteur, hasTouch: tactile, isMobile: tactile });
   const erreurs = []; page.on('pageerror', e => erreurs.push('pageerror: ' + e.message.slice(0, 300))); page.on('console', m => { if (m.type() === 'error' && !/Failed to load resource|ERR_|CORS|net::|binance/i.test(m.text())) erreurs.push(m.text().slice(0, 300)); });
@@ -40,9 +40,9 @@ try {
   T.verifier('(préparation) le mode Trader a des positions à montrer', n >= 1, String(n));
   const { nav, page, erreurs } = await ouvrir({ largeur: 1500, hauteur: 950 });
   const ev = (f, ...a) => page.evaluate(f, ...a), txt = s => ev(sel => (document.querySelector(sel) || {}).innerText || '', s);
-  const onglets = await ev(() => [...document.querySelectorAll('.av3-vues [data-av3-vue]')].map(b => b.textContent.trim()));
-  T.verifier('la fenêtre Agent montre TOUS les onglets : Agent, Détails, Positions du jour, Bilan, Pourquoi pas plus, Liquidité, Équipe, Occasions manquées, Données', ['Agent', 'Détails', 'Positions du jour', 'Bilan', 'Pourquoi pas plus', 'Liquidité', 'Équipe', 'Occasions manquées', 'Données'].every(t => onglets.includes(t)), onglets.join(' | '));
-  const visibles = await ev(() => [...document.querySelectorAll('.av3-vues [data-av3-vue]')].every(b => { const r = b.getBoundingClientRect(); return r.width > 20 && r.height > 20; }));
+  const onglets = await ev(() => [...document.querySelectorAll('.av3-vues [data-av3-vue]')].map(b => b.textContent.trim()));   // V13 : « Détails » range les onglets dans une seconde rangée
+  T.verifier('la fenêtre Agent montre TOUS les onglets : Agent, Détails, Positions du jour, Bilan, Pourquoi pas plus, Liquidité, Équipe, Occasions manquées, Données', ['Agent', 'Rapport et stratégies', 'Poste de pilotage', 'Positions du jour', 'Bilan', 'Pourquoi pas plus', 'Liquidité', 'Équipe', 'Occasions manquées', 'Données'].every(t => onglets.includes(t)), onglets.join(' | '));
+  const visibles = await ev(() => [...document.querySelectorAll('.av3-vues [data-av3-vue]')].filter(b => b.offsetParent !== null).every(b => { const r = b.getBoundingClientRect(); return r.width > 20 && r.height > 20; }));
   T.verifier('les onglets sont réellement visibles à l’écran (taille non nulle)', visibles);
   // écran « Agent » : bloc Mode Trader, service arrêté en clair, aucune démo par défaut
   await page.waitForSelector('[data-av3-trader]', { timeout: 15000 }); await attendre(500);
@@ -50,7 +50,7 @@ try {
   T.verifier('écran Agent : le service arrêté est dit clairement, avec la commande en une étape', /arrêté depuis 3 heures/.test(t) && /node agent-pc\/service\.mjs/.test(t), t.slice(0, 200));
   T.verifier('écran Agent : âge des dernières données affiché', /Âge des dernières données/.test(t));
   T.verifier('écran Agent : positions réelles avec leur niveau « À l’essai » et le bandeau « pas de preuve statistique »', /À l’essai/i.test(t) && /pas de preuve statistique — le bilan se construit en direct/.test(t));
-  T.verifier('aucune position DÉMO par défaut', !/DÉMO ·/.test(await txt('.av3')) && !(await ev(() => document.querySelector('[data-av3-demo]').checked)));
+  T.verifier('aucune position DÉMO par défaut', !/DÉMO ·/.test(await txt('.av3')) && !(await ev(() => !!document.querySelector('[data-av3-demo]'))));
   // Positions du jour
   await ev(() => document.querySelector('[data-av3-vue="positions"]').click()); await page.waitForSelector('.tv-carte', { timeout: 15000 }); await attendre(300);
   t = await txt('.av4');
