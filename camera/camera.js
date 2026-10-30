@@ -172,9 +172,9 @@ function rejouerTest(suite) {
   let i = 0, file = null, f0 = 0, ti = 0, boucleFile = 0; C.actif = true; montrer('apercu', false); $('b-cam').hidden = true; $('b-stop').hidden = false; msg('m-cam', 'Essai : points enregistrés (pas de caméra).', 'sable'); voyants();
   const faux = document.createElement('canvas'); faux.width = 640; faux.height = 480; const fx = faux.getContext('2d'); fx.fillStyle = '#356'; fx.fillRect(0, 0, 640, 480); fx.fillStyle = '#fc4'; fx.fillRect(200, 140, 240, 200); C.video = faux; C.ctx = {};   // image factice : seulement pour tester l'aperçu (envoyerApercu)
   window.__RAYLE_CAM_JOUER__ = frames => { file = frames; f0 = performance.now(); ti = Date.now(); i = 0; };   // essais : joue une suite UNE fois (aux temps d'origine), puis revient à la suite de fond
-  demarrerStats(); S.niveau = CFG.res === 'auto' ? 2 : Math.max(0, NIV.findIndex(n => n.l === +CFG.res)); if (window.__RAYLE_CAM_TEST__ && window.__RAYLE_CAM_TEST__.detMs) S.fauxDetMs = window.__RAYLE_CAM_TEST__.detMs;
+  demarrerStats(); initAdaptation();
   C.test = setInterval(() => {
-    S.camN += (suite.camIps || suite.ips || 30) / (suite.ips || 30); S.detN++; S.detMs.push(S.fauxDetMs || 8);   // essais : la caméra peut aller plus vite que la détection (suite.camIps)
+    S.camN += (suite.camIps || suite.ips || 30) / (suite.ips || 30); S.detN += suite.detFraction == null ? 1 : suite.detFraction; S.detMs.push(suite.detMs || 8);   // essais : la caméra peut aller plus vite que la détection (suite.camIps)
     envoyerApercu();
     if (file) { const ecoule = performance.now() - f0; while (i < file.length && file[i].t <= ecoule) { const f = file[i++]; envoyer({ a: 'mains', t: ti + f.t, ratio: f.ratio || 4 / 3, mains: f.mains }); } if (i >= file.length) file = null; return; }
     const f = suite.frames[boucleFile++ % suite.frames.length]; envoyer({ a: 'mains', t: Date.now(), ratio: f.ratio || 4 / 3, mains: f.mains });
@@ -187,8 +187,7 @@ async function demarrerCamera() {
   $('b-cam').disabled = true; msg('m-cam', 'Chargement du modèle de détection de main…', 'sable');
   try {
     const base = window.__RAYLE_CAM_VENDOR__ && /^(127\.0\.0\.1|localhost)$/.test(location.hostname) ? window.__RAYLE_CAM_VENDOR__ : (W.actif ? CDN : location.origin + '/camera/vendor/');   // __RAYLE_CAM_VENDOR__ : essais en local seulement
-    S.niveau = CFG.res === 'auto' ? 2 : Math.max(0, NIV.findIndex(n => n.l === +CFG.res));
-    S.adapt = self.AdaptationCamera ? self.AdaptationCamera.creerAdaptation({ niveau: S.niveau, niveauMax: CFG.res === 'auto' ? 2 : S.niveau, auto: CFG.res === 'auto' }) : null;
+    initAdaptation();
     C.detecteur = await creerDetecteur({ mjs: base + 'vision_bundle.mjs', wasm: base + 'wasm', modele: W.actif && base === CDN ? MODELE_CDN : base + 'hand_landmarker.task', delegate: 'GPU', mains: CFG.mains, worker: CFG.worker, urlWorker: new URL('detection-worker.js', import.meta.url).href, taille: NIV[S.niveau] });
     if (C.detecteur.avertissement) msg('m-cam', C.detecteur.avertissement, 'sable');
     const n0 = NIV[S.niveau]; C.flux = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user', width: { ideal: n0.l }, height: { ideal: n0.h }, frameRate: { ideal: 60, min: 30 } }, audio: false });
@@ -252,6 +251,10 @@ function boucle() {
 
 // ── V10 : statistiques d'une seconde, adaptation de la résolution, réglages reçus du PC, mode « calcul sur le PC » ──
 const mediane = l => { const s = l.filter(Number.isFinite).sort((a, b) => a - b); return s.length ? s[(s.length - 1) >> 1] : null; };
+function initAdaptation() {
+  S.niveau = CFG.res === 'auto' ? 2 : Math.max(0, NIV.findIndex(n => n.l === +CFG.res));
+  S.adapt = self.AdaptationCamera ? self.AdaptationCamera.creerAdaptation({ niveau: S.niveau, niveauMax: CFG.res === 'auto' ? 2 : S.niveau, auto: CFG.res === 'auto' }) : null;
+}
 function appliquerNoir() { document.body.classList.toggle('noir', !!CFG.noir && C.actif); if (CFG.noir) montrer('apercu', false); else if (C.actif) montrer('apercu', !K.eco); }
 function demarrerStats() {
   S.camN = S.detN = S.sautes = 0; S.detMs = []; S.chrono = performance.now(); S.histDet = [];
