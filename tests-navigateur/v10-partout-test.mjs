@@ -8,7 +8,7 @@ import path from 'node:path';
    objet 3D (rotation à une main, zoom / rotation / déplacement à deux mains, recentrage) · l'élément saisi s'éclaire · la souris marche toujours.
    Lancer : node tests-navigateur/v10-partout-test.mjs      À valider par Justin : les mêmes gestes avec sa vraie main (Galaxy S23 Ultra).    */
 const { verifier, fin } = compteur();
-const { page, erreurs, fermer, nav } = await lancer({ port: 8173, largeur: 1600, hauteur: 900, avantPage: p => p.evaluateOnNewDocument(() => { try { if (!localStorage.getItem('rayle_theme')) localStorage.setItem('rayle_theme', 'aurore'); } catch (e) { /* stockage refusé */ } }) });
+const { page, erreurs, fermer, nav } = await lancer({ port: 8173, largeur: 1600, hauteur: 900, prefs: { gestesAvances: true }, avantPage: p => p.evaluateOnNewDocument(() => { try { if (!localStorage.getItem('rayle_theme')) localStorage.setItem('rayle_theme', 'aurore'); } catch (e) { /* stockage refusé */ } }) });
 const ev = (f, ...a) => page.evaluate(f, ...a);
 const T = (code, ...a) => page.evaluate(new Function('...args', 'return (async () => { const T = window.__T; ' + code + ' })()'), ...a);
 const R = sel => ev(sel => { const e = document.querySelector(sel); if (!e) return null; const r = e.getBoundingClientRect(); if (!r.width && !r.height) return null; return { x: r.x + r.width / 2, y: r.y + r.height / 2, l: r.left, t: r.top, w: r.width, h: r.height, vis: getComputedStyle(e).visibility !== 'hidden' && getComputedStyle(e).display !== 'none' && !e.hidden }; }, sel);

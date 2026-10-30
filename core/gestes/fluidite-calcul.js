@@ -100,7 +100,7 @@
     const fpsRendu = rendu.length ? 1000 / mediane(rendu) : null, pire1 = rendu.length ? 1000 / percentile(rendu, 0.99) : null;
     const comp = name => { const v = lat0.map(f => name === 'tel' ? f.dt : name === 'reseau' ? Math.max(0, f.lat - (f.dt || 0)) : name === 'pc' ? (f.mot || 0) : (f.aff || 0)); return arrondi(mediane(v)); };
     return {
-      duree: arrondi(duree), images: fr.length,
+      duree: arrondi(duree), images: fr.length, liaison: trace.liaison ? { chemin: trace.liaison.chemin || null, rttDirect: trace.liaison.rttDirect == null ? null : arrondi(trace.liaison.rttDirect), rttRelais: trace.liaison.rttRelais == null ? null : arrondi(trace.liaison.rttRelais), versionAlerte: trace.liaison.versionAlerte || '' } : null,
       debit: { mediane: deb.mediane, p5: deb.p5, min: deb.min, sous30: deb.sous30 == null ? null : arrondi(deb.sous30, 2) },
       octets: octetsParPaquet(fr, duree), perte: per.perte == null ? null : arrondi(per.perte, 3), gigue: gig, pertesDeMain: pertesDeMain(fr),
       delai: { p50: arrondi(mediane(lat)), p95: arrondi(percentile(lat, 0.95)), composantes: { telephone: comp('tel'), reseau: comp('reseau'), moteurPc: comp('pc'), affichage: comp('aff') } },
@@ -138,6 +138,9 @@
       C.push({ id: 'detection-telephone', gravite: det.fps < 25 ? 'rouge' : 'orange', titre: 'Goulot d’étranglement : détection sur le téléphone (' + det.fps + ' images/s, ' + det.msParImage + ' ms par image)',
         detail: aucune ? 'Le téléphone est déjà au plus léger. Le mode « calcul sur le PC » enlève ce goulot (la vidéo part en direct vers le PC, jamais via un serveur).' : 'La détection de la main sur le téléphone est trop lente pour tenir 45 paquets par seconde.',
         correction: aucune ? (ctx.calculPossibleSurPc ? { libelle: 'Passer en « calcul sur le PC » (vidéo en direct téléphone → PC, jamais enregistrée)', tel: { calcul: 'pc' }, option: 'confidentialite' } : null) : { libelle: prop.libelle, tel: prop.tel } });
+    }
+    if (m.liaison && m.liaison.chemin === 'worker') {   // V11 : l'ancien relais par D1 est le premier suspect
+      C.push({ id: 'liaison-lente', gravite: 'rouge', titre: 'Les points passent par l’ancien relais lent du Worker (D1)', detail: (m.liaison.versionAlerte ? 'Mise à jour du Worker requise. ' : '') + 'Ni la liaison directe ni le relais temps réel ne sont établis : c’est la cause n° 1 d’un curseur saccadé (quelques paquets par seconde). Ouvre « Diagnostic de liaison » dans la fenêtre Caméra du téléphone : il dit pourquoi, en français.', correction: null });
     }
     if (m.camera && m.camera.fps != null && m.camera.fps < 40 && !detLente) {
       C.push({ id: 'camera-lumiere', gravite: m.camera.fps < 24 ? 'rouge' : 'orange', titre: 'Caméra du téléphone à ' + m.camera.fps + ' images/s', detail: 'Souvent un manque de lumière : la caméra allonge le temps de pose et baisse sa cadence. Plus de lumière sur la main, 40 à 60 cm du téléphone.', correction: { libelle: 'Régler la caméra pour privilégier la cadence', tel: { cadence: true } } });
@@ -177,6 +180,7 @@
     }
     const ordre = { rouge: 0, orange: 1, vert: 2 }; C.sort((a, b) => ordre[a.gravite] - ordre[b.gravite]);
     const objectifs = [
+      ...(m.liaison && m.liaison.chemin ? [{ nom: 'Chemin de liaison', valeur: ({ direct: 'Direct', relais: 'Relais temps réel', worker: 'Worker lent' }[m.liaison.chemin] || m.liaison.chemin), cible: 'Direct ou Relais temps réel', ok: m.liaison.chemin === 'direct' || m.liaison.chemin === 'relais' }] : []),
       { nom: 'Paquets/s (médiane)', valeur: deb.mediane, cible: '≥ ' + OBJECTIFS.debitMedian, ok: deb.mediane == null ? null : deb.mediane >= OBJECTIFS.debitMedian },
       { nom: 'Paquets/s (minimum)', valeur: deb.min, cible: '≥ ' + OBJECTIFS.debitMin, ok: deb.min == null ? null : deb.min >= OBJECTIFS.debitMin },
       { nom: 'Délai bout en bout (95e centile)', valeur: del.p95, cible: '< ' + OBJECTIFS.delaiP95 + ' ms', ok: del.p95 == null ? null : del.p95 < OBJECTIFS.delaiP95 },

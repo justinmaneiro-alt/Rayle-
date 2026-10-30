@@ -20,6 +20,6 @@ export async function demarrerWorker({ port = 8799, origine = 'http://127.0.0.1:
     if (Date.now() - debut > 90000) { arreterArbre(enfant.pid); throw new Error('le Worker local ne démarre pas'); }
     await new Promise(r => setTimeout(r, 500));
   }
-  return { url, jeton, arreter: () => { arreterArbre(enfant.pid); try { fs.rmSync(donnees, { recursive: true, force: true }); } catch (e) { /* fichiers encore verrouillés */ } } };
+  return { url, jeton, donnees, arreter: () => { arreterArbre(enfant.pid); try { fs.rmSync(donnees, { recursive: true, force: true }); } catch (e) { /* fichiers encore verrouillés */ } } };
 }
 function arreterArbre(pid) { try { execFileSync('taskkill', ['/PID', String(pid), '/T', '/F'], { stdio: 'ignore' }); } catch (e) { /* déjà arrêté */ } }   // seulement le processus lancé ici et ses enfants, jamais par nom
