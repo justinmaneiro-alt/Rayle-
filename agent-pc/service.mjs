@@ -41,6 +41,7 @@ import { creerDetecteurJeu } from '../app-pc/veilleur/charge-systeme.mjs';
 import { dossierVeilleur } from '../app-pc/veilleur/dossier.mjs';
 import { assurerEnregistreur, statutFlux } from './flux/service-flux.mjs';
 import { statutService, verrouRespecte } from './service-statut.mjs';
+import { creerVolume } from './volume-v14.mjs';      // V14 : tableau vivant (volume, carnet, portefeuille virtuel)
 import { creerTrader } from './trader.mjs';      // V12 : mode Trader (positions réelles à chaque bougie, bilan en direct)
 import { creerPositions } from './positions.mjs';      // V7 : les trois agents de positions (Rebond, Continuation, Extrêmes)
 
@@ -48,7 +49,7 @@ export const VERSION_SERVICE = 1;
 export const CYCLE_MS = 30000, FENETRE_LIVE = 3000, FENETRE_RICHE = 6000, TRANCHE_MS = 4 * 60e3, JEUX_PAR_DEFAUT = ['valorant', 'cs2', 'csgo', 'fortniteclient-win64-shipping', 'eldenring', 'leagueclient', 'league of legends', 'overwatch', 'rocketleague', 'gta5', 'cyberpunk2077', 'baldursgate3', 'minecraft'];
 const semaineISO = t => { const d = new Date(t), j = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate())), n = j.getUTCDay() || 7; j.setUTCDate(j.getUTCDate() + 4 - n); const a = new Date(Date.UTC(j.getUTCFullYear(), 0, 1)); return j.getUTCFullYear() + '-S' + String(Math.ceil(((j - a) / 86400e3 + 1) / 7)).padStart(2, '0'); };
 
-export function creerService({ dossier = dossierAgent(), maintenant = () => Date.now(), donnees = null, sync = null, ecrire = ecrireRapport, executer = executerTache, detecteur = null, fetchImpl = globalThis.fetch, paires: pairesBase = ORDRE_PAIRES, tranchesMs = TRANCHE_MS, sansPriorite = false, avecFlux = false, avecEquipe = false, avecPepiniere = false, avecPositions = false, avecTrader = false } = {}) {
+export function creerService({ dossier = dossierAgent(), maintenant = () => Date.now(), donnees = null, sync = null, ecrire = ecrireRapport, executer = executerTache, detecteur = null, fetchImpl = globalThis.fetch, paires: pairesBase = ORDRE_PAIRES, tranchesMs = TRANCHE_MS, sansPriorite = false, avecFlux = false, avecEquipe = false, avecPepiniere = false, avecPositions = false, avecTrader = false, avecVolume = false } = {}) {
   const F = fichiersAgent(dossier); fs.mkdirSync(dossier, { recursive: true });
   const extrasInit = (() => { const e = lireJson(F.etat, null); return Array.isArray(e && e.actifsExtra) ? e.actifsExtra.filter(x => PAIRES_EXTRA[x] && !pairesBase.includes(x)) : []; })();      // V6 : actifs ajoutés par Justin (--ajouter-actif)
   const paires = [...pairesBase, ...extrasInit];
@@ -229,6 +230,9 @@ export function creerService({ dossier = dossierAgent(), maintenant = () => Date
   /* ── (2 sexies) V12 : mode Trader (propositions « À l'essai » à chaque clôture M15, suivi simulé, bilan en direct, promotion / désactivation) ── */
   const trader = avecTrader ? creerTrader({ dossier, D, paires, maintenant, journal: (c, m) => journal(c, m), erreur, envoyer: async (texte, canal) => { if (S.configure) await S.telegram(texte, canal); } }) : null;
 
+  /* ── (2 septies) V14 : tableau vivant de volume (propositions de volume, portefeuille virtuel, rejoué) ── */
+  const volume = avecVolume ? creerVolume({ dossier, maintenant, journal: (c, m) => journal(c, m), erreur }) : null;
+
   /* ── (3) recherche permanente ── */
   const debutFinalPar = () => { const o = {}; for (const p of paires) { const c = etat.coffre && etat.coffre[p]; if (c && c.debutFinal) { o[p] = c.debutFinal; continue; } const s = D.serie(p); if (!s || s.n < 5000) continue; const d = decouper(s); if (d.ok) { (etat.coffre = etat.coffre || {})[p] = { debutFinal: d.debutFinal, ouvertures: [], fixeLe: maintenant() }; o[p] = d.debutFinal; journal('coffre', 'Jeu final de ' + p + ' fixé à partir du ' + jourDe(d.debutFinal) + ' (il ne bougera plus ; ouvert une seule fois par stratégie).'); } } return o; };
   async function peutChercher() {
@@ -311,6 +315,7 @@ export function creerService({ dossier = dossierAgent(), maintenant = () => Date
       if (avecPepiniere) { try { cr.pepiniere = await pepiniereTick(); } catch (e) { erreur('pépinière', e); } }
       if (positions) { try { cr.positions = await positions.cycle(); } catch (e) { erreur('positions', e); } }
       if (trader) { try { cr.trader = await trader.cycle(); info.trader = { t: maintenant(), derniereBougie: Object.fromEntries(Object.entries(trader.etat().dernierCalcul)), suivies: trader.etat().propositions.filter(p => p.statut === 'en_attente' || p.statut === 'ouverte').length }; } catch (e) { erreur('mode Trader', e); } }
+      if (volume) { try { cr.volume = await volume.cycle(); } catch (e) { erreur('tableau de volume', e); } }
       if (avecEquipe) { try { cr.autonomie = await autonomieDuJour(); } catch (e) { erreur('autonomie', e); } }
       if (avecEquipe) { try { cr.equipe = await equipeDuJour(); } catch (e) { erreur('équipe', e); } }
       try { cr.alertes = await surveiller(); } catch (e) { erreur('surveillance', e); }
@@ -328,7 +333,7 @@ export function creerService({ dossier = dossierAgent(), maintenant = () => Date
   }
   function battementSepare() { if (!S.configure) return; S.battement(pcInfo()).then(r => { info.worker = { configure: true, ok: true, t: maintenant(), msg: null }; return r; }).catch(e => { info.worker = { configure: true, ok: false, t: maintenant(), msg: String(e.message).slice(0, 100) }; }); }
   function priorite() { if (sansPriorite) return; try { os.setPriority(process.pid, os.constants.priority.PRIORITY_LOW); } catch (e) { journal('service', 'priorité basse impossible : ' + e.message); } }
-  return { positions: () => positions, trader: () => trader, cycle, demarrer, battementSepare, priorite, autonomieDuJour, alertesObservation, equipeDuJour, pepiniereTick, resumePepiniere: () => resumePepiniere(lirePepiniere(dossier), maintenant()), resumeEquipe: () => resumeEquipe(lireEquipe(dossier), etat, maintenant()), etat: () => etat, suivi: () => suivi, info: () => info, donnees: D, fichiers: F, faireRapport, appliquerCommande, chercher, surveiller, donneesDuJour, pousserEtat, arreter: () => { arretDemande = true; }, statut: () => statutAgent(etat, { pcVivant: true, rechercheEnCours: enCalcul, enPreparation: pcInfo().enPreparation, positionOuverte: pcInfo().positionOuverte }) };
+  return { positions: () => positions, trader: () => trader, volume: () => volume, cycle, demarrer, battementSepare, priorite, autonomieDuJour, alertesObservation, equipeDuJour, pepiniereTick, resumePepiniere: () => resumePepiniere(lirePepiniere(dossier), maintenant()), resumeEquipe: () => resumeEquipe(lireEquipe(dossier), etat, maintenant()), etat: () => etat, suivi: () => suivi, info: () => info, donnees: D, fichiers: F, faireRapport, appliquerCommande, chercher, surveiller, donneesDuJour, pousserEtat, arreter: () => { arretDemande = true; }, statut: () => statutAgent(etat, { pcVivant: true, rechercheEnCours: enCalcul, enPreparation: pcInfo().enPreparation, positionOuverte: pcInfo().positionOuverte }) };
 }
 
 /* ── ligne de commande ── */
@@ -354,7 +359,7 @@ if (estPrincipal()) {
   if (a === '--retour-arriere') { demander({ type: 'retour_arriere', numero: args[1] ? Number(args[1]) : null }); process.exit(0); }
   try { const pid = Number(fs.readFileSync(F.verrou, 'utf8')), v = verrouRespecte({ pidVerrou: pid, pidVivant: !!(pid && vivant(pid)), pidCourant: process.pid, info: lireJson(F.service, null), ageVerrou: Date.now() - fs.statSync(F.verrou).mtimeMs }); if (v.respecte) { console.log('Le service tourne déjà (pid ' + pid + ').'); process.exit(0); } if (pid && pid !== process.pid && vivant(pid)) console.log('Verrou périmé ignoré et remplacé : ' + v.raison + '.'); } catch (e) { /* pas de verrou */ }
   fs.writeFileSync(F.verrou, String(process.pid)); try { fs.unlinkSync(F.arret); } catch (e) { /* rien */ }
-  const s = creerService({ dossier, avecFlux: true, avecEquipe: true, avecPepiniere: true, avecPositions: true, avecTrader: true }); s.priorite();
+  const s = creerService({ dossier, avecFlux: true, avecEquipe: true, avecPepiniere: true, avecPositions: true, avecTrader: true, avecVolume: true }); s.priorite();
   let fini = false; const sortir = () => { if (fini) return; fini = true; try { s.info().phase = 'arrete'; s.cycle; fs.unlinkSync(F.verrou); } catch (e) { /* fini */ } process.exit(0); };
   process.on('SIGINT', sortir); process.on('SIGTERM', sortir);
   process.on('uncaughtException', e => { try { ajouterJournal({ type: 'erreur', texte: 'non gérée : ' + (e && e.message) }, dossier); } catch (x) { /* rien */ } });
