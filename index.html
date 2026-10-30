@@ -27,6 +27,7 @@
 <link rel="stylesheet" href="core/commun/telecommande.css">
 <link rel="stylesheet" href="core/gestes/gestes.css">
 <link rel="stylesheet" href="core/gestes/gestes-v5.css">
+<link rel="stylesheet" href="core/gestes/fluidite.css">
 <link rel="stylesheet" href="core/commun/v1-theme.css">
 <link rel="stylesheet" href="core/commun/appareil.css">
 <script>if(!window.RayleAppareil||RayleAppareil.estPC())document.write('<link rel="stylesheet" href="core/commun/g1-accueil.css">');</script>
@@ -366,11 +367,13 @@
 <script src="core/commun/telecommande.js"></script>
 <script src="core/gestes/gestes-calcul.js"></script>
 <script src="core/gestes/gestes-v5-calcul.js"></script>
+<script>if(!window.RayleAppareil||RayleAppareil.estPC())document.write('<script src="core/gestes/fluidite-calcul.js"><\/script>');</script>
 <script src="core/gestes/qr-matrice.js"></script>
 <script src="core/gestes/gestes-page.js"></script>
 <script src="camera/paquet-binaire.js"></script>
 <script src="core/gestes/camera-relais.js"></script>
 <script src="core/gestes/gestes-v5-actions.js"></script>
+<script>if(!window.RayleAppareil||RayleAppareil.estPC())["detection-pc","fluidite","cibles"].forEach(function(f){document.write('<script src="core/gestes/'+f+'.js"><\/script>');});</script>
 <script src="core/gestes/gestes-telephone.js"></script>
 <script src="core/gestes/gestes-v5-ui.js"></script>
 <script src="core/gestes/gestes-ui.js"></script>

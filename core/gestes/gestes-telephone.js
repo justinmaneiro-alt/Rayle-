@@ -60,6 +60,8 @@ const GestesTel = (() => {
     set('perte', r.liaison === 'direct' ? Math.round((r.perte || 0) * 100) + ' % perdus · ' + (r.ecartes || 0) + ' en retard écartés · gigue ' + (r.gigue || 0) + ' ms' : '—');
     const cf = fen.querySelector('[data-k="conf"]'); if (cf) cf.value = r.confiance == null ? 0 : r.confiance; set('confT', r.confiance == null ? '—' : Math.round(r.confiance * 100) + ' %');
     set('geste', libelleGeste(e, mot)); set('mains', String(e.mains || 0)); set('recues', String(r.recues || 0) + ' trames reçues');
+    const t = r.tel; set('tel', t ? [t.calcul === 'pc' ? 'calcul sur le PC' : 'calcul sur le téléphone', t.cam != null ? 'caméra ' + Math.round(t.cam) + ' im/s' : null, t.det != null ? 'détection ' + Math.round(t.det) + ' im/s' : null, t.detMs != null ? Math.round(t.detMs) + ' ms' : null, t.res ? t.res + ' px' : null, t.mode === 'worker' ? 'Worker' : t.mode === 'principal' ? 'fil principal' : null, t.bat != null ? 'batterie ' + Math.round(t.bat * 100) + ' %' : null].filter(Boolean).join(' · ') : '—');
+    const cmp = fen.querySelector('[data-g="comparer"]'); if (cmp) cmp.hidden = !(G.reglages().calculPc && r.liaison === 'direct');
     const lim = fen.querySelector('[data-k="note"]');
     if (lim) lim.textContent = r.liaison === 'direct' ? (r.conseil || '') : (r.etat === 'connecte' ? 'Sans la liaison directe le débit reste faible : le Worker doit être à jour (voir docs/GESTES.md).' : '');
     if (imgApercu) { if (r.apercu && imgApercu.src !== r.apercu) imgApercu.src = r.apercu; imgApercu.hidden = !r.apercu; }
@@ -69,11 +71,20 @@ const GestesTel = (() => {
     fen = document.createElement('section'); fen.id = 'gestes-tel'; fen.setAttribute('role', 'region'); fen.setAttribute('aria-label', 'Suivi de la caméra du téléphone');
     fen.innerHTML = '<header data-g="barre"><span class="gt-pt ko" data-k="pt"></span><b>Caméra du téléphone</b><button type="button" data-g="fermer" aria-label="Fermer la fenêtre de suivi">✕</button></header>' +
       '<div class="gt-corps"><canvas width="280" height="210" aria-label="Squelette des mains reçu du téléphone"></canvas><img alt="Aperçu de la caméra du téléphone" hidden>' +
-      '<dl><dt>Liaison</dt><dd data-k="liaison">…</dd><dt>Débit</dt><dd data-k="debit">—</dd><dt>Délai</dt><dd data-k="delai">—</dd><dt>Geste</dt><dd data-k="geste">—</dd><dt>Perte</dt><dd data-k="perte">—</dd><dt>Confiance</dt><dd><meter data-k="conf" min="0" max="1" low="0.5" high="0.8" optimum="1" value="0" style="width:90px"></meter> <span data-k="confT">—</span></dd><dt>Mains vues</dt><dd data-k="mains">0</dd><dt>Reçu</dt><dd data-k="recues">0</dd></dl>' +
+      '<dl><dt>Liaison</dt><dd data-k="liaison">…</dd><dt>Débit</dt><dd data-k="debit">—</dd><dt>Délai</dt><dd data-k="delai">—</dd><dt>Geste</dt><dd data-k="geste">—</dd><dt>Perte</dt><dd data-k="perte">—</dd><dt>Confiance</dt><dd><meter data-k="conf" min="0" max="1" low="0.5" high="0.8" optimum="1" value="0" style="width:90px"></meter> <span data-k="confT">—</span></dd><dt>Mains vues</dt><dd data-k="mains">0</dd><dt>Reçu</dt><dd data-k="recues">0</dd><dt>Téléphone</dt><dd data-k="tel">—</dd></dl>' +
       '<div class="gt-note" data-k="note"></div>' +
+      '<div class="gt-fl"><button type="button" data-g="test">Test de fluidité (60 s)</button><button type="button" data-g="cibles">Jeu Cibles (3 min)</button><button type="button" data-g="comparer" hidden>Comparer téléphone / PC</button></div>' +
+      '<label class="gt-chk gt-pcc"><input type="checkbox" data-g="calculpc"> Autoriser le calcul sur le PC (mode performance : la vidéo basse résolution part en direct du téléphone vers ce PC, sans serveur, sans enregistrement ; le téléphone doit aussi accepter). Désactivé par défaut : sans cela, seuls les points de ta main quittent le téléphone.</label>' +
       '<label class="gt-chk"><input type="checkbox" data-g="apercu"> Aperçu vidéo de la caméra (désactivé par défaut : une petite image part du téléphone, seulement tant que c’est coché)</label></div>';
     document.body.appendChild(fen); cv = fen.querySelector('canvas'); ctx = cv.getContext('2d'); imgApercu = fen.querySelector('img');
-    fen.addEventListener('click', e => { if (e.target.closest('[data-g="fermer"]')) fermer(); });
+    fen.addEventListener('click', e => {
+      if (e.target.closest('[data-g="fermer"]')) fermer();
+      else if (e.target.closest('[data-g="test"]') && window.Fluidite) window.Fluidite.lancer();
+      else if (e.target.closest('[data-g="cibles"]') && window.CiblesJeu) window.CiblesJeu.jouer();
+      else if (e.target.closest('[data-g="comparer"]') && window.Fluidite) window.Fluidite.lancerComparaison();
+    });
+    const cc = fen.querySelector('[data-g="calculpc"]'); cc.checked = !!G.reglages().calculPc;
+    cc.addEventListener('change', e => { G.regler({ calculPc: e.target.checked }); if (window.Fluidite) { window.Fluidite.brancherPiste(); window.Fluidite.activerCalculPc(e.target.checked); } });
     fen.querySelector('[data-g="apercu"]').addEventListener('change', e => { const ok = R() && R().definirApercu(e.target.checked); if (e.target.checked && !ok) { /* demandé : part dès que le canal direct s'ouvre */ } });
     // déplacer la fenêtre par la barre de titre (souris ou doigt)
     let dep = null; const barre = fen.querySelector('[data-g="barre"]');

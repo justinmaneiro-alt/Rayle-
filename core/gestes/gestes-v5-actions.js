@@ -7,7 +7,7 @@
 const GestesV5Actions = (() => {
   const V5 = () => window.GestesV5, T = () => window.Telecommande;
   const CLIQUABLE = 'button,a[href],[role="button"],[role="tab"],[role="menuitem"],input,select,textarea,summary,label,[data-onglet],[data-a],.gf-t,.saf-t,.pn-tete,.g1-fen-barre,.gf-poignee,.saf-poignee,.gfx-bord,.gv5-demo-poignee,.gv5-t,[tabindex]:not([tabindex="-1"])';
-  const P = { taille: 76, aimantation: 0.6, priseLarge: true, diagnostic: false };
+  const P = { taille: 76, aimantation: 0.6, priseLarge: true, diagnostic: false, tamponMs: 0 };
   let dernierLibre = null, el = null, trace = [], points = [], cibles = [], ciblesT = 0, survolEl = null, tenue = null, prise = null, deux = null, inertie = null, tCache = 0, derniereEtat = null, flashT = 0, fermerEl = null, derniereVit = { vx: 0, vy: 0, t: 0, x: 0, y: 0 };
   let diag = null, diagCtx = null, diagT = 0;
 
@@ -21,17 +21,38 @@ const GestesV5Actions = (() => {
     appliquerTaille(); return el;
   }
   function appliquerTaille() { if (el) document.documentElement.style.setProperty('--gv5-t', P.taille + 'px'); }
-  function placerVisuel(x, y) {
-    creer(); el.hidden = false; el.style.transform = 'translate(' + x.toFixed(1) + 'px,' + y.toFixed(1) + 'px)';
+  /* V10 : l'anneau est dessiné à CHAQUE image de l'écran (60 à 144 Hz), même si les points n'arrivent qu'à 30 Hz : FluiditeCalcul.creerRendu interpole entre les dernières mesures et prédit
+     quelques millisecondes (jamais plus de 45) pour compenser le délai ; l'arrivée d'une mesure corrige en douceur, le curseur ne « saute » pas. Les événements (clics, prises) gardent les
+     positions exactes du moteur : seule l'image de l'anneau est lissée. Sans FluiditeCalcul (page ancienne), l'anneau est posé à chaque mesure comme avant. */
+  let rendu = null, rafRendu = 0, tImageRendu = 0, ecouteImage = null, posAff = null, tTrace = 0;
+  function poserTransform(x, y, t) {
+    if (posAff && Math.abs(posAff[0] - x) < 0.04 && Math.abs(posAff[1] - y) < 0.04) return; posAff = [x, y];
+    el.style.transform = 'translate(' + x.toFixed(1) + 'px,' + y.toFixed(1) + 'px)';
+    if (t - tTrace < 30) return; tTrace = t;   // la traînée garde un rythme de ~30 points par seconde, quelle que soit la cadence de l'écran
     trace.unshift([x, y]); if (trace.length > 6) trace.pop();
     for (let i = 0; i < points.length; i++) { const q = trace[i + 1] || null; if (!q) { points[i].hidden = true; continue; } points[i].hidden = false; points[i].style.transform = 'translate(' + q[0].toFixed(1) + 'px,' + q[1].toFixed(1) + 'px) scale(' + (0.9 - i * 0.12).toFixed(2) + ')'; }
+  }
+  function boucleRendu(t) {
+    rafRendu = requestAnimationFrame(boucleRendu);
+    if (!el || el.hidden || !rendu) return;
+    const p = rendu.position(t); if (!p) return;
+    poserTransform(p.x, p.y, t);
+    if (ecouteImage) ecouteImage(tImageRendu ? t - tImageRendu : 0, p.x, p.y, t);
+    tImageRendu = t;
+  }
+  function placerVisuel(x, y) {
+    creer(); el.hidden = false;
+    const FC = window.FluiditeCalcul;
+    if (FC && !rendu) { rendu = FC.creerRendu({ tampon: P.tamponMs }); }
+    if (rendu) { rendu.echantillon(performance.now(), x, y); if (!rafRendu) { tImageRendu = 0; rafRendu = requestAnimationFrame(boucleRendu); } }
+    else poserTransform(x, y, performance.now());
     clearTimeout(tCache);
   }
   function etatVisuel(e, progres) {
     if (!el) return; if (el.dataset.etat !== e) el.dataset.etat = e;
     const v = progres ? progres.v : 0; el.style.setProperty('--gv5-p', String(v)); el.dataset.prog = progres ? progres.type : '';
   }
-  function cacher() { if (el) el.hidden = true; for (const p of points) p.hidden = true; trace = []; document.body.classList.remove('gv5-actif'); }
+  function cacher() { if (el) el.hidden = true; for (const p of points) p.hidden = true; trace = []; posAff = null; cancelAnimationFrame(rafRendu); rafRendu = 0; if (rendu) rendu.reinitialiser(); document.body.classList.remove('gv5-actif'); }
 
   // ── cibles cliquables (aimantation et zones élargies) ──
   function actualiserCibles() {
@@ -218,8 +239,8 @@ const GestesV5Actions = (() => {
   }
 
   function arreter() { inertieStop(true); lacherMarques(); deuxFin(); marquerSurvol(null); if (fermerEl) { fermerEl.classList.remove('gv5-ferme-prevu'); fermerEl = null; } cacher(); if (diag) diag.hidden = true; if (T()) T().lacher(); prise = null; }
-  function reglages(patch) { Object.assign(P, patch || {}); appliquerTaille(); if (!P.diagnostic && diag) diag.hidden = true; }
+  function reglages(patch) { Object.assign(P, patch || {}); if (rendu) rendu.regler({ tampon: P.tamponMs || 0 }); appliquerTaille(); if (!P.diagnostic && diag) diag.hidden = true; }
 
-  return { appliquer, afficher, arreter, reglages, aimanter, fenetreSous, actualiserCibles, curseur: () => el, etat: () => ({ prise: !!prise, inertie: !!inertie, deux: deux ? deux.mode : null, survol: !!survolEl }) };
+  return { appliquer, afficher, arreter, reglages, ecouterImage: f => { ecouteImage = f; }, aimanter, fenetreSous, actualiserCibles, curseur: () => el, etat: () => ({ prise: !!prise, inertie: !!inertie, deux: deux ? deux.mode : null, survol: !!survolEl }) };
 })();
 window.GestesV5Actions = GestesV5Actions;

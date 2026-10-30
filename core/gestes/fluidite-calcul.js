@@ -234,10 +234,10 @@
   /* Entrée : des positions qui arrivent par à-coups (30 à 60 Hz, avec de la gigue). Sortie : une position à CHAQUE image de l'écran (60 à 144 Hz), sans saut.
      Principe : vitesse estimée sur les deux dernières mesures, extrapolation bornée à `predictionMax` ms, puis rattrapage exponentiel (constante `tau`) pour que l'arrivée d'une
      mesure corrigeant l'extrapolation ne fasse jamais « sauter » l'anneau. `tampon` (ms) retarde volontairement pour absorber la gigue (réglable : « tamponMs »). */
-  function creerRendu({ predictionMax = 45, tau = 16, tampon = 0, tele = 220, avance = 16 } = {}) {
+  function creerRendu({ predictionMax = 45, tau = 16, tampon = 0, tele = 220, avance = 8 } = {}) {
     let a = null, b = null, pos = null, tPos = 0, o = { predictionMax, tau, tampon, tele, avance };
     return {
-      echantillon(t, x, y) { const p = { t, x, y }; if (b && t <= b.t) return; a = b; b = p; },
+      echantillon(t, x, y) { const p = { t, x, y }; if (b && t <= b.t) return; if (b && t - b.t > 400) { a = null; pos = null; } else a = b; b = p; },   // après une longue absence on repart de la nouvelle position (pas de glissade depuis l'ancienne)
       /* Position à afficher à l'instant `t` (même horloge que `echantillon`). */
       position(t) {
         if (!b) return null;
@@ -324,6 +324,6 @@
   /* Allège une trace pour le stockage : points arrondis à 4 décimales (≈ 0,3 px d'écran). */
   function compacter(trace) { return JSON.stringify(trace, (k, v) => typeof v === 'number' && !Number.isInteger(v) ? Math.round(v * 10000) / 10000 : v); }
 
-  racine.FluiditeCalcul = { OBJECTIFS, percentile, mediane, moyenne, ecartType, calculer, analyser, degrader, rejouer, creerRendu, simulerRendu, calibrerFiltre, optimiserSeuils, scoreCibles, creerEnregistreur, compacter, debits, pertes, gigue, tremblement, retardMouvement, clicsSuspects, tendance };
+  racine.FluiditeCalcul = { refEcran, OBJECTIFS, percentile, mediane, moyenne, ecartType, calculer, analyser, degrader, rejouer, creerRendu, simulerRendu, calibrerFiltre, optimiserSeuils, scoreCibles, creerEnregistreur, compacter, debits, pertes, gigue, tremblement, retardMouvement, clicsSuspects, tendance };
   if (typeof module !== 'undefined' && module.exports) module.exports = racine.FluiditeCalcul;
 })(typeof globalThis !== 'undefined' ? globalThis : window);

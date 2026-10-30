@@ -174,7 +174,7 @@ function rejouerTest(suite) {
   window.__RAYLE_CAM_JOUER__ = frames => { file = frames; f0 = performance.now(); ti = Date.now(); i = 0; };   // essais : joue une suite UNE fois (aux temps d'origine), puis revient à la suite de fond
   demarrerStats(); S.niveau = CFG.res === 'auto' ? 2 : Math.max(0, NIV.findIndex(n => n.l === +CFG.res)); if (window.__RAYLE_CAM_TEST__ && window.__RAYLE_CAM_TEST__.detMs) S.fauxDetMs = window.__RAYLE_CAM_TEST__.detMs;
   C.test = setInterval(() => {
-    S.camN++; S.detN++; S.detMs.push(S.fauxDetMs || 8);
+    S.camN += (suite.camIps || suite.ips || 30) / (suite.ips || 30); S.detN++; S.detMs.push(S.fauxDetMs || 8);   // essais : la caméra peut aller plus vite que la détection (suite.camIps)
     envoyerApercu();
     if (file) { const ecoule = performance.now() - f0; while (i < file.length && file[i].t <= ecoule) { const f = file[i++]; envoyer({ a: 'mains', t: ti + f.t, ratio: f.ratio || 4 / 3, mains: f.mains }); } if (i >= file.length) file = null; return; }
     const f = suite.frames[boucleFile++ % suite.frames.length]; envoyer({ a: 'mains', t: Date.now(), ratio: f.ratio || 4 / 3, mains: f.mains });
@@ -186,10 +186,10 @@ async function demarrerCamera() {
   if (!window.isSecureContext || !navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) return msg('m-cam', 'Ce navigateur refuse la caméra sur une page non sécurisée. Ouvre l’adresse en https:// et accepte le certificat du PC (Avancé → Continuer). Voir docs/GESTES.md.', 'ko');
   $('b-cam').disabled = true; msg('m-cam', 'Chargement du modèle de détection de main…', 'sable');
   try {
-    const base = W.actif ? CDN : location.origin + '/camera/vendor/';
+    const base = window.__RAYLE_CAM_VENDOR__ && /^(127\.0\.0\.1|localhost)$/.test(location.hostname) ? window.__RAYLE_CAM_VENDOR__ : (W.actif ? CDN : location.origin + '/camera/vendor/');   // __RAYLE_CAM_VENDOR__ : essais en local seulement
     S.niveau = CFG.res === 'auto' ? 2 : Math.max(0, NIV.findIndex(n => n.l === +CFG.res));
     S.adapt = self.AdaptationCamera ? self.AdaptationCamera.creerAdaptation({ niveau: S.niveau, niveauMax: CFG.res === 'auto' ? 2 : S.niveau, auto: CFG.res === 'auto' }) : null;
-    C.detecteur = await creerDetecteur({ mjs: base + 'vision_bundle.mjs', wasm: base + 'wasm', modele: W.actif ? MODELE_CDN : base + 'hand_landmarker.task', delegate: 'GPU', mains: CFG.mains, worker: CFG.worker, urlWorker: new URL('detection-worker.js', import.meta.url).href, taille: NIV[S.niveau] });
+    C.detecteur = await creerDetecteur({ mjs: base + 'vision_bundle.mjs', wasm: base + 'wasm', modele: W.actif && base === CDN ? MODELE_CDN : base + 'hand_landmarker.task', delegate: 'GPU', mains: CFG.mains, worker: CFG.worker, urlWorker: new URL('detection-worker.js', import.meta.url).href, taille: NIV[S.niveau] });
     if (C.detecteur.avertissement) msg('m-cam', C.detecteur.avertissement, 'sable');
     const n0 = NIV[S.niveau]; C.flux = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user', width: { ideal: n0.l }, height: { ideal: n0.h }, frameRate: { ideal: 60, min: 30 } }, audio: false });
   } catch (e) {
