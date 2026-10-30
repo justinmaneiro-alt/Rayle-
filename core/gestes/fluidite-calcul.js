@@ -293,6 +293,21 @@
     return { choix: bons[0] || res.slice().sort((a, b) => a.fauxParMinute - b.fauxParMinute)[0], essais: res, fauxTenu: bons.length > 0 };
   }
 
+  // ── comparaison « calcul sur le téléphone » / « calcul sur le PC » ──
+  /* Note d'un mode (plus haut = mieux) : débit utile, moins le délai au-delà de 40 ms, les pertes de main et les paquets perdus. */
+  function noterMode(m) {
+    if (!m || m.debit.mediane == null) return 0; const d = m.delai.p95 == null ? 60 : m.delai.p95;
+    return m.debit.mediane - Math.max(0, d - 40) * 0.4 - m.pertesDeMain * 2 - (m.perte || 0) * 60;
+  }
+  /* Recommande un mode d'après deux mesures. Le PC doit gagner nettement (plus de 3 points) : sinon on reste sur le téléphone, qui garde la confidentialité maximale (points seulement). */
+  function recommander(mTel, mPc) {
+    const a = noterMode(mTel), b = noterMode(mPc), meilleur = b > a + 3 ? 'pc' : 'telephone', f = x => (x == null ? '—' : x);
+    if (mTel.debit.mediane == null && mPc.debit.mediane == null) return { meilleur: 'telephone', na: a, nb: b, raison: 'Aucune main n’a été vue pendant les deux mesures : refais la comparaison en faisant tes gestes devant la caméra (en attendant, le téléphone garde la confidentialité maximale).', sansMesure: true };
+    const raison = meilleur === 'pc' ? 'Le PC tient ' + f(mPc.debit.mediane) + ' paquets/s (délai ' + f(mPc.delai.p95) + ' ms) contre ' + f(mTel.debit.mediane) + ' sur le téléphone (délai ' + f(mTel.delai.p95) + ' ms).'
+      : (b > a - 3 ? 'Les deux modes se valent (' + f(mTel.debit.mediane) + ' et ' + f(mPc.debit.mediane) + ' paquets/s) : le téléphone suffit et garde la confidentialité maximale.' : 'Le téléphone fait mieux (' + f(mTel.debit.mediane) + ' contre ' + f(mPc.debit.mediane) + ' paquets/s).');
+    return { meilleur, na: a, nb: b, raison };
+  }
+
   // ── mini-jeu « Cibles » : score objectif ──
   /* essais : [{ taille (px), reussi (bool), ms (durée jusqu'au clic), erreur (px, distance au centre) }] */
   function scoreCibles(essais) {
@@ -324,6 +339,6 @@
   /* Allège une trace pour le stockage : points arrondis à 4 décimales (≈ 0,3 px d'écran). */
   function compacter(trace) { return JSON.stringify(trace, (k, v) => typeof v === 'number' && !Number.isInteger(v) ? Math.round(v * 10000) / 10000 : v); }
 
-  racine.FluiditeCalcul = { refEcran, OBJECTIFS, percentile, mediane, moyenne, ecartType, calculer, analyser, degrader, rejouer, creerRendu, simulerRendu, calibrerFiltre, optimiserSeuils, scoreCibles, creerEnregistreur, compacter, debits, pertes, gigue, tremblement, retardMouvement, clicsSuspects, tendance };
+  racine.FluiditeCalcul = { refEcran, OBJECTIFS, percentile, mediane, moyenne, ecartType, calculer, analyser, degrader, rejouer, creerRendu, simulerRendu, calibrerFiltre, optimiserSeuils, scoreCibles, noterMode, recommander, creerEnregistreur, compacter, debits, pertes, gigue, tremblement, retardMouvement, clicsSuspects, tendance };
   if (typeof module !== 'undefined' && module.exports) module.exports = racine.FluiditeCalcul;
 })(typeof globalThis !== 'undefined' ? globalThis : window);

@@ -99,6 +99,15 @@ for (const [hz, g] of [[30, 0], [30, 25], [15, 0]]) {
 { const c = F.calibrerFiltre(tr0); v('calibrage du filtre : trouve un lissage qui tient le tremblement', c.tenu && c.lissage >= 0.15 && c.lissage <= 0.9, JSON.stringify(c)); }
 { const o = F.optimiserSeuils(tr0, sess.intentions); v('seuils de pincement : tous les clics voulus, moins d’un faux par minute', o.fauxTenu && o.choix.rappel === 1 && o.choix.fauxParMinute < 1, JSON.stringify(o.choix)); }
 
+// ── téléphone ou PC : recommandation ──
+{ const lentTel = F.calculer(S.trace(sess, { degradation: { ips: 15 }, telephone: { det: 14, detMs: 71 } })), rapidePc = F.calculer(S.trace(sess, { telephone: { calcul: 'pc' } }));
+  const reco = F.recommander(lentTel, rapidePc);
+  v('téléphone lent (15 paquets/s) contre PC rapide (60/s) : recommande le PC, avec la raison chiffrée', reco.meilleur === 'pc' && /PC tient \d+ paquets\/s/.test(reco.raison), JSON.stringify(reco));
+  const egal = F.recommander(rapidePc, rapidePc); v('deux modes équivalents : on reste sur le téléphone (confidentialité maximale)', egal.meilleur === 'telephone' && /se valent/.test(egal.raison), JSON.stringify(egal));
+  const inverse = F.recommander(rapidePc, lentTel); v('le téléphone fait mieux que le PC : le téléphone', inverse.meilleur === 'telephone' && /téléphone fait mieux/.test(inverse.raison));
+  const vide = { debit: { mediane: null }, delai: { p95: null }, pertesDeMain: 0, perte: null }; const sans = F.recommander(vide, vide);
+  v('aucune main vue pendant les mesures : pas de recommandation inventée', sans.sansMesure === true && sans.meilleur === 'telephone' && /Aucune main/.test(sans.raison)); }
+
 // ── mini-jeu « Cibles » : score ──
 { const e = []; for (let i = 0; i < 40; i++) e.push({ taille: i % 2 ? 48 : 80, reussi: i !== 7, ms: 900 + i, erreur: 10 }); const s = F.scoreCibles(e);
   v('cibles : taux de réussite, temps moyen, précision', s.reussite === 0.975 && s.tempsMoyen > 900 && s.precisionPx === 10, JSON.stringify(s));

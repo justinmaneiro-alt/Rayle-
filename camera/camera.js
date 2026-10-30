@@ -190,7 +190,10 @@ async function demarrerCamera() {
     initAdaptation();
     C.detecteur = await creerDetecteur({ mjs: base + 'vision_bundle.mjs', wasm: base + 'wasm', modele: W.actif && base === CDN ? MODELE_CDN : base + 'hand_landmarker.task', delegate: 'GPU', mains: CFG.mains, worker: CFG.worker, urlWorker: new URL('detection-worker.js', import.meta.url).href, taille: NIV[S.niveau] });
     if (C.detecteur.avertissement) msg('m-cam', C.detecteur.avertissement, 'sable');
-    const n0 = NIV[S.niveau]; C.flux = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user', width: { ideal: n0.l }, height: { ideal: n0.h }, frameRate: { ideal: 60, min: 30 } }, audio: false });
+    const n0 = NIV[S.niveau];
+    /* Contraintes de la plus exigeante à la plus souple : certaines caméras refusent « au moins 30 images/s » (OverconstrainedError) ; on retombe alors sur l'idéal seul, puis sur n'importe quelle caméra. */
+    const essais = [{ facingMode: 'user', width: { ideal: n0.l }, height: { ideal: n0.h }, frameRate: { ideal: 60, min: 30 } }, { facingMode: 'user', width: { ideal: n0.l }, height: { ideal: n0.h }, frameRate: { ideal: 60 } }, true];
+    for (let i = 0; i < essais.length && !C.flux; i++) { try { C.flux = await navigator.mediaDevices.getUserMedia({ video: essais[i], audio: false }); } catch (e) { if (!(e && e.name === 'OverconstrainedError') || i === essais.length - 1) throw e; } }
   } catch (e) {
     $('b-cam').disabled = false; const nom = e && e.name;
     return msg('m-cam', nom === 'NotAllowedError' || nom === 'SecurityError' ? 'Caméra refusée. Rien n’est envoyé à Rayle. Pour l’autoriser : Chrome → cadenas (ou ⋮) → Autorisations → Caméra → Autoriser ; Safari → aA → Réglages du site web → Caméra. Puis recharge cette page : si le QR code a servi, redemande-en un au PC.' : nom === 'NotFoundError' ? 'Aucune caméra trouvée sur ce téléphone.' : 'Impossible de démarrer : ' + (e && e.message || e), 'ko');

@@ -145,26 +145,22 @@ const Fluidite = (() => {
   }
 
   // ── comparaison « calcul sur le téléphone » / « calcul sur le PC » (2 × 30 s) ──
-  function noter(m) {   // plus c'est haut, mieux c'est : débit utile, sans délai ni pertes de main
-    if (m.debit.mediane == null) return 0; const d = m.delai.p95 == null ? 60 : m.delai.p95;
-    return m.debit.mediane - Math.max(0, d - 40) * 0.4 - m.pertesDeMain * 2 - (m.perte || 0) * 60;
-  }
-  async function comparer() {
+  async function comparer(secondes = 30) {
     const r = R(), g = G(); if (!r || !g.etat().actif) throw new Error('Active d’abord les gestes avec la caméra du téléphone.');
     if (!g.reglages().calculPc) throw new Error('Le calcul sur le PC est désactivé (réglage ⚙ « Autoriser le calcul sur le PC »).');
     brancherPiste();
     activerCalculPc(false); await new Promise(res => setTimeout(res, 1500));
-    const A = await enregistrer(30, { consigne: 'Mode 1/2 — calcul sur le TÉLÉPHONE : fais tes gestes habituels' });
+    const A = await enregistrer(secondes, { consigne: 'Mode 1/2 — calcul sur le TÉLÉPHONE : fais tes gestes habituels' });
     activerCalculPc(true); dire('Mode 2/2 : attente de l’accord du téléphone (accepte sur son écran)…');
     let ok = false; for (let i = 0; i < 40 && !ok; i++) { await new Promise(res => setTimeout(res, 500)); ok = r.etat().calcul === 'pc' && window.DetectionPc && window.DetectionPc.etat().actif && window.DetectionPc.etat().recues > 10; }
     if (!ok) { activerCalculPc(false); bandeauEl().hidden = true; throw new Error('Le téléphone n’a pas accepté (ou la vidéo directe n’est pas arrivée). Le calcul est resté sur le téléphone.'); }
-    const B = await enregistrer(30, { consigne: 'Mode 2/2 — calcul sur le PC : refais les mêmes gestes' });
-    const ra = analyserTrace(A), rb = analyserTrace(B), na = noter(ra.metrics), nb = noter(rb.metrics), meilleur = nb > na + 3 ? 'pc' : 'telephone';
-    return { A, B, ra, rb, na, nb, meilleur };
+    const B = await enregistrer(secondes, { consigne: 'Mode 2/2 — calcul sur le PC : refais les mêmes gestes' });
+    const ra = analyserTrace(A), rb = analyserTrace(B), reco = FC().recommander(ra.metrics, rb.metrics);
+    return { A, B, ra, rb, na: reco.na, nb: reco.nb, meilleur: reco.meilleur, raison: reco.raison };
   }
   function afficherComparaison(c) {
     const ui = UI(); if (!ui) return; const ligne = (nom, m) => '<tr><td>' + nom + '</td><td>' + fmt(m.debit.mediane) + '</td><td>' + fmt(m.debit.min) + '</td><td>' + fmt(m.delai.p95) + '</td><td>' + m.pertesDeMain + '</td></tr>';
-    ui.ouvrirModale('Téléphone ou PC : quel calcul est le plus fluide ?', '<div class="gm-etat ok"><b>Recommandation : ' + (c.meilleur === 'pc' ? 'calcul sur le PC' : 'calcul sur le téléphone') + '</b><div>' + (c.meilleur === 'pc' ? 'Le PC détecte plus vite et sans à-coups. La vidéo quitte alors le téléphone (en direct vers le PC, sans serveur, sans enregistrement).' : 'Le téléphone suffit : rien d’autre que les points de ta main ne quitte le téléphone (confidentialité maximale).') + '</div></div>' +
+    ui.ouvrirModale('Téléphone ou PC : quel calcul est le plus fluide ?', '<div class="gm-etat ok"><b>Recommandation : ' + (c.meilleur === 'pc' ? 'calcul sur le PC' : 'calcul sur le téléphone') + '</b><div>' + esc(c.raison) + ' ' + (c.meilleur === 'pc' ? 'La vidéo quitte alors le téléphone (en direct vers le PC, sans serveur, sans enregistrement).' : 'Rien d’autre que les points de ta main ne quitte le téléphone (confidentialité maximale).') + '</div></div>' +
       '<table class="gm-tab"><thead><tr><th></th><th>Paquets/s</th><th>Minimum</th><th>Délai p95 (ms)</th><th>Pertes de main</th></tr></thead><tbody>' + ligne('Téléphone', c.ra.metrics) + ligne('PC', c.rb.metrics) + '</tbody></table>' +
       '<div class="gm-actions"><button type="button" data-fl="pc">Utiliser le calcul sur le PC</button><button type="button" data-fl="tel" class="ghost">Rester sur le téléphone (points seulement)</button></div><div id="fl-retour" class="gm-note"></div>');
     const racine = document.getElementById('gestes-modale');
@@ -177,13 +173,13 @@ const Fluidite = (() => {
       memoriser(trace, res); afficherResultat(trace, res, { avant }); return { trace, res };
     } catch (e) { const ui = UI(); if (ui && ui.ouvrirModale) ui.ouvrirModale('Test de fluidité', '<div class="gm-err">' + esc(e.message) + '</div>'); return null; }
   }
-  async function lancerComparaison() {
-    try { const c = await comparer(); afficherComparaison(c); return c; }
+  async function lancerComparaison(secondes = 30) {
+    try { const c = await comparer(secondes); afficherComparaison(c); return c; }
     catch (e) { const ui = UI(); if (ui && ui.ouvrirModale) ui.ouvrirModale('Comparaison téléphone / PC', '<div class="gm-err">' + esc(e.message) + '</div>'); return null; }
   }
   /* Analyse d'une trace déjà enregistrée (fichier exporté ou simulée) sans toucher aux gestes : sert aux tests et à « rejouer une session ». */
   function analyserFichier(trace) { const res = analyserTrace(trace); afficherResultat(trace, res, { titre: 'Analyse d’une trace enregistrée' }); return res; }
 
-  return { lancer, lancerComparaison, enregistrer, arreter, analyserTrace, analyserFichier, appliquerCorrection, reglerFiltre, activerCalculPc, brancherPiste, exporter, noter, derniere: () => derniere, derniereTrace: () => dernierTrace, enCours: () => !!enCours, contexte };
+  return { lancer, lancerComparaison, comparer, enregistrer, arreter, analyserTrace, analyserFichier, appliquerCorrection, reglerFiltre, activerCalculPc, brancherPiste, exporter, derniere: () => derniere, derniereTrace: () => dernierTrace, enCours: () => !!enCours, contexte };
 })();
 window.Fluidite = Fluidite;
