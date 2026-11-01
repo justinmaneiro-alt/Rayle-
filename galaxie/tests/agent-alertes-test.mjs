@@ -20,3 +20,18 @@ const t = A.texte(nv[0]); ok(/VENTE SOL/.test(t.titre) && /SIMULATION/.test(t.co
 ok(/Position ouverte/.test(A.texte(p('x', 'ouverte'), 'ouverte').titre) && /1:2,1/.test(A.texte(p('x', 'ouverte')).corps), 'texte « ouverte », ratio 1:2,1');
 ok(A.positionsVivantes(null).length === 0 && A.positionsVivantes({}).length === 0, 'vue vide sans erreur');
 console.log('agent-alertes : ' + n + ' vérifications OK');
+
+/* ── taille simulée, levier, texte détaillé (action, entrée, taille, TP, SL, levier) ── */
+{
+  let k = 0; const okk = (c, m) => { k++; assert.ok(c, m); };
+  const pos = { actif: 'BTC', tf: 'M15', sens: 1, statut: 'en_attente', entree: 100, stop: 99, cible1: 102 };
+  const ts = A.tailleSimulee(pos, { capital: 10000, risquePct: 1 });
+  okk(Math.abs(ts.risqueUsd - 100) < 1e-9 && Math.abs(ts.notionnel - 10000) < 1e-6 && Math.abs(ts.levier - 1) < 1e-9, 'risque 100 $ sur 1 % de distance = 10 000 $, levier 1×');
+  okk(Math.abs(A.tailleSimulee({ ...pos, stop: 99.5 }, { capital: 10000, risquePct: 1 }).levier - 2) < 1e-9, 'stop deux fois plus serré : levier 2×');
+  okk(A.tailleSimulee({ ...pos, stop: 100 }) === null, 'entrée = stop : pas de taille inventée');
+  okk(A.tailleSimulee(pos, { capital: -5, risquePct: 0 }).capital === 10000, 'réglages invalides : défaut');
+  const t = A.texte(pos, 'nouvelle', { capital: 10000, risquePct: 1 });
+  okk(/Action Achat/.test(t.corps) && /entrée 100/.test(t.corps) && /taille 10.000 \$/.test(t.corps) && /TP 102/.test(t.corps) && /SL 99/.test(t.corps) && /levier 1,0×/.test(t.corps) && /SIMULATION/.test(t.corps), 'texte complet : ' + t.corps);
+  okk(/Action Vente/.test(A.texte({ ...pos, sens: -1, stop: 101, cible1: 98 }).corps) && /^TEST/.test(A.texte(pos, 'test').titre), 'vente et titre TEST');
+  console.log('agent-alertes (taille) : ' + k + ' vérifications OK');
+}

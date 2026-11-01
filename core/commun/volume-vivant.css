@@ -83,3 +83,6 @@
 .vv-flux li time{color:var(--vv-doux)}.vv-flux li[data-type="entree"]{color:var(--vv-accent)}.vv-flux li[data-type="signal"]{color:#7fb4ff}
 .vv-flux li.vv-neuf{animation:vv-neuf 1.6s ease-out}@keyframes vv-neuf{from{background:rgba(143,208,227,.25)}to{background:transparent}}
 @media (prefers-reduced-motion:reduce){.vv-flux li.vv-neuf{animation:none}}
+.vv-tic-h{animation:vv-tic-h 1.1s ease-out}.vv-tic-b{animation:vv-tic-b 1.1s ease-out}
+@keyframes vv-tic-h{from{text-shadow:0 0 14px rgba(62,207,142,.9)}to{text-shadow:none}}@keyframes vv-tic-b{from{text-shadow:0 0 14px rgba(239,91,91,.9)}to{text-shadow:none}}
+@media (prefers-reduced-motion:reduce){.vv-tic-h,.vv-tic-b{animation:none}}

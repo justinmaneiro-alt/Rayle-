@@ -62,12 +62,13 @@
      au capital du moment (intérêts composés), puis ajoute le résultat FLOTTANT des positions ouvertes au dernier prix connu. Rien n'est inventé : sans trade, le capital reste au départ. */
   const fin = x => typeof x === 'number' && Number.isFinite(x);
   const STATUT = { cloturee: 'terminee', terminee: 'terminee', ouverte: 'ouverte', en_attente: 'en_attente' };
+  const typeSortie = (motif, R) => (/objectif|cible|tp|profit/i.test(motif || '') ? 'TP' : /stop|sl|perte/i.test(motif || '') ? 'SL' : (R > 0 ? 'TP' : 'SL'));
   function normaliser(p, actif, source) {
     if (!p || p.fantome || p.demo || p.id == null) return null; const st = STATUT[p.statut]; if (!st) return null;
     const R = fin(p.R) ? p.R : (p.resultat && fin(p.resultat.R) ? p.resultat.R : null); if (st === 'terminee' && (R == null || !fin(p.tSortie))) return null;
     const entree = p.entree, stop = p.stop, cible = fin(p.cible1) ? p.cible1 : p.cible; if (!fin(entree) || !fin(stop) || entree === stop) return null; const sens = Number(p.sens) < 0 ? -1 : 1;
     return { id: p.id, actif: p.actif || actif, tf: p.tf || '', nom: p.nom || p.setup || '', sens, entree, stop, cible: fin(cible) ? cible : null, statut: st, tSignal: p.tSignal || p.t || null, tEntree: p.tEntree || null, tSortie: p.tSortie || null, R, motif: (p.resultat && p.resultat.motif) || p.raisonFin || '', source,
-      sortie: st === 'terminee' ? entree + sens * R * Math.abs(entree - stop) : null };   // prix de sortie déduit du R (exact par définition du R, avant arrondis)
+      sortie: st === 'terminee' ? entree + sens * R * Math.abs(entree - stop) : null, type: st === 'terminee' ? typeSortie((p.resultat && p.resultat.motif) || p.raisonFin || '', R) : null };   // prix de sortie déduit du R (exact par définition du R, avant arrondis)
   }
   function tousTrades(vueTrader, vueVolume, actif = null) {
     const vus = new Set(), sortie = [], ajouter = (p, a, src) => { const n = normaliser(p, a, src); if (!n || (actif && n.actif !== actif) || vus.has(n.id)) return; vus.add(n.id); sortie.push(n); };
@@ -95,7 +96,7 @@
     for (const t of trades) {
       if (fin(t.tSignal)) ev.push({ t: t.tSignal, type: 'signal', id: t.id, texte: 'Signal ' + sens(t) + ' : ordre limite à ' + prixTexte(t.entree) + ', stop ' + prixTexte(t.stop) + (t.cible != null ? ', objectif ' + prixTexte(t.cible) : '') });
       if (fin(t.tEntree)) ev.push({ t: t.tEntree, type: 'entree', id: t.id, texte: 'Entrée touchée ' + sens(t) + ' à ' + prixTexte(t.entree) });
-      if (t.statut === 'terminee') ev.push({ t: t.tSortie, type: 'sortie', id: t.id, gain: t.R > 0, texte: 'Sortie ' + sens(t) + ' : ' + (t.R > 0 ? '✔ ' : '✖ ') + signe(t.R) + ' R' + (t.motif ? ' (' + t.motif + ')' : '') });
+      if (t.statut === 'terminee') ev.push({ t: t.tSortie, type: 'sortie', id: t.id, gain: t.R > 0, texte: 'Sortie ' + sens(t) + ' : ' + (t.type ? t.type + ' touché · ' : '') + (t.R > 0 ? '✔ ' : '✖ ') + signe(t.R) + ' R' + (t.motif ? ' (' + t.motif + ')' : '') });
     }
     return ev.sort((a, b) => b.t - a.t || (b.type === 'sortie') - (a.type === 'sortie')).slice(0, max);
   }
@@ -111,6 +112,6 @@
   }
   const variation = (avant, apres, seuil = 0.03) => (avant == null || !(avant > 0) ? (apres > 0 && avant != null ? 1 : 0) : apres > avant * (1 + seuil) ? 1 : apres < avant * (1 - seuil) ? -1 : 0);
 
-  const API = { niveauxDom, variation, normaliser, tousTrades, dernierPrix, portefeuilleTrades, fluxExecution, reglesProp, REGLES_PROP, fr, prixTexte, usd, signe, compact, il, barreEtat, listes, lignePosition, repere, indexTemps, positionsAffichees, decoderHeat, niveauDetail, couches, volumeNetTrace, rejoueTrimestres, courbeJours };
+  const API = { niveauxDom, variation, normaliser, typeSortie, tousTrades, dernierPrix, portefeuilleTrades, fluxExecution, reglesProp, REGLES_PROP, fr, prixTexte, usd, signe, compact, il, barreEtat, listes, lignePosition, repere, indexTemps, positionsAffichees, decoderHeat, niveauDetail, couches, volumeNetTrace, rejoueTrimestres, courbeJours };
   if (typeof module !== 'undefined' && module.exports) module.exports = API; else racine.VolumeVivantCalcul = API;
 }(typeof window !== 'undefined' ? window : globalThis));

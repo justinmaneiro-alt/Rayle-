@@ -62,11 +62,12 @@
   }
 
   /* Marqueurs des positions terminées (✔ vert +R / ✖ rouge −R), sur l'heure de la bougie M15 de sortie. */
+  const typeSortie = (motif, R) => (/objectif|cible|tp|profit/i.test(motif || '') ? 'TP' : /stop|sl|perte/i.test(motif || '') ? 'SL' : (R > 0 ? 'TP' : 'SL'));
   function marqueursTermines(vue, actif) {
     const parTemps = new Map();   // deux sorties dans la même bougie : un seul marqueur (la dernière)
     for (const p of ((vue && vue.recentes) || []).filter(p => p.actif === actif && termine(p) && reelle(p) && fin(p.tSortie)).sort((a, b) => a.tSortie - b.tSortie)) {
       const gain = p.resultat.R >= 0, time = Math.floor(p.tSortie / PAS) * PAS / 1000;
-      parTemps.set(time, { time, gain, R: p.resultat.R, texte: (gain ? '✔ ' : '✖ ') + sg(p.resultat.R, 1) + ' R', id: p.id });
+      const type = typeSortie(p.resultat.motif, p.resultat.R); parTemps.set(time, { time, gain, type, R: p.resultat.R, texte: (gain ? '✔ ' : '✖ ') + type + ' ' + sg(p.resultat.R, 1) + ' R', id: p.id });
     }
     return [...parTemps.values()].sort((a, b) => a.time - b.time);
   }
@@ -148,6 +149,6 @@
   ]);
 
   const api = { PAS, MAX_ZONES, SEUIL_ECHANTILLON, ACTIFS, COULEURS, DETAILS, NIVEAUX, esc, fr, sg, prix, heure, jour, duree, quatreChiffres, positionsActif, positionsVisibles, groupes, comptes, ratio, etiquette, fusionnerEtiquettes,
-    historiques, marqueursTermines, courbeAlignee, prixActuel, bougiesDeLaVue, htmlBarreEtat, htmlChiffres, htmlVide, htmlExplication, htmlLigne, htmlListes };
+    historiques, typeSortie, marqueursTermines, courbeAlignee, prixActuel, bougiesDeLaVue, htmlBarreEtat, htmlChiffres, htmlVide, htmlExplication, htmlLigne, htmlListes };
   if (typeof module !== 'undefined' && module.exports) module.exports = api; else root.AgentLisibleCalcul = api;
 })(typeof window !== 'undefined' ? window : globalThis);

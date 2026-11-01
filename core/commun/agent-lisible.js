@@ -47,7 +47,8 @@
         const yE = yy(z.entree), yS = yy(z.stop), yO = yy(z.obj); if (yE == null || yS == null) continue;
         const xd = ts.timeToCoordinate(Math.floor(z.t / K.PAS) * K.PAS / 1000), x0 = Math.max(0, xd == null ? 0 : xd), fort = S.focus === z.id;
         const rect = (ya, yb, col, a) => { ctx.fillStyle = col; ctx.globalAlpha = a; ctx.fillRect(x0, Math.min(ya, yb), Math.max(1, L - x0), Math.abs(ya - yb)); ctx.globalAlpha = 1; };
-        rect(yE, yS, K.COULEURS.perte, fort ? .3 : .18); if (yO != null) rect(yE, yO, K.COULEURS.gain, fort ? .3 : .18);
+        rect(yE, yS, K.COULEURS.perte, fort ? .3 : .2); if (yO != null) rect(yE, yO, K.COULEURS.gain, fort ? .3 : .2);
+        ctx.lineWidth = 1; ctx.globalAlpha = .75; ctx.strokeStyle = K.COULEURS.perte; ctx.strokeRect(Math.round(x0) + .5, Math.round(Math.min(yE, yS)) + .5, Math.max(1, Math.round(L - x0) - 1), Math.max(1, Math.round(Math.abs(yS - yE)))); if (yO != null) { ctx.strokeStyle = K.COULEURS.gain; ctx.strokeRect(Math.round(x0) + .5, Math.round(Math.min(yE, yO)) + .5, Math.max(1, Math.round(L - x0) - 1), Math.max(1, Math.round(Math.abs(yO - yE)))); } ctx.globalAlpha = 1;   // SL rouge, TP vert, bords nets
         ctx.strokeStyle = z.enCours ? K.COULEURS.texte : K.COULEURS.attente; ctx.lineWidth = fort ? 2.5 : 1.5; ctx.setLineDash(z.enCours ? [] : [6, 4]); ctx.beginPath(); ctx.moveTo(x0, yE); ctx.lineTo(L, yE); ctx.stroke(); ctx.setLineDash([]);
         if (fort || z.diamant && S.couches.diamant) { ctx.strokeStyle = fort ? K.COULEURS.texte : K.COULEURS.attente; ctx.lineWidth = 1; ctx.strokeRect(x0 + .5, Math.min(yS, yO == null ? yE : yO) + .5, Math.max(1, L - x0 - 1), Math.abs((yO == null ? yE : yO) - yS) - 1); }
         etiq.push({ y: yE, texte: (z.diamant && S.couches.diamant ? '💎 ' : '') + z.etiquette, couleur: z.enCours ? K.COULEURS.texte : K.COULEURS.attente });
@@ -94,7 +95,7 @@
       S.zones = zs.map(p => ({ id: p.id, t: p.t, entree: p.entree, stop: p.stop, obj: p.cible1, sens: p.sens, enCours: p.statut === 'ouverte', etiquette: K.etiquette(p), diamant: !!p.diamant }));
       S.histo = K.historiques(vue, S.actif);
       const mq = K.marqueursTermines(vue, S.actif).filter(m => !S.bougies.length || m.time >= S.bougies[0].time);
-      S.marqueurs.setMarkers(mq.map(m => ({ time: m.time, position: m.gain ? 'aboveBar' : 'belowBar', color: m.gain ? K.COULEURS.gain : K.COULEURS.perte, shape: m.gain ? 'arrowUp' : 'arrowDown', text: m.texte })));
+      S.marqueurs.setMarkers(mq.map(m => ({ time: m.time, position: 'aboveBar', color: m.type === 'TP' ? K.COULEURS.gain : K.COULEURS.perte, shape: 'arrowDown', size: 2, text: m.texte })));
       boite.dataset.nzones = String(S.zones.length); boite.dataset.nmarq = String(mq.length); boite.dataset.actif = S.actif;
       // courbe de performance alignée sur les bougies : une valeur par bougie
       const c = K.courbeAlignee(vue, S.bougies), vide = !c.length || !(vue.courbe && vue.courbe.length);

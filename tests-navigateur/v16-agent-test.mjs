@@ -21,13 +21,14 @@ fs.writeFileSync(path.join(dossier, 'volume-v14.json'), JSON.stringify({ schema:
 fs.writeFileSync(path.join(dossier, 'service.json'), JSON.stringify({ pid: process.pid, demarreLe: maintenant - 3600e3, vivantLe: maintenant, phase: 'attente', worker: { configure: false } }));
 const srv = spawn(process.execPath, ['serveur.mjs', String(PORT)], { cwd: process.cwd(), env: { ...process.env, RAYLE_AGENT_DOSSIER: dossier, RAYLE_PORT_RESEAU: String(PORT + 1) }, stdio: 'ignore' });
 for (let k = 0; k < 50; k++) { try { if ((await fetch(BASE + '/index.html')).ok) break; } catch (e) { /* démarrage */ } await attendre(200); }
-let nav;
+let nav, live = false;
 try {
   nav = await puppeteer.launch({ executablePath: CHROME, headless: 'new', args: ['--use-angle=d3d11', '--enable-gpu', '--ignore-gpu-blocklist'] });
   const page = await nav.newPage(); await page.setViewport({ width: 1600, height: 1000 });
   const erreurs = []; page.on('pageerror', e => erreurs.push(e.message.slice(0, 300))); page.on('console', m => { if (m.type() === 'error' && !/Failed to load resource|ERR_|CORS|net::|binance/i.test(m.text())) erreurs.push(m.text().slice(0, 300)); });
   await page.setRequestInterception(true);
   page.on('request', r => { const u = r.url();
+    if (/ticker\/price/.test(u)) return live ? r.respond({ status: 200, contentType: 'application/json', headers: { 'Access-Control-Allow-Origin': '*' }, body: JSON.stringify([{ symbol: 'SOLUSDT', price: String(px * 1.02) }]) }) : r.respond({ status: 503, headers: { 'Access-Control-Allow-Origin': '*' }, body: '' });
     if (/data-api\.binance\.vision/.test(u)) return r.respond({ status: 200, contentType: 'application/json', headers: { 'Access-Control-Allow-Origin': '*' }, body: '[]' });
     if (/\/__agent\/trader/.test(u)) return r.respond({ status: 200, contentType: 'application/json', body: JSON.stringify({ ok: true, existe: true, vue: trader(), service: { enMarche: true } }) });
     r.continue(); });
@@ -41,14 +42,19 @@ try {
   T.verifier('plus d’astre / noyau tournant en haut du tableau', await ev(() => !document.querySelector('.vv-noyau') && !document.querySelector('.vv canvas[data-vv="noyauc"]')));
   const pf = await ev(() => document.querySelector('[data-vv="pf"]').innerText);
   // +2 R puis −1 R à 1 % composé : 10 098 $ ; position ouverte exactement à +1 R flottant (+1 % du capital réalisé) = 10 198,98 $
-  T.verifier('portefeuille piloté par les trades : capital = réalisé composé + flottant (≈ 10 199 $, plus 10 000 fixe)', /10.199/.test(pf) && !/10.000 \$\s*\n/.test(pf.split('\n')[1] || ''), pf.replace(/\n/g, ' | ').slice(0, 220));
+  T.verifier('portefeuille piloté par les trades : capital au centime = réalisé composé + flottant (10 198,98 $, plus 10 000 fixe)', /10.198,98 \$/.test(pf), pf.replace(/\s+/g, ' ').slice(0, 220));
   T.verifier('cumul réalisé en R et flottant affichés (+1,0 R réalisé, flottant +1,0 R sur 1 position)', /Cumul réalisé\s*\+1,0 R/.test(pf) && /flottant \+1,0 R/.test(pf) && /1 ordre\(s\) limite en attente/.test(pf));
+  // prix en direct : +3 R flottants au nouveau prix = 10098 x (1 + 1 % x 3) = 10 400,94 $, sans attendre le cycle de l'agent
+  live = true; await page.waitForFunction(() => /10.400,94 \$/.test(document.querySelector('[data-vv="pf"]').innerText), { timeout: 15000 }).catch(() => {});
+  const pfLive = await ev(() => document.querySelector('[data-vv="pf"]').innerText);
+  T.verifier('portefeuille en direct : le prix bouge, le capital suit au centime (10 400,94 $, flottant +3,0 R)', /10.400,94 \$/.test(pfLive) && /flottant \+3,0 R \(\+302,94 \$\)/.test(pfLive), pfLive.replace(/\s+/g, ' ').slice(0, 260));
   const flux = await ev(() => [...document.querySelectorAll('.vv-flux li')].map(l => l.innerText.replace(/\s+/g, ' ')));
   T.verifier('flux d’exécution : signaux, entrées et sorties avec R', flux.length >= 8 && flux.some(l => /Sortie.*✔ \+2,00 R/.test(l)) && flux.some(l => /Sortie.*✖ −1,00 R/.test(l)) && flux.some(l => /Entrée touchée/.test(l)) && flux.some(l => /Signal/.test(l)), flux.length + ' lignes');
   await page.screenshot({ path: 'docs/captures-v16/pc-tableau.png' });
   // trades historiques dessinés : pixels verts et rouges des zones de sortie dans la fenêtre du graphique
   const couleurs = await ev(() => { const c = document.querySelector('[data-vv="graph"]'), d = c.getContext('2d').getImageData(0, 0, c.width, c.height).data; let v = 0, r = 0; for (let i = 0; i < d.length; i += 4) { if (d[i + 3] > 0 && d[i + 1] > 180 && d[i] < 120 && d[i + 2] < 180) v++; if (d[i + 3] > 0 && d[i] > 200 && d[i + 1] < 120) r++; } return { v, r }; });
-  T.verifier('le graphique dessine les trades (traits et points verts / rouges)', couleurs.v > 200 && couleurs.r > 200, JSON.stringify(couleurs));
+  T.verifier('le graphique dessine les trades (zones TP / SL, traits, flèches de clôture)', couleurs.v > 200 && couleurs.r > 200, JSON.stringify(couleurs));
+  await (await page.$('.vv-zone')).screenshot({ path: 'docs/captures-v16/pc-graphique.png' });
   // alertes : une position vue pour la première fois (récente) sonne, un ordre devenu position sonne, rien de plus au deuxième passage
   await ev(() => { localStorage.removeItem('rayle_agent_vus'); document.getElementById('agent-alertes')?.remove(); });
   const n1 = await ev(v => window.AgentAlertes.surVue(v).length, trader(true)); const bandeaux1 = await ev(() => document.querySelectorAll('.agent-alerte').length);

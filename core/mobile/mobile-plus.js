@@ -30,7 +30,7 @@
     {id:'sources',nom:'Sources en direct',sous:'Séismes, communiqués, TV',ico:'sources',agir:()=>clic('btnSources')},
     {id:'evenements',nom:'Événements de la Terre',sous:'Séismes, tempêtes, volcans',ico:'terre',agir:evenements},
     {id:'fenetres',nom:'Fenêtres ouvertes',sous:'Retrouver une fenêtre',ico:'sources',agir:fenetres},
-    {id:'affichage',nom:'Affichage mobile',sous:'Images, vibration, économie',ico:'affichage',agir:affichage},
+    {id:'affichage',nom:'Affichage mobile',sous:'Images, vibration, alertes, économie',ico:'affichage',agir:affichage},
     {id:'gestes',nom:'Gestes & caméra',sous:'Main, caméra du téléphone',ico:'gestes',agir:()=>{ const g=$('gear'); if(g) g.click(); setTimeout(()=>{ const s=document.getElementById('gs-actif'); if(s&&s.scrollIntoView) s.scrollIntoView({block:'center'}); },400); }},
     {id:'ia',nom:'Voix & IA locale',sous:'Réveil, LM Studio, Dolphin',ico:'ia',agir:()=>{ const g=$('gear'); if(g) g.click(); }},
     {id:'reglages',nom:'Réglages',sous:'Code, voix, Worker, appareil',ico:'reglages',agir:()=>clic('gear')}
@@ -79,11 +79,16 @@
   function affichage(){
     Coque.feuille({titre:'Affichage mobile',rendre(c){
       const etat=()=>({img:lire('rayle_m_images')!=='0',vib:lire('rayle_m_vibration')!=='0',eco:lire('rayle_m_eco')==='1'});
-      const dessiner=()=>{ const e=etat(); c.innerHTML=interrupteur('mi-img','Images dans les actualités','Image du média, photo libre ou carte. Chargées au fur et à mesure.',e.img)+interrupteur('mi-vib','Retour haptique','Une légère vibration sur les actions importantes.',e.vib)+interrupteur('mi-eco','Économie de batterie','Animations plus lentes, moins d’effets.',e.eco)
+      const dessiner=()=>{ const e=etat(); c.innerHTML=interrupteur('mi-img','Images dans les actualités','Image du média, photo libre ou carte. Chargées au fur et à mesure.',e.img)+interrupteur('mi-vib','Retour haptique','Une légère vibration sur les actions importantes.',e.vib)+interrupteur('mi-eco','Économie de batterie','Animations plus lentes, moins d’effets.',e.eco)+interrupteur('mi-alertes','Alertes de l’agent','Une alerte dès que l’agent ouvre ou propose une position (appli ouverte).',lire('rayle_alertes_agent')!=='0')
+        +'<div class="m-reglage"><label>Test de notification<small>Affiche une alerte d’exemple (action, entrée, taille, TP, SL, levier), demande l’autorisation et fait vibrer le téléphone.</small></label><button type="button" class="m-bouton" data-test-notif>Tester</button></div><p class="m-faible" data-test-notif-msg role="status" style="min-height:20px"></p>'
         +'<p class="m-faible" style="margin-top:14px">Le téléphone allège tout seul l’affichage quand il rame (niveau actuel : '+Coque.niveau()+' sur 2) et arrête tout quand l’écran est masqué. « Réduire les animations » d’Android est respecté.</p>'; };
       dessiner();
-      c.addEventListener('click',ev=>{ const b=ev.target.closest('.m-inter'); if(!b) return; const on=b.getAttribute('aria-checked')!=='true';
-        if(b.id==='mi-img') ecrire('rayle_m_images',on?'1':'0'); else if(b.id==='mi-vib') ecrire('rayle_m_vibration',on?'1':'0'); else if(b.id==='mi-eco'){ ecrire('rayle_m_eco',on?'1':'0'); document.documentElement.classList.toggle('m-eco',on); }
+      c.addEventListener('click',async ev=>{
+        const t=ev.target.closest('[data-test-notif]'); if(t){ const m=c.querySelector('[data-test-notif-msg]'); t.disabled=true; m.textContent='Test en cours…';
+          try{ const r=window.AgentAlertes?await window.AgentAlertes.tester():null; m.textContent=!r?'Module d’alertes indisponible.':'Alerte affichée en haut de l’écran. Notification système : '+(r.notification?'envoyée ('+r.via+')':'non envoyée (autorisation : '+r.permission+')')+'. Vibration : '+(r.vibration?'déclenchée':(r.vibrationDisponible?'non déclenchée (touche l’écran puis réessaie)':'non disponible sur cet appareil'))+'.'+(r.active?'':' Les alertes de l’agent sont désactivées plus haut.'); Coque.vibrer(10); }catch(e){ m.textContent='Échec du test : '+(e&&e.message||e); }
+          t.disabled=false; return; }
+        const b=ev.target.closest('.m-inter'); if(!b) return; const on=b.getAttribute('aria-checked')!=='true';
+        if(b.id==='mi-img') ecrire('rayle_m_images',on?'1':'0'); else if(b.id==='mi-vib') ecrire('rayle_m_vibration',on?'1':'0'); else if(b.id==='mi-alertes') ecrire('rayle_alertes_agent',on?'1':'0'); else if(b.id==='mi-eco'){ ecrire('rayle_m_eco',on?'1':'0'); document.documentElement.classList.toggle('m-eco',on); }
         dessiner(); });
     }});
   }

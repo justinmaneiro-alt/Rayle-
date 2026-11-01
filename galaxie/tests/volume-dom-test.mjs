@@ -30,3 +30,10 @@ console.log('volume-dom : ' + n + ' vérifications OK');
   const flux = C.fluxExecution(trades); okk(flux[0].t >= flux.at(-1).t && flux.some(e => e.type === 'sortie' && e.gain === true && /\+2,00 R/.test(e.texte)) && flux.some(e => e.type === 'entree') && flux.some(e => e.type === 'signal'), 'flux : signal, entrée, sortie avec R, plus récent d’abord');
   console.log('volume-dom (trades) : ' + k + ' vérifications OK');
 }
+
+/* ── type de clôture (TP / SL) pour la flèche sur la bougie ── */
+{
+  assert.equal(C.typeSortie('objectif atteint', -1), 'TP'); assert.equal(C.typeSortie('stop touché', 2), 'SL'); assert.equal(C.typeSortie('', 1.5), 'TP'); assert.equal(C.typeSortie('sortie au temps', -0.3), 'SL');
+  const n = C.normaliser({ id: 'z', actif: 'BTC', sens: 1, entree: 100, stop: 99, cible1: 102, statut: 'cloturee', tSortie: 5, resultat: { R: 2, motif: 'objectif' } }, 'BTC', 'trader'); assert.equal(n.type, 'TP');
+  console.log('volume-dom (TP/SL) : 5 vérifications OK');
+}
