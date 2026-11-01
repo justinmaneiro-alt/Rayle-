@@ -52,6 +52,18 @@
   /* Courbe de capital normalisée "jours depuis le début" pour comparer live et rejoué. */
   function courbeJours(courbe, t0 = null) { if (!courbe || !courbe.length) return []; const d0 = t0 != null ? t0 : courbe[0][0]; return courbe.map(([t, c]) => [(t - d0) / 86400e3, c]); }
 
-  const API = { fr, prixTexte, usd, signe, compact, il, barreEtat, listes, lignePosition, repere, indexTemps, positionsAffichees, decoderHeat, niveauDetail, couches, volumeNetTrace, rejoueTrimestres, courbeJours };
+  /* Règles prop SIMULÉES (défauts prudents de CLAUDE.md, réglables) : objectif de gain, baisse maximale tolérée, risque par trade. Jamais un verdict réel : le contrat du courtier reste à vérifier. */
+  const REGLES_PROP = { objectifPct: 10, drawdownPct: 6, risqueMaxPct: 1 };
+  function reglesProp(p, r = REGLES_PROP) { if (!p) return null; const gain = Number(p.gainPct) || 0, dd = Number(p.drawdownMaxPct) || 0, k = (v, m) => Math.max(0, Math.min(1, v / m));
+    return { objectif: { valeur: gain, limite: r.objectifPct, part: k(gain, r.objectifPct), atteint: gain >= r.objectifPct }, drawdown: { valeur: dd, limite: r.drawdownPct, part: k(dd, r.drawdownPct), depasse: dd >= r.drawdownPct }, risque: { valeur: Number(p.risquePct) || 0, limite: r.risqueMaxPct, depasse: (Number(p.risquePct) || 0) > r.risqueMaxPct } }; }
+
+  /* Noyau 3D de l'agent : points sur une sphère (spirale de Fibonacci), rotation et projection en perspective. Humeur d'après l'état RÉEL (jamais décorative). */
+  function pointsSphere(n) { const r = []; for (let i = 0; i < n; i++) { const y = 1 - 2 * (i + .5) / n, rr = Math.sqrt(1 - y * y), a = i * 2.399963; r.push([Math.cos(a) * rr, y, Math.sin(a) * rr]); } return r; }
+  function projeter(pts, ax, ay, rayon, cx, cy) { const ca = Math.cos(ay), sa = Math.sin(ay), cb = Math.cos(ax), sb = Math.sin(ax); return pts.map(([x, y, z]) => { const x1 = x * ca + z * sa, z1 = -x * sa + z * ca, y1 = y * cb - z1 * sb, z2 = y * sb + z1 * cb, f = 1 / (1.8 - z2 * .5); return { x: cx + x1 * rayon * f * 1.4, y: cy + y1 * rayon * f * 1.4, z: z2, f }; }); }
+  function humeurNoyau(vue, service, actif = null) { if (!vue) return { id: 'attente', texte: 'En attente des données', couleur: '#7d8c95', vitesse: .2 }; if (service && service.enMarche === false) return { id: 'arret', texte: 'Service arrêté', couleur: '#7d8c95', vitesse: .15 };
+    const l = listes(vue, actif), n = l.cours.length; if (n) { const s = l.cours[0].sens; return { id: 'position', texte: n + ' position' + (n > 1 ? 's' : '') + ' en cours', couleur: s > 0 ? '#3ecf8e' : '#ef5b5b', vitesse: 1 }; }
+    if (l.attente.length) return { id: 'preparation', texte: l.attente.length + ' en préparation', couleur: '#c9b27a', vitesse: .7 }; return { id: 'veille', texte: 'Surveille le marché', couleur: '#8fd0e3', vitesse: .45 }; }
+
+  const API = { pointsSphere, projeter, humeurNoyau, reglesProp, REGLES_PROP, fr, prixTexte, usd, signe, compact, il, barreEtat, listes, lignePosition, repere, indexTemps, positionsAffichees, decoderHeat, niveauDetail, couches, volumeNetTrace, rejoueTrimestres, courbeJours };
   if (typeof module !== 'undefined' && module.exports) module.exports = API; else racine.VolumeVivantCalcul = API;
 }(typeof window !== 'undefined' ? window : globalThis));

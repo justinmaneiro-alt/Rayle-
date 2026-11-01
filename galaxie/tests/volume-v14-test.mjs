@@ -115,5 +115,8 @@ function marche(nb, graine = 7, depart = 100) {
   const R = C.repere({ n: 10, largeur: 400, hauteur: 200, marge: { g: 0, d: 0, h: 0, b: 0 }, hauts: [110], bas: [90] }); ok(R.y(110) < R.y(90), 'les prix hauts sont en haut'); ok(C.decoderHeat({ data: '0509', nPrix: 2, nT: 2 }).val(0, 1) > 0.5, 'heatmap décodée');
   ok(C.couches('epure').heat === false && C.couches('complet').heat === true, 'préréglages Épuré et Complet'); ok(C.niveauDetail({ largeur: 400 }).footprint === false && C.niveauDetail({ largeur: 1000 }).footprint === true, 'allègement automatique sur petit écran');
   const tn = C.volumeNetTrace([[0, 1, 1, 1, 1, 100, 0], [0, 1, 1, 1, 1, 0, 50]], [0, 100]); ok(tn.barres[0] === 1 && tn.barres[1] === -0.5, 'volume net normalisé');
+  const rp = C.reglesProp({ gainPct: 3, drawdownMaxPct: 7, risquePct: 1 }); ok(rp.objectif.part === 0.3 && rp.drawdown.depasse && !rp.risque.depasse, 'règles prop simulées'); ok(C.reglesProp(null) === null, 'règles prop sans portefeuille');
+  ok(C.pointsSphere(50).every(p => Math.abs(Math.hypot(...p) - 1) < 1e-9) && C.projeter(C.pointsSphere(20), .3, 1, 100, 0, 0).length === 20, 'noyau 3D : sphère et projection');
+  ok(C.humeurNoyau(null).id === 'attente' && C.humeurNoyau({ actifs: {} }, { enMarche: false }).id === 'arret' && C.humeurNoyau({ actifs: { BTC: { positions: [{ statut: 'ouverte', sens: -1 }] } } }, { enMarche: true }).couleur === '#ef5b5b', 'noyau 3D : humeur selon l’état réel');
 }
 console.log('volume-v14 : ' + n + ' vérifications OK');

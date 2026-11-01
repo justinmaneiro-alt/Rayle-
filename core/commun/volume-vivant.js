@@ -25,7 +25,7 @@
     S.couches = Object.assign(C.couches(S.preset), JSON.parse(lireLocal('rayle_vv_couches') || '{}'));
     let minuteur = null, rafId = 0, observateur = null;
 
-    racineEl.innerHTML = '<div class="vv-etat" data-vv="etat" role="status"></div>'
+    racineEl.innerHTML = '<div class="vv-noyau" data-vv="noyau"><canvas data-vv="noyauc" aria-hidden="true"></canvas><div class="vv-noyau-t" data-vv="noyaut" role="status"></div></div><div class="vv-etat" data-vv="etat" role="status"></div>'
       + '<div class="vv-haut"><div class="vv-pf" data-vv="pf"></div><div class="vv-verdict" data-vv="verdict"></div></div>'
       + '<div class="vv-outils" data-vv="outils"></div>'
       + '<div class="vv-zone"><canvas class="vv-graph" data-vv="graph" aria-label="Graphique des prix avec volume, profil, carnet et positions" role="img"></canvas><canvas class="vv-dot" data-vv="dot" aria-hidden="true"></canvas><div class="vv-info" data-vv="info" aria-live="polite"></div></div>'
@@ -34,7 +34,19 @@
       + '<div class="vv-listes" data-vv="listes"></div>'
       + '<div class="vv-rejoue" data-vv="rejoue"></div>';
     const q = n => racineEl.querySelector('[data-vv="' + n + '"]');
-    const E = { dot: q('dot'), etat: q('etat'), pf: q('pf'), verdict: q('verdict'), outils: q('outils'), graph: q('graph'), info: q('info'), net: q('net'), phrase: q('phrase'), carnet: q('carnet'), listes: q('listes'), rejoue: q('rejoue') };
+    const E = { noyauc: q('noyauc'), noyaut: q('noyaut'), dot: q('dot'), etat: q('etat'), pf: q('pf'), verdict: q('verdict'), outils: q('outils'), graph: q('graph'), info: q('info'), net: q('net'), phrase: q('phrase'), carnet: q('carnet'), listes: q('listes'), rejoue: q('rejoue') };
+
+    /* ── noyau 3D de l'agent (vue d'accueil de « Agent IA ») : une seule boucle, canvas léger, figé si animations réduites ── */
+    const PTS = C.pointsSphere(leger ? 160 : 420); let humeur = C.humeurNoyau(null, null);
+    function dessinerNoyau() {
+      const c = E.noyauc, w = c.clientWidth, h = c.clientHeight; if (!w || !h) return; const d = Math.min(2, window.devicePixelRatio || 1);
+      if (c.width !== Math.round(w * d)) { c.width = Math.round(w * d); c.height = Math.round(h * d); }
+      const g = c.getContext('2d'); g.setTransform(d, 0, 0, d, 0, 0); g.clearRect(0, 0, w, h); const t = reduit() ? 0 : S.anim * humeur.vitesse / 60, R = Math.min(w, h) * .36, respire = 1 + (reduit() ? 0 : .03 * Math.sin(S.anim / 30));
+      const P = C.projeter(PTS, .35 + .1 * Math.sin(t / 3), t, R * respire, w / 2, h / 2); g.fillStyle = humeur.couleur;
+      for (const p of P) { g.globalAlpha = Math.max(.08, .25 + .75 * (p.z + 1) / 2); g.fillRect(p.x, p.y, 1.2 + 1.6 * p.f, 1.2 + 1.6 * p.f); }
+      g.globalAlpha = .3; g.strokeStyle = humeur.couleur; g.beginPath(); g.ellipse(w / 2, h / 2, R * 1.5, R * .45, t / 2, 0, 6.3); g.stroke(); g.globalAlpha = 1;
+    }
+    function rendreNoyau() { const v = S.data && S.data.vue; humeur = C.humeurNoyau(v, S.service || (S.data && S.data.service), S.actif); E.noyaut.textContent = humeur.texte; E.noyaut.style.color = humeur.couleur; dessinerNoyau(); }
 
     /* ── haut de page ── */
     function rendreEtat() {
@@ -56,6 +68,7 @@
         + '<div class="vv-pf-grand ' + (gagne ? 'vv-hausse' : 'vv-baisse') + '"><span data-vv="capital">' + C.usd(p.capital) + '</span></div>'
         + '<div class="vv-pf-gain ' + (gagne ? 'vv-hausse' : 'vv-baisse') + '">' + C.signe(p.gainUsd) + ' $ · ' + C.signe(p.gainPct) + ' % · cette semaine ' + C.signe(p.semaineUsd, 0) + ' $</div>'
         + '<div class="vv-pf-stats">' + (p.nTrades ? p.nTrades + ' trades suivis · réussite ' + C.fr(p.tauxReussite * 100, 0) + ' % · R moyen ' + C.signe(p.rMoyen) + ' · baisse max ' + C.fr(p.drawdownMaxPct, 1) + ' %' : 'Aucun trade terminé pour l’instant : l’agent suit chaque proposition dès qu’elle arrive.') + '</div>'
+        + (() => { const r = C.reglesProp(p); const b = (nom, o, mal) => '<div class="vv-prop' + (mal ? ' vv-prop-mal' : '') + '"><span>' + nom + ' ' + C.fr(o.valeur, 1) + ' % / ' + o.limite + ' %</span><i style="--k:' + o.part + '"></i></div>'; return '<div class="vv-props" aria-label="Règles prop simulées">' + b('Objectif', r.objectif, false) + b('Baisse max', r.drawdown, r.drawdown.depasse) + '<small>Règles prop SIMULÉES (défauts à régler) · risque ' + C.fr(r.risque.valeur, 1) + ' % / ' + r.risque.limite + ' % par trade' + (r.risque.depasse ? ' · TROP ÉLEVÉ' : '') + '</small></div>'; })()
         + '<canvas class="vv-pf-courbe" data-vv="courbe" aria-label="Courbe de capital" role="img"></canvas>'
         + '<div class="vv-pf-legende"><span class="vv-trait">▬</span> live (suivi en direct) <span class="vv-pointille">┅</span> si on avait suivi depuis le début (REJOUÉ, pas réel)</div>'
         + (p.parStrategie && p.parStrategie.length ? '<ul class="vv-pf-strat">' + p.parStrategie.map(s => '<li class="' + (s.pnlUsd >= 0 ? 'vv-hausse' : 'vv-baisse') + '">' + esc(s.cle) + ' : ' + C.signe(s.pnlUsd, 0) + ' $ (' + s.n + ')</li>').join('') + '</ul>' : '')
@@ -234,7 +247,7 @@
       E.rejoue.innerHTML = h;
     }
 
-    function toutRendre() { rendreEtat(); rendrePortefeuille(); rendreOutils(); rendreCarnet(); rendreListes(); rendreRejoue(); dessiner(); }
+    function toutRendre() { rendreNoyau(); rendreEtat(); rendrePortefeuille(); rendreOutils(); rendreCarnet(); rendreListes(); rendreRejoue(); dessiner(); }
     async function rafraichir() {
       if (S.detruit || S.enCours) return; S.enCours = true;
       try {
@@ -246,7 +259,7 @@
     }
     racineEl.addEventListener('click', ev => { if (ev.target.closest('.vv-reessayer')) rafraichir(); });
     E.etat.innerHTML = '<span>Chargement…</span>'; E.pf.innerHTML = '<div class="vv-sq"></div>';
-    function boucle() { S.anim++; if (!S.detruit && S.data && S.data.vue && !document.hidden && S.anim % 4 === 0 && S.visible !== false) dessinerPoint(); rafId = requestAnimationFrame(boucle); }
+    function boucle() { S.anim++; if (!S.detruit && S.data && S.data.vue && !document.hidden && S.anim % 4 === 0 && S.visible !== false) dessinerPoint(); if (!S.detruit && !document.hidden && S.visible !== false && !reduit() && S.anim % (leger ? 4 : 2) === 0) dessinerNoyau(); rafId = requestAnimationFrame(boucle); }
     try { new IntersectionObserver(es => { S.visible = es.some(e => e.isIntersecting); }).observe(E.graph); } catch (e) { /* pas d'IntersectionObserver */ }
     try { observateur = new ResizeObserver(() => { if (S.data && S.data.vue) { dessiner(); dessinerCourbe(); } }); observateur.observe(racineEl); } catch (e) { /* pas de ResizeObserver */ }
     rafraichir(); minuteur = setInterval(rafraichir, intervalle); rafId = requestAnimationFrame(boucle);
