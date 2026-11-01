@@ -66,7 +66,7 @@
 
 /* ── Terminal de scalping (grand écran) : bandeau d'état, graphique large à gauche, PnL + carnet à droite, volume net et verdict dessous, listes en pied ── */
 @media (min-width:1100px){
-  .vv{max-width:1760px;grid-template-columns:minmax(0,1fr) 380px;grid-template-areas:"etat etat" "outils outils" "zone pf" "zone carnet" "net flux" "verdict flux" "listes listes" "rejoue rejoue";gap:10px;--vv-fond:#06090c;--vv-carte:rgba(10,15,20,.92);--vv-bord:rgba(143,208,227,.14)}
+  .vv{max-width:1760px;grid-template-columns:minmax(0,1fr) 380px;grid-template-areas:"etat etat" "outils outils" "zone pf" "zone carnet" "histo flux" "net flux" "verdict verdict" "listes listes" "rejoue rejoue";gap:10px;--vv-fond:#06090c;--vv-carte:rgba(10,15,20,.92);--vv-bord:rgba(143,208,227,.14)}
   .vv-haut{display:contents}
 .vv-etat{grid-area:etat}.vv-outils{grid-area:outils}.vv-zone{grid-area:zone;align-self:start}.vv-pf{grid-area:pf}.vv-carnet{grid-area:carnet}.vv-net{grid-area:net}.vv-verdict{grid-area:verdict}.vv-listes{grid-area:listes}.vv-rejoue{grid-area:rejoue}
   .vv-pf-grand{font-size:44px;letter-spacing:-.01em}
@@ -86,3 +86,21 @@
 .vv-tic-h{animation:vv-tic-h 1.1s ease-out}.vv-tic-b{animation:vv-tic-b 1.1s ease-out}
 @keyframes vv-tic-h{from{text-shadow:0 0 14px rgba(62,207,142,.9)}to{text-shadow:none}}@keyframes vv-tic-b{from{text-shadow:0 0 14px rgba(239,91,91,.9)}to{text-shadow:none}}
 @media (prefers-reduced-motion:reduce){.vv-tic-h,.vv-tic-b{animation:none}}
+
+/* ── Graphique navigable (molette, glisser, pincer) et tableau d'historique sous le graphique ── */
+.vv-graph{cursor:grab;touch-action:pan-y;user-select:none;-webkit-user-select:none}.vv-saisi .vv-graph{cursor:grabbing}
+.vv-histo{border:1px solid var(--vv-bord);background:var(--vv-carte);padding:12px 14px;min-width:0}
+.vv-chips{display:flex;flex-wrap:wrap;gap:8px 10px;margin:6px 0 10px}
+.vv-chip{display:inline-flex;flex-direction:column;border:1px solid var(--vv-bord);padding:4px 10px;min-width:76px}.vv-chip small{font-size:11px;color:var(--vv-doux)}.vv-chip b{font:600 15px ui-monospace,SFMono-Regular,Consolas,monospace}
+.vv-histo-filtres{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin:4px 0 8px}.vv-histo-filtres .vv-seg button{padding:6px 12px}
+.vv-histo-par{margin:2px 0 8px}
+.vv-histo-wrap{max-height:440px;overflow:auto;border:1px solid var(--vv-bord)}
+.vv-histo-table{font:12.5px/1.3 ui-monospace,SFMono-Regular,Consolas,monospace;min-width:760px}
+.vv-histo-table thead th{position:sticky;top:0;background:#0d141b;z-index:1;font:600 12px system-ui,sans-serif;color:var(--vv-doux)}
+.vv-histo-table tbody tr{cursor:pointer}.vv-histo-table tbody tr:hover,.vv-histo-table tbody tr:focus{background:rgba(143,208,227,.08);outline:none}
+.vv-histo-table .vv-ligne-g{box-shadow:inset 3px 0 0 var(--vv-hausse)}.vv-histo-table .vv-ligne-p{box-shadow:inset 3px 0 0 var(--vv-baisse)}.vv-histo-table .vv-ligne-v{box-shadow:inset 3px 0 0 var(--vv-accent)}
+.vv-histo-table td small{color:var(--vv-doux)}
+@media (min-width:1100px){
+  .vv{grid-template-areas:"etat etat" "outils outils" "zone pf" "zone carnet" "histo flux" "net flux" "verdict verdict" "listes listes" "rejoue rejoue"}
+  .vv-histo{grid-area:histo}
+}

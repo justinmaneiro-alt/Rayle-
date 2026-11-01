@@ -33,9 +33,14 @@
         return [{ zOrder: () => 'bottom', renderer: () => ({ draw: cible => cible.useMediaCoordinateSpace(({ context: ctx, mediaSize }) => dessinerZones(ctx, mediaSize)) }) }];
       }
     };
+    /* Indice logique (position sur l'axe) de l'instant t : la bougie qui le contient, ou, après la dernière bougie, une position fractionnaire entière vers la droite. */
+    function indiceDe(t) {
+      const b = S.bougies; if (!b.length) return null; const t1 = t / 1000, pas = K.PAS / 1000; if (t1 < b[0].time) return Math.floor((t1 - b[0].time) / pas);
+      let lo = 0, hi = b.length - 1; while (lo < hi) { const k = (lo + hi + 1) >> 1; if (b[k].time <= t1) lo = k; else hi = k - 1; } return lo + Math.floor((t1 - b[lo].time) / pas);
+    }
     function dessinerZones(ctx, taille) {
       if (!S.serie || !S.chart) return;
-      const ts = S.chart.timeScale(), yy = v => S.serie.priceToCoordinate(v), L = taille.width, etiq = [], X = t => ts.timeToCoordinate(Math.floor(t / K.PAS) * K.PAS / 1000);
+      const ts = S.chart.timeScale(), yy = v => S.serie.priceToCoordinate(v), L = taille.width, Hp = taille.height, etiq = [], X = t => { const i = indiceDe(t); return i == null ? null : ts.logicalToCoordinate(i); }; S.zonesPx = [];
       for (const h of S.histo || []) {   // trades TERMINÉS : zone stop / objectif atténuée, trait entrée → sortie, point de sortie
         const xa = X(h.t0), xb = X(h.t1), yE = yy(h.entree), yS = yy(h.stop), yO = h.cible != null ? yy(h.cible) : null, yX = yy(h.sortie); if (xb == null || yE == null || yS == null || yX == null) continue;
         const x0 = Math.max(0, xa == null ? 0 : xa), coul = h.R > 0 ? K.COULEURS.gain : K.COULEURS.perte;
@@ -45,7 +50,7 @@
       if (!S.zones.length) return;
       for (const z of S.zones) {
         const yE = yy(z.entree), yS = yy(z.stop), yO = yy(z.obj); if (yE == null || yS == null) continue;
-        const xd = ts.timeToCoordinate(Math.floor(z.t / K.PAS) * K.PAS / 1000), x0 = Math.max(0, xd == null ? 0 : xd), fort = S.focus === z.id;
+        const xd = X(z.t), x0 = Math.max(0, xd == null ? 0 : xd), fort = S.focus === z.id; S.zonesPx.push({ id: z.id, x0, yE, yS, yO, L, H: Hp });
         const rect = (ya, yb, col, a) => { ctx.fillStyle = col; ctx.globalAlpha = a; ctx.fillRect(x0, Math.min(ya, yb), Math.max(1, L - x0), Math.abs(ya - yb)); ctx.globalAlpha = 1; };
         rect(yE, yS, K.COULEURS.perte, fort ? .3 : .2); if (yO != null) rect(yE, yO, K.COULEURS.gain, fort ? .3 : .2);
         ctx.lineWidth = 1; ctx.globalAlpha = .75; ctx.strokeStyle = K.COULEURS.perte; ctx.strokeRect(Math.round(x0) + .5, Math.round(Math.min(yE, yS)) + .5, Math.max(1, Math.round(L - x0) - 1), Math.max(1, Math.round(Math.abs(yS - yE)))); if (yO != null) { ctx.strokeStyle = K.COULEURS.gain; ctx.strokeRect(Math.round(x0) + .5, Math.round(Math.min(yE, yO)) + .5, Math.max(1, Math.round(L - x0) - 1), Math.max(1, Math.round(Math.abs(yO - yE)))); } ctx.globalAlpha = 1;   // SL rouge, TP vert, bords nets
@@ -55,7 +60,7 @@
       }
       ctx.font = '600 ' + taillePolice + 'px system-ui, sans-serif'; ctx.textBaseline = 'middle'; ctx.textAlign = 'right';
       for (const e of K.fusionnerEtiquettes(etiq, taillePolice + 8)) {
-        const w = ctx.measureText(e.texte).width + 12, x = L - 6, y = e.y; ctx.fillStyle = 'rgba(6,8,12,.86)'; ctx.fillRect(x - w, y - taillePolice / 2 - 3, w, taillePolice + 6);
+        const w = ctx.measureText(e.texte).width + 12, x = L - 6, y = Math.max(taillePolice, Math.min(Hp - taillePolice, e.y)); ctx.fillStyle = 'rgba(6,8,12,.86)'; ctx.fillRect(x - w, y - taillePolice / 2 - 3, w, taillePolice + 6);
         ctx.strokeStyle = e.couleur; ctx.lineWidth = 1; ctx.strokeRect(x - w + .5, y - taillePolice / 2 - 2.5, w - 1, taillePolice + 5); ctx.fillStyle = e.couleur; ctx.fillText(e.texte, x - 6, y + .5);
       }
     }
@@ -69,7 +74,7 @@
       S.chart = LW.createChart(boite, { ...base, rightPriceScale: { borderColor: COUL.bord, minimumWidth: 70, scaleMargins: { top: .08, bottom: .08 } }, timeScale: { borderColor: COUL.bord, timeVisible: true, secondsVisible: false, rightOffset: 6, barSpacing: mobile ? 7 : 8 },
         crosshair: { mode: LW.CrosshairMode ? LW.CrosshairMode.Normal : 0 }, handleScroll: { mouseWheel: false, pressedMouseMove: true, horzTouchDrag: true, vertTouchDrag: false }, handleScale: { mouseWheel: true, pinch: true, axisPressedMouseMove: true } });
       S.serie = S.chart.addSeries(LW.CandlestickSeries, { upColor: K.COULEURS.gain, downColor: K.COULEURS.perte, borderUpColor: K.COULEURS.gain, borderDownColor: K.COULEURS.perte, wickUpColor: K.COULEURS.gain, wickDownColor: K.COULEURS.perte, priceLineVisible: true,
-        autoscaleInfoProvider: orig => { const r = orig(); if (!r || !r.priceRange || !S.zones.length) return r; let mn = r.priceRange.minValue, mx = r.priceRange.maxValue; for (const z of S.zones) for (const v of [z.stop, z.obj, z.entree]) if (Number.isFinite(v)) { if (v < mn) mn = v; if (v > mx) mx = v; } return { ...r, priceRange: { minValue: mn, maxValue: mx } }; } });   // les zones restent toujours visibles
+        autoscaleInfoProvider: orig => { const r = orig(); if (!r || !r.priceRange || !S.zones.length) return r; let mn = r.priceRange.minValue, mx = r.priceRange.maxValue; const marge = (mx - mn) * 1.5, bas = mn - marge, haut = mx + marge; for (const z of S.zones) for (const v of [z.stop, z.obj, z.entree]) if (Number.isFinite(v) && v >= bas && v <= haut) { if (v < mn) mn = v; if (v > mx) mx = v; } return { ...r, priceRange: { minValue: mn, maxValue: mx } }; } });   // les zones restent toujours visibles
       S.serie.attachPrimitive(primitive); S.marqueurs = LW.createSeriesMarkers(S.serie, []);
       const hp = q('[data-al-perf]');
       S.perf = LW.createChart(hp, { ...base, rightPriceScale: { borderColor: COUL.bord, minimumWidth: 70, scaleMargins: { top: .12, bottom: .12 } }, timeScale: { visible: false, borderColor: COUL.bord }, handleScroll: false, handleScale: false, crosshair: { mode: LW.CrosshairMode ? LW.CrosshairMode.Magnet : 1 } });
@@ -153,7 +158,7 @@
     rafraichir().then(planifier);
     return {
       racine, rafraichir: () => rafraichir(), choisirActif(a) { const b = racine.querySelector('[data-al-actif="' + a + '"]'); if (b) b.click(); },
-      etat: () => ({ actif: S.actif, zones: S.zones.map(z => z.id), nZones: S.zones.length, etiquettes: S.zones.map(z => z.etiquette), couches: { ...S.couches }, bougies: S.bougies.length, source: boite.dataset.source || '', charge: racine.dataset.charge === '1' }),
+      etat: () => ({ zonesPx: (S.zonesPx || []).slice(), actif: S.actif, zones: S.zones.map(z => z.id), nZones: S.zones.length, etiquettes: S.zones.map(z => z.etiquette), couches: { ...S.couches }, bougies: S.bougies.length, source: boite.dataset.source || '', charge: racine.dataset.charge === '1' }),
       detruire() { S.detruit = true; clearTimeout(S.minuteur); try { S.chart && S.chart.remove(); S.perf && S.perf.remove(); } catch (e) { /* déjà détruit */ } racine.remove(); }
     };
   }

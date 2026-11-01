@@ -88,7 +88,7 @@ export function creerVolume({ dossier, maintenant = () => Date.now(), journal = 
   function vueActif(a, S, rejoue, r) {
     const out = { actif: a, m15: null, h1: null, profil: null, net: null, positions: [], rejoue: [] };
     for (const tf of ['M15', 'H1']) {
-      const s = serieTf(S, tf), n = tf === 'H1' ? 120 : 160, d = s.nBarres, deb = Math.max(0, d - n), i = d - 1;
+      const s = serieTf(S, tf), n = tf === 'H1' ? 360 : 480, d = s.nBarres, deb = Math.max(0, d - n), i = d - 1;
       const bougies = []; for (let q = deb; q < d; q++) bougies.push([s.t[q], s.o[q], s.h[q], s.l[q], s.c[q], Math.round(s.achat[q]), Math.round(s.vente[q])]);
       const cvd = []; let c = 0; for (let q = deb; q < d; q++) { c += s.delta[q]; cvd.push(Math.round(c)); }
       const dom = dominance(s, i), vn = volumeNet(s, i), ab = absorption(s, i);

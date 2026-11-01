@@ -72,5 +72,5 @@ export async function ouvrirPoste(demande = {}) {
   try { await ouvertureEnCours; } finally { ouvertureEnCours = null; }
   return poste;
 }
-window.PosteAgent = { ouvrir: (d) => ouvrirPoste(d || {}), vue: v => basculerVue(v), accueil: () => accueil, lisible: () => lisible, fermer: () => fermerPoste(), poste: () => poste, paire: () => (poste ? poste.paire() : paireMemorisee()) };   // tests et voix
+window.PosteAgent = { vivant: () => vivant, ouvrir: (d) => ouvrirPoste(d || {}), vue: v => basculerVue(v), accueil: () => accueil, lisible: () => lisible, fermer: () => fermerPoste(), poste: () => poste, paire: () => (poste ? poste.paire() : paireMemorisee()) };   // tests et voix
 export function fermerPoste() { if (!poste && !document.querySelector('.pn[data-id="' + ID + '"]')) return false; if (window.Panneaux) window.Panneaux.fermer(ID); return true; }

@@ -90,6 +90,32 @@
     return { source: 'trades', capital0, capital: total, realiseUsd: cap - capital0, flottantUsd: flottant, flottantR, cumulR: sommeR, gainUsd: total - capital0, gainPct: (total / capital0 - 1) * 100, semaineUsd: semaine, nTrades: finis.length, nOuverts: ouverts.length, nEnAttente: trades.filter(t => t.statut === 'en_attente').length,
       tauxReussite: finis.length ? gagnes / finis.length : 0, rMoyen: finis.length ? sommeR / finis.length : 0, drawdownMaxPct: dd * 100, risquePct, courbe, parStrategie: [], detailOuverts };
   }
+  /* ── Fenêtre visible du graphique (zoom / déplacement) : `visibles` bougies affichées, `decalage` bougies masquées à droite (0 = on voit la plus récente). Fonctions pures, testées. ── */
+  const bornes = (x, a, b) => Math.max(a, Math.min(b, x));
+  function fenetreBougies(n, visibles, decalage, defaut) { const mini = Math.min(8, n), nVis = bornes(Math.round(visibles || defaut), mini, n), dec = bornes(Math.round(decalage || 0), 0, n - nVis); return { nVis, dec, deb: n - dec - nVis, fin: n - dec }; }
+  /* Zoom autour d'un point (ancre de 0 = bord gauche à 1 = bord droit) : la bougie sous le curseur reste sous le curseur. facteur > 1 = on dézoome. */
+  function zoomerFenetre({ n, visibles, decalage, facteur, ancre = 1, defaut }) {
+    const f = fenetreBougies(n, visibles, decalage, defaut), a = bornes(ancre, 0, 1), idx = f.deb + a * f.nVis, nv = bornes(Math.round(f.nVis * facteur), Math.min(8, n), n), deb = idx - a * nv;
+    return { visibles: nv, decalage: bornes(Math.round(n - (deb + nv)), 0, n - nv) };
+  }
+  const deplacerFenetre = ({ n, visibles, decalage, barres, defaut }) => { const f = fenetreBougies(n, visibles, decalage, defaut); return { visibles: f.nVis, decalage: bornes(Math.round(f.dec + barres), 0, n - f.nVis) }; };
+  /* Place la fenêtre pour que la bougie `idx` soit au milieu. */
+  const centrerFenetre = ({ n, visibles, idx, defaut }) => { const nv = fenetreBougies(n, visibles, 0, defaut).nVis; return { visibles: nv, decalage: bornes(Math.round(n - (idx + nv / 2)), 0, n - nv) }; };
+
+  /* ── Tableau d'historique : TOUTES les positions (en attente, ouvertes, terminées) avec résultat en R, gain simulé en $ (capital composé dans l'ordre des sorties), durée, type de clôture TP / SL ; et le résumé
+     de ce qui a marché ou non (réussite, R moyen, facteur de profit, meilleur / pire, baisse max, par stratégie et par actif). Aucune valeur inventée : un trade sans R n'a pas de résultat. ── */
+  function tableHistorique(trades, { capital0 = 10000, risquePct = 1, prix = {} } = {}) {
+    const finis = trades.filter(t => t.statut === 'terminee').sort((a, b) => a.tSortie - b.tSortie), pnl = new Map(); let cap = capital0, pic = capital0, ddR = 0, cum = 0, picR = 0;
+    for (const t of finis) { const usd = cap * risquePct / 100 * t.R; cap += usd; pnl.set(t.id, { usd, capApres: cap }); cum += t.R; picR = Math.max(picR, cum); ddR = Math.max(ddR, picR - cum); pic = Math.max(pic, cap); }
+    const ligne = t => { const p = pnl.get(t.id), px = prix[t.actif], flott = t.statut === 'ouverte' && fin(px) ? t.sens * (px - t.entree) / Math.abs(t.entree - t.stop) : null;
+      return { id: t.id, actif: t.actif, tf: t.tf, sens: t.sens, nom: t.nom, statut: t.statut, tEntree: t.tEntree || t.tSignal || null, tSortie: t.tSortie || null, entree: t.entree, stop: t.stop, cible: t.cible, sortie: t.sortie, R: t.R, flottantR: flott, type: t.type, motif: t.motif, usd: p ? p.usd : (flott != null ? cap * risquePct / 100 * flott : null), capApres: p ? p.capApres : null, dureeMs: t.tSortie && (t.tEntree || t.tSignal) ? t.tSortie - (t.tEntree || t.tSignal) : null, rr: fin(t.cible) ? Math.abs(t.cible - t.entree) / Math.abs(t.entree - t.stop) : null }; };
+    const vivants = trades.filter(t => t.statut !== 'terminee').sort((a, b) => (b.tSignal || 0) - (a.tSignal || 0)), lignes = vivants.concat(finis.slice().reverse()).map(ligne);
+    const gains = finis.filter(t => t.R > 0), pertes = finis.filter(t => t.R <= 0), sg = a => a.reduce((s, t) => s + t.R, 0), groupe = cle => { const m = new Map(); for (const t of finis) { const k = cle(t) || '—'; const e = m.get(k) || { cle: k, n: 0, gagnes: 0, R: 0 }; e.n++; e.R += t.R; if (t.R > 0) e.gagnes++; m.set(k, e); } return [...m.values()].map(e => ({ ...e, taux: e.gagnes / e.n, rMoyen: e.R / e.n })).sort((a, b) => b.R - a.R); };
+    const resume = { n: finis.length, gagnes: gains.length, perdus: pertes.length, taux: finis.length ? gains.length / finis.length : null, cumulR: sg(finis), rMoyen: finis.length ? sg(finis) / finis.length : null, facteurProfit: pertes.length && sg(pertes) < 0 ? sg(gains) / Math.abs(sg(pertes)) : null, meilleur: finis.length ? Math.max(...finis.map(t => t.R)) : null, pire: finis.length ? Math.min(...finis.map(t => t.R)) : null,
+      baisseMaxR: ddR, gainUsd: cap - capital0, ouverts: trades.filter(t => t.statut === 'ouverte').length, enAttente: trades.filter(t => t.statut === 'en_attente').length, parNom: groupe(t => t.nom), parActif: groupe(t => t.actif) };
+    return { lignes, resume };
+  }
+
   /* Flux d'exécution : ce que l'agent a fait, le plus récent d'abord (signal, entrée touchée, sortie avec son R). */
   function fluxExecution(trades, max = 40) {
     const ev = []; const sens = t => (t.sens > 0 ? 'ACHAT' : 'VENTE') + ' ' + t.actif + (t.tf ? ' ' + t.tf : '');
@@ -112,6 +138,6 @@
   }
   const variation = (avant, apres, seuil = 0.03) => (avant == null || !(avant > 0) ? (apres > 0 && avant != null ? 1 : 0) : apres > avant * (1 + seuil) ? 1 : apres < avant * (1 - seuil) ? -1 : 0);
 
-  const API = { niveauxDom, variation, normaliser, typeSortie, tousTrades, dernierPrix, portefeuilleTrades, fluxExecution, reglesProp, REGLES_PROP, fr, prixTexte, usd, signe, compact, il, barreEtat, listes, lignePosition, repere, indexTemps, positionsAffichees, decoderHeat, niveauDetail, couches, volumeNetTrace, rejoueTrimestres, courbeJours };
+  const API = { niveauxDom, variation, normaliser, typeSortie, tousTrades, fenetreBougies, zoomerFenetre, deplacerFenetre, centrerFenetre, tableHistorique, dernierPrix, portefeuilleTrades, fluxExecution, reglesProp, REGLES_PROP, fr, prixTexte, usd, signe, compact, il, barreEtat, listes, lignePosition, repere, indexTemps, positionsAffichees, decoderHeat, niveauDetail, couches, volumeNetTrace, rejoueTrimestres, courbeJours };
   if (typeof module !== 'undefined' && module.exports) module.exports = API; else racine.VolumeVivantCalcul = API;
 }(typeof window !== 'undefined' ? window : globalThis));
