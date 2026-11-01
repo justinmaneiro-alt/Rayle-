@@ -9,10 +9,10 @@ const JOUR = 86400e3;
 export const ETIQUETTE_RETRO = 'rétro-test à titre d’exemple — pas une preuve';
 
 export function parcourir(m15, { actif = 'BTC', style = 'equilibre', de = 0, a = m15.n - 1, couts = COUTS_TRADER, gestion = 'partielle', setups = ORDRE_SETUPS, maxSimultanees = 2, P = null, suivre = true } = {}) {
-  const prep = P || preparer(m15), S = STYLES[style], out = [], parJour = new Map(), derniers = new Map(), actives = [];
+  const prep = P || preparer(m15), S = STYLES[style], out = [], parJour = new Map(), derniers = new Map(), actives = [], sensActifs = [];   // sensActifs : sens de chaque position en cours (jamais acheteur ET vendeur en même temps, comme en direct)
   for (let i = Math.max(de, 1); i <= Math.min(a, m15.n - 2); i++) {
     // positions encore en cours (la simulation connaît déjà leur fin : on ne s'en sert QUE pour compter les places libres à l'instant i)
-    for (let q = actives.length - 1; q >= 0; q--) if (actives[q] <= i) actives.splice(q, 1);
+    for (let q = actives.length - 1; q >= 0; q--) if (actives[q] <= i) { actives.splice(q, 1); sensActifs.splice(q, 1); }
     if (actives.length >= maxSimultanees) continue;
     const r = proposer(prep, i, { style, actif, setups }); if (!r.propositions.length) continue;
     const jour = Math.floor(m15.t[i] / JOUR);
@@ -20,11 +20,12 @@ export function parcourir(m15, { actif = 'BTC', style = 'equilibre', de = 0, a =
       if ((parJour.get(jour) || 0) >= S.maxParJour) break;
       const cle = p.setup + '|' + p.sens, dernier = derniers.get(cle); if (dernier != null && i - dernier < 8) continue;
       if (actives.length >= maxSimultanees) break;
+      if (sensActifs.some(s => s !== p.sens)) continue;
       p.style = style;
       if (suivre) {
         const res = simuler(m15, p, { couts, gestion });
         p.resultat = res; p.tSortie = res.iSortie != null ? m15.t[res.iSortie] + PAS : null;
-        actives.push(res.iSortie != null ? res.iSortie : m15.n);
+        actives.push(res.iSortie != null ? res.iSortie : m15.n); sensActifs.push(p.sens);
       }
       parJour.set(jour, (parJour.get(jour) || 0) + 1); derniers.set(cle, i); out.push(p);
     }

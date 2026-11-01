@@ -41,15 +41,19 @@ console.log('volume-dom : ' + n + ' vérifications OK');
 /* ── fenêtre du graphique (zoom / déplacement) et tableau d'historique ── */
 {
   let k = 0; const okk = (c, m) => { k++; assert.ok(c, m); };
-  const f = C.fenetreBougies(100, 0, 0, 64); okk(f.nVis === 64 && f.deb === 36 && f.fin === 100 && f.dec === 0, 'fenêtre par défaut : les 64 dernières bougies');
-  okk(C.fenetreBougies(30, 0, 0, 64).nVis === 30 && C.fenetreBougies(100, 3, 0, 64).nVis === 8, 'bornes : pas plus que les données, pas moins de 8');
-  okk(C.fenetreBougies(100, 20, 500, 64).dec === 80 && C.fenetreBougies(100, 20, -5, 64).dec === 0, 'décalage borné (jamais après la dernière ni avant la première bougie)');
-  const z = C.zoomerFenetre({ n: 100, visibles: 64, decalage: 0, facteur: 0.5, ancre: 0.5, defaut: 64 }); okk(z.visibles === 32 && z.decalage === 16, 'zoom avant au centre');
-  const a = C.fenetreBougies(100, 64, 0, 64), b = C.fenetreBougies(100, z.visibles, z.decalage, 64); okk(Math.abs((a.deb + 0.5 * a.nVis) - (b.deb + 0.5 * b.nVis)) <= 1, 'la bougie sous le curseur reste sous le curseur');
-  const zd = C.zoomerFenetre({ n: 100, visibles: 64, decalage: 0, facteur: 0.5, ancre: 1, defaut: 64 }); okk(zd.decalage === 0, 'ancre à droite : la bougie la plus récente reste visible');
-  const zo = C.zoomerFenetre({ n: 100, visibles: 64, decalage: 0, facteur: 10, ancre: 0.5, defaut: 64 }); okk(zo.visibles === 100 && zo.decalage === 0, 'dézoom maximal = toutes les données');
-  okk(C.deplacerFenetre({ n: 100, visibles: 20, decalage: 0, barres: 15, defaut: 64 }).decalage === 15 && C.deplacerFenetre({ n: 100, visibles: 20, decalage: 10, barres: -50, defaut: 64 }).decalage === 0, 'déplacement borné');
-  const c = C.centrerFenetre({ n: 100, visibles: 20, idx: 30, defaut: 64 }); const fc = C.fenetreBougies(100, c.visibles, c.decalage, 64); okk(fc.deb <= 30 && fc.fin > 30 && Math.abs(fc.deb + 10 - 30) <= 1, 'centrage sur un trade');
+  const f = C.fenetreLibre(100, 0, null, 64); okk(f.vis === 64 && f.live && Math.abs(f.droite - 104) < 1e-9 && f.i0 === 40, 'fenêtre par défaut : 64 bougies, 4 bougies de vide à droite, mode direct');
+  okk(C.fenetreLibre(100, 3, null, 64).vis === C.MIN_VISIBLES && C.fenetreLibre(10, 0, null, 64).vis === 30, 'largeur bornée : au moins 5 bougies ; on peut dézoomer au-delà des données (3 × leur nombre, mini 30)');
+  const libre = C.fenetreLibre(100, 20, -15, 64); okk(libre.gauche === -15 && libre.i0 === -15, 'on peut sortir des données à GAUCHE (aucune butée au début de l’historique)');
+  const futur = C.fenetreLibre(100, 20, 90, 64); okk(futur.gauche === 90, 'et à DROITE, dans le vide du futur');
+  okk(C.fenetreLibre(100, 20, 5000, 64).gauche === 99 && C.fenetreLibre(100, 20, -5000, 64).gauche === -19, 'seule règle : il reste toujours au moins une bougie à l’écran');
+  const z = C.zoomLibre({ n: 100, visibles: 64, gauche: null, facteur: 0.5, ancre: 0.5, defaut: 64 }); const a0 = C.fenetreLibre(100, 64, null, 64), b0 = C.fenetreLibre(100, z.visibles, z.gauche, 64);
+  okk(z.visibles === 32 && Math.abs((a0.gauche + 0.5 * a0.vis) - (b0.gauche + 0.5 * b0.vis)) < 1e-9, 'zoom au centre : la bougie sous le curseur reste sous le curseur (au centième de bougie)');
+  for (const an of [0, 0.25, 0.8, 1]) { const zz = C.zoomLibre({ n: 400, visibles: 100, gauche: 120.37, facteur: 0.61, ancre: an, defaut: 64 }), x0 = C.fenetreLibre(400, 100, 120.37, 64), x1 = C.fenetreLibre(400, zz.visibles, zz.gauche, 64); okk(Math.abs((x0.gauche + an * x0.vis) - (x1.gauche + an * x1.vis)) < 1e-9, 'ancre ' + an + ' : le point visé ne bouge pas (valeurs fractionnaires)'); }
+  okk(C.zoomLibre({ n: 100, visibles: 64, gauche: null, facteur: 10, ancre: 0.5, defaut: 64 }).visibles === 300, 'dézoom : jusqu’à 3 fois les données');
+  const d = C.deplacerLibre({ n: 100, visibles: 20, gauche: 50, barres: 0.37, defaut: 64 }); okk(Math.abs(d.gauche - 50.37) < 1e-9, 'déplacement au pixel près : fractions de bougie conservées');
+  okk(C.deplacerLibre({ n: 100, visibles: 20, gauche: 70, barres: 14.1, defaut: 64 }).gauche === null, 'on retombe sur la position d’origine : retour automatique au mode direct');
+  okk(C.deplacerLibre({ n: 100, visibles: 20, gauche: 5, barres: -100, defaut: 64 }).gauche === -19 && C.deplacerLibre({ n: 100, visibles: 20, gauche: 5, barres: 1000, defaut: 64 }).gauche === 99, 'déplacement : ne perd jamais toutes les bougies de vue');
+  const c = C.centrerLibre({ n: 100, visibles: 20, idx: 30, defaut: 64 }); okk(c.gauche === 20 && c.visibles === 20, 'centrage sur un trade');
 
   const T0 = 1_800_000_000_000, H = 3600e3, mk = (id, R, tS, extra = {}) => ({ id, actif: 'BTC', tf: 'M15', sens: 1, entree: 100, stop: 99, cible: 102, statut: 'terminee', tSignal: tS, tEntree: tS, tSortie: tS + H, R, sortie: 100 + R, nom: 'A', type: R > 0 ? 'TP' : 'SL', motif: '', ...extra });
   const trades = [mk('a', 2, T0), mk('b', -1, T0 + 2 * H), mk('c', 1, T0 + 4 * H, { nom: 'B', actif: 'SOL' }), mk('o', null, T0 + 6 * H, { statut: 'ouverte', tSortie: null, sortie: null, tEntree: T0 + 6 * H, type: null }), mk('w', null, T0 + 7 * H, { statut: 'en_attente', tSortie: null, sortie: null, tEntree: null, type: null })];

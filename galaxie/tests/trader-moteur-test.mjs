@@ -71,6 +71,7 @@ for (const [k, s] of series.entries()) {
     v('style ' + style + ' : jamais plus de ' + STYLES[style].maxParJour + ' propositions par jour et par actif', [...parJour.values()].every(n => n <= STYLES[style].maxParJour), Math.max(...parJour.values()));
     // jamais plus de 2 positions simultanées
     let simult = true; for (const p of props) { const actives = props.filter(q => q !== p && q.i <= p.i && q.resultat && q.resultat.iSortie != null && q.resultat.iSortie > p.i).length; if (actives > 2) simult = false; } v('style ' + style + ' : deux positions simultanées au plus', simult);
+    v('style ' + style + ' : jamais deux positions de sens contraire en même temps sur l’actif (cohérence)', props.every(p => props.every(q => q === p || !q.resultat || q.resultat.iSortie == null || q.i > p.i || q.resultat.iSortie <= p.i || q.sens === p.sens)));
     v('style ' + style + ' : pas de doublon d’un même setup dans les 8 bougies', props.every((p, k) => props.every((q, j) => j === k || q.setup !== p.setup || q.sens !== p.sens || Math.abs(q.i - p.i) >= 8)));
   }
   const a = parcourir(s, { actif: 'BTC', de: 3500, a: s.n - 20 }), b = parcourir(s, { actif: 'BTC', de: 3500, a: s.n - 20 });

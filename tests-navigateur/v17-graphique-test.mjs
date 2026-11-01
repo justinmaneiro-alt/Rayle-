@@ -22,13 +22,17 @@ fs.writeFileSync(path.join(dossier, 'volume-v14.json'), JSON.stringify({ schema:
 fs.writeFileSync(path.join(dossier, 'service.json'), JSON.stringify({ pid: process.pid, demarreLe: maintenant - 3600e3, vivantLe: maintenant, phase: 'attente', worker: { configure: false } }));
 const srv = spawn(process.execPath, ['serveur.mjs', String(PORT)], { cwd: process.cwd(), env: { ...process.env, RAYLE_AGENT_DOSSIER: dossier, RAYLE_PORT_RESEAU: String(PORT + 1) }, stdio: 'ignore' });
 for (let k = 0; k < 50; k++) { try { if ((await fetch(BASE + '/index.html')).ok) break; } catch (e) { /* démarrage */ } await attendre(200); }
-let nav;
+let nav, klines = 0; const journalK = [];
 try {
   nav = await puppeteer.launch({ executablePath: CHROME, headless: 'new', args: ['--use-angle=d3d11', '--enable-gpu', '--ignore-gpu-blocklist'] });
   const page = await nav.newPage(); await page.setViewport({ width: 1600, height: 1100 });
   const erreurs = []; page.on('pageerror', e => erreurs.push(e.message.slice(0, 300))); page.on('console', m => { if (m.type() === 'error' && !/Failed to load resource|ERR_|CORS|net::|binance/i.test(m.text())) erreurs.push(m.text().slice(0, 300)); });
   await page.setRequestInterception(true);
   page.on('request', r => { const u = r.url();
+    if (/api\/v3\/klines/.test(u) && !/interval=(15m|1h)&endTime=/.test(u)) return r.respond({ status: 200, contentType: 'application/json', headers: { 'Access-Control-Allow-Origin': '*' }, body: '[]' });   // autres demandes de bougies (vue Agent, cartes) : rien ; seule la requête « plus ancien » du tableau vivant est servie
+    if (/api\/v3\/klines/.test(u)) { klines++; journalK.push(u.replace(/^.*klines/, '')); const fin = +new URL(u).searchParams.get('endTime'); if (klines > 1) return r.respond({ status: 200, contentType: 'application/json', headers: { 'Access-Control-Allow-Origin': '*' }, body: '[]' });
+      const lot = []; for (let k = 299; k >= 0; k--) { const t = Math.floor(fin / PAS) * PAS - k * PAS, c = pm * (1 + 0.002 * Math.sin(t / 3e6)); lot.push([t, String(c * 0.999), String(c * 1.003), String(c * 0.997), String(c), '10']); }
+      return r.respond({ status: 200, contentType: 'application/json', headers: { 'Access-Control-Allow-Origin': '*' }, body: JSON.stringify(lot) }); }
     if (/data-api\.binance\.vision/.test(u)) return r.respond({ status: 200, contentType: 'application/json', headers: { 'Access-Control-Allow-Origin': '*' }, body: '[]' });
     if (/\/__agent\/trader/.test(u)) return r.respond({ status: 200, contentType: 'application/json', body: JSON.stringify({ ok: true, existe: true, vue: trader(), service: { enMarche: true } }) });
     r.continue(); });
@@ -36,21 +40,46 @@ try {
   await page.goto(BASE + '/index.html', { waitUntil: 'load' }); await attendre(1500);
   const ev = (f, ...a) => page.evaluate(f, ...a);
   await ev(() => document.getElementById('btnAgent').click()); await page.waitForSelector('.vv-histo-table', { timeout: 30000 }); await attendre(1500);
-  const S = () => ev(() => { const s = window.PosteAgent.vivant().etat(); return { visibles: s.visibles, decalage: s.decalage, actif: s.actif, tf: s.tf, geo: s.geo, zones: s.zonesDessinees }; });
-
-  // ── 1. navigation : molette, glisser, double clic ──
+  const S = () => ev(() => { const s = window.PosteAgent.vivant().etat(); return { visibles: s.visibles, gauche: s.gauche, actif: s.actif, tf: s.tf, geo: s.geo, zones: s.zonesDessinees }; });
   const boite = await ev(() => { const r = document.querySelector('[data-vv="graph"]').getBoundingClientRect(); return { x: r.left, y: r.top, w: r.width, h: r.height }; });
-  await page.mouse.move(boite.x + boite.w * 0.5, boite.y + boite.h * 0.5);
-  const s0 = await S(); await page.mouse.wheel({ deltaY: -400 }); await attendre(400); const s1 = await S();
-  T.verifier('molette vers l’avant : le graphique zoome (moins de bougies visibles)', s1.visibles > 0 && s1.visibles < 64 && s1.geo.n === s1.visibles, s0.visibles + ' → ' + s1.visibles + ' (' + s1.geo.n + ' dessinées)');
-  await page.mouse.wheel({ deltaY: 900 }); await attendre(400); const s2 = await S();
-  T.verifier('molette vers l’arrière : dézoome (plus de bougies qu’avant)', s2.visibles > s1.visibles, s1.visibles + ' → ' + s2.visibles);
-  await page.mouse.move(boite.x + boite.w * 0.4, boite.y + boite.h * 0.5); await page.mouse.down(); await page.mouse.move(boite.x + boite.w * 0.7, boite.y + boite.h * 0.5, { steps: 8 }); await page.mouse.up(); await attendre(400); const s3 = await S();
-  T.verifier('glisser vers la droite : on remonte dans le passé (bougies plus récentes masquées)', s3.decalage > 0 && s3.geo.deb < s2.geo.deb, 'décalage ' + s3.decalage);
-  await page.mouse.move(boite.x + boite.w * 0.7, boite.y + boite.h * 0.5); await page.mouse.down(); await page.mouse.move(boite.x + boite.w * 0.1, boite.y + boite.h * 0.5, { steps: 8 }); await page.mouse.up(); await attendre(400);
-  T.verifier('glisser vers la gauche : retour vers le présent, jamais au-delà (décalage ≥ 0)', (await S()).decalage < s3.decalage && (await S()).decalage >= 0);
+  const cy = boite.y + boite.h * 0.5, glisser = async (f0, f1, pas = 6, lent = false) => { await page.mouse.move(boite.x + boite.w * f0, cy); await page.mouse.down(); await page.mouse.move(boite.x + boite.w * f1, cy, { steps: pas }); if (lent) await attendre(160); await page.mouse.up(); };   // fractions de la largeur du graphique
+
+  // ── 1. navigation façon TradingView ──
+  const s0 = await S(); T.verifier('au départ : mode direct, 64 bougies, 4 bougies de vide à droite', s0.gauche === null && Math.abs(s0.geo.vis - 64) < 1e-6, JSON.stringify({ g: s0.gauche, vis: s0.geo.vis }));
+  // zoom ancré : la bougie sous le curseur reste sous le curseur (à ± 0,05 bougie), à plusieurs endroits
+  for (const frac of [0.2, 0.5, 0.85]) {
+    await page.mouse.move(boite.x + s0.geo.g + s0.geo.W * frac, cy); const a = await S(), idxAvant = a.geo.gauche + frac * a.geo.vis;
+    await page.mouse.wheel({ deltaY: -250 }); await attendre(700); const b = await S(), idxApres = b.geo.gauche + frac * b.geo.vis;
+    T.verifier('zoom centré sur le curseur à ' + Math.round(frac * 100) + ' % : la bougie visée ne bouge pas (' + idxAvant.toFixed(2) + ' → ' + idxApres.toFixed(2) + ') et la vue se resserre', Math.abs(idxAvant - idxApres) < 0.05 && b.geo.vis < a.geo.vis, a.geo.vis.toFixed(1) + ' → ' + b.geo.vis.toFixed(1));
+    await page.mouse.wheel({ deltaY: 250 }); await attendre(700);
+  }
+  await page.mouse.wheel({ deltaY: -250 }); await page.mouse.wheel({ deltaY: -250 }); await attendre(900); const z2 = await S();
+  T.verifier('molette répétée : zoom progressif et fluide (la largeur varie en continu, pas par paliers entiers)', z2.geo.vis < 40 && Math.abs(z2.geo.vis - Math.round(z2.geo.vis)) > 1e-6, 'vis ' + z2.geo.vis);
+  await ev(() => document.querySelector('[data-vv="graph"]').dispatchEvent(new MouseEvent('dblclick', { bubbles: true }))); await attendre(300);
+  // déplacement au pixel près
+  const p0 = await S(); await glisser(0.2, 0.2 + 3 / boite.w, 3, true); await attendre(150); const p1 = await S();
+  T.verifier('glisser de 3 pixels : le graphique suit au pixel près (fraction de bougie, pas un saut)', Math.abs(p1.geo.gauche - p0.geo.gauche) > 0.001 && Math.abs(p1.geo.gauche - p0.geo.gauche) < 0.6 && Math.abs(p1.geo.gauche % 1) > 1e-6, (p1.geo.gauche - p0.geo.gauche).toFixed(3));
+  // inertie : on lâche en mouvement, ça continue de défiler puis s'arrête
+  await ev(() => document.querySelector('[data-vv="graph"]').dispatchEvent(new MouseEvent('dblclick', { bubbles: true }))); await attendre(300);
+  await page.mouse.move(boite.x + 150, cy); await page.mouse.down(); await page.mouse.move(boite.x + 250, cy, { steps: 6 }); await page.mouse.up(); const i0 = await S(); await attendre(120); const i1 = await S(); await attendre(900); const i2 = await S();
+  const tG = x => x.geo.t0 + x.geo.gauche * x.geo.pasT, hh = ms => (ms / 3600e3).toFixed(1);   // l'heure du bord gauche ne dépend pas des bougies plus anciennes ajoutées en route
+  T.verifier('inertie : après le relâchement le graphique continue de défiler dans le passé (bord gauche il y a ' + hh(maintenant - tG(i0)) + ' h → ' + hh(maintenant - tG(i1)) + ' h → ' + hh(maintenant - tG(i2)) + ' h)', tG(i1) < tG(i0) - 60e3 && tG(i2) <= tG(i1), '');
+  await attendre(1500); const i3 = await S(); await attendre(500); T.verifier('…et il finit bien par s’immobiliser', Math.abs(tG(await S()) - tG(i3)) < 1);
+  // aucune butée : on remonte au-delà du début des données, des bougies plus anciennes sont chargées, puis on peut aller encore plus loin
+  const total0 = s0.geo.total; let gg = (await S()).geo.gauche;
+  for (let k = 0; k < 14 && gg > -10; k++) { await glisser(0.05, 0.95, 10); await attendre(250); gg = (await S()).geo.gauche; if (klines > 0 && k > 3) break; }
+  await attendre(1500); const h1 = await S();
+  T.verifier('remonter loin dans le passé : des bougies plus anciennes sont chargées automatiquement (' + total0 + ' → ' + h1.geo.total + ' bougies)', klines >= 1 && h1.geo.total > total0 + 200, 'requêtes ' + klines + ' ' + journalK.join(' | ') + JSON.stringify(await ev(() => Object.fromEntries(Object.entries(window.PosteAgent.vivant().etat().ext).map(([k, e]) => [k, { n: e.bougies.length, fin: e.fin, charge: e.charge, echec: e.echecLe }])))));
+  for (let k = 0; k < 10; k++) { await glisser(0.05, 0.95, 10); await attendre(250); }
+  await attendre(1200); const h2 = await S();
+  T.verifier('plus aucune butée arbitraire : on sort des données par la gauche (bord gauche < 0) sans blocage', h2.geo.gauche < 0 && h2.geo.n >= 1, 'gauche ' + h2.geo.gauche.toFixed(1));
+  T.verifier('fin de l’historique disponible : annoncée clairement quand Binance n’a plus rien', klines >= 2 && /Début de l’historique disponible/.test(await ev(() => document.querySelector('[data-vv="info"]').innerText)), 'requêtes ' + klines);
+  await page.screenshot({ path: 'docs/captures-v17/pc-passe-lointain.png' });
+  // aucune butée à droite non plus : on peut aller dans le vide du futur
+  for (let k = 0; k < 14; k++) { await glisser(0.95, 0.05, 10); await attendre(200); }
+  await attendre(900); const f1 = await S(); T.verifier('vers le futur : on dépasse la dernière bougie (vide à droite), toujours sans butée arbitraire', f1.geo.gauche > f1.geo.total - f1.geo.vis + 4 + 5, 'gauche ' + f1.geo.gauche.toFixed(1) + ' / total ' + f1.geo.total);
   await ev(() => document.querySelector('[data-vv="graph"]').dispatchEvent(new MouseEvent('dblclick', { bubbles: true }))); await attendre(400); const s4 = await S();
-  T.verifier('double clic : retour à la vue d’origine', s4.decalage === 0 && s4.visibles === 0, JSON.stringify({ d: s4.decalage, v: s4.visibles }));
+  T.verifier('double clic : retour au direct', s4.gauche === null && s4.geo.vis === 64, JSON.stringify({ g: s4.gauche }));
   await ev(() => document.querySelector('[data-zoom="-1"]').click()); await attendre(300);
   T.verifier('les boutons ＋ / － continuent de marcher', (await S()).visibles > 0 && (await S()).visibles < 64);
   await ev(() => document.querySelector('[data-zoom="0"]').click()); await attendre(300);
@@ -86,8 +115,20 @@ try {
   T.verifier('filtre par actif : BTC n’a aucun trade, le dit clairement', /Aucune position ne correspond/.test(await ev(() => document.querySelector('.vv-histo').innerText)));
   await ev(() => document.querySelector('[data-hf="actif:tous"]').click()); await attendre(200);
   await ev(() => { const r = [...document.querySelectorAll('.vv-histo-table tbody tr')].find(x => x.dataset.histo === 'g1'); r.click(); }); await attendre(800); const sv = await S();
-  T.verifier('un clic sur une ligne place le graphique sur ce trade (fenêtre centrée sur le passé)', sv.decalage > 0 && sv.actif === 'SOL', JSON.stringify({ d: sv.decalage }));
+  T.verifier('un clic sur une ligne place le graphique sur ce trade (fenêtre centrée sur le passé)', sv.gauche !== null && sv.actif === 'SOL', JSON.stringify({ g: sv.gauche }));
   await page.screenshot({ path: 'docs/captures-v17/pc-tableau-historique.png' });
+  // ── 3 bis. le tableau reste propre à TOUTES les largeurs : aucun débordement, aucun texte coupé, aucune barre de défilement horizontale ──
+  const propre = () => ev(() => { const h = document.querySelector('.vv-histo'), w = h.querySelector('.vv-histo-wrap'), t = h.querySelector('table'), cartes = getComputedStyle(h.querySelector('tbody tr')).display === 'grid', lignes = [...h.querySelectorAll('tbody tr')], rh = h.getBoundingClientRect();
+    const dehors = [...h.querySelectorAll('td, th, .vv-chip, .vv-seg, .vv-note')].filter(e => e.offsetParent && (e.getBoundingClientRect().right > rh.right + 1 || e.getBoundingClientRect().left < rh.left - 1)).length, coupes = [...h.querySelectorAll('td')].filter(e => e.offsetParent && e.scrollWidth > e.clientWidth + 1).length;
+    return { cartes, hDebord: h.scrollWidth > h.clientWidth + 1, wDebord: w.scrollWidth > w.clientWidth + 1, pageDebord: document.documentElement.scrollWidth > innerWidth + 1, dehors, coupes, lignes: lignes.length, largeur: Math.round(rh.width), tableLarge: t.scrollWidth <= w.clientWidth + 1 }; });
+  for (const [larg, haut, attendu] of [[1600, 1100, 'table'], [1250, 900, 'table ou cartes'], [1000, 800, 'cartes'], [768, 900, 'cartes'], [390, 844, 'cartes']]) {
+    await page.setViewport({ width: larg, height: haut }); await attendre(900); const q = await propre();
+    T.verifier('tableau à ' + larg + ' px (bloc de ' + q.largeur + ' px, ' + (q.cartes ? 'cartes' : 'table') + ') : aucun débordement, rien de coupé, pas de défilement horizontal', !q.hDebord && !q.wDebord && !q.pageDebord && q.dehors === 0 && q.coupes === 0 && q.lignes === 5, JSON.stringify(q));
+    T.verifier('à ' + larg + ' px : table si le bloc fait 820 px ou plus, sinon cartes lisibles (étiquette : valeur)', q.largeur >= 820 ? !q.cartes : q.cartes);
+    if (larg === 1600) T.verifier('à 1600 px : vraie table avec toutes les colonnes', !q.cartes && q.tableLarge);
+    if (larg === 390 || larg === 1600) { const el = await page.$('.vv-histo'); await el.scrollIntoView(); await el.screenshot({ path: 'docs/captures-v17/historique-' + larg + '.png' }); }
+  }
+  await page.setViewport({ width: 1600, height: 1100 }); await attendre(700);
 
   // ── 4. vue « Agent » (V13) : zones alignées, ordre sur la bougie en cours à droite ──
   await ev(() => window.PosteAgent.vue('agent')); await attendre(2500); await ev(() => window.PosteAgent.lisible().choisirActif('SOL')); await attendre(2500);

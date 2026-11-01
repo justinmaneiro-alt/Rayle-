@@ -104,3 +104,25 @@
   .vv{grid-template-areas:"etat etat" "outils outils" "zone pf" "zone carnet" "histo flux" "net flux" "verdict verdict" "listes listes" "rejoue rejoue"}
   .vv-histo{grid-area:histo}
 }
+
+/* ── Tableau d'historique propre à toutes les largeurs : il s'adapte à la place RÉELLE du bloc (requête de conteneur), jamais de défilement horizontal ni de texte coupé.
+   Large : vraie table (11 colonnes, chiffres alignés). Étroit : chaque position devient une carte (date en titre, deux colonnes « étiquette : valeur »). ── */
+.vv-histo{container:histo / inline-size;overflow:hidden}
+.vv-histo-wrap{overflow-x:auto;overflow-y:auto}
+.vv-histo-table{width:100%;min-width:0;border-collapse:collapse;table-layout:auto;font-variant-numeric:tabular-nums}
+.vv-histo-table th,.vv-histo-table td{padding:6px 7px;white-space:nowrap;text-align:right}
+.vv-histo-table th:first-child,.vv-histo-table td:first-child{text-align:left}
+.vv-histo-table td:nth-child(2),.vv-histo-table td:nth-child(3),.vv-histo-table td:nth-child(8),.vv-histo-table th:nth-child(2),.vv-histo-table th:nth-child(3),.vv-histo-table th:nth-child(8){text-align:left}
+@container histo (max-width: 819px){
+  .vv-histo-wrap{overflow-x:hidden;max-height:520px}
+  .vv-histo-table,.vv-histo-table tbody{display:block;min-width:0}
+  .vv-histo-table thead{display:none}
+  .vv-histo-table tbody tr{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:1px 14px;padding:8px 10px 8px 12px;border-bottom:1px solid var(--vv-bord)}
+  .vv-histo-table td,.vv-histo-table td:first-child{display:flex;justify-content:space-between;align-items:baseline;gap:8px;padding:2px 0;border:0;white-space:normal;text-align:right;min-width:0}
+  .vv-histo-table td::before{content:attr(data-l);color:var(--vv-doux);font:11px system-ui,sans-serif;text-align:left;flex:none}
+  .vv-histo-table td:first-child{grid-column:1/-1;font-weight:600;border-bottom:1px dashed var(--vv-bord);margin-bottom:3px;padding-bottom:3px}
+  .vv-histo-table td[data-l="Résultat"],.vv-histo-table td[data-l="Gain simulé"]{font-weight:600}
+}
+@container histo (max-width: 419px){.vv-histo-table tbody tr{grid-template-columns:1fr}}
+.vv-chips{min-width:0}.vv-chip{flex:1 1 92px}.vv-histo-filtres{min-width:0}
+.vv-histo .vv-note{overflow-wrap:anywhere}

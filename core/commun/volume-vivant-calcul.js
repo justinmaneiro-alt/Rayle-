@@ -90,17 +90,25 @@
     return { source: 'trades', capital0, capital: total, realiseUsd: cap - capital0, flottantUsd: flottant, flottantR, cumulR: sommeR, gainUsd: total - capital0, gainPct: (total / capital0 - 1) * 100, semaineUsd: semaine, nTrades: finis.length, nOuverts: ouverts.length, nEnAttente: trades.filter(t => t.statut === 'en_attente').length,
       tauxReussite: finis.length ? gagnes / finis.length : 0, rMoyen: finis.length ? sommeR / finis.length : 0, drawdownMaxPct: dd * 100, risquePct, courbe, parStrategie: [], detailOuverts };
   }
-  /* ── Fenêtre visible du graphique (zoom / déplacement) : `visibles` bougies affichées, `decalage` bougies masquées à droite (0 = on voit la plus récente). Fonctions pures, testées. ── */
-  const bornes = (x, a, b) => Math.max(a, Math.min(b, x));
-  function fenetreBougies(n, visibles, decalage, defaut) { const mini = Math.min(8, n), nVis = bornes(Math.round(visibles || defaut), mini, n), dec = bornes(Math.round(decalage || 0), 0, n - nVis); return { nVis, dec, deb: n - dec - nVis, fin: n - dec }; }
-  /* Zoom autour d'un point (ancre de 0 = bord gauche à 1 = bord droit) : la bougie sous le curseur reste sous le curseur. facteur > 1 = on dézoome. */
-  function zoomerFenetre({ n, visibles, decalage, facteur, ancre = 1, defaut }) {
-    const f = fenetreBougies(n, visibles, decalage, defaut), a = bornes(ancre, 0, 1), idx = f.deb + a * f.nVis, nv = bornes(Math.round(f.nVis * facteur), Math.min(8, n), n), deb = idx - a * nv;
-    return { visibles: nv, decalage: bornes(Math.round(n - (deb + nv)), 0, n - nv) };
+  /* ── Fenêtre visible du graphique, façon TradingView : position FLOTTANTE (au pixel près, pas de saut de bougie en bougie). `visibles` = largeur en nombre de bougies (réel), `gauche` = indice logique du bord
+     gauche (réel ; null = on suit le direct, avec `margeDroite` bougies de vide à droite). Aucune butée arbitraire : on peut sortir des données des deux côtés, la seule règle est qu'il reste au moins
+     une bougie à l'écran. Fonctions pures, testées. ── */
+  const MIN_VISIBLES = 5, bornes = (x, a, b) => Math.max(a, Math.min(b, x));
+  function fenetreLibre(n, visibles, gauche, defaut, margeDroite = 4) {
+    const vis = bornes(visibles || defaut, MIN_VISIBLES, Math.max(n * 3, 30)), g0 = n + margeDroite - vis, g = gauche == null ? g0 : bornes(gauche, -(vis - 1), Math.max(0, n - 1));
+    return { vis, gauche: g, droite: g + vis, i0: Math.floor(g), i1: Math.ceil(g + vis), live: gauche == null || Math.abs(g - g0) < 0.3 };
   }
-  const deplacerFenetre = ({ n, visibles, decalage, barres, defaut }) => { const f = fenetreBougies(n, visibles, decalage, defaut); return { visibles: f.nVis, decalage: bornes(Math.round(f.dec + barres), 0, n - f.nVis) }; };
-  /* Place la fenêtre pour que la bougie `idx` soit au milieu. */
-  const centrerFenetre = ({ n, visibles, idx, defaut }) => { const nv = fenetreBougies(n, visibles, 0, defaut).nVis; return { visibles: nv, decalage: bornes(Math.round(n - (idx + nv / 2)), 0, n - nv) }; };
+  /* Zoom autour d'une ancre (0 = bord gauche, 1 = bord droit) : la bougie sous le curseur reste sous le curseur. facteur > 1 = on dézoome. */
+  function zoomLibre({ n, visibles, gauche, facteur, ancre = 1, defaut, margeDroite }) {
+    const f = fenetreLibre(n, visibles, gauche, defaut, margeDroite), a = bornes(ancre, 0, 1), idx = f.gauche + a * f.vis, nv = bornes(f.vis * facteur, MIN_VISIBLES, Math.max(n * 3, 30));
+    return { visibles: nv, gauche: bornes(idx - a * nv, -(nv - 1), Math.max(0, n - 1)) };
+  }
+  /* `barres` > 0 : on avance vers le futur ; < 0 : on remonte dans le passé. Revient en mode « direct » quand on retombe sur la position d'origine. */
+  function deplacerLibre({ n, visibles, gauche, barres, defaut, margeDroite = 4 }) {
+    const f = fenetreLibre(n, visibles, gauche, defaut, margeDroite), g = bornes(f.gauche + barres, -(f.vis - 1), Math.max(0, n - 1)), g0 = n + margeDroite - f.vis;
+    return { visibles: f.vis, gauche: gauche != null && Math.abs(g - g0) < 0.15 ? null : g };   // l'aimant du direct ne joue que quand on revient vers lui, jamais quand on en part
+  }
+  const centrerLibre = ({ n, visibles, idx, defaut }) => { const vis = fenetreLibre(n, visibles, null, defaut).vis; return { visibles: vis, gauche: idx - vis / 2 }; };
 
   /* ── Tableau d'historique : TOUTES les positions (en attente, ouvertes, terminées) avec résultat en R, gain simulé en $ (capital composé dans l'ordre des sorties), durée, type de clôture TP / SL ; et le résumé
      de ce qui a marché ou non (réussite, R moyen, facteur de profit, meilleur / pire, baisse max, par stratégie et par actif). Aucune valeur inventée : un trade sans R n'a pas de résultat. ── */
@@ -138,6 +146,6 @@
   }
   const variation = (avant, apres, seuil = 0.03) => (avant == null || !(avant > 0) ? (apres > 0 && avant != null ? 1 : 0) : apres > avant * (1 + seuil) ? 1 : apres < avant * (1 - seuil) ? -1 : 0);
 
-  const API = { niveauxDom, variation, normaliser, typeSortie, tousTrades, fenetreBougies, zoomerFenetre, deplacerFenetre, centrerFenetre, tableHistorique, dernierPrix, portefeuilleTrades, fluxExecution, reglesProp, REGLES_PROP, fr, prixTexte, usd, signe, compact, il, barreEtat, listes, lignePosition, repere, indexTemps, positionsAffichees, decoderHeat, niveauDetail, couches, volumeNetTrace, rejoueTrimestres, courbeJours };
+  const API = { niveauxDom, variation, normaliser, typeSortie, tousTrades, MIN_VISIBLES, fenetreLibre, zoomLibre, deplacerLibre, centrerLibre, tableHistorique, dernierPrix, portefeuilleTrades, fluxExecution, reglesProp, REGLES_PROP, fr, prixTexte, usd, signe, compact, il, barreEtat, listes, lignePosition, repere, indexTemps, positionsAffichees, decoderHeat, niveauDetail, couches, volumeNetTrace, rejoueTrimestres, courbeJours };
   if (typeof module !== 'undefined' && module.exports) module.exports = API; else racine.VolumeVivantCalcul = API;
 }(typeof window !== 'undefined' ? window : globalThis));

@@ -61,14 +61,15 @@ export function decouper(tMin, tMax, parts = [0.5, 0.25, 0.25]) { const d = tMax
 export const dans = (t, [a, b]) => t >= a && t < b;
 
 /* ── Portefeuille virtuel avec intérêts composés ── */
-export function portefeuille(trades, { capital0 = 10000, risquePct = 1, maxOuvertes = 3, risqueParCle = null, cleDe = t => t.cle || t.setup, bornes = null } = {}) {
+export function portefeuille(trades, { capital0 = 10000, risquePct = 1, maxOuvertes = 3, risqueParCle = null, cleDe = t => t.cle || t.setup, bornes = null, coherence = true } = {}) {
   const liste = trades.filter(t => !t.ouvert && (!bornes || (t.tEntree >= bornes[0] && t.tEntree < bornes[1]))).sort((a, b) => a.tEntree - b.tEntree);
   let capital = capital0, pic = capital0, ddMax = 0; const ouvertes = [], courbe = [[liste.length ? liste[0].tEntree : 0, capital0]], par = new Map(), pris = [];
   const fermerAvant = t => { ouvertes.sort((a, b) => a.tSortie - b.tSortie); while (ouvertes.length && ouvertes[0].tSortie <= t) { const o = ouvertes.shift(); capital += o.pnl; if (capital > pic) pic = capital; ddMax = Math.max(ddMax, (pic - capital) / pic); courbe.push([o.tSortie, capital]); } };
   for (const t of liste) {
     fermerAvant(t.tEntree); if (ouvertes.length >= maxOuvertes) continue;
+    if (coherence && (t.sens === 1 || t.sens === -1) && ouvertes.some(o => o.actif === (t.actif ?? '_') && (o.sens === 1 || o.sens === -1) && o.sens !== t.sens)) continue;   // jamais acheteur ET vendeur sur le même actif
     const cle = cleDe(t), rp = risqueParCle && risqueParCle[cle] ? risqueParCle[cle] : risquePct, risque = capital * rp / 100, pnl = risque * t.R;
-    ouvertes.push({ tSortie: t.tSortie, pnl }); pris.push({ ...t, risqueUsd: risque, pnlUsd: pnl });
+    ouvertes.push({ tSortie: t.tSortie, pnl, actif: t.actif ?? '_', sens: t.sens }); pris.push({ ...t, risqueUsd: risque, pnlUsd: pnl });
     let e = par.get(cle); if (!e) par.set(cle, e = { cle, n: 0, gagnes: 0, pnlUsd: 0, R: 0 }); e.n++; e.pnlUsd += pnl; e.R += t.R; if (t.R > 0) e.gagnes++;
   }
   fermerAvant(Infinity);

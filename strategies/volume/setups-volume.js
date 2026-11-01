@@ -11,6 +11,7 @@ export const SETUPS_VOLUME = Object.freeze({
   acceptation_hors_valeur: { nom: 'Acceptation hors de la zone de valeur', famille: 'b', carnet: false, texte: 'Clôture au-delà de VAH / VAL avec volume net dans le sens ; entrée sur le retest.' },
   divergence_cvd: { nom: 'Divergence CVD / prix', famille: 'c', carnet: false, texte: 'Nouveau plus bas (haut) du prix mais le volume net ne confirme pas.' },
   diamant: { nom: 'Zone diamant', famille: 'e', carnet: false, texte: 'Au moins 3 éléments au même niveau (POC, HVN, VAH/VAL, extrême) + absorption.' },
+  impulsion_volume: { nom: 'Impulsion portée par le volume', famille: 'f', carnet: false, texte: 'Grosse bougie qui casse un extrême récent ou la zone de valeur, volume net très dans le sens ; entrée au marché (limite à la clôture), pour ne pas rater le mouvement qui ne revient jamais.' },
   mur_carnet: { nom: 'Mur du carnet d’ordres', famille: 'd', carnet: true, texte: 'Gros mur absorbé ou qui tient. Pas d’historique : suivi en direct seulement (forward-test).' }
 });
 
@@ -93,7 +94,25 @@ export function diamant(s, p = {}) {
   return out;
 }
 
-export const DETECTEURS = Object.freeze({ absorption_extreme: absorptionExtreme, rejet_niveau: rejetNiveau, acceptation_hors_valeur: acceptationHorsValeur, divergence_cvd: divergenceCvd, diamant });
+/* ── f. impulsion portée par le volume : l'entrée « sur retest » de l'acceptation rate les mouvements qui ne reviennent pas ; ici l'ordre limite est posé à la CLÔTURE de la bougie d'impulsion (il se remplit
+   presque toujours). Trois conditions seulement : (1) niveau cassé (extrême des `fen` dernières barres OU VAH / VAL de la veille), (2) grosse bougie (≥ rangeAtr × ATR) fermant près de son extrême avec un
+   delta ≥ relatif × le delta typique, (3) invalidation = la bougie reprise à moitié (stop). Même règle d'honnêteté que les autres : mesuré sur le passé, comptabilisé dans le nombre de variantes. ── */
+export function impulsionVolume(s, p = {}) {
+  const o = { fen: 96, rangeAtr: 1.5, relatif: 1.5, rr: 2, ferme: 0.65, reprise: 0.5, ...p }, out = [];
+  for (let i = o.fen + 1; i < s.nBarres; i++) {
+    const atr = s.atr[i], rng = s.h[i] - s.l[i]; if (!(atr > 0) || !(s.typique[i] > 0) || rng < o.rangeAtr * atr) continue;
+    let lo = Infinity, hi = -Infinity; for (let q = i - o.fen; q < i; q++) { if (s.l[q] < lo) lo = s.l[q]; if (s.h[q] > hi) hi = s.h[q]; }
+    const pj = profilJour(s, i), pos = (s.c[i] - s.l[i]) / rng;
+    if (s.c[i] > s.o[i] && pos >= o.ferme && s.delta[i] >= o.relatif * s.typique[i] && (s.c[i] > hi || (pj && s.c[i] > pj.vah && s.c[i - 1] <= pj.vah))) {
+      const x = fabriquer(s, i, 1, s.c[i], s.c[i] - o.reprise * rng, { ...o, margeAtr: 0.1, validite: 2 }, { setup: 'impulsion_volume', niv: s.c[i] > hi ? 'plus haut ' + o.fen + ' barres cassé' : 'VAH de la veille cassée', raison: 'Grosse bougie acheteuse (' + (rng / atr).toFixed(1) + ' ATR) qui casse le niveau, avec un volume net acheteur très supérieur à la normale ; entrée à la clôture.' }); if (x) out.push(x);
+    } else if (s.c[i] < s.o[i] && pos <= 1 - o.ferme && -s.delta[i] >= o.relatif * s.typique[i] && (s.c[i] < lo || (pj && s.c[i] < pj.val && s.c[i - 1] >= pj.val))) {
+      const x = fabriquer(s, i, -1, s.c[i], s.c[i] + o.reprise * rng, { ...o, margeAtr: 0.1, validite: 2 }, { setup: 'impulsion_volume', niv: s.c[i] < lo ? 'plus bas ' + o.fen + ' barres cassé' : 'VAL de la veille cassée', raison: 'Grosse bougie vendeuse (' + (rng / atr).toFixed(1) + ' ATR) qui casse le niveau, avec un volume net vendeur très supérieur à la normale ; entrée à la clôture.' }); if (x) out.push(x);
+    }
+  }
+  return out;
+}
+
+export const DETECTEURS = Object.freeze({ absorption_extreme: absorptionExtreme, rejet_niveau: rejetNiveau, acceptation_hors_valeur: acceptationHorsValeur, divergence_cvd: divergenceCvd, diamant, impulsion_volume: impulsionVolume });
 
 /* Petites grilles JUSTIFIÉES (jamais des milliers de paramètres) : on compte chaque variante testée. */
 export const GRILLES = Object.freeze({
@@ -101,7 +120,8 @@ export const GRILLES = Object.freeze({
   rejet_niveau: { niveaux: ['poc,vah,val', 'vah,val'], meche: [0.3, 0.5], relatif: [0.5, 1], rr: [2, 3], riskMinAtr: [1, 2, 3] },
   acceptation_hors_valeur: { relatif: [1, 2], rr: [2, 3], riskMinAtr: [1, 2, 3] },
   divergence_cvd: { fen: [24, 48], rr: [2, 3], riskMinAtr: [1, 2, 3] },
-  diamant: { minConf: [2, 3], facteur: [1, 1.5, 2.5], rr: [2, 3], riskMinAtr: [1, 2, 3] }
+  diamant: { minConf: [2, 3], facteur: [1, 1.5, 2.5], rr: [2, 3], riskMinAtr: [1, 2, 3] },
+  impulsion_volume: { rangeAtr: [1.5, 2.5], relatif: [1, 2], rr: [2, 3], riskMinAtr: [1, 2, 3] }
 });
 export function combinaisons(grille) {
   const cles = Object.keys(grille); let r = [{}];

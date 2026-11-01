@@ -10,6 +10,7 @@ import { chargerSerie } from './volume-donnees.mjs';
 import { barresDirect } from './volume-enregistreur.mjs';
 import { FICHIER_RECHERCHE, FICHIER_REJOUE, coutsPour, lancerRecherche } from './volume-recherche.mjs';
 import { DETECTEURS, SETUPS_VOLUME } from '../strategies/volume/setups-volume.js';
+import { positionOpposee } from '../strategies/coherence.js';
 import { etatSignal, portefeuille, stats } from '../strategies/volume/simulation-volume.js';
 import { profilJour, profilSemaine, volumeNet, dominance, empreinteBarre, absorption } from '../strategies/volume/serie-volume.js';
 import { prixDeTranche } from '../strategies/liquidite/barres-flux.js';
@@ -56,7 +57,8 @@ export function creerVolume({ dossier, maintenant = () => Date.now(), journal = 
       for (const sg of sigs) {
         const tSignal = s.t[sg.i] + s.pas, id = a + '|' + cle + '|' + tSignal; if (etat.signaux.some(x => x.id === id)) continue;
         if (tSignal < etat.demarreLe - 6 * 3600e3) continue;                                    // rien de plus ancien que le démarrage du suivi : le passé est « rejoué », pas « suivi »
-        const enCours = etat.signaux.find(x => x.actif === a && x.cle === cle && x.statut !== 'terminee' && x.statut !== 'annulee'); if (enCours) continue;      // une position à la fois par setup et par actif
+        const enCours = etat.signaux.find(x => x.actif === a && x.cle === cle && x.statut !== 'terminee' && x.statut !== 'annulee'); if (enCours) continue;
+        if (positionOpposee(etat.signaux, { actif: a, sens: sg.sens })) continue;                // jamais acheteur ET vendeur sur le même actif      // une position à la fois par setup et par actif
         etat.signaux.push({ id, actif: a, cle, setup: c.setup, tf: c.tf, params: c.params, niveauPreuve: c.niveau || 'a_lessai', sens: sg.sens, niveau: sg.niveau, stop: sg.stop, rr: sg.rr, validite: sg.validite, tSignal, tBarre: s.t[sg.i], niv: sg.niv, raison: sg.raison, statut: 'en_attente' }); nouveaux++;
       }
     }
@@ -75,7 +77,7 @@ export function creerVolume({ dossier, maintenant = () => Date.now(), journal = 
     }
   }
 
-  const tradesFermes = () => etat.signaux.filter(x => x.statut === 'terminee' && x.R != null).map(x => ({ cle: x.cle, actif: x.actif, setup: x.setup, tEntree: x.tEntree, tSortie: x.tSortie, R: x.R, ouvert: false }));
+  const tradesFermes = () => etat.signaux.filter(x => x.statut === 'terminee' && x.R != null).map(x => ({ cle: x.cle, actif: x.actif, setup: x.setup, tEntree: x.tEntree, tSortie: x.tSortie, R: x.R, sens: x.sens, ouvert: false }));
   /* Risque par type : 1,5 % si le type a ≥ 30 trades suivis et reste positif ; en pause si ≥ 30 trades et négatif de façon stable (R moyen < −0,05). */
   function reglerRisques() {
     const par = {}; for (const t of tradesFermes()) { (par[t.cle] = par[t.cle] || []).push(t.R); }

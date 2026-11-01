@@ -13,6 +13,7 @@ import { majTypes, actifDansRegime, NIVEAUX_TRADER, BANDEAU_ESSAI } from '../str
 import { retroTest, comparerGestion } from '../strategies/trader/retrotest.js';
 import { configRicheDe, lireCoutsReglage } from './couts-reglage.mjs';
 import { fr, prixTexte, PAS } from '../strategies/trader/outils.js';
+import { positionOpposee, raisonConflit } from '../strategies/coherence.js';
 
 export const FICHIER_TRADER = 'trader.json', FICHIER_COMMANDES_TRADER = 'trader-commandes.json';
 const JOUR = 86400e3, FENETRE = 12000, MAX_PROPOSITIONS = 3000;
@@ -76,6 +77,7 @@ export function creerTrader({ dossier, D, paires, maintenant = () => Date.now(),
       const tSig = m15.t[i];
       if (deLActif.filter(q => Math.floor(q.tSignal / JOUR) === jour && !q.fantome).length >= S.maxParJour) { refus.liste.push({ setup: p.setup, sens: p.sens, pourquoi: 'plafond de ' + S.maxParJour + ' propositions par jour atteint (style ' + S.nom + ')', t: tSig + PAS }); continue; }
       if (deLActif.some(q => q.setup === p.setup && q.sens === p.sens && tSig - q.tSignal < 8 * PAS)) continue;
+      const conflit = positionOpposee(deLActif, { actif: a, sens: p.sens }); if (conflit) { refus.liste.push({ setup: p.setup, sens: p.sens, pourquoi: raisonConflit(conflit, a), t: tSig + PAS }); continue; }
       if (deLActif.filter(q => (q.statut === 'en_attente' || q.statut === 'ouverte') && !q.fantome).length >= 2) { refus.liste.push({ setup: p.setup, sens: p.sens, pourquoi: 'deux positions déjà en cours sur ' + a, t: tSig + PAS }); continue; }
       const cle = cleType(p), type = etat.types[cle], fantome = !!(type && type.niveau === 'desactive');
       const avant = etat.propositions.filter(q => q.source !== 'retro' && cleType(q) === cle && q.resultat && q.resultat.statut === 'cloturee').map(q => ({ R: q.resultat.R, regime: q.regime }));
@@ -83,7 +85,7 @@ export function creerTrader({ dossier, D, paires, maintenant = () => Date.now(),
       const rec = { id: p.id, actif: a, setup: p.setup, nom: p.nom, tf: p.tf, sens: p.sens, tSignal: tSig, t: p.t, entree: p.entree, stop: p.stop, cible1: p.cible1, cible1Nom: p.cible1Nom, cible2: p.cible2, cible2Nom: p.cible2Nom, rr: p.rr, rr2: p.rr2,
         distancePct: p.distancePct, raison: p.raison, invalidation: p.invalidation, confluences: p.confluences.map(c => c.texte), nConfluences: p.nConfluences, diamant: p.diamant, regime: p.regime, biais: p.biais, style: R.style, ttl: p.ttl, atr: p.atr,
         statut: 'en_attente', resultat: null, fantome: fantome || !!masque, masque, source: 'direct', creeLe: maintenant() };
-      etat.propositions.push(rec); nouvelles++;
+      etat.propositions.push(rec); deLActif.push(rec); nouvelles++;
       if (!rec.fantome) await alerter(rec, R).catch(() => {});
     }
     if (etat.propositions.length > MAX_PROPOSITIONS) etat.propositions.splice(0, etat.propositions.length - MAX_PROPOSITIONS);
