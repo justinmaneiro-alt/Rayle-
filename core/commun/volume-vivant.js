@@ -30,11 +30,11 @@
       + '<div class="vv-outils" data-vv="outils"></div>'
       + '<div class="vv-zone"><canvas class="vv-graph" data-vv="graph" aria-label="Graphique des prix avec volume, profil, carnet et positions" role="img"></canvas><canvas class="vv-dot" data-vv="dot" aria-hidden="true"></canvas><div class="vv-info" data-vv="info" aria-live="polite"></div></div>'
       + '<div class="vv-net"><div class="vv-titre">Volume net <small>acheteurs agressifs moins vendeurs agressifs, bougie par bougie</small></div><canvas class="vv-netc" data-vv="net" aria-label="Volume net par bougie et CVD" role="img"></canvas><p class="vv-phrase" data-vv="phrase"></p><p class="vv-legende">Vert : les acheteurs ont poussé le prix. Rouge : les vendeurs. La ligne claire (CVD) est le cumul de la journée : si elle monte, les acheteurs gagnent du terrain.</p></div>'
-      + '<div class="vv-carnet" data-vv="carnet"></div>'
+      + '<div class="vv-carnet" data-vv="carnet"><div class="vv-titre">Carnet d’ordres <small data-vv="carnetActif"></small><span class="vv-direct" data-vv="direct" hidden>● direct</span></div><div data-vv="carnetMsg"></div><div class="vv-dom" data-vv="dom" hidden></div><div data-vv="carnetPied"></div></div>'
       + '<div class="vv-listes" data-vv="listes"></div>'
       + '<div class="vv-rejoue" data-vv="rejoue"></div>';
     const q = n => racineEl.querySelector('[data-vv="' + n + '"]');
-    const E = { noyauc: q('noyauc'), noyaut: q('noyaut'), dot: q('dot'), etat: q('etat'), pf: q('pf'), verdict: q('verdict'), outils: q('outils'), graph: q('graph'), info: q('info'), net: q('net'), phrase: q('phrase'), carnet: q('carnet'), listes: q('listes'), rejoue: q('rejoue') };
+    const E = { noyauc: q('noyauc'), noyaut: q('noyaut'), dot: q('dot'), etat: q('etat'), pf: q('pf'), verdict: q('verdict'), outils: q('outils'), graph: q('graph'), info: q('info'), net: q('net'), phrase: q('phrase'), carnet: q('carnet'), carnetActif: q('carnetActif'), direct: q('direct'), carnetMsg: q('carnetMsg'), dom: q('dom'), carnetPied: q('carnetPied'), listes: q('listes'), rejoue: q('rejoue') };
 
     /* ── noyau 3D de l'agent (vue d'accueil de « Agent IA ») : une seule boucle, canvas léger, figé si animations réduites ── */
     const PTS = C.pointsSphere(leger ? 160 : 420); let humeur = C.humeurNoyau(null, null);
@@ -205,23 +205,32 @@
 
     /* ── carnet ── */
     function rendreCarnet() {
-      const v = S.data && S.data.vue; if (!v) { E.carnet.innerHTML = ''; return; }
-      const c = S.carnet; let h = '<div class="vv-titre">Carnet d’ordres <small>' + esc(S.actif) + '</small></div>';
-      if (!c) h += '<p class="vv-note">' + (S.origine === 'Worker' ? 'Le carnet enregistré n’est lisible que depuis le PC (il n’est pas publié sur le Worker).' : 'Chargement du carnet…') + '</p>';
-      else if (!c.ok) h += '<p class="vv-note">' + esc(c.raison || 'Carnet indisponible.') + '</p>';
+      const v = S.data && S.data.vue; E.carnetActif.textContent = S.actif; if (!v) { E.carnetMsg.innerHTML = ''; E.dom.hidden = true; E.carnetPied.innerHTML = ''; E.direct.hidden = true; return; }
+      const c = S.carnet; let msg = '', pied = '';
+      if (!c) msg = '<p class="vv-note">' + (S.origine === 'Worker' ? 'Le carnet enregistré n’est lisible que depuis le PC (il n’est pas publié sur le Worker).' : 'Chargement du carnet…') + '</p>';
+      else if (!c.ok) msg = '<p class="vv-note">' + esc(c.raison || 'Carnet indisponible.') + '</p>';
       else {
-        const maxD = Math.max(1, ...c.echelle.map(l => Math.max(l.bidUsd, l.askUsd)));
-        h += '<div class="vv-deseq">' + Object.entries(c.deseq).map(([k, x]) => '<span>' + k.slice(1) + ' % : <b class="' + (x >= 0 ? 'vv-hausse' : 'vv-baisse') + '">' + (x == null ? '—' : C.signe(x * 100, 0) + ' %') + '</b></span>').join('') + '</div><p class="vv-note">Déséquilibre : plus de liquidité posée côté achat (+) ou côté vente (−) à cette distance du prix.</p>';
-        h += '<div class="vv-echelle" aria-label="Échelle de profondeur">' + c.echelle.slice(0, 12).reverse().map(l => '<div class="vv-niv"><i class="vv-ask" style="width:' + Math.round(l.askUsd / maxD * 100) + '%"></i><em>+' + l.distancePct + ' %</em></div>').join('') + '<div class="vv-prix">' + C.prixTexte(c.prix) + '</div>' + c.echelle.slice(0, 12).map(l => '<div class="vv-niv"><i class="vv-bid" style="width:' + Math.round(l.bidUsd / maxD * 100) + '%"></i><em>−' + l.distancePct + ' %</em></div>').join('') + '</div>';
-        h += c.murs && c.murs.length ? '<ul class="vv-murs">' + c.murs.map(m => '<li>Mur ' + (m.cote === 'bid' ? 'acheteur' : 'vendeur') + ' à ' + C.prixTexte(m.prix) + ' · ' + C.compact(m.usdMax) + ' $ · posé depuis ' + C.il(Date.now() - m.ageS * 1000, Date.now()) + ' · à ' + C.fr(m.distancePct, 2) + ' %' + (m.fiabilite ? ' · ' + esc(m.fiabilite) : '') + '</li>').join('') + '</ul>' : '<p class="vv-note">Aucun gros mur actif près du prix.</p>';
-        h += '<p class="vv-note">' + esc(c.note) + '</p>';
+        pied += '<div class="vv-deseq">' + Object.entries(c.deseq).map(([k, x]) => '<span>' + k.slice(1) + ' % : <b class="' + (x >= 0 ? 'vv-hausse' : 'vv-baisse') + '">' + (x == null ? '—' : C.signe(x * 100, 0) + ' %') + '</b></span>').join('') + '</div><p class="vv-note">Déséquilibre : plus de liquidité posée côté achat (+) ou côté vente (−) à cette distance du prix. Les lignes regroupent la liquidité par distance au prix, pas par prix exact.</p>';
+        pied += c.murs && c.murs.length ? '<ul class="vv-murs">' + c.murs.map(m => '<li>Mur ' + (m.cote === 'bid' ? 'acheteur' : 'vendeur') + ' à ' + C.prixTexte(m.prix) + ' · ' + C.compact(m.usdMax) + ' $ · posé depuis ' + C.il(Date.now() - m.ageS * 1000, Date.now()) + ' · à ' + C.fr(m.distancePct, 2) + ' %' + (m.fiabilite ? ' · ' + esc(m.fiabilite) : '') + '</li>').join('') + '</ul>' : '<p class="vv-note">Aucun gros mur actif près du prix.</p>';
+        pied += '<p class="vv-note">' + esc(c.note) + '</p>';
       }
-      E.carnet.innerHTML = h;
+      E.carnetMsg.innerHTML = msg; E.carnetPied.innerHTML = pied; majDom(c);
+    }
+    /* Échelle animée : les lignes sont créées UNE fois (clé = côté + distance) puis seulement mises à jour, pour que la largeur glisse (transition CSS) et que la ligne clignote quand sa taille change. */
+    function majDom(c) {
+      const d = C.niveauxDom(c), el = E.dom; if (!d) { el.hidden = true; E.direct.hidden = true; S.domVu = null; return; }
+      el.hidden = false; E.direct.hidden = !!(S.origine === 'Worker');
+      if (!el.firstChild || S.domActif !== S.actif) { el.innerHTML = ''; S.domLignes = new Map(); S.domActif = S.actif; }
+      const ligne = (l, pos) => { let r = S.domLignes.get(l.cle); if (!r) { const n = document.createElement('div'); n.className = 'vv-dl vv-dl-' + l.cote; n.innerHTML = '<span class="vv-dl-d"></span><span class="vv-dl-b"><i></i></span><span class="vv-dl-u"></span>'; r = { n, b: n.querySelector('i'), u: n.querySelector('.vv-dl-u'), d: n.querySelector('.vv-dl-d'), usd: null }; S.domLignes.set(l.cle, r); } r.d.textContent = l.distance; r.b.style.width = Math.round(l.part * 100) + '%'; r.u.textContent = C.compact(l.usd) + ' $';
+        const dir = C.variation(r.usd, l.usd); if (dir && !reduit() && !leger) { r.n.dataset.flash = dir > 0 ? 'plus' : 'moins'; r.n.classList.remove('vv-dl-f'); void r.n.offsetWidth; r.n.classList.add('vv-dl-f'); } r.usd = l.usd; if (r.n.parentNode !== el || el.children[pos] !== r.n) el.insertBefore(r.n, el.children[pos] || null); return r; };
+      let pos = 0; for (const l of d.asks) ligne(l, pos++);
+      let mid = el.querySelector('.vv-dl-mid'); if (!mid) { mid = document.createElement('div'); mid.className = 'vv-dl-mid'; } mid.innerHTML = '<span class="vv-hausse">' + Math.round(d.partAchat * 100) + ' % achat</span><b>' + C.prixTexte(d.prix) + '</b><span class="vv-baisse">' + Math.round((1 - d.partAchat) * 100) + ' % vente</span><i class="vv-dl-rap"><u style="width:' + Math.round(d.partAchat * 100) + '%"></u></i>'; el.insertBefore(mid, el.children[pos] || null); pos++;
+      for (const l of d.bids) ligne(l, pos++);
     }
     async function chargerCarnet() {
       if (S.origine === 'Worker') { S.carnet = null; rendreCarnet(); return; }
       const actif = S.actif; try { const c = await lireCarnet(actif); if (c) c.actif = c.actif || actif; S.carnet = c; } catch (e) { S.carnet = { ok: false, raison: 'carnet illisible' }; }
-      if (S.actif === actif && !S.detruit) { rendreCarnet(); dessinerGraphique(); }
+      if (S.actif === actif && !S.detruit) { rendreCarnet(); if (S.couches.heat || S.couches.murs) dessinerGraphique(); }
     }
 
     /* ── listes ── */
@@ -262,8 +271,9 @@
     function boucle() { S.anim++; if (!S.detruit && S.data && S.data.vue && !document.hidden && S.anim % 4 === 0 && S.visible !== false) dessinerPoint(); if (!S.detruit && !document.hidden && S.visible !== false && !reduit() && S.anim % (leger ? 4 : 2) === 0) dessinerNoyau(); rafId = requestAnimationFrame(boucle); }
     try { new IntersectionObserver(es => { S.visible = es.some(e => e.isIntersecting); }).observe(E.graph); } catch (e) { /* pas d'IntersectionObserver */ }
     try { observateur = new ResizeObserver(() => { if (S.data && S.data.vue) { dessiner(); dessinerCourbe(); } }); observateur.observe(racineEl); } catch (e) { /* pas de ResizeObserver */ }
+    const carnetRapide = setInterval(() => { if (!S.detruit && S.origine === 'PC' && S.data && S.data.vue && !document.hidden && S.visible !== false && !S.carnetEnCours) { S.carnetEnCours = true; chargerCarnet().finally(() => { S.carnetEnCours = false; }); } }, leger ? 10000 : 4000);   // carnet quasi direct (PC seulement)
     rafraichir(); minuteur = setInterval(rafraichir, intervalle); rafId = requestAnimationFrame(boucle);
-    return { rafraichir, etat: () => S, detruire() { S.detruit = true; clearInterval(minuteur); cancelAnimationFrame(rafId); if (observateur) observateur.disconnect(); racineEl.remove(); } };
+    return { rafraichir, etat: () => S, detruire() { S.detruit = true; clearInterval(minuteur); clearInterval(carnetRapide); cancelAnimationFrame(rafId); if (observateur) observateur.disconnect(); racineEl.remove(); } };
   }
   racine.VolumeVivant = { monter, lireVueDefaut };
 }(typeof window !== 'undefined' ? window : globalThis));

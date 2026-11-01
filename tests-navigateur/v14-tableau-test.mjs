@@ -61,7 +61,11 @@ try {
   T.verifier('légende du volume net en français simple', /Vert : les acheteurs/.test(await txt('.vv-net')));
   const carn = await txt('.vv-carnet');
   T.verifier('carnet : déséquilibres 0,1 / 0,25 / 0,5 / 1 %, échelle, murs avec taille et âge, durée enregistrée', /0.1 %/.test(carn) && /0.25 %/.test(carn) && /1 %/.test(carn) && /Mur vendeur/.test(carn) && /800/.test(carn) && /2,4 jour/.test(carn), carn.replace(/\n/g, ' | ').slice(0, 300));
-  T.verifier('l’échelle de profondeur est dessinée (niveaux achat / vente)', await ev(() => document.querySelectorAll('.vv-niv').length === 24));
+  T.verifier('carnet DOM : 12 lignes vendeuses + 12 acheteuses + ligne du prix avec part achat / vente', await ev(() => document.querySelectorAll('.vv-dl-ask').length === 12 && document.querySelectorAll('.vv-dl-bid').length === 12 && document.querySelectorAll('.vv-dl-mid').length === 1 && /achat/.test(document.querySelector('.vv-dl-mid').textContent)));
+  T.verifier('carnet DOM : les barres ont une largeur et une transition (animation)', await ev(() => { const i = document.querySelector('.vv-dl-bid i'); return parseFloat(i.style.width) > 0 && getComputedStyle(i).transitionProperty.includes('width'); }));
+  await ev(() => { document.querySelectorAll('.vv-dl').forEach(n => { n.dataset.marque = '1'; }); });
+  await new Promise(r => setTimeout(r, 4800));
+  T.verifier('carnet DOM : rafraîchi toutes les ~4 s SANS recréer les lignes (les largeurs glissent)', await ev(() => document.querySelectorAll('.vv-dl[data-marque="1"]').length === 24));
   const L = await ev(() => ({ att: document.querySelectorAll('.vv-liste')[0].querySelectorAll('.vv-ligne').length, cours: document.querySelectorAll('.vv-liste')[1].querySelectorAll('.vv-ligne').length, fin: document.querySelectorAll('.vv-liste')[2].querySelectorAll('.vv-ligne').length, texte: document.querySelector('.vv-listes').innerText }));
   T.verifier('listes : 1 en attente, 1 en cours, 1 terminée (✔ +1,80 R)', L.att === 1 && L.cours === 1 && L.fin === 1 && /✔ \+1,80 R/.test(L.texte), JSON.stringify({ a: L.att, c: L.cours, f: L.fin }));
   await ev(() => document.querySelector('.vv-ligne').click()); await attendre(200);

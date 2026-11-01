@@ -64,6 +64,17 @@
     const l = listes(vue, actif), n = l.cours.length; if (n) { const s = l.cours[0].sens; return { id: 'position', texte: n + ' position' + (n > 1 ? 's' : '') + ' en cours', couleur: s > 0 ? '#3ecf8e' : '#ef5b5b', vitesse: 1 }; }
     if (l.attente.length) return { id: 'preparation', texte: l.attente.length + ' en préparation', couleur: '#c9b27a', vitesse: .7 }; return { id: 'veille', texte: 'Surveille le marché', couleur: '#8fd0e3', vitesse: .45 }; }
 
-  const API = { pointsSphere, projeter, humeurNoyau, reglesProp, REGLES_PROP, fr, prixTexte, usd, signe, compact, il, barreEtat, listes, lignePosition, repere, indexTemps, positionsAffichees, decoderHeat, niveauDetail, couches, volumeNetTrace, rejoueTrimestres, courbeJours };
+  /* Carnet d'ordres en échelle (DOM) : la liquidité enregistrée est regroupée par DISTANCE au prix (en %), pas par prix exact. Renvoie les lignes vendeuses (loin en haut), acheteuses (loin en bas),
+     la part de chaque ligne par rapport à la plus grosse, et les totaux. `variation` compare une taille à la précédente : +1 elle grossit, −1 elle fond, 0 stable (seuil relatif). */
+  function niveauxDom(c, max = 12) {
+    if (!c || !c.ok || !Array.isArray(c.echelle) || !c.echelle.length) return null;
+    const e = c.echelle.slice(0, max), m = Math.max(1, ...e.map(l => Math.max(l.bidUsd || 0, l.askUsd || 0)));
+    const ligne = (l, cote) => { const usd = cote === 'ask' ? l.askUsd || 0 : l.bidUsd || 0; return { cle: cote + l.distancePct, cote, distance: (cote === 'ask' ? '+' : '−') + l.distancePct + ' %', usd, part: Math.min(1, usd / m) }; };
+    const asks = e.map(l => ligne(l, 'ask')).reverse(), bids = e.map(l => ligne(l, 'bid')), tb = bids.reduce((s, l) => s + l.usd, 0), ta = asks.reduce((s, l) => s + l.usd, 0);
+    return { asks, bids, prix: c.prix, totalBid: tb, totalAsk: ta, partAchat: tb + ta > 0 ? tb / (tb + ta) : 0.5 };
+  }
+  const variation = (avant, apres, seuil = 0.03) => (avant == null || !(avant > 0) ? (apres > 0 && avant != null ? 1 : 0) : apres > avant * (1 + seuil) ? 1 : apres < avant * (1 - seuil) ? -1 : 0);
+
+  const API = { niveauxDom, variation, pointsSphere, projeter, humeurNoyau, reglesProp, REGLES_PROP, fr, prixTexte, usd, signe, compact, il, barreEtat, listes, lignePosition, repere, indexTemps, positionsAffichees, decoderHeat, niveauDetail, couches, volumeNetTrace, rejoueTrimestres, courbeJours };
   if (typeof module !== 'undefined' && module.exports) module.exports = API; else racine.VolumeVivantCalcul = API;
 }(typeof window !== 'undefined' ? window : globalThis));
