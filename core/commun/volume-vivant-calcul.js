@@ -18,7 +18,7 @@
   function listes(vue, actif = null) {
     const toutes = []; for (const [a, x] of Object.entries(vue.actifs || {})) { if (actif && a !== actif) continue; for (const p of x.positions || []) toutes.push({ ...p, actif: a }); }
     toutes.sort((p, q) => (q.tSignal || 0) - (p.tSignal || 0));
-    return { attente: toutes.filter(p => p.statut === 'en_attente'), cours: toutes.filter(p => p.statut === 'ouverte'), finies: toutes.filter(p => p.statut === 'terminee').slice(0, 30), annulees: toutes.filter(p => p.statut === 'annulee').length };
+    return { attente: toutes.filter(p => p.statut === 'en_attente'), cours: toutes.filter(p => p.statut === 'ouverte'), finies: toutes.filter(p => p.statut === 'terminee'), annulees: toutes.filter(p => p.statut === 'annulee').length };
   }
   /* Phrase en français pour une position (une ligne, explication au clic). */
   function lignePosition(p) {

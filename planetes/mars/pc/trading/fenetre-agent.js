@@ -4,6 +4,7 @@ import { obtenirHotePaire, activerPaire, surChangement, basculerPaire, hotesChar
 import { synchroniserIdees } from './m6-page.js';
 import { creerAccueilAgent, creerAgentLisible } from './agent-accueil.js';
 import { creerPanneauxV4, VUES_V4, LIBELLES_V4 } from './panneaux-v4.js';
+import '../../../../core/commun/agent-alertes.js';          // alerte à l'ouverture d'une position
 import '../../../../core/commun/volume-vivant-calcul.js';
 import '../../../../core/commun/volume-vivant.js';          // V14 : tableau vivant (vue principale)
 
@@ -46,14 +47,14 @@ export async function ouvrirPoste(demande = {}) {
         const paneVivant = document.createElement('div'); paneVivant.className = 'av3-pane av3-pane-vivant'; const paneAgent = document.createElement('div'); paneAgent.className = 'av3-pane av3-pane-agent'; const paneRapport = document.createElement('div'); paneRapport.className = 'av3-pane av3-pane-rapport'; const paneDetails = document.createElement('div'); paneDetails.className = 'av3-pane av3-pane-details';
         const paneV4 = document.createElement('div'); paneV4.className = 'av3-pane av3-pane-v4'; panneauxV4 = creerPanneauxV4({ conteneur: paneV4 });
         const wrap = document.createElement('div'); wrap.className = 'av3-wrap'; wrap.append(barreVue, paneVivant, paneAgent, paneRapport, paneDetails, paneV4); el.appendChild(wrap);
-        const lireVue = () => { try { const v = localStorage.getItem('rayle_agent_vue'); return v && v !== 'agent' && SOUS.some(x => x[0] === v) ? v : (v === 'agent' ? 'agent' : 'vivant'); } catch (e) { return 'vivant'; } };
+        const lireVue = () => 'vivant';   // refonte : « Agent IA » arrive TOUJOURS sur le tableau vivant (plus de vue mémorisée qui cache le tableau)
         let derniereSous = 'rapport';
         basculerVue = v => {
           if (v !== 'vivant' && (v === 'agent' || !SOUS.some(x => x[0] === v))) v = 'agent'; else if (v !== 'vivant') derniereSous = v;
           const primaire = v === 'agent' || v === 'vivant';
           wrap.dataset.vue = v; try { localStorage.setItem('rayle_agent_vue', v); } catch (e) { /* interdit */ }
           barreVue.querySelectorAll('[data-av3-vue]').forEach(b => { b.classList.toggle('actif', b.dataset.av3Vue === v); b.setAttribute('aria-selected', String(b.dataset.av3Vue === v)); });
-          const det = barreVue.querySelector('[data-av3-details]'); det.classList.toggle('actif', !primaire); det.setAttribute('aria-expanded', String(!primaire)); barreVue.querySelector('[data-av3-sous]').hidden = primaire;
+          const det = barreVue.querySelector('[data-av3-details]'); det.classList.toggle('actif', !primaire); det.setAttribute('aria-expanded', String(!primaire)); barreVue.querySelector('[data-av3-sous]').hidden = false;   // plus de sous-menu caché : toutes les vues restent visibles
           if (VUES_V4.includes(v)) panneauxV4.montrer(v); else if (panneauxV4) panneauxV4.cacher();
           if (v === 'vivant' && vivant) vivant.rafraichir(); if (v === 'agent' && lisible) lisible.rafraichir(); if (v === 'rapport' && accueil) accueil.rafraichir(); if (v === 'details' && poste) { try { poste.rafraichir(); } catch (x) { /* pas encore prêt */ } }
         };

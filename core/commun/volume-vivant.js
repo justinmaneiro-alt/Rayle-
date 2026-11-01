@@ -227,7 +227,7 @@
     /* ── listes ── */
     function rendreListes() {
       const v = S.data && S.data.vue; if (!v) { E.listes.innerHTML = ''; return; }
-      const L = C.listes(v, null), bloc = (titre, l, vide) => '<div class="vv-liste"><div class="vv-titre">' + titre + ' <small>' + l.length + '</small></div>' + (l.length ? l.slice(0, 12).map(p => { const t = C.lignePosition(p), ouv = S.ouvertes.has(p.id); return '<button type="button" class="vv-ligne ' + (t.gagnant === true ? 'vv-hausse' : t.gagnant === false ? 'vv-baisse' : '') + '" data-ligne="' + esc(p.id) + '" aria-expanded="' + ouv + '">' + esc(t.texte) + '<small> · ' + esc(p.niveauPreuve.replace('a_lessai', 'À l’essai').replace('candidate', 'Candidate').replace('validee', 'Validée')) + '</small></button>' + (ouv ? '<p class="vv-expl">' + esc(p.raison || '') + ' Niveau : ' + esc(p.niv || '') + '. ' + (p.raisonFin ? esc(p.raisonFin) + '.' : '') + ' Simulation : aucun ordre réel.</p>' : ''); }).join('') : '<p class="vv-note">' + vide + '</p>') + '</div>';
+      const L = C.listes(v, null), bloc = (titre, l, vide) => '<div class="vv-liste"><div class="vv-titre">' + titre + ' <small>' + l.length + '</small></div>' + (l.length ? l.map(p => { const t = C.lignePosition(p), ouv = S.ouvertes.has(p.id); return '<button type="button" class="vv-ligne ' + (t.gagnant === true ? 'vv-hausse' : t.gagnant === false ? 'vv-baisse' : '') + '" data-ligne="' + esc(p.id) + '" aria-expanded="' + ouv + '">' + esc(t.texte) + '<small> · ' + esc(p.niveauPreuve.replace('a_lessai', 'À l’essai').replace('candidate', 'Candidate').replace('validee', 'Validée')) + '</small></button>' + (ouv ? '<p class="vv-expl">' + esc(p.raison || '') + ' Niveau : ' + esc(p.niv || '') + '. ' + (p.raisonFin ? esc(p.raisonFin) + '.' : '') + ' Simulation : aucun ordre réel.</p>' : ''); }).join('') : '<p class="vv-note">' + vide + '</p>') + '</div>';
       const heure = v.actifs && Object.values(v.derniereBarre || {}).length ? new Date(Math.max(...Object.values(v.derniereBarre))).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit', timeZone: 'Europe/Paris' }) : '—';
       E.listes.innerHTML = bloc('En attente', L.attente, 'Aucune position en attente. Kepler surveille BTC / SOL / DOGE (dernière bougie analysée ' + heure + ').') + bloc('En cours', L.cours, 'Aucune position ouverte.') + bloc('Terminées', L.finies, 'Pas encore de trade terminé en direct.') + (L.annulees ? '<p class="vv-note">' + L.annulees + ' ordre(s) non touché(s), annulé(s).</p>' : '');
     }
@@ -251,7 +251,7 @@
     async function rafraichir() {
       if (S.detruit || S.enCours) return; S.enCours = true;
       try {
-        const d = await lire(); S.data = d; S.service = d && d.service || null; S.origine = d && d.origine || null;
+        const d = await lire(); S.data = d; if (d && d.vue && racine.AgentAlertes) racine.AgentAlertes.surVue(d.vue); S.service = d && d.service || null; S.origine = d && d.origine || null;
         if (d && d.vue && !d.vue.actifs[S.actif]) S.actif = Object.keys(d.vue.actifs)[0] || S.actif;
         toutRendre(); if (d && d.vue && (!S.carnet || Date.now() - (S.carnet.t || 0) > 60000)) chargerCarnet();
       } catch (e) { E.etat.innerHTML = '<span class="vv-ko">Lecture impossible : ' + esc(e.message || e) + '</span> <button type="button" class="vv-reessayer">Réessayer</button>'; }

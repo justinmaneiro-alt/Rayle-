@@ -28,7 +28,7 @@
   function monter(el){
     const lis=document.createElement('div'); lis.dataset.mLisible=''; lis.className='m-agent-lisible'; const det=document.createElement('div'); det.dataset.mDetails=''; det.className='m-agent-det'; det.hidden=true; el.textContent=''; el.append(lis,det);   // efface le squelette de la coque
     // V14 : le TABLEAU VIVANT (volume net, profil, portefeuille virtuel, rejoué) est la vue principale ; la vue simple de la V13 et le bouton « Détails » sont juste dessous
-    const vv=document.createElement('div'); vv.dataset.mVv=''; lis.appendChild(vv); const simple=document.createElement('details'); simple.className='m-vv-simple'; simple.innerHTML='<summary>Vue simple de l’agent et Détails</summary>'; const zs=document.createElement('div'); simple.appendChild(zs); lis.appendChild(simple);
+    const vv=document.createElement('div'); vv.dataset.mVv=''; lis.appendChild(vv); const simple=document.createElement('details'); simple.className='m-vv-simple'; simple.open=true; simple.innerHTML='<summary>Vue simple de l’agent et Détails</summary>'; const zs=document.createElement('div'); simple.appendChild(zs); lis.appendChild(simple);
     if(window.VolumeVivant){ const lecVV=async()=>{ const e=DA.etat(), d=e.data; if(!d) return (e.bandeau&&e.bandeau.genre==='erreur')?null:{vue:null,service:null,origine:null,note:'Chargement des données de l’agent…'}; const v=d.paquet&&d.paquet.volume; return {vue:v||null,service:{enMarche:!!d.pcVivant},origine:d.origine,recuLe:d.recuLe,note:'Le PC n’a pas encore publié le tableau de volume (service Kepler arrêté ou pas à jour).'}; }; S.vv=window.VolumeVivant.monter(vv,{lire:lecVV,intervalle:20000,leger:false}); }
     S.lisible=monterLisible(zs); S.vue='agent'; monterDetails(det);
   }

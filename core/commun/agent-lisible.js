@@ -116,7 +116,7 @@
     async function rafraichir() {
       if (S.detruit || S.enCours) return; S.enCours = true;
       try {
-        const d = await options.lire(); S.lu = d || null; S.echecs = d ? 0 : S.echecs + 1; dessinerTexte(); await dessinerGraphique(true);
+        const d = await options.lire(); S.lu = d || null; S.echecs = d ? 0 : S.echecs + 1; if (d && d.vue && root.AgentAlertes) root.AgentAlertes.surVue(d.vue); dessinerTexte(); await dessinerGraphique(true);
       } catch (e) { S.echecs++; S.lu = S.lu || null; dessinerTexte(); }
       finally { S.enCours = false; racine.dataset.charge = '1'; q('[data-al-sque]') && q('[data-al-sque]').remove(); }
     }
@@ -140,6 +140,7 @@
       demandeRedessin();
     });
 
+    racine.addEventListener('click', () => { if (root.AgentAlertes) root.AgentAlertes.autoriser(); }, { once: true });   // l'autorisation des notifications se demande sur un geste de l'utilisateur
     rafraichir().then(planifier);
     return {
       racine, rafraichir: () => rafraichir(), choisirActif(a) { const b = racine.querySelector('[data-al-actif="' + a + '"]'); if (b) b.click(); },

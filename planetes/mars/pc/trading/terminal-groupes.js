@@ -130,6 +130,7 @@ async function creer({ tactile = false, ouvrirEspace = null, ouvrirPoste = () =>
   }
   function ouvrirPanneau(id, { donner = false } = {}) {
     const def = panneau(id); if (!def) return false; const wid = 'p-' + id;
+    if (id === 'agent-btc' && !window.__RAYLE_POSTE_TEST__) { ouvrirPoste({ vue: 'vivant' }); return true; }   // « Agent IA » : arrivée directe sur le tableau de l'agent, pas sur une mini-fenêtre
     if (gf.obtenir(wid)) { gf.focus(wid); gf.reduire(wid, false); return true; }
     let c;
     if (GRAPHIQUES[id]) c = fenetreGraphique(client, GRAPHIQUES[id].instrument, GRAPHIQUES[id].unite, { tactile, ouvrirEspace });
