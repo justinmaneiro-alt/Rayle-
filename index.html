@@ -49,6 +49,7 @@
   <nav class="barre" id="barre">
     <button class="mic" id="btn"><span id="btnTxt">Activer Raylé</span><small id="btnSub">puis dites « Raylé » pour lui parler</small></button>
     <button type="button" class="gros" id="btnOuvrirTerminal"><i><svg viewBox="0 0 24 24"><path d="M3 20h18M4 16l5-6 4 3 7-8"/><path d="M16 5h4v4"/></svg></i><span>Terminal</span></button>
+    <button type="button" class="gros" id="btnAgent" title="Agent IA : tableau de l'agent de trading (portefeuille simulé, graphique, carnet, flux)"><i><svg viewBox="0 0 24 24"><path d="M4 18V9M10 18V5M16 18v-7M22 18H2"/><circle cx="19" cy="6" r="2.2"/></svg></i><span>Agent IA</span></button>
     <button type="button" class="gros" id="btnOuvrirGalaxie"><i><svg viewBox="0 0 24 24"><ellipse cx="12" cy="12" rx="10" ry="4.2" transform="rotate(-25 12 12)"/><circle cx="12" cy="12" r="2.6"/><circle cx="19" cy="6" r=".9"/></svg></i><span>Galaxie</span></button>
     <button type="button" class="gros" id="btnPays" title="Actualités par pays, continent ou favoris"><i><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c3 3 3 15 0 18M12 3c-3 3-3 15 0 18"/></svg></i><span>Pays</span></button>
     <button type="button" class="gros" id="btnSources" title="Sources en direct : séismes, catastrophes, communiqués officiels, télévisions, podcasts"><i><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="2"/><path d="M7.5 7.5a6.4 6.4 0 0 0 0 9M16.5 7.5a6.4 6.4 0 0 1 0 9M4.5 4.5a10.6 10.6 0 0 0 0 15M19.5 4.5a10.6 10.6 0 0 1 0 15"/></svg></i><span>Sources</span></button>
@@ -291,8 +292,9 @@
   <div id="chargement"><div id="chargement-texte">Chargement des mondes…</div><div class="g-barre"><div id="chargement-barre"></div></div></div>
 </div>
 
-<script>window.RAYLE_VERSION='2026.10.30.12';</script>
+<script>window.RAYLE_VERSION='2026.11.01.1';</script>
 <script src="core/commun/bascule-worker.js"></script>
+<script src="core/commun/agent-alertes.js"></script>
 <script src="core/commun/bus.js"></script>
 <script src="core/commun/ordres.js"></script>
 <script src="core/commun/vues.js"></script>

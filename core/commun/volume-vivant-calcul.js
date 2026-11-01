@@ -57,12 +57,48 @@
   function reglesProp(p, r = REGLES_PROP) { if (!p) return null; const gain = Number(p.gainPct) || 0, dd = Number(p.drawdownMaxPct) || 0, k = (v, m) => Math.max(0, Math.min(1, v / m));
     return { objectif: { valeur: gain, limite: r.objectifPct, part: k(gain, r.objectifPct), atteint: gain >= r.objectifPct }, drawdown: { valeur: dd, limite: r.drawdownPct, part: k(dd, r.drawdownPct), depasse: dd >= r.drawdownPct }, risque: { valeur: Number(p.risquePct) || 0, limite: r.risqueMaxPct, depasse: (Number(p.risquePct) || 0) > r.risqueMaxPct } }; }
 
-  /* Noyau 3D de l'agent : points sur une sphère (spirale de Fibonacci), rotation et projection en perspective. Humeur d'après l'état RÉEL (jamais décorative). */
-  function pointsSphere(n) { const r = []; for (let i = 0; i < n; i++) { const y = 1 - 2 * (i + .5) / n, rr = Math.sqrt(1 - y * y), a = i * 2.399963; r.push([Math.cos(a) * rr, y, Math.sin(a) * rr]); } return r; }
-  function projeter(pts, ax, ay, rayon, cx, cy) { const ca = Math.cos(ay), sa = Math.sin(ay), cb = Math.cos(ax), sb = Math.sin(ax); return pts.map(([x, y, z]) => { const x1 = x * ca + z * sa, z1 = -x * sa + z * ca, y1 = y * cb - z1 * sb, z2 = y * sb + z1 * cb, f = 1 / (1.8 - z2 * .5); return { x: cx + x1 * rayon * f * 1.4, y: cy + y1 * rayon * f * 1.4, z: z2, f }; }); }
-  function humeurNoyau(vue, service, actif = null) { if (!vue) return { id: 'attente', texte: 'En attente des données', couleur: '#7d8c95', vitesse: .2 }; if (service && service.enMarche === false) return { id: 'arret', texte: 'Service arrêté', couleur: '#7d8c95', vitesse: .15 };
-    const l = listes(vue, actif), n = l.cours.length; if (n) { const s = l.cours[0].sens; return { id: 'position', texte: n + ' position' + (n > 1 ? 's' : '') + ' en cours', couleur: s > 0 ? '#3ecf8e' : '#ef5b5b', vitesse: 1 }; }
-    if (l.attente.length) return { id: 'preparation', texte: l.attente.length + ' en préparation', couleur: '#c9b27a', vitesse: .7 }; return { id: 'veille', texte: 'Surveille le marché', couleur: '#8fd0e3', vitesse: .45 }; }
+  /* ── Trades de l'agent Kepler (mode Trader) et portefeuille virtuel PILOTÉ par eux ──
+     Tout trade suivi en direct (en attente / ouvert / terminé) est ramené à une forme commune. Le portefeuille virtuel (départ 10 000 $, risque par trade réglable) applique le R de chaque trade TERMINÉ
+     au capital du moment (intérêts composés), puis ajoute le résultat FLOTTANT des positions ouvertes au dernier prix connu. Rien n'est inventé : sans trade, le capital reste au départ. */
+  const fin = x => typeof x === 'number' && Number.isFinite(x);
+  const STATUT = { cloturee: 'terminee', terminee: 'terminee', ouverte: 'ouverte', en_attente: 'en_attente' };
+  function normaliser(p, actif, source) {
+    if (!p || p.fantome || p.demo || p.id == null) return null; const st = STATUT[p.statut]; if (!st) return null;
+    const R = fin(p.R) ? p.R : (p.resultat && fin(p.resultat.R) ? p.resultat.R : null); if (st === 'terminee' && (R == null || !fin(p.tSortie))) return null;
+    const entree = p.entree, stop = p.stop, cible = fin(p.cible1) ? p.cible1 : p.cible; if (!fin(entree) || !fin(stop) || entree === stop) return null; const sens = Number(p.sens) < 0 ? -1 : 1;
+    return { id: p.id, actif: p.actif || actif, tf: p.tf || '', nom: p.nom || p.setup || '', sens, entree, stop, cible: fin(cible) ? cible : null, statut: st, tSignal: p.tSignal || p.t || null, tEntree: p.tEntree || null, tSortie: p.tSortie || null, R, motif: (p.resultat && p.resultat.motif) || p.raisonFin || '', source,
+      sortie: st === 'terminee' ? entree + sens * R * Math.abs(entree - stop) : null };   // prix de sortie déduit du R (exact par définition du R, avant arrondis)
+  }
+  function tousTrades(vueTrader, vueVolume, actif = null) {
+    const vus = new Set(), sortie = [], ajouter = (p, a, src) => { const n = normaliser(p, a, src); if (!n || (actif && n.actif !== actif) || vus.has(n.id)) return; vus.add(n.id); sortie.push(n); };
+    if (vueTrader) { for (const p of vueTrader.actives || []) ajouter(p, p.actif, 'trader'); for (const p of vueTrader.recentes || []) ajouter(p, p.actif, 'trader'); }
+    if (vueVolume && vueVolume.actifs) for (const [a, x] of Object.entries(vueVolume.actifs)) for (const p of (x && x.positions) || []) ajouter(p, a, 'volume');
+    return sortie;
+  }
+  function dernierPrix(vueTrader, vueVolume, actif) {
+    const t = vueTrader && vueTrader.bougies && vueTrader.bougies[actif], d = t && t.length ? t[t.length - 1] : null; if (d && fin(d[4])) return d[4];
+    const v = vueVolume && vueVolume.actifs && vueVolume.actifs[actif] && vueVolume.actifs[actif].m15, b = v && v.bougies && v.bougies.length ? v.bougies[v.bougies.length - 1] : null; return b && fin(b[4]) ? b[4] : null;
+  }
+  function portefeuilleTrades(trades, prix = {}, { capital0 = 10000, risquePct = 1, maintenant = Date.now() } = {}) {
+    const finis = trades.filter(t => t.statut === 'terminee').sort((a, b) => a.tSortie - b.tSortie), ouverts = trades.filter(t => t.statut === 'ouverte');
+    let cap = capital0, pic = capital0, dd = 0, gagnes = 0, sommeR = 0, semaine = 0; const courbe = [[finis.length ? (finis[0].tEntree || finis[0].tSortie) - 60e3 : maintenant, capital0]];
+    for (const t of finis) { const pnl = cap * risquePct / 100 * t.R; cap += pnl; sommeR += t.R; if (t.R > 0) gagnes++; if (t.tSortie >= maintenant - 7 * 86400e3) semaine += pnl; if (cap > pic) pic = cap; dd = Math.max(dd, (pic - cap) / pic); courbe.push([t.tSortie, cap]); }
+    let flottant = 0, flottantR = 0; const detailOuverts = [];
+    for (const t of ouverts) { const px = prix[t.actif]; if (!fin(px)) continue; const r = t.sens * (px - t.entree) / Math.abs(t.entree - t.stop), usd = cap * risquePct / 100 * r; flottant += usd; flottantR += r; detailOuverts.push({ id: t.id, actif: t.actif, R: r, usd }); }
+    const total = cap + flottant; if (ouverts.length) { courbe.push([maintenant, total]); if (total > pic) pic = total; dd = Math.max(dd, (pic - total) / pic); }
+    return { source: 'trades', capital0, capital: total, realiseUsd: cap - capital0, flottantUsd: flottant, flottantR, cumulR: sommeR, gainUsd: total - capital0, gainPct: (total / capital0 - 1) * 100, semaineUsd: semaine, nTrades: finis.length, nOuverts: ouverts.length, nEnAttente: trades.filter(t => t.statut === 'en_attente').length,
+      tauxReussite: finis.length ? gagnes / finis.length : 0, rMoyen: finis.length ? sommeR / finis.length : 0, drawdownMaxPct: dd * 100, risquePct, courbe, parStrategie: [], detailOuverts };
+  }
+  /* Flux d'exécution : ce que l'agent a fait, le plus récent d'abord (signal, entrée touchée, sortie avec son R). */
+  function fluxExecution(trades, max = 40) {
+    const ev = []; const sens = t => (t.sens > 0 ? 'ACHAT' : 'VENTE') + ' ' + t.actif + (t.tf ? ' ' + t.tf : '');
+    for (const t of trades) {
+      if (fin(t.tSignal)) ev.push({ t: t.tSignal, type: 'signal', id: t.id, texte: 'Signal ' + sens(t) + ' : ordre limite à ' + prixTexte(t.entree) + ', stop ' + prixTexte(t.stop) + (t.cible != null ? ', objectif ' + prixTexte(t.cible) : '') });
+      if (fin(t.tEntree)) ev.push({ t: t.tEntree, type: 'entree', id: t.id, texte: 'Entrée touchée ' + sens(t) + ' à ' + prixTexte(t.entree) });
+      if (t.statut === 'terminee') ev.push({ t: t.tSortie, type: 'sortie', id: t.id, gain: t.R > 0, texte: 'Sortie ' + sens(t) + ' : ' + (t.R > 0 ? '✔ ' : '✖ ') + signe(t.R) + ' R' + (t.motif ? ' (' + t.motif + ')' : '') });
+    }
+    return ev.sort((a, b) => b.t - a.t || (b.type === 'sortie') - (a.type === 'sortie')).slice(0, max);
+  }
 
   /* Carnet d'ordres en échelle (DOM) : la liquidité enregistrée est regroupée par DISTANCE au prix (en %), pas par prix exact. Renvoie les lignes vendeuses (loin en haut), acheteuses (loin en bas),
      la part de chaque ligne par rapport à la plus grosse, et les totaux. `variation` compare une taille à la précédente : +1 elle grossit, −1 elle fond, 0 stable (seuil relatif). */
@@ -75,6 +111,6 @@
   }
   const variation = (avant, apres, seuil = 0.03) => (avant == null || !(avant > 0) ? (apres > 0 && avant != null ? 1 : 0) : apres > avant * (1 + seuil) ? 1 : apres < avant * (1 - seuil) ? -1 : 0);
 
-  const API = { niveauxDom, variation, pointsSphere, projeter, humeurNoyau, reglesProp, REGLES_PROP, fr, prixTexte, usd, signe, compact, il, barreEtat, listes, lignePosition, repere, indexTemps, positionsAffichees, decoderHeat, niveauDetail, couches, volumeNetTrace, rejoueTrimestres, courbeJours };
+  const API = { niveauxDom, variation, normaliser, tousTrades, dernierPrix, portefeuilleTrades, fluxExecution, reglesProp, REGLES_PROP, fr, prixTexte, usd, signe, compact, il, barreEtat, listes, lignePosition, repere, indexTemps, positionsAffichees, decoderHeat, niveauDetail, couches, volumeNetTrace, rejoueTrimestres, courbeJours };
   if (typeof module !== 'undefined' && module.exports) module.exports = API; else racine.VolumeVivantCalcul = API;
 }(typeof window !== 'undefined' ? window : globalThis));

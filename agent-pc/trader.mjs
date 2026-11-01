@@ -173,7 +173,7 @@ export function creerTrader({ dossier, D, paires, maintenant = () => Date.now(),
   function vue() {
     const R = reglages(), t = maintenant(), min = NIVEAUX_ORDRE[R.niveauMin] || 1, direct = etat.propositions.filter(p => p.source !== 'retro' && !p.fantome);
     const actives = direct.filter(p => (p.statut === 'en_attente' || p.statut === 'ouverte') && t < p.t + (p.ttl || 16) * PAS + 2 * 3600e3).map(enrichir).filter(p => (NIVEAUX_ORDRE[p.niveau] || 1) >= min).sort((a, b) => b.nConfluences - a.nConfluences || b.rr - a.rr);
-    const recentes = direct.slice(-60).reverse().map(enrichir);
+    const recentes = direct.slice(-300).reverse().map(enrichir);
     const propsBilan = direct.map(p => ({ ...p, resultat: p.resultat, tSortie: p.tSortie })), bilan = bilanTrader(propsBilan, { risquePct: R.risquePct });
     const types = Object.entries(etat.types).map(([cle, x]) => ({ cle, nom: cle.split('|').map((v, i) => (i === 0 ? SETUPS[v] || v : v)).join(' · '), niveau: x.niveau, niveauTexte: NIVEAUX_TRADER[x.niveau], raison: x.raison, n: x.n, esperance: x.esperance, ic: x.ic, taux: x.taux, depuis: x.depuis, baisse: x.baisse && x.baisse.baisse ? x.baisse.texte : null }))
       .sort((a, b) => (b.esperance ?? -9) - (a.esperance ?? -9));

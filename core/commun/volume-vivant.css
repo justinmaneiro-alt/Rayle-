@@ -45,7 +45,6 @@
 @media (max-width:820px){.vv-haut{grid-template-columns:1fr}.vv-listes{grid-template-columns:1fr}.vv{padding:10px 16px}.vv-pf-grand{font-size:34px}}
 
 .vv-props{display:grid;gap:6px;margin:6px 0 8px;font-size:12px;color:var(--vv-doux)}.vv-prop{position:relative;padding:3px 0}.vv-prop i{display:block;height:4px;margin-top:3px;background:rgba(143,208,227,.12)}.vv-prop i::after{content:'';display:block;height:100%;width:calc(var(--k)*100%);background:var(--vv-accent);transition:width .8s cubic-bezier(.2,.8,.2,1)}.vv-prop-mal i::after{background:var(--vv-baisse)}@media (prefers-reduced-motion:reduce){.vv-prop i::after{transition:none}}
-.vv-noyau{position:relative;height:clamp(150px,24vh,240px);border:1px solid var(--vv-bord);background:radial-gradient(ellipse at center,rgba(143,208,227,.07),transparent 70%),var(--vv-carte);min-width:0}.vv-noyau canvas{position:absolute;inset:0;width:100%;height:100%}.vv-noyau-t{position:absolute;left:12px;bottom:8px;font:600 13px ui-monospace,Consolas,monospace;letter-spacing:.04em}@media (max-width:820px){.vv-noyau{height:clamp(130px,20vh,180px)}}
 
 /* ── Carnet d'ordres animé (échelle DOM) : largeurs qui glissent, clignotement quand une taille change ── */
 .vv-direct{float:right;font-size:11px;letter-spacing:.06em;color:var(--vv-hausse);animation:vv-pouls 1.6s ease-in-out infinite}
@@ -67,12 +66,20 @@
 
 /* ── Terminal de scalping (grand écran) : bandeau d'état, graphique large à gauche, PnL + carnet à droite, volume net et verdict dessous, listes en pied ── */
 @media (min-width:1100px){
-  .vv{max-width:1760px;grid-template-columns:minmax(0,1fr) 380px;grid-template-areas:"noyau noyau" "etat etat" "outils outils" "zone pf" "zone carnet" "net verdict" "listes listes" "rejoue rejoue";gap:10px;--vv-fond:#06090c;--vv-carte:rgba(10,15,20,.92);--vv-bord:rgba(143,208,227,.14)}
+  .vv{max-width:1760px;grid-template-columns:minmax(0,1fr) 380px;grid-template-areas:"etat etat" "outils outils" "zone pf" "zone carnet" "net flux" "verdict flux" "listes listes" "rejoue rejoue";gap:10px;--vv-fond:#06090c;--vv-carte:rgba(10,15,20,.92);--vv-bord:rgba(143,208,227,.14)}
   .vv-haut{display:contents}
-  .vv-noyau{grid-area:noyau;height:84px}.vv-etat{grid-area:etat}.vv-outils{grid-area:outils}.vv-zone{grid-area:zone;align-self:start}.vv-pf{grid-area:pf}.vv-carnet{grid-area:carnet}.vv-net{grid-area:net}.vv-verdict{grid-area:verdict}.vv-listes{grid-area:listes}.vv-rejoue{grid-area:rejoue}
+.vv-etat{grid-area:etat}.vv-outils{grid-area:outils}.vv-zone{grid-area:zone;align-self:start}.vv-pf{grid-area:pf}.vv-carnet{grid-area:carnet}.vv-net{grid-area:net}.vv-verdict{grid-area:verdict}.vv-listes{grid-area:listes}.vv-rejoue{grid-area:rejoue}
   .vv-pf-grand{font-size:44px;letter-spacing:-.01em}
   .vv-listes{max-height:420px}.vv-liste{overflow:auto;max-height:420px}
   .vv-dom{max-width:none}
 }
 @media (min-width:821px) and (max-width:1099px){.vv-listes{grid-template-columns:repeat(3,minmax(0,1fr))}.vv-liste{max-height:360px;overflow:auto}}
-@media (max-width:820px){.vv-liste{max-height:340px;overflow:auto}.vv-dl{grid-template-columns:48px minmax(0,1fr) 64px}.vv-noyau{height:110px}}
+@media (max-width:820px){.vv-liste{max-height:340px;overflow:auto}.vv-dl{grid-template-columns:48px minmax(0,1fr) 64px}}
+
+/* Flux d'exécution : ce que l'agent fait, en direct */
+.vv-flux{border:1px solid var(--vv-bord);background:var(--vv-carte);padding:12px 14px;min-width:0}
+.vv-flux ul{list-style:none;margin:6px 0 0;padding:0;max-height:300px;overflow:auto;font:12.5px/1.4 ui-monospace,SFMono-Regular,Consolas,monospace}
+.vv-flux li{display:grid;grid-template-columns:44px 1fr;gap:8px;padding:5px 0;border-top:1px solid var(--vv-bord)}
+.vv-flux li time{color:var(--vv-doux)}.vv-flux li[data-type="entree"]{color:var(--vv-accent)}.vv-flux li[data-type="signal"]{color:#7fb4ff}
+.vv-flux li.vv-neuf{animation:vv-neuf 1.6s ease-out}@keyframes vv-neuf{from{background:rgba(143,208,227,.25)}to{background:transparent}}
+@media (prefers-reduced-motion:reduce){.vv-flux li.vv-neuf{animation:none}}

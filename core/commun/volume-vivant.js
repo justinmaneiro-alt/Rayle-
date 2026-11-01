@@ -14,39 +14,32 @@
   async function delai(ms, p) { return Promise.race([p, new Promise((_, ko) => setTimeout(() => ko(new Error('délai dépassé')), ms))]); }
   async function lireVueDefaut() {
     try { const r = await delai(4000, fetch('/__agent/volume', { cache: 'no-store' })); if (r.ok) { const j = await r.json(); if (j && j.ok) return { vue: j.existe ? j.vue : null, service: j.service, origine: 'PC', note: j.note }; } } catch (e) { /* pas de serveur local */ }
-    try { if (racine.wjson && typeof workerReady !== 'undefined' && workerReady()) { const j = await racine.wjson('/agent/mobile', 15000); if (j && j.paquet && j.paquet.volume) return { vue: j.paquet.volume, service: null, origine: 'Worker', recuLe: j.recuLe }; if (j && j.paquet) return { vue: null, origine: 'Worker', note: 'Le PC n’a pas encore publié le tableau de volume.' }; } } catch (e) { /* Worker injoignable */ }
+    try { if (racine.wjson && typeof workerReady !== 'undefined' && workerReady()) { const j = await racine.wjson('/agent/mobile', 15000); if (j && j.paquet && j.paquet.volume) return { vue: j.paquet.volume, trader: j.paquet.trader || null, service: null, origine: 'Worker', recuLe: j.recuLe }; if (j && j.paquet) return { vue: null, origine: 'Worker', note: 'Le PC n’a pas encore publié le tableau de volume.' }; } } catch (e) { /* Worker injoignable */ }
+    return null;
+  }
+  async function lireTraderDefaut() {
+    try { const r = await delai(4000, fetch('/__agent/trader', { cache: 'no-store' })); if (r.ok) { const j = await r.json(); if (j && j.ok && j.existe) return j.vue; } } catch (e) { /* pas de serveur local */ }
     return null;
   }
   async function lireCarnetDefaut(actif) { try { const r = await delai(5000, fetch('/__agent/volume/carnet?actif=' + actif, { cache: 'no-store' })); if (r.ok) return await r.json(); } catch (e) { /* pas de PC */ } return null; }
 
-  function monter(conteneur, { lire = lireVueDefaut, lireCarnet = lireCarnetDefaut, intervalle = 15000, maintenant = () => Date.now(), leger = false } = {}) {
+  function monter(conteneur, { lire = lireVueDefaut, lireTrader = lireTraderDefaut, lireCarnet = lireCarnetDefaut, intervalle = 15000, maintenant = () => Date.now(), leger = false } = {}) {
     const racineEl = document.createElement('section'); racineEl.className = 'vv'; racineEl.setAttribute('aria-label', 'Tableau vivant de l’agent'); conteneur.appendChild(racineEl);
     const S = { data: null, service: null, origine: null, actif: lireLocal('rayle_vv_actif') || 'BTC', tf: lireLocal('rayle_vv_tf') || 'H1', preset: lireLocal('rayle_vv_preset') || 'complet', couches: null, visibles: 0, carnet: null, carnetActif: null, detruit: false, enCours: false, ouvertes: new Set(), anim: 0, chart: null, dernierCapital: null };
     S.couches = Object.assign(C.couches(S.preset), JSON.parse(lireLocal('rayle_vv_couches') || '{}'));
     let minuteur = null, rafId = 0, observateur = null;
 
-    racineEl.innerHTML = '<div class="vv-noyau" data-vv="noyau"><canvas data-vv="noyauc" aria-hidden="true"></canvas><div class="vv-noyau-t" data-vv="noyaut" role="status"></div></div><div class="vv-etat" data-vv="etat" role="status"></div>'
+    racineEl.innerHTML = '<div class="vv-etat" data-vv="etat" role="status"></div>'
       + '<div class="vv-haut"><div class="vv-pf" data-vv="pf"></div><div class="vv-verdict" data-vv="verdict"></div></div>'
       + '<div class="vv-outils" data-vv="outils"></div>'
       + '<div class="vv-zone"><canvas class="vv-graph" data-vv="graph" aria-label="Graphique des prix avec volume, profil, carnet et positions" role="img"></canvas><canvas class="vv-dot" data-vv="dot" aria-hidden="true"></canvas><div class="vv-info" data-vv="info" aria-live="polite"></div></div>'
       + '<div class="vv-net"><div class="vv-titre">Volume net <small>acheteurs agressifs moins vendeurs agressifs, bougie par bougie</small></div><canvas class="vv-netc" data-vv="net" aria-label="Volume net par bougie et CVD" role="img"></canvas><p class="vv-phrase" data-vv="phrase"></p><p class="vv-legende">Vert : les acheteurs ont poussé le prix. Rouge : les vendeurs. La ligne claire (CVD) est le cumul de la journée : si elle monte, les acheteurs gagnent du terrain.</p></div>'
       + '<div class="vv-carnet" data-vv="carnet"><div class="vv-titre">Carnet d’ordres <small data-vv="carnetActif"></small><span class="vv-direct" data-vv="direct" hidden>● direct</span></div><div data-vv="carnetMsg"></div><div class="vv-dom" data-vv="dom" hidden></div><div data-vv="carnetPied"></div></div>'
+      + '<div class="vv-flux" data-vv="flux"></div>'
       + '<div class="vv-listes" data-vv="listes"></div>'
       + '<div class="vv-rejoue" data-vv="rejoue"></div>';
     const q = n => racineEl.querySelector('[data-vv="' + n + '"]');
-    const E = { noyauc: q('noyauc'), noyaut: q('noyaut'), dot: q('dot'), etat: q('etat'), pf: q('pf'), verdict: q('verdict'), outils: q('outils'), graph: q('graph'), info: q('info'), net: q('net'), phrase: q('phrase'), carnet: q('carnet'), carnetActif: q('carnetActif'), direct: q('direct'), carnetMsg: q('carnetMsg'), dom: q('dom'), carnetPied: q('carnetPied'), listes: q('listes'), rejoue: q('rejoue') };
-
-    /* ── noyau 3D de l'agent (vue d'accueil de « Agent IA ») : une seule boucle, canvas léger, figé si animations réduites ── */
-    const PTS = C.pointsSphere(leger ? 160 : 420); let humeur = C.humeurNoyau(null, null);
-    function dessinerNoyau() {
-      const c = E.noyauc, w = c.clientWidth, h = c.clientHeight; if (!w || !h) return; const d = Math.min(2, window.devicePixelRatio || 1);
-      if (c.width !== Math.round(w * d)) { c.width = Math.round(w * d); c.height = Math.round(h * d); }
-      const g = c.getContext('2d'); g.setTransform(d, 0, 0, d, 0, 0); g.clearRect(0, 0, w, h); const t = reduit() ? 0 : S.anim * humeur.vitesse / 60, R = Math.min(w, h) * .36, respire = 1 + (reduit() ? 0 : .03 * Math.sin(S.anim / 30));
-      const P = C.projeter(PTS, .35 + .1 * Math.sin(t / 3), t, R * respire, w / 2, h / 2); g.fillStyle = humeur.couleur;
-      for (const p of P) { g.globalAlpha = Math.max(.08, .25 + .75 * (p.z + 1) / 2); g.fillRect(p.x, p.y, 1.2 + 1.6 * p.f, 1.2 + 1.6 * p.f); }
-      g.globalAlpha = .3; g.strokeStyle = humeur.couleur; g.beginPath(); g.ellipse(w / 2, h / 2, R * 1.5, R * .45, t / 2, 0, 6.3); g.stroke(); g.globalAlpha = 1;
-    }
-    function rendreNoyau() { const v = S.data && S.data.vue; humeur = C.humeurNoyau(v, S.service || (S.data && S.data.service), S.actif); E.noyaut.textContent = humeur.texte; E.noyaut.style.color = humeur.couleur; dessinerNoyau(); }
+    const E = { flux: q('flux'), dot: q('dot'), etat: q('etat'), pf: q('pf'), verdict: q('verdict'), outils: q('outils'), graph: q('graph'), info: q('info'), net: q('net'), phrase: q('phrase'), carnet: q('carnet'), carnetActif: q('carnetActif'), direct: q('direct'), carnetMsg: q('carnetMsg'), dom: q('dom'), carnetPied: q('carnetPied'), listes: q('listes'), rejoue: q('rejoue') };
 
     /* ── haut de page ── */
     function rendreEtat() {
@@ -61,12 +54,23 @@
       const pas = t => { const k = Math.min(1, (t - t0) / 600); el.textContent = fmt(de + (vers - de) * (1 - Math.pow(1 - k, 3))); if (k < 1 && !S.detruit) requestAnimationFrame(pas); };
       requestAnimationFrame(pas);
     }
+    /* Portefeuille virtuel : piloté par les TRADES de l'agent (terminés + flottant des ouverts) dès que le mode Trader est lisible ; sinon celui de la vue de volume. */
+    const tradesDe = actif => C.tousTrades(S.data && S.data.trader, S.data && S.data.vue, actif);
+    function portefeuilleCourant(v) {
+      const tr = S.data && S.data.trader, base = v.portefeuille || { capital0: 10000, capital: 10000, gainUsd: 0, gainPct: 0, semaineUsd: 0, nTrades: 0, tauxReussite: 0, rMoyen: 0, drawdownMaxPct: 0, risquePct: 1, courbe: [] };
+      if (!tr) return base;   // sans le mode Trader : le portefeuille calculé par le service (frais et plafonds compris)
+      const risque = Number(tr && tr.reglages && tr.reglages.risquePct) || base.risquePct || 1, prix = {}; for (const a of ['BTC', 'SOL', 'DOGE']) prix[a] = C.dernierPrix(tr, v, a);
+      const p = C.portefeuilleTrades(C.tousTrades(tr, v), prix, { capital0: base.capital0 || 10000, risquePct: risque, maintenant: maintenant() });
+      const s = tr && tr.bilan && tr.bilan.tous && tr.bilan.tous.stats; if (s && Number.isFinite(s.n) && s.n > p.nTrades) p.incomplet = s.n;
+      return p;
+    }
     function rendrePortefeuille() {
       const v = S.data && S.data.vue; if (!v) { E.pf.innerHTML = ''; E.verdict.innerHTML = ''; return; }
-      const p = v.portefeuille, gagne = p.gainUsd >= 0;
-      E.pf.innerHTML = '<div class="vv-pf-etiquette">Portefeuille virtuel <b>SIMULÉ</b> · départ ' + C.usd(p.capital0) + ' · risque ' + C.fr(p.risquePct, 1) + ' % par trade</div>'
+      const p = portefeuilleCourant(v), gagne = p.gainUsd >= 0;
+      E.pf.innerHTML = '<div class="vv-pf-etiquette">Portefeuille virtuel <b>SIMULÉ</b> · départ ' + C.usd(p.capital0) + ' · risque ' + C.fr(p.risquePct, 1) + ' % par trade' + (p.source === 'trades' ? ' · piloté par les trades de l’agent' : '') + '</div>'
         + '<div class="vv-pf-grand ' + (gagne ? 'vv-hausse' : 'vv-baisse') + '"><span data-vv="capital">' + C.usd(p.capital) + '</span></div>'
         + '<div class="vv-pf-gain ' + (gagne ? 'vv-hausse' : 'vv-baisse') + '">' + C.signe(p.gainUsd) + ' $ · ' + C.signe(p.gainPct) + ' % · cette semaine ' + C.signe(p.semaineUsd, 0) + ' $</div>'
+        + (p.source === 'trades' ? '<div class="vv-pf-stats" data-vv="pf-r">Cumul réalisé <b class="' + (p.cumulR >= 0 ? 'vv-hausse' : 'vv-baisse') + '">' + C.signe(p.cumulR, 1) + ' R</b> (' + C.signe(p.realiseUsd, 0) + ' $)' + (p.nOuverts ? ' · flottant ' + C.signe(p.flottantR, 1) + ' R (' + C.signe(p.flottantUsd, 0) + ' $) sur ' + p.nOuverts + ' position' + (p.nOuverts > 1 ? 's' : '') + ' ouverte' + (p.nOuverts > 1 ? 's' : '') : ' · aucune position ouverte') + (p.nEnAttente ? ' · ' + p.nEnAttente + ' ordre(s) limite en attente (pas encore touchés : ils ne comptent pas)' : '') + (p.incomplet ? ' · historique partiel : ' + p.nTrades + ' trades sur ' + p.incomplet + '' : '') + '</div>' : '')
         + '<div class="vv-pf-stats">' + (p.nTrades ? p.nTrades + ' trades suivis · réussite ' + C.fr(p.tauxReussite * 100, 0) + ' % · R moyen ' + C.signe(p.rMoyen) + ' · baisse max ' + C.fr(p.drawdownMaxPct, 1) + ' %' : 'Aucun trade terminé pour l’instant : l’agent suit chaque proposition dès qu’elle arrive.') + '</div>'
         + (() => { const r = C.reglesProp(p); const b = (nom, o, mal) => '<div class="vv-prop' + (mal ? ' vv-prop-mal' : '') + '"><span>' + nom + ' ' + C.fr(o.valeur, 1) + ' % / ' + o.limite + ' %</span><i style="--k:' + o.part + '"></i></div>'; return '<div class="vv-props" aria-label="Règles prop simulées">' + b('Objectif', r.objectif, false) + b('Baisse max', r.drawdown, r.drawdown.depasse) + '<small>Règles prop SIMULÉES (défauts à régler) · risque ' + C.fr(r.risque.valeur, 1) + ' % / ' + r.risque.limite + ' % par trade' + (r.risque.depasse ? ' · TROP ÉLEVÉ' : '') + '</small></div>'; })()
         + '<canvas class="vv-pf-courbe" data-vv="courbe" aria-label="Courbe de capital" role="img"></canvas>'
@@ -81,7 +85,7 @@
     }
     function dessinerCourbe() {
       const v = S.data && S.data.vue, cv = racineEl.querySelector('[data-vv="courbe"]'); if (!v || !cv) return;
-      const c = prepare(cv, 90), ctx = c.ctx, W = c.W, H = c.H, p = v.portefeuille, live = C.courbeJours(p.courbe, v.demarreLe), rj = v.rejoue && v.rejoue.portefeuille ? C.courbeJours(v.rejoue.portefeuille.courbe) : [];
+      const c = prepare(cv, 90), ctx = c.ctx, W = c.W, H = c.H, p = portefeuilleCourant(v), live = C.courbeJours(p.courbe, p.source === 'trades' ? (p.courbe.length ? p.courbe[0][0] : null) : v.demarreLe), rj = v.rejoue && v.rejoue.portefeuille ? C.courbeJours(v.rejoue.portefeuille.courbe) : [];
       const toutes = live.concat(rj); if (toutes.length < 2) { ctx.fillStyle = COL.texte; ctx.font = '12px system-ui'; ctx.fillText('Courbe disponible après les premiers trades', 8, H / 2); return; }
       const xs = toutes.map(a => a[0]), ys = toutes.map(a => a[1]).concat([p.capital0]), x0 = Math.min(...xs), x1 = Math.max(...xs, x0 + 1), y0 = Math.min(...ys), y1 = Math.max(...ys, y0 + 1), X = x => 4 + (x - x0) / (x1 - x0) * (W - 8), Y = y => H - 6 - (y - y0) / (y1 - y0) * (H - 12);
       ctx.strokeStyle = COL.grille; ctx.beginPath(); ctx.moveTo(0, Y(p.capital0)); ctx.lineTo(W, Y(p.capital0)); ctx.stroke();
@@ -129,7 +133,7 @@
       const nVis = Math.min(serie.bougies.length, S.visibles || nParDefaut()), bougies = serie.bougies.slice(-nVis), det = detail();
       const droite = S.couches.profil ? Math.min(78, W * 0.13) : 0, marge = { g: 6, d: 58, h: 8, b: 20 };
       // niveaux à inclure dans l'échelle : positions affichées
-      const pos = S.couches.positions ? C.positionsAffichees(a.positions || []) : [], extra = []; for (const p of pos) extra.push(p.entree, p.stop, p.cible);
+      const tousP = S.couches.positions ? tradesDe(S.actif) : [], pos = tousP.filter(p => p.statut !== 'terminee'), extra = []; for (const p of pos) extra.push(p.entree, p.stop, p.cible != null ? p.cible : p.entree);
       const R = C.repere({ n: bougies.length, largeur: W, hauteur: H, marge, hauts: bougies.map(b => b[2]).concat(extra.length ? [Math.min(Math.max(...extra), Math.max(...bougies.map(b => b[2])) * 1.01)] : []), bas: bougies.map(b => b[3]).concat(extra.length ? [Math.max(Math.min(...extra), Math.min(...bougies.map(b => b[3])) * 0.99)] : []), droite });
       const ts = bougies.map(b => [b[0]]), pas = S.tf === 'H1' ? 3600e3 : 900e3;
       // grille + axe des prix
@@ -164,14 +168,23 @@
       }
       // murs du carnet
       if (S.couches.murs && S.carnet && S.carnet.ok && S.carnet.actif === S.actif) for (const m of S.carnet.murs || []) { if (m.prix < R.min || m.prix > R.max) continue; ctx.strokeStyle = m.cote === 'bid' ? 'rgba(62,207,142,.7)' : 'rgba(239,91,91,.7)'; ctx.setLineDash([2, 3]); ctx.beginPath(); ctx.moveTo(marge.g, R.y(m.prix)); ctx.lineTo(W - marge.d, R.y(m.prix)); ctx.stroke(); ctx.setLineDash([]); ctx.fillStyle = COL.texte; ctx.fillText('mur ' + C.compact(m.usdMax) + ' $', marge.g + 4, R.y(m.prix) - 2); }
-      // positions
+      // positions : TOUTES les vivantes, puis TOUS les trades terminés visibles (entrée, sortie, stop, objectif, résultat en R) pour BTC, SOL et DOGE
       const iDe = t => { const k = Math.floor((t - bougies[0][0]) / pas); return Math.max(0, Math.min(bougies.length - 1, k)); };
-      for (const p of pos) {
-        const x0 = R.x(p.tEntree ? iDe(p.tEntree) : iDe(p.tSignal)), x1 = p.tSortie ? R.x(iDe(p.tSortie)) : R.x(bougies.length - 1) + 40, yE = R.y(p.entree), yS = R.y(p.stop), yC = R.y(p.cible), fini = p.statut === 'terminee', att = p.statut === 'en_attente';
-        ctx.fillStyle = 'rgba(239,91,91,' + (fini ? .1 : .18) + ')'; ctx.fillRect(x0, Math.min(yE, yS), x1 - x0, Math.abs(yS - yE)); ctx.fillStyle = 'rgba(62,207,142,' + (fini ? .1 : .18) + ')'; ctx.fillRect(x0, Math.min(yE, yC), x1 - x0, Math.abs(yC - yE));
-        ctx.strokeStyle = att ? COL.attente : COL.accent; ctx.setLineDash(att ? [5, 3] : []); ctx.beginPath(); ctx.moveTo(x0, yE); ctx.lineTo(x1, yE); ctx.stroke(); ctx.setLineDash([]);
-        ctx.fillStyle = COL.texte; ctx.font = '10px system-ui'; ctx.fillText((p.sens > 0 ? 'ACHAT ' : 'VENTE ') + (att ? 'en attente' : fini ? (p.R > 0 ? '✔ ' + C.signe(p.R) + ' R' : '✖ ' + C.signe(p.R) + ' R') : 'en cours') + ' · ' + p.niveauPreuve.replace('a_lessai', 'À l’essai'), Math.min(x0 + 4, W - 200), Math.min(yE, yS, yC) - 3);
+      ctx.save(); ctx.beginPath(); ctx.rect(marge.g, marge.h, W - marge.d - marge.g, R.bas - marge.h); ctx.clip();
+      const tFinFen = bougies[bougies.length - 1][0] + pas;
+      for (const p of tousP) {
+        const fini = p.statut === 'terminee', att = p.statut === 'en_attente', tDeb = p.tEntree || p.tSignal; if (!tDeb) continue; if (fini && (p.tSortie < bougies[0][0] || tDeb > tFinFen)) continue;
+        const x0 = R.x(iDe(tDeb)), x1 = fini ? R.x(iDe(p.tSortie)) : R.x(bougies.length - 1) + 40, yE = R.y(p.entree), yS = R.y(p.stop), yC = p.cible != null ? R.y(p.cible) : yE, gain = fini && p.R > 0;
+        ctx.fillStyle = 'rgba(239,91,91,' + (fini ? .09 : .18) + ')'; ctx.fillRect(x0, Math.min(yE, yS), Math.max(2, x1 - x0), Math.abs(yS - yE)); ctx.fillStyle = 'rgba(62,207,142,' + (fini ? .09 : .18) + ')'; ctx.fillRect(x0, Math.min(yE, yC), Math.max(2, x1 - x0), Math.abs(yC - yE));
+        ctx.strokeStyle = att ? COL.attente : COL.accent; ctx.lineWidth = 1; ctx.setLineDash(att ? [5, 3] : []); ctx.beginPath(); ctx.moveTo(x0, yE); ctx.lineTo(Math.max(x1, x0 + 2), yE); ctx.stroke(); ctx.setLineDash([]);
+        ctx.fillStyle = COL.texte; ctx.font = '10px system-ui'; ctx.textAlign = 'left';
+        if (fini) {   // entrée ▲/▼, trait entrée → sortie, point de sortie et résultat
+          const yX = R.y(p.sortie), coul = gain ? COL.hausse : COL.baisse; ctx.strokeStyle = coul; ctx.lineWidth = 1.6; ctx.beginPath(); ctx.moveTo(x0, yE); ctx.lineTo(x1, yX); ctx.stroke(); ctx.lineWidth = 1;
+          ctx.fillStyle = COL.accent; ctx.fillText(p.sens > 0 ? '▲' : '▼', x0 - 4, p.sens > 0 ? yE + 11 : yE - 3); ctx.fillStyle = coul; ctx.beginPath(); ctx.arc(x1, yX, 3.5, 0, 7); ctx.fill();
+          ctx.fillText((gain ? '✔ ' : '✖ ') + C.signe(p.R, 1) + ' R', Math.min(x1 + 5, W - marge.d - 64), yX + (gain === (p.sens > 0) ? -5 : 12));
+        } else { ctx.fillStyle = COL.accent; ctx.fillText(p.sens > 0 ? '▲' : '▼', x0 - 4, p.sens > 0 ? yE + 11 : yE - 3); ctx.fillStyle = COL.texte; ctx.fillText((p.sens > 0 ? 'ACHAT ' : 'VENTE ') + (att ? 'en attente' : 'en cours'), Math.min(x0 + 8, W - marge.d - 120), Math.min(yE, yS, yC) - 3); }
       }
+      ctx.restore();
       // trades REJOUÉS visibles dans la fenêtre
       if (S.couches.rejoue && a.rejoue) for (const r of a.rejoue) {
         const [cle, sens, tE, tS, entree, stop, sortie, statut, Rr] = r; if (!r[0].endsWith('·' + S.tf) || tE < bougies[0][0] || tE > bougies[bougies.length - 1][0] + pas) continue;
@@ -256,11 +269,17 @@
       E.rejoue.innerHTML = h;
     }
 
-    function toutRendre() { rendreNoyau(); rendreEtat(); rendrePortefeuille(); rendreOutils(); rendreCarnet(); rendreListes(); rendreRejoue(); dessiner(); }
+    function rendreFlux() {
+      const v = S.data && S.data.vue; if (!v) { E.flux.innerHTML = ''; return; }
+      const ev = C.fluxExecution(C.tousTrades(S.data.trader, v)), cles = new Set(ev.map(e => e.id + e.type)), premier = !S.fluxVus;
+      E.flux.innerHTML = '<div class="vv-titre">Flux d’exécution <small>simulation, plus récent d’abord</small></div>' + (ev.length ? '<ul>' + ev.map(e => '<li data-type="' + e.type + '" class="' + (!premier && !S.fluxVus.has(e.id + e.type) ? 'vv-neuf ' : '') + (e.type === 'sortie' ? (e.gain ? 'vv-hausse' : 'vv-baisse') : '') + '"><time>' + new Date(e.t).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit', timeZone: 'Europe/Paris' }) + '</time><span>' + esc(e.texte) + '</span></li>').join('') + '</ul>' : '<p class="vv-note">Aucun trade pour l’instant : dès que l’agent prend une position, chaque étape (signal, entrée, sortie) apparaît ici.</p>');
+      S.fluxVus = cles;
+    }
+    function toutRendre() { rendreFlux(); rendreEtat(); rendrePortefeuille(); rendreOutils(); rendreCarnet(); rendreListes(); rendreRejoue(); dessiner(); }
     async function rafraichir() {
       if (S.detruit || S.enCours) return; S.enCours = true;
       try {
-        const d = await lire(); S.data = d; if (d && d.vue && racine.AgentAlertes) racine.AgentAlertes.surVue(d.vue); S.service = d && d.service || null; S.origine = d && d.origine || null;
+        const d = await lire(); if (d && d.vue && !d.trader) { try { d.trader = await lireTrader(); } catch (e) { d.trader = null; } } S.data = d; if (d && d.vue && racine.AgentAlertes) racine.AgentAlertes.surVue(d.vue); S.service = d && d.service || null; S.origine = d && d.origine || null;
         if (d && d.vue && !d.vue.actifs[S.actif]) S.actif = Object.keys(d.vue.actifs)[0] || S.actif;
         toutRendre(); if (d && d.vue && (!S.carnet || Date.now() - (S.carnet.t || 0) > 60000)) chargerCarnet();
       } catch (e) { E.etat.innerHTML = '<span class="vv-ko">Lecture impossible : ' + esc(e.message || e) + '</span> <button type="button" class="vv-reessayer">Réessayer</button>'; }
@@ -268,7 +287,7 @@
     }
     racineEl.addEventListener('click', ev => { if (ev.target.closest('.vv-reessayer')) rafraichir(); });
     E.etat.innerHTML = '<span>Chargement…</span>'; E.pf.innerHTML = '<div class="vv-sq"></div>';
-    function boucle() { S.anim++; if (!S.detruit && S.data && S.data.vue && !document.hidden && S.anim % 4 === 0 && S.visible !== false) dessinerPoint(); if (!S.detruit && !document.hidden && S.visible !== false && !reduit() && S.anim % (leger ? 4 : 2) === 0) dessinerNoyau(); rafId = requestAnimationFrame(boucle); }
+    function boucle() { S.anim++; if (!S.detruit && S.data && S.data.vue && !document.hidden && S.anim % 4 === 0 && S.visible !== false) dessinerPoint(); rafId = requestAnimationFrame(boucle); }
     try { new IntersectionObserver(es => { S.visible = es.some(e => e.isIntersecting); }).observe(E.graph); } catch (e) { /* pas d'IntersectionObserver */ }
     try { observateur = new ResizeObserver(() => { if (S.data && S.data.vue) { dessiner(); dessinerCourbe(); } }); observateur.observe(racineEl); } catch (e) { /* pas de ResizeObserver */ }
     const carnetRapide = setInterval(() => { if (!S.detruit && S.origine === 'PC' && S.data && S.data.vue && !document.hidden && S.visible !== false && !S.carnetEnCours) { S.carnetEnCours = true; chargerCarnet().finally(() => { S.carnetEnCours = false; }); } }, leger ? 10000 : 4000);   // carnet quasi direct (PC seulement)

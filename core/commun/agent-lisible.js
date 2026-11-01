@@ -34,8 +34,15 @@
       }
     };
     function dessinerZones(ctx, taille) {
-      if (!S.serie || !S.chart || !S.zones.length) return;
-      const ts = S.chart.timeScale(), yy = v => S.serie.priceToCoordinate(v), L = taille.width, etiq = [];
+      if (!S.serie || !S.chart) return;
+      const ts = S.chart.timeScale(), yy = v => S.serie.priceToCoordinate(v), L = taille.width, etiq = [], X = t => ts.timeToCoordinate(Math.floor(t / K.PAS) * K.PAS / 1000);
+      for (const h of S.histo || []) {   // trades TERMINÉS : zone stop / objectif atténuée, trait entrée → sortie, point de sortie
+        const xa = X(h.t0), xb = X(h.t1), yE = yy(h.entree), yS = yy(h.stop), yO = h.cible != null ? yy(h.cible) : null, yX = yy(h.sortie); if (xb == null || yE == null || yS == null || yX == null) continue;
+        const x0 = Math.max(0, xa == null ? 0 : xa), coul = h.R > 0 ? K.COULEURS.gain : K.COULEURS.perte;
+        ctx.globalAlpha = .08; ctx.fillStyle = K.COULEURS.perte; ctx.fillRect(x0, Math.min(yE, yS), Math.max(2, xb - x0), Math.abs(yS - yE)); if (yO != null) { ctx.fillStyle = K.COULEURS.gain; ctx.fillRect(x0, Math.min(yE, yO), Math.max(2, xb - x0), Math.abs(yO - yE)); } ctx.globalAlpha = 1;
+        ctx.strokeStyle = coul; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.moveTo(x0, yE); ctx.lineTo(xb, yX); ctx.stroke(); ctx.fillStyle = coul; ctx.beginPath(); ctx.arc(xb, yX, 3.5, 0, 7); ctx.fill(); ctx.fillStyle = K.COULEURS.texte; ctx.font = '700 11px system-ui'; ctx.textAlign = 'left'; ctx.fillText(h.sens > 0 ? '▲' : '▼', x0 - 4, h.sens > 0 ? yE + 12 : yE - 3);
+      }
+      if (!S.zones.length) return;
       for (const z of S.zones) {
         const yE = yy(z.entree), yS = yy(z.stop), yO = yy(z.obj); if (yE == null || yS == null) continue;
         const xd = ts.timeToCoordinate(Math.floor(z.t / K.PAS) * K.PAS / 1000), x0 = Math.max(0, xd == null ? 0 : xd), fort = S.focus === z.id;
@@ -85,6 +92,7 @@
       const px = K.prixActuel(vue, S.actif, S.bougies), pv = K.positionsVisibles(vue, S.actif, px, K.MAX_ZONES);
       let zs = pv.visibles.slice(); if (S.forcee) { const f = K.positionsActif(vue, S.actif).find(p => p.id === S.forcee); if (f && !zs.some(p => p.id === f.id)) zs = zs.slice(0, K.MAX_ZONES - 1).concat(f); }
       S.zones = zs.map(p => ({ id: p.id, t: p.t, entree: p.entree, stop: p.stop, obj: p.cible1, sens: p.sens, enCours: p.statut === 'ouverte', etiquette: K.etiquette(p), diamant: !!p.diamant }));
+      S.histo = K.historiques(vue, S.actif);
       const mq = K.marqueursTermines(vue, S.actif).filter(m => !S.bougies.length || m.time >= S.bougies[0].time);
       S.marqueurs.setMarkers(mq.map(m => ({ time: m.time, position: m.gain ? 'aboveBar' : 'belowBar', color: m.gain ? K.COULEURS.gain : K.COULEURS.perte, shape: m.gain ? 'arrowUp' : 'arrowDown', text: m.texte })));
       boite.dataset.nzones = String(S.zones.length); boite.dataset.nmarq = String(mq.length); boite.dataset.actif = S.actif;

@@ -56,6 +56,11 @@
     return out.map(d => ({ y: d.y, texte: d.textes.join(' / '), couleur: d.couleur, fusion: d.n > 1 }));
   }
 
+  /* TOUS les trades terminés d'un actif, pour les dessiner (entrée → sortie, stop, objectif, R) : prix de sortie déduit du R (exact par définition). */
+  function historiques(vue, actif) {
+    return ((vue && vue.recentes) || []).filter(p => p.actif === actif && termine(p) && reelle(p) && fin(p.tSortie) && fin(p.entree) && fin(p.stop) && p.entree !== p.stop).map(p => ({ id: p.id, sens: p.sens > 0 ? 1 : -1, entree: p.entree, stop: p.stop, cible: fin(p.cible1) ? p.cible1 : null, t0: p.tEntree || p.t, t1: p.tSortie, R: p.resultat.R, sortie: p.entree + (p.sens > 0 ? 1 : -1) * p.resultat.R * Math.abs(p.entree - p.stop) }));
+  }
+
   /* Marqueurs des positions terminées (✔ vert +R / ✖ rouge −R), sur l'heure de la bougie M15 de sortie. */
   function marqueursTermines(vue, actif) {
     const parTemps = new Map();   // deux sorties dans la même bougie : un seul marqueur (la dernière)
@@ -143,6 +148,6 @@
   ]);
 
   const api = { PAS, MAX_ZONES, SEUIL_ECHANTILLON, ACTIFS, COULEURS, DETAILS, NIVEAUX, esc, fr, sg, prix, heure, jour, duree, quatreChiffres, positionsActif, positionsVisibles, groupes, comptes, ratio, etiquette, fusionnerEtiquettes,
-    marqueursTermines, courbeAlignee, prixActuel, bougiesDeLaVue, htmlBarreEtat, htmlChiffres, htmlVide, htmlExplication, htmlLigne, htmlListes };
+    historiques, marqueursTermines, courbeAlignee, prixActuel, bougiesDeLaVue, htmlBarreEtat, htmlChiffres, htmlVide, htmlExplication, htmlLigne, htmlListes };
   if (typeof module !== 'undefined' && module.exports) module.exports = api; else root.AgentLisibleCalcul = api;
 })(typeof window !== 'undefined' ? window : globalThis);

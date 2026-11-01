@@ -49,7 +49,7 @@ export function construirePaquet(dossier, maintenant = Date.now()) {
   }
   const tr = lireJson(path.join(dossier, 'trader.json'), null);
   if (tr && tr.vuePubliee) {      // V12 : mode Trader (le même contenu que la fenêtre PC, allégé pour le téléphone)
-    const t = { ...tr.vuePubliee }; delete t.gestions; delete t.niveaux; t.recentes = (t.recentes || []).slice(0, 25); t.journalNiveaux = (t.journalNiveaux || []).slice(0, 10); t.pourquoi = (t.pourquoi || []).slice(0, 12);
+    const t = { ...tr.vuePubliee }; delete t.gestions; delete t.niveaux; t.recentes = (t.recentes || []).slice(0, 60); t.journalNiveaux = (t.journalNiveaux || []).slice(0, 10); t.pourquoi = (t.pourquoi || []).slice(0, 12);
     t.bougies = Object.fromEntries(Object.entries(t.bougies || {}).map(([a, l]) => [a, (l || []).slice(-90)])); t.courbe = (t.courbe || []).slice(-120);
     if (t.bilan) { t.bilan = { ...t.bilan, parType: (t.bilan.parType || []).slice(0, 14) }; delete t.bilan.parActif; delete t.bilan.parTf; delete t.bilan.parStyle; }
     paquet.trader = t;

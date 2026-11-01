@@ -1,15 +1,22 @@
-// Alertes de nouvelle position : détection unique, deux formes de vue, démos ignorées, texte honnête.
+// Alertes de position : nouvelle, ordre devenu position, première lecture (fraîcheur), démos ignorées, texte honnête.
 import assert from 'node:assert/strict';
 import { createRequire } from 'node:module';
 const A = createRequire(import.meta.url)('../../core/commun/agent-alertes.js');
 let n = 0; const ok = (c, m) => { n++; assert.ok(c, m); };
-const p = (id, statut, extra = {}) => ({ id, statut, sens: 1, actif: 'BTC', tf: 'M15', entree: 77846, stop: 77386, cible: 78804, ...extra });
-const vueT = { actives: [p('a', 'ouverte'), p('b', 'en_attente'), p('c', 'ouverte', { demo: true }), p('d', 'ouverte', { fantome: true }), p('e', 'cloturee')] };
-ok(A.positionsVivantes(vueT).map(x => x.id).join() === 'a,b', 'démo, fantôme et terminées ignorés');
-ok(A.nouvelles(vueT, ['a']).map(x => x.id).join() === 'b', 'une position déjà signalée ne re-sonne pas');
-ok(A.nouvelles(vueT, new Set(['a', 'b'])).length === 0, 'rien de nouveau');
+const NOW = 1_800_000_000_000, p = (id, statut, extra = {}) => ({ id, statut, sens: 1, actif: 'BTC', tf: 'M15', entree: 77846, stop: 77386, cible: 78804, tSignal: NOW - 60e3, ...extra });
+const vue = { actives: [p('a', 'ouverte'), p('b', 'en_attente'), p('c', 'ouverte', { demo: true }), p('d', 'ouverte', { fantome: true }), p('e', 'cloturee')] };
+ok(A.positionsVivantes(vue).map(x => x.id).join() === 'a,b', 'démo, fantôme et terminées ignorées');
+let r = A.evenements(vue, { a: 'ouverte' }, { maintenant: NOW }); ok(r.alertes.length === 1 && r.alertes[0].p.id === 'b' && r.alertes[0].type === 'nouvelle', 'seule la position jamais vue alerte');
+ok(r.suivant.a === 'ouverte' && r.suivant.b === 'en_attente', 'mémoire mise à jour');
+ok(A.evenements(vue, r.suivant, { maintenant: NOW }).alertes.length === 0, 'rien de nouveau : silence');
+const apres = { actives: [p('a', 'ouverte'), p('b', 'ouverte')] };
+r = A.evenements(apres, { a: 'ouverte', b: 'en_attente' }, { maintenant: NOW }); ok(r.alertes.length === 1 && r.alertes[0].type === 'ouverte' && r.alertes[0].p.id === 'b', 'ordre limite touché → alerte « ouverte »');
+ok(A.evenements(vue, null, { maintenant: NOW, premiere: true }).alertes.length === 2, 'première lecture : une position toute récente est signalée (on ne rate pas ce qui vient d’arriver)');
+const vieille = { actives: [p('v', 'ouverte', { tSignal: NOW - 5 * 3600e3 })] };
+ok(A.evenements(vieille, null, { maintenant: NOW, premiere: true }).alertes.length === 0 && A.evenements(vieille, null, { maintenant: NOW, premiere: true }).suivant.v === 'ouverte', 'première lecture : une vieille position est mémorisée sans sonner');
 const vueV = { actifs: { SOL: { positions: [p('s1', 'ouverte', { actif: undefined, sens: -1 }), p('s2', 'terminee')] } } };
 const nv = A.positionsVivantes(vueV); ok(nv.length === 1 && nv[0].actif === 'SOL', 'forme du tableau vivant, actif déduit');
-const t = A.texte(nv[0]); ok(/VENTE SOL/.test(t.titre) && /SIMULATION/.test(t.corps) && /1:2,1/.test(A.texte(p('x', 'ouverte')).corps), 'texte : sens, simulation, ratio 1:2,1');
+const t = A.texte(nv[0]); ok(/VENTE SOL/.test(t.titre) && /SIMULATION/.test(t.corps), 'texte : sens, simulation');
+ok(/Position ouverte/.test(A.texte(p('x', 'ouverte'), 'ouverte').titre) && /1:2,1/.test(A.texte(p('x', 'ouverte')).corps), 'texte « ouverte », ratio 1:2,1');
 ok(A.positionsVivantes(null).length === 0 && A.positionsVivantes({}).length === 0, 'vue vide sans erreur');
 console.log('agent-alertes : ' + n + ' vérifications OK');

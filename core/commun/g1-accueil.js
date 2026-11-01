@@ -294,7 +294,7 @@
   };
   const ICONES=[['accueil','Accueil'],['vie','Vie'],['comm','Communications'],['espaces','Espaces'],['reglages','Réglages']];
   $('g1Icones').innerHTML=ICONES.map(i=>'<button type="button" class="g1-ic" data-i="'+i[0]+'" aria-label="'+i[1]+'" title="'+i[1]+'"><span class="g1-ic-r">'+IC[i[0]]+'</span><small>'+i[1]+'</small></button>').join('');
-  const PLANETES=[['terre','Terre'],['mars','Mars'],['saturne','Saturne'],['terminal','Terminal'],['galaxie','Galaxie'],['pays','Pays'],['sources','Sources'],['couper','Couper']];
+  const PLANETES=[['terre','Terre'],['mars','Mars'],['saturne','Saturne'],['agent','Agent IA'],['terminal','Terminal'],['galaxie','Galaxie'],['pays','Pays'],['sources','Sources'],['couper','Couper']];
   $('g1Menu').innerHTML=PLANETES.map(p=>'<button type="button" data-p="'+p[0]+'">'+p[1]+'</button>').join('');
   const clic=id=>{ const b=$(id); if(b) b.click(); };
   async function allerPlanete(cible){
@@ -315,7 +315,7 @@
   });
   $('g1Menu').addEventListener('click',ev=>{
     const b=ev.target.closest('[data-p]'); if(!b) return; $('g1Menu').hidden=true; const p=b.dataset.p;
-    if(p==='terminal') clic('btnOuvrirTerminal'); else if(p==='galaxie') clic('btnOuvrirGalaxie'); else if(p==='pays') clic('btnPays'); else if(p==='sources') clic('btnSources'); else if(p==='couper') clic('btnCouper'); else allerPlanete(p);
+    if(p==='agent') clic('btnAgent'); else if(p==='terminal') clic('btnOuvrirTerminal'); else if(p==='galaxie') clic('btnOuvrirGalaxie'); else if(p==='pays') clic('btnPays'); else if(p==='sources') clic('btnSources'); else if(p==='couper') clic('btnCouper'); else allerPlanete(p);
   });
   document.addEventListener('pointerdown',ev=>{ if(!ev.target.closest('.g1-dock')) $('g1Menu').hidden=true; });
   $('g1Etat').addEventListener('click',()=>clic('btn'));
