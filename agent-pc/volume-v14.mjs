@@ -10,7 +10,9 @@ import { chargerSerie } from './volume-donnees.mjs';
 import { barresDirect } from './volume-enregistreur.mjs';
 import { FICHIER_RECHERCHE, FICHIER_REJOUE, coutsPour, lancerRecherche } from './volume-recherche.mjs';
 import { DETECTEURS, SETUPS_VOLUME } from '../strategies/volume/setups-volume.js';
-import { positionOpposee } from '../strategies/coherence.js';
+import { positionOpposee, raisonConflit } from '../strategies/coherence.js';
+import { createRequire } from 'node:module';
+const CALCUL = createRequire(import.meta.url)('../core/commun/volume-vivant-calcul.js');
 import { etatSignal, portefeuille, stats } from '../strategies/volume/simulation-volume.js';
 import { profilJour, profilSemaine, volumeNet, dominance, empreinteBarre, absorption } from '../strategies/volume/serie-volume.js';
 import { prixDeTranche } from '../strategies/liquidite/barres-flux.js';
@@ -18,19 +20,23 @@ import { prixDeTranche } from '../strategies/liquidite/barres-flux.js';
 export const FICHIER_VOLUME = 'volume-v14.json';
 export const AVERTISSEMENT = 'Propositions et simulations seulement : aucun ordre n’est passé, aucun gain n’est garanti. Les trades « rejoués » sont le passé, pas du réel.';
 export const CONFIGS_DEFAUT = Object.freeze([{ setup: 'acceptation_hors_valeur', tf: 'H1', params: { relatif: 1, rr: 2, riskMinAtr: 3 }, niveau: 'a_lessai' }]);
+/* Impulsions portées par le volume : surveillées en permanence sur M15 et H1, au niveau « à l'essai » (aucune preuve statistique, suivi en direct étiqueté). Le suivi les rejoue comme les autres positions. */
+export const CONFIGS_IMPULSION = Object.freeze(['M15', 'H1'].map(tf => ({ setup: 'impulsion_volume', tf, params: { rangeAtr: 1.5, relatif: 1.5, rr: 2, riskMinAtr: 2 }, niveau: 'a_lessai', source: 'impulsion toujours surveillée' })));
 const JOUR = 86400e3, MS15 = 900000;
 const NIVEAU_LIBELLE = { a_lessai: 'À l’essai', candidate: 'Candidate', validee: 'Validée' };
 export const libelleNiveau = n => NIVEAU_LIBELLE[n] || 'À l’essai';
 const arr = (a, n) => Array.from(a.slice(-n));
 const cleConfig = c => c.setup + '·' + c.tf;
 
+/* Forme « position » d'un signal de volume : la MÊME pour la vue publiée et pour le portefeuille commun. */
+const versPosition = x => ({ id: x.id, cle: x.cle, setup: x.setup, nom: SETUPS_VOLUME[x.setup].nom, tf: x.tf, niveauPreuve: x.niveauPreuve, sens: x.sens, entree: x.niveau, stop: x.stop, cible: x.sens > 0 ? x.niveau + x.rr * (x.niveau - x.stop) : x.niveau - x.rr * (x.stop - x.niveau), rr: x.rr, tSignal: x.tSignal, tEntree: x.tEntree || null, tSortie: x.tSortie || null, statut: x.statut, resultat: x.resultat || null, R: x.R ?? null, niv: x.niv, raison: x.raison, raisonFin: x.raison_fin || null });
 export function creerVolume({ dossier, maintenant = () => Date.now(), journal = () => {}, erreur = () => {}, actifs = ['BTC', 'SOL', 'DOGE'], chargerLaSerie = chargerSerie, lireDirect = barresDirect } = {}) {
   const fichier = path.join(dossier, FICHIER_VOLUME);
   let etat = lireJson(fichier, null); if (!etat || etat.schema !== 1) etat = { schema: 1, demarreLe: maintenant(), signaux: [], reglages: { capital0: 10000, risquePct: 1 }, pauses: {}, dernierCalcul: 0, derniereRecherche: 0, vuePubliee: null };
   let cache = null;                                                                              // { cleBarre, series }
   const reglages = () => ({ capital0: 10000, risquePct: 1, ...(etat.reglages || {}) });
   const recherche = () => lireJson(path.join(dossier, FICHIER_RECHERCHE), null);
-  const configsLive = () => { const r = recherche(); const l = r && r.configs && r.configs.length ? r.configs : CONFIGS_DEFAUT; return l; };
+  const configsLive = () => { const r = recherche(), l = r && r.configs && r.configs.length ? r.configs : CONFIGS_DEFAUT; return l.concat(CONFIGS_IMPULSION.filter(c => !l.some(x => cleConfig(x) === cleConfig(c)))); };
 
   const manques = {};                                                                              // actif → raison pour laquelle il n'est pas suivi en direct
   function chargerSeries(t) {
@@ -58,7 +64,13 @@ export function creerVolume({ dossier, maintenant = () => Date.now(), journal = 
         const tSignal = s.t[sg.i] + s.pas, id = a + '|' + cle + '|' + tSignal; if (etat.signaux.some(x => x.id === id)) continue;
         if (tSignal < etat.demarreLe - 6 * 3600e3) continue;                                    // rien de plus ancien que le démarrage du suivi : le passé est « rejoué », pas « suivi »
         const enCours = etat.signaux.find(x => x.actif === a && x.cle === cle && x.statut !== 'terminee' && x.statut !== 'annulee'); if (enCours) continue;
-        if (positionOpposee(etat.signaux, { actif: a, sens: sg.sens })) continue;                // jamais acheteur ET vendeur sur le même actif      // une position à la fois par setup et par actif
+        const opp = positionOpposee(etat.signaux, { actif: a, sens: sg.sens });                 // jamais acheteur ET vendeur sur le même actif
+        if (opp) {
+          const coh = (etat.coherence = etat.coherence || { evites: 0, remplaces: 0, derniers: [] });
+          if (c.setup === 'impulsion_volume' && opp.statut === 'en_attente') { opp.statut = 'annulee'; opp.raison_fin = 'remplacé par une impulsion de sens contraire'; coh.remplaces++; coh.derniers.push({ t: tSignal, actif: a, setup: c.setup, sens: sg.sens, action: 'remplace', raison: 'un ordre limite encore en attente (' + (opp.sens > 0 ? 'achat' : 'vente') + ') est annulé : le marché vient de partir dans l’autre sens avec un fort volume' }); }
+          else { coh.evites++; coh.derniers.push({ t: tSignal, actif: a, setup: c.setup, sens: sg.sens, action: 'ecarte', raison: raisonConflit(opp, a) }); coh.derniers = coh.derniers.slice(-20); continue; }
+          coh.derniers = coh.derniers.slice(-20);
+        }
         etat.signaux.push({ id, actif: a, cle, setup: c.setup, tf: c.tf, params: c.params, niveauPreuve: c.niveau || 'a_lessai', sens: sg.sens, niveau: sg.niveau, stop: sg.stop, rr: sg.rr, validite: sg.validite, tSignal, tBarre: s.t[sg.i], niv: sg.niv, raison: sg.raison, statut: 'en_attente' }); nouveaux++;
       }
     }
@@ -106,7 +118,7 @@ export function creerVolume({ dossier, maintenant = () => Date.now(), journal = 
       fp.push({ t: m.t[q], poc: em.poc, niveaux: niv.map(x => [x.prix, Math.round(x.achat), Math.round(x.vente), x.desAch ? 1 : 0, x.desVen ? 1 : 0]) });
     }
     out.footprint = fp; out.approximatif = !!(S.direct);
-    out.positions = etat.signaux.filter(x => x.actif === a).slice(-40).map(x => ({ id: x.id, cle: x.cle, setup: x.setup, nom: SETUPS_VOLUME[x.setup].nom, tf: x.tf, niveauPreuve: x.niveauPreuve, sens: x.sens, entree: x.niveau, stop: x.stop, cible: x.sens > 0 ? x.niveau + x.rr * (x.niveau - x.stop) : x.niveau - x.rr * (x.stop - x.niveau), rr: x.rr, tSignal: x.tSignal, tEntree: x.tEntree || null, tSortie: x.tSortie || null, statut: x.statut, resultat: x.resultat || null, R: x.R ?? null, niv: x.niv, raison: x.raison, raisonFin: x.raison_fin || null }));
+    out.positions = etat.signaux.filter(x => x.actif === a).slice(-40).map(versPosition);
     out.rejoue = (rejoue && rejoue.trades ? rejoue.trades.filter(t => t.actif === a).slice(-60) : []).map(t => [t.cle, t.sens, t.tEntree, t.tSortie, t.entree, t.stop, t.sortie, t.statut, t.R, t.niv]);
     return out;
   }
@@ -130,7 +142,7 @@ export function creerVolume({ dossier, maintenant = () => Date.now(), journal = 
       compteurs: parCle,
       actifs: actifsVue,
       recherche: r && { t: r.t, nEssais: r.nEssais, couvertures: r.couvertures, couts: r.couts, finalistes: (r.finalistes || []).slice(0, 8).map(f => ({ id: f.id.split('@')[0], setup: f.setup, tf: f.tf, params: f.params, appr: { n: f.appr.n, rMoyen: f.appr.rMoyen }, valid: { n: f.valid.n, rMoyen: f.valid.rMoyen }, test: { n: f.test.n, rMoyen: f.test.rMoyen }, oos: { n: f.oos.n, rMoyen: f.oos.rMoyen, ic95: f.oos.ic95, tauxReussite: f.oos.tauxReussite, partTrimestresPositifs: f.oos.partTrimestresPositifs }, niveau: f.etiquette.niveau, manque: f.etiquette.manque, parSemaineActif: f.parSemaineActif, hasard: f.hasardPool.rMoyen, parActif: Object.fromEntries(Object.entries(f.parActif).map(([k, v]) => [k, { n: v.n, rMoyen: v.rMoyen }])) })) },
-      verdict: verdict(r, meilleur),
+      verdict: verdict(r, meilleur), coherence: etat.coherence ? { evites: etat.coherence.evites, remplaces: etat.coherence.remplaces, derniers: etat.coherence.derniers.slice(-8) } : { evites: 0, remplaces: 0, derniers: [] },
     };
   }
   function verdict(r, meilleur) {
@@ -160,14 +172,16 @@ export function creerVolume({ dossier, maintenant = () => Date.now(), journal = 
       ecrireJson(fichier, etat, { copies: 1 }); if (n) journal('volume', n + ' nouvelle(s) proposition(s) de volume.'); return { ok: true, nouvelles: n };
     } catch (e) { erreur('volume V14', e); return { ok: false, erreur: String(e.message || e) }; }
   }
-  return { cycle, etat: () => etat, vue: () => etat.vuePubliee, detecter, suivre, vueDe: vue, reglerRisques };
+  /* Trades du suivi de volume pour le portefeuille commun (publié par le mode Trader) : tous les trades, et les identifiants de ceux qui figurent dans la vue (40 derniers par actif). */
+  const tradesPortefeuille = () => ({ trades: etat.signaux.map(x => CALCUL.normaliser(versPosition(x), x.actif, 'volume')).filter(Boolean), idsListes: actifs.flatMap(a => etat.signaux.filter(x => x.actif === a).slice(-40).map(x => x.id)) });
+  return { cycle, etat: () => etat, vue: () => etat.vuePubliee, detecter, suivre, vueDe: vue, reglerRisques, tradesPortefeuille };
 }
 
 /* Version COMPACTE de la vue pour le téléphone (paquet publié vers le Worker, ≤ 300 Ko pour tout le paquet) : moins de bougies, pas d'empreinte détaillée. */
 export function compacterVolume(vue) {
   if (!vue || vue.indisponible) return vue || null;
   const actifs = {};
-  for (const [a, x] of Object.entries(vue.actifs || {})) actifs[a] = { actif: a, m15: x.m15 && { ...x.m15, bougies: x.m15.bougies.slice(-64), cvd: x.m15.cvd.slice(-64) }, h1: x.h1 && { ...x.h1, bougies: x.h1.bougies.slice(-72), cvd: x.h1.cvd.slice(-72) }, profil: x.profil, positions: (x.positions || []).slice(-12), rejoue: (x.rejoue || []).slice(-25), footprint: (x.footprint || []).slice(-3), approximatif: x.approximatif };
+  for (const [a, x] of Object.entries(vue.actifs || {})) actifs[a] = { actif: a, m15: x.m15 && { ...x.m15, bougies: x.m15.bougies.slice(-64), cvd: x.m15.cvd.slice(-64) }, h1: x.h1 && { ...x.h1, bougies: x.h1.bougies.slice(-72), cvd: x.h1.cvd.slice(-72) }, profil: x.profil, positions: (x.positions || []).slice(-40), rejoue: (x.rejoue || []).slice(-25), footprint: (x.footprint || []).slice(-3), approximatif: x.approximatif };
   const p = vue.portefeuille ? { ...vue.portefeuille, courbe: vue.portefeuille.courbe.slice(-60) } : null;
   const rj = vue.rejoue ? { ...vue.rejoue, portefeuille: vue.rejoue.portefeuille && { ...vue.rejoue.portefeuille, courbe: vue.rejoue.portefeuille.courbe.slice(-60) } } : null;
   return { ...vue, actifs, portefeuille: p, rejoue: rj, recherche: vue.recherche && { ...vue.recherche, finalistes: (vue.recherche.finalistes || []).slice(0, 3) } };

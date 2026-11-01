@@ -68,14 +68,7 @@
     }
     /* Portefeuille virtuel : piloté par les TRADES de l'agent (terminés + flottant des ouverts) dès que le mode Trader est lisible ; sinon celui de la vue de volume. */
     const tradesDe = actif => C.tousTrades(S.data && S.data.trader, S.data && S.data.vue, actif);
-    function portefeuilleCourant(v) {
-      const tr = S.data && S.data.trader, base = v.portefeuille || { capital0: 10000, capital: 10000, gainUsd: 0, gainPct: 0, semaineUsd: 0, nTrades: 0, tauxReussite: 0, rMoyen: 0, drawdownMaxPct: 0, risquePct: 1, courbe: [] };
-      if (!tr) return base;   // sans le mode Trader : le portefeuille calculé par le service (frais et plafonds compris)
-      const risque = Number(tr && tr.reglages && tr.reglages.risquePct) || base.risquePct || 1, prix = {}; for (const a of ['BTC', 'SOL', 'DOGE']) prix[a] = (S.prixLive && Number.isFinite(S.prixLive[a]) ? S.prixLive[a] : null) ?? C.dernierPrix(tr, v, a);
-      const p = C.portefeuilleTrades(C.tousTrades(tr, v), prix, { capital0: base.capital0 || 10000, risquePct: risque, maintenant: maintenant() });
-      const s = tr && tr.bilan && tr.bilan.tous && tr.bilan.tous.stats; if (s && Number.isFinite(s.n) && s.n > p.nTrades) p.incomplet = s.n;
-      return p;
-    }
+    const portefeuilleCourant = v => C.portefeuilleAffiche(S.data && S.data.trader, v, S.prixLive, { maintenant: maintenant() });   // la même fonction sur tous les appareils
     function rendrePortefeuille() {
       const v = S.data && S.data.vue; if (!v) { E.pf.innerHTML = ''; E.verdict.innerHTML = ''; return; }
       const p = portefeuilleCourant(v), gagne = p.gainUsd >= 0; if (racine.AgentAlertes && p.source === 'trades') racine.AgentAlertes.reglerSim({ capital: p.capital, risquePct: p.risquePct });
@@ -248,17 +241,19 @@
       // murs du carnet
       if (S.couches.murs && S.carnet && S.carnet.ok && S.carnet.actif === S.actif) for (const m of S.carnet.murs || []) { if (m.prix < R.min || m.prix > R.max) continue; ctx.strokeStyle = m.cote === 'bid' ? 'rgba(62,207,142,.7)' : 'rgba(239,91,91,.7)'; ctx.setLineDash([2, 3]); ctx.beginPath(); ctx.moveTo(marge.g, R.y(m.prix)); ctx.lineTo(W - marge.d, R.y(m.prix)); ctx.stroke(); ctx.setLineDash([]); ctx.fillStyle = COL.texte; ctx.fillText('mur ' + C.compact(m.usdMax) + ' $', marge.g + 4, R.y(m.prix) - 2); }
       // positions : TOUTES les vivantes, puis TOUS les trades terminés visibles (entrée, sortie, stop, objectif, résultat en R) pour BTC, SOL et DOGE
-      const iDe = t => Math.min(bougies.length + 3, Math.floor((t - bougies[0][0]) / pas));
+      const iDe = t => {   // indice de la bougie qui contient t (recherche dans les VRAIES heures : les trous de données ne décalent plus les boîtes) ; après la dernière bougie, au pas régulier
+        if (t < bougies[0][0]) return Math.floor((t - bougies[0][0]) / pas); let lo = 0, hi = bougies.length - 1; while (lo < hi) { const k = (lo + hi + 1) >> 1; if (bougies[k][0] <= t) lo = k; else hi = k - 1; }
+        return lo < bougies.length - 1 ? lo : Math.min(bougies.length + 3, lo + Math.floor((t - bougies[lo][0]) / pas)); };
       ctx.save(); ctx.beginPath(); ctx.rect(marge.g, marge.h, W - marge.d - marge.g, R.bas - marge.h); ctx.clip();
       const tFinFen = bougies[bougies.length - 1][0] + pas; S.zonesDessinees = [];
       for (const p of tousP) {
         const fini = p.statut === 'terminee', att = p.statut === 'en_attente', tDeb = p.tEntree || p.tSignal; if (!tDeb) continue; if (fini && (p.tSortie < bougies[0][0] || tDeb > tFinFen)) continue;
-        const x0 = R.x(iDe(tDeb)), x1 = fini ? R.x(iDe(p.tSortie)) : R.x(bougies.length - 1) + 40, yE = R.y(p.entree), yS = R.y(p.stop), yC = p.cible != null ? R.y(p.cible) : yE, gain = fini && p.R > 0;
+        const x0 = R.x(iDe(tDeb)), x1 = fini ? R.x(iDe(p.tSortie)) : Math.max(R.x(bougies.length - 1) + R.pas * 0.5, x0 + R.pas * 1.5), yE = R.y(p.entree), yS = R.y(p.stop), yC = p.cible != null ? R.y(p.cible) : yE, gain = fini && p.R > 0;
         S.zonesDessinees.push({ id: p.id, statut: p.statut, x0, x1, yE, yS, yC, cible: p.cible, entree: p.entree, stop: p.stop }); const w = Math.max(2, x1 - x0), nx = Math.round(x0) + .5, haut = (ya, yb) => [Math.min(ya, yb), Math.abs(ya - yb)];
         const zone = (ya, yb, rvb, bord) => { const [y, h] = haut(ya, yb); ctx.fillStyle = 'rgba(' + rvb + ',' + (fini ? .1 : .2) + ')'; ctx.fillRect(nx, y, w, h); ctx.strokeStyle = 'rgba(' + rvb + ',' + bord + ')'; ctx.lineWidth = 1; ctx.strokeRect(nx, Math.round(y) + .5, Math.round(w), Math.max(1, Math.round(h))); };
         zone(yE, yS, '239,91,91', fini ? .45 : .8); if (p.cible != null) zone(yE, yC, '62,207,142', fini ? .45 : .8);   // SL en rouge (entrée → stop), TP en vert (entrée → objectif), bords nets
         ctx.strokeStyle = att ? COL.attente : COL.accent; ctx.lineWidth = 1.2; ctx.setLineDash(att ? [5, 3] : []); ctx.beginPath(); ctx.moveTo(nx, Math.round(yE) + .5); ctx.lineTo(Math.max(x1, x0 + 2), Math.round(yE) + .5); ctx.stroke(); ctx.setLineDash([]);
-        if (!fini) { ctx.font = '600 10px ui-monospace,Consolas,monospace'; ctx.textAlign = 'right'; const xr = W - marge.d - 4; const dedans = y => Math.max(marge.h + 11, Math.min(R.bas - 3, y)), fleche = y => (y < marge.h ? '↑ ' : y > R.bas ? '↓ ' : ''); ctx.fillStyle = 'rgba(62,207,142,.95)'; if (p.cible != null) ctx.fillText(fleche(yC) + 'TP ' + C.prixTexte(p.cible), xr, dedans(yC + (yC < yE ? 11 : -3))); ctx.fillStyle = 'rgba(239,91,91,.95)'; ctx.fillText(fleche(yS) + 'SL ' + C.prixTexte(p.stop), xr, dedans(yS + (yS > yE ? -3 : 11))); ctx.textAlign = 'left'; }
+        if (!fini) { ctx.font = '600 10px ui-monospace,Consolas,monospace'; ctx.textAlign = 'left'; const xr = Math.min(x1 + 4, W - marge.d - 76); const dedans = y => Math.max(marge.h + 11, Math.min(R.bas - 3, y)), fleche = y => (y < marge.h ? '↑ ' : y > R.bas ? '↓ ' : ''); ctx.fillStyle = 'rgba(62,207,142,.95)'; if (p.cible != null) ctx.fillText(fleche(yC) + 'TP ' + C.prixTexte(p.cible), xr, dedans(yC + (yC < yE ? 11 : -3))); ctx.fillStyle = 'rgba(239,91,91,.95)'; ctx.fillText(fleche(yS) + 'SL ' + C.prixTexte(p.stop), xr, dedans(yS + (yS > yE ? -3 : 11))); ctx.textAlign = 'left'; }
         ctx.fillStyle = COL.texte; ctx.font = '10px system-ui'; ctx.textAlign = 'left';
         if (fini) {   // entrée ▲/▼, trait entrée → sortie, point de sortie et résultat
           const yX = R.y(p.sortie), coul = gain ? COL.hausse : COL.baisse; ctx.strokeStyle = coul; ctx.lineWidth = 1.6; ctx.beginPath(); ctx.moveTo(x0, yE); ctx.lineTo(x1, yX); ctx.stroke(); ctx.lineWidth = 1;
@@ -305,8 +300,8 @@
     const dureeP = ms => (ms == null ? '—' : ms < 5400e3 ? Math.round(ms / 60000) + ' min' : ms < 172800e3 ? C.fr(ms / 3600e3, 1) + ' h' : C.fr(ms / 86400e3, 1) + ' j');
     function rendreHisto() {
       const v = S.data && S.data.vue; if (!v) { E.histo.innerHTML = ''; return; }
-      const p = portefeuilleCourant(v), prix = {}; for (const a of ['BTC', 'SOL', 'DOGE']) prix[a] = (S.prixLive && Number.isFinite(S.prixLive[a]) ? S.prixLive[a] : null) ?? C.dernierPrix(S.data.trader, v, a);
-      const T = C.tableHistorique(C.tousTrades(S.data.trader, v), { capital0: p.capital0 || 10000, risquePct: p.risquePct || 1, prix }), r = T.resume, f = S.hf;
+      const p = portefeuilleCourant(v), prix = {}; for (const a of ['BTC', 'SOL', 'DOGE']) prix[a] = C.prixDe(S.data.trader, v, a, S.prixLive);
+      const T = C.tableHistorique(C.tousTrades(S.data.trader, v), { capital0: p.capital0 || 10000, risquePct: p.risquePct || 1, prix, capitalAvant: p.capitalAvantListe != null ? p.capitalAvantListe : null, publie: p.resumePub || null }), r = T.resume, f = S.hf;
       const lignes = T.lignes.filter(l => (f.actif === 'tous' || l.actif === f.actif) && (f.res === 'tous' || (f.res === 'gagnants' && l.statut === 'terminee' && l.R > 0) || (f.res === 'perdants' && l.statut === 'terminee' && l.R <= 0) || (f.res === 'ouverts' && l.statut !== 'terminee')));
       const seg = (cle, vals) => '<div class="vv-seg" role="group">' + vals.map(([k, t]) => '<button type="button" data-hf="' + cle + ':' + k + '" aria-pressed="' + (f[cle] === k) + '">' + t + '</button>').join('') + '</div>';
       const chip = (t, x, cls) => '<span class="vv-chip"><small>' + t + '</small><b class="' + (cls || '') + '">' + x + '</b></span>', sg = x => (x == null ? '' : x >= 0 ? 'vv-hausse' : 'vv-baisse');
@@ -314,6 +309,7 @@
       h += '<div class="vv-chips">' + chip('trades terminés', r.n) + chip('réussite', r.taux == null ? '—' : C.fr(r.taux * 100, 0) + ' %') + chip('R moyen', r.rMoyen == null ? '—' : C.signe(r.rMoyen, 2), sg(r.rMoyen)) + chip('cumul', C.signe(r.cumulR, 1) + ' R', sg(r.cumulR)) + chip('gain simulé', C.signe(r.gainUsd, 2) + ' $', sg(r.gainUsd))
         + chip('facteur de profit', r.facteurProfit == null ? '—' : C.fr(r.facteurProfit, 2)) + chip('meilleur / pire', r.meilleur == null ? '—' : C.signe(r.meilleur, 1) + ' / ' + C.signe(r.pire, 1) + ' R') + chip('baisse max', C.fr(r.baisseMaxR, 1) + ' R') + (r.ouverts || r.enAttente ? chip('en cours / attente', r.ouverts + ' / ' + r.enAttente) : '') + '</div>';
       h += '<div class="vv-histo-filtres">' + seg('actif', [['tous', 'Tous'], ['BTC', 'BTC'], ['SOL', 'SOL'], ['DOGE', 'DOGE']]) + seg('res', [['tous', 'Tous'], ['gagnants', 'Gagnants'], ['perdants', 'Perdants'], ['ouverts', 'En cours']]) + '<span class="vv-note">' + lignes.length + ' ligne' + (lignes.length > 1 ? 's' : '') + '</span></div>';
+      if (r.partiel) h += '<p class="vv-note">Statistiques d’ensemble sur les ' + r.n + ' trades ; meilleur / pire, facteur de profit et baisse max sur les ' + r.nListes + ' derniers listés.</p>';
       if (r.parNom.length > 1 || r.parActif.length > 1) h += '<p class="vv-note vv-histo-par">Ce qui a marché : ' + r.parNom.slice(0, 4).map(e => esc(e.cle) + ' ' + C.signe(e.R, 1) + ' R (' + e.n + ', ' + C.fr(e.taux * 100, 0) + ' %)').join(' · ') + ' — par actif : ' + r.parActif.map(e => esc(e.cle) + ' ' + C.signe(e.R, 1) + ' R (' + e.n + ')').join(' · ') + '</p>';
       h += lignes.length ? '<div class="vv-table-wrap vv-histo-wrap"><table class="vv-table vv-histo-table"><thead><tr><th>Entrée (date)</th><th>Actif</th><th>Sens</th><th>Entrée</th><th>Stop</th><th>TP</th><th>Sortie</th><th>Résultat</th><th>R</th><th>Gain simulé</th><th>Durée</th></tr></thead><tbody>'
         + lignes.map(l => { const fini = l.statut === 'terminee', gain = fini && l.R > 0, R = fini ? l.R : l.flottantR, etat = fini ? (l.type || (gain ? 'TP' : 'SL')) + (gain ? ' ✔' : ' ✖') : l.statut === 'ouverte' ? 'en cours' : 'en attente';
@@ -384,7 +380,8 @@
     function rendreFlux() {
       const v = S.data && S.data.vue; if (!v) { E.flux.innerHTML = ''; return; }
       const ev = C.fluxExecution(C.tousTrades(S.data.trader, v)), cles = new Set(ev.map(e => e.id + e.type)), premier = !S.fluxVus;
-      E.flux.innerHTML = '<div class="vv-titre">Flux d’exécution <small>simulation, plus récent d’abord</small></div>' + (ev.length ? '<ul>' + ev.map(e => '<li data-type="' + e.type + '" class="' + (!premier && !S.fluxVus.has(e.id + e.type) ? 'vv-neuf ' : '') + (e.type === 'sortie' ? (e.gain ? 'vv-hausse' : 'vv-baisse') : '') + '"><time>' + new Date(e.t).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit', timeZone: 'Europe/Paris' }) + '</time><span>' + esc(e.texte) + '</span></li>').join('') + '</ul>' : '<p class="vv-note">Aucun trade pour l’instant : dès que l’agent prend une position, chaque étape (signal, entrée, sortie) apparaît ici.</p>');
+      const co = v.coherence, noteCoh = co && (co.evites || co.remplaces) ? '<p class="vv-note vv-coh" data-vv="coherence">Cohérence : jamais acheteur et vendeur en même temps sur un actif. ' + co.evites + ' ordre(s) de sens contraire écarté(s), ' + co.remplaces + ' ordre(s) en attente remplacé(s) par une impulsion' + (co.derniers && co.derniers.length ? ' — dernier : ' + esc(co.derniers[co.derniers.length - 1].actif + ', ' + co.derniers[co.derniers.length - 1].raison) : '') + '.</p>' : '';
+      E.flux.innerHTML = '<div class="vv-titre">Flux d’exécution <small>simulation, plus récent d’abord</small></div>' + noteCoh + (ev.length ? '<ul>' + ev.map(e => '<li data-type="' + e.type + '" class="' + (!premier && !S.fluxVus.has(e.id + e.type) ? 'vv-neuf ' : '') + (e.type === 'sortie' ? (e.gain ? 'vv-hausse' : 'vv-baisse') : '') + '"><time>' + new Date(e.t).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit', timeZone: 'Europe/Paris' }) + '</time><span>' + esc(e.texte) + '</span></li>').join('') + '</ul>' : '<p class="vv-note">Aucun trade pour l’instant : dès que l’agent prend une position, chaque étape (signal, entrée, sortie) apparaît ici.</p>');
       S.fluxVus = cles;
     }
     function toutRendre() { rendreHisto(); rendreFlux(); rendreEtat(); rendrePortefeuille(); rendreOutils(); rendreCarnet(); rendreListes(); rendreRejoue(); dessiner(); }

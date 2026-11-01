@@ -137,6 +137,17 @@ try {
   T.verifier('vue Agent : la zone d’un ordre posé après la dernière bougie démarre à droite (plus d’étirement sur tout le graphique)', !!f2 && f2.x0 > 0.6 * f2.L, f2 ? 'x0 ' + Math.round(f2.x0) + ' / L ' + Math.round(f2.L) : 'absente');
   T.verifier('vue Agent : stop au-dessus / objectif en dessous pour une vente, l’inverse pour un achat', !!f2 && !!o2 && f2.yS < f2.yE && f2.yO > f2.yE && o2.yS > o2.yE && o2.yO < o2.yE, JSON.stringify({ f2, o2 }));
   await page.screenshot({ path: 'docs/captures-v17/pc-agent.png' });
+  // ── 5. boîtes SL / TP bornées aux bougies actives : jamais étirées dans le vide du futur (PC puis téléphone) ──
+  const bornees = zs => zs.every(z => (z.x1 <= z.xBord + 0.5 || z.x1 - z.x0 <= z.pasPx * 1.6 + 0.5) && z.x1 < z.L - 2 * z.pasPx);   // jusqu'à la dernière bougie ; un ordre posé APRÈS elle garde une largeur d'une bougie et demie
+  T.verifier('vue Agent (PC) : chaque boîte s’arrête à la dernière bougie (un ordre posé après elle : une bougie et demie), loin du bord droit du graphique', bornees(zp), JSON.stringify(zp.map(z => ({ id: z.id, x0: Math.round(z.x0), x1: Math.round(z.x1), bord: Math.round(z.xBord), L: Math.round(z.L) }))));
+  const o3 = zp.find(z => z.id === 'ouv'); T.verifier('la boîte d’une position ouverte va de son entrée à la dernière bougie (pas jusqu’au bord)', o3.x1 - o3.x0 > 0 && Math.abs(o3.x1 - o3.xBord) < 1 && o3.L - o3.x1 > 3 * o3.pasPx, 'vide à droite : ' + Math.round(o3.L - o3.x1) + ' px');
+  await page.setViewport({ width: 390, height: 844 }); await attendre(1800);   // largeur de téléphone (la coque mobile elle-même utilise le même composant : voir v13-agent-mobile-test)
+  const zm = await ev(() => window.PosteAgent.lisible().etat().zonesPx), L2 = zm.length ? zm[0].L : 0;
+  T.verifier('vue Agent (téléphone 390 px) : boîtes bornées aux bougies actives, vide à droite préservé', zm.length >= 2 && bornees(zm), JSON.stringify(zm.map(z => ({ id: z.id, x1: Math.round(z.x1), L: Math.round(z.L), pas: +z.pasPx.toFixed(1) }))));
+  await ev(() => window.PosteAgent.vue('vivant')); await attendre(1200); await ev(() => document.querySelector('[data-vv="graph"]').dispatchEvent(new MouseEvent('dblclick', { bubbles: true }))); await attendre(600); const sm = await S(), zm2 = sm.zones || [], vivantes = zm2.filter(z => z.statut !== 'terminee');
+  T.verifier('tableau vivant (téléphone) : les boîtes SL / TP s’arrêtent à la dernière bougie (+ une bougie et demie au plus)', vivantes.length >= 2 && vivantes.every(z => z.x1 <= sm.geo.g + sm.geo.W + 0.5 && z.x1 - z.x0 <= 1.6 * sm.geo.pas + 0.5 + (z.id === 'ouv' ? (sm.geo.W) : 0)), JSON.stringify(vivantes.map(z => ({ id: z.id, x0: Math.round(z.x0), x1: Math.round(z.x1) })) ) + ' plot ' + Math.round(sm.geo.g + sm.geo.W) + ' geo ' + JSON.stringify({ vis: sm.geo.vis, gauche: sm.geo.gauche, total: sm.geo.total, pas: sm.geo.pas, tf: sm.tf, off: sm.geo.off, n: sm.geo.n }));
+  await ev(() => document.querySelector('.vv-zone').scrollIntoView({ block: 'center' })); await attendre(300); await (await page.$('.vv-zone')).screenshot({ path: 'docs/captures-v17/telephone-graphique.png' });
+  await page.setViewport({ width: 1600, height: 1100 }); await attendre(900);
   T.verifier('aucune erreur JavaScript', erreurs.length === 0, erreurs.join(' | '));
   await nav.close(); nav = null;
 } finally { if (nav) await nav.close(); srv.kill(); }

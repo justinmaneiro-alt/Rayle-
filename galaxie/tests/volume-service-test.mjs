@@ -34,6 +34,8 @@ ok(S.every(x => ['en_attente', 'ouverte', 'terminee', 'annulee'].includes(x.stat
 const par = { en_attente: 0, ouverte: 0, terminee: 0, annulee: 0 }; for (const x of S) par[x.statut]++; ok(par.terminee > 0, 'des trades terminés : ' + JSON.stringify(par));
 ok(S.filter(x => x.statut === 'terminee').every(x => Number.isFinite(x.R) && x.tEntree && x.tSortie > x.tEntree), 'chaque trade terminé a un R fini, une entrée et une sortie');
 ok(S.filter(x => x.statut === 'en_attente' || x.statut === 'ouverte').length <= 2, 'une position à la fois par setup et par actif (au plus 2 vivantes pour 2 actifs)');
+// cohérence : jamais deux trades de sens contraire en même temps sur un même actif (durées d'exécution qui se chevauchent)
+const exec = S.filter(x => x.tEntree && x.tSortie); ok(exec.every(a => exec.every(b => a === b || a.actif !== b.actif || a.sens === b.sens || a.tSortie <= b.tEntree || b.tSortie <= a.tEntree)), 'aucun chevauchement de deux trades de sens contraire sur le même actif (' + exec.length + ' trades vérifiés)');
 // une proposition ne change jamais de niveaux une fois créée, et rejouée à un autre moment donne le MÊME résultat (déterminisme)
 const avant = JSON.stringify(S.filter(x => x.statut === 'terminee').map(x => [x.id, x.R, x.resultat])); v.suivre({ BTC: fabrique('BTC'), SOL: fabrique('SOL') }); ok(avant === JSON.stringify(v.etat().signaux.filter(x => x.statut === 'terminee').map(x => [x.id, x.R, x.resultat])), 'rejouer le suivi donne exactement les mêmes trades');
 // portefeuille : cohérent avec le moteur pur, composé, persistant

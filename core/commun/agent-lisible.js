@@ -36,7 +36,7 @@
     /* Indice logique (position sur l'axe) de l'instant t : la bougie qui le contient, ou, après la dernière bougie, une position fractionnaire entière vers la droite. */
     function indiceDe(t) {
       const b = S.bougies; if (!b.length) return null; const t1 = t / 1000, pas = K.PAS / 1000; if (t1 < b[0].time) return Math.floor((t1 - b[0].time) / pas);
-      let lo = 0, hi = b.length - 1; while (lo < hi) { const k = (lo + hi + 1) >> 1; if (b[k].time <= t1) lo = k; else hi = k - 1; } return lo + Math.floor((t1 - b[lo].time) / pas);
+      let lo = 0, hi = b.length - 1; while (lo < hi) { const k = (lo + hi + 1) >> 1; if (b[k].time <= t1) lo = k; else hi = k - 1; } return lo < b.length - 1 ? lo : lo + Math.floor((t1 - b[lo].time) / pas);   // un instant dans un trou de données reste sur la bougie d'avant
     }
     function dessinerZones(ctx, taille) {
       if (!S.serie || !S.chart) return;
@@ -48,14 +48,15 @@
         ctx.strokeStyle = coul; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.moveTo(x0, yE); ctx.lineTo(xb, yX); ctx.stroke(); ctx.fillStyle = coul; ctx.beginPath(); ctx.arc(xb, yX, 3.5, 0, 7); ctx.fill(); ctx.fillStyle = K.COULEURS.texte; ctx.font = '700 11px system-ui'; ctx.textAlign = 'left'; ctx.fillText(h.sens > 0 ? '▲' : '▼', x0 - 4, h.sens > 0 ? yE + 12 : yE - 3);
       }
       if (!S.zones.length) return;
+      const nB = S.bougies.length, xDer = nB ? ts.logicalToCoordinate(nB - 1) : null, xSuiv = nB ? ts.logicalToCoordinate(nB) : null, pasPx = xDer != null && xSuiv != null ? Math.abs(xSuiv - xDer) : 8, xBord = (xDer != null ? xDer : L) + pasPx * 0.5;   // bord droit de la dernière bougie
       for (const z of S.zones) {
         const yE = yy(z.entree), yS = yy(z.stop), yO = yy(z.obj); if (yE == null || yS == null) continue;
-        const xd = X(z.t), x0 = Math.max(0, xd == null ? 0 : xd), fort = S.focus === z.id; S.zonesPx.push({ id: z.id, x0, yE, yS, yO, L, H: Hp });
-        const rect = (ya, yb, col, a) => { ctx.fillStyle = col; ctx.globalAlpha = a; ctx.fillRect(x0, Math.min(ya, yb), Math.max(1, L - x0), Math.abs(ya - yb)); ctx.globalAlpha = 1; };
+        const xd = X(z.t), x0 = Math.max(0, xd == null ? 0 : xd), fort = S.focus === z.id, x1 = Math.min(L, Math.max(xBord, x0 + 1.5 * pasPx)), larg = Math.max(1, x1 - x0); S.zonesPx.push({ id: z.id, x0, x1, yE, yS, yO, L, H: Hp, xBord, pasPx });
+        const rect = (ya, yb, col, a) => { ctx.fillStyle = col; ctx.globalAlpha = a; ctx.fillRect(x0, Math.min(ya, yb), larg, Math.abs(ya - yb)); ctx.globalAlpha = 1; };
         rect(yE, yS, K.COULEURS.perte, fort ? .3 : .2); if (yO != null) rect(yE, yO, K.COULEURS.gain, fort ? .3 : .2);
-        ctx.lineWidth = 1; ctx.globalAlpha = .75; ctx.strokeStyle = K.COULEURS.perte; ctx.strokeRect(Math.round(x0) + .5, Math.round(Math.min(yE, yS)) + .5, Math.max(1, Math.round(L - x0) - 1), Math.max(1, Math.round(Math.abs(yS - yE)))); if (yO != null) { ctx.strokeStyle = K.COULEURS.gain; ctx.strokeRect(Math.round(x0) + .5, Math.round(Math.min(yE, yO)) + .5, Math.max(1, Math.round(L - x0) - 1), Math.max(1, Math.round(Math.abs(yO - yE)))); } ctx.globalAlpha = 1;   // SL rouge, TP vert, bords nets
-        ctx.strokeStyle = z.enCours ? K.COULEURS.texte : K.COULEURS.attente; ctx.lineWidth = fort ? 2.5 : 1.5; ctx.setLineDash(z.enCours ? [] : [6, 4]); ctx.beginPath(); ctx.moveTo(x0, yE); ctx.lineTo(L, yE); ctx.stroke(); ctx.setLineDash([]);
-        if (fort || z.diamant && S.couches.diamant) { ctx.strokeStyle = fort ? K.COULEURS.texte : K.COULEURS.attente; ctx.lineWidth = 1; ctx.strokeRect(x0 + .5, Math.min(yS, yO == null ? yE : yO) + .5, Math.max(1, L - x0 - 1), Math.abs((yO == null ? yE : yO) - yS) - 1); }
+        ctx.lineWidth = 1; ctx.globalAlpha = .75; ctx.strokeStyle = K.COULEURS.perte; ctx.strokeRect(Math.round(x0) + .5, Math.round(Math.min(yE, yS)) + .5, Math.max(1, Math.round(larg) - 1), Math.max(1, Math.round(Math.abs(yS - yE)))); if (yO != null) { ctx.strokeStyle = K.COULEURS.gain; ctx.strokeRect(Math.round(x0) + .5, Math.round(Math.min(yE, yO)) + .5, Math.max(1, Math.round(larg) - 1), Math.max(1, Math.round(Math.abs(yO - yE)))); } ctx.globalAlpha = 1;   // SL rouge, TP vert, bords nets
+        ctx.strokeStyle = z.enCours ? K.COULEURS.texte : K.COULEURS.attente; ctx.lineWidth = fort ? 2.5 : 1.5; ctx.setLineDash(z.enCours ? [] : [6, 4]); ctx.beginPath(); ctx.moveTo(x0, yE); ctx.lineTo(x1, yE); ctx.stroke(); ctx.setLineDash([]);
+        if (fort || z.diamant && S.couches.diamant) { ctx.strokeStyle = fort ? K.COULEURS.texte : K.COULEURS.attente; ctx.lineWidth = 1; ctx.strokeRect(x0 + .5, Math.min(yS, yO == null ? yE : yO) + .5, Math.max(1, larg - 1), Math.abs((yO == null ? yE : yO) - yS) - 1); }
         etiq.push({ y: yE, texte: (z.diamant && S.couches.diamant ? '💎 ' : '') + z.etiquette, couleur: z.enCours ? K.COULEURS.texte : K.COULEURS.attente });
       }
       ctx.font = '600 ' + taillePolice + 'px system-ui, sans-serif'; ctx.textBaseline = 'middle'; ctx.textAlign = 'right';

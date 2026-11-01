@@ -3,6 +3,7 @@
 // Tout est PROPOSITION et SIMULATION : aucun ordre n'est passé, aucune clé de courtier n'existe ici. Les critères de validation (criteres-v3/v4) ne sont ni lus ailleurs ni modifiés.
 // État : trader.json (écrit de façon atomique), vue publiée dans etat.vuePubliee (routes /__agent/trader, paquet mobile).
 import fs from 'node:fs';
+import { createRequire } from 'node:module';
 import path from 'node:path';
 import { lireJson, ecrireJson } from './etat-agent.mjs';
 import { tranche } from '../planetes/mars/pc/agent-btc/colonnes.js';
@@ -14,6 +15,8 @@ import { retroTest, comparerGestion } from '../strategies/trader/retrotest.js';
 import { configRicheDe, lireCoutsReglage } from './couts-reglage.mjs';
 import { fr, prixTexte, PAS } from '../strategies/trader/outils.js';
 import { positionOpposee, raisonConflit } from '../strategies/coherence.js';
+const CALCUL = createRequire(import.meta.url)('../core/commun/volume-vivant-calcul.js');   // le MÊME code que celui des écrans (PC, tablette, téléphone)
+const CAPITAL_DEPART = 10000;
 
 export const FICHIER_TRADER = 'trader.json', FICHIER_COMMANDES_TRADER = 'trader-commandes.json';
 const JOUR = 86400e3, FENETRE = 12000, MAX_PROPOSITIONS = 3000;
@@ -31,6 +34,7 @@ export function creerTrader({ dossier, D, paires, maintenant = () => Date.now(),
   const reglages = () => ({ ...REGLAGES_DEFAUT, ...(etat.reglages || {}) });
   const serieDe = a => (series ? series[a] : D.serie(a));
   const coutsDe = a => { try { const c = configRicheDe(a, lireCoutsReglage(dossier)); return { fraisPct: c.fraisPct, makerPct: c.makerPct, spreadPct: c.spreadPct, glissementPct: c.glissementPct, filePct: COUTS_TRADER.filePct }; } catch (e) { return COUTS_TRADER; } };
+  let autres = null;   // trades d'un autre module (suivi de volume) à compter dans le même portefeuille : () => ({ trades, idsListes })
   const sauver = () => { try { etat.vuePubliee = vue(); ecrireJson(fichier, etat, { copies: 1 }); } catch (e) { erreur('sauvegarde du mode Trader', e); } };
   const niveauDe = p => (etat.types[cleType(p)] || { niveau: 'a_lessai' }).niveau;
   const indexDe = (m15, t) => { let lo = 0, hi = m15.n - 1; if (!m15.n || m15.t[0] > t) return -1; while (lo < hi) { const k = (lo + hi + 1) >> 1; if (m15.t[k] <= t) lo = k; else hi = k - 1; } return m15.t[lo] === t ? lo : -1; };
@@ -176,6 +180,7 @@ export function creerTrader({ dossier, D, paires, maintenant = () => Date.now(),
     const R = reglages(), t = maintenant(), min = NIVEAUX_ORDRE[R.niveauMin] || 1, direct = etat.propositions.filter(p => p.source !== 'retro' && !p.fantome);
     const actives = direct.filter(p => (p.statut === 'en_attente' || p.statut === 'ouverte') && t < p.t + (p.ttl || 16) * PAS + 2 * 3600e3).map(enrichir).filter(p => (NIVEAUX_ORDRE[p.niveau] || 1) >= min).sort((a, b) => b.nConfluences - a.nConfluences || b.rr - a.rr);
     const recentes = direct.slice(-300).reverse().map(enrichir);
+    const portefeuille = (() => { const aut = autres ? autres() : { trades: [], idsListes: [] }; return CALCUL.resumePortefeuille(CALCUL.tousTrades({ recentes: direct.map(enrichir) }, null).concat(aut.trades).filter(x => x.statut === 'terminee'), { capital0: CAPITAL_DEPART, risquePct: R.risquePct, maintenant: t, idsListes: recentes.map(p => p.id).concat(aut.idsListes) }); })();
     const propsBilan = direct.map(p => ({ ...p, resultat: p.resultat, tSortie: p.tSortie })), bilan = bilanTrader(propsBilan, { risquePct: R.risquePct });
     const types = Object.entries(etat.types).map(([cle, x]) => ({ cle, nom: cle.split('|').map((v, i) => (i === 0 ? SETUPS[v] || v : v)).join(' · '), niveau: x.niveau, niveauTexte: NIVEAUX_TRADER[x.niveau], raison: x.raison, n: x.n, esperance: x.esperance, ic: x.ic, taux: x.taux, depuis: x.depuis, baisse: x.baisse && x.baisse.baisse ? x.baisse.texte : null }))
       .sort((a, b) => (b.esperance ?? -9) - (a.esperance ?? -9));
@@ -183,12 +188,12 @@ export function creerTrader({ dossier, D, paires, maintenant = () => Date.now(),
     const pourquoi = []; for (const a of Object.keys(etat.refusJour)) for (const x of (etat.refusJour[a].liste || []).slice(-6)) pourquoi.push({ actif: a, setup: SETUPS[x.setup] || x.setup, sens: x.sens, pourquoi: x.pourquoi, t: x.t });
     return { ok: true, version: 12, t, reglages: R, style: STYLES[R.style], styles: STYLES, setups: SETUPS, gestions: GESTIONS, niveaux: NIVEAUX_TRADER, bandeau: BANDEAU_ESSAI, avertissement: AVERTISSEMENT, actives, recentes, bilan: compactBilan(bilan), objectifHebdo: objectifHebdo(propsBilan, { risquePct: R.risquePct, maintenant: t }),
       types, retro: etat.retro, gestion: etat.gestion, analyses: etat.analyses, bougies: etat.bougies, donnees, dernierCycle: derniere, pourquoi: pourquoi.sort((a, b) => b.t - a.t).slice(0, 24), journalNiveaux: etat.journalNiveaux.slice(-30).reverse(),
-      courbe: courbeR(propsBilan), fantomes: etat.propositions.filter(p => p.fantome && p.source !== 'retro').length };
+      portefeuille, courbe: courbeR(propsBilan), fantomes: etat.propositions.filter(p => p.fantome && p.source !== 'retro').length };
   }
   const compactBilan = b => ({ phrase: b.phrase, risquePct: b.risquePct, totalPct: b.totalPct, tous: b.tous, parType: b.parType.map(x => ({ cle: x.cle, propositions: x.propositions, executees: x.executees, enAttente: x.enAttente, expirees: x.expirees, stats: x.stats })), parActif: b.parActif, parTf: b.parTf, parStyle: b.parStyle, parSetup: b.parSetup });
   function courbeR(props) {
     const c = props.filter(p => p.resultat && p.resultat.statut === 'cloturee' && p.tSortie).sort((a, b) => a.tSortie - b.tSortie); let cum = 0; const pts = c.map(p => { cum += p.resultat.R; return [p.tSortie, +cum.toFixed(3)]; });
     return pts.length > 200 ? pts.filter((_, i) => i % Math.ceil(pts.length / 200) === 0 || i === pts.length - 1) : pts;
   }
-  return { cycle, vue, etat: () => etat, sauver, reglages, lireCommandes, rapportDuMatin, lignesMatin, calculerActif: a => calculerActif(a, reglages()), suivre, mettreAJourNiveaux, tacheQuotidienne };
+  return { brancherAutres: f => { autres = f; }, cycle, vue, etat: () => etat, sauver, reglages, lireCommandes, rapportDuMatin, lignesMatin, calculerActif: a => calculerActif(a, reglages()), suivre, mettreAJourNiveaux, tacheQuotidienne };
 }

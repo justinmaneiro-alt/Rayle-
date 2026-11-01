@@ -49,7 +49,7 @@ export function construirePaquet(dossier, maintenant = Date.now()) {
   }
   const tr = lireJson(path.join(dossier, 'trader.json'), null);
   if (tr && tr.vuePubliee) {      // V12 : mode Trader (le même contenu que la fenêtre PC, allégé pour le téléphone)
-    const t = { ...tr.vuePubliee }; delete t.gestions; delete t.niveaux; t.recentes = (t.recentes || []).slice(0, 60); t.journalNiveaux = (t.journalNiveaux || []).slice(0, 10); t.pourquoi = (t.pourquoi || []).slice(0, 12);
+    const t = { ...tr.vuePubliee }; delete t.gestions; delete t.niveaux; t.recentes = (t.recentes || []).map((p, i) => (i < 40 ? p : { id: p.id, actif: p.actif, setup: p.setup, nom: p.nom, tf: p.tf, sens: p.sens, tSignal: p.tSignal, t: p.t, entree: p.entree, stop: p.stop, cible1: p.cible1, rr: p.rr, statut: p.statut, resultat: p.resultat && { statut: p.resultat.statut, R: p.resultat.R, motif: p.resultat.motif }, tEntree: p.tEntree, tSortie: p.tSortie, fantome: p.fantome })).slice(0, 300);   // même liste que le PC : les 40 plus récentes en entier, les autres allégées t.journalNiveaux = (t.journalNiveaux || []).slice(0, 10); t.pourquoi = (t.pourquoi || []).slice(0, 12);
     t.bougies = Object.fromEntries(Object.entries(t.bougies || {}).map(([a, l]) => [a, (l || []).slice(-90)])); t.courbe = (t.courbe || []).slice(-120);
     if (t.bilan) { t.bilan = { ...t.bilan, parType: (t.bilan.parType || []).slice(0, 14) }; delete t.bilan.parActif; delete t.bilan.parTf; delete t.bilan.parStyle; }
     paquet.trader = t;

@@ -85,7 +85,7 @@
     let cap = capital0, pic = capital0, dd = 0, gagnes = 0, sommeR = 0, semaine = 0; const courbe = [[finis.length ? (finis[0].tEntree || finis[0].tSortie) - 60e3 : maintenant, capital0]];
     for (const t of finis) { const pnl = cap * risquePct / 100 * t.R; cap += pnl; sommeR += t.R; if (t.R > 0) gagnes++; if (t.tSortie >= maintenant - 7 * 86400e3) semaine += pnl; if (cap > pic) pic = cap; dd = Math.max(dd, (pic - cap) / pic); courbe.push([t.tSortie, cap]); }
     let flottant = 0, flottantR = 0; const detailOuverts = [];
-    for (const t of ouverts) { const px = prix[t.actif]; if (!fin(px)) continue; const r = t.sens * (px - t.entree) / Math.abs(t.entree - t.stop), usd = cap * risquePct / 100 * r; flottant += usd; flottantR += r; detailOuverts.push({ id: t.id, actif: t.actif, R: r, usd }); }
+    for (const t of ouverts) { const f = flottantDe(t, prix[t.actif], cap, risquePct); if (!f) continue; flottant += f.usd; flottantR += f.R; detailOuverts.push({ id: t.id, actif: t.actif, R: f.R, usd: f.usd }); }
     const total = cap + flottant; if (ouverts.length) { courbe.push([maintenant, total]); if (total > pic) pic = total; dd = Math.max(dd, (pic - total) / pic); }
     return { source: 'trades', capital0, capital: total, realiseUsd: cap - capital0, flottantUsd: flottant, flottantR, cumulR: sommeR, gainUsd: total - capital0, gainPct: (total / capital0 - 1) * 100, semaineUsd: semaine, nTrades: finis.length, nOuverts: ouverts.length, nEnAttente: trades.filter(t => t.statut === 'en_attente').length,
       tauxReussite: finis.length ? gagnes / finis.length : 0, rMoyen: finis.length ? sommeR / finis.length : 0, drawdownMaxPct: dd * 100, risquePct, courbe, parStrategie: [], detailOuverts };
@@ -112,16 +112,52 @@
 
   /* ── Tableau d'historique : TOUTES les positions (en attente, ouvertes, terminées) avec résultat en R, gain simulé en $ (capital composé dans l'ordre des sorties), durée, type de clôture TP / SL ; et le résumé
      de ce qui a marché ou non (réussite, R moyen, facteur de profit, meilleur / pire, baisse max, par stratégie et par actif). Aucune valeur inventée : un trade sans R n'a pas de résultat. ── */
-  function tableHistorique(trades, { capital0 = 10000, risquePct = 1, prix = {} } = {}) {
-    const finis = trades.filter(t => t.statut === 'terminee').sort((a, b) => a.tSortie - b.tSortie), pnl = new Map(); let cap = capital0, pic = capital0, ddR = 0, cum = 0, picR = 0;
-    for (const t of finis) { const usd = cap * risquePct / 100 * t.R; cap += usd; pnl.set(t.id, { usd, capApres: cap }); cum += t.R; picR = Math.max(picR, cum); ddR = Math.max(ddR, picR - cum); pic = Math.max(pic, cap); }
+  function tableHistorique(trades, { capital0 = 10000, risquePct = 1, prix = {}, capitalAvant = null, publie = null } = {}) {
+    const finis = trades.filter(t => t.statut === 'terminee').sort((a, b) => a.tSortie - b.tSortie), pnl = new Map(); let cap = capitalAvant != null ? capitalAvant : capital0, pic = capital0, ddR = 0, cum = 0, picR = 0;
+    for (const t of finis) { const usd = cap * risquePct / 100 * t.R; cap += usd; pnl.set(t.id, { usd, capApres: cap }); cum += t.R; picR = Math.max(picR, cum); ddR = Math.max(ddR, picR - cum); pic = Math.max(pic, cap); const pp = publie && publie.pnlListes && publie.pnlListes[t.id]; if (pp) pnl.set(t.id, { usd: pp[0], capApres: pp[1] }); }
     const ligne = t => { const p = pnl.get(t.id), px = prix[t.actif], flott = t.statut === 'ouverte' && fin(px) ? t.sens * (px - t.entree) / Math.abs(t.entree - t.stop) : null;
       return { id: t.id, actif: t.actif, tf: t.tf, sens: t.sens, nom: t.nom, statut: t.statut, tEntree: t.tEntree || t.tSignal || null, tSortie: t.tSortie || null, entree: t.entree, stop: t.stop, cible: t.cible, sortie: t.sortie, R: t.R, flottantR: flott, type: t.type, motif: t.motif, usd: p ? p.usd : (flott != null ? cap * risquePct / 100 * flott : null), capApres: p ? p.capApres : null, dureeMs: t.tSortie && (t.tEntree || t.tSignal) ? t.tSortie - (t.tEntree || t.tSignal) : null, rr: fin(t.cible) ? Math.abs(t.cible - t.entree) / Math.abs(t.entree - t.stop) : null }; };
     const vivants = trades.filter(t => t.statut !== 'terminee').sort((a, b) => (b.tSignal || 0) - (a.tSignal || 0)), lignes = vivants.concat(finis.slice().reverse()).map(ligne);
     const gains = finis.filter(t => t.R > 0), pertes = finis.filter(t => t.R <= 0), sg = a => a.reduce((s, t) => s + t.R, 0), groupe = cle => { const m = new Map(); for (const t of finis) { const k = cle(t) || '—'; const e = m.get(k) || { cle: k, n: 0, gagnes: 0, R: 0 }; e.n++; e.R += t.R; if (t.R > 0) e.gagnes++; m.set(k, e); } return [...m.values()].map(e => ({ ...e, taux: e.gagnes / e.n, rMoyen: e.R / e.n })).sort((a, b) => b.R - a.R); };
     const resume = { n: finis.length, gagnes: gains.length, perdus: pertes.length, taux: finis.length ? gains.length / finis.length : null, cumulR: sg(finis), rMoyen: finis.length ? sg(finis) / finis.length : null, facteurProfit: pertes.length && sg(pertes) < 0 ? sg(gains) / Math.abs(sg(pertes)) : null, meilleur: finis.length ? Math.max(...finis.map(t => t.R)) : null, pire: finis.length ? Math.min(...finis.map(t => t.R)) : null,
-      baisseMaxR: ddR, gainUsd: cap - capital0, ouverts: trades.filter(t => t.statut === 'ouverte').length, enAttente: trades.filter(t => t.statut === 'en_attente').length, parNom: groupe(t => t.nom), parActif: groupe(t => t.actif) };
+      baisseMaxR: ddR, gainUsd: publie ? publie.realiseUsd : cap - capital0, ouverts: trades.filter(t => t.statut === 'ouverte').length, enAttente: trades.filter(t => t.statut === 'en_attente').length, parNom: groupe(t => t.nom), parActif: groupe(t => t.actif) };
+    if (publie) { resume.partiel = publie.nTrades > finis.length; resume.nListes = finis.length; Object.assign(resume, { n: publie.nTrades, gagnes: publie.gagnes, perdus: publie.nTrades - publie.gagnes, taux: publie.nTrades ? publie.tauxReussite : null, cumulR: publie.cumulR, rMoyen: publie.nTrades ? publie.rMoyen : null }); }   // statistiques d'ensemble = celles du résumé publié (tous les trades)
     return { lignes, resume };
+  }
+
+  /* ── Portefeuille PUBLIÉ : la source de vérité commune PC / tablette / téléphone ──
+     Le service calcule UNE FOIS, sur TOUS les trades terminés, le résultat réalisé (capital composé, cumul en R, taux, baisse maximale, courbe). Chaque appareil le reprend tel quel et n'ajoute que le résultat
+     FLOTTANT des positions ouvertes au dernier prix (formule unique, ci-dessous). Même résumé + mêmes positions ouvertes + même prix = mêmes chiffres au centime, quelle que soit la quantité de trades que l'appareil
+     a reçue. `capitalAvantListe` = capital juste avant le premier trade de la liste envoyée, pour que le « gain simulé » de chaque ligne du tableau soit identique partout. */
+  function echantillonner(pts, max) { if (pts.length <= max) return pts; const pas = Math.ceil(pts.length / max); return pts.filter((_, i) => i % pas === 0 || i === pts.length - 1); }
+  function resumePortefeuille(tradesFinis, { capital0 = 10000, risquePct = 1, maintenant = Date.now(), idsListes = null, maxCourbe = 240 } = {}) {
+    const finis = tradesFinis.filter(t => t.statut === 'terminee').sort((a, b) => a.tSortie - b.tSortie), liste = idsListes ? new Set(idsListes) : null, tListeMin = liste ? Math.min(...finis.filter(t => liste.has(t.id)).map(t => t.tSortie)) : null;
+    let cap = capital0, pic = capital0, dd = 0, gagnes = 0, somme = 0, semaine = 0, avant = capital0; const pnlListes = {}, c2 = x => Math.round(x * 100) / 100; const courbe = [[finis.length ? (finis[0].tEntree || finis[0].tSortie) - 60e3 : maintenant, capital0]];
+    for (const t of finis) {
+      const pnl = cap * risquePct / 100 * t.R; cap += pnl; somme += t.R; if (t.R > 0) gagnes++; if (t.tSortie >= maintenant - 7 * 86400e3) semaine += pnl; if (cap > pic) pic = cap; dd = Math.max(dd, (pic - cap) / pic); courbe.push([t.tSortie, cap]);
+      if (tListeMin != null && t.tSortie < tListeMin) avant = cap; if (liste && liste.has(t.id)) pnlListes[t.id] = [c2(pnl), c2(cap)]; }
+    return { v: 1, t: maintenant, capital0, risquePct, capitalRealise: cap, pic, realiseUsd: cap - capital0, cumulR: somme, nTrades: finis.length, gagnes, tauxReussite: finis.length ? gagnes / finis.length : 0, rMoyen: finis.length ? somme / finis.length : 0, drawdownMaxPct: dd * 100, semaineUsd: semaine, courbe: echantillonner(courbe, maxCourbe), capitalAvantListe: avant, pnlListes };
+  }
+  /* Résultat flottant d'une position ouverte (en R et en $) : UNE formule pour tous les écrans. */
+  function flottantDe(t, prix, capital, risquePct) { if (!fin(prix)) return null; const r = t.sens * (prix - t.entree) / Math.abs(t.entree - t.stop); return { R: r, usd: capital * risquePct / 100 * r }; }
+  function portefeuilleDepuisPublie(pub, trades, prix = {}, { maintenant = Date.now() } = {}) {
+    const ouverts = trades.filter(t => t.statut === 'ouverte'), cap = pub.capitalRealise, rp = pub.risquePct; let fl = 0, flR = 0; const detailOuverts = [];
+    for (const t of ouverts) { const f = flottantDe(t, prix[t.actif], cap, rp); if (!f) continue; fl += f.usd; flR += f.R; detailOuverts.push({ id: t.id, actif: t.actif, R: f.R, usd: f.usd }); }
+    const total = cap + fl, pic = Math.max(pub.pic, total), dd = Math.max(pub.drawdownMaxPct / 100, (pic - total) / pic), courbe = ouverts.length ? pub.courbe.concat([[maintenant, total]]) : pub.courbe.slice();
+    return { source: 'trades', publie: true, capital0: pub.capital0, capital: total, capitalRealise: cap, realiseUsd: pub.realiseUsd, flottantUsd: fl, flottantR: flR, cumulR: pub.cumulR, gainUsd: total - pub.capital0, gainPct: (total / pub.capital0 - 1) * 100, semaineUsd: pub.semaineUsd, nTrades: pub.nTrades, nOuverts: ouverts.length, nEnAttente: trades.filter(t => t.statut === 'en_attente').length,
+      tauxReussite: pub.tauxReussite, rMoyen: pub.rMoyen, drawdownMaxPct: dd * 100, risquePct: rp, courbe, parStrategie: [], detailOuverts, capitalAvantListe: pub.capitalAvantListe, resumePub: pub };
+  }
+
+  const DEFAUT_PF = { capital0: 10000, capital: 10000, gainUsd: 0, gainPct: 0, semaineUsd: 0, nTrades: 0, tauxReussite: 0, rMoyen: 0, drawdownMaxPct: 0, risquePct: 1, courbe: [] };
+  const PAIRES = ['BTC', 'SOL', 'DOGE'];
+  /* Prix de référence d'un actif : le prix en direct s'il existe, sinon la dernière bougie publiée. */
+  const prixDe = (tr, v, a, live) => (live && fin(live[a]) ? live[a] : null) ?? dernierPrix(tr, v, a);
+  function portefeuilleAffiche(tr, v, live = null, { maintenant = Date.now() } = {}) {
+    const base = (v && v.portefeuille) || DEFAUT_PF; if (!tr) return base;   // sans le mode Trader : le portefeuille calculé par le service de volume
+    const prix = {}; for (const a of PAIRES) prix[a] = prixDe(tr, v, a, live); const trades = tousTrades(tr, v), pub = tr.portefeuille && tr.portefeuille.v === 1 ? tr.portefeuille : null;
+    if (pub) return portefeuilleDepuisPublie(pub, trades, prix, { maintenant });
+    const p = portefeuilleTrades(trades, prix, { capital0: base.capital0 || 10000, risquePct: Number(tr.reglages && tr.reglages.risquePct) || base.risquePct || 1, maintenant }), s = tr.bilan && tr.bilan.tous && tr.bilan.tous.stats;
+    if (s && Number.isFinite(s.n) && s.n > p.nTrades) p.incomplet = s.n; return p;
   }
 
   /* Flux d'exécution : ce que l'agent a fait, le plus récent d'abord (signal, entrée touchée, sortie avec son R). */
@@ -146,6 +182,6 @@
   }
   const variation = (avant, apres, seuil = 0.03) => (avant == null || !(avant > 0) ? (apres > 0 && avant != null ? 1 : 0) : apres > avant * (1 + seuil) ? 1 : apres < avant * (1 - seuil) ? -1 : 0);
 
-  const API = { niveauxDom, variation, normaliser, typeSortie, tousTrades, MIN_VISIBLES, fenetreLibre, zoomLibre, deplacerLibre, centrerLibre, tableHistorique, dernierPrix, portefeuilleTrades, fluxExecution, reglesProp, REGLES_PROP, fr, prixTexte, usd, signe, compact, il, barreEtat, listes, lignePosition, repere, indexTemps, positionsAffichees, decoderHeat, niveauDetail, couches, volumeNetTrace, rejoueTrimestres, courbeJours };
+  const API = { niveauxDom, variation, normaliser, typeSortie, tousTrades, portefeuilleAffiche, prixDe, resumePortefeuille, portefeuilleDepuisPublie, flottantDe, MIN_VISIBLES, fenetreLibre, zoomLibre, deplacerLibre, centrerLibre, tableHistorique, dernierPrix, portefeuilleTrades, fluxExecution, reglesProp, REGLES_PROP, fr, prixTexte, usd, signe, compact, il, barreEtat, listes, lignePosition, repere, indexTemps, positionsAffichees, decoderHeat, niveauDetail, couches, volumeNetTrace, rejoueTrimestres, courbeJours };
   if (typeof module !== 'undefined' && module.exports) module.exports = API; else racine.VolumeVivantCalcul = API;
 }(typeof window !== 'undefined' ? window : globalThis));

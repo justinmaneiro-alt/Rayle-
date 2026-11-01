@@ -11,6 +11,7 @@
     "test:v7": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON galaxie/tests/criteres-v4-test.mjs && node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON galaxie/tests/faux-positifs-test.mjs && node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON galaxie/tests/positions-agents-test.mjs && node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON galaxie/tests/positions-pipeline-test.mjs && node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON galaxie/tests/positions-ui-test.mjs && node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON galaxie/tests/positions-service-test.mjs",
     "test:d1": "node --disable-warning=ExperimentalWarning galaxie/tests/d1-limites-test.mjs && node galaxie/tests/agent-limite-page-test.mjs && node galaxie/tests/agent-worker-test.mjs",
     "test:v7b": "node galaxie/tests/appareil-test.mjs",
+    "test:v18": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON galaxie/tests/synchro-test.mjs && node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON galaxie/tests/volume-impulsion-test.mjs",
     "test:v17": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON galaxie/tests/coherence-test.mjs && node tests-navigateur/v17-graphique-test.mjs",
     "test:v16": "node tests-navigateur/v16-agent-test.mjs",
     "test:v14": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON galaxie/tests/volume-dom-test.mjs && node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON galaxie/tests/agent-alertes-test.mjs && node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON galaxie/tests/volume-v14-test.mjs && node galaxie/tests/volume-service-test.mjs",
