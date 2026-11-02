@@ -28,16 +28,16 @@
   function monter(el){
     const lis=document.createElement('div'); lis.dataset.mLisible=''; lis.className='m-agent-lisible'; const det=document.createElement('div'); det.dataset.mDetails=''; det.className='m-agent-det'; det.hidden=true; el.textContent=''; el.append(lis,det);   // efface le squelette de la coque
     // V14 : le TABLEAU VIVANT (volume net, profil, portefeuille virtuel, rejoué) est la vue principale ; la vue simple de la V13 et le bouton « Détails » sont juste dessous
-    const vv=document.createElement('div'); vv.dataset.mVv=''; lis.appendChild(vv); const simple=document.createElement('details'); simple.className='m-vv-simple'; simple.open=true; simple.innerHTML='<summary>Vue simple de l’agent et Détails</summary>'; const zs=document.createElement('div'); simple.appendChild(zs); lis.appendChild(simple);
+    const vv=document.createElement('div'); vv.dataset.mVv=''; lis.appendChild(vv); const bd=document.createElement('button'); bd.type='button'; bd.className='m-bouton m-vv-details'; bd.textContent='Détails'; bd.style.cssText='width:100%;margin:10px 0'; bd.addEventListener('click',()=>vueDetails(true)); lis.appendChild(bd);
     if(window.VolumeVivant){ const lecVV=async()=>{ const e=DA.etat(), d=e.data; if(!d) return (e.bandeau&&e.bandeau.genre==='erreur')?null:{vue:null,service:null,origine:null,note:'Chargement des données de l’agent…'}; const v=d.paquet&&d.paquet.volume; return {vue:v||null,trader:(d.paquet&&d.paquet.trader)||null,service:{enMarche:!!d.pcVivant},origine:d.origine,recuLe:d.recuLe,note:'Le PC n’a pas encore publié le tableau de volume (service Kepler arrêté ou pas à jour).'}; }; S.vv=window.VolumeVivant.monter(vv,{lire:lecVV,intervalle:20000,leger:false}); }
-    S.lisible=monterLisible(zs); S.vue='agent'; monterDetails(det);
+    S.vue='agent'; monterDetails(det);
   }
   function monterDetails(el){
     S.racine=el;
-    el.innerHTML='<div class="m-titre"><button type="button" class="m-bouton" data-retour-agent>← Agent</button><h1>Détails</h1><small data-maj></small></div><p class="m-garde">Propositions et simulations seulement : aucun ordre n’est passé, aucun gain n’est garanti.</p><div data-lien></div>'
+    el.innerHTML='<div class="m-titre"><button type="button" class="m-bouton" data-retour-agent>← Agent</button><h1>Détails</h1><small data-maj></small></div><p class="m-garde">Propositions et simulations seulement : aucun ordre n’est passé, aucun gain n’est garanti.</p><div data-lien></div><details class="m-vv-simple" data-lis-det><summary>Graphique M15 de l’agent</summary><div data-lis-zone></div></details>'
       +'<div class="m-onglets" role="tablist" aria-label="Sections de l’agent">'+ONGLETS.map(o=>'<button type="button" role="tab" class="m-chip" data-o="'+o.id+'" aria-selected="'+(o.id===S.onglet?'true':'false')+'">'+esc(o.nom)+'</button>').join('')+'</div>'
       +'<div class="m-agent-grille"><div class="m-agent-g" data-graphe-panneau'+(tablette?'':' hidden')+'><div class="m-graphe-hote" data-hote></div></div><div class="m-agent-c" data-corps></div></div>';
-    S.corps=el.querySelector('[data-corps]');
+    S.corps=el.querySelector('[data-corps]'); S.lisZone=el.querySelector('[data-lis-zone]'); el.querySelector('[data-lis-det]').addEventListener('toggle',ev=>{ if(ev.target.open&&!S.lisible) S.lisible=monterLisible(S.lisZone); });
     el.querySelector('.m-onglets').addEventListener('click',ev=>{ const b=ev.target.closest('[data-o]'); if(b){ Coque.vibrer(6); aller(b.dataset.o); } });
     el.addEventListener('click',ev=>{ if(ev.target.closest('[data-retour-agent]')){ vueDetails(false); return; } clics(ev); });
     DA.observer(e=>{ S.data=e.data; S.meta=e.meta; S.bandeau=e.bandeau; if(S.lisible) S.lisible.rafraichir(); if(S.vv) S.vv.rafraichir(); entete(); if(S.vue==='details'){ if(S.data) dessiner(); else vide(); } });
