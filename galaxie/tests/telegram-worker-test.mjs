@@ -58,9 +58,9 @@ const route = (chemin, req, e) => T.routeTelegram(req, new URL('https://x' + che
 /* sans identifiant, sans jeton, texte absent */
 {
   appels.length = 0;
-  let r = await route('/telegram/envoyer', post({ texte: 'x' }), env());
+  let r = await route('/telegram/envoyer', post({ texte: 'x', type: 'EXECUTION' }), env());
   v('sans discussion : 409', r.status === 409 && appels.length === 0);
-  r = await route('/telegram/envoyer', post({ texte: 'x' }), env({ TELEGRAM_TOKEN: undefined }));
+  r = await route('/telegram/envoyer', post({ texte: 'x', type: 'EXECUTION' }), env({ TELEGRAM_TOKEN: undefined }));
   v('sans jeton : 400', r.status === 400);
   const e = env(); e.DB.reglages.set('telegram_chat', '1');
   r = await route('/telegram/envoyer', post({}), e);
@@ -71,21 +71,21 @@ const route = (chemin, req, e) => T.routeTelegram(req, new URL('https://x' + che
 /* secret TELEGRAM_CHAT_ID prioritaire */
 {
   const e = env({ TELEGRAM_CHAT_ID: '555' }); e.DB.reglages.set('telegram_chat', '1');
-  appels.length = 0; await route('/telegram/envoyer', post({ texte: 'a' }), e);
+  appels.length = 0; await route('/telegram/envoyer', post({ texte: 'a', type: 'EXECUTION' }), e);
   v('secret TELEGRAM_CHAT_ID prioritaire', appels[0].corps.chat_id === '555');
 }
 /* limite de débit : 4 par minute */
 {
   const e = env(); e.DB.reglages.set('telegram_chat', '1'); appels.length = 0;
   const codes = [];
-  for (let i = 0; i < 6; i++) codes.push((await route('/telegram/envoyer', post({ texte: 'm' + i }), e)).status);
+  for (let i = 0; i < 6; i++) codes.push((await route('/telegram/envoyer', post({ texte: 'm' + i, type: 'EXECUTION' }), e)).status);
   v('limite par minute : 4 envois puis 429', codes.join() === '200,200,200,200,429,429', codes.join());
   v('limite : pas d’appel Telegram au-delà', appels.length === 4);
 }
 /* texte long tronqué */
 {
   const e = env(); e.DB.reglages.set('telegram_chat', '1'); appels.length = 0;
-  await route('/telegram/envoyer', post({ texte: 'a'.repeat(9000) }), e);
+  await route('/telegram/envoyer', post({ texte: 'a'.repeat(9000), type: 'EXECUTION' }), e);
   v('texte long tronqué', appels[0].corps.text.length <= T.LIMITES.tailleMax);
 }
 /* état : jamais l'identifiant */
@@ -112,5 +112,26 @@ const route = (chemin, req, e) => T.routeTelegram(req, new URL('https://x' + che
   r = await route('/telegram/lier', new Request('https://x/telegram/lier', { method: 'POST' }), e);
   MEM.clear();
   v('liaison : jamais remplacée sans retrait', e.DB.reglages.get('telegram_chat') === '4242');
+}
+/* politique : seuls EXECUTION, BILAN_JOUR, ENTREE et TEST partent ; rapports, préparations, observations, système sont ignorés (200, aucun appel Telegram) */
+{
+  const e = env(); e.DB.reglages.set('telegram_chat', '1');
+  for (const type of ['OBSERVATION', 'PREPARATION', 'SYSTEME', 'MACRO', undefined]) { appels.length = 0; const r = await route('/telegram/envoyer', post({ texte: 'Rapport hebdomadaire Kepler', type }), e); const j = await r.json(); v('politique : ' + type + ' ignoré', r.status === 200 && j.ignore === true && appels.length === 0); }
+  for (const type of ['EXECUTION', 'BILAN_JOUR', 'ENTREE', 'TEST']) { appels.length = 0; MEM.clear(); const e2 = env(); e2.DB.reglages.set('telegram_chat', '1'); await route('/telegram/envoyer', post({ texte: 'ok', type }), e2); v('politique : ' + type + ' envoyé avec le bouton Écouter', appels.length === 1 && appels[0].methode === 'sendMessage' && appels[0].corps.reply_markup.inline_keyboard[0][0].callback_data === 'vocal'); }
+}
+/* webhook : secret obligatoire, discussion liée seulement, /vocal on|off, réglage */
+{
+  const e = env({ TELEGRAM_WEBHOOK_SECRET: 'secret-test' }); e.DB.reglages.set('telegram_chat', '42');
+  const hook = (corps, secret) => new Request('https://x/telegram/webhook', { method: 'POST', headers: secret ? { 'X-Telegram-Bot-Api-Secret-Token': secret } : {}, body: JSON.stringify(corps) });
+  let r = await route('/telegram/webhook', hook({ message: { chat: { id: 42 }, text: '/vocal on' } }), e); v('webhook : sans secret refusé (403)', r.status === 403);
+  r = await route('/telegram/webhook', hook({ message: { chat: { id: 42 }, text: '/vocal on' } }, 'mauvais'), e); v('webhook : mauvais secret refusé', r.status === 403);
+  r = await route('/telegram/webhook', hook({ message: { chat: { id: 42 }, text: '/vocal on' } }, 'secret-test'), env({ DB: e.DB })); v('webhook : sans secret configuré, refusé', r.status === 403);
+  appels.length = 0; r = await route('/telegram/webhook', hook({ message: { chat: { id: 42 }, text: '/vocal on' } }, 'secret-test'), e);
+  v('webhook : /vocal on active la voix automatique', r.status === 200 && e.DB.reglages.get('telegram_vocal') === '1' && appels.some(a => a.methode === 'sendMessage' && /activée/.test(a.corps.text)));
+  await route('/telegram/webhook', hook({ message: { chat: { id: 42 }, text: '/vocal off' } }, 'secret-test'), e); v('webhook : /vocal off la coupe', e.DB.reglages.get('telegram_vocal') === '0');
+  appels.length = 0; await route('/telegram/webhook', hook({ message: { chat: { id: 999 }, text: '/vocal on' } }, 'secret-test'), e); v('webhook : une autre discussion est ignorée', appels.length === 0 && e.DB.reglages.get('telegram_vocal') === '0');
+  appels.length = 0; await route('/telegram/webhook', hook({ callback_query: { id: 'c1', data: 'vocal', message: { chat: { id: 999 }, text: 'x' } } }, 'secret-test'), e); v('webhook : bouton d’une autre discussion ignoré', appels.length === 0);
+  appels.length = 0; await route('/telegram/webhook', hook({ callback_query: { id: 'c2', data: 'vocal', message: { chat: { id: 42 }, text: 'Kepler — nouvelle position' } } }, 'secret-test'), e); v('webhook : le bouton Écouter répond au clic', appels.some(a => a.methode === 'answerCallbackQuery'));
+  r = await route('/telegram/reglage', new Request('https://x/telegram/reglage', { method: 'POST', body: JSON.stringify({ vocal: true }) }), e); v('réglage : voix automatique activable', (await r.json()).vocal === true && e.DB.reglages.get('telegram_vocal') === '1');
 }
 console.log(ok + ' ok, ' + ko + ' ko'); process.exit(ko ? 1 : 0);

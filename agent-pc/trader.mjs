@@ -12,6 +12,7 @@ import { simuler, COUTS_TRADER, GESTIONS } from '../strategies/trader/suivi.js';
 import { bilanTrader, cleType, objectifHebdo, phraseEchantillon } from '../strategies/trader/bilan.js';
 import { majTypes, actifDansRegime, NIVEAUX_TRADER, BANDEAU_ESSAI } from '../strategies/trader/niveaux.js';
 import { retroTest, comparerGestion } from '../strategies/trader/retrotest.js';
+import { texteExecution, bilanJour, HEURE_BILAN_UTC } from './telegram-politique.mjs';
 import { configRicheDe, lireCoutsReglage } from './couts-reglage.mjs';
 import { fr, prixTexte, PAS } from '../strategies/trader/outils.js';
 import { positionOpposee, raisonConflit } from '../strategies/coherence.js';
@@ -103,11 +104,11 @@ export function creerTrader({ dossier, D, paires, maintenant = () => Date.now(),
     if (etat.propositions.length > MAX_PROPOSITIONS) etat.propositions.splice(0, etat.propositions.length - MAX_PROPOSITIONS);
     return nouvelles;
   }
-  async function alerter(p, R) {
-    const niveau = niveauDe(p), texte = [(niveau === 'validee' ? 'Kepler — position proposée' : 'Kepler — Observation (non validé)') + ' · ' + p.actif + ' ' + p.tf, (p.sens > 0 ? 'ACHAT' : 'VENTE') + ' limite ' + prixTexte(p.entree) + ' · stop ' + prixTexte(p.stop) + ' · cible 1 ' + prixTexte(p.cible1) + ' · cible 2 ' + prixTexte(p.cible2) + ' · RR ' + fr(p.rr, 1),
-      p.raison, 'Niveau : ' + NIVEAUX_TRADER[niveau] + (niveau === 'a_lessai' ? ' — pas de preuve statistique, le bilan se construit en direct.' : ''), AVERTISSEMENT].join('\n');
-    if (niveau === 'validee') await envoyer(texte, 'ENTREE'); else if (R.alertesObservation) await envoyer(texte, 'OBSERVATION');
+  async function alerter(p, R) {   // SEULE alerte de position : action, entrée, taille, TP, SL, levier (niveau précisé, jamais un ordre)
+    const niveau = niveauDe(p), cap = portefeuilleCapital();
+    await envoyer(texteExecution(p, { capital: cap, risquePct: R.risquePct, mode: niveau === 'validee' ? 'SIMULATION, type validé' : 'SIMULATION, non validé' }), 'EXECUTION');
   }
+  function portefeuilleCapital() { try { const l = (etat.vuePubliee && etat.vuePubliee.portefeuille && etat.vuePubliee.portefeuille.live) || null; return l && l.capital > 0 ? l.capital : CAPITAL_DEPART; } catch (e) { return CAPITAL_DEPART; } }
 
   /* Suivi : rejoue la simulation de chaque proposition encore ouverte sur les bougies actuelles. Rend les propositions qui viennent de se terminer. */
   function suivre() {
@@ -142,15 +143,19 @@ export function creerTrader({ dossier, D, paires, maintenant = () => Date.now(),
   }
   function mettreAJourNiveaux() {
     const ev = majTypes(etat.types, etat.propositions, maintenant(), { cleDe: cleType });
-    for (const e of ev) { etat.journalNiveaux.push(e); journal('trader', e.texte); envoyer(['Kepler — mode Trader', e.texte, AVERTISSEMENT].join('\n'), 'OBSERVATION').catch(() => {}); }
+    for (const e of ev) { etat.journalNiveaux.push(e); journal('trader', e.texte); }
     if (etat.journalNiveaux.length > 300) etat.journalNiveaux.splice(0, etat.journalNiveaux.length - 300);
     return ev;
   }
 
-  async function rapportDuMatin(force = false) {
-    const t = maintenant(), jour = Math.floor(t / JOUR); if (!force && (etat.jourRapport === jour || new Date(t).getUTCHours() < 6 || !Object.keys(etat.dernierCalcul).length)) return false;
-    etat.jourRapport = jour; await envoyer(['Kepler — mode Trader du ' + new Date(t).toISOString().slice(0, 10).split('-').reverse().join('/'), ...lignesMatin(), AVERTISSEMENT].join('\n'), 'OBSERVATION').catch(() => {});
-    journal('trader', 'Résumé du matin du mode Trader envoyé.'); return true;
+  /* Bilan de fin de journée (un seul envoi par jour, après HEURE_BILAN_UTC) : positions du jour, performance en R et en $, mêmes chiffres que les écrans. */
+  async function bilanDuJour(force = false) {
+    const t = maintenant(), jour = Math.floor(t / JOUR); if (!force && (etat.jourRapport === jour || new Date(t).getUTCHours() < HEURE_BILAN_UTC)) return false;
+    const R = reglages(), aut = autres ? autres() : { trades: [] }, direct = etat.propositions.filter(p => p.source !== 'retro' && !p.fantome);
+    const tous = CALCUL.tousTrades({ recentes: direct.map(enrichir), actives: direct.filter(p => p.statut === 'en_attente' || p.statut === 'ouverte').map(enrichir) }, null).concat(aut.trades);
+    const uniques = [...new Map(tous.map(x => [x.id, x])).values()], th = CALCUL.tableHistorique(uniques, { capital0: CAPITAL_DEPART, risquePct: R.risquePct });
+    etat.jourRapport = jour; await envoyer(bilanJour(th.lignes, t, { capital: portefeuilleCapital() }), 'BILAN_JOUR').catch(() => {});
+    journal('trader', 'Bilan de fin de journée envoyé.'); return true;
   }
   function lignesMatin() {
     const v = vue(), L = [], act = v.actives.slice(0, 5);
@@ -169,7 +174,7 @@ export function creerTrader({ dossier, D, paires, maintenant = () => Date.now(),
     try { const fin = suivre(); cr.terminees = fin.length; for (const p of fin) if (!p.fantome) journal('trader', 'Position ' + p.actif + ' ' + p.tf + ' (' + p.nom + ') terminée : ' + (p.resultat && p.resultat.statut === 'cloturee' ? (p.resultat.R >= 0 ? '+' : '−') + fr(Math.abs(p.resultat.R), 2) + ' R (' + p.resultat.motif + ')' : (p.resultat && p.resultat.motif) || p.statut) + '.'); } catch (e) { erreur('suivi du mode Trader', e); }
     try { mettreAJourNiveaux(); } catch (e) { erreur('niveaux du mode Trader', e); }
     try { await tacheQuotidienne(); } catch (e) { erreur('tâches du jour du mode Trader', e); }
-    try { await rapportDuMatin(); } catch (e) { erreur('résumé du matin du mode Trader', e); }
+    try { await bilanDuJour(); } catch (e) { erreur('bilan du jour du mode Trader', e); }
     etat.dernierCycle = maintenant(); sauver(); return cr;
   }
 
@@ -208,5 +213,5 @@ export function creerTrader({ dossier, D, paires, maintenant = () => Date.now(),
     const c = props.filter(p => p.resultat && p.resultat.statut === 'cloturee' && p.tSortie).sort((a, b) => a.tSortie - b.tSortie); let cum = 0; const pts = c.map(p => { cum += p.resultat.R; return [p.tSortie, +cum.toFixed(3)]; });
     return pts.length > 200 ? pts.filter((_, i) => i % Math.ceil(pts.length / 200) === 0 || i === pts.length - 1) : pts;
   }
-  return { brancherAutres: f => { autres = f; }, cycle, vue, etat: () => etat, sauver, reglages, lireCommandes, rapportDuMatin, lignesMatin, calculerActif: a => calculerActif(a, reglages()), suivre, mettreAJourNiveaux, tacheQuotidienne };
+  return { brancherAutres: f => { autres = f; }, cycle, vue, etat: () => etat, sauver, reglages, lireCommandes, bilanDuJour, lignesMatin, calculerActif: a => calculerActif(a, reglages()), suivre, mettreAJourNiveaux, tacheQuotidienne };
 }

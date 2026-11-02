@@ -64,7 +64,7 @@ v('le jeu final a été ouvert UNE fois : ouverture notée dans le coffre', e.co
 const variantes = Object.values(e.compteurVariantes).reduce((a, b) => a + b, 0);
 v('compteur de variantes : > 0 et jamais de double comptage entre BTC / SOL / DOGE pour la même grille', variantes > 0 && e.variantesVues && Object.keys(e.variantesVues).length === variantes, variantes + ' vs ' + Object.keys(e.variantesVues).length);
 v('le Worker a reçu l’état (synchronisation) et la nouvelle version', W.appels.includes('sync') && W.dernierEtat.active === 1);
-v('Telegram : alerte « nouvelle version » avec rappel', W._tg.some(a => /Nouvelle version v1/.test(a.texte) && /Aucun ordre/.test(a.texte)));
+v('Telegram : plus d’alerte « nouvelle version » (rapports et préparations : journal seulement)', !W._tg.some(a => /Nouvelle version v1/.test(a.texte)));
 
 // ── cache : un deuxième cycle ne recalcule rien ──
 // V6 : la recherche élargit elle-même son espace (niveau 1 : optimisation guidée, niveau 2 : familles filtrées) ; on la laisse tout parcourir, puis un cycle de plus ne recalcule rien
@@ -79,7 +79,7 @@ v('statut : tout l’espace ÉLARGI est exploré → « en surveillance » ET un
   const s = svc.etat().strategies[idV]; s.famille = 'test_signal'; s.params = { a: 1 }; const id2 = E.idStrategie('test_signal', 'BTC', { a: 1 }); delete svc.etat().strategies[idV]; s.id = id2; svc.etat().strategies[id2] = s; svc.etat().versions[0].strategies = [id2];
   const tg0 = W._tg.length; await svc.surveiller();
   const tg = W._tg.slice(tg0);
-  v('signal : alerte d’ENTRÉE marquée SIMULATION envoyée par Telegram', tg.some(a => a.type === 'ENTREE' && /SIMULATION/.test(a.texte) && /Stop :/.test(a.texte) && /Taille pour risquer 1 %/.test(a.texte)), JSON.stringify(tg.map(x => x.type)));
+  v('signal : alerte d’exécution marquée SIMULATION envoyée par Telegram', tg.some(a => a.type === 'EXECUTION' && /SIMULATION/.test(a.texte) && /Stop :/.test(a.texte) && /Taille pour risquer 1 %/.test(a.texte)), JSON.stringify(tg.map(x => x.type)));
   const n1 = W._tg.length; await svc.surveiller(); v('même bougie : pas de deuxième alerte', W._tg.length === n1);
   v('statut : « position proposée / setup en préparation » visible (entrée en attente)', svc.info().phase !== undefined && Object.values(svc.suivi()).some(x => x && x.pendante));
 }
@@ -125,7 +125,7 @@ W.commandes.push({ id: 'c5', type: 'retour_arriere' }); await svc.cycle(); v('re
   horloge = Date.UTC(2026, 9, 25, 18, 5); await svc.cycle(); const r = svc.etat().rapport;
   v('rapport du dimanche soir : 5 lignes, source indiquée, une seule fois par semaine', r && r.lignes.length === 5 && r.source === 'modèle de test' && /2026-S43/.test(r.semaine));
   const t = r.t; horloge += 3600e3; await svc.cycle(); v('pas de deuxième rapport la même semaine', svc.etat().rapport.t === t);
-  v('rapport envoyé à Telegram', W._tg.some(a => /Rapport hebdomadaire/.test(a.texte)));
+  v('rapport hebdomadaire NON envoyé à Telegram', !W._tg.some(a => /Rapport hebdomadaire/.test(a.texte)));
 }
 // ── fichiers : état écrit, journal complet, service.json ──
 { const F = fichiersAgent(dossier); v('fichiers : agent.json, suivi.json, journal.jsonl, service.json', [F.etat, F.suivi, F.journal, F.service].every(f => fs.existsSync(f)) && fs.readFileSync(F.journal, 'utf8').trim().split('\n').length > 5); }

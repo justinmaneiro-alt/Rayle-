@@ -1,6 +1,7 @@
 // POSITIONS DE KEPLER SUR LE PC (V7) : les trois agents (Rebond, Continuation, Extrêmes) proposent des positions à chaque clôture M15 / H1 sur BTC, SOL et DOGE ; elles sont classées, suivies automatiquement,
 // mesurées par type de setup (niveau de preuve), et résumées dans un bilan honnête. Tout est SIMULATION et PROPOSITION : aucun ordre n'est passé, aucune clé de courtier n'existe ici.
 // État : positions.json dans le dossier de l'agent (écrit de façon atomique par le service ; lu par les routes /__agent/positions). Commandes de l'écran : positions-commandes.json.
+import { texteExecution } from './telegram-politique.mjs';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -140,7 +141,7 @@ export function creerPositions({ dossier, D, paires, maintenant = () => Date.now
     const ancienne = partielle && etat.mesures[actif] ? etat.mesures[actif] : null;
     etat.mesures[actif] = { dateMesure: ancienne ? ancienne.dateMesure : res.dateMesure, zone: res.zone, nVariantes: res.nVariantes, nEffectif: res.nEffectif, versionCriteres: res.version, versionTexte: res.versionTexte, empreinte: res.empreinte, profil: res.profil, types: { ...(ancienne ? ancienne.types : {}), ...Object.fromEntries(Object.entries(res.types).map(([k, t]) => [k, { ...t, lignesCandidate: undefined, lignesValidee: undefined, periodes: t.periodes }])) } };
     journal('positions', 'Mesure ' + actif + ' : ' + Object.values(res.types).map(t => t.nomType + ' ' + t.n + ' trades → ' + NIVEAUX[t.niveau]).join(' · '));
-    for (const e of evenements) { journal('positions', e.texte); if (e.sens === 'promotion' || e.sens === 'retrogradation') envoyer(['Types de setup — ' + (e.sens === 'promotion' ? 'PROMOTION' : 'RÉTROGRADATION'), e.texte, AVERTISSEMENT].join('\n'), 'OBSERVATION').catch(() => {}); }
+    for (const e of evenements) { journal('positions', e.texte); }
     sauver();
   }
 
@@ -155,13 +156,12 @@ export function creerPositions({ dossier, D, paires, maintenant = () => Date.now
     etat.vue = etat.vue || {}; const bg = []; for (let q = Math.max(0, s.n - 140); q < s.n; q++) bg.push([s.t[q], s.o[q], s.h[q], s.l[q], s.c[q]]);
     etat.vue[a] = { t: r.t, prix: r.prix, bougies: bg, hypothese: r.hypothese && { ...r.hypothese, confluence: r.hypothese.confluence && { n: r.hypothese.confluence.n, score: r.hypothese.confluence.score, diamant: r.hypothese.confluence.diamant, elements: r.hypothese.confluence.elements.map(e => e.texte) } }, zonesDiamant: r.zonesDiamant, ecartees: r.ecartees.length, actives: r.propositions.map(p => p.id) };
     for (const p of nouvelles) await alerterNouvelle(p, R);
-    if (R.surveillance) for (const z of r.zonesDiamant.filter(z => z.enApproche)) { const cle = 'surv|' + a + '|' + z.tf + '|' + Math.round(z.niveau) + '|' + Math.floor(maintenant() / JOUR); if (!(etat.alertes || []).includes(cle)) { etat.alertes.push(cle); if (etat.alertes.length > 400) etat.alertes.shift(); await envoyer(alerteSurveillance(z, a).join('\n'), 'PREPARATION').catch(() => {}); } }
+    if (R.surveillance) for (const z of r.zonesDiamant.filter(z => z.enApproche)) { const cle = 'surv|' + a + '|' + z.tf + '|' + Math.round(z.niveau) + '|' + Math.floor(maintenant() / JOUR); if (!(etat.alertes || []).includes(cle)) { etat.alertes.push(cle); if (etat.alertes.length > 400) etat.alertes.shift(); } }
     void profil; return r;
   }
-  async function alerterNouvelle(p, R) {
-    const niveau = p.preuve.niveau; const live = liveParType(etat, maintenant())[p.actif + '|' + p.famille + '|' + p.type], reel = niveau === 'validee' && live && live.n >= 30 && live.semaines >= 4;
-    if (niveau === 'validee') await envoyer(alertePosition(p, { mode: reel ? 'REEL' : 'SIMULATION' }).join('\n'), reel ? 'ENTREE' : 'OBSERVATION').catch(() => {});
-    else if (niveau === 'candidate' && R.alertesObservation) await envoyer(alertePosition(p).join('\n'), 'OBSERVATION').catch(() => {});
+  async function alerterNouvelle(p, R) {   // SEULE alerte de position : action, entrée, taille, TP, SL, levier
+    const niveau = p.preuve ? p.preuve.niveau : 'non_testee', q = { ...p, entree: Number.isFinite(p.entree) ? p.entree : p.limite, cible: Number.isFinite(p.cible) ? p.cible : p.cible1, nom: p.nom || p.nomType };
+    await envoyer(texteExecution(q, { risquePct: Number(R.risquePct) || 1, mode: niveau === 'validee' ? 'SIMULATION, type validé' : 'SIMULATION, non validé' }), 'EXECUTION').catch(() => {});
   }
 
   /* Un cycle : commandes, mesures, calcul en direct, suivi, occasions manquées, sauvegarde. */
@@ -190,7 +190,7 @@ export function creerPositions({ dossier, D, paires, maintenant = () => Date.now
   async function rapportDuMatin(force = false) {
     const t = maintenant(), jour = Math.floor(t / JOUR); if (!force && (etat.jourRapport === jour || new Date(t).getUTCHours() < 6 || !etat.dernierCalcul || !Object.keys(etat.dernierCalcul).length)) return false;
     etat.jourRapport = jour; const lignes = lignesRapport(pistesRapport());
-    await envoyer(['Kepler — positions du ' + new Date(t).toISOString().slice(0, 10).split('-').reverse().join('/'), ...lignes, AVERTISSEMENT].join('\n'), 'OBSERVATION').catch(() => {}); journal('positions', 'Rapport du matin des positions envoyé (' + lignes.length + ' lignes).'); return true;
+    /* plus d'envoi Telegram : le rapport reste écrit dans le journal */
   }
   const pistesRapport = () => (typeof pistesLignes === 'function' ? pistesLignes() : []);
 

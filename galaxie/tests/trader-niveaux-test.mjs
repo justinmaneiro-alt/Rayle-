@@ -144,7 +144,7 @@ function vueFactice() {
   const obs = envois.filter(e => /Observation \(non validé\)/.test(e.texte)); v('si les alertes d’observation sont activées, elles portent l’étiquette « Observation (non validé) » et le niveau', obs.length === 0 || obs.every(e => /Niveau : À l’essai — pas de preuve statistique/.test(e.texte) && e.canal === 'OBSERVATION'), String(obs.length));
   v('aucune alerte d’ENTRÉE officielle tant qu’aucun type n’est Validée', envois.every(e => e.canal !== 'ENTREE'));
   v('plafond quotidien respecté par le service', (() => { const p = tr.etat().propositions.filter(x => !x.fantome), par = new Map(); for (const x of p) { const k = Math.floor(x.tSignal / JOUR); par.set(k, (par.get(k) || 0) + 1); } return [...par.values()].every(n => n <= 3); })());
-  await tr.rapportDuMatin(true); v('résumé du matin : positions proposées + bilan, avec l’avertissement', envois.some(e => /mode Trader du/.test(e.texte) && /Bilan simulé en direct/.test(e.texte) && /n’est passé/.test(e.texte)));
+  await tr.bilanDuJour(true); v('bilan de fin de journée : envoyé en BILAN_JOUR', envois.some(e => e.canal === 'BILAN_JOUR' && /bilan du/.test(e.texte))); v('plus de résumé du matin ni de promotion envoyés', envois.every(e => ['EXECUTION', 'BILAN_JOUR'].includes(e.canal)));
   // reprise après arrêt : un nouvel objet relit l'état sans casser l'historique
   const tr2 = creerTrader({ dossier, D, paires, maintenant: () => t, journal: () => {}, erreur: () => {}, envoyer: async () => {} });
   v('redémarrage : l’état est relu, aucune proposition perdue', tr2.etat().propositions.length === tr.etat().propositions.length && tr2.etat().propositions.length > 0);

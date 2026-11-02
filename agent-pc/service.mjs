@@ -42,7 +42,8 @@ import { dossierVeilleur } from '../app-pc/veilleur/dossier.mjs';
 import { assurerEnregistreur, statutFlux } from './flux/service-flux.mjs';
 import { statutService, verrouRespecte } from './service-statut.mjs';
 import { creerVolume } from './volume-v14.mjs';      // V14 : tableau vivant (volume, carnet, portefeuille virtuel)
-import { creerTrader, prixBinance } from './trader.mjs';      // V12 : mode Trader (positions réelles à chaque bougie, bilan en direct)
+import { creerTrader, prixBinance } from './trader.mjs';
+import { autorise } from './telegram-politique.mjs';   // seuls partent : alerte d'exécution et bilan du jour      // V12 : mode Trader (positions réelles à chaque bougie, bilan en direct)
 import { creerPositions } from './positions.mjs';      // V7 : les trois agents de positions (Rebond, Continuation, Extrêmes)
 
 export const VERSION_SERVICE = 1;
@@ -113,7 +114,7 @@ export function creerService({ dossier = dossierAgent(), maintenant = () => Date
   async function alerter(alertes) {
     const gardees = filtrerAlertes(etat, alertes, maintenant()); if (!gardees.length) return 0;
     enregistrerAlertes(etat, gardees);
-    for (const a of gardees) { try { if (S.configure) await S.telegram(a.texte, a.type === 'ENTREE' ? 'ENTREE' : a.type === 'PREPARATION' ? 'PREPARATION' : 'OBSERVATION'); a.envoyee = true; } catch (e) { a.envoyee = false; info.erreurs.unshift({ t: maintenant(), msg: 'Telegram : ' + String(e.message).slice(0, 100) }); } }
+    for (const a of gardees) { try { if (S.configure && a.type === 'ENTREE') await S.telegram(a.texte, 'EXECUTION');   /* rapports, préparations, dégradations : journal et écrans seulement */ a.envoyee = true; } catch (e) { a.envoyee = false; info.erreurs.unshift({ t: maintenant(), msg: 'Telegram : ' + String(e.message).slice(0, 100) }); } }
     return gardees.length;
   }
 
@@ -225,10 +226,10 @@ export function creerService({ dossier = dossierAgent(), maintenant = () => Date
 
   /* ── (2 quinquies) V7 : positions du jour (Rebond, Continuation, Extrêmes), suivi, bilan, niveaux de preuve (v4 équilibré par défaut, v3 strict au choix) ── */
   const niveauPreuve = () => (etat.parametresRisque && etat.parametresRisque.niveauPreuve === 'strict' ? 'strict' : 'equilibre');
-  const positions = avecPositions ? creerPositions({ dossier, D, paires, maintenant, journal, erreur, versionCriteres: niveauPreuve, pistesLignes: () => lignesRapportPistes(meilleuresPistes(etat.backtests, { n: 3 }), null), envoyer: async (texte, canal) => { if (S.configure) await S.telegram(texte, canal); } }) : null;
+  const positions = avecPositions ? creerPositions({ dossier, D, paires, maintenant, journal, erreur, versionCriteres: niveauPreuve, pistesLignes: () => lignesRapportPistes(meilleuresPistes(etat.backtests, { n: 3 }), null), envoyer: async (texte, canal) => { if (S.configure && autorise(canal)) await S.telegram(texte, canal); } }) : null;
 
   /* ── (2 sexies) V12 : mode Trader (propositions « À l'essai » à chaque clôture M15, suivi simulé, bilan en direct, promotion / désactivation) ── */
-  const trader = avecTrader ? creerTrader({ dossier, D, paires, maintenant, prixLive: a => prixBinance(a), journal: (c, m) => journal(c, m), erreur, envoyer: async (texte, canal) => { if (S.configure) await S.telegram(texte, canal); } }) : null;
+  const trader = avecTrader ? creerTrader({ dossier, D, paires, maintenant, prixLive: a => prixBinance(a), journal: (c, m) => journal(c, m), erreur, envoyer: async (texte, canal) => { if (S.configure && autorise(canal)) await S.telegram(texte, canal); } }) : null;
 
   /* ── (2 septies) V14 : tableau vivant de volume (propositions de volume, portefeuille virtuel, rejoué) ── */
   const volume = avecVolume ? creerVolume({ dossier, maintenant, journal: (c, m) => journal(c, m), erreur }) : null;

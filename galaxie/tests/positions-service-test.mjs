@@ -31,9 +31,9 @@ await svc.cycle();
 v('…et on revient à équilibré', svc.etat().parametresRisque.niveauPreuve === 'equilibre');
 for (let i = 0; i < 400 && svc.positions().enCours().mesure; i++) await new Promise(r => setTimeout(r, 25));
 const attendu = telegram.filter(t => /Kepler — positions du/.test(t.texte));
-v('le rapport du matin des positions part une fois, sans ordre', attendu.length === 1 && /aucun ordre/i.test(attendu[0].texte), String(attendu.length));
+v('le rapport du matin des positions ne part PLUS sur Telegram', attendu.length === 0, String(attendu.length));
 await svc.cycle();
-v('…et pas une seconde fois le même jour', telegram.filter(t => /Kepler — positions du/.test(t.texte)).length === 1);
+v('…ni le lendemain d’un second cycle', telegram.filter(t => /Kepler — positions du/.test(t.texte)).length === 0);
 // routes
 const routes = creerRoutesAgent(process.env);
 const appeler = (methode, chemin, corps = null) => new Promise(resolve => {

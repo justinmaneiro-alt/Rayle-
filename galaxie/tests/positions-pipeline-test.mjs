@@ -181,7 +181,7 @@ const ex = svc.etat().exemples;
 v('un exemple de Justin est analysé ; un exemple invalide est refusé', ex.length === 1 && ex[0].analyse && ex[0].analyse.pourquoi && journalx.some(m => /Exemple refusé/.test(m)));
 v('un exemple manqué fait naître une hypothèse testée sur d’autres données (garde-fou)', ex[0].analyse.statut === 'retrouvee' || (svc.etat().hypotheses.length === 1 && svc.etat().hypotheses[0].resultat && svc.etat().hypotheses[0].resultat.jeuFinalLu === false));
 await svc.rapportDuMatin(true);
-v('rapport du matin envoyé avec l’avertissement, sans ordre', envoyes.some(e => /Kepler — positions du/.test(e.texte) && /aucun ordre/i.test(e.texte)), JSON.stringify(envoyes.map(e => e.texte.slice(0, 40))));
+v('plus de rapport du matin envoyé par Telegram (journal seulement)', envoyes.every(e => !/Kepler — positions du/.test(e.texte)), JSON.stringify(envoyes.map(e => e.texte.slice(0, 40))));
 const vue = svc.vue();
 v('la vue contient réglages, bilan, types, journal des niveaux, exemples, version de critères', vue.reglages && vue.bilan.tous && Array.isArray(vue.types) && Array.isArray(vue.journalNiveaux) && vue.versionCriteres === 'équilibré (v4)' && vue.empreinteV4 && /exemple/.test(vue.resumeExemples));
 /* ── 9. recherche autonome : exploration de la petite grille, essais comptés, monter / descendre ── */
