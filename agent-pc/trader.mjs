@@ -26,7 +26,14 @@ const NIVEAUX_ORDRE = { a_lessai: 1, candidate: 2, validee: 3 };
 
 export function creerEtatTrader() { return { schema: 1, propositions: [], types: {}, journalNiveaux: [], reglages: {}, dernierCalcul: {}, refusJour: {}, analyses: {}, retro: {}, gestion: null, jourRetro: null, jourRapport: null, bougies: {}, dernierCycle: null, demarreLe: null }; }
 
-export function creerTrader({ dossier, D, paires, maintenant = () => Date.now(), journal = () => {}, erreur = () => {}, envoyer = async () => {}, series = null } = {}) {
+/* Prix du serveur (Binance, public) : le moteur calcule le flottant à CE prix et le publie ; les écrans ne refont pas le calcul. */
+const SYMBOLES_PRIX = { BTC: 'BTCUSDT', SOL: 'SOLUSDT', DOGE: 'DOGEUSDT' };
+export async function prixBinance(actifs, { fetchImpl = fetch, delaiMs = 5000 } = {}) {
+  const syms = actifs.filter(a => SYMBOLES_PRIX[a]).map(a => SYMBOLES_PRIX[a]); if (!syms.length) return {};
+  const r = await fetchImpl('https://data-api.binance.vision/api/v3/ticker/price?symbols=' + encodeURIComponent(JSON.stringify(syms)), { signal: AbortSignal.timeout(delaiMs) }); if (!r.ok) throw new Error('Binance HTTP ' + r.status);
+  const j = await r.json(), o = {}; for (const a of actifs) { const x = Array.isArray(j) && j.find(e => e.symbol === SYMBOLES_PRIX[a]), v = x ? parseFloat(x.price) : NaN; if (Number.isFinite(v) && v > 0) o[a] = v; } return o;
+}
+export function creerTrader({ dossier, D, paires, maintenant = () => Date.now(), journal = () => {}, erreur = () => {}, envoyer = async () => {}, series = null, prixLive = null } = {}) {
   const fichier = path.join(dossier, FICHIER_TRADER), fCommandes = path.join(dossier, FICHIER_COMMANDES_TRADER);
   let etat = lireJson(fichier, null); if (!etat || etat.schema !== 1) etat = creerEtatTrader();
   for (const [k, v] of Object.entries(creerEtatTrader())) if (etat[k] === undefined) etat[k] = v;
@@ -34,7 +41,8 @@ export function creerTrader({ dossier, D, paires, maintenant = () => Date.now(),
   const reglages = () => ({ ...REGLAGES_DEFAUT, ...(etat.reglages || {}) });
   const serieDe = a => (series ? series[a] : D.serie(a));
   const coutsDe = a => { try { const c = configRicheDe(a, lireCoutsReglage(dossier)); return { fraisPct: c.fraisPct, makerPct: c.makerPct, spreadPct: c.spreadPct, glissementPct: c.glissementPct, filePct: COUTS_TRADER.filePct }; } catch (e) { return COUTS_TRADER; } };
-  let autres = null;   // trades d'un autre module (suivi de volume) à compter dans le même portefeuille : () => ({ trades, idsListes })
+  let autres = null, prixServeur = { prix: {}, t: null };   // dernier prix lu par le moteur (prixLive : () => Promise<{BTC,…}>, injecté par le service ; absent = prix des bougies)
+   // trades d'un autre module (suivi de volume) à compter dans le même portefeuille : () => ({ trades, idsListes })
   const sauver = () => { try { etat.vuePubliee = vue(); ecrireJson(fichier, etat, { copies: 1 }); } catch (e) { erreur('sauvegarde du mode Trader', e); } };
   const niveauDe = p => (etat.types[cleType(p)] || { niveau: 'a_lessai' }).niveau;
   const indexDe = (m15, t) => { let lo = 0, hi = m15.n - 1; if (!m15.n || m15.t[0] > t) return -1; while (lo < hi) { const k = (lo + hi + 1) >> 1; if (m15.t[k] <= t) lo = k; else hi = k - 1; } return m15.t[lo] === t ? lo : -1; };
@@ -155,6 +163,7 @@ export function creerTrader({ dossier, D, paires, maintenant = () => Date.now(),
   /* Un cycle : commandes, calcul en direct, suivi, niveaux, tâche du jour, résumé du matin, sauvegarde. */
   async function cycle() {
     const cr = { nouvelles: 0, terminees: 0 }, R = reglages();
+    if (prixLive) { try { const p = await prixLive(paires); if (p && Object.keys(p).length) prixServeur = { prix: p, t: maintenant() }; } catch (e) { /* on garde le dernier prix lu, ou celui des bougies */ } }
     try { lireCommandes(); } catch (e) { erreur('commandes du mode Trader', e); }
     for (const a of R.actifs) if (paires.includes(a)) { try { cr.nouvelles += await calculerActif(a, R); } catch (e) { erreur('mode Trader ' + a, e); } }
     try { const fin = suivre(); cr.terminees = fin.length; for (const p of fin) if (!p.fantome) journal('trader', 'Position ' + p.actif + ' ' + p.tf + ' (' + p.nom + ') terminée : ' + (p.resultat && p.resultat.statut === 'cloturee' ? (p.resultat.R >= 0 ? '+' : '−') + fr(Math.abs(p.resultat.R), 2) + ' R (' + p.resultat.motif + ')' : (p.resultat && p.resultat.motif) || p.statut) + '.'); } catch (e) { erreur('suivi du mode Trader', e); }
@@ -181,6 +190,10 @@ export function creerTrader({ dossier, D, paires, maintenant = () => Date.now(),
     const actives = direct.filter(p => (p.statut === 'en_attente' || p.statut === 'ouverte') && t < p.t + (p.ttl || 16) * PAS + 2 * 3600e3).map(enrichir).filter(p => (NIVEAUX_ORDRE[p.niveau] || 1) >= min).sort((a, b) => b.nConfluences - a.nConfluences || b.rr - a.rr);
     const recentes = direct.slice(-300).reverse().map(enrichir);
     const portefeuille = (() => { const aut = autres ? autres() : { trades: [], idsListes: [] }; return CALCUL.resumePortefeuille(CALCUL.tousTrades({ recentes: direct.map(enrichir) }, null).concat(aut.trades).filter(x => x.statut === 'terminee'), { capital0: CAPITAL_DEPART, risquePct: R.risquePct, maintenant: t, idsListes: recentes.map(p => p.id).concat(aut.idsListes) }); })();
+    { const aut = autres ? autres() : { trades: [] }, vivants = CALCUL.tousTrades({ actives }, null).concat(aut.trades.filter(x => x.statut !== 'terminee')), prix = {}; let source = 'bougies du moteur';
+      for (const a of paires) { const dernierBar = (etat.bougies[a] || []).slice(-1)[0]; prix[a] = prixServeur.prix[a] ?? (aut.prix && aut.prix[a]) ?? (dernierBar ? dernierBar[4] : null); }
+      if (Object.keys(prixServeur.prix).length) source = 'Binance, lu par le moteur'; else if (aut.prix && Object.keys(aut.prix).length) source = 'transactions enregistrées par le moteur';
+      portefeuille.live = CALCUL.resumeLive(portefeuille, vivants, prix, t, { prixSource: source, prixT: prixServeur.t }); }
     const propsBilan = direct.map(p => ({ ...p, resultat: p.resultat, tSortie: p.tSortie })), bilan = bilanTrader(propsBilan, { risquePct: R.risquePct });
     const types = Object.entries(etat.types).map(([cle, x]) => ({ cle, nom: cle.split('|').map((v, i) => (i === 0 ? SETUPS[v] || v : v)).join(' · '), niveau: x.niveau, niveauTexte: NIVEAUX_TRADER[x.niveau], raison: x.raison, n: x.n, esperance: x.esperance, ic: x.ic, taux: x.taux, depuis: x.depuis, baisse: x.baisse && x.baisse.baisse ? x.baisse.texte : null }))
       .sort((a, b) => (b.esperance ?? -9) - (a.esperance ?? -9));

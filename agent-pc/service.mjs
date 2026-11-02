@@ -42,7 +42,7 @@ import { dossierVeilleur } from '../app-pc/veilleur/dossier.mjs';
 import { assurerEnregistreur, statutFlux } from './flux/service-flux.mjs';
 import { statutService, verrouRespecte } from './service-statut.mjs';
 import { creerVolume } from './volume-v14.mjs';      // V14 : tableau vivant (volume, carnet, portefeuille virtuel)
-import { creerTrader } from './trader.mjs';      // V12 : mode Trader (positions réelles à chaque bougie, bilan en direct)
+import { creerTrader, prixBinance } from './trader.mjs';      // V12 : mode Trader (positions réelles à chaque bougie, bilan en direct)
 import { creerPositions } from './positions.mjs';      // V7 : les trois agents de positions (Rebond, Continuation, Extrêmes)
 
 export const VERSION_SERVICE = 1;
@@ -228,7 +228,7 @@ export function creerService({ dossier = dossierAgent(), maintenant = () => Date
   const positions = avecPositions ? creerPositions({ dossier, D, paires, maintenant, journal, erreur, versionCriteres: niveauPreuve, pistesLignes: () => lignesRapportPistes(meilleuresPistes(etat.backtests, { n: 3 }), null), envoyer: async (texte, canal) => { if (S.configure) await S.telegram(texte, canal); } }) : null;
 
   /* ── (2 sexies) V12 : mode Trader (propositions « À l'essai » à chaque clôture M15, suivi simulé, bilan en direct, promotion / désactivation) ── */
-  const trader = avecTrader ? creerTrader({ dossier, D, paires, maintenant, journal: (c, m) => journal(c, m), erreur, envoyer: async (texte, canal) => { if (S.configure) await S.telegram(texte, canal); } }) : null;
+  const trader = avecTrader ? creerTrader({ dossier, D, paires, maintenant, prixLive: a => prixBinance(a), journal: (c, m) => journal(c, m), erreur, envoyer: async (texte, canal) => { if (S.configure) await S.telegram(texte, canal); } }) : null;
 
   /* ── (2 septies) V14 : tableau vivant de volume (propositions de volume, portefeuille virtuel, rejoué) ── */
   const volume = avecVolume ? creerVolume({ dossier, maintenant, journal: (c, m) => journal(c, m), erreur }) : null;

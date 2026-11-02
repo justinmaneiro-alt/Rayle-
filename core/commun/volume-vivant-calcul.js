@@ -112,11 +112,11 @@
 
   /* ── Tableau d'historique : TOUTES les positions (en attente, ouvertes, terminées) avec résultat en R, gain simulé en $ (capital composé dans l'ordre des sorties), durée, type de clôture TP / SL ; et le résumé
      de ce qui a marché ou non (réussite, R moyen, facteur de profit, meilleur / pire, baisse max, par stratégie et par actif). Aucune valeur inventée : un trade sans R n'a pas de résultat. ── */
-  function tableHistorique(trades, { capital0 = 10000, risquePct = 1, prix = {}, capitalAvant = null, publie = null } = {}) {
+  function tableHistorique(trades, { capital0 = 10000, risquePct = 1, prix = {}, capitalAvant = null, publie = null, flottants = null } = {}) {
     const finis = trades.filter(t => t.statut === 'terminee').sort((a, b) => a.tSortie - b.tSortie), pnl = new Map(); let cap = capitalAvant != null ? capitalAvant : capital0, pic = capital0, ddR = 0, cum = 0, picR = 0;
     for (const t of finis) { const usd = cap * risquePct / 100 * t.R; cap += usd; pnl.set(t.id, { usd, capApres: cap }); cum += t.R; picR = Math.max(picR, cum); ddR = Math.max(ddR, picR - cum); pic = Math.max(pic, cap); const pp = publie && publie.pnlListes && publie.pnlListes[t.id]; if (pp) pnl.set(t.id, { usd: pp[0], capApres: pp[1] }); }
-    const ligne = t => { const p = pnl.get(t.id), px = prix[t.actif], flott = t.statut === 'ouverte' && fin(px) ? t.sens * (px - t.entree) / Math.abs(t.entree - t.stop) : null;
-      return { id: t.id, actif: t.actif, tf: t.tf, sens: t.sens, nom: t.nom, statut: t.statut, tEntree: t.tEntree || t.tSignal || null, tSortie: t.tSortie || null, entree: t.entree, stop: t.stop, cible: t.cible, sortie: t.sortie, R: t.R, flottantR: flott, type: t.type, motif: t.motif, usd: p ? p.usd : (flott != null ? cap * risquePct / 100 * flott : null), capApres: p ? p.capApres : null, dureeMs: t.tSortie && (t.tEntree || t.tSignal) ? t.tSortie - (t.tEntree || t.tSignal) : null, rr: fin(t.cible) ? Math.abs(t.cible - t.entree) / Math.abs(t.entree - t.stop) : null }; };
+    const ligne = t => { const p = pnl.get(t.id), px = prix[t.actif], fm = flottants && flottants[t.id], flott = t.statut === 'ouverte' ? (flottants ? (fm ? fm.R : null) : fin(px) ? t.sens * (px - t.entree) / Math.abs(t.entree - t.stop) : null) : null;
+      return { id: t.id, actif: t.actif, tf: t.tf, sens: t.sens, nom: t.nom, statut: t.statut, tEntree: t.tEntree || t.tSignal || null, tSortie: t.tSortie || null, entree: t.entree, stop: t.stop, cible: t.cible, sortie: t.sortie, R: t.R, flottantR: flott, type: t.type, motif: t.motif, usd: p ? p.usd : (fm ? fm.usd : flott != null ? cap * risquePct / 100 * flott : null), capApres: p ? p.capApres : null, dureeMs: t.tSortie && (t.tEntree || t.tSignal) ? t.tSortie - (t.tEntree || t.tSignal) : null, rr: fin(t.cible) ? Math.abs(t.cible - t.entree) / Math.abs(t.entree - t.stop) : null }; };
     const vivants = trades.filter(t => t.statut !== 'terminee').sort((a, b) => (b.tSignal || 0) - (a.tSignal || 0)), lignes = vivants.concat(finis.slice().reverse()).map(ligne);
     const gains = finis.filter(t => t.R > 0), pertes = finis.filter(t => t.R <= 0), sg = a => a.reduce((s, t) => s + t.R, 0), groupe = cle => { const m = new Map(); for (const t of finis) { const k = cle(t) || '—'; const e = m.get(k) || { cle: k, n: 0, gagnes: 0, R: 0 }; e.n++; e.R += t.R; if (t.R > 0) e.gagnes++; m.set(k, e); } return [...m.values()].map(e => ({ ...e, taux: e.gagnes / e.n, rMoyen: e.R / e.n })).sort((a, b) => b.R - a.R); };
     const resume = { n: finis.length, gagnes: gains.length, perdus: pertes.length, taux: finis.length ? gains.length / finis.length : null, cumulR: sg(finis), rMoyen: finis.length ? sg(finis) / finis.length : null, facteurProfit: pertes.length && sg(pertes) < 0 ? sg(gains) / Math.abs(sg(pertes)) : null, meilleur: finis.length ? Math.max(...finis.map(t => t.R)) : null, pire: finis.length ? Math.min(...finis.map(t => t.R)) : null,
@@ -148,12 +148,34 @@
       tauxReussite: pub.tauxReussite, rMoyen: pub.rMoyen, drawdownMaxPct: dd * 100, risquePct: rp, courbe, parStrategie: [], detailOuverts, capitalAvantListe: pub.capitalAvantListe, resumePub: pub };
   }
 
+  /* ── Source de vérité unique : le MOTEUR (service Kepler) publie le portefeuille COMPLET, flottant compris, déjà calculé à SON prix (résumé « live », v2). Les écrans l'affichent tel quel : ils ne
+     recalculent ni le solde, ni le flottant, ni le cumul en R. `resumeLive` ne sert qu'au moteur (et aux tests) ; `depuisLive` ne fait que renommer et recopier les champs publiés. ── */
+  const r2 = x => Math.round(x * 100) / 100, r4 = x => Math.round(x * 10000) / 10000;
+  function resumeLive(pub, vivants, prix, maintenant, meta = {}) {
+    const p = portefeuilleDepuisPublie(pub, vivants, prix, { maintenant });
+    return { v: 2, t: maintenant, capital0: pub.capital0, risquePct: pub.risquePct, capital: r2(p.capital), capitalRealise: r2(p.capitalRealise), flottantUsd: r2(p.flottantUsd), flottantR: r4(p.flottantR), cumulR: r4(p.cumulR), realiseUsd: r2(p.realiseUsd), gainUsd: r2(p.gainUsd), gainPct: r2(p.gainPct), semaineUsd: r2(p.semaineUsd),
+      nTrades: p.nTrades, nOuverts: p.nOuverts, nEnAttente: p.nEnAttente, tauxReussite: p.tauxReussite, rMoyen: r4(p.rMoyen), drawdownMaxPct: r2(p.drawdownMaxPct), detailOuverts: p.detailOuverts.map(d => ({ id: d.id, actif: d.actif, R: r4(d.R), usd: r2(d.usd) })),
+      prix: Object.fromEntries(Object.entries(prix).filter(([, x]) => fin(x))), prixSource: meta.prixSource || null, prixT: meta.prixT || null };
+  }
+  function depuisLive(pub) {
+    const L = pub.live, courbe = L.nOuverts ? pub.courbe.concat([[L.t, L.capital]]) : pub.courbe.slice();
+    return { source: 'trades', publie: true, serveur: true, capital0: L.capital0, capital: L.capital, capitalRealise: L.capitalRealise, realiseUsd: L.realiseUsd, flottantUsd: L.flottantUsd, flottantR: L.flottantR, cumulR: L.cumulR, gainUsd: L.gainUsd, gainPct: L.gainPct, semaineUsd: L.semaineUsd, nTrades: L.nTrades, nOuverts: L.nOuverts, nEnAttente: L.nEnAttente,
+      tauxReussite: L.tauxReussite, rMoyen: L.rMoyen, drawdownMaxPct: L.drawdownMaxPct, risquePct: L.risquePct, courbe, parStrategie: [], detailOuverts: L.detailOuverts, capitalAvantListe: pub.capitalAvantListe, resumePub: pub, live: L };
+  }
+  /* Rien d'autre que le réalisé publié (service qui ne publie pas encore le live) : AUCUN calcul de flottant. */
+  function realiseSeulement(pub) {
+    return { source: 'trades', publie: true, sansLive: true, capital0: pub.capital0, capital: pub.capitalRealise, capitalRealise: pub.capitalRealise, realiseUsd: pub.realiseUsd, flottantUsd: 0, flottantR: 0, cumulR: pub.cumulR, gainUsd: pub.realiseUsd, gainPct: (pub.capitalRealise / pub.capital0 - 1) * 100, semaineUsd: pub.semaineUsd, nTrades: pub.nTrades, nOuverts: 0, nEnAttente: 0,
+      tauxReussite: pub.tauxReussite, rMoyen: pub.rMoyen, drawdownMaxPct: pub.drawdownMaxPct, risquePct: pub.risquePct, courbe: pub.courbe.slice(), parStrategie: [], detailOuverts: [], capitalAvantListe: pub.capitalAvantListe, resumePub: pub };
+  }
   const DEFAUT_PF = { capital0: 10000, capital: 10000, gainUsd: 0, gainPct: 0, semaineUsd: 0, nTrades: 0, tauxReussite: 0, rMoyen: 0, drawdownMaxPct: 0, risquePct: 1, courbe: [] };
   const PAIRES = ['BTC', 'SOL', 'DOGE'];
   /* Prix de référence d'un actif : le prix en direct s'il existe, sinon la dernière bougie publiée. */
   const prixDe = (tr, v, a, live) => (live && fin(live[a]) ? live[a] : null) ?? dernierPrix(tr, v, a);
-  function portefeuilleAffiche(tr, v, live = null, { maintenant = Date.now() } = {}) {
+  function portefeuilleAffiche(tr, v, live = null, { maintenant = Date.now(), strict = false } = {}) {
     const base = (v && v.portefeuille) || DEFAUT_PF; if (!tr) return base;   // sans le mode Trader : le portefeuille calculé par le service de volume
+    const publie = tr.portefeuille && tr.portefeuille.v === 1 ? tr.portefeuille : null;
+    if (publie && publie.live && publie.live.v === 2) return depuisLive(publie);   // source unique : le moteur
+    if (strict) return publie ? realiseSeulement(publie) : base;                 // téléphone : jamais de calcul local
     const prix = {}; for (const a of PAIRES) prix[a] = prixDe(tr, v, a, live); const trades = tousTrades(tr, v), pub = tr.portefeuille && tr.portefeuille.v === 1 ? tr.portefeuille : null;
     if (pub) return portefeuilleDepuisPublie(pub, trades, prix, { maintenant });
     const p = portefeuilleTrades(trades, prix, { capital0: base.capital0 || 10000, risquePct: Number(tr.reglages && tr.reglages.risquePct) || base.risquePct || 1, maintenant }), s = tr.bilan && tr.bilan.tous && tr.bilan.tous.stats;
@@ -182,6 +204,6 @@
   }
   const variation = (avant, apres, seuil = 0.03) => (avant == null || !(avant > 0) ? (apres > 0 && avant != null ? 1 : 0) : apres > avant * (1 + seuil) ? 1 : apres < avant * (1 - seuil) ? -1 : 0);
 
-  const API = { niveauxDom, variation, normaliser, typeSortie, tousTrades, portefeuilleAffiche, prixDe, resumePortefeuille, portefeuilleDepuisPublie, flottantDe, MIN_VISIBLES, fenetreLibre, zoomLibre, deplacerLibre, centrerLibre, tableHistorique, dernierPrix, portefeuilleTrades, fluxExecution, reglesProp, REGLES_PROP, fr, prixTexte, usd, signe, compact, il, barreEtat, listes, lignePosition, repere, indexTemps, positionsAffichees, decoderHeat, niveauDetail, couches, volumeNetTrace, rejoueTrimestres, courbeJours };
+  const API = { niveauxDom, variation, normaliser, typeSortie, tousTrades, portefeuilleAffiche, resumeLive, depuisLive, realiseSeulement, prixDe, resumePortefeuille, portefeuilleDepuisPublie, flottantDe, MIN_VISIBLES, fenetreLibre, zoomLibre, deplacerLibre, centrerLibre, tableHistorique, dernierPrix, portefeuilleTrades, fluxExecution, reglesProp, REGLES_PROP, fr, prixTexte, usd, signe, compact, il, barreEtat, listes, lignePosition, repere, indexTemps, positionsAffichees, decoderHeat, niveauDetail, couches, volumeNetTrace, rejoueTrimestres, courbeJours };
   if (typeof module !== 'undefined' && module.exports) module.exports = API; else racine.VolumeVivantCalcul = API;
 }(typeof window !== 'undefined' ? window : globalThis));

@@ -68,7 +68,7 @@
     }
     /* Portefeuille virtuel : piloté par les TRADES de l'agent (terminés + flottant des ouverts) dès que le mode Trader est lisible ; sinon celui de la vue de volume. */
     const tradesDe = actif => C.tousTrades(S.data && S.data.trader, S.data && S.data.vue, actif);
-    const portefeuilleCourant = v => C.portefeuilleAffiche(S.data && S.data.trader, v, S.prixLive, { maintenant: maintenant() });   // la même fonction sur tous les appareils
+    const portefeuilleCourant = v => C.portefeuilleAffiche(S.data && S.data.trader, v, S.prixLive, { maintenant: maintenant(), strict: !!(window.RayleAppareil && typeof window.RayleAppareil.mode === 'function' && window.RayleAppareil.mode() !== 'pc') });   // la même fonction sur tous les appareils
     function rendrePortefeuille() {
       const v = S.data && S.data.vue; if (!v) { E.pf.innerHTML = ''; E.verdict.innerHTML = ''; return; }
       const p = portefeuilleCourant(v), gagne = p.gainUsd >= 0; if (racine.AgentAlertes && p.source === 'trades') racine.AgentAlertes.reglerSim({ capital: p.capital, risquePct: p.risquePct });

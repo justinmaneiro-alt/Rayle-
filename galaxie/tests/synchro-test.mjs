@@ -67,4 +67,9 @@ for (const live of [null, { BTC: 101.37, SOL: 98.62, DOGE: 99.91 }, { BTC: 99.2 
 }
 /* ── sans le résumé publié (ancien service) les deux appareils restent d'accord entre eux sur ce qu'ils reçoivent ── */
 { const sansPub = { ...vueTrader }; delete sansPub.portefeuille; const a = C.portefeuilleAffiche(sansPub, volume, null, { maintenant: NOW }); ok(Number.isFinite(a.capital) && a.nTrades > 0, 'ancien service : repli sur le calcul local, sans erreur'); }
+/* ── source unique : avec le résumé « live » du moteur, PC (prix local différent) et téléphone (strict) affichent EXACTEMENT le même objet ── */
+{ const pub = vueTrader.portefeuille, vivants = C.tousTrades({ actives: ouvertes }, null), live = C.resumeLive(pub, vivants, { BTC: 101, SOL: 99, DOGE: 100 }, NOW, { prixSource: 'test', prixT: NOW });
+  const tr = { ...vueTrader, portefeuille: { ...pub, live } }, pc = C.portefeuilleAffiche(tr, volume, { BTC: 150, SOL: 50 }, { maintenant: NOW + 99999 }), tel = C.portefeuilleAffiche(tr, volume, null, { maintenant: NOW, strict: true });
+  ok(JSON.stringify(pc) === JSON.stringify(tel), 'live : PC et téléphone identiques'); proche(pc.capital, live.capital, 'live : solde = celui du moteur', 0); proche(pc.flottantUsd, live.flottantUsd, 'live : flottant du moteur', 0); proche(pc.cumulR, live.cumulR, 'live : cumul R du moteur', 0);
+  const seul = C.portefeuilleAffiche({ ...vueTrader, portefeuille: pub }, volume, { BTC: 150 }, { strict: true }); ok(seul.flottantUsd === 0 && seul.sansLive, 'strict sans live : aucun calcul local du flottant'); }
 console.log('synchro : ' + n + ' vérifications OK');
