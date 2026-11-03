@@ -125,6 +125,7 @@ export function creerPiles({ parent, centreTable, ouvrirDossier = () => {}, ouvr
   return {
     groupe, items, etatPlans, viser, survoler, ouvrir, fermer: () => { if (agent.module && agent.module.estOuvert()) return agent.module.fermer(); if (!estOuvert()) return false; fermerTout(); return true; }, espaceFerme() {}, marquerOuvert() {}, majReel, maj,
     ouvert: () => (agent.module && agent.module.estOuvert() ? 'agent' : estOuvert() ? 'terminal' : null),
-    ids: () => PILES.map(p => p.id), position: id => { const it = items.find(x => x.pile.id === String(id).replace(/^pile:/, '')); return it ? it.pivot.getWorldPosition(new THREE.Vector3()) : null; }, piles: true
+    ids: () => PILES.map(p => p.id), idsEcran: () => PILES.map(p => p.id).concat(agent.pivot.visible ? ['agent'] : []),   // « agent » : pour les clics réels des tests seulement (jamais dans la voix)
+    position: id => { const k = String(id).replace(/^pile:/, ''); if (k === 'agent') return agent.pivot.visible ? agent.pivot.getWorldPosition(new THREE.Vector3()) : null; const it = items.find(x => x.pile.id === k); return it ? it.pivot.getWorldPosition(new THREE.Vector3()) : null; }, piles: true
   };
 }

@@ -40,6 +40,8 @@
     const fermes = DEFS.filter(d => !ouverts[d.id]);
     puces.innerHTML = fermes.map(d => '<button type="button" data-ouvre="' + d.id + '">+ ' + d.nom + '</button>').join('') + (agentPresent ? '<button type="button" data-agent>+ Agent</button>' : '');
     puces.hidden = !(fermes.length || agentPresent) || hote.hidden;
+    // le titre « Raylé · poste central » se décale à gauche des boutons (jamais recouvert)
+    requestAnimationFrame(() => document.documentElement.style.setProperty('--gm-puces-l', puces.hidden ? '0px' : (puces.getBoundingClientRect().width + 16) + 'px'));
   }
 
   /* ── contenus ── */

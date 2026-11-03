@@ -11,6 +11,7 @@ body.g1-grand .gm-hote *{pointer-events:none!important}
 .gm-hote .gm-corps{padding:8px 10px 10px}
 .gm-hote .gm-corps.gf-sans-marge{padding:0}
 .gm-puces{position:fixed;right:12px;top:10px;display:flex;gap:6px;z-index:73}
+.g1-titre{margin-right:var(--gm-puces-l,0px)}
 .gm-puces button{font:12px var(--v1-sans,system-ui,sans-serif);color:var(--g1-a,#ff5aa5);background:rgba(10,12,26,.8);border:1px solid color-mix(in srgb,var(--g1-a,#ff5aa5) 50%,transparent);padding:4px 10px;min-height:32px;cursor:pointer;border-radius:14px}
 @media (pointer:coarse){.gm-puces button{min-height:44px;padding:6px 14px}}
 .gm-tete{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:4px}
