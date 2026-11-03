@@ -28,11 +28,18 @@
   /* ── hôte et puces de réouverture ── */
   const hote = document.createElement('div'); hote.id = 'g1Mini'; hote.className = 'gm-hote'; hote.hidden = true; document.body.appendChild(hote);
   const puces = document.createElement('div'); puces.className = 'gm-puces'; puces.id = 'g1MiniPuces'; puces.hidden = true; document.body.appendChild(puces);
-  puces.addEventListener('click', e => { const b = e.target.closest('[data-ouvre]'); if (!b) return; ouvrir(b.dataset.ouvre); });
+  // « + Agent » : ouvre la fenêtre de l'agent de trading (module isolé agent-trading/ ; s'il est supprimé, le bouton disparaît)
+  const URL_AGENT = base('agent-trading/front/fenetre-agent.js');
+  let agentPresent = true;
+  fetch(URL_AGENT, { method: 'HEAD', cache: 'no-store' }).then(r => { if (!r.ok) { agentPresent = false; majPuces(); } }).catch(() => {});
+  puces.addEventListener('click', e => {
+    if (e.target.closest('[data-agent]')) { import(URL_AGENT).then(m => m.ouvrirFenetre()).catch(() => { agentPresent = false; majPuces(); }); return; }
+    const b = e.target.closest('[data-ouvre]'); if (!b) return; ouvrir(b.dataset.ouvre);
+  });
   function majPuces() {
     const fermes = DEFS.filter(d => !ouverts[d.id]);
-    puces.innerHTML = fermes.map(d => '<button type="button" data-ouvre="' + d.id + '">+ ' + d.nom + '</button>').join('');
-    puces.hidden = !fermes.length || hote.hidden;
+    puces.innerHTML = fermes.map(d => '<button type="button" data-ouvre="' + d.id + '">+ ' + d.nom + '</button>').join('') + (agentPresent ? '<button type="button" data-agent>+ Agent</button>' : '');
+    puces.hidden = !(fermes.length || agentPresent) || hote.hidden;
   }
 
   /* ── contenus ── */
