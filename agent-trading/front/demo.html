@@ -1,0 +1,20 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Agent de trading</title>
+<style>html,body{margin:0;height:100%;background:#05080c}#vue{position:fixed;inset:0}</style>
+</head>
+<body>
+<div id="vue"></div>
+<script type="module">
+  // Page autonome (tests et usage direct) : même composant que dans Rayle. ?relais=ws://… pour un relais de test.
+  import { monterVue } from './vue.js';
+  import { creerConnexion } from './connexion.js';
+  const q = new URLSearchParams(location.search);
+  const connexion = q.get('relais') ? creerConnexion({ url: q.get('relais'), jeton: q.get('jeton') || 'test-local' }) : null;
+  window.__vue = monterVue(document.getElementById('vue'), { mode: q.get('mode') || 'auto', connexion });
+</script>
+</body>
+</html>

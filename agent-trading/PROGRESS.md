@@ -9,8 +9,10 @@ Reprendre ici : lire ce fichier, puis `RAPPORT-AGENT.md` (local, choix faits seu
 
 - **Phase 3 — Stratégie et autonomie** : `moteur/strategie.js` (REJET / CASSURE / ABSORPTION, volume seulement, anti-bruit unique, règles dures), `agent.js` (décision à la clôture M15 + sur événement : niveau du profil touché, mur retiré/mangé), `narration.js` (carnet raconté simplement, cadres « regard »), `ia.js` (LM Studio Dolphin, débit limité, chiffres vérifiés, ne crée jamais de position), `adaptation.js` (fantômes, 1×/semaine max, ≥ 30 trades, validé hors apprentissage, retour arrière), `backtest.js` (honnête, limites écrites), `etat.js` + `publication.js` (état numéroté rapide/lent/historique/courbe), `alertes.js` (Telegram via le pont), Worker `worker/` (DO relais, DÉPLOYÉ : https://rayle-agent-trading.justinmaneiro.workers.dev). Tests : `node moteur/tests/phase3-test.mjs`.
 
+- **Phase 4 — Fenêtre unique** : `front/vue.js` (même composant PC / tablette / téléphone ; grille ≥ 1100 px, sinon onglets Graphique | Carnet | Positions | Portefeuille), `graphique.js` (Lightweight Charts v5.2.1 + primitives : 3 petits traits + badge, profils VAH/POC/VAL, niveaux, zones, prix + compte à rebours, volume total + volume net + CVD publiés par le moteur), `carnet.js` (échelle complète, cumuls, murs, flashs, cadres blancs « regard »), `panneaux.js` (positions, historique CSV, portefeuille animé, journal, ⓘ), `carte-alerte.js`, `jetons.css` (toutes les durées / courbes / couleurs), `connexion.js` (WebSocket du relais, hors ligne). Entrées : bouton « ◈ Agent de trading » du terminal de Mars (`planetes/mars/pc/trading/espace.js`) et tuile de l'écran Marchés (`core/mobile/mobile-marches.js`), par `import()` (disparaissent si le dossier est supprimé). Tests : `node tests/front-test.mjs` ; captures `node moteur/tests/ecran-reel.mjs 8011` (vraies données), `relais-demo.mjs` + `ecran-positions.mjs` (3 positions).
+
 ## En cours
-- Phase 4 — fenêtre unique (front).
+- Phase 5 — alertes (Telegram + carte plein écran : déjà écrites, à vérifier en réel).
 
 ## Reste
 - Phase 3 stratégie + IA, phase 4 fenêtre unique, phase 5 alertes, phase 6 vérification, service Windows, déploiement du Worker `rayle-agent-trading`.

@@ -1,0 +1,46 @@
+/* ═════════════ JETONS DE L'AGENT DE TRADING (un seul fichier pour les durées, les courbes et les couleurs) ═════════════
+   À ajuster d'après les vidéos de référence : rien d'autre n'a de durée ou de couleur en dur (graphique.js lit ces variables). */
+.at {
+  /* durées */
+  --at-d-rapide: 120ms;      /* survol, appui */
+  --at-d-normal: 220ms;      /* changement d'onglet, apparition d'un panneau */
+  --at-d-lent: 420ms;        /* carte plein écran */
+  --at-d-flash: 650ms;       /* flash vert/rouge du capital, ordres qui apparaissent/disparaissent */
+  --at-d-compteur: 600ms;    /* défilement du capital jusqu'au centime */
+  /* courbes */
+  --at-c-sortie: cubic-bezier(.2, .8, .2, 1);
+  --at-c-entree: cubic-bezier(.4, 0, 1, 1);
+  --at-c-douce: cubic-bezier(.4, 0, .2, 1);
+  /* verre sombre (thème Rayle) */
+  --at-fond: #05080c;
+  --at-verre: rgba(12, 18, 26, .86);
+  --at-verre-2: rgba(18, 26, 36, .9);
+  --at-bord: rgba(143, 208, 227, .16);
+  --at-bord-fort: rgba(143, 208, 227, .34);
+  --at-texte: #d7e3ea;
+  --at-doux: #8a9aa6;
+  --at-accent: #8fd0e3;
+  --at-sable: #c9b27a;
+  /* bougies (vert/rouge réservés aux bougies et aux gains/pertes) */
+  --at-haussier: #26a69a;
+  --at-baissier: #ef5350;
+  --at-gain: #3ddc97;
+  --at-perte: #ff5c6c;
+  /* direction des positions : jamais vert/rouge */
+  --at-achat: #4ea3ff;
+  --at-vente: #ff9f43;
+  /* carnet */
+  --at-carnet-achat: rgba(78, 163, 255, .30);
+  --at-carnet-vente: rgba(255, 159, 67, .30);
+  --at-mur: rgba(255, 255, 255, .85);
+  --at-regard: #ffffff;
+  /* alertes */
+  --at-alerte: #ffb020;
+  --at-danger: #ff4d5e;
+  /* typo */
+  --at-mono: ui-monospace, "Cascadia Mono", "SF Mono", Consolas, monospace;
+  --at-sans: system-ui, "Segoe UI", Roboto, sans-serif;
+}
+@media (prefers-reduced-motion: reduce) {
+  .at { --at-d-rapide: 0ms; --at-d-normal: 0ms; --at-d-lent: 0ms; --at-d-flash: 0ms; --at-d-compteur: 0ms; }
+}
