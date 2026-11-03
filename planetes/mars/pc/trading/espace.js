@@ -195,7 +195,11 @@ export function creerEspace({ conteneur, client, tactile = false, depart = {}, s
   const ACT_LIQ = { BTC: 'BTC', SOL: 'SOL', DOGE: 'DOGE' };
   const bLiq = h('button', 'tg-btn tg-liq', '💧 Carte de liquidité'); bLiq.type = 'button'; bLiq.title = 'Ouvrir la carte de liquidité (carnet d’ordres de Kraken et Binance)';
   bLiq.onclick = () => import('../liquidite/fenetre-liquidite.js').then(m => m.ouvrirCarte({ actif: ACT_LIQ[etat.instrument] || undefined })).catch(() => { /* indisponible */ });
-  actions.append(sourceBtns, menuInd, bRecadrer, bDock, bPlein, bRafraichir, bLiq);
+  // Agent de trading (module isolé agent-trading/ : s'il est supprimé, le bouton disparaît)
+  const bAgentTrading = h('button', 'tg-btn tg-agent-trading', '◈ Agent de trading'); bAgentTrading.type = 'button'; bAgentTrading.title = 'Agent de trading SIMULÉ (aucun ordre réel)';
+  const URL_AGENT_TRADING = '../../../../agent-trading/front/fenetre-agent.js';
+  bAgentTrading.onclick = () => import(URL_AGENT_TRADING).then(m => m.ouvrirFenetre()).catch(() => { bAgentTrading.remove(); });
+  actions.append(sourceBtns, menuInd, bRecadrer, bDock, bPlein, bRafraichir, bLiq, bAgentTrading);
   barre.append(chips, unites, actions);
 
   // panneaux
