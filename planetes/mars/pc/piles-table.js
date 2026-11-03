@@ -19,6 +19,7 @@ export function compterParDossier(idsFenetres) {
   return out;
 }
 const L = 640, H = 440;
+let connexionAgent = null;   // connexion au relais de l'agent de trading (partagée si le salon est reconstruit)
 const POLICE = '"Segoe UI Variable","Segoe UI",system-ui,sans-serif';
 
 /* Dessin d'une carte : verre sombre, coins coupés, contour fin cyan, grande icône, nom lisible de loin. Pure fonction de dessin (aucun état). */
@@ -38,6 +39,17 @@ export function dessinerCarte(ctx, pile, { posees = 0, total = 0 } = {}) {
   const sous = pile.id === 'ouvertes' ? (posees ? posees + ' ouverte' + (posees > 1 ? 's' : '') : 'aucune ouverte') : total + ' fenêtre' + (total > 1 ? 's' : '') + (posees ? ' · ' + posees + ' ouverte' + (posees > 1 ? 's' : '') : '');
   ctx.fillText(sous, 34, 360, L - 70);
   ctx.font = '500 26px ' + POLICE; ctx.fillStyle = 'rgba(143,208,227,0.7)'; ctx.fillText('toucher pour ouvrir', 34, 408);
+}
+
+/* Carte du dossier « Agent de trading » : même style que les autres, avec le statut et le capital PUBLIÉS par le moteur (rien n'est calculé ici). */
+export function dessinerCarteAgent(ctx, { statut = null, capital = null, enLigne = false } = {}) {
+  dessinerCarte(ctx, { id: 'agent', titre: 'Agent de trading', icone: '◈' }, {});
+  const E = ctx.canvas.width / L; ctx.setTransform(E, 0, 0, E, 0, 0);
+  ctx.fillStyle = 'rgba(8,14,21,0.98)'; ctx.fillRect(30, 330, L - 60, 56);   // remplace la ligne « N fenêtres »
+  const etiquette = !enLigne ? 'hors ligne' : (statut || '…'), couleur = !enLigne ? '#ffb020' : statut === 'RENTABLE' ? '#3ddc97' : statut === 'NON RENTABLE' ? '#ff5c6c' : '#ffb020';
+  ctx.textBaseline = 'middle'; ctx.textAlign = 'left'; ctx.font = '700 34px ' + POLICE; ctx.fillStyle = couleur; ctx.fillText(etiquette, 34, 360, 330);
+  if (capital != null) { ctx.font = '700 36px ui-monospace,Consolas,monospace'; ctx.fillStyle = '#e6eef2'; ctx.textAlign = 'right'; ctx.fillText(capital, L - 34, 360, 260); ctx.textAlign = 'left'; }
+  ctx.font = '600 22px ' + POLICE; ctx.fillStyle = 'rgba(143,208,227,0.8)'; ctx.fillText('SIMULATION', 34, 44 + 30);
 }
 
 export function creerPiles({ parent, centreTable, ouvrirDossier = () => {}, ouvrirPanneau = () => {}, fermerTout = () => {}, compteurs = () => ({}), estOuvert = () => false }) {
@@ -60,12 +72,39 @@ export function creerPiles({ parent, centreTable, ouvrirDossier = () => {}, ouvr
     pivot.add(fil); groupe.add(pivot);
     return { def: { id: pile.id, reel: false, titre: pile.titre }, pile, plan, pivot, ctx, tex, survol: false, posees: 0 };
   });
+  // ── 6e dossier « Agent de trading » (module isolé agent-trading/) : rangée du haut, au centre du demi-cercle ; les 5 autres piles ne bougent pas ──
+  const agent = (() => {
+    const cv = document.createElement('canvas'); cv.width = 1024; cv.height = 704;
+    const ctx = cv.getContext('2d'); dessinerCarteAgent(ctx, {});
+    const tex = new THREE.CanvasTexture(cv); tex.colorSpace = THREE.SRGBColorSpace; tex.anisotropy = 16; tex.generateMipmaps = true; tex.minFilter = THREE.LinearMipmapLinearFilter;
+    const mat = new THREE.MeshBasicMaterial({ map: tex, transparent: true, side: THREE.DoubleSide, depthWrite: false, color: new THREE.Color(1.15, 1.15, 1.15) });
+    const largeur = 1.0, hauteur = largeur * H / L, pivot = new THREE.Group(); pivot.position.set(centreTable[0], 1.92, centreTable[2] - 2.3 * 0.78);
+    for (const [k, op] of [[2, 0.3], [1, 0.55]]) { const dos = new THREE.Mesh(new THREE.PlaneGeometry(largeur, hauteur), new THREE.MeshBasicMaterial({ color: 0x1c3446, transparent: true, opacity: op, side: THREE.DoubleSide, depthWrite: false })); dos.position.set(0.012 * k, 0.014 * k, -0.01 * k); dos.renderOrder = 5 - k; pivot.add(dos); }
+    const plan = new THREE.Mesh(new THREE.PlaneGeometry(largeur, hauteur), mat); plan.userData.pile = 'agent'; plan.renderOrder = 6; pivot.add(plan);
+    const fil = new THREE.Line(new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(0, -hauteur / 2, 0), new THREE.Vector3(0, -(pivot.position.y - 0.82), 0)]), new THREE.LineBasicMaterial({ color: 0x4de3ff, transparent: true, opacity: 0.3 }));
+    pivot.add(fil); pivot.visible = false; groupe.add(pivot);
+    return { plan, pivot, ctx, tex, survol: false, module: null, cnx: null, sig: '' };
+  })();
+  const URL_AGENT = new URL('../../../agent-trading/front/', import.meta.url).href;
+  Promise.all([import(URL_AGENT + 'fenetre-agent.js'), import(URL_AGENT + 'connexion.js'), import(URL_AGENT + '../commun/format.js')]).then(([fen, cx, fmt]) => {
+    agent.module = fen; agent.fmt = fmt; pivot0();
+    if (!connexionAgent) connexionAgent = cx.creerConnexion();   // une seule connexion par page, même JSON que la fenêtre
+    agent.cnx = connexionAgent;
+  }).catch(() => { /* dossier agent-trading/ absent : pas de 6e dossier */ });
+  function pivot0() { agent.pivot.visible = true; cibles.push(agent.plan); }
+  function majAgent() {
+    if (!agent.cnx) return;
+    const e = agent.cnx.store.etat, f = agent.cnx.fraicheur(), d = { statut: e ? e.statut : null, capital: e && agent.fmt ? agent.fmt.fmtUSD(e.compte.capital) : null, enLigne: !!(e && f.live) };
+    const sig = JSON.stringify(d); if (sig === agent.sig) return; agent.sig = sig;
+    dessinerCarteAgent(agent.ctx, d); agent.tex.needsUpdate = true;
+  }
   const cibles = items.map(x => x.plan), rayonRC = new THREE.Raycaster();
   let survolId = null, derniereSig = '';
   function viser(ndc, camera) { rayonRC.setFromCamera(new THREE.Vector2(ndc[0], ndc[1]), camera); const h = rayonRC.intersectObjects(cibles, false)[0]; return h ? 'pile:' + h.object.userData.pile : null; }
-  function survoler(id) { if (id === survolId) return; survolId = id; for (const it of items) it.survol = id === 'pile:' + it.pile.id; }
+  function survoler(id) { if (id === survolId) return; survolId = id; for (const it of items) it.survol = id === 'pile:' + it.pile.id; agent.survol = id === 'pile:agent'; }
   function ouvrir(id) {
     if (!id) return false;
+    if (id === 'pile:agent') { if (agent.module) agent.module.ouvrirFenetre(); return true; }
     if (String(id).startsWith('pile:')) { ouvrirDossier(String(id).slice(5)); return true; }
     ouvrirPanneau(id); return true;                          // identifiant d'une fenêtre du terminal (voix, tests)
   }
@@ -79,12 +118,13 @@ export function creerPiles({ parent, centreTable, ouvrirDossier = () => {}, ouvr
   let acc = 0;
   /* Aucun mouvement : seul le survol éclaire la couleur du matériau ; les compteurs sont relus 2 fois par seconde. */
   function maj(t) {
-    for (const it of items) { const cible = it.survol ? 1.5 : 1.15, c = it.plan.material.color; if (Math.abs(c.r - cible) > 0.002) { const v = c.r + (cible - c.r) * 0.25; c.setRGB(v, v, v); } }
-    if (t - acc > 0.5 || t < acc) { acc = t; majCompteurs(); }
+    for (const it of items.concat([agent])) { const cible = it.survol ? 1.5 : 1.15, c = it.plan.material.color; if (Math.abs(c.r - cible) > 0.002) { const v = c.r + (cible - c.r) * 0.25; c.setRGB(v, v, v); } }
+    if (t - acc > 0.5 || t < acc) { acc = t; majCompteurs(); majAgent(); }
   }
   const etatPlans = () => items.map(it => ({ id: it.def.id, opacite: it.plan.material.opacity, echelle: it.pivot.scale.x, y: it.pivot.position.y }));
   return {
-    groupe, items, etatPlans, viser, survoler, ouvrir, fermer: () => { if (!estOuvert()) return false; fermerTout(); return true; }, espaceFerme() {}, marquerOuvert() {}, majReel, maj, ouvert: () => (estOuvert() ? 'terminal' : null),
+    groupe, items, etatPlans, viser, survoler, ouvrir, fermer: () => { if (agent.module && agent.module.estOuvert()) return agent.module.fermer(); if (!estOuvert()) return false; fermerTout(); return true; }, espaceFerme() {}, marquerOuvert() {}, majReel, maj,
+    ouvert: () => (agent.module && agent.module.estOuvert() ? 'agent' : estOuvert() ? 'terminal' : null),
     ids: () => PILES.map(p => p.id), position: id => { const it = items.find(x => x.pile.id === String(id).replace(/^pile:/, '')); return it ? it.pivot.getWorldPosition(new THREE.Vector3()) : null; }, piles: true
   };
 }
