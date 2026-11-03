@@ -233,7 +233,7 @@ export function creerService({ dossier = dossierAgent(), maintenant = () => Date
   const positions = avecPositions ? creerPositions({ dossier, D, paires, maintenant, journal, erreur, versionCriteres: niveauPreuve, pistesLignes: () => lignesRapportPistes(meilleuresPistes(etat.backtests, { n: 3 }), null), envoyer: async (texte, canal) => { if (S.configure && autorise(canal)) await S.telegram(texte, canal); } }) : null;
 
   /* ── (2 sexies) V12 : mode Trader (propositions « À l'essai » à chaque clôture M15, suivi simulé, bilan en direct, promotion / désactivation) ── */
-  const registre = creerRegistre({ dossier, maintenant, journal: (c, m) => journal(c, m), erreur }), regle = { filtrer: sig => registre.filtrer(sig) };
+  const registre = creerRegistre({ dossier, maintenant, journal: (c, m) => journal(c, m), erreur }), regle = { filtrer: sig => registre.filtrerSignal(sig) };
   const trader = avecTrader ? creerTrader({ dossier, D, paires, maintenant, regle, prixLive: a => prixBinance(a), journal: (c, m) => journal(c, m), erreur, envoyer: async (texte, canal) => { if (S.configure && autorise(canal)) await S.telegram(texte, canal); } }) : null;
 
   /* ── (2 septies) V14 : tableau vivant de volume (propositions de volume, portefeuille virtuel, rejoué) ── */
