@@ -457,7 +457,7 @@ async function construire(G) {
     positionsEcran: () => {                                           // fenêtres holographiques en coordonnées CSS du canvas (tests : clics réels)
       if (!int || mode !== 'interieur') return [];
       const r = canvas.getBoundingClientRect(), out = [];
-      for (const id of int.holo.ids()) { const p = int.holo.position(id); if (!p) continue; const q = p.clone().project(int.camera); out.push({ id, x: r.left + (q.x * 0.5 + 0.5) * r.width, y: r.top + (-q.y * 0.5 + 0.5) * r.height, devant: q.z < 1 }); }
+      for (const id of (int.holo.idsEcran || int.holo.ids)()) { const p = int.holo.position(id); if (!p) continue; const q = p.clone().project(int.camera); out.push({ id, x: r.left + (q.x * 0.5 + 0.5) * r.width, y: r.top + (-q.y * 0.5 + 0.5) * r.height, devant: q.z < 1 }); }
       return out;
     },
     zonesEcran: () => { if (mode !== 'orbite' || !orb) return {}; const r = canvas.getBoundingClientRect(), p = orb.projeterAncres(r.width, r.height), o = {}; for (const [k, v] of Object.entries(p)) o[k] = { x: r.left + v.x, y: r.top + v.y, visible: v.visible }; return o; },

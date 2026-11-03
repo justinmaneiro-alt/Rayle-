@@ -21,6 +21,17 @@ L'application PC (raccourci Rayle) lit les fichiers du dossier par le serveur lo
 - Le dossier de Mars est placé au centre de la rangée du haut pour ne déplacer aucun autre dossier ; il n'est pas ajouté aux ordres vocaux (aucune commande vocale pour l'agent).
 - La fenêtre a un voile léger : un clic sur le voile la ferme (« clic ailleurs »), et la souris ne passe pas à la 3D tant qu'elle est ouverte.
 
-## Non fait (limite d'usage atteinte)
-- Captures Chrome à 1600 px (accueil, salon, fenêtre depuis les 3 entrées) et contrôle des erreurs console : PAS faits. À lancer : `node tests-navigateur/agent-trading-entrees-test.mjs` (à adapter aux nouvelles entrées).
+## Vérification (Chrome, 1600 px) : `node tests-navigateur/agent-trading-pc-test.mjs` → 18 réussis, 0 échoué
+- Accueil : « + Agent » visible, ne chevauche ni les autres boutons ni le titre « Raylé · poste central » (correctif : le titre se décale à gauche des boutons, `core/commun/g1-mini.css`).
+- Accueil → fenêtre : grande (≥ 1400 × 800), 4 onglets, au premier plan ; redimensionnement par le coin, agrandissement (double-clic sur la barre), Échap ferme.
+- Menu Espaces → « Agent » → même fenêtre ; un clic à côté la ferme.
+- Même capital au centime que le téléphone (384 px), au même numéro d'état.
+- Salon de Mars : dossier « Agent de trading » visible (statut + capital), clic réel → fenêtre au-dessus de la 3D, la souris marche dedans, Échap ferme la fenêtre SANS sortir de la base.
+- Bouton du Terminal (espace de travail) → la même fenêtre (une seule à la fois).
+- Aucune erreur console liée à l'agent ni à ses entrées. Seules erreurs restantes, déjà présentes avant : `calendar.json` (404) et le calendrier faireconomy (CORS).
+- Captures : `agent-trading/moteur/tests/captures/entrees-*.png` (accueil, salon, fenêtre depuis l'accueil, Mars, Terminal).
 - Tests de l'agent : `cd agent-trading` puis `npm test` → tous passent.
+- Pour les tests seulement, la pile de l'agent a une position à l'écran (`idsEcran`, utilisé par `Mars.positionsEcran()`) ; elle n'est PAS dans `ids()`, donc jamais dans la voix.
+
+## Remarque (agent, non modifié comme demandé)
+- Sur le graphique, des annotations de l'IA locale portent le nom « court » : Dolphin recopie l'exemple de sa consigne (« nom : court »). À corriger plus tard dans `agent-trading/moteur/ia.js` (consigne) ; je n'y ai pas touché ici.
