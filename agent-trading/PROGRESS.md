@@ -11,11 +11,16 @@ Reprendre ici : lire ce fichier, puis `RAPPORT-AGENT.md` (local, choix faits seu
 
 - **Phase 4 — Fenêtre unique** : `front/vue.js` (même composant PC / tablette / téléphone ; grille ≥ 1100 px, sinon onglets Graphique | Carnet | Positions | Portefeuille), `graphique.js` (Lightweight Charts v5.2.1 + primitives : 3 petits traits + badge, profils VAH/POC/VAL, niveaux, zones, prix + compte à rebours, volume total + volume net + CVD publiés par le moteur), `carnet.js` (échelle complète, cumuls, murs, flashs, cadres blancs « regard »), `panneaux.js` (positions, historique CSV, portefeuille animé, journal, ⓘ), `carte-alerte.js`, `jetons.css` (toutes les durées / courbes / couleurs), `connexion.js` (WebSocket du relais, hors ligne). Entrées : bouton « ◈ Agent de trading » du terminal de Mars (`planetes/mars/pc/trading/espace.js`) et tuile de l'écran Marchés (`core/mobile/mobile-marches.js`), par `import()` (disparaissent si le dossier est supprimé). Tests : `node tests/front-test.mjs` ; captures `node moteur/tests/ecran-reel.mjs 8011` (vraies données), `relais-demo.mjs` + `ecran-positions.mjs` (3 positions).
 
-## En cours
-- Phase 5 — alertes (Telegram + carte plein écran : déjà écrites, à vérifier en réel).
+- **Phase 5 — Alertes** : Telegram par le pont existant (`moteur/alertes.js`, ENTREE / EXECUTION, file + débit ; pont testé), carte plein écran avec « Copier » par champ et « Tout copier » (format brut). Tests : `moteur/tests/phase5-test.mjs`, capture `ecran-alerte.mjs`.
+- **Phase 6 — Vérification et publication** : `npm test` (tout passe), prix unique de bout en bout (`prix-unique-test.mjs`), parité PC/téléphone au centime + hors ligne (Chrome), entrées dans Rayle (Chrome), captures 1600 / 384 px avec 3 positions. Démarrage auto installé (clé Run + superviseur, sans admin ; commande admin dans le rapport). Worker de l'agent déployé (7228503b). Fusion dans main + push.
 
-## Reste
-- Phase 3 stratégie + IA, phase 4 fenêtre unique, phase 5 alertes, phase 6 vérification, service Windows, déploiement du Worker `rayle-agent-trading`.
+## En cours
+- Rien. Le moteur tourne et enregistre.
+
+## Reste (prochaines sessions)
+- Laisser tourner pour accumuler du volume net et du carnet, puis relire le backtest (« Pas assez de trades » pour l'instant).
+- Ajuster les animations avec les vidéos de Justin (`front/jetons.css`).
+- Vérifier sur la vraie tablette et le vrai téléphone.
 
 ## Repères
 - Moteur (HORS dépôt, `.gitignore`) : `agent-trading/moteur/`. Données : `%LOCALAPPDATA%\Rayle\agent-trading\`.
