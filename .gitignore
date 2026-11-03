@@ -72,3 +72,5 @@ captures-retrait/
 agent-trading/moteur/
 agent-trading/RAPPORT-AGENT.md
 agent-trading/worker/.wrangler/
+!agent-trading/worker/
+agent-trading/worker/.wrangler/

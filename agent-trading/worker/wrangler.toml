@@ -1,0 +1,20 @@
+# Worker de l'agent de trading (SIMULATION) — séparé du Worker principal « rayle », qui n'est jamais touché.
+# AUCUN SECRET : un jeton est accepté s'il est accepté par le /ping du Worker principal (RAYLE_TOKEN ou appareil appairé).
+# Déployer : npx.cmd wrangler deploy --config agent-trading/worker/wrangler.toml
+name = "rayle-agent-trading"
+main = "src/index.js"
+compatibility_date = "2026-10-07"
+preview_urls = false
+
+[vars]
+WORKER_RAYLE = "https://rayle.justinmaneiro.workers.dev"
+ORIGINES = "https://justinmaneiro-alt.github.io,http://127.0.0.1:8000,http://localhost:8000"
+
+# Un seul objet « EtatAgent » : reçoit l'état du moteur et le relaie, identique, à tous les écrans (plan gratuit : objet SQLite).
+[[durable_objects.bindings]]
+name = "ETAT"
+class_name = "EtatAgent"
+
+[[migrations]]
+tag = "v1-etat-agent"
+new_sqlite_classes = ["EtatAgent"]
