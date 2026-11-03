@@ -18,7 +18,7 @@ import { ouvrirZip, lireLignes } from './zip-flux.mjs';
 import { AgregateurBarres } from '../../strategies/liquidite/barres-flux.js';
 
 export const BASE = 'https://data.binance.vision/data/';
-export const ACTIFS_HIST = Object.freeze({ BTC: 'BTCUSDT', SOL: 'SOLUSDT', DOGE: 'DOGEUSDT' });
+export const ACTIFS_HIST = Object.freeze({ BTC: 'BTCUSDT', ETH: 'ETHUSDT', SOL: 'SOLUSDT', HYPE: 'HYPEUSDT', DOGE: 'DOGEUSDT' });
 export const MARCHES = Object.freeze({ spot: 'spot', fut: 'futures/um' });
 export const dossierHistorique = (dossier = dossierAgent()) => path.join(dossier, 'flux-historique');
 const pad = n => String(n).padStart(2, '0');

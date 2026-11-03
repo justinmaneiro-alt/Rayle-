@@ -10,7 +10,9 @@ import { creerConnexion } from './connexion.mjs';
 
 export const ACTIFS = Object.freeze({
   BTC: { binance: 'BTCUSDT', kraken: 'BTC/USD', plancherUsd: 100000 },
+  ETH: { binance: 'ETHUSDT', kraken: 'ETH/USD', plancherUsd: 50000 },
   SOL: { binance: 'SOLUSDT', kraken: 'SOL/USD', plancherUsd: 20000 },
+  HYPE: { binance: 'HYPEUSDT', kraken: 'HYPE/USD', plancherUsd: 10000 },
   DOGE: { binance: 'DOGEUSDT', kraken: 'DOGE/USD', plancherUsd: 10000 }
 });
 export const PARAMS = Object.freeze({ pasPct: 0.02, demiLargeurPct: 3, uniteUsd: 1000 })   // 16 bits log : plafond 65 535 × 1 000 $ ≈ 65 M$ par tranche (100 $ saturait à 6,5 M$ sur BTC);

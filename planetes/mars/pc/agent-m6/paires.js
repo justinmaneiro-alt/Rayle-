@@ -11,17 +11,18 @@ export const PAIRES = Object.freeze({
   SOL: { id: 'SOL', nom: 'Solana', binance: 'SOLUSDT', kraken: 'SOLUSD', krakenCle: 'SOLUSD', futuresBinance: 'SOLUSDT', decimales: 2, ronds: [5, 10], debutHistorique: Date.UTC(2020, 7, 11), couts: { fraisPct: 0.06, spreadPct: 0.04, glissementPct: 0.04 } },
   DOGE: { id: 'DOGE', nom: 'Dogecoin', binance: 'DOGEUSDT', kraken: 'XDGUSD', krakenCle: 'XDGUSD', futuresBinance: 'DOGEUSDT', decimales: 5, ronds: [0.01, 0.05], debutHistorique: Date.UTC(2019, 6, 5), couts: { fraisPct: 0.06, spreadPct: 0.06, glissementPct: 0.06 } }
 });
-export const ORDRE_PAIRES = ['BTC', 'SOL', 'DOGE'];
+export const ORDRE_PAIRES = ['BTC', 'ETH', 'SOL', 'HYPE', 'DOGE'];   // V8 : ETH et HYPE ajoutés (définis dans PAIRES_EXTRA ; HYPE : historique court, Binance depuis le 24/09/2026)
 /* V6 : actifs liquides SUPPLÉMENTAIRES que Justin peut ajouter à la recherche (`node agent-pc/service.mjs --ajouter-actif ETH`). Ils ne font PAS partie des trois paires de l'agent (ORDRE_PAIRES, interface, alertes) :
    ils servent seulement à élargir la recherche. Données : Binance spot (gratuit, sans clé), mêmes coûts prudents (spread et glissement plus larges pour les actifs moins liquides). */
 export const PAIRES_EXTRA = Object.freeze({
   ETH: { id: 'ETH', nom: 'Ethereum', binance: 'ETHUSDT', kraken: 'ETHUSD', krakenCle: 'XETHZUSD', futuresBinance: 'ETHUSDT', decimales: 2, ronds: [100, 500], debutHistorique: Date.UTC(2017, 7, 17), couts: { fraisPct: 0.06, spreadPct: 0.02, glissementPct: 0.02 } },
+  HYPE: { id: 'HYPE', nom: 'Hyperliquid', binance: 'HYPEUSDT', kraken: 'HYPEUSD', krakenCle: 'HYPEUSD', futuresBinance: 'HYPEUSDT', decimales: 3, ronds: [1, 5], debutHistorique: Date.UTC(2026, 8, 24), historiqueCourt: true, couts: { fraisPct: 0.06, spreadPct: 0.05, glissementPct: 0.05 } },
   BNB: { id: 'BNB', nom: 'BNB', binance: 'BNBUSDT', kraken: null, krakenCle: null, futuresBinance: 'BNBUSDT', decimales: 2, ronds: [10, 50], debutHistorique: Date.UTC(2017, 10, 6), couts: { fraisPct: 0.06, spreadPct: 0.03, glissementPct: 0.03 } },
   XRP: { id: 'XRP', nom: 'XRP', binance: 'XRPUSDT', kraken: 'XRPUSD', krakenCle: 'XXRPZUSD', futuresBinance: 'XRPUSDT', decimales: 4, ronds: [0.1, 0.5], debutHistorique: Date.UTC(2018, 4, 4), couts: { fraisPct: 0.06, spreadPct: 0.04, glissementPct: 0.04 } },
   LINK: { id: 'LINK', nom: 'Chainlink', binance: 'LINKUSDT', kraken: 'LINKUSD', krakenCle: 'LINKUSD', futuresBinance: 'LINKUSDT', decimales: 3, ronds: [1, 5], debutHistorique: Date.UTC(2019, 0, 16), couts: { fraisPct: 0.06, spreadPct: 0.05, glissementPct: 0.05 } }
 });
 export const paire = id => PAIRES[String(id).toUpperCase()] || PAIRES_EXTRA[String(id).toUpperCase()] || null;
-export const ALIAS_PAIRES = { BTC: ['btc', 'bitcoin', 'bit coin', 'xbt'], SOL: ['sol', 'solana'], DOGE: ['doge', 'dogecoin', 'doge coin', 'dodge'] };
+export const ALIAS_PAIRES = { BTC: ['btc', 'bitcoin', 'bit coin', 'xbt'], ETH: ['eth', 'ethereum', 'ether'], HYPE: ['hype', 'hyperliquid'], SOL: ['sol', 'solana'], DOGE: ['doge', 'dogecoin', 'doge coin', 'dodge'] };
 export function trouverPaire(texte) {
   const t = ' ' + String(texte || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim() + ' ';
   let meilleur = null, taille = 0;

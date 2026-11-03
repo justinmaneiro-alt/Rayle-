@@ -10,7 +10,7 @@ import { portefeuille, stats, COUTS_DEFAUT } from '../strategies/volume/simulati
 import { configRicheDe, lireCoutsReglage } from './couts-reglage.mjs';
 
 export const FICHIER_RECHERCHE = 'volume-v14-recherche.json', FICHIER_COFFRE = 'volume-v14-coffre.json', FICHIER_REJOUE = 'volume-v14-rejoue.json', FICHIER_ENTONNOIR = 'volume-v14-entonnoir.json';
-export const MOIS_PAR_ACTIF = Object.freeze({ BTC: 12, SOL: 36, DOGE: 36 });          // BTC : l'historique récent est téléchargé sur 12 mois ; SOL et DOGE en ont 3 ans
+export const MOIS_PAR_ACTIF = Object.freeze({ BTC: 12, ETH: 12, SOL: 36, HYPE: 2, DOGE: 36 });   // V8 : ETH et HYPE (HYPE : historique court)          // BTC : l'historique récent est téléchargé sur 12 mois ; SOL et DOGE en ont 3 ans
 export function coutsPour(actif, dossier) {
   try { const c = configRicheDe(actif, lireCoutsReglage(dossier)); return { makerPct: c.makerPct, fraisPct: c.fraisPct, glissementPct: c.glissementPct, spreadPct: c.spreadPct, hypothese: 'frais du réglage de l’agent (couts.json ou valeurs prudentes)' }; } catch (e) { return { ...COUTS_DEFAUT }; }
 }

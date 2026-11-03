@@ -6,7 +6,7 @@ import zlib from 'node:zlib';
 import { dossierAgent } from './etat-agent.mjs';
 import { creerConstructeur, agregerH1 } from '../strategies/volume/serie-volume.js';
 
-export const SYMBOLES = Object.freeze({ BTC: 'BTCUSDT', SOL: 'SOLUSDT', DOGE: 'DOGEUSDT' });
+export const SYMBOLES = Object.freeze({ BTC: 'BTCUSDT', ETH: 'ETHUSDT', SOL: 'SOLUSDT', HYPE: 'HYPEUSDT', DOGE: 'DOGEUSDT' });
 export const dossierTrades = (actif, dossier = dossierAgent()) => path.join(dossier, 'flux-historique', 'trades', 'spot-' + SYMBOLES[actif]);
 
 export function joursDisponibles(actif, dossier) {
