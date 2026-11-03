@@ -67,3 +67,8 @@ backups/
 # Retrait des agents : rangés dans idees/ (voir la branche archive-agents)
 idees/
 captures-retrait/
+
+# Agent de trading V2 : le moteur, la stratégie et les données restent HORS dépôt (dépôt public)
+agent-trading/moteur/
+agent-trading/RAPPORT-AGENT.md
+agent-trading/worker/.wrangler/
