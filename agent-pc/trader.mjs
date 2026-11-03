@@ -22,7 +22,7 @@ const CAPITAL_DEPART = 10000;
 export const FICHIER_TRADER = 'trader.json', FICHIER_COMMANDES_TRADER = 'trader-commandes.json';
 const JOUR = 86400e3, FENETRE = 12000, MAX_PROPOSITIONS = 3000;
 export const AVERTISSEMENT = 'Propositions et simulations seulement : aucun ordre n’est passé, aucun gain n’est garanti. Une position proposée n’est pas une promesse : la preuve se construit trade après trade.';
-export const REGLAGES_DEFAUT = Object.freeze({ style: 'equilibre', niveauMin: 'a_lessai', actifs: ['BTC', 'SOL', 'DOGE'], setups: ORDRE_SETUPS, alertesObservation: false, risquePct: 0.5, afficherDemo: false, gestion: 'partielle' });
+export const REGLAGES_DEFAUT = Object.freeze({ style: 'equilibre', niveauMin: 'a_lessai', actifs: ['BTC', 'ETH', 'SOL', 'HYPE', 'DOGE'], setups: ORDRE_SETUPS, alertesObservation: false, risquePct: 1, afficherDemo: false, gestion: 'partielle' });
 const NIVEAUX_ORDRE = { a_lessai: 1, candidate: 2, validee: 3 };
 
 export function creerEtatTrader() { return { schema: 1, propositions: [], types: {}, journalNiveaux: [], reglages: {}, dernierCalcul: {}, refusJour: {}, analyses: {}, retro: {}, gestion: null, jourRetro: null, jourRapport: null, bougies: {}, dernierCycle: null, demarreLe: null }; }
@@ -34,7 +34,7 @@ export async function prixBinance(actifs, { fetchImpl = fetch, delaiMs = 5000 } 
   const r = await fetchImpl('https://data-api.binance.vision/api/v3/ticker/price?symbols=' + encodeURIComponent(JSON.stringify(syms)), { signal: AbortSignal.timeout(delaiMs) }); if (!r.ok) throw new Error('Binance HTTP ' + r.status);
   const j = await r.json(), o = {}; for (const a of actifs) { const x = Array.isArray(j) && j.find(e => e.symbol === SYMBOLES_PRIX[a]), v = x ? parseFloat(x.price) : NaN; if (Number.isFinite(v) && v > 0) o[a] = v; } return o;
 }
-export function creerTrader({ dossier, D, paires, maintenant = () => Date.now(), journal = () => {}, erreur = () => {}, envoyer = async () => {}, series = null, prixLive = null } = {}) {
+export function creerTrader({ dossier, D, paires, maintenant = () => Date.now(), journal = () => {}, erreur = () => {}, envoyer = async () => {}, series = null, prixLive = null, regle = null } = {}) {   // V8 : regle = { filtrer(signal) → true si le signal doit être IGNORÉ (sens opposé à une position vivante d'un AUTRE moteur) } ; les notifications passent par le registre
   const fichier = path.join(dossier, FICHIER_TRADER), fCommandes = path.join(dossier, FICHIER_COMMANDES_TRADER);
   let etat = lireJson(fichier, null); if (!etat || etat.schema !== 1) etat = creerEtatTrader();
   for (const [k, v] of Object.entries(creerEtatTrader())) if (etat[k] === undefined) etat[k] = v;
@@ -92,6 +92,7 @@ export function creerTrader({ dossier, D, paires, maintenant = () => Date.now(),
       if (deLActif.some(q => q.setup === p.setup && q.sens === p.sens && tSig - q.tSignal < 8 * PAS)) continue;
       const conflit = positionOpposee(deLActif, { actif: a, sens: p.sens }); if (conflit) { refus.liste.push({ setup: p.setup, sens: p.sens, pourquoi: raisonConflit(conflit, a), t: tSig + PAS }); continue; }
       if (deLActif.filter(q => (q.statut === 'en_attente' || q.statut === 'ouverte') && !q.fantome).length >= 2) { refus.liste.push({ setup: p.setup, sens: p.sens, pourquoi: 'deux positions déjà en cours sur ' + a, t: tSig + PAS }); continue; }
+      if (regle && regle.filtrer({ id: p.id, actif: a, sens: p.sens, strategie: p.nom, source: 'trader', tSignal: tSig, entree: p.entree, stop: p.stop, tp: p.cible1 })) { refus.liste.push({ setup: p.setup, sens: p.sens, pourquoi: 'ignoré : position inverse ouverte', t: tSig + PAS }); continue; }
       const cle = cleType(p), type = etat.types[cle], fantome = !!(type && type.niveau === 'desactive');
       const avant = etat.propositions.filter(q => q.source !== 'retro' && cleType(q) === cle && q.resultat && q.resultat.statut === 'cloturee').map(q => ({ R: q.resultat.R, regime: q.regime }));
       const g = actifDansRegime(avant, p.regime); let masque = null; if (!g.actif) { masque = g.raison; refus.liste.push({ setup: p.setup, sens: p.sens, pourquoi: g.raison, t: tSig + PAS }); }
@@ -99,7 +100,7 @@ export function creerTrader({ dossier, D, paires, maintenant = () => Date.now(),
         distancePct: p.distancePct, raison: p.raison, invalidation: p.invalidation, confluences: p.confluences.map(c => c.texte), nConfluences: p.nConfluences, diamant: p.diamant, regime: p.regime, biais: p.biais, style: R.style, ttl: p.ttl, atr: p.atr,
         statut: 'en_attente', resultat: null, fantome: fantome || !!masque, masque, source: 'direct', creeLe: maintenant() };
       etat.propositions.push(rec); deLActif.push(rec); nouvelles++;
-      if (!rec.fantome) await alerter(rec, R).catch(() => {});
+      if (!rec.fantome && !regle) await alerter(rec, R).catch(() => {});   // V8 : avec le registre, la notification part du registre (même format pour les deux moteurs)
     }
     if (etat.propositions.length > MAX_PROPOSITIONS) etat.propositions.splice(0, etat.propositions.length - MAX_PROPOSITIONS);
     return nouvelles;
@@ -121,7 +122,7 @@ export function creerTrader({ dossier, D, paires, maintenant = () => Date.now(),
       const r = simuler(m15, { ...p, i }, { couts: coutsDe(p.actif), gestion: reglages().gestion, maxBarres: p.tf === 'H1' ? 192 : 96 });
       const avant = p.statut; p.statut = r.statut; p.resultat = r.statut === 'en_attente' ? null : r;
       if (r.iEntree != null) p.tEntree = m15.t[r.iEntree];
-      if (r.iSortie != null) p.tSortie = m15.t[r.iSortie] + PAS;
+      if (r.iSortie != null) { p.tSortie = m15.t[r.iSortie] + PAS; p.tSortieBougie = m15.t[r.iSortie]; }   // V8 : heure RÉELLE = bougie M15 où le niveau est touché
       if (r.statut !== 'en_attente' && r.statut !== 'ouverte' && avant !== r.statut) terminees.push(p);
     }
     return terminees;
@@ -192,7 +193,7 @@ export function creerTrader({ dossier, D, paires, maintenant = () => Date.now(),
   const statutTexte = p => ({ en_attente: 'en attente (ordre limite pas encore touché)', ouverte: 'entrée touchée', cloturee: p.resultat ? 'terminée : ' + p.resultat.motif : 'terminée', expiree: 'expirée (ordre non touché)', annulee: 'annulée (' + ((p.resultat && p.resultat.motif) || 'le prix est parti sans nous') + ')', perdue: 'suivi impossible (données manquantes)' }[p.statut] || p.statut);
   function vue() {
     const R = reglages(), t = maintenant(), min = NIVEAUX_ORDRE[R.niveauMin] || 1, direct = etat.propositions.filter(p => p.source !== 'retro' && !p.fantome);
-    const actives = direct.filter(p => (p.statut === 'en_attente' || p.statut === 'ouverte') && t < p.t + (p.ttl || 16) * PAS + 2 * 3600e3).map(enrichir).filter(p => (NIVEAUX_ORDRE[p.niveau] || 1) >= min).sort((a, b) => b.nConfluences - a.nConfluences || b.rr - a.rr);
+    const actives = direct.filter(p => p.statut === 'ouverte' || (p.statut === 'en_attente' && t < p.t + (p.ttl || 16) * PAS + 2 * 3600e3))   // V8 : une position OUVERTE reste active jusqu'à sa sortie (la validité ne vaut que pour un ordre en attente).map(enrichir).filter(p => (NIVEAUX_ORDRE[p.niveau] || 1) >= min).sort((a, b) => b.nConfluences - a.nConfluences || b.rr - a.rr);
     const recentes = direct.slice(-300).reverse().map(enrichir);
     const portefeuille = (() => { const aut = autres ? autres() : { trades: [], idsListes: [] }; return CALCUL.resumePortefeuille(CALCUL.tousTrades({ recentes: direct.map(enrichir) }, null).concat(aut.trades).filter(x => x.statut === 'terminee'), { capital0: CAPITAL_DEPART, risquePct: R.risquePct, maintenant: t, idsListes: recentes.map(p => p.id).concat(aut.idsListes) }); })();
     { const aut = autres ? autres() : { trades: [] }, vivants = CALCUL.tousTrades({ actives }, null).concat(aut.trades.filter(x => x.statut !== 'terminee')), prix = {}; let source = 'bougies du moteur';

@@ -43,6 +43,10 @@ import { assurerEnregistreur, statutFlux } from './flux/service-flux.mjs';
 import { statutService, verrouRespecte } from './service-statut.mjs';
 import { creerVolume } from './volume-v14.mjs';      // V14 : tableau vivant (volume, carnet, portefeuille virtuel)
 import { creerTrader, prixBinance } from './trader.mjs';
+import { creerRegistre } from './registre.mjs';   // V8 : registre UNIQUE des trades (publié dans le Worker / D1, lu par tous les écrans)
+import { SETUPS_VOLUME } from '../strategies/volume/setups-volume.js';
+import { createRequire as creerRequire } from 'node:module';
+const KP = creerRequire(import.meta.url)('../shared/portfolio.js');
 import { autorise } from './telegram-politique.mjs';   // seuls partent : alerte d'exécution et bilan du jour      // V12 : mode Trader (positions réelles à chaque bougie, bilan en direct)
 import { creerPositions } from './positions.mjs';      // V7 : les trois agents de positions (Rebond, Continuation, Extrêmes)
 
@@ -229,10 +233,25 @@ export function creerService({ dossier = dossierAgent(), maintenant = () => Date
   const positions = avecPositions ? creerPositions({ dossier, D, paires, maintenant, journal, erreur, versionCriteres: niveauPreuve, pistesLignes: () => lignesRapportPistes(meilleuresPistes(etat.backtests, { n: 3 }), null), envoyer: async (texte, canal) => { if (S.configure && autorise(canal)) await S.telegram(texte, canal); } }) : null;
 
   /* ── (2 sexies) V12 : mode Trader (propositions « À l'essai » à chaque clôture M15, suivi simulé, bilan en direct, promotion / désactivation) ── */
-  const trader = avecTrader ? creerTrader({ dossier, D, paires, maintenant, prixLive: a => prixBinance(a), journal: (c, m) => journal(c, m), erreur, envoyer: async (texte, canal) => { if (S.configure && autorise(canal)) await S.telegram(texte, canal); } }) : null;
+  const registre = creerRegistre({ dossier, maintenant, journal: (c, m) => journal(c, m), erreur }), regle = { filtrer: sig => registre.filtrer(sig) };
+  const trader = avecTrader ? creerTrader({ dossier, D, paires, maintenant, regle, prixLive: a => prixBinance(a), journal: (c, m) => journal(c, m), erreur, envoyer: async (texte, canal) => { if (S.configure && autorise(canal)) await S.telegram(texte, canal); } }) : null;
 
   /* ── (2 septies) V14 : tableau vivant de volume (propositions de volume, portefeuille virtuel, rejoué) ── */
-  const volume = avecVolume ? creerVolume({ dossier, maintenant, journal: (c, m) => journal(c, m), erreur }) : null;
+  const volume = avecVolume ? creerVolume({ dossier, maintenant, regle, actifs: paires, journal: (c, m) => journal(c, m), erreur }) : null;
+  registre.brancher({ trader: () => (trader ? trader.etat().propositions : []), volume: () => (volume ? (volume.etat().signaux || []).map(x => ({ ...x, nom: (SETUPS_VOLUME[x.setup] || {}).nom })) : []) });
+  /* V8 : construit le registre, le publie dans le Worker (seulement s'il a changé, ou toutes les 10 min), reprend le risque réglé côté Worker, envoie les notifications d'entrée / sortie / proposition. */
+  let registrePousseLe = 0, registrePousseVersion = null;
+  async function cycleRegistre() {
+    let { registre: reg } = registre.construire();
+    let prix = {}; try { const r = await fetchImpl(KP.urlPrixKraken(paires), { signal: AbortSignal.timeout(5000) }); if (r.ok) prix = KP.lirePrixKraken(await r.json()); } catch (e) { /* prix indisponible : flottant non calculé */ }
+    if (S.configure && S.registre && (reg.version !== registrePousseVersion || maintenant() - registrePousseLe > 10 * 60e3)) {
+      try { const rep = await S.registre(reg); registrePousseLe = maintenant(); registrePousseVersion = reg.version; info.registre = { t: maintenant(), version: reg.version, ok: true };
+        if (rep && rep.risquePct != null && registre.reglerRisque(rep.risquePct)) { reg = registre.construire().registre; if (trader) { const et = trader.etat(); et.reglages = { ...(et.reglages || {}), risquePct: reg.risquePct }; trader.sauver(); } if (volume) { const ev = volume.etat(); ev.reglages = { ...(ev.reglages || {}), risquePct: reg.risquePct }; } await S.registre(reg).catch(() => {}); registrePousseVersion = reg.version; }
+      } catch (e) { info.registre = { t: maintenant(), version: reg.version, ok: false, msg: String(e.message || e).slice(0, 120) }; }
+    }
+    for (const ev of registre.evenements(prix)) { try { if (S.configure && autorise('EXECUTION')) await S.telegram(KP.messageTelegram(ev.type, ev.ligne, { raisonTexte: ev.ligne.note || '' }), 'EXECUTION'); journal('registre', 'Notification ' + ev.type + ' : ' + ev.ligne.actif + ' ' + (ev.ligne.sens > 0 ? 'ACHAT' : 'VENTE') + '.'); } catch (e) { erreur('notification ' + ev.type, e); } }
+    registre.sauver(); return reg;
+  }
   if (trader && volume) trader.brancherAutres(() => volume.tradesPortefeuille());   // un SEUL portefeuille virtuel : trades du mode Trader + trades du suivi de volume
 
   /* ── (3) recherche permanente ── */
@@ -318,6 +337,7 @@ export function creerService({ dossier = dossierAgent(), maintenant = () => Date
       if (positions) { try { cr.positions = await positions.cycle(); } catch (e) { erreur('positions', e); } }
       if (trader) { try { cr.trader = await trader.cycle(); info.trader = { t: maintenant(), derniereBougie: Object.fromEntries(Object.entries(trader.etat().dernierCalcul)), suivies: trader.etat().propositions.filter(p => p.statut === 'en_attente' || p.statut === 'ouverte').length }; } catch (e) { erreur('mode Trader', e); } }
       if (volume) { try { cr.volume = await volume.cycle(); } catch (e) { erreur('tableau de volume', e); } }
+      try { const reg = await cycleRegistre(); cr.registre = { version: reg.version, n: reg.trades.length }; } catch (e) { erreur('registre', e); }
       if (avecEquipe) { try { cr.autonomie = await autonomieDuJour(); } catch (e) { erreur('autonomie', e); } }
       if (avecEquipe) { try { cr.equipe = await equipeDuJour(); } catch (e) { erreur('équipe', e); } }
       try { cr.alertes = await surveiller(); } catch (e) { erreur('surveillance', e); }

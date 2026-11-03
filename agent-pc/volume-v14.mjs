@@ -30,9 +30,10 @@ const cleConfig = c => c.setup + '·' + c.tf;
 
 /* Forme « position » d'un signal de volume : la MÊME pour la vue publiée et pour le portefeuille commun. */
 const versPosition = x => ({ id: x.id, cle: x.cle, setup: x.setup, nom: SETUPS_VOLUME[x.setup].nom, tf: x.tf, niveauPreuve: x.niveauPreuve, sens: x.sens, entree: x.niveau, stop: x.stop, cible: x.sens > 0 ? x.niveau + x.rr * (x.niveau - x.stop) : x.niveau - x.rr * (x.stop - x.niveau), rr: x.rr, tSignal: x.tSignal, tEntree: x.tEntree || null, tSortie: x.tSortie || null, statut: x.statut, resultat: x.resultat || null, R: x.R ?? null, niv: x.niv, raison: x.raison, raisonFin: x.raison_fin || null });
-export function creerVolume({ dossier, maintenant = () => Date.now(), journal = () => {}, erreur = () => {}, actifs = ['BTC', 'SOL', 'DOGE'], chargerLaSerie = chargerSerie, lireDirect = barresDirect } = {}) {
+export function creerVolume({ dossier, maintenant = () => Date.now(), journal = () => {}, erreur = () => {}, actifs = ['BTC', 'ETH', 'SOL', 'HYPE', 'DOGE'], chargerLaSerie = chargerSerie, lireDirect = barresDirect, regle = null } = {}) {   // V8 : regle.filtrer(signal) → true = signal ignoré (sens opposé à une position vivante de l'autre moteur)
   const fichier = path.join(dossier, FICHIER_VOLUME);
   let etat = lireJson(fichier, null); if (!etat || etat.schema !== 1) etat = { schema: 1, demarreLe: maintenant(), signaux: [], reglages: { capital0: 10000, risquePct: 1 }, pauses: {}, dernierCalcul: 0, derniereRecherche: 0, vuePubliee: null };
+  if (!etat.debutV8) { etat.debutV8 = maintenant(); for (const sg of etat.signaux || []) if (sg.tf === 'H1') sg.format = 'ancien'; }   // V8 : entrées en M15 seulement ; les signaux H1 d'avant vont à leur terme (« ancien format »)
   let cache = null;                                                                              // { cleBarre, series }
   const reglages = () => ({ capital0: 10000, risquePct: 1, ...(etat.reglages || {}) });
   const recherche = () => lireJson(path.join(dossier, FICHIER_RECHERCHE), null);
@@ -71,6 +72,8 @@ export function creerVolume({ dossier, maintenant = () => Date.now(), journal = 
           else { coh.evites++; coh.derniers.push({ t: tSignal, actif: a, setup: c.setup, sens: sg.sens, action: 'ecarte', raison: raisonConflit(opp, a) }); coh.derniers = coh.derniers.slice(-20); continue; }
           coh.derniers = coh.derniers.slice(-20);
         }
+        const tpSig = sg.sens > 0 ? sg.niveau + sg.rr * (sg.niveau - sg.stop) : sg.niveau - sg.rr * (sg.stop - sg.niveau);
+        if (regle && regle.filtrer({ id, actif: a, sens: sg.sens, strategie: SETUPS_VOLUME[c.setup].nom, source: 'volume', tSignal, entree: sg.niveau, stop: sg.stop, tp: tpSig })) continue;
         etat.signaux.push({ id, actif: a, cle, setup: c.setup, tf: c.tf, params: c.params, niveauPreuve: c.niveau || 'a_lessai', sens: sg.sens, niveau: sg.niveau, stop: sg.stop, rr: sg.rr, validite: sg.validite, tSignal, tBarre: s.t[sg.i], niv: sg.niv, raison: sg.raison, statut: 'en_attente' }); nouveaux++;
       }
     }
@@ -83,9 +86,11 @@ export function creerVolume({ dossier, maintenant = () => Date.now(), journal = 
     for (const sg of etat.signaux) {
       if (sg.statut === 'terminee' || sg.statut === 'annulee') continue; const S = series[sg.actif]; if (!S) continue;
       const s = serieTf(S, sg.tf), i = ((tb) => { let lo = 0, hi = s.nBarres - 1; if (!s.nBarres || s.t[0] > tb) return -1; while (lo < hi) { const k = (lo + hi + 1) >> 1; if (s.t[k] <= tb) lo = k; else hi = k - 1; } return s.t[lo] === tb ? lo : -1; })(sg.tBarre); if (i < 0) continue;
-      const e = etatSignal(s, { i, sens: sg.sens, niveau: sg.niveau, stop: sg.stop, rr: sg.rr, validite: sg.validite }, coutsPour(sg.actif, dossier), { maxBarres: sg.tf === 'H1' ? 24 : 48 });
+      // V8 : un signal H1 (nouveau format) n'est que le CONTEXTE ; l'entrée et la sortie se jouent sur les bougies M15 (heures réelles de remplissage et de sortie).
+      const m15 = sg.tf === 'H1' && sg.format !== 'ancien', sx = m15 ? S.m15 : s, ix = m15 ? (() => { const tb = sg.tSignal - MS15; let lo = 0, hi = sx.nBarres - 1; if (!sx.nBarres || sx.t[0] > tb) return -1; while (lo < hi) { const k = (lo + hi + 1) >> 1; if (sx.t[k] <= tb) lo = k; else hi = k - 1; } return sx.t[lo] === tb ? lo : -1; })() : i; if (ix < 0) continue;
+      const e = etatSignal(sx, { i: ix, sens: sg.sens, niveau: sg.niveau, stop: sg.stop, rr: sg.rr, validite: m15 ? sg.validite * 4 : sg.validite }, coutsPour(sg.actif, dossier), { maxBarres: m15 ? 96 : (sg.tf === 'H1' ? 24 : 48) });
       sg.statut = e.statut; if (e.raison) sg.raison_fin = e.raison;
-      if (e.trade) { const t = e.trade; sg.tEntree = t.tEntree; sg.tSortie = t.tSortie || null; sg.sortie = t.sortie ?? null; sg.R = t.ouvert ? null : +t.R.toFixed(4); sg.resultat = t.statut; }
+      if (e.trade) { const t = e.trade; sg.tEntree = t.tEntree; sg.tSortie = t.tSortie ? t.tSortie - sx.pas : null; sg.fraisR = Number.isFinite(t.coutR) ? +t.coutR.toFixed(4) : null;   /* V8 : heure de sortie = bougie où le niveau est touché */ sg.sortie = t.sortie ?? null; sg.R = t.ouvert ? null : +t.R.toFixed(4); sg.resultat = t.statut; }
     }
   }
 

@@ -29,6 +29,7 @@ const COMMANDES = ['pause', 'reprendre', 'charge', 'retour_arriere', 'rapport', 
 const COMMANDES_POSITIONS = ['reglages', 'exemple', 'supprimer_exemple'];
 const COMMANDES_TRADER = ['reglages', 'reactiver'];
 export function creerRoutesAgent(env = process.env) {
+  let memoRegistre = null;
   let memoMobile = null;
   const dossier = () => dossierAgent(env);
   const lireCorps = req => new Promise((resolve, reject) => { let n = 0; const m = []; req.on('data', c => { n += c.length; if (n > 4096) { reject(new Error('corps trop gros')); req.destroy(); } else m.push(c); }); req.on('end', () => { try { resolve(JSON.parse(Buffer.concat(m).toString('utf8') || '{}')); } catch (e) { reject(new Error('JSON invalide')); } }); req.on('error', reject); });
@@ -68,6 +69,19 @@ export function creerRoutesAgent(env = process.env) {
         const loc = path.join(dossier(), 'positions-commandes.json'), liste = lireJson(loc, []) || []; liste.push({ type: b.type, valeur: b.valeur ?? null }); ecrireJson(loc, liste.slice(-20));
         return json(200, { ok: true, note: 'transmise au service (appliquée à son prochain cycle, ≈ 30 s)' });
       }
+      if (route === 'registre' && req.method === 'GET') {   // V8 : le registre UNIQUE, lu dans le Worker (comme le téléphone) ; secours : la copie locale écrite par le service
+        const now = Date.now(); if (memoRegistre && now - memoRegistre.t < 4000) return json(200, memoRegistre.o);
+        const cfg = lireJson(path.join(dossier(), 'config.local.json'), null) || {}; let o = null;
+        if (cfg.url && cfg.jeton) { try { const r = await fetch(String(cfg.url).replace(/\/+$/, '') + '/agent/registre', { headers: { 'X-Rayle-Token': cfg.jeton }, signal: AbortSignal.timeout(4000) }); if (r.ok) { const j = await r.json(); if (j && j.existe) o = { ok: true, existe: true, registre: j.registre, origine: 'Worker' }; } } catch (e) { /* Worker injoignable */ } }
+        if (!o) { const { lireRegistre } = await import('../agent-pc/registre.mjs'); const reg = lireRegistre(dossier()); o = reg ? { ok: true, existe: true, registre: reg, origine: 'PC (copie locale, Worker injoignable)' } : { ok: true, existe: false, note: 'Le service Kepler n’a pas encore construit son registre.' }; }
+        memoRegistre = { t: now, o }; return json(200, o);
+      }
+      if (route === 'risque' && req.method === 'POST') {   // V8 : réglage du risque par trade, stocké dans le Worker (seule source)
+        const b = await lireCorps(req), cfg = lireJson(path.join(dossier(), 'config.local.json'), null) || {};
+        if (!cfg.url || !cfg.jeton) return json(400, { ok: false, erreur: 'Worker non configuré sur ce PC (config.local.json)' });
+        try { const r = await fetch(String(cfg.url).replace(/\/+$/, '') + '/agent/risque', { method: 'POST', headers: { 'X-Rayle-Token': cfg.jeton, 'Content-Type': 'application/json' }, body: JSON.stringify({ risquePct: b.risquePct }), signal: AbortSignal.timeout(6000) }); const j = await r.json().catch(() => ({})); memoRegistre = null; return json(r.ok ? 200 : 400, { ok: r.ok, ...j }); }
+        catch (e) { return json(502, { ok: false, erreur: 'Worker injoignable : ' + String(e.message || e).slice(0, 80) }); }
+      }
       if (route === 'trader' && req.method === 'GET') {   // V12 : mode Trader (positions « À l'essai », bilan en direct), lu dans trader.json écrit par le service ; le statut du service est TOUJOURS donné en clair
         const service = lireJson(F.service, null), sv = statutService(service, !!(service && service.pid && vivant(service.pid)), Date.now());
         const t = lireJson(path.join(dossier(), 'trader.json'), null);
@@ -81,7 +95,7 @@ export function creerRoutesAgent(env = process.env) {
         return json(200, { ok: true, existe: true, enMarche: sv.enMarche, service: sv, vue: t.vuePubliee });
       }
       if (route === 'volume/carnet' && req.method === 'GET') {   // V14 : carnet d'ordres enregistré (échelle, déséquilibres, murs, heatmap)
-        const { vueCarnet } = await import('../agent-pc/volume-carnet.mjs'), u2 = new URL(req.url, 'http://x'), actif = ['BTC', 'SOL', 'DOGE'].includes(u2.searchParams.get('actif')) ? u2.searchParams.get('actif') : 'BTC';
+        const { vueCarnet } = await import('../agent-pc/volume-carnet.mjs'), u2 = new URL(req.url, 'http://x'), actif = ['BTC', 'ETH', 'SOL', 'HYPE', 'DOGE'].includes(u2.searchParams.get('actif')) ? u2.searchParams.get('actif') : 'BTC';
         return json(200, vueCarnet({ actif, dossier: dossier() }));
       }
       if (route === 'trader/commande' && req.method === 'POST') {
