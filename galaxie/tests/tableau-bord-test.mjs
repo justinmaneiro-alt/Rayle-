@@ -6,18 +6,18 @@ const v = (n, c, d = '') => { c ? ok++ : ko++; if (!c) console.log('KO  ' + n + 
 
 // réglages
 const d = T.reglagesParDefaut();
-v('sept fenêtres, toutes visibles par défaut', T.FENETRES.length === 7 && T.FENETRES.every(f => d.fenetres[f.id].visible));
+v('six fenêtres, toutes visibles par défaut', T.FENETRES.length === 6 && T.FENETRES.every(f => d.fenetres[f.id].visible));
 v('réglages illisibles → défauts', JSON.stringify(T.normaliserReglages('n’importe quoi')) === JSON.stringify(d) && JSON.stringify(T.normaliserReglages(null)) === JSON.stringify(d));
 v('lecture : JSON cassé → défauts', JSON.stringify(T.lireReglages(() => '{pas du json')) === JSON.stringify(d));
-const r1 = T.normaliserReglages({ fenetres: { meteo: { visible: false, cote: 'd', rang: 1 }, inconnue: { visible: false }, agent: { cote: 'milieu', rang: 'x' } }, meteo: { nom: 'Pau', lat: 43.3, lon: -0.37 } });
-v('masquer et changer de côté', r1.fenetres.meteo.visible === false && r1.fenetres.meteo.cote === 'd' && r1.fenetres.agent.cote === 'd');
-v('fenêtre inconnue ignorée, côté invalide refusé', !r1.fenetres.inconnue && r1.fenetres.agent.rang === d.fenetres.agent.rang);
+const r1 = T.normaliserReglages({ fenetres: { meteo: { visible: false, cote: 'd', rang: 1 }, inconnue: { visible: false }, actus: { cote: 'milieu', rang: 'x' } }, meteo: { nom: 'Pau', lat: 43.3, lon: -0.37 } });
+v('masquer et changer de côté', r1.fenetres.meteo.visible === false && r1.fenetres.meteo.cote === 'd' && r1.fenetres.actus.cote === 'g');
+v('fenêtre inconnue ignorée, côté invalide refusé', !r1.fenetres.inconnue && r1.fenetres.actus.rang === d.fenetres.actus.rang);
 v('ville valide gardée, coordonnées arrondies', r1.meteo.nom === 'Pau' && r1.meteo.lat === 43.3);
 v('coordonnées absurdes refusées', T.normaliserReglages({ meteo: { nom: 'x', lat: 200, lon: 0 } }).meteo.lat === null);
 const dis = T.disposition(d, 'complet');
-v('disposition : sept fenêtres réparties à gauche et à droite', dis.g.length + dis.d.length === 7 && dis.g.length === 4 && dis.d.length === 3);
-v('disposition : ordre des rangs respecté', dis.g.map(f => f.id).join() === 'heure,meteo,actus,systeme' && dis.d[0].id === 'agent');
-v('mode léger : quatre fenêtres essentielles', (() => { const l = T.disposition(d, 'leger'); return l.g.length + l.d.length === 4; })());
+v('disposition : six fenêtres réparties à gauche et à droite', dis.g.length + dis.d.length === 6 && dis.g.length === 4 && dis.d.length === 2);
+v('disposition : ordre des rangs respecté', dis.g.map(f => f.id).join() === 'heure,meteo,actus,systeme' && dis.d[0].id === 'marche');
+v('mode léger : trois fenêtres essentielles', (() => { const l = T.disposition(d, 'leger'); return l.g.length + l.d.length === 3; })());
 v('tableau coupé : rien', (() => { const l = T.disposition({ actif: false }, 'complet'); return !l.g.length && !l.d.length; })());
 v('masquée : absente de la disposition', ![...T.disposition(r1, 'complet').g, ...T.disposition(r1, 'complet').d].some(f => f.id === 'meteo'));
 const m = T.deplacer(d, 'meteo', 'haut');
@@ -59,27 +59,12 @@ const le = T.lignesEvenements(evts, now, 4);
 v('événements : plus graves d’abord, vieux et sans date écartés', le.length === 2 && le[0].id === 'a' && le[0].titre.startsWith('M 5.6') && le[0].age === 'il y a 1 h');
 v('événements : liste vide ou absente', T.lignesEvenements([], now).length === 0 && T.lignesEvenements(null, now).length === 0);
 
-// agent
-const reels = {
-  'gardien-prop': { etat: 'ok', pied: 'VERT · marge 678 $' }, 'regime-marche': { etat: 'ok', liste: [{ g: 'Bitcoin', d: '62/100 · Tendance haussière' }] },
-  'propositions-agent': { etat: 'ok', etiquette: 'SIMULÉ', liste: [{ g: 'BTC ACHAT · Cassure', d: 'PASS' }] }
-};
-const la = T.lignesAgent(reels, { paires: ['BTC'], enRecherche: true, valides: 0 });
-v('agent : quatre lignes (état, régime, signaux, gardien)', la.length === 4 && la.map(x => x.nom).join() === 'État,Régime,Signaux,Gardien prop');
-v('agent : état de la recherche et validées', la[0].valeur === 'recherche en cours' && /0 stratégie validée/.test(la[0].detail));
-v('agent : signal jugé par le gardien, étiqueté simulé', la[2].valeur === 'BTC ACHAT · Cassure' && la[2].ton === 'ok' && /simulé/.test(la[2].detail));
-v('agent : gardien vert', la[3].valeur === 'VERT' && la[3].ton === 'ok' && /marge 678/.test(la[3].detail));
-const la0 = T.lignesAgent({}, null);
-v('agent non activé : jamais de valeur inventée', la0[0].valeur === 'non activé' && la0[1].valeur === '—' && la0[2].valeur === 'aucun' && la0[3].valeur === '—');
-v('agent : gardien rouge → alerte', T.lignesAgent({ 'gardien-prop': { etat: 'ok', pied: 'ROUGE · marge 10 $' } }, null)[3].ton === 'alerte');
-v('agent : fenêtre en erreur → raison affichée', /indisponible : boom/.test(T.lignesAgent({ 'gardien-prop': { etat: 'indisponible', erreur: 'boom' } }, null)[3].detail));
-v('aucune ligne ne contient undefined / NaN / [object Object]', [...la, ...la0].every(x => !/undefined|NaN|\[object/.test(JSON.stringify(x))));
 
 // système
 v('micro : trois états distincts', T.etatMicro('idle').libelle === 'COUPÉ' && T.etatMicro('veille').libelle === 'VEILLE' && T.etatMicro('listening').libelle === 'ACTIF' && T.etatMicro('speaking').libelle === 'ACTIF' && T.etatMicro('inconnu').libelle === 'COUPÉ');
-const sy = T.lignesSysteme({ worker: true, veilleur: null, etat: 'veille', mode: 'complet', fps: 143.6, version: '2026.10' });
-v('système : lignes réelles, veilleur inconnu = tiret', sy.find(x => x.id === 'worker').ton === 'ok' && sy.find(x => x.id === 'veilleur').valeur === '—' && sy.find(x => x.id === 'micro').valeur === 'VEILLE' && /COMPLET · 144 i\/s/.test(sy.find(x => x.id === 'mode').valeur));
-v('système : worker verrouillé = alerte', T.lignesSysteme({ worker: false, veilleur: false, etat: 'idle', mode: 'leger', fps: 0 }).find(x => x.id === 'worker').ton === 'alerte');
+const sy = T.lignesSysteme({ worker: true, etat: 'veille', mode: 'complet', fps: 143.6, version: '2026.10' });
+v('système : lignes réelles', sy.find(x => x.id === 'worker').ton === 'ok' && sy.find(x => x.id === 'micro').valeur === 'VEILLE' && /COMPLET · 144 i\/s/.test(sy.find(x => x.id === 'mode').valeur));
+v('système : worker verrouillé = alerte', T.lignesSysteme({ worker: false, etat: 'idle', mode: 'leger', fps: 0 }).find(x => x.id === 'worker').ton === 'alerte');
 
 // actualités
 v('actualités : titres bornés', T.titresActus([{ titre: 'x'.repeat(300), source: 'A', quand: 'il y a 1 h' }], 8)[0].titre.length === 120 && T.titresActus(null).length === 0 && T.titresActus(Array(20).fill({ titre: 't' }), 8).length === 8);

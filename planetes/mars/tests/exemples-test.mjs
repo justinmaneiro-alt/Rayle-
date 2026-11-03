@@ -2,12 +2,12 @@ import * as E from '../pc/exemples.js';
 let ok = 0, ko = 0;
 const v = (nom, cond, detail = '') => { if (cond) ok++; else { ko++; console.log('KO  ' + nom + (detail !== '' ? ' — ' + detail : '')); } };
 
-v('vingt et une fenêtres avec identifiants uniques (13 d’origine + Solana, Dogecoin et les six fenêtres de performance de l’agent)', E.FENETRES.length === 21 && new Set(E.FENETRES.map(f => f.id)).size === 21);
-v('M6 : les huit nouvelles fenêtres sont réelles ; les six de performance ouvrent le poste de l’agent sur le bon onglet', ['graphique-sol', 'graphique-doge'].every(i => E.fenetre(i) && E.fenetre(i).reel && E.fenetre(i).type === 'bougies') && [['perf-strategies', 'strategies'], ['gardien-prop', 'gardien'], ['propositions-agent', 'ensemble'], ['regime-marche', 'regime'], ['journal-tilt', 'journal'], ['proba-evaluation', 'simulation']].every(([i, o]) => E.fenetre(i) && E.fenetre(i).reel && E.fenetre(i).focus === 'agent' && E.fenetre(i).onglet === o));
+v('treize fenêtres avec identifiants uniques (graphiques US100, or, Bitcoin, Solana, Dogecoin, marché, dashboard, contexte, calendrier, COT, actus, banques, taux)', E.FENETRES.length === 13 && new Set(E.FENETRES.map(f => f.id)).size === 13);
+v('Solana et Dogecoin : graphiques réels en bougies', ['graphique-sol', 'graphique-doge'].every(i => E.fenetre(i) && E.fenetre(i).reel && E.fenetre(i).type === 'bougies'));
 v('plus aucune fenêtre factice sur la table', E.FENETRES.every(f => f.reel === true));
-v('fenêtres demandées : graphiques US100 / or / Bitcoin, marché, dashboard, contexte, agent BTC', ['graphique-us100','graphique-or','graphique-btc','marche','dashboard','contexte','agent-btc'].every(i => E.fenetre(i)));
+v('fenêtres demandées : graphiques US100 / or / Bitcoin, marché, dashboard, contexte', ['graphique-us100','graphique-or','graphique-btc','marche','dashboard','contexte'].every(i => E.fenetre(i)));
 v('positions, signaux et performance factices supprimés ; le calendrier est maintenant RÉEL', !E.fenetre('positions') && !E.fenetre('signaux') && !E.fenetre('performance') && E.fenetre('calendrier') && E.fenetre('calendrier').reel === true);
-v('fenêtres du hub Finance et des alertes', ['alertes','calendrier','cot','actus-finance','banques','taux'].every(i => E.fenetre(i) && E.fenetre(i).reel && E.fenetre(i).dock));
+v('fenêtres du hub Finance', ['calendrier','cot','actus-finance','banques','taux'].every(i => E.fenetre(i) && E.fenetre(i).reel && E.fenetre(i).dock));
 v('chaque fenêtre a un titre, un type et un aperçu', E.FENETRES.every(f => f.titre && f.type && f.apercu));
 v('instruments par défaut : US100 puis XAU/USD', E.INSTRUMENTS[0].id === 'US100' && E.INSTRUMENTS[0].nom === 'Nasdaq 100' && E.INSTRUMENTS[1].id === 'XAUUSD');
 v('indicateurs au choix : EMA et MA', E.INDICATEURS.includes('EMA') && E.INDICATEURS.includes('MA'));

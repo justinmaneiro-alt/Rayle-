@@ -13,7 +13,7 @@
      fps_valeur   : « combien d'images par seconde ? »
      fps          : { etat: 'actif' | 'inactif' } (compteur d'images par seconde)
      orbites      : { etat: 'actif' | 'inactif' } (traits des orbites)
-     base_entrer / base_sortir / bureau : la base martienne (Mars)
+     base_entrer / base_sortir : la base martienne (Mars)
      reglages     : { etat: 'ouvrir' | 'fermer' } (panneau de réglages de la galaxie)
      vaisseau_entrer (partout) ; à bord seulement (etat.vaisseau) : vaisseau_aller { cible }, vaisseau_vue { vue }, vaisseau_asseoir, vaisseau_lever, salle_ouvrir, salle_fermer,
      vaisseau_stop, vaisseau_orbite, vaisseau_commandes, vaisseau_reglage { reglage, etat } */
@@ -63,11 +63,10 @@ export function analyserCommandeGalaxie(brut, lexique = [], etat = {}) {
   }
   if (AUTRES.test(n) && !(etat.salle && /^(?:explique|parle|c est quoi|qu est ce)/.test(n))) return null;
 
-  // 1 ter. Mars : la base (entrer, sortir) et son bureau (pas encore aménagé). « terminal » et « salon » seuls ne sont pas pris : le terminal 2D a ses propres commandes.
+  // 1 ter. Mars : la base (entrer, sortir). « terminal » et « salon » seuls ne sont pas pris : le terminal 2D a ses propres commandes.
   const NOM_BASE = '(?:(?:la|le|l|notre|ma|cette) )?(?:base|station)(?: martienne| de mars| sur mars)?';
   if (new RegExp('^(?:entre|entrer|rentre|rentrer|descends|descendre|penetre|va|aller|retourne|retourner)(?: a l interieur de| a l interieur| dedans| dans| sur| en| a| au)? ?' + NOM_BASE + '$').test(n)) return { type: 'base_entrer' };
   if (new RegExp('^(?:sors|sortir|ressors|ressortir|quitte|quitter|reviens|revenir|retourne|retourner|remonte|remonter)(?: de| hors de| dehors de| a l exterieur de| en dehors de| d)? ?' + NOM_BASE + '$').test(n)) return { type: 'base_sortir' };
-  if (new RegExp('^(?:va|vas|aller|entre|entrer|ouvre|ouvrir|montre|montrer|visite|visiter|affiche|afficher)(?: a| au| dans| sur| vers)? ?(?:(?:la|le|l|mon|notre) )?(?:partie )?(?:bureau|bureaux)(?: de la base| martien| de mars)?$').test(n)) return { type: 'bureau' };
 
   // 1 quater. Saturne : le vaisseau d'anatomie « Vésale » (monter à bord ; puis, à bord seulement : cap, vues, siège, salle médicale, arrêt, orbite, commandes, assistance)
   const BORD = '(?:(?:le|l|mon|notre|du) )?(?:vaisseau|vesale|vaisseau d anatomie|vaisseau anatomie)';

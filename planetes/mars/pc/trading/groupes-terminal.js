@@ -2,18 +2,16 @@ import { FENETRES } from '../exemples.js';
 
 /* ═════════════ TERMINAL DE MARS PAR GROUPES (module pur, testé : planetes/mars/tests/terminal-groupes-test.mjs) ═════════════
    Les panneaux du terminal sont rangés en groupes thématiques cohérents. Chaque panneau appartient à UN groupe. Les 21 fenêtres du mur de la table + les panneaux du registre de
-   l'espace de travail qui n'ont pas de fenêtre sur le mur (résumé, corrélations, Nasdaq 100, publications, agent stratège) : rien n'est oublié (le test le vérifie).
+   l'espace de travail qui n'ont pas de fenêtre sur le mur (résumé, corrélations, Nasdaq 100, publications) : rien n'est oublié (le test le vérifie).
    L'état (groupe affiché + panneaux choisis) est sérialisable ; la disposition des fenêtres est mémorisée par le gestionnaire commun (cle « mars-terminal »). */
 export const EXTRAS = [
   { id: 'resume', titre: 'Résumé de marché', icone: '🧾', apercu: 'RSI, MACD, ATR, structure, niveaux de l’instrument choisi', registre: 'resume', reel: true },
   { id: 'correlations', titre: 'Corrélations', icone: '🔗', apercu: 'Matrice sur 60 jours : US100, or, dollar, taux', registre: 'correlations', reel: true },
   { id: 'heatmap', titre: 'Nasdaq 100', icone: '🟩', apercu: 'Grandes valeurs de l’indice', registre: 'heatmap', reel: true },
-  { id: 'publications', titre: 'Banques et analyses', icone: '🏛', apercu: 'Publications et analyses publiques et gratuites : banques centrales, BRI, ING Think', registre: 'publications', reel: true },
-  { id: 'strategie', titre: 'Agent stratège', icone: '🧠', apercu: 'Pas d’agent stratège séparé : voir l’agent Kepler (Agent BTC)', registre: 'strategie', reel: false },
-  { id: 'agents-prets', titre: 'Agents prêts (Tendance, Divergence RSI)', icone: '🤖', apercu: 'Assistant en 4 étapes : idée, paramètres, backtest, validation hors échantillon et alertes', registre: 'agents-prets', reel: true }
+  { id: 'publications', titre: 'Banques et analyses', icone: '🏛', apercu: 'Publications et analyses publiques et gratuites : banques centrales, BRI, ING Think', registre: 'publications', reel: true }
 ];
 /* correspondance fenêtre du mur → panneau du registre de l'espace de travail */
-export const REGISTRE_DE = { marche: 'watchlist', dashboard: 'dashboard', contexte: 'contexte', 'agent-btc': 'agent', alertes: 'alertes', calendrier: 'calendrier', cot: 'cot', 'actus-finance': 'actus', banques: 'banques', taux: 'taux' };
+export const REGISTRE_DE = { marche: 'watchlist', dashboard: 'dashboard', contexte: 'contexte', calendrier: 'calendrier', cot: 'cot', 'actus-finance': 'actus', banques: 'banques', taux: 'taux' };
 export const GRAPHIQUES = Object.fromEntries(FENETRES.filter(f => f.type === 'bougies').map(f => [f.id, { instrument: f.instrument, unite: f.unite }]));
 
 export const PANNEAUX_TERMINAL = [
@@ -27,9 +25,6 @@ export const GROUPES = [
   { id: 'macro', titre: 'Éco et macro', icone: '🏦', panneaux: ['taux', 'banques', 'calendrier', 'cot', 'publications'] },
   { id: 'actus', titre: 'Actualités', icone: '📰', panneaux: ['actus-finance'] },
   { id: 'sentiment', titre: 'Sentiment de marché', icone: '🌡', panneaux: ['contexte', 'correlations', 'heatmap'] },
-  { id: 'agent', titre: 'Agent IA', icone: '🛰', panneaux: ['agent-btc', 'agents-prets', 'propositions-agent', 'regime-marche', 'strategie'] },
-  { id: 'alertes', titre: 'Alertes et veilleur', icone: '🔔', panneaux: ['alertes'] },
-  { id: 'perf', titre: 'Performance et risque', icone: '🛡', panneaux: ['perf-strategies', 'gardien-prop', 'journal-tilt', 'proba-evaluation'] }
 ];
 /* Les mêmes groupes vus comme des dossiers holographiques (core/commun/dossiers.js). */
 export const DOSSIERS = GROUPES.map(g => ({ id: g.id, titre: g.titre, icone: g.icone, ids: g.panneaux }));
@@ -38,7 +33,6 @@ export const groupeDe = id => (GROUPES.find(g => g.panneaux.includes(id)) || {})
 export const PRESETS = [
   { id: 'trading', titre: 'Trading', panneaux: ['graphique-us100', 'graphique-or', 'marche', 'dashboard'] },
   { id: 'macro', titre: 'Macro', panneaux: ['calendrier', 'taux', 'banques', 'cot'] },
-  { id: 'surveillance', titre: 'Surveillance', panneaux: ['alertes', 'agent-btc', 'regime-marche', 'gardien-prop'] }
 ];
 
 /* Vérifie la cohérence : chaque panneau dans un seul groupe, aucun panneau oublié, aucun identifiant inconnu. Rend la liste des problèmes (vide = tout va bien). */

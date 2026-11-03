@@ -170,9 +170,8 @@ export function dispositionFenetres(n, centre = [0, 0, -0.6], rayon = 2.25, haut
   return out;
 }
 
-/* Plan de la base vue de l'espace (repère local : x est, z sud, unités de scène) : côté ouest = BUREAU, côté est = TERMINAL DE TRADING. */
+/* Plan de la base vue de l'espace (repère local : x est, z sud, unités de scène) : le TERMINAL DE TRADING. */
 export const ZONES_BASE = {
-  bureau: { id: 'bureau', nom: 'Bureau', etat: 'bientot', centre: [-2.6, 0.5, 0.2], message: 'Le bureau arrive bientôt : il accueillera les agents IA de trading.' },
   terminal: { id: 'terminal', nom: 'Terminal de trading', etat: 'actif', centre: [2.6, 0.5, 0.2], message: '' }
 };
-export const zoneDePosition = x => (x < 0 ? 'bureau' : 'terminal');
+export const zoneDePosition = () => 'terminal';

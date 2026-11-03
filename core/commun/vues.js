@@ -79,10 +79,6 @@
     const lier=(id,fn)=>{ const e=document.getElementById(id); if(e) e.addEventListener('click',fn); };
     lier('btnOuvrirTerminal',()=>ouvrir('terminal'));
     lier('btnOuvrirGalaxie',()=>ouvrir('galaxie'));
-    /* « Agent IA » : le tableau de l'agent s'ouvre directement depuis l'accueil (pas besoin de passer par Mars) */
-    lier('btnAgent',()=>{ import('../../planetes/mars/pc/trading/fenetre-agent.js').then(m=>m.ouvrirPoste({vue:'vivant'})).catch(e=>{ try{ RayleBus.emit('raylé:alerte',{texte:'Agent IA indisponible : '+(e&&e.message||e)}); }catch(x){} console.warn('Agent IA',e); }); });
-    RayleBus.fournir('agent:ouvrir',()=>{ const b=document.getElementById('btnAgent'); if(b) b.click(); });
-    try{ if(window.AgentAlertes) window.AgentAlertes.demarrer(); }catch(e){}   // alertes de nouvelle position, même fenêtre de l'agent fermée
     lier('btnRetour',retour);
     const v=depuisHash(location.hash);
     if(v!=='rayle') afficher(v);   // ancienne adresse du terminal, ou lien direct

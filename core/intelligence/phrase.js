@@ -11,13 +11,11 @@
     const cmdMo=window.MobileVoix?await MobileVoix.commande(text):null;    // V8 : téléphone et tablette (coque mobile) : « l'actualité en France », « affiche le terminal », « ouvre l'agent », « mode galaxie » → équivalent Jarvis
     if(my!==epoch) return;
     if(cmdMo){ diagAction('commande mobile'); addLine('ray',cmdMo); await speak(cmdMo); return; }
-    const cmdV=window.VeilleurPage?await VeilleurPage.commande(text):null;    // « active le veilleur », « montre-moi les alertes » : alertes de l'agent Bitcoin
     if(my!==epoch) return;
-    if(cmdV){ diagAction('veilleur d alertes'); addLine('ray',cmdV); await speak(cmdV); return; }
     const cmdD=window.DirectPage?await DirectPage.commande(text):null;    // sources en direct : « montre-moi les séismes », « mets France 24 en direct », « que dit l'OMS ? »
     if(my!==epoch) return;
     if(cmdD){ diagAction('sources en direct'); addLine('ray',cmdD); await speak(cmdD); return; }
-    const cmdL=window.LiquiditeVoix?await LiquiditeVoix.commande(text):null;    // « ouvre la carte de liquidité », « où va le marché ? » : carnet d'ordres enregistré par Kepler (V4)
+    const cmdL=window.LiquiditeVoix?await LiquiditeVoix.commande(text):null;    // « ouvre la carte de liquidité », « où va le marché ? » : carnet d'ordres en direct
     if(my!==epoch) return;
     if(cmdL){ diagAction('carte de liquidité'); addLine('ray',cmdL); await speak(cmdL); return; }
     const cmdM=await commandeMars(text);    // terminal de la base Mars (seulement quand Mars est ouverte) : « montre-moi l'or en H1 »

@@ -49,7 +49,7 @@ export function dessinerFenetreFlottante(ctx, def, survol = false, reel = null) 
   ctx.fillStyle = '#e6eef2'; ctx.font = '600 25px "Segoe UI Variable","Segoe UI",system-ui,sans-serif'; ctx.fillText(titre.toUpperCase().split('').join(String.fromCharCode(8202)), 22, 31, w - 230);
   // pastille d'état : RÉEL (direct), DIFFÉRÉ (publication retardée par nature), PÉRIMÉ (ancienne copie), INDISPO (panne) ; les fenêtres du hub Finance donnent leur propre `etiquette`
   const etat = vrai ? (!reel || reel.etat === 'chargement' ? 'ATTENTE' : reel.etat === 'indisponible' ? 'INDISPO' : (reel.etiquette || 'RÉEL')) : X.MARQUEUR;
-  const couleur = vrai ? ({ 'RÉEL': VERT_BADGE, 'DIFFÉRÉ': CYAN, 'PÉRIMÉ': AMBRE, 'INDISPO': ROUGE, 'SIMULÉ': '#c9b27a', 'BACKTEST': '#9db0bb', 'ESTIMÉ': AMBRE, 'MIXTE': CYAN }[etat] || '#9db0bb') : '#c9b27a';
+  const couleur = vrai ? ({ 'RÉEL': VERT_BADGE, 'DIFFÉRÉ': CYAN, 'PÉRIMÉ': AMBRE, 'INDISPO': ROUGE, 'MIXTE': CYAN }[etat] || '#9db0bb') : '#c9b27a';
   ctx.font = '600 17px "Segoe UI Variable","Segoe UI",system-ui,sans-serif'; const lp = ctx.measureText(etat).width + 36, xp = w - 22 - coupe - lp + 6;
   ctx.strokeStyle = couleur; ctx.globalAlpha = 0.55; ctx.lineWidth = 1.2; ctx.beginPath(); ctx.roundRect(xp, 14, lp, 28, 14); ctx.stroke(); ctx.globalAlpha = 1;
   ctx.fillStyle = couleur; ctx.beginPath(); ctx.arc(xp + 15, 28, 4, 0, 6.2832); ctx.fill(); ctx.textAlign = 'left'; ctx.fillText(etat, xp + 26, 29);
@@ -66,12 +66,6 @@ export function dessinerFenetreFlottante(ctx, def, survol = false, reel = null) 
         ctx.fillStyle = 'rgba(255,255,255,0.09)'; ctx.fillRect(zx, yy + 26, zw, 20); const p = Math.max(0, Math.min(1, j.part || 0)); ctx.fillStyle = j.couleur === 'ko' ? ROUGE : j.couleur === 'warn' ? AMBRE : j.couleur === 'info' ? CYAN : VERT; ctx.fillRect(zx, yy + 26, zw * p, 20); ctx.strokeStyle = CYAN; ctx.lineWidth = 1.5; ctx.strokeRect(zx, yy + 26, zw, 20);
       });
       ctx.textAlign = 'left'; pied = (reel.pied || '') + ' · cliquer pour ouvrir';
-    }
-    else if (reel.courbes) {                                 // M6 : courbes de capital en R { nom, valeurs, couleur } (performance des stratégies : BACKTEST hors échantillon et SIMULÉ en direct)
-      const tout = reel.courbes.flatMap(c => c.valeurs), max = Math.max(1, ...tout), min = Math.min(0, ...tout), py = v => zy + zh - 34 - (v - min) / (max - min || 1) * (zh - 60);
-      ctx.strokeStyle = 'rgba(255,255,255,0.18)'; ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(zx, py(0)); ctx.lineTo(zx + zw, py(0)); ctx.stroke();
-      reel.courbes.slice(0, 4).forEach((c, k) => { const col = [CYAN, VERT, AMBRE, '#b78cff'][k]; ctx.strokeStyle = col; ctx.lineWidth = 3; ctx.beginPath(); c.valeurs.forEach((v, i) => { const x = zx + i / Math.max(1, c.valeurs.length - 1) * zw; if (i) ctx.lineTo(x, py(v)); else ctx.moveTo(x, py(v)); }); ctx.stroke(); ctx.fillStyle = col; ctx.font = '20px ui-monospace, Consolas, monospace'; ctx.textAlign = 'left'; ctx.fillText(String(c.nom).slice(0, 26) + ' ' + (c.fin >= 0 ? '+' : '') + c.fin.toFixed(1) + ' R', zx + 4 + (k % 2) * zw / 2, zy + zh - 8 - Math.floor(k / 2) * 0); });
-      pied = (reel.pied || '') + ' · cliquer pour ouvrir';
     }
     else if (reel.liste) {                                   // hub Finance : lignes { g, d, c } (gauche, droite, couleur), en-tête et pied fournis par la donnée
       ctx.font = '24px ui-monospace, Consolas, monospace'; ctx.textAlign = 'left';

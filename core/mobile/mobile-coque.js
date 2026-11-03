@@ -14,12 +14,12 @@
 
   const ICONES={
     accueil:'<svg viewBox="0 0 24 24"><path d="M3 11l9-7 9 7"/><path d="M5 10v10h14V10"/><path d="M10 20v-6h4v6"/></svg>',
-    agent:'<svg viewBox="0 0 24 24"><path d="M3 20h18"/><path d="M4 16l5-6 4 3 7-8"/><path d="M16 5h4v4"/></svg>',
+    marches:'<svg viewBox="0 0 24 24"><path d="M3 20h18"/><path d="M4 16l5-6 4 3 7-8"/><path d="M16 5h4v4"/></svg>',
     actus:'<svg viewBox="0 0 24 24"><rect x="4" y="4" width="16" height="16" rx="1"/><path d="M8 9h8M8 13h8M8 17h5"/></svg>',
     plus:'<svg viewBox="0 0 24 24"><circle cx="6" cy="6" r="1.6"/><circle cx="12" cy="6" r="1.6"/><circle cx="18" cy="6" r="1.6"/><circle cx="6" cy="12" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="18" cy="12" r="1.6"/><circle cx="6" cy="18" r="1.6"/><circle cx="12" cy="18" r="1.6"/><circle cx="18" cy="18" r="1.6"/></svg>',
     voix:'<svg viewBox="0 0 24 24"><rect x="9" y="3" width="6" height="12" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg>'
   };
-  const NOMS={accueil:'Accueil',agent:'Marchés',actus:'Actus',plus:'Plus'};
+  const NOMS={accueil:'Accueil',marches:'Marchés',actus:'Actus',plus:'Plus'};
 
   /* ───── structure ───── */
   const app=document.createElement('div'); app.id='m-app'; app.setAttribute('aria-label','Raylé');
@@ -164,12 +164,11 @@
   window.MobileCoque={enregistrer,aller,feuille,fermerFeuilles,ecran:()=>courant,vibrer,envoyer,bannièreMaj,niveau:()=>niveau,$:$};
 
   /* ───── modules chargés APRÈS le chargement de la page ─────
-     Le lot critique (calculs, données, coque, accueil) est synchrone : l'accueil s'affiche vite. Le reste (météo, actualités, marchés, agent, graphique, voix, menu Plus, mises à jour) arrive juste après,
+     Le lot critique (calculs, données, coque, accueil) est synchrone : l'accueil s'affiche vite. Le reste (météo, actualités, marchés, voix, menu Plus, mises à jour) arrive juste après,
      en parallèle mais exécuté dans l'ordre ; chaque module se branche à son arrivée (événement mobile:module). Un écran demandé avant l'arrivée de son module affiche un squelette. */
-  const LOT=['mobile-voix','mobile-marche','mobile-agent-donnees','mobile-meteo','mobile-actus','mobile-maj','mobile-plus','mobile-agent-calcul','mobile-graphique','core/commun/trader-vue','core/commun/agent-lisible-calcul','core/commun/agent-lisible','shared/portfolio','core/commun/volume-vivant-calcul','core/commun/volume-vivant','mobile-agent'];
+  const LOT=['mobile-voix','mobile-marche','mobile-meteo','mobile-actus','mobile-maj','mobile-plus','mobile-marches'];
   function chargerLot(){
-    const l=document.createElement('link'); l.rel='stylesheet'; l.href='core/mobile/mobile-agent.css'; document.head.appendChild(l);
-    const lt=document.createElement('link'); lt.rel='stylesheet'; lt.href='core/commun/trader-vue.css'; document.head.appendChild(lt); const la=document.createElement('link'); la.rel='stylesheet'; la.href='core/commun/agent-lisible.css'; document.head.appendChild(la); const lv=document.createElement('link'); lv.rel='stylesheet'; lv.href='core/commun/volume-vivant.css'; document.head.appendChild(lv);
+   
     for(const f of LOT){ const s=document.createElement('script'); s.src=(f.indexOf('/')>=0?f:'core/mobile/'+f)+'.js'; s.async=false; s.onload=s.onerror=()=>{ try{ RayleBus.emit('mobile:module',{nom:f}); }catch(e){} }; document.head.appendChild(s); }
   }
   const apresChargement=()=>{ (window.requestIdleCallback||(f=>setTimeout(f,150)))(chargerLot,{timeout:1200}); };

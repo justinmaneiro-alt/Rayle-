@@ -37,7 +37,7 @@ export function filtrerAnalyses(items, { entite = null, type = null } = {}) {
 }
 export const entitesDe = items => { const m = new Map(); for (const i of items || []) { const f = FICHES[i.sourceId]; if (f) m.set(f.entite, (m.get(f.entite) || 0) + 1); } return [...m.entries()].sort((a, b) => b[1] - a[1]).map(([e, n]) => ({ entite: e, n })); };
 
-/* Résumé court des publications récentes : lu par Raylé et par les agents comme CONTEXTE de leurs scénarios (jamais comme signal d'entrée). Seulement des faits : combien, qui, quels titres. */
+/* Résumé court des publications récentes : lu par Raylé comme CONTEXTE (jamais comme signal d'entrée). Seulement des faits : combien, qui, quels titres. */
 export function resumerAnalyses(items, maintenant = Date.now(), { jours = 7, max = 4 } = {}) {
   const recents = (items || []).filter(i => FICHES[i.sourceId] && i.t && maintenant - i.t <= jours * 86400e3).sort((a, b) => b.t - a.t);
   if (!recents.length) return { n: 0, parEntite: [], texte: 'Aucune publication récente de banque centrale ou d’institution dans les ' + jours + ' derniers jours (ou sources indisponibles).' };

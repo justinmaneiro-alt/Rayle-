@@ -90,15 +90,6 @@
     if(/lpp|nomenclature|devis|cumul|[0-9]{7}|forfait.*reparation|reparation.*(?:forfait|prothese|orthese)|autre code|pas (?:le|ce) (?:bon )?code|c est le code/.test(n0)){
       try{ const L=await import(new URL('core/lppr/lppr-fenetre.js',document.baseURI).href), rep=await L.traiterVoix(texte); if(rep) return rep; }catch(e){ /* module indisponible : les autres commandes décident */ }
     }
-    // V3 : l'agent unique (Kepler) : « que fait l'agent ? », « le rapport de l'agent », « mets l'agent en pause », « reprends l'agent », « envoie le statut de l'agent sur Telegram » (données de l'agent, sans IA ; Rayle reste la seule voix)
-    if(/\b(?:l agent|kepler)\b/.test(n0) && /\b(?:que fait|ou en est|comment va|statut|etat|rapport|bilan|compte rendu|pause|reprend|reprends|relance|retour arriere|charge|telegram|nouvelles|point sur|en ce moment|maintenant)\b/.test(n0)){
-      try{ const AV=await import(new URL('planetes/mars/pc/trading/voix-agent-v3-page.js',document.baseURI).href), rep=await AV.traiterAgentV3(n0); if(rep) return rep; }catch(e){ /* module indisponible : les autres commandes décident */ }
-    }
-    // V2 phase 6 : « à quoi sert le gardien prop ? » (outils du terminal, partout), « ouvre les agents prêts », « lis le marché », « explique les dernières bougies » (Mars ouverte) : modèles de phrases, sans IA
-    if(/\b(?:a quoi (?:sert|servent)|que fait (?:l outil|le panneau|la fenetre)|c est quoi (?:l outil|le panneau|la fenetre|cet outil)|explique(?: moi)? (?:l outil|le panneau|la fenetre|cet outil)|comment (?:marche|fonctionne) (?:l outil|le panneau|la fenetre)|agents? prets?|assistant de strategies?|assistant d agents?|strategie guidee|agent tendance|agent divergence|lis le marche|lit le marche|lire le marche|analyse le marche|decris le marche|lecture du marche|dernieres? bougies?|bougie par bougie)\b|\b(?:lis|lit|analyse) (?:le |la )?(?:bitcoin|btc|solana|sol|dogecoin|doge)\b/.test(n0)){
-      try{ const VA=await import(new URL('planetes/mars/pc/trading/voix-agents-v2-page.js',document.baseURI).href), rep=await VA.traiterAgentsV2(n0,{actif,explicite}); if(rep) return rep; }catch(e){ /* module indisponible : les autres commandes décident */ }
-    }
-    // Agent BTC : explications parlées construites par modèles de phrases à partir des données de l'agent (zéro IA) ; question libre = IA comme d'habitude
     // Hub Finance (M2b) : « le COT de l'or », « le calendrier de la semaine », « que dit la Fed ? », « les actualités qui font bouger le Nasdaq », « la courbe des taux », « la carte du Nasdaq », « les résultats de Nvidia ».
     // Réponses construites à partir des données réelles (CFTC, Trésor, BLS, flux publics…), sans IA ; l'espace de travail s'ouvre sur le bon onglet. Hors de Mars, COT et calendrier restent à l'ancien terminal.
     if(/\b(?:cot|cftc|calendrier|agenda|annonces?|evenements?|fed|bce|ecb|boe|boj|bns|banques? centrales?|publications?|actualites?|news|bouger|bougent|impactent|courbe|taux|rendements?|inflation|chomage|heatmap|carte|nasdaq|resultats?|depots?|edgar)\b/.test(n0)){
@@ -117,35 +108,6 @@
           }
         }
       }catch(e){ /* module indisponible : les autres commandes décident */ }
-    }
-    // Microstructure (M4) : « explique l'absorption », « quelle session est en cours ? », « où sont les zones de liquidité ? » : modèles de phrases + mesures en cours, sans IA
-    if(/\b(?:absorption|balayage|sweep|liquidite|zones? de stops?|les stops|session|desequilibre|imbalance|vwap|prix ronds?|nombres? ronds?|niveaux? ronds?|compression|expansion|financement|funding|interet ouvert|open interest|liquidations?|microstructure)\b/.test(n0)){
-      try{
-        const MC=await import(new URL('planetes/mars/pc/agent-btc/micro-concepts.js',document.baseURI).href), det=MC.detecterQuestionMicro(n0);
-        if(det){ const A0=await import(new URL('planetes/mars/pc/trading/session-agent.js',document.baseURI).href); return await A0.expliquerMicroAgent(det); }
-      }catch(e){ /* module indisponible : les autres commandes décident */ }
-    }
-    // Agent de trading (M6) : « où j'en suis sur mes limites ? », « ai-je le droit de prendre un trade ? », « suis-je en tilt ? », « probabilité de réussir l'évaluation ? », « bilan de la semaine », « teste ma zone »…
-    if(/\b(?:limites?|marge|tilt|evaluation|challenge|regime|range|cassure|craint|bilan|journal|sante|ma zone|bougie|rejoue\w*|dessins?|bibliotheque|droit de|ou j en suis|mon compte|gardien|simulation|drawdown|puis je|doge|dogecoin|solana)\b/.test(n0) && (actif || explicite || /\b(?:tilt|gardien|drawdown|evaluation|agent|trade|trader|trading|bitcoin|btc|solana|doge|dogecoin|prop|marge|journal de trades)\b/.test(n0) || (window.PosteAgent&&window.PosteAgent.poste&&window.PosteAgent.poste()))){
-      try{
-        const VP=await import(new URL('planetes/mars/pc/trading/voix-poste-page.js',document.baseURI).href), rep=await VP.traiterM6(n0);
-        if(rep!==null && rep!==undefined) return rep;
-      }catch(e){ /* l'agent n'est pas chargeable : les autres commandes décident */ }
-    }
-    // Poste de pilotage de l'agent Bitcoin (M5) : « ouvre l'agent »,« montre-moi les stratégies », « pourquoi cette stratégie a perdu ? », « où en est la recherche ? », « donne une idée à l'agent »…
-    if(/\b(?:agent|strategies?|recherche|idee|dernier trade|poste de pilotage|pourquoi|quand)\b/.test(n0) && (/\b(?:agent|strategies?|bitcoin|btc|recherche|idee|dernier trade|poste)\b/.test(n0) || (window.PosteAgent&&window.PosteAgent.poste&&window.PosteAgent.poste()))){
-      try{
-        const VP=await import(new URL('planetes/mars/pc/trading/voix-poste-page.js',document.baseURI).href), rep=await VP.traiter(n0);
-        if(rep!==null && rep!==undefined) return rep;
-      }catch(e){ /* le poste n'est pas chargeable : les autres commandes décident */ }
-    }
-    if(/\b(?:agent|bitcoin|btc|backtests?|setup|volume profile|profil de volume|delta|phase)\b/.test(n0) || actif){
-      try{
-        const A=await import(new URL('planetes/mars/pc/trading/session-agent.js',document.baseURI).href);
-        if(/\b(?:lance|lancer|demarre|demarrer|relance|relancer)\b/.test(n0) && /\b(?:recherche|backtests?)\b/.test(n0) && /\b(?:agent|strategie|bitcoin|btc)\b/.test(n0)) return await A.lancerRechercheAgent();
-        const sujet=A.sujetDeLaPhrase(n0);
-        if(sujet && (actif || explicite || /\b(?:agent|bitcoin|btc|backtests?|setup)\b/.test(n0) || sujet==='volume_profile' && /\bagent\b/.test(n0))) return await A.expliquerAgent(sujet);
-      }catch(e){ /* l'agent n'est pas chargeable : on laisse les autres commandes décider */ }
     }
     if(!actif && !explicite) return null;
     const panneau=n0.match(/\b(?:(dashboard|tableau de bord)(?: analytique)?|(contexte de marche|contexte du marche))\b/);
@@ -228,7 +190,6 @@
       }
       case 'base_entrer': if(!(await galOuvrir())) return galEchec(); return galOrdre('mars','entrer_base',{});
       case 'base_sortir': if(!window.Mars||window.Mars.etat().mode!=='interieur') return "Je ne suis pas dans la base martienne."; return galOrdre('mars','sortir_base',{});
-      case 'bureau': if(!(await galOuvrir())) return galEchec(); return galOrdre('mars','visiter_bureau',{});
       case 'anat_systeme': return galOrdre('saturne','afficher_systeme',{systeme:a.systeme});
       case 'anat_decrire': return galOrdre('saturne','decrire',{nom:a.nom});
       case 'anat_montrer': return galOrdre('saturne','anatomie_montrer',{nom:a.nom});

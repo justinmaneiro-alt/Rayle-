@@ -10,7 +10,7 @@
     { id: 'sante', titre: 'Santé', alias: ['sante', 'ma sante', 'corps', 'mon corps'] },
     { id: 'marche', titre: 'Marché', alias: ['marche', 'les marches', 'graphique', 'bougies'] },
     { id: 'actus', titre: 'Actualités', alias: ['actualites', 'actus', 'les actus', 'infos'] },
-    { id: 'alertes', titre: 'Alertes', alias: ['alertes', 'alertes de l agent', 'agent de mars'] },
+    { id: 'alertes', titre: 'Alertes', alias: ['alertes'] },
     { id: 'terre', titre: 'Événements', alias: ['evenements', 'evenements de la terre', 'seismes'] },
     { id: 'systemes', titre: 'Systèmes', alias: ['systemes', 'etat des systemes', 'etat du systeme'] }
   ];

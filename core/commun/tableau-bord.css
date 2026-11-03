@@ -110,15 +110,6 @@ body.avec-panneaux[data-hud="leger"] .tb-f{filter:none;opacity:.25}
 .tb-m.flash-h .tb-p{animation:tb-fh 1s ease-out}.tb-m.flash-b .tb-p{animation:tb-fb 1s ease-out}
 @keyframes tb-fh{0%{color:var(--v1-haut);text-shadow:0 0 8px rgba(47,209,139,.6)}100%{color:#fff;text-shadow:none}}
 @keyframes tb-fb{0%{color:var(--v1-bas);text-shadow:0 0 8px rgba(255,93,110,.6)}100%{color:#fff;text-shadow:none}}
-
-/* agent */
-.tb-agent{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:7px}
-.tb-agent li{display:grid;grid-template-columns:86px 1fr;grid-template-areas:"n v" ". d";column-gap:8px;row-gap:1px}
-.tb-agent li span{grid-area:n;font-size:10.5px;letter-spacing:.12em;text-transform:uppercase;color:var(--v1-faible);padding-top:2px}
-.tb-agent li b{grid-area:v;font:600 12.5px var(--v1-sans);color:var(--v1-texte);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.tb-agent li small{grid-area:d;font-size:11px;color:var(--v1-doux);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.tb-agent li[data-ton="ok"] b{color:var(--v1-haut)}.tb-agent li[data-ton="attention"] b{color:var(--v1-alerte)}.tb-agent li[data-ton="alerte"] b{color:var(--v1-bas)}
-.tb-agent li[data-ton="alerte"]{animation:tb-alerte 2.2s ease-in-out infinite}
 @keyframes tb-alerte{50%{opacity:.6}}
 
 /* événements de la Terre */
@@ -148,4 +139,3 @@ body[data-hud="leger"] .tb *{animation:none!important}
 .tb-rr span{display:inline-flex;gap:4px}
 .tb-rr button{min-width:34px;padding:4px 8px}
 .tb-res{display:flex;flex-direction:column;gap:4px;margin-top:6px}
-.tb-agent li.tb-lien-liq{display:block}.tb-lien-liq button{font:600 11px var(--v1-sans);color:var(--v1-accent);background:transparent;border:1px solid var(--v1-trait);padding:4px 10px;cursor:pointer;letter-spacing:.06em}.tb-lien-liq button:hover{border-color:var(--v1-trait-fort);color:#fff}

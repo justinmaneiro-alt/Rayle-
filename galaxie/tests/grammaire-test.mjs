@@ -118,12 +118,12 @@ verifier('délai de 8 s respecté', lent.erreur === 'délai dépassé' && Date.n
 
 // Mars : la base
 for (const [p, t] of [['entre dans la base', 'base_entrer'], ['Raylé, entre dans la base', 'base_entrer'], ['va dans la base martienne', 'base_entrer'], ['rentre dans la base', 'base_entrer'], ['descends dans la base', 'base_entrer'], ['entre dans la station', 'base_entrer'],
-  ['sors de la base', 'base_sortir'], ['sortir de la base martienne', 'base_sortir'], ['quitte la base', 'base_sortir'], ['ressors de la base', 'base_sortir'], ['va au bureau', 'bureau'], ['ouvre le bureau', 'bureau'], ['montre-moi le bureau de la base', 'bureau']]) {
+  ['sors de la base', 'base_sortir'], ['sortir de la base martienne', 'base_sortir'], ['quitte la base', 'base_sortir'], ['ressors de la base', 'base_sortir']]) {
   const r = A(p, { ouvert: true }), r2 = A(p, { ouvert: false });
   verifier('base : « ' + p + ' » → ' + t, r && r.type === t && r2 && r2.type === t, JSON.stringify(r));
 }
 for (const p of ['entre dans le terminal', 'ouvre le terminal', 'sors du terminal', 'c’est quoi la base', 'explique-moi la base', 'va sur la base de données', 'entre dans la maison'])
-  verifier('base : ignoré « ' + p + ' »', !['base_entrer', 'base_sortir', 'bureau'].includes((A(p, { ouvert: true }) || {}).type), JSON.stringify(A(p, { ouvert: true })));
+  verifier('base : ignoré « ' + p + ' »', !['base_entrer', 'base_sortir'].includes((A(p, { ouvert: true }) || {}).type), JSON.stringify(A(p, { ouvert: true })));
 /* ── Saturne : le vaisseau (monter à bord partout ; le reste seulement à bord) ── */
 const bord = { ouvert: true, vaisseau: true }, dehors = { ouvert: true, vaisseau: false };
 for (const [p, t] of [['monte à bord', 'vaisseau_entrer'], ['embarque dans le vaisseau', 'vaisseau_entrer'], ['entre dans le vaisseau', 'vaisseau_entrer'], ['monte à bord du vaisseau', 'vaisseau_entrer'], ['monte à bord du Vésale', 'vaisseau_entrer']]) {

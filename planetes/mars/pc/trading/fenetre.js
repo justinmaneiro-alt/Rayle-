@@ -10,7 +10,7 @@ let espace = null, ouvertureEnCours = null, surFermeture = () => {};
 function chargerCss() {
   if (document.getElementById('mars-trading-css')) return;
   const l = document.createElement('link'); l.id = 'mars-trading-css'; l.rel = 'stylesheet'; l.href = new URL('./espace.css', import.meta.url).href; document.head.appendChild(l);
-  const v = document.createElement('link'); v.id = 'mars-trading-css-v1'; v.rel = 'stylesheet'; v.href = new URL('./v1-agent.css', import.meta.url).href; document.head.appendChild(v);
+  const v = document.createElement('link'); v.id = 'mars-trading-css-v1'; v.rel = 'stylesheet'; v.href = new URL('./habillage-v1.css', import.meta.url).href; document.head.appendChild(v);
 }
 export const espaceOuvert = () => espace;
 export const surEspaceFerme = f => { surFermeture = f; };

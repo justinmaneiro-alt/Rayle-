@@ -6,15 +6,15 @@
 (function(racine){
   "use strict";
 
-  /* ───── navigation du bas : 5 entrées au plus (Accueil · Marchés/Agent · [Voix] · Actualités · Plus) ───── */
+  /* ───── navigation du bas : 5 entrées au plus (Accueil · Marchés · [Voix] · Actualités · Plus) ───── */
   const ONGLETS=Object.freeze([
     {id:'accueil',nom:'Accueil'},
-    {id:'agent',nom:'Marchés'},
+    {id:'marches',nom:'Marchés'},
     {id:'voix',nom:'Voix',central:true},
     {id:'actus',nom:'Actus'},
     {id:'plus',nom:'Plus'}
   ]);
-  const ECRANS=Object.freeze(['accueil','agent','actus','plus']);
+  const ECRANS=Object.freeze(['accueil','marches','actus','plus']);
 
   /* ───── fraîcheur ───── */
   function age(t,maintenant){
@@ -68,29 +68,6 @@
   const cadenceCible=({masque,economie,reduit}={})=>masque?0:(economie||reduit?30:60);
   /* Nombre de neurones de l'entité selon le niveau (mode « léger » du moteur existant = 6000). */
   const ECHELLE_ENTITE=Object.freeze([1,.7,.45]);
-
-  /* ───── positions de Kepler ───── */
-  const NIVEAUX=Object.freeze({validee:'Validée',candidate:'Candidate (en observation)',non_concluante:'Testée : non concluante',non_testee:'Idée non testée'});
-  const COURT_NIVEAU=Object.freeze({validee:'Validée',candidate:'Candidate',non_concluante:'Non concluante',non_testee:'Idée non testée'});
-  /* État « live » d'une proposition : en attente · entrée touchée · cible · stop · expirée. */
-  function statutLive(p,maintenant){
-    if(!p) return {code:'inconnu',texte:'—'};
-    const now=maintenant==null?Date.now():maintenant;
-    if(p.statut==='ouverte') return {code:'ouverte',texte:'Entrée touchée'};
-    if(p.statut==='cloturee'&&p.resultat) return p.resultat.R>0?{code:'cible',texte:'Cible atteinte'}:{code:'stop',texte:'Stop touché'};
-    if(['expiree','partie_sans_nous','refusee','perdue'].includes(p.statut)) return {code:'expiree',texte:p.statut==='partie_sans_nous'?'Partie sans nous':'Expirée'};
-    if(p.tValide&&now>p.tValide) return {code:'expiree',texte:'Expirée'};
-    return {code:'attente',texte:'En attente'};
-  }
-  const sensTexte=p=>p&&p.sens>0?'ACHAT':'VENTE';
-  /* Niveaux à tracer pour une position : { entree, stop, cibles:[…], zone:[bas,haut] } */
-  function niveauxPosition(p){
-    if(!p) return null;
-    const f=Number.isFinite;
-    return {entree:f(p.limite)?p.limite:null,stop:f(p.stop)?p.stop:null,cibles:[p.cible,p.cible2].filter(f),zone:Array.isArray(p.zone)&&p.zone.every(f)?[Math.min(...p.zone),Math.max(...p.zone)]:null,sens:p.sens>0?1:-1};
-  }
-  /* Distance du prix actuel à l'entrée, en %. */
-  const distanceEntree=(p,prix)=>(p&&Number.isFinite(p.limite)&&Number.isFinite(prix)&&prix?(p.limite-prix)/prix*100:null);
 
   /* ───── graphique : VWAP, POC, profil de volume (sur les bougies visibles) ─────
      bougie = [t, ouverture, haut, bas, clôture, volume?]. Le volume vient de la source (Binance) ; sans volume, rien n'est tracé. */
@@ -161,8 +138,6 @@
     const t=' '+String(texte||'').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/[’'\-]/g,' ').replace(/\s+/g,' ').trim()+' ';
     const a=re=>re.test(t);
     if(a(/ (la )?galaxie | mode galaxie /)) return {ecran:'galaxie-refus'};
-    if(a(/ (ouvre|affiche|montre|va sur|vas sur|mets?) (moi )?(l |le |la |les )?(agent|kepler|positions?)/)||a(/ positions du jour /)||a(/ (ouvre|affiche|montre) (moi )?(les )?agents? (de )?trading/)) return {ecran:'agent'};
-    if(a(/ (ouvre|affiche|montre|donne)( moi)? (le |mon |les )?(bilan|performances?|strategies?)( de (kepler|l agent|la veille|hier|la semaine|du jour))? $/)) return {ecran:'agent'};
     if(a(/ (ouvre|affiche|montre|lance) (moi )?(le )?terminal/)) return {ecran:'terminal'};
     if(a(/ (donne|lis|presente|affiche|montre)( moi)? (l |les )?(actualites?|infos?|news|nouvelles)/)||a(/ (l )?actualite(s)? (en|de|du|sur) /)||a(/ les infos /)||a(/ actus /)) return {ecran:'actus'};
     if(a(/ (ouvre|affiche|montre)( moi)? (la )?carte/)) return {ecran:'carte'};
@@ -170,7 +145,7 @@
     return null;
   }
 
-  const api={ONGLETS,ECRANS,age,miseAJour,DELAIS_REESSAI,delaiReessai,decisionCache,messageErreur,suivreImages,cadenceCible,ECHELLE_ENTITE,NIVEAUX,COURT_NIVEAU,statutLive,sensTexte,niveauxPosition,distanceEntree,
+  const api={ONGLETS,ECRANS,age,miseAJour,DELAIS_REESSAI,delaiReessai,decisionCache,messageErreur,suivreImages,cadenceCible,ECHELLE_ENTITE,
     vwap,profilVolume,deltaBougie,intervalleMs,courbePath,calendrierThermique,hebdoDepuisJours,DUREE_STORY,prochaineCarte,precedenteCarte,carteApresGeste,prix,pourcent,R,esc,versionPlusRecente,routeCommande};
   if(typeof module!=='undefined'&&module.exports) module.exports=api; else racine.MobileCalcul=api;
 })(typeof window!=='undefined'?window:globalThis);

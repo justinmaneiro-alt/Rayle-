@@ -20,7 +20,7 @@ import { analyserDemande, libelleDemande } from './trading/instruments.js';
 /* ═════════════ MARS : MODULE PC ═════════════
    Appelé par la galaxie quand la caméra arrive sur Mars (manifeste modules.pc.entree). `entrer(G)` : fondu, la galaxie dessine la scène de Mars à la place de la sienne
    (G.surcharger), la souris est déléguée ici (G.nav.deleguer), la rotation de Mars s'arrête ; Échap ramène à la galaxie (événement galaxie:sortie).
-   Deux scènes : l'ORBITE (la planète et la base vue de l'espace, avec ses deux moitiés BUREAU et TERMINAL) et l'INTÉRIEUR (le salon et sa table holographique).
+   Deux scènes : l'ORBITE (la planète et la base vue de l'espace, avec son TERMINAL) et l'INTÉRIEUR (le salon et sa table holographique).
    Zoomer sur la base fait entrer ; dézoomer au fond du salon fait ressortir (seuils différents : pas de va-et-vient). Tout est paresseux. */
 let inst = null, enCours = null;
 const attendre = ms => new Promise(r => setTimeout(r, ms));
@@ -42,7 +42,7 @@ async function construire(G) {
 
   // ── Interface (DOM) ──
   const ui = document.createElement('div'); ui.id = 'mars-ui'; ui.hidden = true;
-  ui.innerHTML = '<div class="m-etiquettes"><button type="button" class="m-etiq bureau" data-zone="bureau" hidden><b>Bureau</b><small>BIENTÔT</small></button><button type="button" class="m-etiq terminal" data-zone="terminal" hidden><b>Terminal de trading</b><small>ENTRER</small></button></div>'
+  ui.innerHTML = '<div class="m-etiquettes"><button type="button" class="m-etiq terminal" data-zone="terminal" hidden><b>Terminal de trading</b><small>ENTRER</small></button></div>'
     + '<div class="m-titre"><b>M A R S</b><span id="m-sous-titre">Base Raylé</span></div>'
     + '<div class="m-boutons"><button type="button" id="m-entrer">Entrer dans la base</button><button type="button" id="m-sortir-base" hidden>Sortir de la base</button><button type="button" id="m-quitter">Quitter Mars</button></div>'
     + '<div class="m-aide" id="m-aide"></div>'
@@ -66,7 +66,7 @@ async function construire(G) {
   const ndc = e => { const r = canvas.getBoundingClientRect(); return [(e.clientX - r.left) / r.width * 2 - 1, 1 - (e.clientY - r.top) / r.height * 2]; };
   let tailleVue = [0, 0];
   const tactile = () => profil.niveau === 'basse' || profil.niveau === 'jeu';
-  const terminalV2 = opts => chargerTerminal(() => { if (int) int.holo.espaceFerme(); }).then(T => T.ouvrirTerminal({ tactile: tactile(), sansSelecteur: true, ouvrirEspace: d => ouvrirEspace(d, { tactile: tactile() }), ouvrirPoste: d => import('./trading/fenetre-agent.js').then(P => P.ouvrirPoste(d)), ...opts }));
+  const terminalV2 = opts => chargerTerminal(() => { if (int) int.holo.espaceFerme(); }).then(T => T.ouvrirTerminal({ tactile: tactile(), sansSelecteur: true, ouvrirEspace: d => ouvrirEspace(d, { tactile: tactile() }), ...opts }));
 
   function construireOrbite() { if (orb) { orb.dispose(); } orb = creerOrbite({ profil, textureMars: tex.map, ciel: G.ciel }); }
   function construireInterieur() {
@@ -75,7 +75,7 @@ async function construire(G) {
     const camera = new THREE.PerspectiveCamera(72, 1, 0.05, 12000);
     const paysage = creerPaysage({ profil, ciel: G.ciel }); scene.add(paysage.groupe);
     const salon = creerSalon({ profil }); scene.add(salon.groupe);
-    const ancienne = () => creerHologrammes({ parent: salon.groupe, centreTable: [0, 0, -0.6], ouvrirEspace: o => ((o && (o.focus === 'agent' || o.dock === 'agent')) ? import('./trading/fenetre-agent.js').then(M => M.ouvrirPoste({ onglet: o.onglet, paire: o.paire })) : (() => { const tactile = profil.niveau === 'basse' || profil.niveau === 'jeu'; try { if (localStorage.getItem('rayle_mars_ancien_espace') === '1') return ouvrirEspace(o, { tactile }); } catch (e) { /* stockage interdit */ } return chargerTerminal(() => { if (int) int.holo.espaceFerme(); }).then(T => T.ouvrirTerminal({ panneau: o && o.fenetre, tactile, ouvrirEspace: d => ouvrirEspace(d, { tactile }), ouvrirPoste: d => import('./trading/fenetre-agent.js').then(P => P.ouvrirPoste(d)) })); })()), fermerEspace: () => { fermerEspace(); if (modTerminal) modTerminal.fermerTerminal(); } });
+    const ancienne = () => creerHologrammes({ parent: salon.groupe, centreTable: [0, 0, -0.6], ouvrirEspace: o => ((() => { const tactile = profil.niveau === 'basse' || profil.niveau === 'jeu'; try { if (localStorage.getItem('rayle_mars_ancien_espace') === '1') return ouvrirEspace(o, { tactile }); } catch (e) { /* stockage interdit */ } return chargerTerminal(() => { if (int) int.holo.espaceFerme(); }).then(T => T.ouvrirTerminal({ panneau: o && o.fenetre, tactile, ouvrirEspace: d => ouvrirEspace(d, { tactile }) })); })()), fermerEspace: () => { fermerEspace(); if (modTerminal) modTerminal.fermerTerminal(); } });
     /* V2 : les PILES sur la table (par défaut) ; l'ancien mur de 21 fenêtres (grandes fenêtres au clic) reste derrière l'interrupteur ⚙ « Utiliser l'ancien système de fenêtres ». */
     const holo = ancienSysteme() ? ancienne() : creerPiles({
       parent: salon.groupe, centreTable: [0, 0, -0.6],
@@ -133,13 +133,10 @@ async function construire(G) {
       catch (e) { if (int) int.holo.majReel('contexte', { etat: 'indisponible', erreur: String(e && e.message || e) }); }
     };
     contexte(); const t3 = setInterval(contexte, 180000); arretsDonnees.push(() => clearInterval(t3));
-    // Agent BTC : la fenêtre lit l'état de l'agent Kepler (service du PC, sinon Worker) : mise à jour dans fenetres-m6.js (V3b). L'ancien agent du navigateur n'est plus démarré ici.
     demarrerFinance();
-    // M6 : les six fenêtres de performance de l'agent (gardien prop, journal et tilt, propositions, performance, régime, probabilité de réussite)
-    try { const M6 = await import('./trading/fenetres-m6.js'); const stop = M6.demarrerFenetresM6({ majReel: (id, r) => { if (int) int.holo.majReel(id, r); }, actif: () => !!int && mode === 'interieur' }); arretsDonnees.push(stop); } catch (e) { for (const id of ['gardien-prop', 'journal-tilt', 'propositions-agent', 'perf-strategies', 'regime-marche', 'proba-evaluation']) if (int) int.holo.majReel(id, { etat: 'indisponible', erreur: String(e && e.message || e) }); }
   }
   /* Hub Finance (nuit n° 2) : cinq fenêtres de la table alimentées par des sources gratuites (CFTC, Trésor, BLS, flux publics, calendriers). Chaque fenêtre porte l'étiquette de sa donnée
-     (RÉEL / DIFFÉRÉ / PÉRIMÉ / INDISPO) ; une source en panne affiche sa raison, jamais un chiffre inventé. La fenêtre « Alertes » lit le Veilleur. */
+     (RÉEL / DIFFÉRÉ / PÉRIMÉ / INDISPO) ; une source en panne affiche sa raison, jamais un chiffre inventé. */
   async function demarrerFinance() {
     let F, COT, CAL, TAUX, FLUX; try { [F, COT, CAL, TAUX, FLUX] = await Promise.all([import('./finance/donnees.js'), import('./finance/cot-calcul.js'), import('./finance/calendrier-calcul.js'), import('./finance/taux-calcul.js'), import('./finance/flux-calcul.js')]); } catch (e) { return; }
     const fin = F.obtenirFinance(), vivant = () => int && mode === 'interieur';
@@ -173,16 +170,6 @@ async function construire(G) {
         return { entete: 'Courbe américaine · ' + r.courbe.date, liste, pied: 'Trésor américain · BLS' };
       });
     }, 900000);
-    // Alertes du Veilleur
-    const alertes = () => {
-      if (!vivant()) return; const P = window.VeilleurPage;
-      if (!P || P.disponible() === false) { int.holo.majReel('alertes', { etat: 'indisponible', erreur: 'Veilleur : application PC requise' }); return; }
-      if (P.disponible() === null) return;
-      const e = P.etat(), a = P.alertes().slice(0, 4), tn = { ENTREE: 'ENTRÉE', PREPARATION: 'PRÉPARATION', OBSERVATION: 'OBSERVATION', MACRO: 'MACRO' };
-      int.holo.majReel('alertes', { etat: 'ok', etiquette: e && e.enMarche ? 'RÉEL' : 'PÉRIMÉ', entete: (e && e.enMarche ? 'Veilleur en marche' : 'Veilleur ARRÊTÉ') + (e && e.reglages && e.reglages.actif ? ' · activé' : ' · désactivé'),
-        liste: a.map(x => ({ g: (tn[x.type] || x.type) + ' · ' + String(x.resume || '').replace(/^PRÉPARATION · /, ''), c: x.type === 'ENTREE' ? '#41e0a0' : x.type === 'MACRO' ? '#ffb347' : '#cfeaff' })), vide: 'Aucune alerte (normal sans stratégie validée)', pied: 'Bitcoin M15 · Telegram + application' });
-    };
-    alertes(); const offA = window.VeilleurPage ? window.VeilleurPage.surChangement(alertes) : null; const tA = setInterval(alertes, 30000); arretsDonnees.push(() => { clearInterval(tA); if (offA) offA(); });
   }
   surEspaceFerme(() => { if (int) int.holo.espaceFerme(); });
 
@@ -317,7 +304,7 @@ async function construire(G) {
     $('m-entrer').hidden = !o; $('m-sortir-base').hidden = !i; $('m-quitter').hidden = !(o || i) && !actif;
     $('m-sous-titre').textContent = i ? M.BASE.nom + ' · salon du terminal' : M.BASE.nom + ' · ' + M.BASE.site;
     $('m-aide').textContent = i ? 'Glisser : regarder autour · Molette : avancer vers la table, reculer pour ressortir · Clic sur une fenêtre : l’ouvrir · Clic ailleurs : la fermer · Échap : sortir de la base'
-      : 'Glisser : faire tourner Mars · Molette : zoom (zoomez sur la base pour entrer) · Clic sur TERMINAL : entrer · BUREAU : bientôt · Échap : retour à la galaxie';
+      : 'Glisser : faire tourner Mars · Molette : zoom (zoomez sur la base pour entrer) · Clic sur TERMINAL : entrer · Échap : retour à la galaxie';
   }
 
   /* Écran en hauteur (téléphone) : champ de vision plus large pour voir toute la table et les fenêtres. */
@@ -434,7 +421,6 @@ async function construire(G) {
       transition = false; return true;
     },
     choisirZone(zone) {
-      if (zone === 'bureau') { dire(M.ZONES_BASE.bureau.message, 5500); window.dispatchEvent(new CustomEvent('mars:bureau', {})); return { ok: true, bientot: true }; }
       api.entrerBase(); return { ok: true };
     },
     definirHeure(h) { heure = ((Number(h) % 24) + 24) % 24; curseur.value = heure; if (int) int.paysage.reglerHeure(heure, heureSim, int.scene, true); },
@@ -459,7 +445,7 @@ async function construire(G) {
     fermerFenetre() { return int ? int.holo.fermer() : false; },
     dire,
     /* Pour les tests, les captures et les ordres vocaux. */
-    ouvrirPanneauTerminal: async id => { await terminalV2({ panneau: id }); return true; },       // voix et tests : pose un panneau du terminal sur l'écran (« ouvre les agents prêts »)
+    ouvrirPanneauTerminal: async id => { await terminalV2({ panneau: id }); return true; },       // voix et tests : pose un panneau du terminal sur l'écran
     etat: () => ({ actif, mode, transition, entree: entreeFinie, heure, heureSim, dist: orb ? orb.vue.dist : 0, lon: orb ? orb.vue.lon : 0, lat: orb ? orb.vue.lat : 0, angleBase: orb ? orb.angleBase() : 0, fenetre: int ? int.holo.ouvert() : null, vol: !!vol, profil: profil.niveau, auto, message: messageEl.hidden ? '' : messageEl.textContent,
       yaw, pitch, avancee, fenetres: int ? int.holo.ids() : [] }),
     placerOrbite(v) { if (!orb) return; Object.assign(orb.vue, v); if (v.dist !== undefined) distCible = v.dist; vol = null; inertie = null; },

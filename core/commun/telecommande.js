@@ -155,8 +155,8 @@
     mode_leger: () => { leger = !leger; try { Entite.qualite(leger ? 2 : 'auto', { temporaire: true }); } catch (e) {} },
     capture: capturer
   };
-  const FENETRE_ID = { meteo: 'meteo', actualites: 'actus', marche: 'marche', agent: 'agentmars' };
-  const G1_FENETRE = { meteo: 'meteo', actualites: 'actus', marche: 'marche', agent: 'alertes' };   // grande fenêtre de l'accueil Aurore
+  const FENETRE_ID = { meteo: 'meteo', actualites: 'actus', marche: 'marche' };
+  const G1_FENETRE = { meteo: 'meteo', actualites: 'actus', marche: 'marche' };   // grande fenêtre de l'accueil Aurore
   function rayle(m) {
     switch (m.id) {
       case 'parler_debut': if (!micOn) basculerConversation(); else if (mode !== 'conversation') enterConversation(); break;

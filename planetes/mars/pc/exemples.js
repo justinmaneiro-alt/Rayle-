@@ -2,7 +2,7 @@ import { alea } from './mars-calcul.js';
 
 /* ═════════════ CONTENUS D'EXEMPLE DES FENÊTRES DE LA TABLE (module pur, testé : planetes/mars/tests/exemples-test.mjs) ═════════════
    Étape M1 : AUCUNE donnée réelle. Tout ce qui sort d'ici est factice, fabriqué par un générateur reproductible, et porte le marqueur EXEMPLE.
-   Les vraies données (graphiques, positions, performance, signaux de l'agent) remplaceront ces générateurs aux étapes suivantes ; les fenêtres, elles, resteront. */
+   Les vraies données (graphiques) remplaceront ces générateurs aux étapes suivantes ; les fenêtres, elles, resteront. */
 export const MARQUEUR = 'EXEMPLE';
 export const AVERTISSEMENT = 'EXEMPLE · données factices, aucune valeur réelle';
 export const estExemple = f => !f.reel;
@@ -60,21 +60,13 @@ export const FENETRES = [
   { id: 'marche', titre: 'Marché · watchlist', icone: '🌐', type: 'marche', reel: true, dock: 'correlations', focus: 'watchlist', apercu: 'Cotations réelles' },
   { id: 'dashboard', titre: 'Dashboard analytique', icone: '🧭', type: 'dashboard', reel: true, instrument: 'US100', dock: 'dashboard', focus: 'dashboard', apercu: 'Tendance, RSI, volume, niveaux, score' },
   { id: 'contexte', titre: 'Contexte de marché', icone: '🌡', type: 'contexte', reel: true, dock: 'contexte', focus: 'contexte', apercu: 'VIX, dollar, taux, grandes valeurs' },
-  { id: 'agent-btc', titre: 'Agent BTC', icone: '🛰', type: 'agent', reel: true, instrument: 'BTC', unite: 'M15', dock: 'agent', focus: 'agent', apercu: 'Phase du marché, setup, performance' },
-  { id: 'alertes', titre: 'Alertes · Veilleur', icone: '🔔', type: 'alertes', reel: true, dock: 'alertes', focus: 'alertes', apercu: 'Entrées, préparations, macro' },
   { id: 'calendrier', titre: 'Calendrier économique', icone: '📅', type: 'calendrier', reel: true, dock: 'calendrier', focus: 'calendrier', apercu: 'Événements à venir, prévu, précédent, réel' },
   { id: 'cot', titre: 'COT · positions des fonds', icone: '🏛', type: 'cot', reel: true, dock: 'cot', focus: 'cot', apercu: 'Positions nettes par catégorie (CFTC)' },
   { id: 'actus-finance', titre: 'Actualités financières', icone: '📰', type: 'actus', reel: true, dock: 'actus', focus: 'actus', apercu: 'Titres classés par impact' },
   { id: 'banques', titre: 'Banques centrales', icone: '🏦', type: 'banques', reel: true, dock: 'banques', focus: 'banques', apercu: 'Fed, BCE, BoE, BoJ… (sources officielles)' },
   { id: 'taux', titre: 'Taux et inflation', icone: '📉', type: 'taux', reel: true, dock: 'taux', focus: 'taux', apercu: 'Courbe 2 / 10 / 30 ans, CPI, chômage' },
-  // M6 : Solana et Dogecoin (mêmes bougies réelles que les autres), puis les six fenêtres de PERFORMANCE de l'agent (étiquetées RÉEL / SIMULÉ / BACKTEST / ESTIMÉ ; un clic ouvre le poste sur le bon onglet)
+  // Solana et Dogecoin (mêmes bougies réelles que les autres)
   { id: 'graphique-sol', titre: 'Solana · SOL/USD', icone: '◎', type: 'bougies', reel: true, instrument: 'SOL', unite: 'H1', apercu: 'Bougies H1 réelles' },
   { id: 'graphique-doge', titre: 'Dogecoin · DOGE/USD', icone: 'Ð', type: 'bougies', reel: true, instrument: 'DOGE', unite: 'H1', apercu: 'Bougies H1 réelles' },
-  { id: 'perf-strategies', titre: 'Performance des stratégies', icone: '📊', type: 'perf', reel: true, dock: 'agent', focus: 'agent', onglet: 'strategies', apercu: 'Courbes de capital en R (BACKTEST, SIMULÉ)' },
-  { id: 'gardien-prop', titre: 'Gardien prop', icone: '🛡', type: 'gardien', reel: true, dock: 'agent', focus: 'agent', onglet: 'gardien', apercu: 'Perte du jour, drawdown, objectif +10 %' },
-  { id: 'propositions-agent', titre: 'Propositions de l’agent', icone: '🎯', type: 'propositions', reel: true, dock: 'agent', focus: 'agent', onglet: 'ensemble', apercu: 'Setups, signaux et décision du gardien' },
-  { id: 'regime-marche', titre: 'Régime de marché', icone: '🌡', type: 'regime', reel: true, dock: 'agent', focus: 'agent', onglet: 'regime', apercu: 'Score 0-100 de BTC, SOL, DOGE' },
-  { id: 'journal-tilt', titre: 'Journal et tilt', icone: '📓', type: 'journaltilt', reel: true, dock: 'agent', focus: 'agent', onglet: 'journal', apercu: 'Trades, discipline, niveau de tilt' },
-  { id: 'proba-evaluation', titre: 'Probabilité de réussite', icone: '🎲', type: 'proba', reel: true, dock: 'agent', focus: 'agent', onglet: 'simulation', apercu: 'Évaluation : objectif avant limites (ESTIMÉ)' }
 ];
 export const fenetre = id => FENETRES.find(f => f.id === id) || null;

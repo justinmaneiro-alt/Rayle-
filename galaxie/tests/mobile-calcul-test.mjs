@@ -33,15 +33,6 @@ s.echantillon(30, 6200); v('toujours lent : niveau 2', s.niveau() === 2);
 s.echantillon(30, 9300); v('le niveau ne dépasse pas 2', s.niveau() === 2);
 s = M.suivreImages({}); s.echantillon(30, 0); s.echantillon(60, 1000); s.echantillon(30, 2000); s.echantillon(30, 3500); v('un retour à 60 i/s remet le compte à zéro', s.niveau() === 0);
 v('cadence : 60 normale, 30 en économie, 0 masqué', M.cadenceCible({}) === 60 && M.cadenceCible({ economie: true }) === 30 && M.cadenceCible({ reduit: true }) === 30 && M.cadenceCible({ masque: true, economie: true }) === 0);
-// positions
-v('statut live : en attente', M.statutLive({ statut: 'en_attente', tValide: T + 1000 }, T).code === 'attente');
-v('statut live : ouverte', M.statutLive({ statut: 'ouverte' }, T).code === 'ouverte');
-v('statut live : cible / stop', M.statutLive({ statut: 'cloturee', resultat: { R: 2 } }).code === 'cible' && M.statutLive({ statut: 'cloturee', resultat: { R: -1 } }).code === 'stop');
-v('statut live : expirée (statut ou validité dépassée)', M.statutLive({ statut: 'expiree' }).code === 'expiree' && M.statutLive({ statut: 'en_attente', tValide: T - 1 }, T).code === 'expiree');
-v('sens', M.sensTexte({ sens: 1 }) === 'ACHAT' && M.sensTexte({ sens: -1 }) === 'VENTE');
-const niv = M.niveauxPosition({ sens: 1, limite: 100, stop: 98, cible: 104, cible2: null, zone: [101, 99] });
-v('niveaux : entrée, stop, cibles filtrées, zone ordonnée', niv.entree === 100 && niv.stop === 98 && niv.cibles.length === 1 && niv.zone[0] === 99 && niv.zone[1] === 101);
-v('distance à l’entrée en %', Math.abs(M.distanceEntree({ limite: 99 }, 100) + 1) < 1e-9 && M.distanceEntree({}, 100) === null);
 // graphique
 const bg = Array.from({ length: 20 }, (_, i) => [T + i * 900e3, 100 + i, 102 + i, 98 + i, 101 + i, 10 + (i % 3)]);
 v('VWAP entre le plus bas et le plus haut', (() => { const x = M.vwap(bg); return x > 98 && x < 122; })());
@@ -76,8 +67,6 @@ const r = t => (M.routeCommande(t) || {}).ecran || null;
 v('« mode galaxie » / « ouvre la galaxie » : refus poli', r('ouvre la galaxie') === 'galaxie-refus' && r('mode galaxie') === 'galaxie-refus');
 v('« donne-moi l’actualité en France » : actus', r('donne-moi l’actualité en France') === 'actus' && r('les infos') === 'actus' && r('affiche les actualités') === 'actus');
 v('« affiche le terminal » : terminal', r('affiche le terminal') === 'terminal' && r('ouvre le terminal de trading') === 'terminal');
-v('« ouvre l’agent », positions du jour : agent', r('ouvre l’agent') === 'agent' && r('montre-moi les positions du jour') === 'agent' && r('affiche kepler') === 'agent');
-v('« montre-moi le bilan » : agent ; « le bilan de la France » n’est pas intercepté', r('montre-moi le bilan') === 'agent' && r('affiche les performances') === 'agent' && r('donne-moi le bilan de la semaine') === 'agent' && r('montre-moi le bilan de la France') === null);
 v('carte et réglages', r('ouvre la carte') === 'carte' && r('ouvre les réglages') === 'reglages');
 v('une phrase ordinaire n’est pas interceptée', r('quelle heure est-il') === null && r('parle-moi de Napoléon') === null);
 console.log(`\nCoque mobile : ${ok} vérifications réussies, ${ko} échec(s).`); process.exit(ko ? 1 : 0);

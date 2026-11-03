@@ -134,35 +134,6 @@ body.mars-espace-ouvert #mars-ui .m-boutons,body.mars-espace-ouvert #mars-ui .m-
 .tg-tag.alerte{border-color:var(--tg-bas);color:#ffb3bc}
 .tg-constats{margin:6px 0 0;padding-left:16px;color:#9bc4d6;font-size:12px}
 
-/* ── Panneau « Agent BTC » : le dock s'agrandit quand cet onglet est choisi ── */
-.tg-agent-ouvert .tg-corps{grid-template-rows:minmax(120px,0.34fr) minmax(0,0.66fr)}
-.tg-agent-ouvert .tg-dock-corps{overflow:auto}
-.tg-agent{display:flex;flex-direction:column;gap:6px;padding:6px 8px;min-height:100%}
-.ag-haut{display:flex;flex-wrap:wrap;gap:4px 14px;align-items:baseline}
-.ag-etat{font-size:12px}.ag-etat b{letter-spacing:.06em}.ag-etat span{color:#9bc4d6;margin-left:8px}
-.ag-etat.ok b{color:var(--tg-haut)}.ag-etat.ko b{color:#ffb3bc}.ag-etat.info b{color:var(--tg-cyan)}.ag-etat.neutre b{color:#9bc4d6}
-.ag-src{color:#8fb2c3;font-size:12px;flex:1 1 420px}.ag-src progress{width:120px;margin-left:8px;vertical-align:middle}
-.ag-grille{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:6px}
-.ag-c{border:1px solid var(--tg-bord);background:rgba(10,17,24,.7);padding:6px 9px;min-width:0}
-.ag-large{grid-column:1/-1}
-.ag-c h4{margin:0 0 4px;font-size:12px;letter-spacing:.12em;text-transform:uppercase;color:var(--tg-ambre);font-weight:600}.ag-c h4 small{color:#6b8796;text-transform:none;letter-spacing:0;margin-left:6px}
-.ag-l{display:flex;justify-content:space-between;gap:10px;padding:1px 0;border-bottom:1px solid rgba(77,227,255,.08)}.ag-l span{color:#8fb2c3}.ag-l b{font-weight:500;text-align:right}
-.ag-l b.hausse{color:var(--tg-haut)}.ag-l b.baisse{color:var(--tg-bas)}.ag-l b.alerte{color:#ffb3bc}
-.ag-c small{color:#7f9fb0}.ag-vide{color:#9bc4d6;margin:4px 0}.ag-alerte{color:#ffb3bc;font-style:normal}.ag-ok{color:var(--tg-haut);font-style:normal}
-.ag-c details{margin:3px 0}.ag-c summary{cursor:pointer;color:#9bc4d6}.ag-c ul{margin:3px 0;padding-left:16px}.ag-c p{margin:3px 0}
-.ag-carte{border:1px solid var(--tg-cyan);padding:5px 8px;background:rgba(77,227,255,.06)}.ag-carte.entree{border-color:var(--tg-haut);background:rgba(39,217,138,.08)}.ag-carte.prep{border-color:var(--tg-ambre);background:rgba(255,176,0,.07)}
-.ag-inval{color:#9bc4d6;font-size:12px}.ag-nom{font-weight:600;margin:2px 0}.ag-par{color:#8fb2c3;font-size:12px}
-.ag-crit{width:100%;border-collapse:collapse;font-size:12px}.ag-crit td{padding:1px 5px;border-bottom:1px solid rgba(77,227,255,.08)}.ag-crit tr.ok td:first-child{color:var(--tg-haut)}.ag-crit tr.ko td:first-child{color:var(--tg-bas)}
-.ag-perfs{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:8px}.ag-perf h5{margin:0;font-size:12px;color:var(--tg-cyan);letter-spacing:.08em}.ag-courbe{width:100%;max-width:340px;height:90px;margin-top:4px}
-.ag-liste{list-style:none;margin:0;padding:0;max-height:210px;overflow:auto}.ag-liste li{padding:2px 0;border-bottom:1px solid rgba(77,227,255,.08)}.ag-liste li span{display:block;color:#9bc4d6;font-size:12px}
-.ag-liste li.entree b{color:var(--tg-haut)}.ag-liste li.preparation b{color:var(--tg-ambre)}.ag-journal b.d-garder{color:var(--tg-haut)}.ag-journal b.d-supprimer{color:var(--tg-bas)}.ag-journal b.d-ajuster,.ag-journal b.d-recommencer{color:var(--tg-ambre)}
-.ag-bas{display:flex;flex-wrap:wrap;gap:6px 12px;align-items:center}.ag-bas label{color:#9bc4d6;font-size:12px}.ag-bas input[type=number]{width:64px;background:#0a1118;color:#cfe3ee;border:1px solid var(--tg-bord);padding:2px 4px}.ag-bas select{background:#0a1118;color:#cfe3ee;border:1px solid var(--tg-bord)}
-.ag-avert{color:#6b8796;font-size:12px;margin:2px 0}
-.tg-agent .tg-btn{min-height:34px}
-
-/* M4 : microstructure dans l'agent */
-.ag-micro .ag-aide{display:block;margin:-1px 0 5px;color:#6b8796;font-size:12px;line-height:1.35}.ag-micro .ag-l{align-items:flex-start}.ag-derives{margin-top:6px;font-size:12px}
-
 /* ═════════════ HUB FINANCE (M2b) : calendrier, COT, actualités, banques centrales, taux, publications, Nasdaq 100 ═════════════ */
 .tg-onglets{flex-wrap:wrap}
 .fi-panneau{padding:6px 10px 10px;font-size:12px;color:#cfe3ee;min-height:100%}

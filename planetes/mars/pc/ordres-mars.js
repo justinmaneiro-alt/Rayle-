@@ -27,11 +27,6 @@ export function brancher({ O, galaxie, ouvrirGalaxie }) {
     if (!e || !e.actif || e.mode !== 'interieur') return { ok: true, texte: 'Je ne suis pas dans la base.' };
     return (await m.sortirBase()) ? { ok: true, texte: 'Me voici de nouveau en orbite de Mars.' } : { ok: false, erreur: 'la sortie a été interrompue' };
   });
-  sur('visiter_bureau', async () => {
-    if (!(await versMars())) return { ok: false, erreur: 'Mars n’a pas pu s’ouvrir' };
-    const r = mars().choisirZone('bureau');
-    return { ok: !!r.ok, texte: 'Le bureau arrive bientôt : il accueillera les agents de trading. Pour l’instant, seul le terminal est aménagé.' };
-  });
   /* Entre dans la base si besoin (galaxie, vol, orbite, salon). */
   async function dansLaBase() {
     if (!(await versMars())) return { ok: false, erreur: 'Mars n’a pas pu s’ouvrir' };
@@ -48,24 +43,14 @@ export function brancher({ O, galaxie, ouvrirGalaxie }) {
   sur('choisir_source', ({ source }) => afficher({ source }, l => 'Voici ' + l + '.'), 60000);
   sur('changer_unite', ({ unite }) => afficher({ unite }, l => 'Graphique en ' + l + '.'), 60000);
   sur('ouvrir_fenetre', async ({ fenetre }) => {
-    if (fenetre === 'analyse') return { ok: false, erreur: 'l’analyse fondamentale par agent arrive à une étape suivante : rien d’inventé en attendant' };
+    if (fenetre === 'analyse') return { ok: false, erreur: 'pas d’analyse fondamentale automatique pour l’instant' };
     const r0 = await dansLaBase(); if (!r0.ok) return r0;
-    const FINANCE = { cot: 'COT de la CFTC', calendrier: 'calendrier économique', actus: 'actualités financières', banques: 'banques centrales', taux: 'taux et inflation', heatmap: 'Nasdaq 100', publications: 'publications publiques', alertes: 'alertes du Veilleur' };
-    if (FINANCE[fenetre]) { const E = await import('./trading/fenetre.js'); await E.ouvrirEspace({ dock: fenetre, focus: fenetre }); return { ok: true, texte: 'Voici ' + (fenetre === 'calendrier' ? 'le ' : fenetre === 'taux' ? 'les ' : fenetre === 'alertes' || fenetre === 'actus' || fenetre === 'banques' || fenetre === 'publications' ? 'les ' : 'le ') + FINANCE[fenetre] + '.' }; }
-    if (['agent', 'gardien', 'tilt', 'journal', 'simulation', 'regime', 'capture', 'sante'].includes(fenetre)) {           // M6 : le poste de pilotage de l'agent, ouvert directement sur l'onglet voulu
-      const P = await import('./trading/fenetre-agent.js'); await P.ouvrirPoste({ onglet: fenetre === 'agent' ? 'ensemble' : fenetre });
-      return { ok: true, texte: 'Voici ' + ({ agent: 'le poste de pilotage de l’agent', gardien: 'le gardien prop', tilt: 'le détecteur de tilt', journal: 'ton journal de trades', simulation: 'la simulation de l’évaluation', regime: 'le régime de marché', capture: 'la lecture de capture d’écran', sante: 'la santé de l’agent' }[fenetre]) + '.' };
-    }
-    if (fenetre === 'agent_btc') { const P = await import('./trading/fenetre-agent.js'); await P.ouvrirPoste({}); return { ok: true, texte: 'Voici le poste de pilotage de l’agent Bitcoin.' }; }
+    const FINANCE = { cot: 'COT de la CFTC', calendrier: 'calendrier économique', actus: 'actualités financières', banques: 'banques centrales', taux: 'taux et inflation', heatmap: 'Nasdaq 100', publications: 'publications publiques' };
+    if (FINANCE[fenetre]) { const E = await import('./trading/fenetre.js'); await E.ouvrirEspace({ dock: fenetre, focus: fenetre }); return { ok: true, texte: 'Voici ' + (fenetre === 'calendrier' ? 'le ' : fenetre === 'taux' ? 'les ' : fenetre === 'actus' || fenetre === 'banques' || fenetre === 'publications' ? 'les ' : 'le ') + FINANCE[fenetre] + '.' }; }
     const cible = { dashboard: 'dashboard', contexte: 'contexte' }[fenetre] || 'graphique-us100';
     mars().ouvrirFenetre(cible);
-    return { ok: true, texte: { dashboard: 'Voici le dashboard analytique.', contexte: 'Voici le contexte de marché : volatilité, dollar, taux et grandes valeurs.', agent_btc: 'Voici l’agent Bitcoin.' }[fenetre] || 'Voici le terminal.' };
+    return { ok: true, texte: { dashboard: 'Voici le dashboard analytique.', contexte: 'Voici le contexte de marché : volatilité, dollar, taux et grandes valeurs.' }[fenetre] || 'Voici le terminal.' };
   }, 60000);
-  sur('agent_expliquer', async ({ sujet }) => { const A = await import('./trading/session-agent.js'); return { ok: true, texte: await A.expliquerAgent(sujet) }; }, 60000);
-  sur('agent_recherche', async () => { const A = await import('./trading/session-agent.js'); return { ok: true, texte: await A.lancerRechercheAgent() }; }, 60000);
-  sur('analyser', async () => ({ ok: false, erreur: 'il n’y a pas d’agent stratège séparé : la recherche et les alertes sont faites par l’agent Kepler (fenêtre Agent BTC) ; pour l’instant le résumé du marché est calculé dans le terminal, sans IA' }));
-  import('./trading/chart-api.js').then(M => M.brancherOrdresGraphique(sur)).catch(() => { /* API du graphique indisponible : ces ordres répondent « pas encore disponible » */ });      // M6 : lire / tracer / tester une zone / expliquer une bougie / rejouer
-  import('./trading/rapports-agent.js').then(M => M.brancherOrdresRapports(sur)).catch(() => { /* rapports de l'agent : idem */ });
   sur('regler_heure', async ({ heure }) => {
     const m = mars(); if (!m || !m.etat().actif) return { ok: false, erreur: 'Mars n’est pas ouverte' };
     m.definirHeure(heure); m.auto(false);

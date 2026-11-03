@@ -7,7 +7,7 @@
    • Chaque version a ses caches : les anciens sont supprimés à l'activation. */
 const VERSION = '2026.11.03.1';
 const SHELL = 'rayle-shell-' + VERSION, IMAGES = 'rayle-images-1';
-const COEUR = ['./', 'index.html', 'manifest.webmanifest', 'favicon.svg', 'icones/rayle-192.png', 'core/commun/appareil.js', 'core/mobile/mobile.css', 'core/mobile/mobile-contenus.css', 'core/mobile/mobile-agent.css',
+const COEUR = ['./', 'index.html', 'manifest.webmanifest', 'favicon.svg', 'icones/rayle-192.png', 'core/commun/appareil.js', 'core/mobile/mobile.css', 'core/mobile/mobile-contenus.css',
   'core/mobile/mobile-calcul.js', 'core/mobile/mobile-donnees.js', 'core/mobile/mobile-coque.js', 'core/mobile/mobile-accueil.js'];
 
 self.addEventListener('install', e => {

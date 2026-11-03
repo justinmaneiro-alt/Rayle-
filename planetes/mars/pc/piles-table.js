@@ -4,7 +4,7 @@ import { magasinReels } from './trading/rendu-reel.js';
 
 /* ═════════════ LES PILES SUR LA TABLE DE MARS (V2, phase 2) ═════════════
    Avant : 21 petits plans (un par fenêtre) qui clignotaient, sautillaient et ouvraient une grande fenêtre par-dessus. Maintenant : HUIT PILES de cartes posées en arc autour de la table
-   (une par dossier du terminal : Graphiques, Éco et macro, Actualités, Sentiment, Agent IA, Alertes, Performance, + « Mes fenêtres »), IMMOBILES.
+   (une par dossier du terminal : Graphiques, Éco et macro, Actualités, Sentiment, + « Mes fenêtres »), IMMOBILES.
    Un clic sur une pile ouvre le carrousel du dossier (core/commun/dossiers.js) ; la fenêtre choisie se pose sur l'écran, vivante (vrai contenu HTML : onglets, défilement, graphiques),
    se déplace / se redimensionne / se range avec le gestionnaire commun. Aucune animation permanente : la seule réaction est un éclairage de la couleur au survol.
    L'API est celle de l'ancien `creerHologrammes` (index.js, tests, voix) : viser, survoler, ouvrir, fermer, majReel, maj, ids, position… */

@@ -1,9 +1,8 @@
 "use strict";
 /* ═════════════ TABLEAU DE BORD VIVANT DE L'ACCUEIL (V1) ═════════════
    Autour de l'entité de Raylé : de VRAIES fenêtres, toutes animées en continu, chacune cliquable (elle ouvre sa vue complète) :
-   heure et date · météo (Open-Meteo, ville choisie dans ⚙) · actualités (fil France du Worker, défilement doux) · agent de trading (régime, état, signaux, gardien prop :
-   mêmes calculs que les fenêtres de la table de Mars) · marché (BTC, SOL, DOGE, or, US100 : mêmes cotations que le terminal, avec mini-courbes) · événements de la Terre (USGS, NASA EONET, GDACS)
-   · système (Worker, Veilleur, micro, affichage). Aucune valeur inventée : donnée absente = « — » ou « INDISPONIBLE : raison ».
+   heure et date · météo (Open-Meteo, ville choisie dans ⚙) · actualités (fil France du Worker, défilement doux) · marché (BTC, SOL, DOGE, or, US100 : mêmes cotations que le terminal, avec mini-courbes) · événements de la Terre (USGS, NASA EONET, GDACS)
+   · système (Worker, micro, affichage). Aucune valeur inventée : donnée absente = « — » ou « INDISPONIBLE : raison ».
    Réglages (⚙ « Tableau de bord ») : afficher / masquer, côté, ordre, ville de la météo ; stockés sur l'appareil seulement.
    Quand Raylé répond (panneaux ouverts : body.avec-panneaux), les fenêtres reculent (CSS), puis reviennent. Mode léger : quatre fenêtres, aucune animation continue ;
    « réduire les animations » et onglet caché : tout est figé ; hors accueil (terminal, galaxie, satellite multi-écrans) : rien ne tourne. Contenu pur : tableau-bord-contenu.js (testé). */
@@ -21,7 +20,7 @@
   const lire=k=>{ try{ return localStorage.getItem(k); }catch(e){ return null; } };
   const ecrire=(k,v)=>{ try{ localStorage.setItem(k,v); }catch(e){} };
   let reglages=T.lireReglages(lire);
-  const donnees={meteo:null,actus:null,marche:null,terre:null,reels:{},pilote:null};
+  const donnees={meteo:null,actus:null,marche:null,terre:null};
   const poser=(el,t)=>{ if(el&&el.textContent!==t) el.textContent=t; };
   const etiquette=(el,etat)=>{ if(!el) return; const E={reel:'RÉEL',differe:'DIFFÉRÉ',perime:'PÉRIMÉ',secours:'SECOURS',simule:'SIMULÉ',indispo:'INDISPO',attente:'ATTENTE'}; el.hidden=!etat; if(etat){ el.dataset.etat=etat; poser(el,E[etat]||etat.toUpperCase()); } };
 
@@ -37,7 +36,6 @@
     meteo:()=>'<div data-z="meteo"><p class="tb-vide">Lecture de la météo…</p></div>',
     actus:()=>'<div class="tb-actus" data-z="actus"><p class="tb-vide">Lecture du fil d’actualités…</p></div>',
     systeme:()=>'<ul class="tb-sys" data-z="sys"></ul>',
-    agent:()=>'<ul class="tb-agent" data-z="agent"><li class="tb-vide">Lecture de l’agent…</li></ul>',
     marche:()=>'<div class="tb-marche" data-z="marche"><p class="tb-vide">Lecture des cotations…</p></div>',
     terre:()=>'<ul class="tb-terre" data-z="terre"><li class="tb-vide">Lecture des événements…</li></ul>'
   };
@@ -62,7 +60,7 @@
     }
     corps.classList.toggle('tb-actif',reglages.actif&&dis.g.length+dis.d.length>0);
     for(const k of Object.keys(fen)){ const z=fen[k].querySelector('[data-z]'); if(z) delete z.dataset.sig; }
-    dessinerMeteo(); dessinerActus(); dessinerMarche(); dessinerTerre(); dessinerAgent();   // une fenêtre recréée (déplacée, réaffichée) retrouve ses dernières données
+    dessinerMeteo(); dessinerActus(); dessinerMarche(); dessinerTerre();   // une fenêtre recréée (déplacée, réaffichée) retrouve ses dernières données
     rafraichirTout();
   }
 
@@ -176,49 +174,12 @@
     z.innerHTML=t.lignes.length?t.lignes.map(l=>'<li data-sev="'+l.severite+'"><i class="pt"></i><div><b>'+esc(l.titre)+'</b><small>'+esc(l.age)+'</small></div></li>').join(''):'<li class="tb-vide">Rien de notable ces dernières 48 h.</li>';
   }
 
-  /* ───── agent de trading (mêmes calculs que les fenêtres de la table de Mars) ───── */
-  let arretAgent=null;
-  async function demarrerAgent(){
-    if(arretAgent) return; arretAgent=()=>{};
-    try{
-      const [fm,pp]=await Promise.all([import(new URL('planetes/mars/pc/trading/fenetres-m6.js',document.baseURI).href),import(new URL('planetes/mars/pc/trading/pilotes-paires.js',document.baseURI).href)]);
-      arretAgent=fm.demarrerFenetresM6({majReel:(id,r)=>{ donnees.reels[id]=r; try{
-        const h=pp.hotesChargees(), paires=Object.keys(h); let rech=false, val=0;
-        for(const p of paires){ try{ const v=h[p].vue(); if(v.rechercheEnCours) rech=true; val+=v.recherche&&v.recherche.valideesComptees||0; }catch(e){} }
-        donnees.pilote={paires,enRecherche:rech,valides:val};
-      }catch(e){} dessinerAgent(); },actif:visible});
-    }catch(e){ donnees.reels={'gardien-prop':{etat:'indisponible',erreur:String((e&&e.message)||e).slice(0,60)}}; arretAgent=null; dessinerAgent(); }
-  }
-  /* V3 : état de l'agent unique (PC d'abord, sinon Worker) : une ligne « Kepler · en surveillance ». Aucune valeur inventée : sans état, la ligne n'existe pas. */
-  let agentV3Charge=0;
-  async function sonderAgentV3(){
-    if(Date.now()-agentV3Charge<30000) return; agentV3Charge=Date.now();
-    try{
-      const [pg,ae]=await Promise.all([importer('planetes/mars/pc/trading/agent-accueil.js'),importer('strategies/agent-etat.js')]);
-      const d=await pg.lireEtatAgent(); if(!d||!d.etat){ donnees.agentV3=null; return; }
-      const sv=d.suivi||{}, st=ae.statutAgent(d.etat,{pcVivant:d.enMarche,enPreparation:Object.values(sv).some(x=>x&&x.pendante),positionOuverte:Object.values(sv).some(x=>x&&x.position)}), c=ae.chiffres(d.etat);
-      donnees.agentV3={nom:d.etat.identite.nom,valeur:st.texte,detail:(c.validees?c.validees+' stratégie(s)':'aucune stratégie validée')+' · v'+(c.version||'—'),ton:st.code==='position'||st.code==='preparation'?'attention':(st.code==='pause'||st.code==='aucune'||st.code==='pc_eteint'?'neutre':'ok')};
-      dessinerAgent();
-    }catch(e){ donnees.agentV3=null; }
-  }
-  document.addEventListener('click',ev=>{ const b=ev.target.closest&&ev.target.closest('[data-tb-liq]'); if(b){ ev.stopPropagation(); import(new URL('planetes/mars/pc/liquidite/fenetre-liquidite.js',document.baseURI).href).then(m=>m.ouvrirCarte({})).catch(()=>{}); } },true);   // V4 : lien vers la carte de liquidité
-  function dessinerAgent(){
-    const e=fen.agent; if(!e) return; const z=e.querySelector('[data-z=agent]');
-    const l=T.lignesAgent(donnees.reels,donnees.pilote);
-    if(donnees.agentV3) l.unshift(donnees.agentV3);   // V3 : l'agent unique (Kepler) : sa phrase d'état, lue sur le PC ou le Worker
-    const html=l.map(x=>'<li data-ton="'+x.ton+'"><span>'+esc(x.nom)+'</span><b>'+esc(x.valeur)+'</b><small>'+esc(x.detail)+'</small></li>').join('');+'<li class="tb-lien-liq"><button type="button" data-tb-liq title="Carnet d’ordres de Kraken et Binance enregistré par Kepler">💧 Ouvrir la carte de liquidité</button></li>';   // V4
-    if(z.dataset.sig!==html){ z.dataset.sig=html; z.innerHTML=html; }
-    const p=donnees.reels['propositions-agent'];
-    etiquette(e.querySelector('.tb-et'),donnees.reels['gardien-prop']&&donnees.reels['gardien-prop'].etat==='indisponible'?'indispo':(p&&p.etiquette==='SIMULÉ'?'simule':'reel'));
-  }
 
   /* ───── système ───── */
-  let veilleurActif=null;
-  async function sonderVeilleur(){ try{ const r=await fetch('/__veilleur/etat',{cache:'no-store'}); veilleurActif=r.ok?!!(await r.json()).enMarche:null; }catch(e){ veilleurActif=null; } majSysteme(); }
   function majSysteme(){
     const e=fen.systeme; if(!e) return; let info=null; try{ info=Entite.info(); }catch(x){}
     let worker=false; try{ worker=!!workerReady(); }catch(x){}
-    const l=T.lignesSysteme({worker,veilleur:veilleurActif,etat:corps.dataset.etat||'idle',mode:mode(),fps:info&&info.fps});
+    const l=T.lignesSysteme({worker,etat:corps.dataset.etat||'idle',mode:mode(),fps:info&&info.fps});
     const z=e.querySelector('[data-z=sys]'); const sig=JSON.stringify(l.map(x=>[x.id,x.valeur,x.ton]));
     if(z.dataset.sig!==sig){ z.dataset.sig=sig; z.innerHTML=l.map(x=>'<li data-ton="'+x.ton+'"><i class="led"></i><span>'+esc(x.nom)+'</span><b>'+esc(x.valeur)+'</b></li>').join(''); }
   }
@@ -236,17 +197,15 @@
   }
 
   /* ───── rafraîchissement : seulement quand l'accueil est visible ───── */
-  const CADENCES={meteo:15*60e3,actus:10*60e3,marche:60e3,terre:5*60e3,veilleur:30e3};
-  const dernier={}, charge={meteo:chargerMeteo,actus:chargerActus,marche:chargerMarche,terre:chargerTerre,veilleur:sonderVeilleur};
-  const util={meteo:'meteo',actus:'actus',marche:'marche',terre:'terre',veilleur:'systeme'};
+  const CADENCES={meteo:15*60e3,actus:10*60e3,marche:60e3,terre:5*60e3};
+  const dernier={}, charge={meteo:chargerMeteo,actus:chargerActus,marche:chargerMarche,terre:chargerTerre};
+  const util={meteo:'meteo',actus:'actus',marche:'marche',terre:'terre'};
   function rafraichirTout(){ for(const k of Object.keys(dernier)) dernier[k]=0; cadence(); }
   const TEST=window.__RAYLE_TB_TEST__||{};
   function cadence(){
     const g1=corps.classList.contains('g1');   // accueil G1 : il lit les mêmes données, même sans les fenêtres Jarvis
     if(TEST.sansReseau||!visible()||(!g1&&!corps.classList.contains('tb-actif'))) return; const now=Date.now();
     for(const k of Object.keys(charge)){ if(!g1&&!fen[util[k]]) continue; if(now-(dernier[k]||0)>=CADENCES[k]){ dernier[k]=now; charge[k](); } }
-    if(fen.agent||g1) demarrerAgent();
-    if(fen.agent||g1) sonderAgentV3();
   }
   setInterval(()=>{ if(visible()&&corps.classList.contains('tb-actif')){ tic(); } },1000);
   setInterval(cadence,15000);
@@ -268,7 +227,6 @@
     reglages:()=>{ const g=$('gear'); if(g) g.click(); },
     meteo:()=>{ if(!reglages.meteo.nom&&reglages.meteo.lat==null){ const g=$('gear'); if(g) g.click(); return; } vueMeteo(); },
     actus:()=>{ if(window.ActusAccueil) ActusAccueil.ouvrir('france'); },
-    agent:async()=>{ try{ await importer('planetes/mars/pc/trading/fenetre-agent.js'); await window.PosteAgent.ouvrir({}); }catch(e){ try{ RayleBus.emit('log',{kind:'err',texte:'Agent : '+e.message}); }catch(x){} } },
     terminal:()=>{ const b=$('btnOuvrirTerminal'); if(b) b.click(); },
     terre:()=>{ if(window.DirectPage) DirectPage.ouvrirHub('evenements').catch(()=>{}); }
   };
@@ -325,14 +283,12 @@
     const def=T.FENETRES.find(f=>f.id===id); if(!def) return null;
     const e=fen[id]||fabriquer(def,0); e.dataset.detache='1'; if(e.parentNode) e.parentNode.removeChild(e);
     delete e.dataset.sig; const z=e.querySelector('[data-z]'); if(z) delete z.dataset.sig;
-    dessinerMeteo(); dessinerActus(); dessinerMarche(); dessinerTerre(); dessinerAgent(); tic(); return e;
+    dessinerMeteo(); dessinerActus(); dessinerMarche(); dessinerTerre(); tic(); return e;
   }
   function rattacher(id){ const e=fen[id]; if(!e) return false; delete e.dataset.detache; if(e.parentNode) e.parentNode.removeChild(e); construire(); return true; }
   window.TableauBord={detacher,rattacher,titres:()=>T.FENETRES.map(f=>({id:f.id,titre:f.titre})),vue:id=>{ const e=fen[id]||T.FENETRES.find(f=>f.id===id); const v=e&&VUES[e.dataset?e.dataset.ouvre:e.ouvre]; if(v) v(); return !!v; },donnees:()=>donnees,etat:()=>({actif:corps.classList.contains('tb-actif'),fenetres:Object.keys(fen),donnees:Object.keys(donnees).filter(k=>donnees[k]&&Object.keys(donnees[k]).length),reglages}),
     rafraichir:rafraichirTout,reglages:()=>reglages,definirReglages:r=>{ reglages=T.normaliserReglages(r); sauver(); dessinerReglages(); construire(); },ouvrir:id=>{ const e=fen[id]; if(e&&VUES[e.dataset.ouvre]){ VUES[e.dataset.ouvre](); return true; } return false; },
     /* tests : injecter des données sans réseau */
-    injecter:(cle,val)=>{ donnees[cle]=val; ({meteo:dessinerMeteo,actus:dessinerActus,marche:dessinerMarche,terre:dessinerTerre,reels:dessinerAgent,pilote:dessinerAgent})[cle]&&({meteo:dessinerMeteo,actus:dessinerActus,marche:dessinerMarche,terre:dessinerTerre,reels:dessinerAgent,pilote:dessinerAgent})[cle](); }};
-  /* « Teste ma stratégie » : si des stratégies de l'utilisatrice sont en alertes, leur suivi démarre dès l'accueil (une fois par bougie M15 fermée), sans ouvrir le poste ni garder la fenêtre « Agent » affichée */
-  setTimeout(()=>{ try{ const reg=localStorage.getItem('rayle_ms_registre'); if(reg&&/"alertes":\{"actif":true/.test(reg)) import(new URL('planetes/mars/pc/trading/ms-page.js',document.baseURI).href).then(m=>m.demarrerAlertesMS()).catch(()=>{}); }catch(e){} },6000);
+    injecter:(cle,val)=>{ donnees[cle]=val; ({meteo:dessinerMeteo,actus:dessinerActus,marche:dessinerMarche,terre:dessinerTerre})[cle]&&({meteo:dessinerMeteo,actus:dessinerActus,marche:dessinerMarche,terre:dessinerTerre,reels:dessinerAgent,pilote:dessinerAgent})[cle](); }};
   construire(); tic(); corps.classList.toggle('tb-pause',!visible());
 })();

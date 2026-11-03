@@ -1,8 +1,8 @@
 import { couleurChaleur, miseEnPage, convertisseurs, plagePrix, graduations, couleurMur, COULEURS } from '../../planetes/mars/pc/liquidite/rendu-carte.js';
-import { creerStockageMemoire } from '../../strategies/liquidite/stockage-memoire.js';
-import { encoderEnregistrement, decoderSegments, encoderEntete, encoderSegments, decoderEnregistrement } from '../../strategies/liquidite/format-profondeur.js';
-import { analyserLiquidite, barresDepuisBougies, histoProfil } from '../../strategies/liquidite/analyse.js';
-import { profilVolume, trancheDe } from '../../strategies/liquidite/barres-flux.js';
+import { creerStockageMemoire } from '../../planetes/mars/pc/liquidite/moteur/stockage-memoire.js';
+import { encoderEnregistrement, decoderSegments, encoderEntete, encoderSegments, decoderEnregistrement } from '../../planetes/mars/pc/liquidite/moteur/format-profondeur.js';
+import { analyserLiquidite, barresDepuisBougies, histoProfil } from '../../planetes/mars/pc/liquidite/moteur/analyse.js';
+import { profilVolume, trancheDe } from '../../planetes/mars/pc/liquidite/moteur/barres-flux.js';
 
 let ok = 0, ko = 0;
 const v = (nom, cond, detail = '') => { if (cond) ok++; else { ko++; console.log('KO  ' + nom + (detail !== '' ? ' — ' + detail : '')); } };

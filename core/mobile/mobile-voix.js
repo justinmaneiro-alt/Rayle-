@@ -3,7 +3,6 @@
    Toute demande qui ouvrait une scène de Galaxie ou une fenêtre du PC ouvre ici l'ÉQUIVALENT Jarvis, en plein écran :
      « donne-moi l'actualité en France », « les infos »      → écran Actualités (lecture des titres si on demande de lire / présenter)
      « affiche le terminal », « ouvre le terminal de trading »  → terminal tactile
-     « ouvre l'agent », « les positions du jour », « le bilan »   → écran Agents trading
      « ouvre la carte »                                          → carte plate de la Terre ; « réglages » → réglages
      « ouvre la galaxie », « mode galaxie »                      → « Le mode Galaxie est réservé au PC ; ici je reste sur Jarvis. » (et on reste sur Jarvis)
    Branché dans phrase.js par MobileVoix.commande(texte) (absent sur PC : rien ne change). Galerie « montre-moi des photos de… » : plein écran, balayage, auteur + licence + lien toujours visibles. */
@@ -17,17 +16,6 @@
     const r=C.routeCommande(texte); if(!r) return null;
     const n=' '+norm(texte)+' ';
     if(r.ecran==='galaxie-refus'){ Coque.aller('accueil'); return RayleAppareil.MESSAGE_GALAXIE; }
-    if(r.ecran==='agent'){
-      Coque.aller('agent');
-      const onglet=/ bilan | performance | resultats? /.test(n)?'performance':/ strateg|pourquoi pas plus | pistes? /.test(n)?'strategies':/ graphique /.test(n)?'graphique':'positions';
-      if(window.MobileAgent) MobileAgent.aller(onglet);
-      const e=window.MobileAgent&&MobileAgent.etat(), P=e&&e.data&&e.data.paquet&&e.data.paquet.positions;
-      if(!P) return 'Voici l’agent Kepler. Je charge ses données.';
-      const nb=(P.propositions||[]).filter(p=>['en_attente','ouverte'].includes(p.statut)).length;
-      return onglet==='performance'?'Voici le bilan de Kepler. '+((P.bilan&&P.bilan.tous&&P.bilan.tous.phrase)||'')
-        :nb?'Voici Kepler : '+nb+' position'+(nb>1?'s':'')+' du jour, chacune avec son niveau de preuve. Ce sont des propositions de simulation, jamais des ordres.'
-        :'Voici Kepler. Aucune position n’est proposée pour l’instant, et l’écran explique pourquoi.';
-    }
     if(r.ecran==='terminal'){ clic('btnOuvrirTerminal'); return 'Voici le terminal.'; }
     if(r.ecran==='carte'){ if(window.HoteModules) HoteModules.ouvrirTerre().catch(()=>{}); return 'Voici la carte du monde.'; }
     if(r.ecran==='reglages'){ clic('gear'); return 'Voici les réglages.'; }

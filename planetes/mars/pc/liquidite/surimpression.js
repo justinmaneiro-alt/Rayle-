@@ -1,5 +1,5 @@
 /* Surimpression de la carte de liquidité sur le graphique « Raylé » du terminal (V4, phase 4) : murs actifs, cible, défense, invalidation, posés en lignes de prix par-dessus les bougies.
-   Fonctionne seulement sur le graphique Raylé (le widget TradingView est une iframe : on ne peut pas dessiner dessus). Source : le service PC (/__flux/analyse) ; sans lui, rien n'est tracé
+   Fonctionne seulement sur le graphique Raylé (le widget TradingView est une iframe : on ne peut pas dessiner dessus). Source : /__flux/analyse (non fournie depuis le retrait des agents) ; sans elle, rien n'est tracé
    et le dit. Aucun ordre ; ce sont des HYPOTHÈSES de lecture (titres « mur » / « cible », jamais « achète »). */
 export const ACTIF_DE = Object.freeze({ BTC: 'BTC', SOL: 'SOL', DOGE: 'DOGE' });
 const fmtM = u => (u >= 1e6 ? (u / 1e6).toFixed(1).replace('.', ',') + ' M$' : Math.round(u / 1e3) + ' k$');
@@ -25,7 +25,7 @@ export function creerSurimpression({ graphique, instrument, venue = 'binance-spo
     try {
       const r = await fetchImpl('/__flux/analyse?actif=' + act + '&venue=' + venue + '&minutes=20', { cache: 'no-store' }); if (!r.ok) throw new Error('HTTP ' + r.status); const j = await r.json(); if (!j.ok) throw new Error(j.erreur || 'erreur');
       dernier = j.analyse; const n = niveauxDepuisAnalyse(dernier); g.surimposer(n); surEtat({ ok: true, texte: n.length ? n.length + ' niveaux de liquidité posés (hypothèses de lecture)' : 'Aucun mur net en ce moment.', analyse: dernier });
-    } catch (e) { g.surimposer([]); surEtat({ ok: false, texte: 'Surimpression indisponible : le service PC ne répond pas (' + String(e.message).slice(0, 60) + ').' }); }
+    } catch (e) { g.surimposer([]); surEtat({ ok: false, texte: 'Surimpression indisponible (' + String(e.message).slice(0, 60) + ').' }); }
   }
   return { activer() { if (actif) return; actif = true; maj(); minuteur = setInterval(maj, intervalleMs); }, desactiver() { actif = false; clearInterval(minuteur); const g = graphique(); if (g && g.surimposer) g.surimposer([]); surEtat({ ok: true, texte: '' }); }, maj, actif: () => actif, dernier: () => dernier };
 }

@@ -135,12 +135,12 @@ export function creerBase({ profil, aniso = 8 }) {
   const sprites = [grandHalo(2.7, 0, CYAN, 4.2), grandHalo(-2.7, 0.1, AMBRE, 3.2), grandHalo(0, 0, CYAN, 2.2)];
 
   racine.add(zones.bureau, zones.terminal);
-  marquer(zones.bureau, 'bureau'); marquer(zones.terminal, 'terminal');
+  marquer(zones.terminal, 'terminal');
   // les parties communes (noyau, piste) servent d'entrée du terminal
   marquer(noyau, 'terminal');
 
   // Points d'ancrage pour les étiquettes (repère local)
-  const ancres = { bureau: new THREE.Vector3(-2.9, 1.9, 0.2), terminal: new THREE.Vector3(2.9, 2.1, 0.0) };
+  const ancres = { terminal: new THREE.Vector3(2.9, 2.1, 0.0) };
 
   function maj(t, nuit) {
     const k = 0.55 + nuit * 1.55;                                               // intensité des lumières

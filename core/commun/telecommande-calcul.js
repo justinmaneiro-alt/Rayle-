@@ -7,7 +7,7 @@
   const nb = (v, m) => (typeof v === 'number' && isFinite(v)) ? Math.max(-m, Math.min(m, v)) : null;
   const COMMANDES = ['accueil', 'terre', 'mars', 'saturne', 'atelier3d', 'precedent', 'suivant', 'fermer', 'retour', 'plein_ecran', 'mode_leger', 'capture'];
   const RAYLE = ['parler_debut', 'parler_fin', 'veille', 'coupe', 'actif', 'stop_parole', 'volume', 'fenetre'];
-  const FENETRES = ['meteo', 'actualites', 'marche', 'agent'];
+  const FENETRES = ['meteo', 'actualites', 'marche'];
   const SPECIAUX = ['Backspace', 'Enter', ' ', 'Tab', 'Escape'];
   const VUES = ['cockpit', 'exterieur', 'libre'];
   const MODES = ['pave', 'clavier', 'rayle', 'pilotage', 'carte', 'pad3d'];

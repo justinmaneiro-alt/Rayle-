@@ -1,6 +1,6 @@
 /* Commandes vocales de la carte de liquidité (V4, phase 4) — script classique chargé après veilleur-page.js ; branché dans phrase.js (après les sources en direct).
    « ouvre la carte de liquidité », « montre-moi la liquidité sur Solana », « carte de liquidité Kraken », « où va le marché ? », « rejoue la dernière heure », « ferme la carte de liquidité ».
-   Aucune IA : la réponse parlée vient des chiffres du moteur (strategies/liquidite), toujours avec « hypothèse, pas une promesse ». Rien n'est inventé : sans données, elle le dit. */
+   Aucune IA : la réponse parlée vient des chiffres du moteur (planetes/mars/pc/liquidite/moteur), toujours avec « hypothèse, pas une promesse ». Rien n'est inventé : sans données, elle le dit. */
 (function(){
   const nz=t=>String(t||'').normalize('NFD').replace(/[̀-ͯ]/g,'').toLowerCase().replace(/[^a-z0-9 ]+/g,' ').replace(/\s+/g,' ').trim();
   const ACTIFS={btc:'BTC',bitcoin:'BTC',sol:'SOL',solana:'SOL',doge:'DOGE',dogecoin:'DOGE'};
@@ -19,7 +19,7 @@
     const parleLiquidite=/\b(carte de liquidite|liquidite|carnet d ordres|carte de chaleur|heatmap|bookmap)\b/.test(n);
     if(/\bferme\w*\b/.test(n)&&parleLiquidite){ if(window.CarteLiquidite&&window.CarteLiquidite.ouverte()){ window.CarteLiquidite.fermer(); return 'C’est fermé.'; } return null; }
     if(/\b(ou va le marche|prochain aimant|quel est l objectif|ou est l aimant|niveau de defense)\b/.test(n)&&!/\bagent\b/.test(n)){
-      const a=await analyseRapide(actifDe(n),fluxDe(n)); if(!a) return 'Je n’ai pas de carnet à lire pour le moment : le service Kepler n’enregistre pas, et la carte de liquidité n’est pas ouverte en direct.'; return dire(a);
+      const a=await analyseRapide(actifDe(n),fluxDe(n)); if(!a) return 'Je n’ai pas de carnet à lire pour le moment : la carte de liquidité n’est pas ouverte en direct.'; return dire(a);
     }
     if(!parleLiquidite) return null;
     if(!/\b(ouvre|ouvrir|montre|montrer|affiche|afficher|lance|donne|vois|voir|rejoue|rejouer|relecture)\b/.test(n)&&n.split(' ').length>5) return null;

@@ -148,8 +148,7 @@
 
   /* ───── contenus de la grande fenêtre ───── */
   let courant=null, ctrlGraph=null;
-  const lignesAgent=()=>{ const d=D(); return T.lignesAgent(d.reels||{},d.pilote||null); };
-  const BOUTONS_PIED={meteo:null,afaire:null,messages:null,sante:['Ouvrir l’anatomie 3D (Saturne)','sante'],marche:['Ouvrir la vue complète','marche'],actus:['Ouvrir la vue complète','actus'],alertes:['Ouvrir l’agent de Mars','agent'],terre:['Ouvrir la vue complète','terre'],systemes:['Ouvrir les réglages','reglages']};
+  const BOUTONS_PIED={meteo:null,afaire:null,messages:null,sante:['Ouvrir l’anatomie 3D (Saturne)','sante'],marche:['Ouvrir la vue complète','marche'],actus:['Ouvrir la vue complète','actus'],alertes:null,terre:['Ouvrir la vue complète','terre'],systemes:['Ouvrir les réglages','reglages']};
   const SQUELETTES={
     meteo:()=>'<div class="g1-rech"><input id="g1Ville" type="search" placeholder="Rechercher une ville" autocomplete="off" spellcheck="false" aria-label="Rechercher une ville"><button type="button" data-a="ville">Chercher</button><button type="button" data-a="position">Utiliser ma position</button></div><div class="g1-res" id="g1Res" aria-live="polite"></div><div data-z="meteo"></div>',
     afaire:()=>'<div data-z="compteurs"></div><form class="g1-ajout" id="g1Ajout"><input id="g1Tache" type="text" maxlength="140" placeholder="Nouvelle tâche" aria-label="Nouvelle tâche" autocomplete="off"><input id="g1TacheDate" type="date" aria-label="Échéance (facultatif)"><button type="submit">Ajouter</button></form><div data-z="liste"></div>',
@@ -184,8 +183,7 @@
       maj(zone('actus'),!a?'<p class="g1-vide">Lecture…</p>':a.erreur?'<p class="g1-vide g1-ko">INDISPONIBLE : '+esc(a.erreur)+'</p>':a.titres&&a.titres.length?'<ul class="g1-liste g1-actus">'+a.titres.slice(0,10).map(t=>'<li><i class="pt"></i><div><b>'+esc(t.titre)+'</b><small>'+esc(t.source||'')+(t.quand?' · '+esc(t.quand):'')+'</small></div></li>').join('')+'</ul>':'<p class="g1-vide">Aucune actualité reçue.</p>');
     },
     alertes(){
-      const ag=lignesAgent();
-      maj(zone('alertes'),(alertes.length?'<ul class="g1-liste">'+alertes.map(a=>'<li><i class="pt"></i><div><b>'+esc(a.txt)+'</b><small>'+T.age(a.t,Date.now())+'</small></div></li>').join('')+'</ul>':'<p class="g1-vide">Aucune alerte depuis l’ouverture.</p>')+'<h4 class="g1-sous">Agent de Mars</h4>'+(ag.length?'<ul class="g1-agent">'+ag.slice(0,5).map(x=>'<li data-ton="'+x.ton+'"><span>'+esc(x.nom)+'</span><b>'+esc(x.valeur)+'</b></li>').join('')+'</ul>':'<p class="g1-vide">Agent : aucune donnée.</p>'));
+      maj(zone('alertes'),(alertes.length?'<ul class="g1-liste">'+alertes.map(a=>'<li><i class="pt"></i><div><b>'+esc(a.txt)+'</b><small>'+T.age(a.t,Date.now())+'</small></div></li>').join('')+'</ul>':'<p class="g1-vide">Aucune alerte depuis l’ouverture.</p>'));
     },
     terre(){
       const t=D().terre;
@@ -193,13 +191,11 @@
     },
     systemes(){
       let worker=false; try{ worker=!!workerReady(); }catch(e){} let info=null; try{ info=Entite.info(); }catch(e){}
-      const l=T.lignesSysteme({worker,veilleur,etat:corps.dataset.etat||'idle',mode:mode(),fps:info&&info.fps}), ok=l.filter(x=>x.ton==='ok').length, pct=Math.round(100*ok/Math.max(1,l.length));
+      const l=T.lignesSysteme({worker,etat:corps.dataset.etat||'idle',mode:mode(),fps:info&&info.fps}), ok=l.filter(x=>x.ton==='ok').length, pct=Math.round(100*ok/Math.max(1,l.length));
       maj(zone('systemes'),'<div class="g1-pct"><b>'+pct+' %</b><small>systèmes en état</small></div><ul class="g1-sys">'+l.map(x=>'<li data-ton="'+x.ton+'"><i class="led"></i><span>'+esc(x.nom)+'</span><b>'+esc(x.valeur)+'</b></li>').join('')+'</ul>');
     },
     marche(){}
   };
-  let veilleur=null;
-  async function sonderVeilleur(){ try{ const r=await fetch('/__veilleur/etat',{cache:'no-store'}); veilleur=r.ok?!!(await r.json()).enMarche:null; }catch(e){ veilleur=null; } majFenetre('systemes'); }
   const ecMeteo=[];
   function majFenetre(seul){ if(seul==='meteo') ecMeteo.forEach(f=>{ try{ f(); }catch(e){} }); if(courant&&(!seul||seul===courant)&&RENDU[courant]) RENDU[courant](); }
   const sauverTaches=()=>ecrire('rayle_g1_taches',JSON.stringify(taches));
@@ -222,7 +218,7 @@
     $('g1Ariane').innerHTML='<span>Accueil</span> › <span>'+esc(titre)+'</span>';
     if(premier){ fen.classList.remove('sortie'); fen.classList.remove('entre'); void fen.offsetWidth; fen.classList.add('entre'); }
     if(id==='marche'&&window.GraphiqueBougies) ctrlGraph=GraphiqueBougies.monter($('g1Marche'),{leger:mode()==='leger'});
-    if(id==='meteo') chargerMeteoDetail(); if(id==='systemes') sonderVeilleur();
+    if(id==='meteo') chargerMeteoDetail();
     RENDU[id](); return true;
   }
   function fermer(){
@@ -242,7 +238,6 @@
     actus:()=>{ if(window.ActusAccueil) ActusAccueil.ouvrir('france'); },
     marche:()=>{ const b=$('btnOuvrirTerminal'); if(b) b.click(); },
     terre:()=>{ if(window.DirectPage) DirectPage.ouvrirHub('evenements').catch(()=>{}); },
-    agent:()=>{ try{ if(window.TableauBord) window.TableauBord.ouvrir('agent'); }catch(e){} },
     sante:()=>allerPlanete('saturne'),
     reglages:()=>{ const g=$('gear'); if(g) g.click(); }
   };
@@ -294,7 +289,7 @@
   };
   const ICONES=[['accueil','Accueil'],['vie','Vie'],['comm','Communications'],['espaces','Espaces'],['reglages','Réglages']];
   $('g1Icones').innerHTML=ICONES.map(i=>'<button type="button" class="g1-ic" data-i="'+i[0]+'" aria-label="'+i[1]+'" title="'+i[1]+'"><span class="g1-ic-r">'+IC[i[0]]+'</span><small>'+i[1]+'</small></button>').join('');
-  const PLANETES=[['terre','Terre'],['mars','Mars'],['saturne','Saturne'],['agent','Agent IA'],['terminal','Terminal'],['galaxie','Galaxie'],['pays','Pays'],['sources','Sources'],['couper','Couper']];
+  const PLANETES=[['terre','Terre'],['mars','Mars'],['saturne','Saturne'],['terminal','Terminal'],['galaxie','Galaxie'],['pays','Pays'],['sources','Sources'],['couper','Couper']];
   $('g1Menu').innerHTML=PLANETES.map(p=>'<button type="button" data-p="'+p[0]+'">'+p[1]+'</button>').join('');
   const clic=id=>{ const b=$(id); if(b) b.click(); };
   async function allerPlanete(cible){
@@ -315,7 +310,7 @@
   });
   $('g1Menu').addEventListener('click',ev=>{
     const b=ev.target.closest('[data-p]'); if(!b) return; $('g1Menu').hidden=true; const p=b.dataset.p;
-    if(p==='agent') clic('btnAgent'); else if(p==='terminal') clic('btnOuvrirTerminal'); else if(p==='galaxie') clic('btnOuvrirGalaxie'); else if(p==='pays') clic('btnPays'); else if(p==='sources') clic('btnSources'); else if(p==='couper') clic('btnCouper'); else allerPlanete(p);
+    if(p==='terminal') clic('btnOuvrirTerminal'); else if(p==='galaxie') clic('btnOuvrirGalaxie'); else if(p==='pays') clic('btnPays'); else if(p==='sources') clic('btnSources'); else if(p==='couper') clic('btnCouper'); else allerPlanete(p);
   });
   document.addEventListener('pointerdown',ev=>{ if(!ev.target.closest('.g1-dock')) $('g1Menu').hidden=true; });
   $('g1Etat').addEventListener('click',()=>clic('btn'));
@@ -353,7 +348,7 @@
     dessinerFil(); dessinerGraphes(); dessinerEclats(); poser($('g1EtatT'),C.libelleEtat(corps.dataset.etat||'idle',(()=>{ try{ return !!workerReady(); }catch(e){ return false; } })()));
     if(courant&&courant!=='meteo'&&courant!=='afaire') majFenetre();
   }
-  function rafraichir(){ dessinerTout(); chargerMeteoDetail(); sonderVeilleur(); }
+  function rafraichir(){ dessinerTout(); chargerMeteoDetail(); }
   function etatVisible(){
     corps.classList.toggle('g1-pause',!surAccueil());
     appliquerPalette();

@@ -3,10 +3,10 @@ import { creerCalcul } from '../../../core/commun/fenetres-calcul.js';
 let n = 0, ko = 0; const ok = (c, m) => { n++; if (!c) { ko++; console.log('ÉCHEC :', m); } };
 
 ok(verifierGroupes().length === 0, 'groupes cohérents : ' + verifierGroupes().join(' | '));
-ok(PANNEAUX_TERMINAL.length === 27 && PANNEAUX_TERMINAL.filter(p => p.mur).length === 21, 'tous les panneaux : 21 du mur + 6 extras (dont « Agents prêts » V2) (' + PANNEAUX_TERMINAL.length + ')');
-ok(GROUPES.every(g => g.panneaux.length >= 1) && GROUPES.length === 7, '7 dossiers non vides');
+ok(PANNEAUX_TERMINAL.length === 17 && PANNEAUX_TERMINAL.filter(p => p.mur).length === 13, 'tous les panneaux : 13 du mur + 4 extras (' + PANNEAUX_TERMINAL.length + ')');
+ok(GROUPES.every(g => g.panneaux.length >= 1) && GROUPES.length === 4, '4 dossiers non vides');
 ok(Object.keys(GRAPHIQUES).length === 5, '5 graphiques en bougies');
-ok(groupeDe('taux') === 'macro' && groupeDe('gardien-prop') === 'perf' && groupeDe('graphique-btc') === 'graphiques', 'groupe de chaque panneau');
+ok(groupeDe('taux') === 'macro' && groupeDe('graphique-btc') === 'graphiques', 'groupe de chaque panneau');
 ok(Object.values(REGISTRE_DE).every(Boolean), 'correspondance avec le registre');
 for (const s of PRESETS) ok(s.panneaux.length >= 3, 'préréglage ' + s.id);
 let e = etatInitial(); e = basculer(e, 'taux'); ok(e.ouverts.join() === 'taux', 'basculer ajoute'); e = basculer(e, 'taux'); ok(e.ouverts.length === 0, 'basculer retire');

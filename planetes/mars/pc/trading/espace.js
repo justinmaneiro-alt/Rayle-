@@ -4,17 +4,14 @@ import { correlations, lectureCorrelation, resume } from './analyse.js';
 import { age, heureParis } from './serie.js';
 import { UNITES_DASHBOARD, colonne, constatsContexte, formaterUsd, global as globalDash, lignesContexte } from './dashboard.js';
 import { creerTradingView } from './tradingview.js';
-import { creerPanneauAgentV3 } from './panneau-agent-v3.js';
-import { creerPanneauAlertes } from './panneau-alertes.js';
 import { creerPanneauActus, creerPanneauBanques, creerPanneauCalendrier, creerPanneauCot, creerPanneauNasdaq, creerPanneauPublications, creerPanneauTaux } from './panneaux-finance.js';
 import { lireCotations } from './cotations.js';
 
 /* ═════════════ ESPACE DE TRAVAIL « BLOOMBERG » : le terminal de la base Mars ═════════════
    Une grande fenêtre multi-panneaux : graphique principal (chandeliers, indicateurs, profil de volume, supports / résistances), watchlist avec variation en direct,
    résumé de marché, et un dock à onglets (positions, corrélations, performance, signaux, puis les panneaux des étapes suivantes). Tout ce qui est réel affiche sa source et
-   son heure ; ce qui ne l'est pas (positions, performance, signaux de l'agent) reste marqué EXEMPLE. Aucun appel à l'IA : zéro jeton.
-   STRUCTURE POUR LA SUITE : PANNEAUX ci-dessous est le registre. M2b ajoutera cot, calendrier, actus, heatmap, dashboards (état 'bientot' → 'reel') ; M3 le backtest et la
-   vraie performance ; M4 l'agent stratège. Ajouter un panneau = une entrée dans PANNEAUX (+ une fonction `creer`), rien d'autre à toucher. */
+   son heure ; ce qui ne l'est pas reste marqué EXEMPLE. Aucun appel à l'IA : zéro jeton.
+   STRUCTURE POUR LA SUITE : PANNEAUX ci-dessous est le registre. M2b ajoutera cot, calendrier, actus, heatmap, dashboards (état 'bientot' → 'reel'). Ajouter un panneau = une entrée dans PANNEAUX (+ une fonction `creer`), rien d'autre à toucher. */
 const CLE_PREFS = 'rayle_mars_trading';
 const lirePrefs = () => { try { return JSON.parse(localStorage.getItem(CLE_PREFS) || '{}') || {}; } catch (e) { return {}; } };
 const ecrirePrefs = p => { try { localStorage.setItem(CLE_PREFS, JSON.stringify(p)); } catch (e) { /* stockage interdit : tant pis */ } };
@@ -33,14 +30,11 @@ export function descriptionSource(r, maintenant = Date.now()) {
 }
 
 /* ── Registre des panneaux ── */
-const MSG_STRATEGE = 'Il n’y a pas d’agent stratège séparé : la recherche de stratégies et les alertes sont faites par l’agent Kepler (onglet « Agent BTC »), et Raylé t’explique à la voix. Les scénarios commentés avant les séances ne sont pas construits : rien n’est inventé à leur place.';
 export const PANNEAUX = {
   watchlist: { titre: 'Watchlist', zone: 'droite', etat: 'reel', creer: creerWatchlist },
   resume: { titre: 'Résumé de marché', zone: 'droite', etat: 'reel', creer: creerResume },
   dashboard: { titre: 'Dashboard analytique', zone: 'dock', etat: 'reel', creer: creerDashboard },
   contexte: { titre: 'Contexte de marché', zone: 'dock', etat: 'reel', creer: creerContexte },
-  agent: { titre: 'Agent BTC', zone: 'dock', etat: 'reel', grand: true, creer: c => creerPanneauAgentV3(c) },   // V3b : page simple de l'agent Kepler (service PC / Worker) + onglet « Détails » (l'ancienne page, intacte)
-  alertes: { titre: 'Alertes', zone: 'dock', etat: 'reel', grand: true, creer: () => creerPanneauAlertes() },
   correlations: { titre: 'Corrélations', zone: 'dock', etat: 'reel', creer: creerCorrelations },
   cot: { titre: 'COT (CFTC)', zone: 'dock', etat: 'reel', grand: true, creer: () => creerPanneauCot() },
   calendrier: { titre: 'Calendrier', zone: 'dock', etat: 'reel', grand: true, creer: () => creerPanneauCalendrier() },
@@ -48,10 +42,8 @@ export const PANNEAUX = {
   banques: { titre: 'Banques centrales', zone: 'dock', etat: 'reel', grand: true, creer: () => creerPanneauBanques() },
   taux: { titre: 'Taux', zone: 'dock', etat: 'reel', grand: true, creer: () => creerPanneauTaux() },
   heatmap: { titre: 'Nasdaq 100', zone: 'dock', etat: 'reel', grand: true, creer: () => creerPanneauNasdaq() },
-  publications: { titre: 'Banques et analyses', zone: 'dock', etat: 'reel', grand: true, creer: () => creerPanneauPublications() },
-  strategie: { titre: 'Agent stratège', zone: 'dock', etat: 'info', creer: () => explication(MSG_STRATEGE) }
+  publications: { titre: 'Banques et analyses', zone: 'dock', etat: 'reel', grand: true, creer: () => creerPanneauPublications() }
 };
-function explication(texte) { const e = h('div', 'tg-bientot'); e.innerHTML = '<b>PAS D’AGENT STRATÈGE SÉPARÉ</b><p>' + esc(texte) + '</p><i>Rien n’est affiché ici tant qu’aucune donnée réelle n’existe.</i>'; return { racine: e, maj() {}, detruire() {} }; }
 
 function creerWatchlist(c) {
   const racine = h('div', 'tg-watch'), pied = h('div', 'tg-pied'); const lignes = {};
@@ -199,18 +191,11 @@ export function creerEspace({ conteneur, client, tactile = false, depart = {}, s
   bPlein.onclick = () => { etat.plein = !etat.plein; conteneur.classList.toggle('tg-plein', etat.plein); bPlein.textContent = etat.plein ? '▤ Espace complet' : '▣ Graphique seul'; };
   const sourceBtns = h('div', 'tg-source'); sourceBtns.title = 'Graphique : widget TradingView (MA 200 + RSI préchargés) ou graphique maison de Raylé';
   for (const [k, nom] of [['tv', 'TradingView'], ['rayle', 'Raylé']]) { const b = h('button', 'tg-btn tg-src-btn', nom); b.type = 'button'; b.dataset.source = k; b.onclick = () => choisirSource(k); sourceBtns.appendChild(b); }
-  // V4 : carte de liquidité (fenêtre) et surimpression des murs / aimants sur le graphique Raylé
+  // Carte de liquidité (fenêtre)
   const ACT_LIQ = { BTC: 'BTC', SOL: 'SOL', DOGE: 'DOGE' };
-  const bLiq = h('button', 'tg-btn tg-liq', '💧 Carte de liquidité'); bLiq.type = 'button'; bLiq.title = 'Ouvrir la carte de liquidité (carnet d’ordres de Kraken et Binance, enregistré par Kepler)';
+  const bLiq = h('button', 'tg-btn tg-liq', '💧 Carte de liquidité'); bLiq.type = 'button'; bLiq.title = 'Ouvrir la carte de liquidité (carnet d’ordres de Kraken et Binance)';
   bLiq.onclick = () => import('../liquidite/fenetre-liquidite.js').then(m => m.ouvrirCarte({ actif: ACT_LIQ[etat.instrument] || undefined })).catch(() => { /* indisponible */ });
-  const lblSur = h('label', 'tg-sur'); lblSur.innerHTML = '<input type="checkbox" data-sur> Murs et cibles sur le graphique'; lblSur.title = 'Visible sur le graphique Raylé (pas sur le widget TradingView) ; BTC, SOL, DOGE ; demande le service PC';
-  const noteSur = h('span', 'tg-sur-note'); let surimp = null;
-  lblSur.querySelector('input').onchange = async e => {
-    if (!surimp) { const M = await import('../liquidite/surimpression.js'); surimp = M.creerSurimpression({ graphique: () => graphique, instrument: () => etat.instrument, surEtat: x => { noteSur.textContent = x.texte || ''; noteSur.dataset.ok = x.ok ? '1' : '0'; } }); }
-    try { localStorage.setItem('rayle_lq_surimpression', e.target.checked ? '1' : '0'); } catch (x) { /* interdit */ }
-    if (e.target.checked) { if (etat.source === 'tv') { noteSur.textContent = 'Passe au graphique « Raylé » pour voir les niveaux (TradingView ne se laisse pas dessiner).'; } surimp.activer(); } else surimp.desactiver();
-  };
-  actions.append(sourceBtns, menuInd, bRecadrer, bDock, bPlein, bRafraichir, bLiq, lblSur, noteSur);
+  actions.append(sourceBtns, menuInd, bRecadrer, bDock, bPlein, bRafraichir, bLiq);
   barre.append(chips, unites, actions);
 
   // panneaux
@@ -225,7 +210,7 @@ export function creerEspace({ conteneur, client, tactile = false, depart = {}, s
     else { const o = h('button', 'tg-onglet tg-e-' + p.etat, esc(p.titre)); o.type = 'button'; o.dataset.panneau = id; o.onclick = () => choisirDock(id); onglets.appendChild(o); corpsDock.appendChild(boite); boite.classList.add('tg-dock-p'); }
   }
   function choisirDock(id) {
-    etat.dock = id; conteneur.classList.toggle('tg-agent-ouvert', !!(PANNEAUX[id] && PANNEAUX[id].grand)); for (const o of onglets.children) o.classList.toggle('actif', o.dataset.panneau === id);
+    etat.dock = id; for (const o of onglets.children) o.classList.toggle('actif', o.dataset.panneau === id);
     for (const b of corpsDock.children) b.classList.toggle('visible', b.dataset.panneau === id);
     if (instances[id] && instances[id].maj) instances[id].maj(); sauver();
   }
@@ -275,7 +260,7 @@ export function creerEspace({ conteneur, client, tactile = false, depart = {}, s
     let premiere = true;
     desabonner = client.abonner(etat.instrument, etat.unite, r => { if (mon !== chargement) return; appliquer(r, premiere && !r.vide); if (!r.vide) premiere = false; }, { tick: 15000, forcer });
   }
-  function choisirInstrument(id) { if (!INSTRUMENTS[id] || id === etat.instrument) return false; etat.instrument = id; setTimeout(() => surimp && surimp.maj(), 1500); sauver(); majBarre(); charger(); majTV(); if (etat.dock === 'dashboard') instances.dashboard.maj(); return true; }
+  function choisirInstrument(id) { if (!INSTRUMENTS[id] || id === etat.instrument) return false; etat.instrument = id; sauver(); majBarre(); charger(); majTV(); if (etat.dock === 'dashboard') instances.dashboard.maj(); return true; }
   function choisirUnite(u) { if (!UNITES[u] || u === etat.unite) return false; etat.unite = u; sauver(); majBarre(); charger(); majTV(); return true; }
   /* Focus venant d'une fenêtre de la table : un graphique, ou un panneau du dock (mis en valeur). */
   function appliquerDemande(o = {}) {

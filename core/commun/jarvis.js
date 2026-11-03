@@ -3,7 +3,7 @@
    L'ancien décor de l'accueil (anneaux, échelles graduées, coins, colonnes de données, radar, hexagones, flux, compteurs, objets en orbite) est SUPPRIMÉ :
    il ne servait à rien. Ce script garde ce qui a une fonction :
    · body.jarvis, body[data-etat] (idle · veille · listening · thinking · speaking) : couleur de l'état de Raylé (jarvis.css) ;
-   · body.alerte-hud : alerte de prix ou du Veilleur (couleur orange, quelques secondes) ;
+   · body.alerte-hud : alerte de prix (couleur orange, quelques secondes) ;
    · body[data-hud] (complet · normal · leger) : le mode de l'entité, lu chaque seconde ; il règle le tableau de bord (tableau-bord.js) ;
    · --barre-h : hauteur réelle de la barre de boutons (les fenêtres de réponse et le tableau de bord s'arrêtent au-dessus).
    L'heure, les voyants (micro, liaison, mode, images/s) et la version sont dans le tableau de bord (tableau-bord.js). */

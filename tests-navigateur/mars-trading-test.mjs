@@ -26,8 +26,7 @@ await attendre(3500);
 const fr = await ev(() => window.Mars.fenetresReelles()), par = Object.fromEntries(fr.map(f => [f.id, f]));
 verifier('1. graphiques US100 et or : données réelles reçues (≥ 100 bougies, source dite)', par['graphique-us100'].etat === 'ok' && par['graphique-us100'].bougies >= 100 && par['graphique-us100'].source === 'Yahoo Finance' && par['graphique-or'].etat === 'ok' && par['graphique-or'].source === 'Twelve Data', JSON.stringify([par['graphique-us100'], par['graphique-or']]));
 verifier('1. fenêtre « Marché » : 9 cotations réelles', par.marche.etat === 'ok' && par.marche.cotations === 9, JSON.stringify(par.marche));
-verifier('1. plus aucune fenêtre factice : vingt et une fenêtres réelles, dont BTC, dashboard, contexte et le hub Finance', fr.length === 21 && fr.every(f => f.reel) && par['graphique-btc'].etat === 'ok' && par.dashboard.etat === 'ok' && par.contexte.etat === 'ok', JSON.stringify(fr.map(f => [f.id, f.etat])));
-verifier('1. l’agent BTC annonce honnêtement qu’il n’est pas encore là (aucun chiffre)', par['agent-btc'].etat === 'bientot' || par['agent-btc'].etat === 'ok');
+verifier('1. plus aucune fenêtre factice : treize fenêtres réelles, dont BTC, dashboard, contexte et le hub Finance', fr.length === 13 && fr.every(f => f.reel) && par['graphique-btc'].etat === 'ok' && par.dashboard.etat === 'ok' && par.contexte.etat === 'ok', JSON.stringify(fr.map(f => [f.id, f.etat])));
 verifier('1. première requête vers /marche : US100 et or en H1, 500 bougies', reqs(/actif=NDX&intervalle=1h&n=500/) >= 1 && reqs(/actif=XAU&intervalle=1h&n=500/) >= 1);
 verifier('1. le volume de l\'or vient d\'un contrat à terme (proxy), demandé explicitement', reqs(/actif=Y:GC=F&intervalle=1h/) >= 1);
 verifier('1. au plus ~30 requêtes pour tout charger (pas de rafale)', reqs() <= 30, reqs());
@@ -122,8 +121,6 @@ o = await ordre('ouvrir_fenetre', { fenetre: 'cot' });
 verifier('4. ordre ouvrir_fenetre cot : le panneau COT s\'ouvre (réel depuis la nuit n° 2)', o.ok && /COT/.test(o.texte), JSON.stringify(o));
 o = await ordre('ouvrir_fenetre', { fenetre: 'analyse' });
 verifier('4. ordre ouvrir_fenetre analyse : étape suivante, rien d\'inventé', !o.ok && /étape suivante/.test(o.erreur), JSON.stringify(o));
-o = await ordre('analyser', { actif: 'US100' });
-verifier('4. ordre analyser : pas d’agent stratège séparé (aucune IA ici)', !o.ok && /agent stratège séparé/.test(o.erreur), JSON.stringify(o));
 verifier('4. paramètre invalide refusé par le bus', !(await ordre('afficher_graphique', { instrument: 'ETH', unite: 'H1' })).ok);
 // Échap : ferme l'espace, reste dans la base
 await page.keyboard.press('Escape'); await attendre(800);

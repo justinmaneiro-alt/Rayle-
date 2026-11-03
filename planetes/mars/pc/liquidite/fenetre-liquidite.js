@@ -1,12 +1,12 @@
-import { construireCarte, echelleIntensite } from '../../../../strategies/liquidite/carte-chaleur.js';
-import { serieDesequilibre, cumulDelta } from '../../../../strategies/liquidite/flux-indicateurs.js';
-import { fmtPrix } from '../../../../strategies/liquidite/aimants.js';
+import { construireCarte, echelleIntensite } from './moteur/carte-chaleur.js';
+import { serieDesequilibre, cumulDelta } from './moteur/flux-indicateurs.js';
+import { fmtPrix } from './moteur/aimants.js';
 import { dessiner, miseEnPage, convertisseurs, plagePrix, couleurMur } from './rendu-carte.js';
-import { creerSourcePC, creerSourceDirecte } from './sources.js';
+import { creerSourceDirecte } from './sources.js';
 
 /* ═════════════ FENÊTRE « CARTE DE LIQUIDITÉ » (V4, phase 4) — une carte de chaleur du carnet d'ordres, comme Bookmap ═════════════
-   Ouverte par `window.CarteLiquidite.ouvrir({ actif, flux })`, depuis le terminal de Mars, l'agent, la voix (« ouvre la carte de liquidité ») ou le tableau de bord. Même moteur de fenêtres que le reste
-   (Panneaux : déplaçable, redimensionnable, rangeable). Sources : le service PC (historique + relecture) sinon la connexion directe du navigateur (direct seulement) ; si rien n'est joignable, la fenêtre le dit.
+   Ouverte par `window.CarteLiquidite.ouvrir({ actif, flux })`, depuis le terminal de Mars, la voix (« ouvre la carte de liquidité ») ou le tableau de bord. Même moteur de fenêtres que le reste
+   (Panneaux : déplaçable, redimensionnable, rangeable). Sources : la connexion directe du navigateur (direct seulement) ; si rien n'est joignable, la fenêtre le dit.
    Aucun ordre, aucune promesse : le panneau « Où va le marché ? » est une HYPOTHÈSE de lecture du marché, toujours accompagnée de ses limites. */
 const ID = 'liquidite-carte', FLUX = { 'binance-spot': 'Binance comptant', 'binance-fut': 'Binance futures', kraken: 'Kraken' }, ACTIFS = ['BTC', 'SOL', 'DOGE'];
 let instance = null, ouverture = null;
@@ -87,8 +87,7 @@ function construire(el, demande) {
     if (source && source.arreter) source.arreter(); source = null; etat.source = null;
     if (window.__RAYLE_LIQUIDITE_SOURCE__) { source = window.__RAYLE_LIQUIDITE_SOURCE__; }
     else {
-      try { const pc = creerSourcePC(), s = await pc.statut(); if (s.ok && (s.enregistre || (s.jours || 0) > 0)) { source = pc; if (!s.enregistre) msg('Le service PC est joint mais l’enregistrement est arrêté : tu vois ce qui a été enregistré, plus rien de neuf. Relance-le : node agent-pc/flux/service-flux.mjs', 'avert'); } } catch (e) { /* service absent */ }
-      if (!source) { try { source = await creerSourceDirecte({ actif: etat.actif }); note('Service PC non joint : connexion DIRECTE aux flux publics (direct seulement, pas d’historique, rien n’est gardé après fermeture).'); } catch (e) { msg('Aucune source disponible : le service PC ne répond pas et la connexion directe aux flux publics a échoué (' + String(e.message).slice(0, 80) + '). Vérifie ta connexion Internet.', 'erreur'); } }
+      if (!source) { try { source = await creerSourceDirecte({ actif: etat.actif }); note('Connexion DIRECTE aux flux publics (direct seulement, pas d’historique, rien n’est gardé après fermeture).'); } catch (e) { msg('Aucune source disponible : la connexion directe aux flux publics a échoué (' + String(e.message).slice(0, 80) + '). Vérifie ta connexion Internet.', 'erreur'); } }
     }
     if (source && source.nom !== 'directe') note(''); etat.source = source ? source.nom : null; majPuce();
   }

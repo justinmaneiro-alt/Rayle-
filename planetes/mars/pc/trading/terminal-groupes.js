@@ -10,11 +10,10 @@ import { GROUPES, DOSSIERS, PRESETS, PANNEAUX_TERMINAL, REGISTRE_DE, GRAPHIQUES,
 import { reelVersHtml, magasinReels } from './rendu-reel.js';
 
 /* ═════════════ TERMINAL DE MARS PAR DOSSIERS (R2 phase 3, puis R3 phase 1) ═════════════
-   Les 26 panneaux du terminal sont rangés dans 7 DOSSIERS holographiques. Par défaut la fenêtre « Dossiers » n'affiche que les classeurs (nom, icône, nombre de fenêtres) ;
+   Les panneaux du terminal sont rangés dans 4 DOSSIERS holographiques. Par défaut la fenêtre « Dossiers » n'affiche que les classeurs (nom, icône, nombre de fenêtres) ;
    un appui ouvre le dossier en carrousel 3D (core/commun/dossiers.js) ; la fenêtre du centre s'envole vers l'espace de travail où l'on peut en poser autant qu'on veut
    (gestionnaire commun : déplacer, agrandir, réduire, pincer, épingler, fermer). Un bouton (ou le menu de la fenêtre) la remet dans son dossier. Les fenêtres posées sont mémorisées,
-   préréglages Trading, Macro, Surveillance ; « Réinitialiser ». Graphiques en vraies bougies (Lightweight Charts). Zéro IA, aucun ordre : mêmes données et mêmes calculs qu’avant.
-   Les panneaux de l’agent (performance, gardien…) affichent les mêmes données que sur le mur ; le bouton « Ouvrir le poste de l’agent » ouvre le poste inchangé. */
+   préréglages Trading et Macro ; « Réinitialiser ». Graphiques en vraies bougies (Lightweight Charts). Zéro IA, aucun ordre. */
 const CLE_ETAT = 'rayle_mars_terminal', ID_SEL = 'selecteur';
 const esc = t => String(t == null ? '' : t).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const lireEtat = () => { try { return normaliser(JSON.parse(localStorage.getItem(CLE_ETAT) || 'null')); } catch (e) { return etatInitial(); } };
@@ -28,7 +27,7 @@ export const surTerminalFerme = f => { surFermeture = f; };
 
 function chargerCss() {
   chargerStyle();
-  for (const [id, f] of [['mars-trading-css', './espace.css'], ['mars-trading-css-v1', './v1-agent.css'], ['tm-css', './terminal-groupes.css'], ['ap-css', './agents-prets.css']]) {
+  for (const [id, f] of [['mars-trading-css', './espace.css'], ['tm-css', './terminal-groupes.css']]) {
     if (document.getElementById(id)) continue;
     const l = document.createElement('link'); l.id = id; l.rel = 'stylesheet'; l.href = new URL(f, import.meta.url).href; document.head.appendChild(l);
   }
@@ -83,29 +82,18 @@ function fenetreRegistre(client, regId, { ouvrirGraphique }) {
   return { racine, detruire() { clearInterval(minuterie); jeton++; if (desabonner) desabonner(); try { p.detruire && p.detruire(); } catch (e) { /* déjà détruit */ } } };
 }
 
-/* V2 phase 6 : l'assistant « Agents prêts » (module chargé à la demande). */
-function fenetreAgentsPrets({ ouvrirPoste }) {
-  const racine = h('div', 'tm-agents-prets'); let inst = null, detruit = false;
-  import('./agents-prets-page.js').then(async M => {
-    if (detruit) return; const G = await import('./m6-page.js').catch(() => null), P = await import('./pilotes-paires.js').catch(() => null);
-    inst = M.creerAgentsPrets({ conteneur: racine, jugerProp: G ? G.jugerAlerteGlobal : null, ouvrirPoste: d => ouvrirPoste(d), fournirSerie: P ? async paire => (await P.obtenirHotePaire(paire, { demarrer: true })).serie() : null });
-    M.demarrerSuiviAgentsPrets({ serieDe: async paire => (await P.obtenirHotePaire(paire, { demarrer: true })).serie(), jugerProp: G ? G.jugerAlerteGlobal : null });
-  }).catch(e => { racine.innerHTML = '<p class="tm-vide tm-ko">Agents prêts indisponibles : ' + esc(e.message) + '</p>'; });
-  return { racine, sansMarge: true, instance: () => inst, detruire() { detruit = true; if (inst) inst.detruire(); } };
-}
 
-/* Panneau alimenté par la table (performance, gardien, régime…) : mêmes données que sur le mur. */
-function fenetreReel(id, def, { ouvrirPoste }) {
+/* Panneau alimenté par la table : mêmes données que sur le mur. */
+function fenetreReel(id, def) {
   const racine = h('div', 'tm-reel'), corps = h('div', 'tm-reel-corps'), pied = h('div', 'tm-reel-pied');
   racine.append(corps, pied);
   const dessiner = () => { corps.innerHTML = reelVersHtml(magasinReels.lire(id), def); };
   dessiner(); const off = magasinReels.abonner(i => { if (i === id) dessiner(); });
-  if (def.onglet || id === 'agent-btc') { const b = h('button', 'tm-btn', 'Ouvrir le poste de l’agent'); b.type = 'button'; b.onclick = () => ouvrirPoste({ onglet: def.onglet || undefined }); pied.appendChild(b); }
   return { racine, detruire() { off(); } };
 }
 
 /* ── Le terminal ── */
-async function creer({ tactile = false, ouvrirEspace = null, ouvrirPoste = () => {}, sansSelecteur = false } = {}) {
+async function creer({ tactile = false, ouvrirEspace = null, sansSelecteur = false } = {}) {
   chargerCss();
   const client = await obtenirClient();
   const hote = h('div', 'tm-hote'); document.body.appendChild(hote);
@@ -130,13 +118,11 @@ async function creer({ tactile = false, ouvrirEspace = null, ouvrirPoste = () =>
   }
   function ouvrirPanneau(id, { donner = false } = {}) {
     const def = panneau(id); if (!def) return false; const wid = 'p-' + id;
-    if (id === 'agent-btc' && !window.__RAYLE_POSTE_TEST__) { ouvrirPoste({ vue: 'vivant' }); return true; }   // « Agent IA » : arrivée directe sur le tableau de l'agent, pas sur une mini-fenêtre
     if (gf.obtenir(wid)) { gf.focus(wid); gf.reduire(wid, false); return true; }
     let c;
     if (GRAPHIQUES[id]) c = fenetreGraphique(client, GRAPHIQUES[id].instrument, GRAPHIQUES[id].unite, { tactile, ouvrirEspace });
-    else if (id === 'agents-prets') c = fenetreAgentsPrets({ ouvrirPoste });
     else if (def.registre || REGISTRE_DE[id]) c = fenetreRegistre(client, def.registre || REGISTRE_DE[id], { ouvrirGraphique });
-    else c = fenetreReel(id, def, { ouvrirPoste });
+    else c = fenetreReel(id, def);
     instances.set(id, c);
     const ecran = { l: window.innerWidth, h: window.innerHeight }, grand = donner ? calc.tailleParDefaut('grand', ecran) : undefined;
     const w = gf.ouvrir({

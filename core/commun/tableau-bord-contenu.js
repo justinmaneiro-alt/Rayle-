@@ -1,6 +1,6 @@
 /* ═════════════ TABLEAU DE BORD DE L'ACCUEIL : CONTENU PUR (testé sous Node : galaxie/tests/tableau-bord-test.mjs) ═════════════
    Tout ce que le tableau de bord décide sans toucher à la page : liste des fenêtres, réglages (affichage, côté, ordre), formats de nombres,
-   mini-courbes, météo (codes WMO), séismes, lignes de l'agent de trading, états du micro. Rien n'est inventé : une donnée absente devient
+   mini-courbes, météo (codes WMO), séismes, états du micro. Rien n'est inventé : une donnée absente devient
    « indisponible » avec sa raison. Utilisable dans la page (window.TableauBordContenu) et sous Node (module.exports). */
 (function(racine){
   "use strict";
@@ -10,7 +10,6 @@
     {id:'meteo',   titre:'Météo',                cote:'g', rang:2, ouvre:'meteo'},
     {id:'actus',   titre:'Actualités',           cote:'g', rang:3, ouvre:'actus'},
     {id:'systeme', titre:'Système',              cote:'g', rang:4, ouvre:'reglages'},
-    {id:'agent',   titre:'Agent de trading',     cote:'d', rang:1, ouvre:'agent'},
     {id:'marche',  titre:'Marché',               cote:'d', rang:2, ouvre:'terminal'},
     {id:'terre',   titre:'Événements Terre',     cote:'d', rang:3, ouvre:'terre'}
   ];
@@ -41,7 +40,7 @@
   function disposition(r,mode){
     r=normaliserReglages(r); const out={g:[],d:[]};
     if(!r.actif) return out;
-    const LEGER=['heure','marche','agent','systeme'];
+    const LEGER=['heure','marche','systeme'];
     const l=FENETRES.filter(f=>r.fenetres[f.id].visible&&(mode!=='leger'||LEGER.includes(f.id)));
     for(const f of l) out[r.fenetres[f.id].cote].push({id:f.id,titre:f.titre,ouvre:f.ouvre,rang:r.fenetres[f.id].rang});
     for(const c of COTES) out[c].sort((a,b)=>a.rang-b.rang||FENETRES.findIndex(f=>f.id===a.id)-FENETRES.findIndex(f=>f.id===b.id));
@@ -106,33 +105,13 @@
     return l.map(e=>({id:e.id,type:e.type,titre:String(e.titre||'').replace(/^Séisme M\s*/,'M ').slice(0,70),severite:e.severite||0,age:age(e.t,maintenant),url:e.url||null}));
   }
 
-  /* ───── agent de trading (données de planetes/mars/pc/trading/fenetres-m6.js : construireReels) ───── */
-  const tonNiveau=n=>n==='VERT'?'ok':n==='ORANGE'?'attention':(n==='ROUGE'||n==='BLOQUE')?'alerte':'neutre';
-  function lignesAgent(reels,pilote){
-    const l=[]; reels=reels||{};
-    if(pilote&&pilote.paires&&pilote.paires.length){
-      l.push({nom:'État',valeur:pilote.enRecherche?'recherche en cours':'recherche à l’arrêt',ton:pilote.enRecherche?'ok':'neutre',detail:pilote.valides+' stratégie'+(pilote.valides>1?'s':'')+' validée'+(pilote.valides>1?'s':'')+' · '+pilote.paires.join(', ')});
-    }else l.push({nom:'État',valeur:'non activé',ton:'neutre',detail:'ouvre l’agent pour l’activer'});
-    const r=reels['regime-marche'];
-    if(r&&r.etat==='ok'&&r.liste&&r.liste.length) l.push({nom:'Régime',valeur:r.liste[0].d,ton:'neutre',detail:r.liste[0].g});
-    else l.push({nom:'Régime',valeur:'—',ton:'neutre',detail:r&&r.message?r.message:'pas encore calculé'});
-    const p=reels['propositions-agent'];
-    if(p&&p.etat==='ok'&&p.liste&&p.liste.length) l.push({nom:'Signaux',valeur:p.liste[0].g,ton:/PASS/.test(p.liste[0].d)?'ok':/BLOCK/.test(p.liste[0].d)?'alerte':'attention',detail:p.liste[0].d+(p.etiquette==='SIMULÉ'?' · simulé':'')});
-    else l.push({nom:'Signaux',valeur:'aucun',ton:'neutre',detail:p&&p.vide?p.vide:'pas de setup en cours'});
-    const g=reels['gardien-prop'];
-    if(g&&g.etat==='ok'){ const niv=String(g.pied||'').split(' ')[0]; l.push({nom:'Gardien prop',valeur:niv||'—',ton:tonNiveau(niv),detail:String(g.pied||'').replace(/^\S+\s·\s?/,'')}); }
-    else l.push({nom:'Gardien prop',valeur:'—',ton:'neutre',detail:g&&g.erreur?'indisponible : '+g.erreur:'en attente'});
-    return l;
-  }
-
   /* ───── système ───── */
   const MICRO={idle:{libelle:'COUPÉ',ton:'off'},veille:{libelle:'VEILLE',ton:'attention'},listening:{libelle:'ACTIF',ton:'on'},thinking:{libelle:'ACTIF',ton:'on'},speaking:{libelle:'ACTIF',ton:'on'}};
   const etatMicro=e=>MICRO[e]||MICRO.idle;
   const MODES={complet:'COMPLET',normal:'NORMAL',leger:'LÉGER'};
-  function lignesSysteme({worker,veilleur,etat,mode,fps,version}){
+  function lignesSysteme({worker,etat,mode,fps,version}){
     return [
       {id:'worker',nom:'Worker',valeur:worker?'EN LIGNE':'VERROUILLÉ',ton:worker?'ok':'alerte'},
-      {id:'veilleur',nom:'Veilleur',valeur:veilleur==null?'—':veilleur?'ACTIF':'ARRÊTÉ',ton:veilleur==null?'neutre':veilleur?'ok':'attention'},
       {id:'micro',nom:'Micro',valeur:etatMicro(etat).libelle,ton:etatMicro(etat).ton==='on'?'ok':etatMicro(etat).ton==='attention'?'attention':'neutre'},
       {id:'mode',nom:'Affichage',valeur:(MODES[mode]||'—')+(Number.isFinite(fps)&&fps>0?' · '+Math.round(fps)+' i/s':''),ton:Number.isFinite(fps)&&fps>0?(fps>=50?'ok':fps>=30?'attention':'alerte'):'neutre'}
     ].concat(version?[{id:'version',nom:'Version',valeur:String(version),ton:'neutre'}]:[]);
@@ -142,6 +121,6 @@
   const titresActus=(sujets,max=8)=>(sujets||[]).slice(0,max).map(s=>({titre:String(s.titre||'').slice(0,120),source:String(s.source||''),quand:String(s.quand||''),couleur:s.couleur||null,url:s.url||null,cat:s.catNom||''}));
 
   const api={FENETRES,COTES,LARGEUR_MIN,CLE,parId,reglagesParDefaut,normaliserReglages,lireReglages,ecrireReglages,disposition,assezLarge,deplacer,nombre,prix,variation,age,courbe,
-    categorieMeteo,libelleMeteo,resumeMeteo,urlMeteo,urlGeocodage,resultatsGeocodage,lignesEvenements,lignesAgent,etatMicro,lignesSysteme,titresActus,tonNiveau};
+    categorieMeteo,libelleMeteo,resumeMeteo,urlMeteo,urlGeocodage,resultatsGeocodage,lignesEvenements,etatMicro,lignesSysteme,titresActus};
   if(typeof module!=='undefined'&&module.exports) module.exports=api; else racine.TableauBordContenu=api;
 })(typeof window!=='undefined'?window:globalThis);

@@ -1,5 +1,5 @@
 // Serveur d'ESSAI sur le réseau local (K1) : uniquement la page /clavier et ses fichiers (dossier clavier/), protégée par un jeton aléatoire.
-// Activé seulement par « node serveur.mjs --reseau-local ». Sans le jeton : refus. Aucune autre route (ni /__multi, ni /__veilleur, ni le reste du site).
+// Activé seulement par « node serveur.mjs --reseau-local ». Sans le jeton : refus. Aucune autre route (ni /__multi, ni le reste du site).
 import http from 'node:http';
 import fs from 'node:fs';
 import os from 'node:os';

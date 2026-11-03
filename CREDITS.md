@@ -3,22 +3,6 @@
 Raylé réutilise des **idées** et des **bibliothèques** libres. Ce fichier dit d'où elles viennent et sous quelle licence.
 Aucun code de ces projets n'est copié ni exécuté : les dépôts ont été lus comme des **données non fiables** (hors du projet), puis les idées ont été **réécrites en JavaScript** dans Raylé.
 
-## Idées reprises (M6, poste de pilotage de l'agent de trading)
-
-| Projet | Licence | Ce que Raylé en retient | Où dans Raylé |
-|---|---|---|---|
-| [tradermonty/claude-trading-skills](https://github.com/tradermonty/claude-trading-skills) | MIT | Score de régime crypto de 0 à 100 (100 = risk-on) avec composantes pondérées et redistribution des poids manquants ; détection de stagnation de la recherche et pivot de stratégie ; analyse du résiduel d'une stratégie ; bilan hebdomadaire des trades et coaching de discipline | `agent-m6/regime.js` (pondérations propres à Raylé 25/15/20/30/10), `stagnation.js`, `journal.js` (bilan, revue de discipline) |
-| [VictorVVedtion/trading-skills](https://github.com/VictorVVedtion/trading-skills) | MIT | Contrôle avant trade en neuf points ; échelle vert / orange / rouge du détecteur de tilt (revanche, grossissement après perte, rafale de trades) | `gardien.js` (`controleAvantTrade`), `tilt.js` |
-| [SKE-Labs/agent-trading-skills](https://github.com/SKE-Labs/agent-trading-skills) | Apache-2.0 | Définitions des fair value gaps, order blocks, zones de liquidité, premium / discount, kill zones ; principe « tout concept ICT est une hypothèse à tester contre le hasard, avec les coûts, en walk-forward » ; figures chartistes (double sommet / creux, drapeau) | `agent-m6/ict.js` (364 variantes figées, mêmes critères de validation que le reste), catalogue d'idées |
-| [Jakeschincariol/day-trader-skill](https://github.com/Jakeschincariol/day-trader-skill) | MIT | Simulation de milliers de sessions et rejeu de toutes les occurrences passées (« machine à remonter le temps ») ; gardien de risque PASS / BLOCK où une sortie n'est jamais bloquée par une limite du jour | `agent-m6/simulation-eval.js`, `gardien.js` |
-
-Chaque idée du catalogue (`idees.js`, `CATALOGUE_IDEES`) porte son crédit et sa licence, visibles dans l'onglet « Idées » du poste.
-Les pondérations, les seuils et le code sont propres à Raylé ; rien ici ne reprend le texte des dépôts.
-
-### Rappel des licences
-- **MIT** : permission d'utiliser, copier, modifier, fusionner, publier et distribuer, à condition de conserver la mention de droit d'auteur et la licence dans les copies substantielles. Raylé ne copie pas de code : les idées sont citées ici.
-- **Apache-2.0** : licence permissive avec mention des auteurs et clause de brevets. Raylé ne reprend aucun fichier de ce dépôt ; les concepts sont cités ici.
-
 ## Bibliothèques et données
 
 | Élément | Licence / conditions | Usage |
@@ -31,9 +15,8 @@ Les pondérations, les seuils et le code sont propres à Raylé ; rien ici ne re
 | EOX Sentinel-2 (2020) | CC BY-NC-SA, **non commercial** | Globe de la Terre (désactivable) |
 | AWS Terrain Tiles (Terrarium) | Open data | Relief de la Terre |
 | OpenFreeMap / OpenStreetMap | ODbL, © contributeurs OpenStreetMap | Bâtiments et noms de la Terre |
-| Binance (API publique de données de marché) | Conditions de Binance | Historique et direct BTC, SOL, DOGE du poste (lecture seule) |
-| Kraken (API publique OHLC) | Conditions de Kraken | Recoupement des prix (lecture seule, via le Veilleur ou le Worker) |
-| CoinGecko, alternative.me (peur et cupidité), Binance futures (financement) | Conditions de chaque service, API gratuites sans clé | Score de régime |
+| Binance (API publique de données de marché) | Conditions de Binance | Historique et direct BTC, SOL, DOGE (lecture seule) |
+| Kraken (API publique OHLC) | Conditions de Kraken | Recoupement des prix (lecture seule, via le Worker) |
 | Open-Meteo, RainViewer | Conditions de chaque service | Météo de la Terre |
 | Open-Meteo (prévisions et géocodage) | Données ouvertes (CC BY 4.0), API gratuite sans clé | Météo du tableau de bord de l'accueil |
 | USGS, NASA EONET, GDACS | Données publiques | Événements de la Terre du tableau de bord |

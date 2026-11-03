@@ -63,3 +63,7 @@ data/lppr/exemples-devis/*.pdf
 !.env.example
 
 backups/
+
+# Retrait des agents : rangés dans idees/ (voir la branche archive-agents)
+idees/
+captures-retrait/

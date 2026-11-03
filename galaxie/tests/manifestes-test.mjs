@@ -36,7 +36,7 @@ verifier('Lune : alias « la lune »', !!lune && lune.alias.includes('la lune'))
 verifier('exactement un soleil', manifestes.filter(m => m.type === 'soleil').length === 1);
 verifier('8 planètes', manifestes.filter(m => m.type === 'planete').length === 8, String(manifestes.filter(m => m.type === 'planete').length));
 const mars = manifestes.find(m => m.id === 'mars');
-verifier('Mars : un interprète et un agent', mars && mars.agents.some(a => a.role === 'interprete') && mars.agents.some(a => a.role === 'agent'));
+verifier('Mars : un interprète', mars && mars.agents.some(a => a.role === 'interprete'));
 verifier('Mars : ordres du terminal déclarés', mars && ['changer_actif', 'changer_unite', 'ouvrir_fenetre'].every(a => mars.ordres.some(o => o.action === a)));
 verifier('planètes en attente : mercure, venus, uranus', ['mercure', 'venus', 'uranus'].every(id => manifestes.find(m => m.id === id)?.etat === 'en_attente'));
 verifier('orbites sans chevauchement', (() => { const d = manifestes.filter(m => m.type === 'planete').map(m => m.distance).sort((a, b) => a - b); return d.every((x, i) => i === 0 || x - d[i - 1] > 1.5); })());

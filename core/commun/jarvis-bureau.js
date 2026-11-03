@@ -4,15 +4,15 @@ import { creerDossiers } from './dossiers.js';
 
 /* ═════════════ LE BUREAU DE L'ACCUEIL JARVIS (V2, phase 3) ═════════════
    Même moteur que le terminal de Mars (gestionnaire commun + dossiers) appliqué aux VRAIES fenêtres de l'accueil Jarvis :
-   · les sept fenêtres du tableau de bord (heure, météo, actualités, système, agent de trading, marché, événements de la Terre) : un bouton ⤢ la POSE dans une fenêtre
+   · les six fenêtres du tableau de bord (heure, météo, actualités, système, marché, événements de la Terre) : un bouton ⤢ la POSE dans une fenêtre
      déplaçable, redimensionnable, réductible ; fermée ou « rangée », elle retourne dans sa colonne (le même élément, donc les mêmes données vivantes) ;
    · « Sources en direct » (6 onglets : événements, communiqués, télévisions, réseaux, podcasts, aujourd'hui) : une fenêtre du bureau qui s'ouvre TOUJOURS au même endroit
      (à droite, sous l'en-tête) tant que Justin ne l'a pas déplacée, puis là où il l'a laissée (mémoire par appareil) ;
-   · quatre PILES (Infos du jour, Marchés et agent, Terre et événements, Sources en direct) : un appui ouvre le carrousel de la pile, la fenêtre choisie se pose sur l'écran.
+   · quatre PILES (Infos du jour, Marchés, Terre et événements, Sources en direct) : un appui ouvre le carrousel de la pile, la fenêtre choisie se pose sur l'écran.
    Aucune donnée inventée : le contenu est celui des fenêtres d'avant. Ancien système : ⚙ « Utiliser l'ancien système de fenêtres » (rayle_fenetres_v1). */
 const DOSSIERS = [
   { id: 'infos', titre: 'Infos du jour', icone: '🗞', ids: ['heure', 'meteo', 'actus', 'systeme'] },
-  { id: 'marches', titre: 'Marchés et agent', icone: '📈', ids: ['marche', 'agent'] },
+  { id: 'marches', titre: 'Marchés', icone: '📈', ids: ['marche'] },
   { id: 'terre', titre: 'Terre et événements', icone: '🌍', ids: ['terre'] },
   { id: 'sources', titre: 'Sources en direct', icone: '📡', ids: ['sources'] }
 ];
@@ -20,9 +20,8 @@ const INFOS = {
   heure: { titre: 'Heure et date', icone: '🕒', apercu: 'Heure, date, secondes' },
   meteo: { titre: 'Météo', icone: '⛅', apercu: 'Prévision de la ville choisie (Open-Meteo)' },
   actus: { titre: 'Actualités', icone: '📰', apercu: 'Fil France par sujets' },
-  systeme: { titre: 'Système', icone: '🖥', apercu: 'Worker, Veilleur, micro, affichage' },
+  systeme: { titre: 'Système', icone: '🖥', apercu: 'Worker, micro, affichage' },
   marche: { titre: 'Marché', icone: '💹', apercu: 'BTC, SOL, DOGE, or, US100 avec mini-courbes' },
-  agent: { titre: 'Agent de trading', icone: '🛰', apercu: 'Régime, état, signaux, gardien prop' },
   terre: { titre: 'Événements de la Terre', icone: '🌋', apercu: 'Séismes, catastrophes (USGS, EONET, GDACS)' },
   sources: { titre: 'Sources en direct', icone: '📡', apercu: 'Événements, communiqués, télévisions, réseaux, podcasts, aujourd’hui' }
 };

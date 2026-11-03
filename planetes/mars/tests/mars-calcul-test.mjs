@@ -102,7 +102,6 @@ v('fenêtres : autour de la table, à moins de 2,7 m', f.every(x => Math.hypot(x
   v('21 fenêtres : toutes sous le plafond (haut de fenêtre < 3,45 m) et à moins de 2,9 m de la table', g.every(x => x.position[1] + x.hauteurFenetre / 2 < 3.45 && x.position[1] > 0.9 && Math.hypot(x.position[0], x.position[2] + 0.6) < 2.9));
   v('13 fenêtres : disposition inchangée (4 / 4 / 5)', [0, 1, 2].map(r => M.dispositionFenetres(13).filter(x => x.rangee === r).length).join() === '4,4,5');
 }
-v('zone : x < 0 = bureau, sinon terminal', M.zoneDePosition(-1) === 'bureau' && M.zoneDePosition(2) === 'terminal');
-v('bureau : « bientôt »', M.ZONES_BASE.bureau.etat === 'bientot' && /bientôt/.test(M.ZONES_BASE.bureau.message) && M.ZONES_BASE.terminal.etat === 'actif');
+v('zone : toujours le terminal', M.zoneDePosition(-1) === 'terminal' && M.zoneDePosition(2) === 'terminal' && M.ZONES_BASE.terminal.etat === 'actif');
 console.log(ok + ' réussis, ' + ko + ' échecs');
 process.exit(ko ? 1 : 0);

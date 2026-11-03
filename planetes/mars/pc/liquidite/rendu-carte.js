@@ -1,5 +1,5 @@
-import { prixDeLigne } from '../../../../strategies/liquidite/carte-chaleur.js';
-import { fmtPrix } from '../../../../strategies/liquidite/aimants.js';
+import { prixDeLigne } from './moteur/carte-chaleur.js';
+import { fmtPrix } from './moteur/aimants.js';
 
 /* ═════════════ DESSIN DE LA CARTE DE LIQUIDITÉ (V4, phase 4) : canvas 2D, sans dépendance, ≈ 30 images/s ═════════════
    Prix en ordonnée (à DROITE, comme Bookmap), temps vers la GAUCHE (le présent est au bord droit de la carte). Couleur = taille des ordres posés (dollars). Bulles = transactions (taille = volume, vert =

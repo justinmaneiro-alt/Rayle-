@@ -1,34 +1,19 @@
-import { decoderSegments } from '../../../../strategies/liquidite/format-profondeur.js';
-import { analyserLiquidite } from '../../../../strategies/liquidite/analyse.js';
-import { PAIRES } from '../agent-m6/paires.js';
-import { creerStockageMemoire } from '../../../../strategies/liquidite/stockage-memoire.js';
+import { decoderSegments } from './moteur/format-profondeur.js';
+import { analyserLiquidite } from './moteur/analyse.js';
+const PAIRES = { BTC: { ronds: [1000, 5000] }, SOL: { ronds: [5, 10] }, DOGE: { ronds: [0.01, 0.05] } };   // niveaux ronds affichés sur la carte
+import { creerStockageMemoire } from './moteur/stockage-memoire.js';
 
 /* ═════════════ SOURCES DE LA CARTE DE LIQUIDITÉ (V4, phase 4) ═════════════
    Deux fournisseurs qui répondent aux mêmes questions (`profondeur`, `lignes`, `analyse`, `plage`, `statut`) :
-   – PC : le service Kepler enregistre le carnet 24 h/24 ; la page le lit par les routes locales /__flux/… (historique, relecture, murs sur plusieurs jours) ;
+   – PC : le service du PC enregistre le carnet ;
    – DIRECT : la page se connecte elle-même aux flux publics (Kraken, Binance) avec le MÊME code que le service (enregistreur.mjs, en mémoire) ; direct seulement, pas d'historique, rien n'est gardé
      après fermeture ; marche sur tablette et téléphone sans le PC. Si ni l'un ni l'autre n'est possible, la fenêtre le dit clairement. */
 const delai = (ms, p) => Promise.race([p, new Promise((_, ko) => setTimeout(() => ko(new Error('délai dépassé')), ms))]);
 const json = async (url, ms = 8000) => { const r = await delai(ms, fetch(url, { cache: 'no-store' })); if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); };
 
-export function creerSourcePC({ base = '' } = {}) {
-  return {
-    nom: 'pc', libelle: 'Service Kepler du PC (carnet enregistré)', historique: true,
-    async statut() { const s = await json(base + '/__flux/statut', 3500); return { ok: !!s.ok, enregistre: !!s.enregistre, phrase: s.phrase, jours: s.jours, trous: s.trous, brut: s }; },
-    async plage(cle) { const r = await json(base + '/__flux/plage?cle=' + encodeURIComponent(cle)); return r.plage; },
-    async profondeur(cle, t0, t1) {
-      const r = await delai(15000, fetch(base + '/__flux/profondeur?cle=' + encodeURIComponent(cle) + '&t0=' + Math.round(t0) + '&t1=' + Math.round(t1), { cache: 'no-store' })); if (!r.ok) throw new Error('HTTP ' + r.status);
-      return decoderSegments(new Uint8Array(await r.arrayBuffer()));
-    },
-    async lignes(type, cle, t0, t1) { const r = await json(base + '/__flux/lignes?type=' + type + '&cle=' + encodeURIComponent(cle) + '&t0=' + Math.round(t0) + '&t1=' + Math.round(t1)); return r.lignes || []; },
-    async analyse(actif, venue, { minutes = 20, t = null } = {}) { const r = await json(base + '/__flux/analyse?actif=' + actif + '&venue=' + venue + '&minutes=' + minutes + (t ? '&t=' + Math.round(t) : ''), 25000); return r.analyse; },
-    arreter() {}
-  };
-}
-
 /* Direct : `creerEnregistreur` du service PC, avec un stockage en mémoire et le WebSocket / fetch du navigateur. */
 export async function creerSourceDirecte({ actif = 'BTC', importer = specifieur => import(specifieur), fetchImpl = fetch.bind(globalThis), WebSocketImpl = globalThis.WebSocket, binance = 'https://data-api.binance.vision' } = {}) {
-  const { creerEnregistreur, ACTIFS } = await importer(new URL('../../../../agent-pc/flux/enregistreur.mjs', import.meta.url).href);
+  const { creerEnregistreur, ACTIFS } = await importer(new URL('./moteur/enregistreur.mjs', import.meta.url).href);
   const memoire = creerStockageMemoire({ dureeS: 2400 });
   const get = async url => { const r = await delai(20000, fetchImpl(url)); if (!r.ok) { const e = new Error('HTTP ' + r.status); e.statut = r.status; e.retryApres = Number(r.headers.get('retry-after')) || null; throw e; } return r.json(); };
   const rec = creerEnregistreur({ stockage: memoire, actifs: [actif], fetchJson: get, WebSocketImpl }); rec.demarrer();

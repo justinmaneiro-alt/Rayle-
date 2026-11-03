@@ -1,0 +1,20 @@
+// Mars après le retrait des agents : la base s'ouvre, le terminal (graphique, dashboard, COT, calendrier…) s'ouvre, aucune erreur console.
+import fs from 'node:fs';
+import { ouvrirGalaxie, entrerSurMars, attendreMode, attendre, compteur } from './mars-aide.mjs';
+fs.mkdirSync('captures-retrait', { recursive: true });
+const { verifier, fin } = compteur();
+const { navigateur, page, erreurs } = await ouvrirGalaxie({ largeur: 1600, hauteur: 900 });
+const ev = (f, ...a) => page.evaluate(f, ...a);
+await entrerSurMars(page);
+await ev(() => window.Mars.entrerBase()); await attendreMode(page, 'interieur', 40000);
+await attendre(3000);
+await page.screenshot({ path: 'captures-retrait/mars-salon.png' });
+await ev(() => window.Mars.ouvrirPanneauTerminal('dashboard'));
+await attendre(6000);
+await page.screenshot({ path: 'captures-retrait/mars-terminal.png' });
+const txt = await ev(() => document.body.innerText);
+verifier('terminal de Mars ouvert (texte du dashboard présent)', /dashboard|graphique|watchlist/i.test(txt));
+verifier('aucun mot d’agent de trading', !/kepler|agent btc|gardien prop|veilleur|backtest/i.test(txt));
+const util = erreurs.filter(e => !/faireconomy|ERR_|Failed to load|worker|Worker|TradingView|WebSocket|401|403|CORS|404/i.test(e));
+verifier('aucune erreur console', util.length === 0, util.slice(0, 4).join(' | '));
+await navigateur.close(); process.exit(fin() ? 1 : 0);
