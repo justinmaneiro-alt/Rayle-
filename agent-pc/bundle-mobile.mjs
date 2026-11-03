@@ -47,6 +47,7 @@ export function construirePaquet(dossier, maintenant = Date.now()) {
     paquet.positions = v;
     paquet.performance = performanceMobile(pos.propositions, { risquePct: (v.reglages && v.reglages.risquePct) || 0.5 });
   }
+  { const rg = lireJson(path.join(dossier, 'registre.json'), null); if (rg && rg.schema === 1) paquet.registre = { v: 1, version: rg.version, t: rg.t, risquePct: rg.risquePct, debut: rg.debutV8, trades: (rg.trades || []).slice(-400) }; }   // V8 : le registre unique voyage aussi dans le paquet (secours si le Worker n'a pas encore la route /agent/registre)
   const tr = lireJson(path.join(dossier, 'trader.json'), null);
   if (tr && tr.vuePubliee) {      // V12 : mode Trader (le même contenu que la fenêtre PC, allégé pour le téléphone)
     const t = { ...tr.vuePubliee }; delete t.gestions; delete t.niveaux; t.recentes = (t.recentes || []).map((p, i) => (i < 40 ? p : { id: p.id, actif: p.actif, setup: p.setup, nom: p.nom, tf: p.tf, sens: p.sens, tSignal: p.tSignal, t: p.t, entree: p.entree, stop: p.stop, cible1: p.cible1, rr: p.rr, statut: p.statut, resultat: p.resultat && { statut: p.resultat.statut, R: p.resultat.R, motif: p.resultat.motif }, tEntree: p.tEntree, tSortie: p.tSortie, fantome: p.fantome })).slice(0, 300);   // même liste que le PC : les 40 plus récentes en entier, les autres allégées t.journalNiveaux = (t.journalNiveaux || []).slice(0, 10); t.pourquoi = (t.pourquoi || []).slice(0, 12);
@@ -89,7 +90,7 @@ export function plafonner(paquet, max = MAX_OCTETS) {
 /* Empreinte du CONTENU utile seulement : ni l'heure, ni les compteurs qui bougent à chaque cycle (prix, état de marche, horloges du carnet). La copie n'est renvoyée que si cela change. */
 export const empreintePaquet = p => {
   const pos = p.positions || {}, ag = p.agent || {};
-  const utile = { propositions: pos.propositions, recentes: pos.recentes, types: (pos.types || []).map(x => [x.type, x.niveau, x.n, x.esperance]), bilan: pos.bilan, reglages: pos.reglages, pistes: p.pistes, equipe: p.equipe, occasions: p.occasions, exemples: p.exemples,
+  const utile = { registre: p.registre && [p.registre.version, p.registre.risquePct], propositions: pos.propositions, recentes: pos.recentes, types: (pos.types || []).map(x => [x.type, x.niveau, x.n, x.esperance]), bilan: pos.bilan, reglages: pos.reglages, pistes: p.pistes, equipe: p.equipe, occasions: p.occasions, exemples: p.exemples,
     trader: p.trader && { live: p.trader.portefeuille && p.trader.portefeuille.live && [Math.round(p.trader.portefeuille.live.capital), p.trader.portefeuille.live.nOuverts, p.trader.portefeuille.live.nTrades], actives: (p.trader.actives || []).map(x => [x.id, x.statut, x.niveau]), recentes: (p.trader.recentes || []).slice(0, 12).map(x => [x.id, x.statut, x.resultat && x.resultat.R]), phrase: p.trader.bilan && p.trader.bilan.phrase, types: (p.trader.types || []).map(x => [x.cle, x.niveau, x.n]), reglages: p.trader.reglages },
     volume: p.volume && { capital: p.volume.portefeuille && p.volume.portefeuille.capital, n: p.volume.portefeuille && p.volume.portefeuille.nTrades, verdict: p.volume.verdict && p.volume.verdict.texte, derniere: p.volume.derniereBarre, compteurs: p.volume.compteurs },
     alertes: ag.alertes, active: ag.versionActive, pause: ag.pause, phase: p.phase };

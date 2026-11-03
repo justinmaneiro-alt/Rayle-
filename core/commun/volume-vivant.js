@@ -29,6 +29,7 @@
   async function lireRegistreDefaut() {
     try { const r = await delai(5000, fetch('/__agent/registre', { cache: 'no-store' })); if (r.ok) { const j = await r.json(); if (j && j.ok) return j.existe ? { registre: j.registre, origine: j.origine } : null; } } catch (e) { /* pas de serveur local */ }
     try { if (racine.wjson && typeof workerReady !== 'undefined' && workerReady()) { const j = await racine.wjson('/agent/registre', 12000); if (j && j.existe) return { registre: j.registre, origine: 'Worker' }; } } catch (e) { /* Worker injoignable */ }
+    try { if (racine.wjson && typeof workerReady !== 'undefined' && workerReady()) { const j = await racine.wjson('/agent/mobile', 15000); if (j && j.paquet && j.paquet.registre) return { registre: j.paquet.registre, origine: 'Worker (paquet du PC)' }; } } catch (e) { /* rien */ }   // secours : Worker sans la route V8
     return null;
   }
   async function reglerRisqueDefaut(risquePct) {

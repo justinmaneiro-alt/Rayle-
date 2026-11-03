@@ -62,6 +62,7 @@ export function creerRegistre({ dossier, maintenant = () => Date.now(), journal 
 
   /* Reconstruit le registre ; la version ne monte que si une ligne a changé. Rend { registre, change }. */
   function construire() {
+    try { const r = lireJson(path.join(dossier, 'registre-risque.json'), null); if (r && Number.isFinite(r.risquePct) && r.t > (etat.risqueLe || 0)) { etat.risquePct = K.bornerRisque(r.risquePct); etat.risqueLe = r.t; } } catch (e) { /* pas de réglage local */ }   // réglage fait sur le PC quand le Worker n'a pas encore la route /agent/risque
     try { const c = lireJson(path.join(dossier, FICHIER_CORRECTIONS), null); if (c && c.corrections) etat.corrections = c.corrections; } catch (e) { /* pas d'audit */ }
     const lignes = []; const vus = new Set();
     for (const [src, f] of Object.entries(sources)) { let liste = []; try { liste = f() || []; } catch (e) { erreur('registre : source ' + src, e); }
@@ -87,7 +88,7 @@ export function creerRegistre({ dossier, maintenant = () => Date.now(), journal 
     }
     etat.statuts = apres; return ev;
   }
-  function reglerRisque(r) { const x = K.bornerRisque(r); if (x === etat.risquePct) return false; etat.risquePct = x; journal('registre', 'Risque par trade réglé à ' + x + ' % (réglage du Worker).'); return true; }
+  function reglerRisque(r) { const x = K.bornerRisque(r); if (x === etat.risquePct) return false; etat.risqueLe = maintenant(); etat.risquePct = x; journal('registre', 'Risque par trade réglé à ' + x + ' % (réglage du Worker).'); return true; }
   /* Corrections de l'audit (tools/audit-kepler.mjs) : remplacent les champs recalculés sur les vraies bougies, sans toucher aux moteurs. */
   function appliquerCorrections(c) { etat.corrections = { ...etat.corrections, ...c }; etat.empreinte = null; }
 
