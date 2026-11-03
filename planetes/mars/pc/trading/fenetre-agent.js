@@ -5,6 +5,7 @@ import { synchroniserIdees } from './m6-page.js';
 import { creerAccueilAgent, creerAgentLisible } from './agent-accueil.js';
 import { creerPanneauxV4, VUES_V4, LIBELLES_V4 } from './panneaux-v4.js';
 import '../../../../core/commun/agent-alertes.js';          // alerte à l'ouverture d'une position
+import '../../../../shared/portfolio.js';                 // V8 : le seul calcul du portefeuille (même code que le téléphone)
 import '../../../../core/commun/volume-vivant-calcul.js';
 import '../../../../core/commun/volume-vivant.js';          // V14 : tableau vivant (vue principale)
 
