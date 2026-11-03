@@ -1,0 +1,17 @@
+# Agent de trading V2 — avancement
+
+Reprendre ici : lire ce fichier, puis `RAPPORT-AGENT.md` (local, choix faits seul). Branche de travail : `agent-trading-pN`, fusionnée dans `main` à chaque fin de phase.
+
+## Fait
+- **Phase 1 — Données Kraken** : actifs vérifiés (tableau dans le rapport) ; flux WebSocket Kraken Futures (échanges avec côté agresseur + carnet COMPLET, ~1 600 niveaux par côté sur BTC) ; bougies M15/H1 (historique Kraken depuis 2022 pour BTC, delta réel depuis le démarrage du moteur) ; volume net (delta, CVD), profil (VAH/POC/VAL jour / veille / semaine / plage libre, réel ou « approx »), carnet (murs, déséquilibre, absorption, ordres retirés/mangés, grosses transactions) ; enregistrement gzip du carnet + rejeu. Tests : `node moteur/tests/phase1-test.mjs`, `rejouer-test.mjs`.
+
+## En cours
+- Phase 2 — portefeuille et registre.
+
+## Reste
+- Phase 3 stratégie + IA, phase 4 fenêtre unique, phase 5 alertes, phase 6 vérification, service Windows, déploiement du Worker `rayle-agent-trading`.
+
+## Repères
+- Moteur (HORS dépôt, `.gitignore`) : `agent-trading/moteur/`. Données : `%LOCALAPPDATA%\Rayle\agent-trading\`.
+- Partagé moteur + affichage (dans le dépôt) : `agent-trading/commun/`. Affichage : `agent-trading/front/`. Worker séparé : `agent-trading/worker/`.
+- Le Worker principal `rayle` n'est PAS redéployé (sa dernière version n'a pas les secrets) : l'agent a son propre Worker.

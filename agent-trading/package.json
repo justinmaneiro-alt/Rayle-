@@ -1,0 +1,10 @@
+{
+  "name": "rayle-agent-trading",
+  "private": true,
+  "type": "module",
+  "description": "Agent de trading SIMULÉ de Rayle (aucun ordre, aucune clé de trading). Supprimer ce dossier suffit à le retirer.",
+  "scripts": {
+    "test": "node tests/tout.mjs",
+    "moteur": "node moteur/index.js"
+  }
+}
