@@ -25,10 +25,12 @@ export function creerSync({ config, fetchImpl = globalThis.fetch, delai = 20000 
     etat: () => appel('GET', '/agent/etat'),
     publierMobile: paquet => appel('POST', '/agent/mobile', { paquet }),                // V8 : copie compacte de la fenêtre Agent pour le téléphone et la tablette
     commandesTraitees: ids => appel('POST', '/agent/commandes/traitees', { ids }),
+    registre: registre => appel('POST', '/agent/registre', { registre }),                // V8 : registre unique des trades → D1 ; rend { version, risquePct }
     telegram: (texte, type) => appel('POST', '/telegram/envoyer', { texte, type })
   };
 }
 /* État allégé envoyé au Worker : listes plafonnées (D1 garde l'historique en ajoutant sans écraser). */
 export function etatPourWorker(etat) {
-  return { ...etat, journal: etat.journal.slice(-200), backtests: etat.backtests.slice(-80), alertes: etat.alertes.slice(-150), tradesSimules: (etat.tradesSimules || []).slice(-300) };
+  const { variantesVues, ...reste } = etat; void variantesVues;   // V8 : la liste des variantes déjà testées (≈ 3 Mo) reste sur le PC : elle faisait dépasser la limite de 3 Mo du Worker (HTTP 400 sur /agent/sync)
+  return { ...reste, journal: etat.journal.slice(-200), backtests: etat.backtests.slice(-80), alertes: etat.alertes.slice(-150), tradesSimules: (etat.tradesSimules || []).slice(-300) };
 }
