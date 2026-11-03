@@ -5,8 +5,10 @@ Reprendre ici : lire ce fichier, puis `RAPPORT-AGENT.md` (local, choix faits seu
 ## Fait
 - **Phase 1 — Données Kraken** : actifs vérifiés (tableau dans le rapport) ; flux WebSocket Kraken Futures (échanges avec côté agresseur + carnet COMPLET, ~1 600 niveaux par côté sur BTC) ; bougies M15/H1 (historique Kraken depuis 2022 pour BTC, delta réel depuis le démarrage du moteur) ; volume net (delta, CVD), profil (VAH/POC/VAL jour / veille / semaine / plage libre, réel ou « approx »), carnet (murs, déséquilibre, absorption, ordres retirés/mangés, grosses transactions) ; enregistrement gzip du carnet + rejeu. Tests : `node moteur/tests/phase1-test.mjs`, `rejouer-test.mjs`.
 
+- **Phase 2 — Portefeuille et registre** : `moteur/registre.js` (registre unique, entrée seulement si touchée, SL avant TP dans une même bougie, frais 0,05 % par côté + parcours du carnet + 1 pas au stop, tout au centime), `moteur/portefeuille.js` (capital = départ + réalisé + flottant, semaine depuis lundi 00:00 Paris, baisse max flottant inclus, limite statique/suiveuse, instantané minute), `moteur/performance.js` (R moyen, IC 95 %, statut), définitions ⓘ `commun/definitions.js`. Tests : `node moteur/tests/phase2-test.mjs`.
+
 ## En cours
-- Phase 2 — portefeuille et registre.
+- Phase 3 — stratégie et autonomie.
 
 ## Reste
 - Phase 3 stratégie + IA, phase 4 fenêtre unique, phase 5 alertes, phase 6 vérification, service Windows, déploiement du Worker `rayle-agent-trading`.
