@@ -7,8 +7,10 @@ Reprendre ici : lire ce fichier, puis `RAPPORT-AGENT.md` (local, choix faits seu
 
 - **Phase 2 — Portefeuille et registre** : `moteur/registre.js` (registre unique, entrée seulement si touchée, SL avant TP dans une même bougie, frais 0,05 % par côté + parcours du carnet + 1 pas au stop, tout au centime), `moteur/portefeuille.js` (capital = départ + réalisé + flottant, semaine depuis lundi 00:00 Paris, baisse max flottant inclus, limite statique/suiveuse, instantané minute), `moteur/performance.js` (R moyen, IC 95 %, statut), définitions ⓘ `commun/definitions.js`. Tests : `node moteur/tests/phase2-test.mjs`.
 
+- **Phase 3 — Stratégie et autonomie** : `moteur/strategie.js` (REJET / CASSURE / ABSORPTION, volume seulement, anti-bruit unique, règles dures), `agent.js` (décision à la clôture M15 + sur événement : niveau du profil touché, mur retiré/mangé), `narration.js` (carnet raconté simplement, cadres « regard »), `ia.js` (LM Studio Dolphin, débit limité, chiffres vérifiés, ne crée jamais de position), `adaptation.js` (fantômes, 1×/semaine max, ≥ 30 trades, validé hors apprentissage, retour arrière), `backtest.js` (honnête, limites écrites), `etat.js` + `publication.js` (état numéroté rapide/lent/historique/courbe), `alertes.js` (Telegram via le pont), Worker `worker/` (DO relais, DÉPLOYÉ : https://rayle-agent-trading.justinmaneiro.workers.dev). Tests : `node moteur/tests/phase3-test.mjs`.
+
 ## En cours
-- Phase 3 — stratégie et autonomie.
+- Phase 4 — fenêtre unique (front).
 
 ## Reste
 - Phase 3 stratégie + IA, phase 4 fenêtre unique, phase 5 alertes, phase 6 vérification, service Windows, déploiement du Worker `rayle-agent-trading`.
