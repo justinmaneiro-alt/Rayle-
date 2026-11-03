@@ -21,6 +21,7 @@ export async function installerSources(page, { stats = {}, pc = null } = {}) {
     const u = new URL(req.url()), h = u.hostname, rep = (corps, type = 'application/json', code = 200) => req.respond({ status: code, contentType: type, headers: { 'Access-Control-Allow-Origin': '*' }, body: typeof corps === 'string' ? corps : JSON.stringify(corps) });
     const compte = k => { stats[k] = (stats[k] || 0) + 1; };
     if (u.pathname.startsWith('/__agent/') && !pc) { compte('pc-absent'); return rep({ ok: false, erreur: 'pas de PC dans ce test' }); }   // la page tente d'abord le service du PC : ici il n'y en a pas
+    if (h === 'api.kraken.com' && globalThis.KRAKEN_PRIX_TEST) { compte('kraken'); const cle = { BTC: 'XXBTZUSD', ETH: 'XETHZUSD', SOL: 'SOLUSD', HYPE: 'HYPEUSD', DOGE: 'XDGUSD' }; return rep({ error: [], result: Object.fromEntries(Object.entries(globalThis.KRAKEN_PRIX_TEST).map(([a, x]) => [cle[a], { c: [String(x), '1'] }])) }); }   // V8 : prix Kraken figés (mêmes sur PC et téléphone)
     if (h === 'data-api.binance.vision') {
       compte('binance');
       if (u.pathname.endsWith('/ticker/24hr')) { const syms = JSON.parse(u.searchParams.get('symbols') || '[]'); return rep(syms.map((s, i) => ({ symbol: s, lastPrice: String(BASES[s] * (1 + i * 0.001)), priceChangePercent: String([1.2, -0.8, 0.3][i % 3]) }))); }

@@ -162,3 +162,8 @@
 .vv-reglages summary{cursor:pointer;color:var(--vv-doux);font-size:13px;min-height:32px}
 .vv-ligne-i td{opacity:.6}
 .vv-court{align-self:center;color:#e6c56b}
+.vv-flux li{grid-template-columns:max-content minmax(0,1fr)}
+.vv-flux li time{white-space:nowrap}
+.vv .vv-fiche-bandeau small,.vv .vv-fiche-bandeau b,.vv .vv-fiche-bandeau span{color:inherit}
+.vv .vv-fiche-valid{margin:0;padding:0 12px 6px}
+.vv .vv-fiche>.vv-note{margin:0;padding:0 12px 6px}

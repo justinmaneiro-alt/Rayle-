@@ -73,6 +73,8 @@ export async function demarrerFauxWorkerMobile(port = 8797) {
           if (scenario.pays === 'panne') return rep({ error: 'indisponible' }, 502);
           return rep({ pays: { code: 'FR', nom: 'France' }, genere: heure(1), titres: Array.from({ length: 12 }, (_, i) => ({ titre: 'Titre direct ' + (i + 1) + ' pour la France', url: 'https://exemple.test/d/' + i, source: i % 2 ? 'Journal B' : 'Journal A', date: heure(5 + i * 9), image: i % 3 ? IMG(i) : undefined })), sources: [] });
         }
+        if (p === '/agent/registre') return rep(scenario.registre ? { existe: true, registre: scenario.registre, maintenant: Date.now() } : { existe: false, risquePct: 1 });   // V8 : registre unique
+        if (p === '/agent/mobile' && scenario.paquet) return rep({ existe: true, paquet: { ...scenario.paquet, t: Date.now() }, recuLe: Date.now(), pcVivantLe: Date.now(), maintenant: Date.now() });
         if (p === '/agent/mobile') {
           if (scenario.agent === 'panne') return rep({ error: 'erreur interne' }, 500);
           if (scenario.agent === 'limite') return rep({ error: 'La liaison Worker est limitée aujourd’hui.', limite: true }, 503);

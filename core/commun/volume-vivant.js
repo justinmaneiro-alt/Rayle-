@@ -351,7 +351,7 @@
       for (const p of passees) {
         const tDeb = p.tEntree || p.tSignal; if (!tDeb || p.tSortie < bougies[0][0] || tDeb > tFinFen) continue;
         const x0 = R.x(iDe(tDeb)), x1 = Math.max(x0 + 2, R.x(iDe(p.tSortie))), yE = R.y(p.entree), yS = R.y(p.stop), yC = p.cible != null ? R.y(p.cible) : yE, gain = p.R > 0, yX = R.y(p.sortie);
-        ctx.fillStyle = 'rgb(239,91,91)'; ctx.fillRect(x0, Math.min(yE, yS), x1 - x0, Math.abs(yE - yS)); if (p.cible != null) { ctx.fillStyle = 'rgb(62,207,142)'; ctx.fillRect(x0, Math.min(yE, yC), x1 - x0, Math.abs(yE - yC)); }
+        ctx.fillStyle = 'rgba(239,91,91,.5)'; ctx.fillRect(x0, Math.min(yE, yS), x1 - x0, Math.abs(yE - yS)); if (p.cible != null) { ctx.fillStyle = 'rgba(62,207,142,.5)'; ctx.fillRect(x0, Math.min(yE, yC), x1 - x0, Math.abs(yE - yC)); }
         ctx.strokeStyle = gain ? COL.hausse : COL.baisse; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(x0, yE); ctx.lineTo(x1, yX); ctx.stroke(); ctx.lineWidth = 1; ctx.fillStyle = gain ? COL.hausse : COL.baisse; ctx.beginPath(); ctx.arc(x1, yX, 3, 0, 7); ctx.fill();
         S.zonesDessinees.push({ id: p.id, statut: p.statut, x0, x1, yE, yS, yC, entree: p.entree, stop: p.stop, cible: p.cible, yH: Math.min(yE, yS, yC), yB: Math.max(yE, yS, yC), p });
       }
