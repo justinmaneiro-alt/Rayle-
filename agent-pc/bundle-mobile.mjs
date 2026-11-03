@@ -32,7 +32,7 @@ export function performanceMobile(propositions, { risquePct = 0.5, maxPoints = 2
   return { risquePct, tous: serie(closes), parAgent: groupes('agent'), parActif: groupes('actif'), pasUnePromesse: 'Simulation avec frais et glissement ; estimation à partir du passé, pas une promesse.' };
 }
 
-export const MAX_OCTETS = 300 * 1024, INTERVALLE_MS = 5 * 60e3, VERSION_PAQUET = 1;
+export const MAX_OCTETS = 300 * 1024, INTERVALLE_MS = 60e3, VERSION_PAQUET = 1;
 
 const sans = (o, cles) => { const c = { ...o }; for (const k of cles) delete c[k]; return c; };
 /* Garde les plus petites versions : listes plafonnées, aucun champ lourd inutile sur un téléphone. */
@@ -90,7 +90,7 @@ export function plafonner(paquet, max = MAX_OCTETS) {
 export const empreintePaquet = p => {
   const pos = p.positions || {}, ag = p.agent || {};
   const utile = { propositions: pos.propositions, recentes: pos.recentes, types: (pos.types || []).map(x => [x.type, x.niveau, x.n, x.esperance]), bilan: pos.bilan, reglages: pos.reglages, pistes: p.pistes, equipe: p.equipe, occasions: p.occasions, exemples: p.exemples,
-    trader: p.trader && { actives: (p.trader.actives || []).map(x => [x.id, x.statut, x.niveau]), recentes: (p.trader.recentes || []).slice(0, 12).map(x => [x.id, x.statut, x.resultat && x.resultat.R]), phrase: p.trader.bilan && p.trader.bilan.phrase, types: (p.trader.types || []).map(x => [x.cle, x.niveau, x.n]), reglages: p.trader.reglages },
+    trader: p.trader && { live: p.trader.portefeuille && p.trader.portefeuille.live && [Math.round(p.trader.portefeuille.live.capital), p.trader.portefeuille.live.nOuverts, p.trader.portefeuille.live.nTrades], actives: (p.trader.actives || []).map(x => [x.id, x.statut, x.niveau]), recentes: (p.trader.recentes || []).slice(0, 12).map(x => [x.id, x.statut, x.resultat && x.resultat.R]), phrase: p.trader.bilan && p.trader.bilan.phrase, types: (p.trader.types || []).map(x => [x.cle, x.niveau, x.n]), reglages: p.trader.reglages },
     volume: p.volume && { capital: p.volume.portefeuille && p.volume.portefeuille.capital, n: p.volume.portefeuille && p.volume.portefeuille.nTrades, verdict: p.volume.verdict && p.volume.verdict.texte, derniere: p.volume.derniereBarre, compteurs: p.volume.compteurs },
     alertes: ag.alertes, active: ag.versionActive, pause: ag.pause, phase: p.phase };
   return createHash('sha1').update(JSON.stringify(utile)).digest('hex').slice(0, 16);

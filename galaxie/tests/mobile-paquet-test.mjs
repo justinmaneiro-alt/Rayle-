@@ -21,7 +21,7 @@ let contenu = { v: 1, t: 0, phase: 'attente', positions: { propositions: [] } };
 const construire = (d, now) => ({ ...contenu, t: now });   // contenu fixe : le service réel écrit en continu, le test doit rester déterministe
 const pousser = creerPousseur({ dossier, S, maintenant: () => t, construire });
 let a = await pousser(); v('premier envoi', a.envoye === true && envois.length === 1);
-t += 60e3; a = await pousser(); v('trop tôt (moins de 5 min) : rien', a.envoye === false && a.raison === 'trop tôt' && envois.length === 1);
+t += 20e3; a = await pousser(); v('trop tôt (moins de 1 min) : rien', a.envoye === false && a.raison === 'trop tôt' && envois.length === 1);
 t += INTERVALLE_MS; a = await pousser(); v('inchangé : rien', a.envoye === false && a.raison === 'inchangé' && envois.length === 1);
 t += 31 * 60e3; a = await pousser(); v('rafraîchi après 30 minutes même inchangé', a.envoye === true && envois.length === 2);
 a = await creerPousseur({ dossier, S: { configure: false }, maintenant: () => t })(); v('Worker non configuré : rien, sans erreur', a.envoye === false);
