@@ -584,6 +584,7 @@
       return true;
     }
     function toutRendre() { if (!(S.registre && K && rendreHistoRegistre())) rendreHisto(); if (!(S.registre && K && rendreFluxRegistre())) rendreFlux(); rendreEtat(); rendrePortefeuille(); if (S.registre && K) rendreCopier(); rendreOutils(); rendreCarnet(); if (!(S.registre && K && rendreListesRegistre())) rendreListes(); rendreRejoue(); dessiner(); }
+    if (K) (async () => { try { const r = await fetch((racine.RAYLE_RACINE || '') + 'shared/backtest-v8.json', { cache: 'no-store' }); if (r.ok) { S.backtest = await r.json(); if (S.registre) rendreVerdictRegistre(); } } catch (e) { /* pas de backtest publié */ } })();   // V8 : résultat du backtest (tools/audit-kepler.mjs --backtest)
     async function rafraichir() {
       if (S.detruit || S.enCours) return; S.enCours = true;
       try {

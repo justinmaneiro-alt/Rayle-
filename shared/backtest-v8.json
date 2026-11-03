@@ -1,0 +1,76 @@
+{
+ "t": 1793690319982,
+ "periode": "12 derniers mois (HYPE : 2), 40 % les plus récents",
+ "lignes": [
+  {
+   "cle": "Balayage de liquidité puis reprise (sweep & reclaim)",
+   "n": 603,
+   "rMoyen": -0.03108843239199007,
+   "ic95": [
+    -0.17036881267957543,
+    0.10819194789559528
+   ],
+   "prouve": false
+  },
+  {
+   "cle": "Rebond de fin de mouvement (épuisement)",
+   "n": 73,
+   "rMoyen": -0.40934635691382165,
+   "ic95": [
+    -0.7091812620157336,
+    -0.10951145181190974
+   ],
+   "prouve": false
+  },
+  {
+   "cle": "Cassure de structure + retest dans le sens du biais",
+   "n": 250,
+   "rMoyen": -0.17365561613256986,
+   "ic95": [
+    -0.37949677668425624,
+    0.03218554441911653
+   ],
+   "prouve": false
+  },
+  {
+   "cle": "Repli dans la tendance vers VWAP / POC / zone de volume",
+   "n": 277,
+   "rMoyen": -0.3112860812846537,
+   "ic95": [
+    -0.4893465809998904,
+    -0.13322558156941694
+   ],
+   "prouve": false
+  },
+  {
+   "cle": "Acceptation hors de la zone de valeur (signal H1, entrée M15)",
+   "n": 358,
+   "rMoyen": 0.09088462073583897,
+   "ic95": [
+    -0.022051451255278867,
+    0.2038206927269568
+   ],
+   "prouve": false
+  },
+  {
+   "cle": "Impulsion portée par le volume (signal H1, entrée M15)",
+   "n": 388,
+   "rMoyen": -0.036500507381939724,
+   "ic95": [
+    -0.16186118994315724,
+    0.0888601751792778
+   ],
+   "prouve": false
+  },
+  {
+   "cle": "Impulsion portée par le volume (signal M15, entrée M15)",
+   "n": 1060,
+   "rMoyen": -0.16769497481654044,
+   "ic95": [
+    -0.25470783474430525,
+    -0.08068211488877566
+   ],
+   "prouve": false
+  }
+ ]
+}

@@ -8,7 +8,7 @@ import { createRequire } from 'node:module';
 import { lireJson, ecrireJson } from './etat-agent.mjs';
 const K = createRequire(import.meta.url)('../shared/portfolio.js');
 
-export const FICHIER_REGISTRE = 'registre.json';
+export const FICHIER_REGISTRE = 'registre.json', FICHIER_CORRECTIONS = 'registre-corrections.json';   // corrections : écrites par tools/audit-kepler.mjs (trades recalculés sur les vraies bougies Kraken)
 const PAS = { M15: 900e3, H1: 3600e3 }, MAX_LIGNES = 1500, MAX_IGNORES = 200;
 const sansSuffixe = n => String(n || '—').replace(/\s*[·\-–|]\s*(H1|M15|H4)\s*$/i, '').trim();
 const STATUT_TRADER = { en_attente: 'en_attente', ouverte: 'ouverte', cloturee: 'cloturee', expiree: 'annulee', annulee: 'annulee', perdue: 'annulee' };
@@ -26,7 +26,8 @@ export function ligneTrader(p, debutV8) {
   const r = p.resultat || null, R = statut === 'cloturee' && r && Number.isFinite(r.R) ? r.R : null;
   const ancien = p.tf === 'H1' && (p.tSignal || 0) < debutV8;
   return { id: p.id, actif: p.actif, sens: p.sens, strategie: sansSuffixe(p.nom || p.setup), source: 'trader', tf: 'M15', contexte: p.tf === 'H1' ? 'H1' : null, ancienFormat: ancien,
-    tSignal: p.tSignal, tValide: (p.t || p.tSignal) + (p.ttl || 16) * PAS.M15, tEntree: p.tEntree || null, entree: p.entree, stop: p.stop, tp: p.cible1 ?? null, tp2: p.cible2 ?? null,
+    // heure du signal = CLÔTURE de la bougie M15 qui l'a donné (le moteur garde son ouverture) ; validité = ttl bougies ensuite
+    tSignal: p.tSignal + PAS.M15, tValide: p.tSignal + ((p.ttl || 16) + 1) * PAS.M15, tEntree: p.tEntree || null, entree: p.entree, stop: p.stop, tp: p.cible1 ?? null, tp2: p.cible2 ?? null,
     statut, tSortie: statut === 'cloturee' ? (p.tSortieBougie || p.tSortie || null) : (statut === 'annulee' ? p.tSortie || null : null), sortie: statut === 'cloturee' ? sortieTrader(p, R) : null,
     raison: statut === 'cloturee' ? K.raisonSortie(r && r.motif, R) : statut === 'annulee' ? (/expir/.test((r && r.motif) || p.statut) ? 'expiration' : 'annulee') : null,
     motif: (r && r.motif) || '', fraisR: r && Number.isFinite(r.couts) ? r.couts : null, R, note: p.raison || '' };
@@ -61,6 +62,7 @@ export function creerRegistre({ dossier, maintenant = () => Date.now(), journal 
 
   /* Reconstruit le registre ; la version ne monte que si une ligne a changé. Rend { registre, change }. */
   function construire() {
+    try { const c = lireJson(path.join(dossier, FICHIER_CORRECTIONS), null); if (c && c.corrections) etat.corrections = c.corrections; } catch (e) { /* pas d'audit */ }
     const lignes = []; const vus = new Set();
     for (const [src, f] of Object.entries(sources)) { let liste = []; try { liste = f() || []; } catch (e) { erreur('registre : source ' + src, e); }
       for (const x of liste) { const l = src === 'trader' ? ligneTrader(x, etat.debutV8) : ligneVolume(x, etat.debutV8); if (!l || vus.has(l.id)) continue; vus.add(l.id); const corr = etat.corrections[l.id]; lignes.push(corr ? { ...l, ...corr, audite: true } : l); } }
