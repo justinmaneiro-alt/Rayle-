@@ -22,33 +22,43 @@ export function brancherDefinitions(racine) {
   racine.addEventListener('pointerdown', e => { if (!e.target.closest('.at-i,.at-bulle')) { const a = racine.querySelector('.at-bulle'); if (a) a.remove(); } });
 }
 
-/* ─── positions en cours ─── */
+/* badge de catégorie : « GRANDE » ou « normale » (anciens trades sans catégorie = normale) */
+export const badge = tr => (tr && tr.categorie === 'grande' ? '<span class="at-badge at-badge-grande">GRANDE</span>' : '<span class="at-badge">normale</span>');
+const risqueTxt = tr => tr.risqueUSD != null ? `${fmtUSD(tr.risqueUSD, 2)} (${fmtNombre(tr.risquePct != null ? tr.risquePct : 0.5, 1)} %)` : '—';
+
+/* ─── positions en cours : une carte par position (jamais de défilement horizontal) ─── */
 export function htmlPositions(etat, selection) {
   const c = etat.compte, enCours = etat.trades.enCours;
   if (!enCours.length) return '<p class="at-vide">Aucune position en cours.</p>';
   const parId = Object.fromEntries(c.positions.map(p => [p.id, p]));
-  const lignes = enCours.map(tr => {
-    const p = parId[tr.id];
-    if (tr.statut === 'propose') return `<tr data-id="${esc(tr.id)}" class="${selection === tr.id ? 'at-sel' : ''} at-attente"><td>${esc(tr.actif)}</td><td>${sens(tr.sens)}</td><td>${fmtQte(tr.actif, tr.quantite)}</td><td>${fmtPrix(tr.actif, tr.entree)}</td><td colspan="3" class="at-doux">en attente de l’entrée · jusqu’à ${heureParis(tr.validJusqu)}</td><td>${fmtPrix(tr.actif, tr.stop)}</td><td>${fmtPrix(tr.actif, tr.objectif)}</td><td>—</td></tr>`;
-    return `<tr data-id="${esc(tr.id)}" class="${selection === tr.id ? 'at-sel' : ''}"><td>${esc(tr.actif)}</td><td>${sens(tr.sens)}</td><td>${fmtQte(tr.actif, p.quantite)}</td><td>${fmtPrix(tr.actif, p.entree)}</td><td>${fmtPrix(tr.actif, p.prix)}</td><td class="${sgn(p.pnl)}">${fmtUSD(p.pnl, 2, true)}</td><td class="${sgn(p.r)}">${fmtR(p.r)}</td><td>${fmtPrix(tr.actif, p.stop)}</td><td>${fmtPrix(tr.actif, p.objectif)}</td><td>${fmtDuree(p.dureeMs)}</td></tr>`;
+  const champ = (nom, val, cls = '', large) => `<div${large ? ' class="at-large"' : ''}><small>${nom}</small><b class="${cls}">${val}</b></div>`;
+  const cartes = enCours.map(tr => {
+    const p = parId[tr.id], attente = tr.statut === 'propose' || !p;
+    const corps = attente
+      ? champ('Entrée', fmtPrix(tr.actif, tr.entree)) + champ('SL', fmtPrix(tr.actif, tr.stop)) + champ('TP', fmtPrix(tr.actif, tr.objectif)) + champ('Taille', fmtQte(tr.actif, tr.quantite)) + champ('Valable jusqu’à', heureParis(tr.validJusqu)) + champ('Risque', risqueTxt(tr), 'at-risque-pos', true)
+      : champ('Entrée', fmtPrix(tr.actif, p.entree)) + champ('Prix', fmtPrix(tr.actif, p.prix)) + champ('P&amp;L', fmtUSD(p.pnl, 2, true), sgn(p.pnl)) + champ('R', fmtR(p.r), sgn(p.r))
+        + champ('SL', fmtPrix(tr.actif, p.stop)) + champ('TP', fmtPrix(tr.actif, p.objectif)) + champ('Taille', fmtQte(tr.actif, p.quantite)) + champ('Durée', fmtDuree(p.dureeMs)) + champ('Risque', risqueTxt(tr), 'at-risque-pos', true);
+    return `<article class="at-carte-pos at-${tr.sens}${selection === tr.id ? ' at-sel' : ''}${attente ? ' at-attente' : ''}" data-id="${esc(tr.id)}" tabindex="0">
+      <header><b>${esc(tr.actif)}</b> ${sens(tr.sens)} ${badge(tr)}<span class="at-doux">${attente ? 'en attente de l’entrée' : 'ouverte'}</span></header>
+      <div class="at-carte-pos-corps">${corps}</div></article>`;
   }).join('');
   const t = c.totalOuvert, niv = t.levier >= 4 ? 'at-danger' : t.levier >= 2 ? 'at-alerte' : '', nivR = t.risquePct >= 3 ? 'at-danger' : t.risquePct >= 1.5 ? 'at-alerte' : '';
-  return `<div class="at-tab-defil"><table class="at-table"><thead><tr><th>Actif</th><th>Sens</th><th>Taille</th><th>Entrée</th><th>Prix</th><th>P&amp;L $</th><th>P&amp;L R</th><th>SL</th><th>TP</th><th>Durée</th></tr></thead><tbody>${lignes}</tbody>
-    <tfoot><tr><td colspan="5">Total</td><td class="${sgn(t.pnl)}">${fmtUSD(t.pnl, 2, true)}</td><td colspan="4"></td></tr></tfoot></table></div>
-    <div class="at-risque"><span class="${nivR}">Risque ouvert ${fmtUSD(t.risqueUSD, 0)} (${fmtPct(t.risquePct, 2, false)}) ${info('risqueOuvert')}</span><span class="${niv}">Levier total ×${fmtNombre(t.levier, 2)} ${info('levier')}</span></div>`;
+  return `<div class="at-cartes-pos">${cartes}</div>
+    <div class="at-risque"><span>Total flottant <b class="${sgn(t.pnl)}">${fmtUSD(t.pnl, 2, true)}</b></span><span class="${nivR}">Risque ouvert ${fmtUSD(t.risqueUSD, 0)} (${fmtPct(t.risquePct, 2, false)}) ${info('risqueOuvert')}</span><span class="${niv}">Levier total ×${fmtNombre(t.levier, 2)} ${info('levier')}</span><span>Risque par trade fixé à ${fmtNombre(c.risquePct, 1)} % (${fmtUSD(c.risqueParTradeUSD, 2)}) ${info('risque')}</span></div>`;
 }
 
 /* ─── historique des positions (heures RÉELLES) + CSV ─── */
 export function htmlHistorique(lent) {
   const l = (lent && lent.passes || []).slice().reverse();
   if (!l.length) return '<p class="at-vide">Aucune position terminée pour l’instant.</p>';
-  return `<div class="at-tab-defil"><table class="at-table at-hist"><thead><tr><th>Actif</th><th>Sens</th><th>Signal</th><th>Entrée réelle</th><th>Prix entrée</th><th>Sortie réelle</th><th>Prix sortie</th><th>Raison</th><th>Frais + gliss.</th><th>R</th><th>P&amp;L $</th></tr></thead><tbody>${
-    l.map(t => `<tr data-id="${esc(t.id)}"><td>${esc(t.actif)}</td><td>${sens(t.sens)}</td><td>${dateHeureParis(t.tSignal)}</td><td>${t.tEntree ? dateHeureParis(t.tEntree) : '—'}</td><td>${t.prixEntree != null ? fmtPrix(t.actif, t.prixEntree) : '—'}</td><td>${t.tSortie ? dateHeureParis(t.tSortie) : '—'}</td><td>${t.prixSortie != null ? fmtPrix(t.actif, t.prixSortie) : '—'}</td><td>${esc(t.raison || t.statut)}</td><td>${t.fraisGlissement != null ? fmtUSD(t.fraisGlissement, 2) : '—'}</td><td class="${sgn(t.r)}">${t.r != null ? fmtR(t.r) : '—'}</td><td class="${sgn(t.pnl)}">${t.pnl != null ? fmtUSD(t.pnl, 2, true) : '—'}</td></tr>`).join('')}</tbody></table></div>`;
+  const td = (lbl, v, cls = '') => `<td data-l="${lbl}"${cls ? ` class="${cls}"` : ''}>${v}</td>`;
+  return `<div class="at-tab-defil"><table class="at-table at-hist at-empilable"><thead><tr><th>Actif</th><th>Sens</th><th>Type</th><th>Signal</th><th>Entrée réelle</th><th>Prix entrée</th><th>Sortie réelle</th><th>Prix sortie</th><th>Raison</th><th>Risque</th><th>Frais + gliss.</th><th>R</th><th>P&amp;L $</th></tr></thead><tbody>${
+    l.map(t => `<tr data-id="${esc(t.id)}">${td('Actif', esc(t.actif))}${td('Sens', sens(t.sens))}${td('Type', badge(t))}${td('Signal', dateHeureParis(t.tSignal))}${td('Entrée réelle', t.tEntree ? dateHeureParis(t.tEntree) : '—')}${td('Prix entrée', t.prixEntree != null ? fmtPrix(t.actif, t.prixEntree) : '—')}${td('Sortie réelle', t.tSortie ? dateHeureParis(t.tSortie) : '—')}${td('Prix sortie', t.prixSortie != null ? fmtPrix(t.actif, t.prixSortie) : '—')}${td('Raison', esc(t.raison || t.statut))}${td('Risque', risqueTxt(t))}${td('Frais + gliss.', t.fraisGlissement != null ? fmtUSD(t.fraisGlissement, 2) : '—')}${td('R', t.r != null ? fmtR(t.r) : '—', sgn(t.r))}${td('P&amp;L $', t.pnl != null ? fmtUSD(t.pnl, 2, true) : '—', sgn(t.pnl))}</tr>`).join('')}</tbody></table></div>`;
 }
 export function csvHistorique(lent) {
-  const tete = ['id', 'actif', 'sens', 'type', 'heure_signal', 'heure_entree_reelle', 'entree_prevue', 'prix_entree', 'stop', 'objectif', 'quantite', 'risque_usd', 'frais_entree', 'frais_sortie', 'glissement', 'statut', 'heure_sortie_reelle', 'prix_sortie', 'raison', 'R', 'pnl_usd'];
+  const tete = ['id', 'actif', 'sens', 'type', 'categorie', 'heure_signal', 'heure_entree_reelle', 'entree_prevue', 'prix_entree', 'stop', 'objectif', 'quantite', 'risque_usd', 'frais_entree', 'frais_sortie', 'glissement', 'statut', 'heure_sortie_reelle', 'prix_sortie', 'raison', 'R', 'pnl_usd'];
   const iso = t => (t ? new Date(t).toISOString() : '');
-  const lignes = (lent && lent.passes || []).map(t => [t.id, t.actif, t.sens, t.type, iso(t.tSignal), iso(t.tEntree), copiePrix(t.actif, t.entree), t.prixEntree != null ? copiePrix(t.actif, t.prixEntree) : '', copiePrix(t.actif, t.stop), copiePrix(t.actif, t.objectif), copieQte(t.actif, t.quantite), t.risqueUSD, t.fraisEntree, t.fraisSortie, t.glissement, t.statut, iso(t.tSortie), t.prixSortie != null ? copiePrix(t.actif, t.prixSortie) : '', t.raison || '', t.r ?? '', t.pnl ?? '']);
+  const lignes = (lent && lent.passes || []).map(t => [t.id, t.actif, t.sens, t.type, t.categorie === 'grande' ? 'grande' : 'normale', iso(t.tSignal), iso(t.tEntree), copiePrix(t.actif, t.entree), t.prixEntree != null ? copiePrix(t.actif, t.prixEntree) : '', copiePrix(t.actif, t.stop), copiePrix(t.actif, t.objectif), copieQte(t.actif, t.quantite), t.risqueUSD, t.fraisEntree, t.fraisSortie, t.glissement, t.statut, iso(t.tSortie), t.prixSortie != null ? copiePrix(t.actif, t.prixSortie) : '', t.raison || '', t.r ?? '', t.pnl ?? '']);
   return [tete].concat(lignes).map(l => l.map(v => { const s = String(v ?? ''); return /[",;\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s; }).join(',')).join('\n');
 }
 
@@ -73,9 +83,40 @@ export function htmlPortefeuille(etat, lent) {
     <div class="at-pf-statut"><span class="at-statut ${cls}">${statut}</span> ${info('statut')}
       ${g ? `<span>${g.n} trades · R moyen ${g.moyenne != null ? fmtR(g.moyenne) : '—'} · IC 95 % [${g.icBas != null ? fmtNombre(g.icBas, 2) : '—'} ; ${g.icHaut != null ? fmtNombre(g.icHaut, 2) : '—'}] ${info('rMoyen')} · baisse max ${fmtNombre(g.baisseMaxR || 0, 2)} R</span>` : ''}</div>
     ${!perf || perf.echantillonTropPetit ? `<p class="at-avert">Échantillon trop petit pour conclure (${perf ? perf.nClos : 0} trades sur 100) ${info('echantillon')}</p>` : ''}
+    ${htmlCategories(perf)}
     ${parType ? `<ul class="at-partype">${parType}</ul>` : ''}
     ${bt ? `<details class="at-bt"><summary>Backtest : ${esc(bt.verdict)}</summary><p>${bt.n} trades simulés sur ${fmtNombre(bt.joursEnregistres, 1)} jours enregistrés. Hors apprentissage : ${bt.horsApprentissage.n} trades, R moyen ${bt.horsApprentissage.moyenne != null ? fmtR(bt.horsApprentissage.moyenne) : '—'}, IC 95 % [${bt.horsApprentissage.icBas != null ? fmtNombre(bt.horsApprentissage.icBas, 2) : '—'} ; ${bt.horsApprentissage.icHaut != null ? fmtNombre(bt.horsApprentissage.icHaut, 2) : '—'}].</p><ul>${bt.limites.map(x => `<li>${esc(x)}</li>`).join('')}</ul></details>` : ''}
   </div>`;
+}
+
+/* suivi SÉPARÉ normales / grandes (chiffres publiés par le moteur, rien n'est recalculé ici) */
+export function htmlCategories(perf) {
+  const pc = perf && perf.parCategorie; if (!pc) return '';
+  const cls = s => (s === 'RENTABLE' ? 'at-gain' : s === 'NON RENTABLE' ? 'at-perte' : 'at-alerte');
+  const ligne = (nom, s) => `<tr><td data-l="Catégorie">${nom}</td><td data-l="Trades">${s.n}</td><td data-l="R moyen">${s.moyenne != null ? fmtR(s.moyenne) : '—'}</td><td data-l="% gagnants">${s.pctGagnants != null ? fmtNombre(s.pctGagnants, 1) + ' %' : '—'}</td><td data-l="R total" class="${sgn(s.totalR)}">${s.n ? fmtR(s.totalR) : '—'}</td><td data-l="Statut"><span class="at-statut ${cls(s.statut)}">${s.statut}</span></td></tr>`;
+  return `<table class="at-table at-cat at-empilable"><thead><tr><th>Catégorie</th><th>Trades</th><th>R moyen</th><th>% gagnants</th><th>R total</th><th>Statut</th></tr></thead><tbody>${ligne('<span class="at-badge">normale</span>', pc.normale)}${ligne('<span class="at-badge at-badge-grande">GRANDE</span>', pc.grande)}</tbody></table>`;
+}
+
+/* ─── backtest « 7 derniers jours » : publié par le moteur (mêmes exemples, mêmes chiffres sur tous les écrans) ─── */
+export function htmlBacktest7j(bt) {
+  if (!bt) return '<p class="at-vide">Rejeu en préparation : le moteur le calcule au démarrage puis toutes les 6 heures, et le publie ici.</p>';
+  const resultat = s => s.statut === 'expiree' ? '<span class="at-doux">entrée jamais touchée · 0 R · 0 $</span>'
+    : `<b class="${sgn(s.r)}">${fmtR(s.r)}</b> · <b class="${sgn(s.pnl)}">${fmtUSD(s.pnl, 2, true)}</b> <span class="at-doux">(${s.raison === 'objectif' ? 'objectif atteint' : s.raison === 'stop' ? 'stop touché' : esc(s.raison || '')})</span>`;
+  const ex = (bt.derniers || []).map(s => `<button type="button" class="at-ex at-${s.sens}" data-bt-id="${esc(s.id)}" title="Voir ce moment sur le graphique">
+      <span class="at-ex-tete"><b>${esc(s.actif)}</b> ${sens(s.sens)} ${badge(s)} <time>${dateHeureParis(s.tSignal)}</time></span>
+      <span class="at-ex-niv">Entrée ${fmtPrix(s.actif, s.entree)} · SL ${fmtPrix(s.actif, s.stop)} · TP ${fmtPrix(s.actif, s.objectif)}</span>
+      <span class="at-ex-res">Résultat réel du rejeu : ${resultat(s)} · risque ${fmtUSD(s.risqueUSD, 2)}</span>
+      <span class="at-ex-pq">Pourquoi : ${esc(s.pourquoi)}</span></button>`).join('');
+  const pc = bt.parCategorie || {}, cat = (k, nom) => pc[k] ? `${nom} ${pc[k].n} (${pc[k].gagnants} gagnant${pc[k].gagnants > 1 ? 's' : ''}, ${fmtR(pc[k].totalR)})` : '';
+  const cal = Object.entries(bt.calibrations || {}).map(([a, c]) => c ? `${esc(a)} ${fmtNombre(c.pct, 2)} %` : '').filter(Boolean).join(' · ');
+  return `<p class="at-rejoue">REJOUÉ, pas réel · du ${dateHeureParis(bt.debut)} au ${dateHeureParis(bt.fin)} · ${(bt.actifs || []).map(esc).join(', ')} · risque ${fmtNombre(bt.risquePct, 1)} % · frais et glissement inclus · ne change jamais le portefeuille</p>
+    <h4 class="at-sous-titre">Les 3 derniers signaux, dans l’ordre du temps <small>(pas les meilleurs : un clic montre le moment sur le graphique)</small></h4>
+    ${ex ? `<div class="at-exemples">${ex}</div>` : '<p class="at-vide">Aucun signal terminé sur ces 7 jours.</p>'}
+    <p class="at-bt-total"><b>${esc(bt.phrase)}</b>${bt.nExpires ? ` · dont ${bt.nExpires} entrée${bt.nExpires > 1 ? 's' : ''} jamais touchée${bt.nExpires > 1 ? 's' : ''}` : ''}${bt.nEnCours ? ` · ${bt.nEnCours} encore en cours` : ''} · ${fmtUSD(bt.pnl, 2, true)}</p>
+    <p class="at-bt-cat">${cat('normale', 'Normales :')} · ${cat('grande', 'Grandes :')}</p>
+    ${bt.echantillonTropPetit ? '<p class="at-avert">Échantillon trop petit pour conclure (moins de 20 signaux).</p>' : ''}
+    <div class="at-bt-donnees"><div><h5>Données utilisées</h5><ul>${bt.donnees.utilisees.map(x => `<li>${esc(x)}</li>`).join('')}</ul></div><div><h5>Ce qui manque (jamais inventé)</h5><ul>${bt.donnees.manquantes.map(x => `<li>${esc(x)}</li>`).join('')}</ul></div></div>
+    ${cal ? `<p class="at-doux at-bt-cal">Seuil des grandes positions (distance typique en 4 à 6 bougies M15) : ${cal}</p>` : ''}`;
 }
 
 /* capital animé jusqu'au centime + flash vert / rouge */
@@ -105,6 +146,6 @@ export function htmlJournal(lent, actif) {
   const l = (lent && lent.journal || []).filter(e => !actif || !e.actif || e.actif === actif).slice(-80).reverse();
   if (!l.length) return '<p class="at-vide">Le journal est vide pour l’instant.</p>';
   const ic = { recit: '💬', ignore: '⊘', proposition: '★', entree: '→', sortie: '■', expiree: '⌛', niveau: '◇', carnet: '▤', adaptation: '⚙' };
-  return '<ol class="at-journal">' + l.map(e => `<li class="at-j-${esc(e.type)}"><time>${heureParis(e.t)}</time> <span>${ic[e.type] || '·'}</span> ${e.actif ? `<b>${esc(e.actif)}</b> ` : ''}${esc(e.texte)}${e.source === 'ia' ? ' <em>(IA)</em>' : ''}</li>`).join('') + '</ol>';
+  return '<ol class="at-journal">' + l.map(e => `<li class="at-j-${esc(e.type)}"><time>${heureParis(e.t)}</time> <span>${ic[e.type] || '·'}</span> ${e.actif ? `<b>${esc(e.actif)}</b> ` : ''}${e.categorie === 'grande' ? '<span class="at-badge at-badge-grande">GRANDE</span> ' : ''}${esc(e.texte)}${e.source === 'ia' ? ' <em>(IA)</em>' : ''}</li>`).join('') + '</ol>';
 }
 export const _P = PAR_ID;

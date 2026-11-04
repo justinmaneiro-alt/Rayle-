@@ -16,7 +16,7 @@ await page.evaluateOnNewDocument(r => { try { localStorage.setItem('rayle_entite
 await page.goto(BASE + '/index.html', { waitUntil: 'load' }); await attendre(3000);
 
 const ouverte = () => page.evaluate(() => !!document.querySelector('.at-pc'));
-const lireFenetre = () => page.evaluate(() => { const c = document.querySelector('.at-pc .at-capital'), b = document.querySelector('.at-pc'); const r = b && b.getBoundingClientRect(); return { cents: c && c.dataset.cents, seq: document.querySelector('.at-pc [data-version]') && document.querySelector('.at-pc [data-version]').textContent, l: r && Math.round(r.width), h: r && Math.round(r.height), onglets: document.querySelectorAll('.at-pc .at-onglets [data-onglet]').length, dessus: (() => { if (!r) return false; const e = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2); return !!(e && b.contains(e)); })() }; });
+const lireFenetre = () => page.evaluate(() => { const c = document.querySelector('.at-pc .at-capital'), b = document.querySelector('.at-pc'); const r = b && b.getBoundingClientRect(); return { cents: c && c.dataset.cents, seq: document.querySelector('.at-pc [data-version]') && document.querySelector('.at-pc [data-version]').textContent, l: r && Math.round(r.width), h: r && Math.round(r.height), onglets: document.querySelectorAll('.at-pc .at-onglets [data-onglet]').length, page: !!document.querySelector('.at-pc .at-defil [data-section="backtest"]'), disposition: document.querySelector('.at-pc .at') && document.querySelector('.at-pc .at').dataset.disposition, dessus: (() => { if (!r) return false; const e = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2); return !!(e && b.contains(e)); })() }; });
 const attendreFenetre = () => page.waitForFunction(() => document.querySelector('.at-pc .at-capital') && window.LightweightCharts, { timeout: 25000 }).then(() => attendre(2500));
 
 // 1) accueil : « + Agent » visible, sans chevauchement
@@ -28,7 +28,7 @@ t('accueil : le titre du haut n’est pas recouvert par les boutons', await page
 await page.screenshot({ path: DOSSIER + '/entrees-accueil-1600.png' });
 await page.mouse.click(puce.x + puce.w / 2, puce.y + puce.h / 2); await attendreFenetre();
 const f1 = await lireFenetre();
-t('accueil → fenêtre ouverte, grande, en onglets, au premier plan', f1.l >= 1400 && f1.h >= 800 && f1.onglets === 4 && f1.dessus, JSON.stringify(f1));
+t('accueil → fenêtre ouverte, grande, page unique sans onglets, au premier plan', f1.l >= 1400 && f1.h >= 800 && f1.onglets === 0 && f1.page && f1.disposition === 'pc' && f1.dessus, JSON.stringify(f1));
 await page.screenshot({ path: DOSSIER + '/entrees-fenetre-accueil-1600.png' });
 // même capital que le téléphone (même relais, même numéro d'état)
 const ctx = await nav.createBrowserContext(), tel = await ctx.newPage(); await tel.setViewport({ width: 384, height: 800, isMobile: true, hasTouch: true });
@@ -49,7 +49,7 @@ t('Échap ferme la fenêtre', !(await ouverte()));
 await page.evaluate(() => document.querySelector('#g1Icones [data-i="espaces"]').click()); await attendre(300);
 t('menu Espaces : entrée « Agent »', await page.evaluate(() => !!document.querySelector('#g1Menu [data-p="agent"]')));
 await page.evaluate(() => document.querySelector('#g1Menu [data-p="agent"]').click()); await attendreFenetre();
-t('menu Espaces → même fenêtre', (await lireFenetre()).onglets === 4);
+t('menu Espaces → même fenêtre', (await lireFenetre()).page);
 await page.mouse.click(10, 450); await attendre(300);
 t('clic à côté ferme la fenêtre', !(await ouverte()));
 const errAccueil = deAgent().length;
@@ -64,10 +64,11 @@ t('salon : dossier « Agent de trading » présent et devant la caméra', pos &&
 await page.screenshot({ path: DOSSIER + '/entrees-salon-mars-1600.png' });
 if (pos) { await page.mouse.click(pos.x, pos.y); await attendreFenetre(); }
 const f3 = await lireFenetre();
-t('dossier de Mars → même fenêtre, au-dessus de la 3D', f3.onglets === 4 && f3.dessus, JSON.stringify(f3));
+t('dossier de Mars → même fenêtre, au-dessus de la 3D', f3.page && f3.dessus, JSON.stringify(f3));
 await page.screenshot({ path: DOSSIER + '/entrees-fenetre-mars-1600.png' });
-await page.evaluate(() => document.querySelector('.at-pc .at-onglets [data-onglet="carnet"]').click()); await attendre(400);
-t('la souris marche dans la fenêtre au-dessus de Mars (onglet Carnet)', await page.evaluate(() => document.querySelector('.at-pc .at').dataset.onglet === 'carnet'));
+await page.evaluate(() => document.querySelector('.at-pc [data-unite="H1"]').click()); await attendre(400);
+t('la souris marche dans la fenêtre au-dessus de Mars (bouton H1)', await page.evaluate(() => document.querySelector('.at-pc [data-unite="H1"]').classList.contains('actif')));
+await page.evaluate(() => document.querySelector('.at-pc [data-unite="M15"]').click());
 await page.keyboard.press('Escape'); await attendre(600);
 t('Échap ferme la fenêtre sans sortir de la base', !(await ouverte()) && (await page.evaluate(() => window.Mars.etat().mode)) === 'interieur');
 // 4) bouton du Terminal (espace de travail de Mars)

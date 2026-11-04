@@ -51,4 +51,43 @@ t('même état = même affichage (PC et téléphone utilisent les mêmes fonctio
   const a = htmlPositions(etat) + htmlPortefeuille(etat, null), b = htmlPositions(JSON.parse(JSON.stringify(etat))) + htmlPortefeuille(JSON.parse(JSON.stringify(etat)), null);
   eq(a, b); vrai(a.includes('10 035,43 $') && a.includes('+35,13 $'), 'chiffres du moteur affichés tels quels');
 });
+/* ─── page unique, grandes positions, backtest 7 jours ─── */
+const { espacer, BOUGIES_DEFAUT } = await import('../front/graphique.js');
+const { htmlBacktest7j, htmlCategories, badge, htmlHistorique } = await import('../front/panneaux.js');
+const { disposition } = await import('../front/vue.js').catch(() => ({ disposition: null }));
+t('étiquettes du profil : 14 px d’écart au moins, ordre gardé, dans le cadre', () => {
+  const l = espacer([{ y: 100, t: 'VAH' }, { y: 104, t: 'POC' }, { y: 106, t: 'VAL' }, { y: 300, t: 'x' }], 14, 400);
+  for (let i = 1; i < l.length; i++) vrai(l[i].y - l[i - 1].y >= 14, 'écart ' + (l[i].y - l[i - 1].y));
+  eq(l.map(e => e.t).join(), 'VAH,POC,VAL,x');
+  const bas = espacer([{ y: 395 }, { y: 396 }, { y: 397 }], 14, 400); vrai(bas.every(e => e.y <= 398) && bas[2].y - bas[1].y >= 14 && bas[1].y - bas[0].y >= 14, 'reste dans le cadre');
+  eq(BOUGIES_DEFAUT, 120);
+});
+if (disposition) t('disposition : PC si ≥ 1000 px ET paysage, sinon une colonne', () => {
+  eq(disposition(1600, 900), 'pc'); eq(disposition(1904, 1000), 'pc'); eq(disposition(1280, 800), 'pc'); eq(disposition(800, 1280), 'colonne'); eq(disposition(384, 800), 'colonne'); eq(disposition(999, 600), 'colonne');
+});
+t('badge GRANDE / normale (anciens trades = normale)', () => { vrai(badge({ categorie: 'grande' }).includes('GRANDE')); vrai(badge({}).includes('normale')); });
+const etatG = { compte: { capital: 10035.43, realise: 0, flottant: 35.43, capitalRealise: 10000, risqueParTradeUSD: 50, risquePct: 0.5, semaine: { pnl: 35.43, pct: 0.35, objectifPct: 2 }, baisse: { maxUSD: 0, maxPct: 0, actuellePct: 0, limitePct: 6, mode: 'statique', depassee: false },
+  positions: [{ id: 'g', quantite: 0.0649, entree: 77000, prix: 77300, pnl: 15.5, r: 0.31, stop: 76230, objectif: 78930, dureeMs: 60000 }], totalOuvert: { pnl: 15.5, risqueUSD: 50, risquePct: 0.5, levier: 0.5 } },
+  trades: { enCours: [{ id: 'g', actif: 'BTC', sens: 'achat', categorie: 'grande', statut: 'ouvert', entree: 77000, stop: 76230, objectif: 78930, quantite: 0.0649, risqueUSD: 49.97, risquePct: 0.5 }] }, statut: 'PAS ENCORE PROUVÉ' };
+t('positions : carte avec badge GRANDE et risque 0,5 % en $ ; tableau d’historique avec catégorie', () => {
+  const h = htmlPositions(etatG); vrai(h.includes('GRANDE') && /49,97\s\$ \(0,5 %\)/.test(h), 'badge + risque'); vrai(!h.includes('<table'), 'cartes, pas de tableau large');
+  const hi = htmlHistorique({ passes: [Object.assign({}, etatG.trades.enCours[0], { statut: 'clos', tSignal: 0, r: 1, pnl: 50, raison: 'objectif' })] }); vrai(hi.includes('GRANDE') && hi.includes('data-l="Type"'));
+});
+const bt = { rejoue: true, debut: 0, fin: 7 * 86400e3, actifs: ['BTC', 'ETH'], risquePct: 0.5, n: 3, nExpires: 1, nEnCours: 0, pnl: 40, phrase: 'Sur 7 jours : 3 signaux, 1 gagnant, +0,80 R au total (frais inclus)', echantillonTropPetit: true,
+  parCategorie: { normale: { n: 2, gagnants: 1, totalR: 1.8 }, grande: { n: 1, gagnants: 0, totalR: -1 } }, calibrations: { BTC: { pct: 0.62 } },
+  derniers: [{ id: 'a', actif: 'BTC', sens: 'achat', categorie: 'grande', tSignal: 1, entree: 1, stop: 0.5, objectif: 3, statut: 'clos', r: -1, pnl: -50, risqueUSD: 50, raison: 'stop', pourquoi: 'p' },
+    { id: 'b', actif: 'ETH', sens: 'vente', categorie: 'normale', tSignal: 2, entree: 1, stop: 1.5, objectif: 0.2, statut: 'expiree', r: 0, pnl: 0, risqueUSD: 50, pourquoi: 'q' }],
+  donnees: { utilisees: ['Bougies'], manquantes: ['Carnet d’ordres passé : il n’existe pas'] } };
+t('backtest 7 jours : REJOUÉ, 3 derniers dans l’ordre publié, total honnête, échantillon trop petit, données utilisées / manquantes', () => {
+  const h = htmlBacktest7j(bt);
+  vrai(h.includes('REJOUÉ, pas réel') && h.includes('Sur 7 jours : 3 signaux') && h.includes('Échantillon trop petit pour conclure') && h.includes('Carnet d’ordres passé'));
+  vrai(h.indexOf('data-bt-id="a"') < h.indexOf('data-bt-id="b"'), 'ordre du temps gardé'); vrai(h.includes('GRANDE') && h.includes('entrée jamais touchée'));
+  eq(htmlBacktest7j(JSON.parse(JSON.stringify(bt))), h, 'même JSON → même affichage (PC, tablette, téléphone)');
+  vrai(/préparation/.test(htmlBacktest7j(null)));
+});
+t('même capital au centime PC / téléphone : mêmes fonctions, même JSON', () => {
+  const a = htmlPositions(etatG) + htmlPortefeuille(etatG, { perf: { global: { n: 0 }, parCategorie: { normale: { n: 0, statut: 'PAS ENCORE PROUVÉ' }, grande: { n: 0, statut: 'PAS ENCORE PROUVÉ' } }, parType: {}, nClos: 0, echantillonTropPetit: true } });
+  const copie = JSON.parse(JSON.stringify(etatG)), b = htmlPositions(copie) + htmlPortefeuille(copie, { perf: { global: { n: 0 }, parCategorie: { normale: { n: 0, statut: 'PAS ENCORE PROUVÉ' }, grande: { n: 0, statut: 'PAS ENCORE PROUVÉ' } }, parType: {}, nClos: 0, echantillonTropPetit: true } });
+  eq(a, b); vrai(/10\s035,43\s\$/.test(a), 'capital au centime'); vrai(htmlCategories({ parCategorie: { normale: { n: 1, statut: 'PAS ENCORE PROUVÉ' }, grande: { n: 0, statut: 'PAS ENCORE PROUVÉ' } } }).includes('GRANDE'));
+});
 console.log(`front : ${ok} réussis, ${ko} échoués`); if (ko) process.exitCode = 1;

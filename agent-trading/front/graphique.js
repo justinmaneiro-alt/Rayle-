@@ -44,6 +44,16 @@ export function placerEtiquettes(etiquettes, hauteur, hMax) {
   return places;
 }
 
+/* étiquettes d'une même colonne : écart vertical minimal (14 px), ordre gardé, dans le cadre */
+export function espacer(etiquettes, ecart = 14, hMax = Infinity) {
+  const l = etiquettes.slice().sort((a, b) => a.y - b.y);
+  for (let i = 1; i < l.length; i++) if (l[i].y < l[i - 1].y + ecart) l[i].y = l[i - 1].y + ecart;
+  const debord = l.length ? l[l.length - 1].y - (hMax - 2) : 0;
+  if (debord > 0) { l[l.length - 1].y -= debord; for (let i = l.length - 2; i >= 0; i--) if (l[i].y > l[i + 1].y - ecart) l[i].y = l[i + 1].y - ecart; }
+  return l;
+}
+export const BOUGIES_DEFAUT = 120, MARGE_DROITE = 12;
+
 /* coordonnée x d'un indice logique FRACTIONNAIRE (logicalToCoordinate n'accepte bien que des entiers) */
 export function xDe(ts, l) {
   if (l == null || !Number.isFinite(l)) return null;
@@ -62,7 +72,7 @@ class Primitive {
 }
 
 export function creerGraphique(el, { racine, surSelection }) {
-  const etat = { actif: null, unite: 'M15', donnees: [], positions: [], passees: [], montrerPassees: false, selection: null, profils: [], annotations: [], prix: null, tPrix: null, derniereBougie: null, live: false };
+  const etat = { actif: null, unite: 'M15', donnees: [], positions: [], passees: [], rejoue: null, montrerPassees: false, selection: null, profils: [], annotations: [], prix: null, tPrix: null, derniereBougie: null, live: false };
   let LW = null, chart = null, bougies = null, deltaS = null, cvdS = null, volS = null, zones = { traits: [] }, resize = null;
   const C = () => ({ haussier: couleur(racine, '--at-haussier'), baissier: couleur(racine, '--at-baissier'), achat: couleur(racine, '--at-achat'), vente: couleur(racine, '--at-vente'), texte: couleur(racine, '--at-texte'), doux: couleur(racine, '--at-doux'), gain: couleur(racine, '--at-gain'), perte: couleur(racine, '--at-perte'), accent: couleur(racine, '--at-accent'), sable: couleur(racine, '--at-sable'), mono: couleur(racine, '--at-mono') || 'monospace' });
 
@@ -70,10 +80,10 @@ export function creerGraphique(el, { racine, surSelection }) {
   const primPositions = new Primitive((ctx, taille, P) => {
     if (!P.series || !etat.donnees.length) return;
     const c = C(), ts = P.chart.timeScale(), pasM15 = UNITES.M15, H = 16, etiquettes = []; zones.traits = [];
-    const liste = etat.positions.concat(etat.montrerPassees ? etat.passees : []);
+    const liste = etat.positions.concat(etat.montrerPassees ? etat.passees : [], etat.rejoue && etat.rejoue.actif === etat.actif ? [etat.rejoue] : []);
     const iActuel = indiceLogique(etat.donnees, Date.now(), UNITES[etat.unite]);
     for (const tr of liste) {
-      const ouverte = tr.statut === 'ouvert' || tr.statut === 'propose', passee = !ouverte;
+      const rej = !!tr.rejoue, ouverte = !rej && (tr.statut === 'ouvert' || tr.statut === 'propose'), passee = !ouverte && !rej;
       const t0 = tr.tEntree || tr.tSignal, i0m = Math.floor(t0 / pasM15) * pasM15;
       // étendue en bougies M15 (règle partagée), convertie en temps puis en indice du graphique affiché (M15 ou H1)
       const n = tr.nTrait || 8, iAct15 = Math.floor((Date.now() - i0m) / pasM15), iSortie15 = tr.tSortie ? Math.floor((tr.tSortie - i0m) / pasM15) : null;
@@ -83,9 +93,9 @@ export function creerGraphique(el, { racine, surSelection }) {
       if (x0 == null || x1 == null) continue;
       if (x1 - x0 < 36) x1 = x0 + 36;                    // jamais trop petits
       if (x1 < 0 || x0 > taille.width) continue;
-      const sel = etat.selection === tr.id, attenue = etat.selection && !sel, a = passee ? 0.22 : attenue ? 0.45 : 1;
+      const sel = etat.selection === tr.id || rej, attenue = etat.selection && !sel, a = passee ? 0.22 : attenue ? 0.45 : rej ? 0.9 : 1;
       const col = tr.sens === 'achat' ? c.achat : c.vente;
-      const lignes = [['ENTRÉE', tr.prixEntree != null ? tr.prixEntree : tr.entree, [], sel ? 2.4 : 1.6], ['SL', tr.stop, [5, 4], sel ? 1.6 : 1], ['TP', tr.objectif, [2, 3], sel ? 1.6 : 1]];
+      const lignes = [['ENTRÉE', tr.prixEntree != null ? tr.prixEntree : tr.entree, rej ? [6, 3] : [], sel ? 2.2 : 1.6], ['SL', tr.stop, [5, 4], sel ? 1.6 : 1], ['TP', tr.objectif, [2, 3], sel ? 1.6 : 1]];
       for (const [nom, prix, tirets, ep] of lignes) {
         const y = P.series.priceToCoordinate(prix); if (y == null) continue;
         ctx.save(); ctx.globalAlpha = a; ctx.strokeStyle = col; ctx.lineWidth = ep; ctx.setLineDash(tirets);
@@ -97,7 +107,8 @@ export function creerGraphique(el, { racine, surSelection }) {
         const yE = P.series.priceToCoordinate(tr.prixEntree != null ? tr.prixEntree : tr.entree);
         if (yE != null) {
           const pnl = tr.pnlAffiche;
-          etiquettes.push({ x: x1 + 4, y: yE - H / 2, w: 0, badge: true, texte: `${tr.sens === 'achat' ? '▲ ACHAT' : '▼ VENTE'} ${fmtQte(tr.actif, tr.quantite)} ${PAR_ID[tr.actif] ? PAR_ID[tr.actif].unite : ''}`, pnl, statut: tr.statut, col, a, yTrait: yE });
+          const cat = tr.categorie === 'grande' ? ' GRANDE' : '';
+          etiquettes.push({ x: x1 + 4, y: yE - H / 2, w: 0, badge: true, texte: `${rej ? 'REJOUÉ · ' : ''}${tr.sens === 'achat' ? '▲ ACHAT' : '▼ VENTE'}${cat} ${fmtQte(tr.actif, tr.quantite)} ${PAR_ID[tr.actif] ? PAR_ID[tr.actif].unite : ''}`, pnl, statut: rej ? 'rejoue' : tr.statut, col, a, yTrait: yE });
         }
       }
     }
@@ -110,11 +121,11 @@ export function creerGraphique(el, { racine, surSelection }) {
       if (e.badge && e.x + e.w > taille.width - 2) e.x = taille.width - e.w - 2;
     }
     for (const e of placerEtiquettes(etiquettes, H, taille.height)) {
-      ctx.save(); ctx.globalAlpha = e.a;
-      ctx.fillStyle = 'rgba(8,12,18,.88)'; ctx.strokeStyle = e.col; ctx.lineWidth = 1; ctx.setLineDash([]);
-      ctx.beginPath(); ctx.roundRect ? ctx.roundRect(e.x, e.y, e.w, H, 3) : ctx.rect(e.x, e.y, e.w, H); ctx.fill(); ctx.stroke();
-      ctx.fillStyle = e.col; ctx.textBaseline = 'middle'; ctx.fillText(e.texte, e.x + 5, e.y + H / 2 + .5);
-      if (e.suffixe) { const w0 = ctx.measureText(e.texte).width; ctx.fillStyle = e.statut === 'propose' ? c.doux : e.pnl >= 0 ? c.gain : c.perte; ctx.fillText(e.suffixe, e.x + 5 + w0, e.y + H / 2 + .5); }
+      // texte seul (jamais de carré de couleur) : un léger contour sombre le rend lisible sur les bougies
+      ctx.save(); ctx.globalAlpha = e.a; ctx.setLineDash([]); ctx.textBaseline = 'middle'; ctx.lineJoin = 'round';
+      const ecrire = (txt, x, col) => { ctx.strokeStyle = 'rgba(5,8,12,.9)'; ctx.lineWidth = 3; ctx.strokeText(txt, x, e.y + H / 2 + .5); ctx.fillStyle = col; ctx.fillText(txt, x, e.y + H / 2 + .5); };
+      ecrire(e.texte, e.x + 5, e.col);
+      if (e.suffixe) { const w0 = ctx.measureText(e.texte).width; ecrire(e.suffixe, e.x + 5 + w0, e.statut === 'propose' ? c.doux : e.pnl >= 0 ? c.gain : c.perte); }
       if (Math.abs(e.y + H / 2 - e.yTrait) > 3 && !e.badge) { ctx.strokeStyle = e.col; ctx.globalAlpha = e.a * .5; ctx.beginPath(); ctx.moveTo(e.x + e.w, e.y + H / 2); ctx.lineTo(e.x + e.w + 4, e.yTrait); ctx.stroke(); }
       ctx.restore();
     }
@@ -124,16 +135,18 @@ export function creerGraphique(el, { racine, surSelection }) {
   const primProfils = new Primitive((ctx, taille, P) => {
     if (!P.series || !etat.donnees.length) return;
     const c = C(), ts = P.chart.timeScale();
+    const etqAnn = [];
     for (const z of etat.annotations.filter(a => a.type === 'zone')) {
       const y0 = P.series.priceToCoordinate(z.pMax), y1 = P.series.priceToCoordinate(z.pMin); if (y0 == null || y1 == null) continue;
       ctx.fillStyle = alpha(c.accent, .06); ctx.fillRect(0, y0, taille.width, y1 - y0);
-      ctx.fillStyle = alpha(c.accent, .7); ctx.font = `10px ${c.mono}`; ctx.fillText('◇ ' + (z.nom || 'zone surveillée'), 6, y0 + 11);
+      etqAnn.push({ y: y0 + 8, texte: '◇ ' + (z.nom || 'zone'), col: alpha(c.accent, .8) });
     }
     for (const n of etat.annotations.filter(a => a.type === 'niveau')) {
       const y = P.series.priceToCoordinate(n.prix); if (y == null) continue;
       ctx.save(); ctx.strokeStyle = alpha(c.sable, .7); ctx.setLineDash([2, 4]); ctx.beginPath(); ctx.moveTo(0, y + .5); ctx.lineTo(taille.width, y + .5); ctx.stroke(); ctx.restore();
-      ctx.fillStyle = alpha(c.sable, .9); ctx.font = `10px ${c.mono}`; ctx.fillText(n.nom || 'niveau', 6, y - 3);
+      etqAnn.push({ y: y - 7, texte: n.nom || 'niveau', col: alpha(c.sable, .9) });
     }
+    const toutes = etqAnn.map(e => Object.assign(e, { x: 6 }));
     for (const p of etat.profils) {
       if (!p.niveaux || !p.niveaux.length) continue;
       let x0 = xDe(ts, indiceLogique(etat.donnees, p.debut, UNITES[etat.unite])), x1 = xDe(ts, indiceLogique(etat.donnees, p.fin, UNITES[etat.unite]) + 1);
@@ -145,12 +158,24 @@ export function creerGraphique(el, { racine, surSelection }) {
         if (va + vv > 0) { const wa = w * va / (va + vv); ctx.fillStyle = alpha(c.achat, dansZone ? .32 : .16); ctx.fillRect(x0, ya, wa, h); ctx.fillStyle = alpha(c.vente, dansZone ? .32 : .16); ctx.fillRect(x0 + wa, ya, w - wa, h); }
         else { ctx.fillStyle = alpha(c.doux, dansZone ? .28 : .14); ctx.fillRect(x0, ya, w, h); }
       }
+      const etq = [], suff = p.etiquette === 'agent' ? '·IA' : '';
       for (const [nom, prix, col] of [['VAH', p.vah, c.accent], ['POC', p.poc, c.sable], ['VAL', p.val, c.accent]]) {
         const y = P.series.priceToCoordinate(prix); if (y == null) continue;
         ctx.save(); ctx.strokeStyle = alpha(col, .85); ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(x0, Math.round(y) + .5); ctx.lineTo(x1, Math.round(y) + .5); ctx.stroke(); ctx.restore();
-        ctx.fillStyle = alpha(col, .95); ctx.font = `10px ${c.mono}`; ctx.fillText(`${nom} ${p.etiquette || ''}`.trim(), x0 + 3, y - 3);   // à GAUCHE : la droite est réservée aux positions
+        etq.push({ y: y - 6, yTrait: y, texte: nom + suff, col: alpha(col, .95) });
       }
-      if (p.source && p.source !== 'reel') { ctx.fillStyle = alpha(c.doux, .8); ctx.font = `9px ${c.mono}`; ctx.fillText(p.source === 'approx' ? 'profil approx. (bougies)' : 'profil mixte', x0 + 2, (P.series.priceToCoordinate(p.val) || 0) + 12); }
+      if (p.source && p.source !== 'reel') { const yv = P.series.priceToCoordinate(p.val); if (yv != null) etq.push({ y: yv + 7, yTrait: yv, texte: p.source === 'approx' ? 'approx.' : 'mixte', col: alpha(c.doux, .85) }); }
+      toutes.push(...etq.map(e => Object.assign(e, { x: x0 + 3 })));
+    }
+    // étiquettes COURTES, à GAUCHE (la droite est réservée aux positions) ; celles qui partagent une colonne (< 130 px)
+    // sont espacées ENSEMBLE : jamais à moins de 14 px l'une de l'autre, même entre profil et niveaux de l'agent
+    const colonnes = [];
+    for (const e of toutes.sort((a, b) => a.x - b.x)) { const g = colonnes.find(k => Math.abs(k.x - e.x) < 130); if (g) g.l.push(e); else colonnes.push({ x: e.x, l: [e] }); }
+    ctx.font = `10px ${c.mono}`; ctx.textBaseline = 'middle'; ctx.lineJoin = 'round';
+    etat._etqProfils = [];
+    for (const g of colonnes) for (const e of espacer(g.l, 14, taille.height)) {
+      ctx.strokeStyle = 'rgba(5,8,12,.9)'; ctx.lineWidth = 3; ctx.strokeText(e.texte, e.x, e.y); ctx.fillStyle = e.col; ctx.fillText(e.texte, e.x, e.y);
+      etat._etqProfils.push({ x: g.x, y: e.y, texte: e.texte });
     }
   });
 
@@ -174,7 +199,7 @@ export function creerGraphique(el, { racine, surSelection }) {
       grid: { vertLines: { color: 'rgba(143,208,227,.05)' }, horzLines: { color: 'rgba(143,208,227,.05)' } },
       crosshair: { mode: LW.CrosshairMode.Normal },
       rightPriceScale: { borderColor: 'rgba(143,208,227,.15)' },
-      timeScale: { borderColor: 'rgba(143,208,227,.15)', rightOffset: 8, barSpacing: 8, timeVisible: true, secondsVisible: false, tickMarkFormatter: (t, type) => (type <= 2 ? FMT_J.format(t * 1000) : FMT_H.format(t * 1000)) },
+      timeScale: { borderColor: 'rgba(143,208,227,.15)', rightOffset: MARGE_DROITE, barSpacing: 8, timeVisible: true, secondsVisible: false, tickMarkFormatter: (t, type) => (type <= 2 ? FMT_J.format(t * 1000) : FMT_H.format(t * 1000)) },
       localization: { locale: 'fr-FR', timeFormatter: t => FMT_JH.format(t * 1000), priceFormatter: p => fmtPrix(etat.actif, p) },
       handleScroll: { mouseWheel: true, pressedMouseMove: true, horzTouchDrag: true, vertTouchDrag: true }, handleScale: { axisPressedMouseMove: true, mouseWheel: true, pinch: true }
     });
@@ -215,7 +240,7 @@ export function creerGraphique(el, { racine, surSelection }) {
       const { b, d, v, vol } = donneesDe(liste || []); etat.donnees = b.map(x => Object.assign({}, x)); etat.derniereBougie = b[b.length - 1] || null;
       bougies.setData(b); volS.setData(vol); deltaS.setData(d); cvdS.setData(v);
       bougies.applyOptions({ priceFormat: { type: 'price', precision: (PAR_ID[actif] || {}).decimales ?? 2, minMove: (PAR_ID[actif] || {}).tick || 0.01 } });
-      if (changement || recadrer) chart.timeScale().setVisibleLogicalRange({ from: Math.max(0, b.length - 110), to: b.length + 8 });
+      if (changement || recadrer) chart.timeScale().setVisibleLogicalRange({ from: Math.max(0, b.length - BOUGIES_DEFAUT), to: b.length + MARGE_DROITE });
     },
     /* bougie live : mise à jour fluide de la dernière (ou ajout) */
     bougieLive(liste) {
@@ -235,7 +260,12 @@ export function creerGraphique(el, { racine, surSelection }) {
       primPositions.maj && primPositions.maj(); primProfils.maj && primProfils.maj(); primPrix.maj && primPrix.maj();
     },
     montrerPassees(v) { etat.montrerPassees = v; primPositions.maj && primPositions.maj(); },
-    selectionner, recadrer() { if (chart) chart.timeScale().setVisibleLogicalRange({ from: Math.max(0, etat.donnees.length - 110), to: etat.donnees.length + 8 }); },
+    selectionner, recadrer() { if (chart) chart.timeScale().setVisibleLogicalRange({ from: Math.max(0, etat.donnees.length - BOUGIES_DEFAUT), to: etat.donnees.length + MARGE_DROITE }); },
+    toutVoir() { if (chart) chart.timeScale().fitContent(); },
+    /* centre la vue sur un instant (ms) : exemples du backtest */
+    allerA(tMs, demiLargeur = 50) { if (!chart || !etat.donnees.length) return false; const i = indiceLogique(etat.donnees, tMs, UNITES[etat.unite]); if (i == null || i < 0) return false; chart.timeScale().setVisibleLogicalRange({ from: i - demiLargeur, to: i + demiLargeur }); return true; },
+    /* position REJOUÉE (backtest) en petits traits, ou null pour l'enlever */
+    rejoue(sig) { etat.rejoue = sig ? Object.assign({}, sig, { rejoue: true, nTrait: sig.tSortie ? Math.max(4, Math.round((sig.tSortie - (sig.tEntree || sig.tSignal)) / UNITES.M15) + 2) : 12, pnlAffiche: sig.pnl }) : null; primPositions.maj && primPositions.maj(); },
     _etat: etat, _zones: zones, _lw: () => ({ chart, bougies, primProfils, primPositions }),
     detruire() { clearInterval(resize); try { chart && chart.remove(); } catch (e) { /* */ } }
   };
