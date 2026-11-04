@@ -6,7 +6,7 @@ Reprendre ici : lire ce fichier, puis `RAPPORT-NUIT.md`. Reprendre à la premiè
 |---|---|---|
 | 1. Enregistrement renforcé | fait | 2026-11-05 |
 | 2. Gros mouvements, fiches, analyse | fait | 2026-11-05 |
-| 3. Copilote : zones et ranges | à faire | |
+| 3. Copilote : zones et ranges | fait | 2026-11-05 |
 | 4. Copilote : flèches et bilan | à faire | |
 | 5. Terre 2.0 : étude et architecture | à faire | |
 | 6. Terre 2.0 : globe et villes 3D | à faire | |
