@@ -13,7 +13,7 @@ Reprendre ici : lire ce fichier, puis `RAPPORT-NUIT.md`. Reprendre à la premiè
 | 7. Terre 2.0 : couches gratuites | fait | 2026-11-05 |
 | 8. Terre 2.0 : modes de vision | fait | 2026-11-05 |
 | 9. Rayle pilote la Terre | fait | 2026-11-05 |
-| 10. Vérification finale | à faire | |
+| 10. Vérification finale | fait | 2026-11-05 |
 
 ## Fait
 - **Phase 1** : `agent-trading/moteur/collecte.js` (hors dépôt) branché dans le moteur : carnet 50 niveaux/côté toutes les 5 s, toutes les transactions (ms, côté agresseur), événements de murs, OI + funding chaque minute, bougies M15/H1 closes (volume acheteur/vendeur, delta, empreinte), trous marqués (`collecte/trous.jsonl`), vidage gzip chaque minute, rotation horaire, ménage 200 jours / 30 Go, contrôle d'intégrité + sauvegarde quotidienne (`C:\Users\justi\Sauvegardes-Rayle\donnees-marche\<jour>`, manifeste sha256) avec ligne dans le Journal. Flux complet du carnet ramené à 14 jours / 12 Go. Moteur redémarré, enregistrement vérifié. Test : `moteur/tests/collecte-test.mjs`.
@@ -26,8 +26,10 @@ Reprendre ici : lire ce fichier, puis `RAPPORT-NUIT.md`. Reprendre à la premiè
 
 - **Phase 9** : `terre-v2/voix.js` + branchement `core/intelligence/phrase.js`. Tests : `galaxie/tests/terre2-test.mjs`, Chrome `tests-navigateur/terre2-test.mjs`, `terre2-integration-test.mjs`.
 
+- **Phase 10** : tests et captures (voir RAPPORT-NUIT.md).
+
 ## En cours
-- Phase 10.
+- Rien : les 10 phases sont faites. Reste : voir « Ce qui reste » dans RAPPORT-NUIT.md (jeton Cesium, clés, conditions Caltrans).
 
 ## Bloqué
 - (rien)

@@ -72,3 +72,19 @@ Premier résultat (historique Kraken BTC, ETH, HYPE, or) : ≈ 30 gros mouvement
 - Depuis n'importe quelle vue, une phrase claire (« va à Rome ») ouvre la galaxie puis la Terre 2.0 ; les phrases ambiguës (« montre les séismes » hors de la Terre) restent aux commandes existantes (sources en direct).
 - Raylé annonce ce qu'elle fait ; couche sans clé → elle explique comment obtenir la clé. Les commandes ne parlent que de la Terre.
 - Vérifié : 46 tests purs, Chrome sur le banc (7 phrases), et dans la vraie application (« va à Paris » depuis l'accueil → galaxie → Terre 2.0 ; retour à la Terre classique ; téléphone : rien de la Terre 2.0 n'est chargé).
+
+## Phase 10 : vérification finale — FAIT
+- `npm test` à la racine (nouveau script : Terre 2.0 + grammaire de la galaxie + agent de trading) : tout passe.
+- Chrome, PC 1600 px (captures dans `captures-terre/terre2/`, hors dépôt) : globe, zoom sur Paris et la tour Eiffel SANS jeton, couches (séismes, satellites + ISS, météo, lancements, caméras, avions), fiche d'une caméra TfL avec image et licence, les 4 modes de vision, commandes de Raylé, intégration dans la vraie application. 24 + 28 + 5 vérifications, aucune erreur console, rien de coupé.
+- Copilote (captures dans `agent-trading/moteur/tests/captures/copilote-*.png`, hors dépôt) : zones, bilan, flèche d'essai + bulle, PC / tablette / téléphone / plein écran : 20 vérifications.
+- **Non testé** : la Terre 2.0 AVEC jeton Cesium (je n'en ai pas) ; les bateaux et incendies avec clé ; une vraie flèche du copilote (aucune n'est encore apparue : règles strictes, carnet enregistré seulement depuis cette nuit).
+- Téléphone et tablette : la Terre 2.0 n'y est jamais chargée (vérifié). Test des appareils `v7b-appareils-test.mjs` : 50 réussis, 4 échecs DÉJÀ présents avant cette nuit (ils attendent l'écran Kepler retiré le 2026-11-03).
+- Remarque : `tests-navigateur/accueil-g1-test.mjs` est modifié dans ton dossier (ajout de `?appareil=pc`) ; ce n'est pas moi, je ne l'ai ni commité ni annulé.
+
+## Ce qui reste / à faire par toi
+1. Créer le jeton Cesium (procédure plus haut) pour le relief et les bâtiments 3D, puis vérifier une ville en 3D.
+2. Si tu veux les bateaux et les incendies : les deux clés gratuites (procédures plus haut).
+3. Relire les conditions d'utilisation du portail Caltrans CWWP2 (page inaccessible cette nuit) ; enlever la source si elles ne conviennent pas (`terre-v2/couches/cameras.js`).
+4. Laisser tourner la collecte des semaines : l'étude des gros mouvements (chaque lundi) n'aura assez d'événements « carnet / murs » qu'après plusieurs mois.
+5. La veille du PC est coupée sur secteur (commande dans « Choix faits seul ») : à remettre si tu veux.
+6. Relais de la Terre 2.0 : `npx.cmd wrangler deploy --config terre-v2/relais/wrangler.toml` pour le redéployer ; le supprimer : `npx.cmd wrangler delete rayle-terre-relais`.
