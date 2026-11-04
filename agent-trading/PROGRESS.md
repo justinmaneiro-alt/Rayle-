@@ -22,6 +22,8 @@ Reprendre ici : lire ce fichier, puis `RAPPORT-AGENT.md` (local, choix faits seu
 
 - **v4 : agent libre, simple, évalué honnêtement (2026-11-04)** : voir `RAPPORT-V4.md`. **Mode OBSERVATION** (aucune alerte, aucune position, bandeau) : 51 variantes du cerveau v4 (volume + supports/résistances + balayage + flux, score 0-100) testées sur le banc long, aucune ne gagne hors échantillon ni ne bat le témoin au hasard ; open interest et financement écartés. Registre fantôme (versions v4, v4+carnet, v2), plan du jour 08:00, carnet de leçons (ajustement toutes les 30 clôtures, validé hors échantillon), bouton « Backtest » 5/7/14 j (candidate non validée), panneau « volume net en bougies », « Objectif semaine » retiré. Moteur : `moteur/v4/` (hors dépôt) ; sauvegarde d'avant : `Projets/moteur-sauvegardes/avant-v4-2026-11-04/`. Tests : `moteur/tests/v4-test.mjs`, Chrome `moteur/tests/ecran-v4.mjs` (relais `REEL=1`).
 
+- **Cadre swing 1-2 jours (2026-11-04, nuit)** : voir `moteur/etude-ancien/RAPPORT-SWING.md` (hors dépôt). Décision H1 (niveaux de volume, CVD 24 h), entrée limite M15 traversée d'un pas, stop large, objectif 2-5 R, 72 h ; 40 variantes, témoin 1000 tirages même cadre : **aucune ne passe ni ne bat le témoin** (q min 0,24) ; retenue en calibration « 4 modèles · stop ≥ 4 ATR · flux ≥ 2 » = −0,022 R hors échantillon (360 trades). Version « swing » ajoutée au registre fantôme (`moteur/swing/`, `v4/fantome.js` `cadre:'swing'`, archive `registre-fantome-archive.jsonl`), **active au prochain redémarrage du moteur**. Tests : `moteur/tests/swing-test.mjs`.
+
 ## En cours
 - Rien. Le moteur tourne en OBSERVATION et remplit le registre fantôme.
 
