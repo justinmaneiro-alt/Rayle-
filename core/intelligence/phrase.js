@@ -12,6 +12,13 @@
     if(my!==epoch) return;
     if(cmdMo){ diagAction('commande mobile'); addLine('ray',cmdMo); await speak(cmdMo); return; }
     if(my!==epoch) return;
+    // Terre 2.0 (PC) : « va à Paris », « zoome sur la tour Eiffel », « montre les avions de Londres », « mode thermique », « masque les couches », « retour à la Terre classique »
+    let cmdT2=null;
+    if(!(window.RayleAppareil&&RayleAppareil.mobile&&RayleAppareil.mobile())&&!document.documentElement.classList.contains('appareil-mobile')){
+      try{ const V2=await import(new URL('terre-v2/voix.js',document.baseURI).href); cmdT2=await V2.traiter(text); }catch(e){ console.warn('[terre-v2] voix :',e&&e.message); }
+    }
+    if(my!==epoch) return;
+    if(cmdT2){ diagAction('Terre 2.0'); addLine('ray',cmdT2); await speak(cmdT2); return; }
     const cmdD=window.DirectPage?await DirectPage.commande(text):null;    // sources en direct : « montre-moi les séismes », « mets France 24 en direct », « que dit l'OMS ? »
     if(my!==epoch) return;
     if(cmdD){ diagAction('sources en direct'); addLine('ray',cmdD); await speak(cmdD); return; }
