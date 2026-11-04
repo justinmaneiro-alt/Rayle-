@@ -220,6 +220,28 @@ export function creerGraphique(el, { racine, surSelection }) {
       const x = xT(s.t), y = P.series.priceToCoordinate(s.p); if (x == null || y == null || x < 0 || x > taille.width) continue;
       ecrire(s.sens === 'haut' ? '↗ sortie de range' : '↘ sortie de range', x + 6, s.sens === 'haut' ? y - 12 : y + 12, alpha(c.accent, .9), .9);
     }
+    // flèches (IDÉES — non validées) : petites, verte = achat sous la bougie, rouge = vente au-dessus ; traits entrée / SL / TP fins et neutres
+    etat._flechesDessinees = [];
+    const fl = (cp.fleches || []).concat(etat.flechesRejeu || []);
+    for (const f of fl) {
+      const i = indiceLogique(etat.donnees, f.tBougie, U), x = xDe(ts, i); if (x == null || x < -20 || x > taille.width + 20) continue;
+      const d = etat.donnees[Math.max(0, Math.min(etat.donnees.length - 1, i))], achat = f.sens === 'achat', col = achat ? c.gain : c.perte, a = f.rejoue ? 0.5 : 1;
+      const yb = P.series.priceToCoordinate(achat ? d.low : d.high); if (yb == null) continue;
+      const y = achat ? yb + 12 : yb - 12, sel = etat.flecheSel === f.id;
+      // traits : longueur selon la taille de l'idée (R potentiel), jusqu'à la sortie si elle est connue
+      const n = f.tFin ? Math.max(4, Math.round((f.tFin - f.t) / U) + 1) : Math.max(6, Math.min(24, Math.round(4 + 3 * (f.Rpot || 2)))), x1 = xDe(ts, i + n) ?? x + n * 6;
+      for (const [prix, tir] of [[f.entree, []], [f.stop, [4, 3]], [f.objectif, [2, 3]]]) {
+        const yy = P.series.priceToCoordinate(prix); if (yy == null) continue;
+        ctx.globalAlpha = (sel ? .9 : .45) * a; ctx.strokeStyle = c.doux; ctx.lineWidth = 1; ctx.setLineDash(tir);
+        ctx.beginPath(); ctx.moveTo(Math.round(x) + .5, Math.round(yy) + .5); ctx.lineTo(Math.round(x1) + .5, Math.round(yy) + .5); ctx.stroke();
+      }
+      ctx.setLineDash([]); ctx.globalAlpha = a; ctx.fillStyle = col; ctx.beginPath();
+      if (achat) { ctx.moveTo(x, y - 5); ctx.lineTo(x - 5, y + 4); ctx.lineTo(x + 5, y + 4); } else { ctx.moveTo(x, y + 5); ctx.lineTo(x - 5, y - 4); ctx.lineTo(x + 5, y - 4); }
+      ctx.closePath(); ctx.fill(); if (sel) { ctx.strokeStyle = c.texte; ctx.lineWidth = 1; ctx.stroke(); }
+      ctx.globalAlpha = 1;
+      if (f.rejoue) ecrire('REJOUÉ', x + 7, y, alpha(c.doux, .9), .7);
+      etat._flechesDessinees.push({ id: f.id, x, y });
+    }
     ctx.restore();
   });
 
@@ -292,11 +314,33 @@ export function creerGraphique(el, { racine, surSelection }) {
     bougies.attachPrimitive(primCopilote); bougies.attachPrimitive(primProfils); bougies.attachPrimitive(primPositions); bougies.attachPrimitive(primBacktest); bougies.attachPrimitive(primPrix);
     chart.subscribeClick(p => {
       if (!p.point) return;
+      const fl = (etat._flechesDessinees || []).map(f => ({ ...f, d: Math.hypot(f.x - p.point.x, f.y - p.point.y) })).filter(f => f.d < 12).sort((a, b) => a.d - b.d)[0];
+      if (fl) return montrerBulle(fl.id, fl.x, fl.y);
+      if (etat.flecheSel) { cacherBulle(); return; }
       let meilleur = null;
       for (const z of zones.traits) if (p.point.x >= z.x0 - 6 && p.point.x <= z.x1 + 6) { const d = Math.abs(p.point.y - z.y); if (d < 10 && (!meilleur || d < meilleur.d)) meilleur = { id: z.id, d }; }
       selectionner(meilleur ? (etat.selection === meilleur.id ? null : meilleur.id) : null);
     });
     resize = setInterval(() => primPrix.maj && primPrix.maj(), 1000);   // compte à rebours
+  }
+  /* bulle d'une flèche : thèse en une phrase, entrée / stop / objectif, ce qui annule l'idée, « IDÉE — non validée » */
+  let bulle = null;
+  function cacherBulle() { etat.flecheSel = null; if (bulle) bulle.hidden = true; primCopilote.maj && primCopilote.maj(); }
+  function montrerBulle(id, x, y) {
+    const f = ((etat.copilote && etat.copilote.fleches) || []).concat(etat.flechesRejeu || []).find(z => z.id === id); if (!f) return;
+    etat.flecheSel = id;
+    if (!bulle) { bulle = document.createElement('div'); bulle.className = 'at-cop-bulle'; bulle.setAttribute('role', 'dialog'); el.appendChild(bulle); bulle.addEventListener('click', e => { if (e.target.closest('[data-fermer]')) cacherBulle(); }); }
+    const P = v => fmtPrix(etat.actif, v), st = { active: 'en cours', gagnante: 'gagnante', perdante: 'perdante', expiree: 'expirée (24 h)' }[f.statut] || f.statut;
+    const esc = t => String(t).replace(/[&<>"]/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[ch]));
+    bulle.innerHTML = `<p class="at-cop-etq">IDÉE — non validée${f.rejoue ? ' · REJOUÉE' : ''}</p><p class="at-cop-titre ${f.sens === 'achat' ? 'at-gain' : 'at-perte'}">${f.sens === 'achat' ? '▲ Achat' : '▼ Vente'} · ${esc(f.type)} · ${esc(f.niveau)}</p>
+      <p>${esc(f.these)}</p><p class="at-cop-prix">Entrée <b>${P(f.entree)}</b> · Stop <b>${P(f.stop)}</b> · Objectif <b>${P(f.objectif)}</b> · R potentiel ${String(f.Rpot).replace('.', ',')}</p>
+      <p class="at-doux">Ce qui annule l’idée : ${esc(f.annule)}.</p><p class="at-doux">Statut : ${esc(st)}${f.Rnet != null ? ` · ${f.Rnet > 0 ? '+' : ''}${String(f.Rnet).replace('.', ',')} R (frais inclus)` : ''}</p>
+      <button type="button" class="at-btn" data-fermer>Fermer</button>`;
+    bulle.hidden = false;
+    const w = el.clientWidth, bw = Math.min(300, w - 16); bulle.style.width = bw + 'px';
+    bulle.style.left = Math.max(8, Math.min(w - bw - 8, x - bw / 2)) + 'px';
+    bulle.style.top = Math.max(8, Math.min(el.clientHeight - 180, y + 14)) + 'px';
+    primCopilote.maj && primCopilote.maj();
   }
   function selectionner(id) { etat.selection = id; primPositions.maj && primPositions.maj(); surSelection && surSelection(id); }
 
@@ -352,6 +396,9 @@ export function creerGraphique(el, { racine, surSelection }) {
     rejoue(sig) { etat.rejoue = sig ? Object.assign({}, sig, { rejoue: true, nTrait: sig.tSortie ? Math.max(4, Math.round((sig.tSortie - (sig.tEntree || sig.tSignal)) / UNITES.M15) + 2) : 12, pnlAffiche: sig.pnl }) : null; primPositions.maj && primPositions.maj(); },
     /* positions REJOUÉES du bouton « Backtest » (liste publiée par le moteur), ou null pour effacer */
     backtest(liste) { etat.backtest = liste && liste.length ? liste : (liste ? [] : null); primBacktest.maj && primBacktest.maj(); },
+    /* flèches du copilote REJOUÉES (bouton Backtest), ou null */
+    flechesRejeu(liste) { etat.flechesRejeu = liste || null; primCopilote.maj && primCopilote.maj(); },
+    montrerBulle, cacherBulle,
     _etat: etat, _zones: zones, _lw: () => ({ chart, bougies, primProfils, primPositions, primCopilote, cvdB }),
     detruire() { clearInterval(resize); try { chart && chart.remove(); } catch (e) { /* */ } }
   };

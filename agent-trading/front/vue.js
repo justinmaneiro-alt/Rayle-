@@ -10,7 +10,7 @@ import { fmtPrix, heureParis, fmtDuree, fmtNombre, fmtUSD } from '../commun/form
 import { creerConnexion } from './connexion.js';
 import { creerGraphique } from './graphique.js';
 import { creerCarnet } from './carnet.js';
-import { htmlPositions, htmlHistorique, csvHistorique, htmlPortefeuille, htmlJournal, htmlBacktest7j, animerCapital, dessinerCourbe, brancherDefinitions, esc, info, htmlBacktestGraphe, tradesBacktestGraphe, htmlPlanLecons } from './panneaux.js';
+import { htmlPositions, htmlRejeuCopilote, htmlHistorique, csvHistorique, htmlPortefeuille, htmlJournal, htmlBacktest7j, animerCapital, dessinerCourbe, brancherDefinitions, esc, info, htmlBacktestGraphe, tradesBacktestGraphe, htmlPlanLecons } from './panneaux.js';
 import { montrerCarte } from './carte-alerte.js';
 
 const lire = (k, d) => { try { return localStorage.getItem(k) || d; } catch (e) { return d; } };
@@ -50,12 +50,17 @@ export function monterVue(el, { mode = 'auto', connexion = null } = {}) {
             <span class="at-btg-outil"><button type="button" class="at-btn" data-btg-ouvrir aria-pressed="false" title="Rejouer les positions de la stratégie sur le graphique (ne touche jamais le portefeuille)">Backtest</button><select data-btg-jours aria-label="Durée du backtest"><option value="5">5 j</option><option value="7" selected>7 j</option><option value="14">14 j</option></select><button type="button" class="at-btn" data-btg-effacer hidden>Effacer le backtest</button></span>
             <button type="button" class="at-btn" data-recadrer title="Revenir aux 120 dernières bougies">120 bougies</button>
             <button type="button" class="at-btn" data-tout-voir title="Voir tout l’historique chargé">Tout voir</button>
+            <button type="button" class="at-btn" data-cop-reglages aria-pressed="false" title="Réglages du copilote">⚙</button>
+            <span class="at-cop-msg" data-cop-msg hidden></span>
             <span class="at-lecture" data-lecture hidden></span><span class="at-delta" data-delta></span>
             <button type="button" class="at-btn at-btn-fs" data-plein title="Plein écran (touche F)" aria-label="Plein écran">⤢ <span class="at-pas-fs">Plein écran</span><span class="at-fs-seul">Quitter</span></button>
           </div>
           <p class="at-fs-seul at-fs-paysage">Tournez le téléphone en paysage pour un graphique plus large.</p>
           <div class="at-rejoue-bandeau" data-rejoue hidden></div>
+          <div class="at-cop-notif" data-cop-notif role="status" aria-live="polite" hidden></div>
           <div class="at-graphique"></div>
+          <div class="at-cop-bilan" data-cop-bilan hidden></div>
+          <div class="at-cop-reglages" data-cop-panneau hidden><b>Réglages du copilote</b><label><input type="checkbox" data-cop-telegram disabled> Alertes Telegram des flèches</label><p class="at-doux">Désactivé. Même activé plus tard, rien ne partirait tant que l’agent est en OBSERVATION. Les flèches sont signalées ici seulement, discrètement.</p></div>
           <div class="at-flux-direct" data-flux-direct title="Bougie en cours : volume des acheteurs et des vendeurs agressifs (en dollars), enregistré par le moteur"><span class="at-fx-lbl">Volume net en bougies · bougie en cours</span><span class="at-achat">Achats agressifs <b data-fx-a>—</b></span><span class="at-fx-barre" aria-hidden="true"><i data-fx-barre></i></span><span class="at-vente">Ventes agressives <b data-fx-v>—</b></span></div>
           <div class="at-btg" data-btg hidden></div>
           <div class="at-recit"><p data-recit>…</p></div>
@@ -93,6 +98,7 @@ export function monterVue(el, { mode = 'auto', connexion = null } = {}) {
     if (b.dataset.actif) choisirActif(b.dataset.actif);
     else if (b.dataset.unite) { etat.unite = b.dataset.unite; ecrire('rayle_at_unite', etat.unite); etat.histoActif = null; tout(); }
     else if (b.hasAttribute('data-passees')) { etat.passees = !etat.passees; ecrire('rayle_at_passees', etat.passees ? '1' : '0'); graph.montrerPassees(etat.passees); surcouches(); majBoutons(); }
+    else if (b.hasAttribute('data-cop-reglages')) { const z = $('[data-cop-panneau]'); z.hidden = !z.hidden; b.setAttribute('aria-pressed', String(!z.hidden)); }
     else if (b.hasAttribute('data-recadrer')) graph.recadrer();
     else if (b.hasAttribute('data-tout-voir')) graph.toutVoir();
     else if (b.hasAttribute('data-plein')) basculerPlein();
@@ -111,8 +117,10 @@ export function monterVue(el, { mode = 'auto', connexion = null } = {}) {
     z.hidden = !etat.btg.actif;
     $('[data-btg-effacer]').hidden = !etat.btg.actif;
     const o = $('[data-btg-ouvrir]'); o.setAttribute('aria-pressed', String(etat.btg.actif)); o.classList.toggle('actif', etat.btg.actif);
-    if (!etat.btg.actif) { graph.backtest(null); derniers.btg = null; z.innerHTML = ''; return; }
-    const html = htmlBacktestGraphe(bg, etat.btg.jours, etat.actif);
+    if (!etat.btg.actif) { graph.backtest(null); graph.flechesRejeu(null); derniers.btg = null; z.innerHTML = ''; return; }
+    const e = cnx.store.etat, cp = e && e.actifs[etat.actif] && e.actifs[etat.actif].copilote, rj = cp && cp.rejeu && cp.rejeu.fenetres[etat.btg.jours];
+    graph.flechesRejeu(rj ? rj.fleches : null);
+    const html = htmlBacktestGraphe(bg, etat.btg.jours, etat.actif) + htmlRejeuCopilote(rj, etat.btg.jours, etat.actif);
     if (derniers.btg !== html) { z.innerHTML = html; derniers.btg = html; }
     graph.backtest(tradesBacktestGraphe(bg, etat.btg.jours, etat.actif));
   }
@@ -188,7 +196,26 @@ export function monterVue(el, { mode = 'auto', connexion = null } = {}) {
     const profils = [];
     if (x.profils && x.profils.jour && x.profils.jour.niveaux) profils.push(Object.assign({ etiquette: 'jour', pas: x.pas }, x.profils.jour, { fin: Date.now() }));
     for (const a of (x.annotations && x.annotations.liste) || []) if (a.type === 'profil') profils.push(Object.assign({ etiquette: 'agent' }, a));
+    copilote(x.copilote);
     graph.surcouches({ positions, passees, profils, annotations: (x.annotations && x.annotations.liste || []).filter(a => a.type !== 'profil'), prix: x.prix, tPrix: x.tPrix, live: cnx.fraicheur().live, copilote: x.copilote || null });
+  }
+  /* ─── copilote : bilan des flèches (près du graphique), message « marché instable », notification discrète d'une nouvelle flèche ─── */
+  function copilote(cp) {
+    const bl = $('[data-cop-bilan]'), msg = $('[data-cop-msg]');
+    if (!cp) { bl.hidden = true; msg.hidden = true; return; }
+    const b = cp.bilan || { n: 0, finies: 0, gagnantes: 0, Rtotal: 0, tropPetit: true }, R = (b.Rtotal > 0 ? '+' : '') + String(b.Rtotal).replace('.', ',');
+    const txt = `Bilan des flèches : ${b.n}, gagnantes ${b.gagnantes}, R total ${R} (frais inclus)${b.finies < 30 ? ' · échantillon trop petit pour conclure' : ''}`;
+    if (bl.textContent !== txt) bl.textContent = txt; bl.hidden = false; bl.title = 'Toutes les flèches du copilote (BTC, ETH, HYPE, or), résultat réel mesuré après coup. Information, jamais des ordres.';
+    msg.hidden = !cp.message; if (cp.message) msg.textContent = cp.message;
+    for (const f of cp.fleches || []) {
+      if (vusCop.has(f.id)) continue; vusCop.add(f.id); ecrire('rayle_at_cop_vus', JSON.stringify([...vusCop].slice(-100)));
+      if (Date.now() - f.t < 30 * 60e3 && f.statut === 'active' && cnx.fraicheur().live) notifier(f);
+    }
+  }
+  let vusCop = new Set(JSON.parse(lire('rayle_at_cop_vus', '[]'))), minuterieNotif = null;
+  function notifier(f) {
+    const z = $('[data-cop-notif]'); z.textContent = `Copilote : idée ${f.sens === 'achat' ? '▲ achat' : '▼ vente'} ${f.actif} (non validée)`; z.hidden = false;
+    clearTimeout(minuterieNotif); minuterieNotif = setTimeout(() => { z.hidden = true; }, 9000);
   }
   function rendreTete() {
     const e = cnx.store.etat, f = cnx.fraicheur();
@@ -243,7 +270,7 @@ export function monterVue(el, { mode = 'auto', connexion = null } = {}) {
     if (quoi === 'etat') {
       const e = cnx.store.etat, x = e.actifs[etat.actif];
       if (etat.histoActif === etat.actif + etat.unite && x.bougies[etat.unite]) graph.bougieLive(x.bougies[etat.unite]); else rendreHistorique();
-      rendreTete(); surcouches(); carnet.maj(etat.actif, x); rendrePositions(); rendrePortefeuille(); alertesNouvelles();
+      rendreTete(); surcouches(); carnet.maj(etat.actif, x); rendrePositions(); rendrePortefeuille(); alertesNouvelles(); if (etat.btg.actif) majBtg();
     } else if (quoi.startsWith('historique:')) { if (quoi === 'historique:' + etat.actif) { etat.histoActif = null; rendreHistorique(); surcouches(); } }
     else if (quoi === 'lent') { rendrePositions(); rendrePortefeuille(); surcouches(); majBtg(); }
     else if (quoi === 'courbe') { derniers.pf = null; rendrePortefeuille(); }
