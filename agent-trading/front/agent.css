@@ -227,3 +227,17 @@
 .at[data-disposition="colonne"] .at-etat { flex: 1 1 100%; justify-content: space-between; }
 .at-tete, .at-etat { min-width: 0; }
 .at-carte-pos-corps .at-large { grid-column: span 2; } .at-carte-pos-corps .at-large b { white-space: nowrap; color: var(--at-sable); }
+
+/* ─── copilote : bilan des flèches, bulle d'une flèche, message, notification discrète, réglages ─── */
+.at-cop-bilan { flex: none; padding: 3px 10px; font: 11px var(--at-mono); color: var(--at-doux); border-top: 1px solid var(--at-bord); white-space: normal; overflow-wrap: anywhere; }
+.at-cop-msg { font: 11px var(--at-mono); color: var(--at-sable); }
+.at-cop-bulle { position: absolute; z-index: 6; max-width: calc(100% - 16px); padding: 10px 12px; background: rgba(8, 12, 18, .96); border: 1px solid var(--at-bord); color: var(--at-texte); font-size: 12px; line-height: 1.45; box-shadow: 0 6px 24px rgba(0, 0, 0, .5); }
+.at-cop-bulle p { margin: 0 0 6px; overflow-wrap: anywhere; }
+.at-cop-bulle .at-cop-etq { font: 600 10px var(--at-mono); letter-spacing: .06em; color: var(--at-sable); }
+.at-cop-bulle .at-cop-titre { font-weight: 600; }
+.at-cop-bulle .at-cop-prix { font-family: var(--at-mono); font-size: 11px; }
+.at-cop-notif { position: absolute; z-index: 7; right: 12px; top: 44px; max-width: calc(100% - 24px); padding: 6px 10px; font: 11px var(--at-mono); color: var(--at-texte); background: rgba(8, 12, 18, .92); border: 1px solid var(--at-bord); pointer-events: none; }
+.at-zone-graphique { position: relative; }
+.at-cop-reglages { position: absolute; z-index: 7; left: 10px; top: 44px; width: min(320px, calc(100% - 20px)); padding: 10px 12px; font-size: 12px; background: rgba(8, 12, 18, .97); border: 1px solid var(--at-bord); }
+.at-cop-reglages label { display: flex; gap: 6px; align-items: center; margin: 8px 0 4px; }
+.at-cop-reglages p { margin: 0; }

@@ -18,3 +18,18 @@ Tout tourne dans le moteur (redémarré à 23:13 UTC le 2026-11-04). Fichiers : 
 
 ## Phase 2 : gros mouvements — FAIT
 Premier résultat (historique Kraken BTC, ETH, HYPE, or) : ≈ 30 gros mouvements par semaine et par actif (or ≈ 17). **Aucun signe ne prévient de façon fiable un gros mouvement** sur la période de test : seule la compression de volatilité ressort un peu pour les mouvements de 5-6 bougies (≈ 1,1 fois le taux de base), trop faible pour conclure. Les signes du carnet et des murs n'auront assez d'événements qu'après plusieurs mois d'enregistrement. Rapport : `agent-trading/moteur/etude-mouvements/RAPPORT-MOUVEMENTS-<date>.md` (hors dépôt), refait chaque lundi.
+
+## Phase 3 : copilote, zones et ranges — FAIT
+- Calcul dans le moteur (`agent-trading/moteur/copilote/`, hors dépôt), dessin seulement dans la page (`front/graphique.js`).
+- Zones : profil de volume des 5 derniers jours de bougies M15 (volume réel par prix quand l'empreinte a été enregistrée, sinon réparti sur la bougie et marqué « approx »), 3 à 5 bandes discrètes, force 0-100, « majeure » au-dessus de 60.
+- Range : prix entre deux zones ≥ 12 bougies, ≥ 2 touches de chaque côté, volume net qui oscille, hauteur 1,5 à 10 ATR. Boîte légère « RANGE bas – haut · N bougies », « range terminé » en pâle, marque « ↗/↘ sortie de range ».
+- Choix seul : zones fusionnées si moins de 1 ATR d'écart ; un range dont le delta est inconnu (bougies d'avant l'enregistrement) est accepté mais marqué « delta inconnu » dans les données.
+
+## Phase 4 : copilote, flèches et bilan — FAIT
+- Règles (`moteur/copilote/fleches.js`) : décision à la clôture M15 seulement, sur une zone MAJEURE ou un bord de range ; retournement = reprise de la zone + volume net qui se retourne + absorption (ou mèche de rejet) + mur du bon côté qui tient (aucun mur retiré ou mangé dans la zone depuis 45 min) ; cassure = clôture de l'autre côté + volume net ≥ 1,5 × la médiane + mur consommé, puis RETEST refusé dans les 6 bougies.
+- Carnet qui s'affole (≥ 10 murs qui apparaissent/disparaissent en 15 min ET déséquilibre qui change de signe ≥ 3 fois) : aucune flèche, message « marché instable, j'attends ».
+- Rareté : ≤ 2 par actif et par jour (jour UTC), ≥ 6 bougies entre deux, jamais deux sens opposés tant qu'une idée est active, R potentiel ≥ 2 jusqu'à la zone suivante. Sans carnet : aucune flèche (la règle exige de lire le carnet).
+- Résultat après coup : stop testé AVANT l'objectif dans une même bougie, frais 0,05 % par côté, 24 h maximum. Registre fantôme version « copilote » : `%LOCALAPPDATA%\Rayle\agent-trading\copilote\registre.json`.
+- Affichage : petites flèches, traits entrée/SL/TP fins et gris (longueur selon le R potentiel, ou jusqu'à la sortie), bulle au clic (« IDÉE — non validée », thèse, entrée/stop/objectif, ce qui annule l'idée), « Bilan des flèches : N, gagnantes X, R total Y (frais inclus) » avec « échantillon trop petit pour conclure » sous 30 flèches finies. Le bouton Backtest rejoue aussi les flèches sur 5/7/14 jours (mêmes règles, carnet lu dans la collecte : avant le 5 novembre il n'existe pas, donc aucune flèche n'est possible sur cette période et c'est écrit).
+- Notification dans l'application seulement (petit message 9 s). Réglages ⚙ du graphique : « Alertes Telegram des flèches » DÉSACTIVÉ et verrouillé (choix sûr : l'agent est en OBSERVATION, rien ne doit partir ; il n'existe pas de canal écran → moteur pour changer un réglage).
+- Vérifié dans Chrome (PC 1600, tablette 1280, téléphone 384, plein écran) : zones, bilan, flèche d'essai dessinée et bulle, aucun élément coupé, aucune erreur console. Aucune vraie flèche n'est encore apparue (règles volontairement strictes).

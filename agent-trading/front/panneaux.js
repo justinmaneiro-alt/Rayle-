@@ -124,6 +124,15 @@ export function tradesBacktestGraphe(bg, jours, actif) {
   const f = bg && bg.fenetres && bg.fenetres[jours]; if (!f) return null;
   return f.trades.filter(t => t.actif === actif);
 }
+/* flèches du copilote rejouées (mêmes règles, carnet de la collecte) : chiffres publiés par le moteur */
+export function htmlRejeuCopilote(rj, jours, actif) {
+  if (!rj) return '<p class="at-doux at-btg-note">Flèches du copilote : rejeu en préparation (calculé chaque heure par le moteur).</p>';
+  const b = rj.bilan, R = (b.Rtotal > 0 ? '+' : '') + String(b.Rtotal).replace('.', ',');
+  return `<p class="at-rejoue">Flèches du copilote REJOUÉES · ${esc(actif)} · ${jours} derniers jours · <b>IDÉES, non validées</b></p>
+    <div class="at-btg-chiffres"><span>Flèches <b>${b.n}</b></span><span>Gagnantes <b>${b.gagnantes}</b></span><span>R total <b class="${sgn(b.Rtotal)}">${b.finies ? R : '—'}</b> (frais inclus)</span></div>
+    ${b.finies < 30 ? '<p class="at-avert">Échantillon trop petit pour conclure.</p>' : ''}
+    ${rj.sansCarnet ? `<p class="at-doux at-btg-note">Carnet non enregistré sur ${rj.sansCarnet} des ${rj.bougies} bougies : aucune flèche possible là (la règle lit le carnet ; rien n’est inventé).</p>` : ''}`;
+}
 export function htmlBacktestGraphe(bg, jours, actif) {
   if (!bg || !bg.fenetres) return '<p class="at-vide">Rejeu en préparation : le moteur le calcule au démarrage puis chaque heure, et le publie ici (le même sur PC, tablette et téléphone).</p>';
   const f = bg.fenetres[jours]; if (!f) return '<p class="at-vide">Aucun rejeu publié pour cette durée.</p>';
