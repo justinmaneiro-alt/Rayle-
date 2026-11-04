@@ -14,6 +14,8 @@ Reprendre ici : lire ce fichier, puis `RAPPORT-AGENT.md` (local, choix faits seu
 - **Phase 5 — Alertes** : Telegram par le pont existant (`moteur/alertes.js`, ENTREE / EXECUTION, file + débit ; pont testé), carte plein écran avec « Copier » par champ et « Tout copier » (format brut). Tests : `moteur/tests/phase5-test.mjs`, capture `ecran-alerte.mjs`.
 - **Phase 6 — Vérification et publication** : `npm test` (tout passe), prix unique de bout en bout (`prix-unique-test.mjs`), parité PC/téléphone au centime + hors ligne (Chrome), entrées dans Rayle (Chrome), captures 1600 / 384 px avec 3 positions. Démarrage auto installé (clé Run + superviseur, sans admin ; commande admin dans le rapport). Worker de l'agent déployé (7228503b). Fusion dans main + push.
 
+- **Page unique, grandes positions, backtest 7 jours (2026-11-04)** : voir `RAPPORT-PAGE-UNIQUE.md`. Front : `vue.js` (une page qui défile, plus d'onglets, plein écran ⤢ / F), `graphique.js` (traits sans carrés, étiquettes espacées de 14 px, vue 120 bougies, `allerA`, `rejoue`), `panneaux.js` (cartes de positions, badges GRANDE / normale, `htmlBacktest7j`, `htmlCategories`). Moteur : `strategie.js` (`candidatGrande`, `calibrerGrande`, `sensH1`), `backtest7j.js`, `echanges.js` (historique public des échanges Kraken), risque fixe `RISQUE_FIXE_PCT` (config), `performance.parCategorie`, `adaptation.adapterGrande`. Tests : `moteur/tests/grandes-test.mjs`, Chrome `moteur/tests/ecran-page-unique.mjs` (+ `relais-page.mjs`), rejeu réel `backtest7j-reel.mjs`.
+
 ## En cours
 - Rien. Le moteur tourne et enregistre.
 

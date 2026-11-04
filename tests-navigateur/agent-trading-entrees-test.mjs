@@ -10,8 +10,8 @@ await p.evaluate(() => document.querySelector('button[data-ecran="marches"]').cl
 const tuile = await p.evaluate(() => { const b = [...document.querySelectorAll('.m-tuile')].find(x => /Agent de trading/.test(x.textContent)); if (b) b.click(); return !!b; });
 t('téléphone : tuile « Agent de trading » dans Marchés', tuile);
 await p.waitForFunction(() => document.querySelector('.at-plein .at') && document.querySelector('.at-capital'), { timeout: 20000 }).catch(() => {});
-const r = await p.evaluate(() => ({ vue: !!document.querySelector('.at-plein .at'), disposition: document.querySelector('.at') && document.querySelector('.at').dataset.disposition, onglets: document.querySelectorAll('.at-onglets [data-onglet]').length }));
-t('téléphone : la fenêtre s’ouvre en plein écran, en onglets', r.vue && r.disposition === 'mobile' && r.onglets === 4);
+const r = await p.evaluate(() => ({ vue: !!document.querySelector('.at-plein .at'), disposition: document.querySelector('.at') && document.querySelector('.at').dataset.disposition, onglets: document.querySelectorAll('.at-onglets [data-onglet]').length, page: !!document.querySelector('.at-defil [data-section="journal"]') }));
+t('téléphone : la fenêtre s’ouvre en plein écran, une seule page en colonne (sans onglets)', r.vue && r.disposition === 'colonne' && r.onglets === 0 && r.page);
 await p.screenshot({ path: 'agent-trading/moteur/tests/captures/entree-telephone.png' }).catch(() => {});
 await m.fermer();
 
