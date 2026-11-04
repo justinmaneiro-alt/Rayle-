@@ -1,0 +1,5 @@
+# Relais de la Terre 2.0 : Worker SÉPARÉ, sans secret (jamais le Worker principal « rayle »).
+name = "rayle-terre-relais"
+main = "index.js"
+compatibility_date = "2026-10-01"
+workers_dev = true

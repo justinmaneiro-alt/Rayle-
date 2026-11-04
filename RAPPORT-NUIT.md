@@ -33,3 +33,36 @@ Premier résultat (historique Kraken BTC, ETH, HYPE, or) : ≈ 30 gros mouvement
 - Affichage : petites flèches, traits entrée/SL/TP fins et gris (longueur selon le R potentiel, ou jusqu'à la sortie), bulle au clic (« IDÉE — non validée », thèse, entrée/stop/objectif, ce qui annule l'idée), « Bilan des flèches : N, gagnantes X, R total Y (frais inclus) » avec « échantillon trop petit pour conclure » sous 30 flèches finies. Le bouton Backtest rejoue aussi les flèches sur 5/7/14 jours (mêmes règles, carnet lu dans la collecte : avant le 5 novembre il n'existe pas, donc aucune flèche n'est possible sur cette période et c'est écrit).
 - Notification dans l'application seulement (petit message 9 s). Réglages ⚙ du graphique : « Alertes Telegram des flèches » DÉSACTIVÉ et verrouillé (choix sûr : l'agent est en OBSERVATION, rien ne doit partir ; il n'existe pas de canal écran → moteur pour changer un réglage).
 - Vérifié dans Chrome (PC 1600, tablette 1280, téléphone 384, plein écran) : zones, bilan, flèche d'essai dessinée et bulle, aucun élément coupé, aucune erreur console. Aucune vraie flèche n'est encore apparue (règles volontairement strictes).
+
+## Phase 5 : Terre 2.0, étude et architecture — FAIT
+- « God's Eye View » cloné en lecture seule HORS du dépôt. Licence du code : **MIT** ; ses DONNÉES et modèles 3D ne sont pas MIT (aucun n'est copié). Choix : ré-implémenter les idées avec notre propre code (plus petit, adapté à la galaxie), mention MIT gardée dans `THIRD_PARTY_NOTICES.md`.
+- Plan, sources, licences, clés, risques : `TERRE-V2-PLAN.md`. Module `terre-v2/` chargé à la demande, PC seulement ; téléphone et tablette inchangés (carte légère).
+- Choix seul : la Terre 2.0 devient la Terre par défaut sur PC ; le bouton « Terre classique » ouvre l'ancienne pour la visite en cours (réglage permanent possible : `rayle_terre_vue = 'classique'`). Repli automatique sur l'ancienne si Cesium ne se charge pas. Les outils d'actualités de Raylé (balises, fil France/Monde) vivent sur la Terre classique : quand ils sont appelés, Raylé y passe toute seule pour cette visite (rien de cassé).
+
+## Phase 6 : globe et villes 3D — FAIT
+- CesiumJS 1.123.0 (Apache-2.0) depuis jsDelivr, fond sans clé : NASA GIBS Blue Marble (domaine public) + EOX Sentinel-2 cloudless 2020 (CC BY-NC-SA 4.0, attribution dans « Crédits »). Zoom continu jusqu'aux rues (vérifié sur Paris).
+- Sans jeton : globe lisse, sans relief ni bâtiments, AUCUNE erreur (testé). Avec jeton : relief Cesium World Terrain + Cesium OSM Buildings (non testé faute de jeton). Google Photorealistic 3D : désactivé, seulement si une clé est collée.
+- FPS affichés (≈ 130 i/s dans Chrome sans écran), qualité automatique (échelle de rendu 60-100 %), couches éteintes par défaut sauf séismes, recherche Nominatim seulement à la validation (1 requête/s max, cache) avec secours Open-Meteo.
+- Choix seul : **pas de noms de lieux sur le globe** : CARTO exige maintenant une clé (filigrane « API KEY REQUIRED » vu en test) ; aucune autre source raster sans clé fiable trouvée.
+
+### Jeton Cesium (5 minutes)
+1. Va sur https://ion.cesium.com/signup et crée un compte gratuit (« Community », usage personnel non commercial).
+2. Menu « Access Tokens » → « Create token ». Nom : « Rayle ». Coche seulement `assets:read` (et `geocode` si proposé).
+3. Dans « Allowed URLs », ajoute `https://justinmaneiro-alt.github.io` (et `http://127.0.0.1:8000` pour le PC si tu veux).
+4. Copie le jeton. Soit tu le colles dans la Terre 2.0 → « Couches » → « Jeton et clés » → « Enregistrer » (il reste dans ce navigateur), soit tu le mets dans `terre-v2/config.js` (`JETON_CESIUM_PUBLIC`) : il peut être public car Cesium le limite à ton domaine.
+
+## Phase 7 : couches gratuites — FAIT
+- Sans clé : séismes (USGS, domaine public, 5 min), satellites + ISS avec orbite (CelesTrak + satellite.js MIT, TLE gardés 2 h), météo (Open-Meteo CC BY 4.0, grille 5×5, 15 min), lancements (Launch Library 2, cache 30 min pour 15 req/h), avions (adsb.lol ODbL, 10 s, zone visible).
+- Avions : adsb.lol n'autorise pas les navigateurs (pas de CORS) → **petit Worker séparé `rayle-terre-relais` DÉPLOYÉ** (https://rayle-terre-relais.justinmaneiro.workers.dev, version 5961f8f2), sans secret, liste blanche (avions, FIRMS), cache court, CORS limité à ton site et au PC. Le Worker principal « rayle » n'est pas touché.
+- Avec clé gratuite, désactivées sans clé (la case est grisée et la procédure s'affiche) :
+  - **Bateaux (AISStream)** : https://aisstream.io → connexion GitHub → « API Keys » → « Create » → coller dans Couches → « Jeton et clés ». (Non testé faute de clé : AISStream peut refuser une connexion directe depuis un navigateur ; si c'est le cas il faudra passer par le relais.)
+  - **Incendies (NASA FIRMS)** : https://firms.modaps.eosdis.nasa.gov/api/map_key → adresse e-mail → la MAP_KEY arrive par e-mail → la coller au même endroit. Elle passe par le relais (FIRMS n'a pas de CORS), qui ne la garde pas.
+- Caméras (open data officiel seulement, image telle que publiée, source + licence dans la fiche, aucune reconnaissance) :
+  - TfL JamCams, Londres : « Powered by TfL Open Data », Open Government Licence, contient des données OS © Crown copyright.
+  - Caltrans CWWP2, Californie (districts 3, 4, 7, 11, 12) : images publiées pour l'information du public selon les conditions du portail CWWP2 (page des conditions inaccessible cette nuit : à relire).
+  - Métropole de Lyon, caméras Web Criter (trouvées via data.gouv.fr) : **Licence Ouverte 2.0 (Etalab)**.
+  - Écartées : webcams des DIR (pas de licence de réutilisation trouvée), toute caméra privée, Shodan/Insecam.
+- Chaque couche : case on/off, légende, intervalle raisonnable ; deux échecs de suite → la couche s'éteint avec un message, la Terre continue.
+
+## Phase 8 : modes de vision — FAIT
+- Nuanceurs de post-traitement Cesium (écrits pour Rayle) : normal, vision nocturne (vert, grain, lignes), thermique (palette fer), CRT (courbure, lignes, aberration), noir et blanc. Bouton « Vision » + touche V ; L ouvre les couches.

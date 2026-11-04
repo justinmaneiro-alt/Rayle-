@@ -8,10 +8,10 @@ Reprendre ici : lire ce fichier, puis `RAPPORT-NUIT.md`. Reprendre à la premiè
 | 2. Gros mouvements, fiches, analyse | fait | 2026-11-05 |
 | 3. Copilote : zones et ranges | fait | 2026-11-05 |
 | 4. Copilote : flèches et bilan | fait | 2026-11-05 |
-| 5. Terre 2.0 : étude et architecture | à faire | |
-| 6. Terre 2.0 : globe et villes 3D | à faire | |
-| 7. Terre 2.0 : couches gratuites | à faire | |
-| 8. Terre 2.0 : modes de vision | à faire | |
+| 5. Terre 2.0 : étude et architecture | fait | 2026-11-05 |
+| 6. Terre 2.0 : globe et villes 3D | fait (sans jeton testé) | 2026-11-05 |
+| 7. Terre 2.0 : couches gratuites | fait | 2026-11-05 |
+| 8. Terre 2.0 : modes de vision | fait | 2026-11-05 |
 | 9. Rayle pilote la Terre | à faire | |
 | 10. Vérification finale | à faire | |
 
@@ -22,8 +22,10 @@ Reprendre ici : lire ce fichier, puis `RAPPORT-NUIT.md`. Reprendre à la premiè
 - **Phase 3** : zones de volume + ranges (moteur `copilote/zones.js`, `copilote/index.js`, dessin `front/graphique.js`).
 - **Phase 4** : flèches (`copilote/fleches.js`, `copilote/suivi.js`), bulle, bilan, rejeu dans Backtest, notification, réglage Telegram verrouillé. Tests : `moteur/tests/copilote-test.mjs`, Chrome `moteur/tests/ecran-copilote.mjs`.
 
+- **Phases 5-8** : `terre-v2/` (index, config, vision, couches/*, relais/ déployé), `TERRE-V2-PLAN.md`, `THIRD_PARTY_NOTICES.md`. Tests : `galaxie/tests/terre2-test.mjs` (dans `npm test` à la racine), Chrome `tests-navigateur/terre2-test.mjs`.
+
 ## En cours
-- Phase 5.
+- Phase 9.
 
 ## Bloqué
 - (rien)
