@@ -20,10 +20,13 @@ Reprendre ici : lire ce fichier, puis `RAPPORT-AGENT.md` (local, choix faits seu
 
 - **Étude de l'ancien agent (2026-11-04)** : voir `RAPPORT-ANCIEN-AGENT.md`. Les +9,21 R venaient de 3 trades ; le balayage puis reprise, rejoué sans retouche sur 4,5 ans Kraken Futures (5 actifs), perd hors échantillon (−0,25 R, IC −0,30 … −0,19), pire que le hasard même sans frais. v3 = v2 + balayage (`moteur/strategie-v3.js`, candidat non branché) n'améliore pas v2 ; aucune version (v0–v3) prouvée → reste en observation « PAS ENCORE PROUVÉ », v2 inchangée. Scripts : `moteur/etude-ancien/` (historique, autopsie, rejeu, analyse). Test : `moteur/tests/strategie-v3-test.mjs`.
 
+- **v4 : agent libre, simple, évalué honnêtement (2026-11-04)** : voir `RAPPORT-V4.md`. **Mode OBSERVATION** (aucune alerte, aucune position, bandeau) : 51 variantes du cerveau v4 (volume + supports/résistances + balayage + flux, score 0-100) testées sur le banc long, aucune ne gagne hors échantillon ni ne bat le témoin au hasard ; open interest et financement écartés. Registre fantôme (versions v4, v4+carnet, v2), plan du jour 08:00, carnet de leçons (ajustement toutes les 30 clôtures, validé hors échantillon), bouton « Backtest » 5/7/14 j (candidate non validée), panneau « volume net en bougies », « Objectif semaine » retiré. Moteur : `moteur/v4/` (hors dépôt) ; sauvegarde d'avant : `Projets/moteur-sauvegardes/avant-v4-2026-11-04/`. Tests : `moteur/tests/v4-test.mjs`, Chrome `moteur/tests/ecran-v4.mjs` (relais `REEL=1`).
+
 ## En cours
-- Rien. Le moteur tourne et enregistre.
+- Rien. Le moteur tourne en OBSERVATION et remplit le registre fantôme.
 
 ## Reste (prochaines sessions)
+- Relire le registre fantôme (« v4 » contre « v4+carnet ») quand chaque version a ≥ 300 trades ; tester les 3 pistes de `RAPPORT-V4.md` (budget de variantes compté).
 - Laisser tourner pour accumuler du volume net et du carnet, puis relire le backtest (« Pas assez de trades » pour l'instant).
 - Ajuster les animations avec les vidéos de Justin (`front/jetons.css`).
 - Vérifier sur la vraie tablette et le vrai téléphone.

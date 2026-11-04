@@ -24,6 +24,7 @@
 .at-live { font: 11px var(--at-mono); white-space: nowrap; } .at-live.at-on { color: var(--at-gain); } .at-live.at-off { color: var(--at-alerte); }
 .at-bandeau { flex: none; padding: 6px 10px; font: 700 12px var(--at-mono); letter-spacing: .04em; text-align: center; }
 .at-bandeau-limite { background: rgba(255, 77, 94, .18); color: var(--at-danger); border-bottom: 1px solid var(--at-danger); }
+.at-bandeau-observation { background: rgba(143, 208, 227, .08); color: var(--at-accent); border-bottom: 1px solid var(--at-bord-fort); }
 .at-bandeau-horsligne { background: rgba(255, 176, 32, .12); color: var(--at-alerte); border-bottom: 1px solid rgba(255, 176, 32, .4); font-weight: 400; }
 
 /* ═════ PAGE UNIQUE QUI DÉFILE (plus aucun onglet) : le défilement est celui de .at-defil, jamais horizontal ═════ */
@@ -64,6 +65,32 @@
 .at .at-btn-fs { margin-left: auto; }
 .at-rejoue-bandeau { flex: none; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; padding: 3px 10px; font: 11px var(--at-mono); color: var(--at-alerte); border-top: 1px dashed rgba(255, 176, 32, .4); }
 .at-rejoue-bandeau .at-btn { padding: 1px 7px; }
+
+/* bouton « Backtest » du graphique + panneau REJOUÉ */
+.at-btg-outil { display: inline-flex; align-items: center; gap: 4px; flex-wrap: wrap; }
+.at-btg-outil select { background: var(--at-verre-2); color: var(--at-texte); border: 1px solid var(--at-bord); border-radius: 4px; padding: 3px 4px; font: 12px var(--at-mono); min-height: 28px; }
+.at-btg { flex: none; max-height: 34%; overflow-y: auto; overscroll-behavior: contain; border-top: 1px dashed rgba(255, 176, 32, .35); font-size: 12px; }
+.at-btg .at-rejoue { border-bottom: 0; }
+.at-btg-chiffres { display: flex; flex-wrap: wrap; gap: 4px 14px; padding: 4px 10px; font: 12px var(--at-mono); } .at-btg-chiffres b { font-weight: 700; }
+.at-btg-grp { margin: 2px 10px; font: 11px var(--at-mono); color: var(--at-doux); overflow-wrap: anywhere; } .at-btg-grp b { color: var(--at-texte); font-weight: 600; }
+.at-btg-liste { list-style: none; margin: 4px 0; padding: 0 10px; font: 11px var(--at-mono); }
+.at-btg-l { padding: 2px 0; border-bottom: 1px solid rgba(143, 208, 227, .05); overflow-wrap: anywhere; opacity: .85; }
+.at-btg-n { display: inline-block; min-width: 18px; color: var(--at-doux); } .at-btg-l time { color: var(--at-doux); }
+.at-btg-note { margin: 2px 10px 6px; font-size: 11px; }
+.at-fs .at-btg { max-height: 30%; }
+/* volume net en bougies : chiffres de la bougie en cours + barre de déséquilibre */
+.at-flux-direct { flex: none; display: flex; align-items: center; gap: 4px 12px; flex-wrap: wrap; padding: 3px 10px; font: 11px var(--at-mono); border-top: 1px solid var(--at-bord); }
+.at-fx-lbl { color: var(--at-doux); }
+.at-fx-barre { flex: 1 1 80px; min-width: 60px; max-width: 220px; height: 6px; border-radius: 3px; background: var(--at-vente); overflow: hidden; }
+.at-fx-barre i { display: block; height: 100%; width: 0; background: var(--at-achat); transition: width var(--at-d-rapide) var(--at-c-douce); }
+.at-fx-barre.at-fx-inconnu { background: var(--at-bord); }
+/* journal : plan du jour, leçons, registre fantôme */
+.at-v4-bloc { margin: 4px 10px; font-size: 12px; } .at-v4-bloc summary { cursor: pointer; color: var(--at-doux); font: 600 11px var(--at-sans); letter-spacing: .04em; overflow-wrap: anywhere; }
+.at-v4-bloc summary b { color: var(--at-texte); }
+.at-lecons { list-style: none; margin: 4px 0; padding: 0; } .at-lecons li { padding: 3px 0; border-bottom: 1px solid rgba(143, 208, 227, .05); overflow-wrap: anywhere; } .at-lecons time { font: 11px var(--at-mono); color: var(--at-doux); }
+.at-plan { padding: 4px 0; border-bottom: 1px solid rgba(143, 208, 227, .05); } .at-plan ul { margin: 2px 0; padding-left: 16px; }
+.at-plan-niv { margin: 2px 0; display: flex; flex-wrap: wrap; gap: 2px 10px; font: 11px var(--at-mono); }
+.at-v4-vide, .at-v4-fantome { margin: 4px 10px; font-size: 11.5px; overflow-wrap: anywhere; }
 
 /* cartes des positions en cours */
 .at-cartes-pos { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 280px), 1fr)); gap: 8px; padding: 8px; }

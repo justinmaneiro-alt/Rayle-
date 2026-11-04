@@ -10,7 +10,7 @@ import { fmtPrix, heureParis, fmtDuree, fmtNombre, fmtUSD } from '../commun/form
 import { creerConnexion } from './connexion.js';
 import { creerGraphique } from './graphique.js';
 import { creerCarnet } from './carnet.js';
-import { htmlPositions, htmlHistorique, csvHistorique, htmlPortefeuille, htmlJournal, htmlBacktest7j, animerCapital, dessinerCourbe, brancherDefinitions, esc, info } from './panneaux.js';
+import { htmlPositions, htmlHistorique, csvHistorique, htmlPortefeuille, htmlJournal, htmlBacktest7j, animerCapital, dessinerCourbe, brancherDefinitions, esc, info, htmlBacktestGraphe, tradesBacktestGraphe, htmlPlanLecons } from './panneaux.js';
 import { montrerCarte } from './carte-alerte.js';
 
 const lire = (k, d) => { try { return localStorage.getItem(k) || d; } catch (e) { return d; } };
@@ -27,7 +27,8 @@ export const disposition = (l, h) => (l >= 1000 && l >= h ? 'pc' : 'colonne');
 export function monterVue(el, { mode = 'auto', connexion = null } = {}) {
   chargerCss();
   const cnx = connexion || creerConnexion();
-  const etat = { actif: lire('rayle_at_actif', 'BTC'), unite: lire('rayle_at_unite', 'M15'), passees: lire('rayle_at_passees', '0') === '1', selection: null, histoActif: null, plein: false, rejoue: null };
+  const etat = { actif: lire('rayle_at_actif', 'BTC'), unite: lire('rayle_at_unite', 'M15'), passees: lire('rayle_at_passees', '0') === '1', selection: null, histoActif: null, plein: false, rejoue: null,
+    btg: { actif: false, jours: ['5', '7', '14'].includes(lire('rayle_at_btg_jours', '7')) ? Number(lire('rayle_at_btg_jours', '7')) : 7 } };
   if (!PAR_ID[etat.actif]) etat.actif = 'BTC';
   const boutonsActifs = cls => ACTIFS.map(a => `<button type="button" class="${cls}" data-actif="${a.id}"><b>${a.id}</b><span data-prix="${a.id}">—</span></button>`).join('');
   el.innerHTML = `<div class="at" data-mode="${mode}">
@@ -35,6 +36,7 @@ export function monterVue(el, { mode = 'auto', connexion = null } = {}) {
       <nav class="at-actifs" aria-label="Actifs">${boutonsActifs('')}</nav>
       <div class="at-etat"><span class="at-cap" title="Capital (réalisé + flottant), au centime"><small>Capital</small><output data-cap>—</output></span><span class="at-statut" data-statut>…</span><span class="at-live" data-live>connexion…</span></div>
     </header>
+    <div class="at-bandeau at-bandeau-observation" data-observation hidden></div>
     <div class="at-bandeau at-bandeau-limite" hidden>LIMITE DÉPASSÉE : plus aucune nouvelle position (simulation)</div>
     <div class="at-bandeau at-bandeau-horsligne" hidden></div>
     <div class="at-defil">
@@ -45,6 +47,7 @@ export function monterVue(el, { mode = 'auto', connexion = null } = {}) {
             <label class="at-fs-seul at-fs-actif"><span class="at-sr">Actif</span><select data-choix-actif>${ACTIFS.map(a => `<option value="${a.id}">${a.id}</option>`).join('')}</select></label>
             <span class="at-fs-seul at-fs-prix" data-fs-prix>—</span>
             <button type="button" class="at-btn" data-passees aria-pressed="false" title="Montrer les positions passées">Passées</button>
+            <span class="at-btg-outil"><button type="button" class="at-btn" data-btg-ouvrir aria-pressed="false" title="Rejouer les positions de la stratégie sur le graphique (ne touche jamais le portefeuille)">Backtest</button><select data-btg-jours aria-label="Durée du backtest"><option value="5">5 j</option><option value="7" selected>7 j</option><option value="14">14 j</option></select><button type="button" class="at-btn" data-btg-effacer hidden>Effacer le backtest</button></span>
             <button type="button" class="at-btn" data-recadrer title="Revenir aux 120 dernières bougies">120 bougies</button>
             <button type="button" class="at-btn" data-tout-voir title="Voir tout l’historique chargé">Tout voir</button>
             <span class="at-lecture" data-lecture hidden></span><span class="at-delta" data-delta></span>
@@ -53,6 +56,8 @@ export function monterVue(el, { mode = 'auto', connexion = null } = {}) {
           <p class="at-fs-seul at-fs-paysage">Tournez le téléphone en paysage pour un graphique plus large.</p>
           <div class="at-rejoue-bandeau" data-rejoue hidden></div>
           <div class="at-graphique"></div>
+          <div class="at-flux-direct" data-flux-direct title="Bougie en cours : volume des acheteurs et des vendeurs agressifs (en dollars), enregistré par le moteur"><span class="at-fx-lbl">Volume net en bougies · bougie en cours</span><span class="at-achat">Achats agressifs <b data-fx-a>—</b></span><span class="at-fx-barre" aria-hidden="true"><i data-fx-barre></i></span><span class="at-vente">Ventes agressives <b data-fx-v>—</b></span></div>
+          <div class="at-btg" data-btg hidden></div>
           <div class="at-recit"><p data-recit>…</p></div>
         </section>
         <section class="at-zone at-zone-carnet" aria-label="Carnet"><h3>Carnet <small data-carnet-actif></small></h3><div class="at-carnet"></div></section>
@@ -61,7 +66,7 @@ export function monterVue(el, { mode = 'auto', connexion = null } = {}) {
       <section class="at-section" data-section="historique"><h3>Historique des positions <button type="button" class="at-btn" data-csv>Export CSV</button></h3><div data-historique></div></section>
       <section class="at-section" data-section="portefeuille"><h3>Performance du portefeuille</h3><div data-pf></div></section>
       <section class="at-section" data-section="backtest"><h3>Backtest 7 jours <span class="at-badge at-badge-rejoue">REJOUÉ, pas réel</span></h3><div data-bt></div></section>
-      <section class="at-section" data-section="journal"><h3>Journal du bot</h3><div data-journal></div></section>
+      <section class="at-section" data-section="journal"><h3>Journal du bot</h3><div data-v4-journal></div><div data-journal></div></section>
       <footer class="at-pied"><span data-version></span><span class="at-sim">SIMULATION · aucun ordre réel · données publiques Kraken Futures ${info('version')}</span><span class="at-licence">Graphique : <a href="https://www.tradingview.com/" target="_blank" rel="noopener">TradingView Lightweight Charts™</a> (Apache-2.0)</span></footer>
     </div>
   </div>`;
@@ -92,9 +97,25 @@ export function monterVue(el, { mode = 'auto', connexion = null } = {}) {
     else if (b.hasAttribute('data-tout-voir')) graph.toutVoir();
     else if (b.hasAttribute('data-plein')) basculerPlein();
     else if (b.hasAttribute('data-fin-rejoue')) { etat.rejoue = null; graph.rejoue(null); majRejoue(); }
+    else if (b.hasAttribute('data-btg-ouvrir')) { etat.btg.actif = true; derniers.btg = null; majBtg(); }
+    else if (b.hasAttribute('data-btg-effacer')) { etat.btg.actif = false; majBtg(); }
     else if (b.hasAttribute('data-csv')) { const blob = new Blob([csvHistorique(cnx.store.lent)], { type: 'text/csv' }), a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'historique-agent-trading.csv'; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 2000); }
   });
   $('[data-choix-actif]').addEventListener('change', e => choisirActif(e.target.value));
+  $('[data-btg-jours]').value = String(etat.btg.jours);
+  $('[data-btg-jours]').addEventListener('change', e => { etat.btg.jours = Number(e.target.value); ecrire('rayle_at_btg_jours', e.target.value); derniers.btg = null; majBtg(); });
+
+  /* ─── bouton « Backtest » : positions REJOUÉES (précalculées par le moteur, identiques sur tous les écrans), jamais le portefeuille ─── */
+  function majBtg() {
+    const bg = cnx.store.lent && cnx.store.lent.backtestGraphe, z = $('[data-btg]');
+    z.hidden = !etat.btg.actif;
+    $('[data-btg-effacer]').hidden = !etat.btg.actif;
+    const o = $('[data-btg-ouvrir]'); o.setAttribute('aria-pressed', String(etat.btg.actif)); o.classList.toggle('actif', etat.btg.actif);
+    if (!etat.btg.actif) { graph.backtest(null); derniers.btg = null; z.innerHTML = ''; return; }
+    const html = htmlBacktestGraphe(bg, etat.btg.jours, etat.actif);
+    if (derniers.btg !== html) { z.innerHTML = html; derniers.btg = html; }
+    graph.backtest(tradesBacktestGraphe(bg, etat.btg.jours, etat.actif));
+  }
 
   /* ─── plein écran du graphique ─── */
   let scrollAvant = 0, etatHistorique = false;
@@ -180,6 +201,7 @@ export function monterVue(el, { mode = 'auto', connexion = null } = {}) {
     st.title = e.statuts ? `normales : ${e.statuts.normale} · grandes : ${e.statuts.grande}` : '';
     $('[data-cap]').textContent = fmtUSD(e.compte.capital);
     $('.at-bandeau-limite').hidden = !e.compte.baisse.depassee;
+    const obs = $('[data-observation]'); obs.hidden = e.mode !== 'observation' && !e.bandeau; obs.textContent = e.bandeau || '';
     const x = e.actifs[etat.actif];
     $('[data-version]').textContent = `état n° ${e.seq} · dernier prix ${x && x.tPrix ? heureParis(x.tPrix, true) : '—'}`;
     $('[data-fs-prix]').textContent = x && x.prix != null ? `${etat.actif} ${fmtPrix(etat.actif, x.prix)}` : '—';
@@ -187,6 +209,10 @@ export function monterVue(el, { mode = 'auto', connexion = null } = {}) {
     const d = $('[data-delta]'); d.textContent = x.delta != null ? `volume net ${x.delta >= 0 ? '+' : ''}${fmtNombre(x.delta, 3)}${x.deltaComplet ? '' : ' (incomplet)'}` : 'volume net : pas encore enregistré'; d.className = 'at-delta ' + (x.delta > 0 ? 'at-achat' : x.delta < 0 ? 'at-vente' : '');
     $('[data-recit]').textContent = x.recit ? x.recit.texte + (x.recit.source === 'ia' ? '  (IA locale)' : '') : '…';
     $('[data-carnet-actif]').textContent = etat.actif;
+    // volume acheteur / vendeur agressif de la bougie EN COURS (montants enregistrés par le moteur, sinon « — » : jamais inventés)
+    const bc = x.bougies && x.bougies[etat.unite], der = bc && bc[bc.length - 1], va = der ? der[12] : null, vv = der ? der[13] : null;
+    $('[data-fx-a]').textContent = va != null ? fmtUSD(va, 0) : '—'; $('[data-fx-v]').textContent = vv != null ? fmtUSD(vv, 0) : '—';
+    const barre = $('[data-fx-barre]'); barre.style.width = va != null && vv != null && va + vv > 0 ? (va / (va + vv) * 100).toFixed(1) + '%' : '0%'; barre.parentNode.classList.toggle('at-fx-inconnu', !(va != null && vv != null && va + vv > 0));
   }
   const remplacer = (cle, sel, html) => { if (derniers[cle] === html) return; const z = $(sel), sc = z.querySelector('.at-tab-defil, .at-journal'), top = sc && sc.scrollTop; z.innerHTML = html; derniers[cle] = html; const n = z.querySelector('.at-tab-defil, .at-journal'); if (top && n) n.scrollTop = top; };
   function rendrePositions(force) {
@@ -195,6 +221,7 @@ export function monterVue(el, { mode = 'auto', connexion = null } = {}) {
     remplacer('pos', '[data-positions]', htmlPositions(e, etat.selection));
     remplacer('hist', '[data-historique]', htmlHistorique(cnx.store.lent));
     remplacer('journal', '[data-journal]', htmlJournal(cnx.store.lent));
+    remplacer('v4j', '[data-v4-journal]', htmlPlanLecons(cnx.store.lent && cnx.store.lent.v4));
     remplacer('bt', '[data-bt]', htmlBacktest7j(cnx.store.lent && cnx.store.lent.backtest7j));
   }
   function rendrePortefeuille() {
@@ -210,7 +237,7 @@ export function monterVue(el, { mode = 'auto', connexion = null } = {}) {
       if (Date.now() - tr.tSignal < 10 * 60e3 && cnx.fraicheur().live) montrerCarte(R, tr);
     }
   }
-  function tout() { majBoutons(); rendreTete(); rendreHistorique(); surcouches(); const e = cnx.store.etat; if (e) carnet.maj(etat.actif, e.actifs[etat.actif]); rendrePositions(); rendrePortefeuille(); }
+  function tout() { majBoutons(); rendreTete(); rendreHistorique(); surcouches(); const e = cnx.store.etat; if (e) carnet.maj(etat.actif, e.actifs[etat.actif]); rendrePositions(); rendrePortefeuille(); majBtg(); }
 
   const desabonner = cnx.abonner(quoi => {
     if (quoi === 'etat') {
@@ -218,7 +245,7 @@ export function monterVue(el, { mode = 'auto', connexion = null } = {}) {
       if (etat.histoActif === etat.actif + etat.unite && x.bougies[etat.unite]) graph.bougieLive(x.bougies[etat.unite]); else rendreHistorique();
       rendreTete(); surcouches(); carnet.maj(etat.actif, x); rendrePositions(); rendrePortefeuille(); alertesNouvelles();
     } else if (quoi.startsWith('historique:')) { if (quoi === 'historique:' + etat.actif) { etat.histoActif = null; rendreHistorique(); surcouches(); } }
-    else if (quoi === 'lent') { rendrePositions(); rendrePortefeuille(); surcouches(); }
+    else if (quoi === 'lent') { rendrePositions(); rendrePortefeuille(); surcouches(); majBtg(); }
     else if (quoi === 'courbe') { derniers.pf = null; rendrePortefeuille(); }
     else rendreTete();
   });
