@@ -83,7 +83,7 @@ class Primitive {
 }
 
 export function creerGraphique(el, { racine, surSelection }) {
-  const etat = { actif: null, unite: 'M15', donnees: [], positions: [], passees: [], rejoue: null, montrerPassees: false, selection: null, profils: [], annotations: [], prix: null, tPrix: null, derniereBougie: null, live: false, backtest: null, premierConnu: null };
+  const etat = { actif: null, unite: 'M15', donnees: [], positions: [], passees: [], rejoue: null, montrerPassees: false, selection: null, profils: [], annotations: [], prix: null, tPrix: null, derniereBougie: null, live: false, backtest: null, premierConnu: null, copilote: null };
   let LW = null, chart = null, bougies = null, deltaS = null, cvdS = null, volS = null, cvdB = null, zones = { traits: [] }, resize = null;
   const C = () => ({ haussier: couleur(racine, '--at-haussier'), baissier: couleur(racine, '--at-baissier'), achat: couleur(racine, '--at-achat'), vente: couleur(racine, '--at-vente'), texte: couleur(racine, '--at-texte'), doux: couleur(racine, '--at-doux'), gain: couleur(racine, '--at-gain'), perte: couleur(racine, '--at-perte'), accent: couleur(racine, '--at-accent'), sable: couleur(racine, '--at-sable'), mono: couleur(racine, '--at-mono') || 'monospace' });
 
@@ -190,6 +190,39 @@ export function creerGraphique(el, { racine, surSelection }) {
     }
   });
 
+
+  /* ─── copilote (information, jamais des ordres) : zones de volume discrètes, boîte RANGE, sorties de range ─── */
+  const primCopilote = new Primitive((ctx, taille, P) => {
+    const cp = etat.copilote; if (!P.series || !cp || !etat.donnees.length || etat.unite !== 'M15' && etat.unite !== 'H1') return;
+    const c = C(), ts = P.chart.timeScale(), U = UNITES[etat.unite], xT = t => xDe(ts, indiceLogique(etat.donnees, t, U));
+    ctx.save(); ctx.font = `10px ${c.mono}`; ctx.textBaseline = 'middle'; ctx.lineJoin = 'round';
+    const ecrire = (txt, x, y, col, a = 1) => { ctx.globalAlpha = a; ctx.strokeStyle = 'rgba(5,8,12,.9)'; ctx.lineWidth = 3; ctx.strokeText(txt, x, y); ctx.fillStyle = col; ctx.fillText(txt, x, y); ctx.globalAlpha = 1; };
+    etat._copDessin = { zones: 0, range: false };
+    for (const z of cp.zones || []) {
+      const ya = P.series.priceToCoordinate(z.pMax), yb = P.series.priceToCoordinate(z.pMin); if (ya == null || yb == null) continue;
+      const h = Math.max(3, yb - ya), a = 0.035 + 0.08 * (z.force / 100);
+      ctx.fillStyle = alpha(c.sable, a); ctx.fillRect(0, ya, taille.width, h);
+      ecrire(`zone ${fmtPrix(etat.actif, z.p)} · force ${z.force}${z.majeure ? ' · majeure' : ''}`, 6, ya + h / 2, alpha(c.sable, .75), .85);
+      etat._copDessin.zones++;
+    }
+    const boite = (r, pale) => {
+      const yh = P.series.priceToCoordinate(r.haut), yb = P.series.priceToCoordinate(r.bas); if (yh == null || yb == null) return;
+      let x0 = xT(r.debut), x1 = xT(r.fin); if (x0 == null && x1 == null) return; x0 = x0 == null ? 0 : x0; x1 = x1 == null ? taille.width : x1; if (x1 - x0 < 8) return;
+      ctx.fillStyle = alpha(c.accent, pale ? .025 : .05); ctx.fillRect(x0, yh, x1 - x0, yb - yh);
+      ctx.strokeStyle = alpha(c.accent, pale ? .25 : .5); ctx.lineWidth = 1; ctx.setLineDash(pale ? [3, 4] : []); ctx.strokeRect(Math.round(x0) + .5, Math.round(yh) + .5, Math.round(x1 - x0), Math.round(yb - yh)); ctx.setLineDash([]);
+      const txt = pale ? `range terminé${r.sortie ? ' · sortie ' + (r.sortie === 'haut' ? 'par le haut' : 'par le bas') : ''}` : `RANGE ${fmtPrix(etat.actif, r.bas)} – ${fmtPrix(etat.actif, r.haut)} · ${r.age} bougies`;
+      ecrire(txt, x0 + 4, yh - 7, alpha(c.accent, .9), pale ? .6 : 1);
+      if (!pale) etat._copDessin.range = true;
+    };
+    if (cp.dernierRange && (!cp.range || cp.dernierRange.fin <= cp.range.debut)) boite(cp.dernierRange, true);
+    if (cp.range) boite(cp.range, false);
+    for (const s of cp.sorties || []) {
+      const x = xT(s.t), y = P.series.priceToCoordinate(s.p); if (x == null || y == null || x < 0 || x > taille.width) continue;
+      ecrire(s.sens === 'haut' ? '↗ sortie de range' : '↘ sortie de range', x + 6, s.sens === 'haut' ? y - 12 : y + 12, alpha(c.accent, .9), .9);
+    }
+    ctx.restore();
+  });
+
   /* ─── bouton « Backtest » : positions REJOUÉES en petits traits très pâles (entrée, SL, TP), numérotées ─── */
   const primBacktest = new Primitive((ctx, taille, P) => {
     if (!P.series || !etat.backtest || !etat.donnees.length) return;
@@ -256,7 +289,7 @@ export function creerGraphique(el, { racine, surSelection }) {
     cvdB = chart.addSeries(LW.CandlestickSeries, { upColor: alpha(c.gain, .85), downColor: alpha(c.perte, .85), wickUpColor: alpha(c.gain, .85), wickDownColor: alpha(c.perte, .85), borderVisible: false, lastValueVisible: false, priceLineVisible: false, priceFormat: { type: 'volume' } }, 2);
     try { chart.panes()[1].setHeight(Math.max(50, Math.round(el.clientHeight * 0.15))); chart.panes()[2].setHeight(Math.max(56, Math.round(el.clientHeight * 0.17))); } catch (e) { /* ancienne version */ }
     cvdB.attachPrimitive(primCvdIncomplet);
-    bougies.attachPrimitive(primProfils); bougies.attachPrimitive(primPositions); bougies.attachPrimitive(primBacktest); bougies.attachPrimitive(primPrix);
+    bougies.attachPrimitive(primCopilote); bougies.attachPrimitive(primProfils); bougies.attachPrimitive(primPositions); bougies.attachPrimitive(primBacktest); bougies.attachPrimitive(primPrix);
     chart.subscribeClick(p => {
       if (!p.point) return;
       let meilleur = null;
@@ -305,7 +338,8 @@ export function creerGraphique(el, { racine, surSelection }) {
       }
       etat.derniereBougie = etat.donnees[etat.donnees.length - 1];
     },
-    surcouches({ positions, passees, profils, annotations, prix, tPrix, live }) {
+    surcouches({ positions, passees, profils, annotations, prix, tPrix, live, copilote }) {
+      etat.copilote = copilote || null; primCopilote.maj && primCopilote.maj();
       etat.positions = positions || []; etat.passees = passees || []; etat.profils = profils || []; etat.annotations = annotations || []; etat.prix = prix; etat.tPrix = tPrix; etat.live = live;
       primPositions.maj && primPositions.maj(); primProfils.maj && primProfils.maj(); primPrix.maj && primPrix.maj();
     },
@@ -318,7 +352,7 @@ export function creerGraphique(el, { racine, surSelection }) {
     rejoue(sig) { etat.rejoue = sig ? Object.assign({}, sig, { rejoue: true, nTrait: sig.tSortie ? Math.max(4, Math.round((sig.tSortie - (sig.tEntree || sig.tSignal)) / UNITES.M15) + 2) : 12, pnlAffiche: sig.pnl }) : null; primPositions.maj && primPositions.maj(); },
     /* positions REJOUÉES du bouton « Backtest » (liste publiée par le moteur), ou null pour effacer */
     backtest(liste) { etat.backtest = liste && liste.length ? liste : (liste ? [] : null); primBacktest.maj && primBacktest.maj(); },
-    _etat: etat, _zones: zones, _lw: () => ({ chart, bougies, primProfils, primPositions, cvdB }),
+    _etat: etat, _zones: zones, _lw: () => ({ chart, bougies, primProfils, primPositions, primCopilote, cvdB }),
     detruire() { clearInterval(resize); try { chart && chart.remove(); } catch (e) { /* */ } }
   };
 }
