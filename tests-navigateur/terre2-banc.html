@@ -1,0 +1,15 @@
+<!doctype html>
+<html lang="fr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Banc Terre 2.0</title>
+<script type="importmap">{ "imports": { "three": "../galaxie/vendor/three.module.min.js", "three/addons/": "../galaxie/vendor/addons/" } }</script>
+<style>html,body{margin:0;height:100%;background:#000}#vueGalaxie{position:fixed;inset:0}</style></head>
+<body><div id="vueGalaxie"></div>
+<script type="module">
+  // fausse galaxie : juste ce que la Terre 2.0 utilise (deleguer, surcharger, fermerSas, selectionner)
+  const journal = [];
+  const G = { racine: document.getElementById('vueGalaxie'), surcharger: x => journal.push(['surcharger', !!x]), nav: { deleguer: x => journal.push(['deleguer', !!x]), selectionner() {}, fermerSas: () => { journal.push(['fermerSas']); window.dispatchEvent(new CustomEvent('galaxie:sortie')); } } };
+  window.__banc = { G, journal };
+  const m = await import('../terre-v2/index.js');
+  window.__terre2 = m;
+  await m.entrer(G);
+  window.__pret = true;
+</script></body></html>

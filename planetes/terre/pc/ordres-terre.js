@@ -19,6 +19,9 @@ export async function assurerTerre({ delai = 60000 } = {}) {
   if (!(await jusqua(() => window.Galaxie && window.Galaxie.enMarche && window.Galaxie.enMarche(), 20000))) throw new Error('la galaxie ne répond pas');
   const pret = () => window.Terre && window.Terre.etat().actif && window.Terre.etat().entree && !document.getElementById('terre-fondu').classList.contains('noir');   // entree : le vol d'arrivée en orbite est lancé (il ne doit pas écraser le nôtre)
   if (!pret()) {
+    // Terre 2.0 ouverte : ces outils (actualités, balises, météo) vivent sur la Terre classique → on y passe pour cette visite
+    if (window.Terre2 && window.Terre2.etat().actif) { await window.Terre2.classique(); if (await jusqua(pret, delai)) return window.Terre; }
+    try { sessionStorage.setItem('rayle_terre_visite', 'classique'); } catch (e) { /* */ }
     window.Galaxie.nav.allerA('terre', { entrer: true });
     if (!(await jusqua(pret, delai))) throw new Error('la Terre ne s’ouvre pas (module ou textures indisponibles)');
   }
