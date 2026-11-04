@@ -29,7 +29,7 @@
 #terre2 .t2-cles input { width: 100%; box-sizing: border-box; background: rgba(0, 0, 0, .4); color: #fff; border: 1px solid rgba(143, 208, 227, .25); padding: 5px; }
 #terre2 .t2-info { position: absolute; left: 50%; bottom: 46px; transform: translateX(-50%); max-width: min(720px, calc(100vw - 24px)); padding: 7px 12px; background: rgba(6, 10, 16, .82); border: 1px solid rgba(143, 208, 227, .22); z-index: 3; text-align: center; }
 #terre2 .t2-info.vide, #terre2 .t2-info:empty { display: none; }
-#terre2 .t2-legendes { position: absolute; left: 12px; bottom: 46px; display: flex; flex-direction: column; gap: 3px; z-index: 3; max-width: min(420px, 45vw); }
+#terre2 .t2-legendes { position: absolute; left: 12px; bottom: 70px; display: flex; flex-direction: column; gap: 3px; z-index: 3; max-width: min(420px, 45vw); }
 #terre2 .t2-leg { font: 11px ui-monospace, Consolas, monospace; background: rgba(6, 10, 16, .7); padding: 3px 8px; color: #c9d6de; }
 #terre2 .t2-leg b { color: #8fd0e3; font-weight: 600; }
 #terre2 .t2-fiche { position: absolute; left: 12px; top: 60px; width: min(360px, calc(100vw - 24px)); max-height: calc(100vh - 140px); overflow-y: auto; padding: 10px 12px; background: rgba(6, 10, 16, .92); border: 1px solid rgba(143, 208, 227, .25); z-index: 4; }

@@ -9,6 +9,7 @@ import { SOURCES } from '../../terre-v2/couches/cameras.js';
 import { COUCHES } from '../../terre-v2/couches/index.js';
 import { MODES, NUANCEURS } from '../../terre-v2/vision.js';
 import { cible, cors } from '../../terre-v2/relais/index.js';
+import { analyser, traiter } from '../../terre-v2/voix.js';
 
 let ok = 0, ko = 0; const v = (c, m) => { if (c) ok++; else { ko++; console.error('ÉCHEC', m); } };
 v(ajusterQualite(1, 30) === 0.9 && ajusterQualite(0.6, 20) === 0.6 && ajusterQualite(0.9, 120) === 0.95 && ajusterQualite(1, 120) === 1 && ajusterQualite(0.8, 60) === 0.8, 'qualité automatique');
@@ -37,4 +38,25 @@ v(cible('https://r/avions?lat=48.8&lon=2.3&dist=100').url === 'https://api.adsb.
 v(cible('https://r/avions?lat=48&lon=2&dist=900').erreur && cible('https://r/firms?cle=../../x&zone=1,2,3,4').erreur && cible('https://r/firms?cle=abcdefabcdefabcdef12&zone=5,1,4,2').erreur, 'relais : paramètres refusés');
 v(cible('https://r/rayle') === null && cible('https://r/proxy?url=https://evil') === null, 'relais : pas de proxy ouvert');
 v(cors('https://evil.example')['Access-Control-Allow-Origin'] === 'https://justinmaneiro-alt.github.io' && cors('http://127.0.0.1:8011')['Access-Control-Allow-Origin'] === 'http://127.0.0.1:8011', 'relais : CORS limité');
+
+// ── voix : analyse des phrases (sans IA)
+const A2 = t => JSON.stringify(analyser(t));
+const cas = [
+  ['Va à Paris', { type: 'aller', lieu: 'paris' }], ['Raylé, emmène-moi à New York', { type: 'aller', lieu: 'new york' }],
+  ['Zoome sur la tour Eiffel', { type: 'zoom', lieu: 'tour eiffel' }], ['montre les avions', { type: 'couche', couche: 'avions', oui: true }],
+  ['Montre-moi les caméras de Londres', { type: 'couche', couche: 'cameras', oui: true, lieu: 'londres' }], ['affiche les satellites', { type: 'couche', couche: 'satellites', oui: true }],
+  ['montre les séismes', { type: 'couche', couche: 'seismes', oui: true }], ['montre les bateaux', { type: 'couche', couche: 'bateaux', oui: true }],
+  ['mode nuit', { type: 'vision', mode: 'nuit' }], ['passe en vision thermique', { type: 'vision', mode: 'thermique' }], ['mode normal', { type: 'vision', mode: 'normal' }],
+  ['masque les couches', { type: 'masquer' }], ['cache les avions', { type: 'couche', couche: 'avions', oui: false }], ['retour à la Terre classique', { type: 'classique' }],
+  ['ouvre la Terre 2.0', { type: 'ouvrir' }]
+];
+for (const [t, att] of cas) { const r = analyser(t); v(r && Object.entries(att).every(([k, x]) => r[k] === x), `voix « ${t} » → ${A2(t)}`); }
+for (const t of ['va sur Mars', 'retour à la galaxie', 'quelle heure est-il', 'ouvre le terminal', 'va à l’accueil']) v(analyser(t) === null, `voix « ${t} » n’est pas pour la Terre 2.0 → ${A2(t)}`);
+// traiter sans Terre 2.0 ouverte : séismes ambigus laissés aux autres commandes ; couche à clé → procédure dite
+globalThis.window = {};
+v(await traiter('montre les séismes', { ouvrir: async () => { throw new Error('ne doit pas ouvrir'); } }) === null, 'séismes hors Terre 2.0 → laissé aux sources en direct');
+const faux = { etat: () => ({ actif: true }), activerCouche: async () => ({ ok: false, cleManquante: true, erreur: 'Clé gratuite : aisstream.io …' }), chercher: async q => [{ court: 'Londres', lat: 51.5, lon: -0.12 }], aller: () => true, zoomerSur: () => true, vision: () => true, masquerCouches: () => true, classique: async () => true };
+const rep = await traiter('montre les bateaux', { ouvrir: async () => faux }); v(/clé gratuite/.test(rep) && /aisstream/.test(rep), 'couche sans clé : Raylé explique : ' + rep);
+v(/Londres/.test(await traiter('va à Londres', { ouvrir: async () => faux })), 'Raylé annonce ce qu’elle fait');
+window.Terre2 = faux; v(/thermique/i.test(await traiter('mode thermique')), 'vision par la voix');
 console.log(`terre 2.0 : ${ok} ok, ${ko} échec(s)`); process.exit(ko ? 1 : 0);

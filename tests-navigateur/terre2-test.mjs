@@ -64,6 +64,19 @@ for (const m of ['nuit', 'thermique', 'crt', 'nb', 'normal']) { const ok = await
 // touche V
 await p.keyboard.press('v'); await pause(600); e = await E(); v(e.vision === 'nuit', 'touche V : ' + e.vision); await p.evaluate(() => window.Terre2.vision('normal'));
 v(await p.evaluate(() => window.Terre2.masquerCouches()) && (await E()).couches.length === 0, 'masquer les couches');
+// fiche d'une caméra : clic sur l'entité → image telle que publiée + source et licence
+const fiche = await p.evaluate(async () => { await window.Terre2.activerCouche('cameras', true); await new Promise(r => setTimeout(r, 3000)); const v = window.Terre2.viewer(), ds = v.dataSources.getByName('cameras')[0], e = ds && ds.entities.values.find(x => x.rayle && /TfL/.test(x.rayle.source)); if (!e) return null; window.Terre2.montrerFiche(e.rayle); const f = document.querySelector('[data-fiche]'); return { visible: !f.hidden, img: !!f.querySelector('img'), texte: f.textContent }; });
+v(fiche && fiche.visible && fiche.img && /Open Government Licence/.test(fiche.texte), 'fiche caméra TfL avec image, source et licence');
+await pause(2500); await p.screenshot({ path: path.join(SORTIE, 'camera-fiche.png') });
+await p.evaluate(() => document.querySelector('[data-a="fermer-fiche"]').click());
+// Raylé pilote la Terre 2.0 (texte, mêmes fonctions que la voix)
+const dit = [];
+for (const t of ['va à Rome', 'zoome sur le Colisée', 'montre les satellites', 'mode thermique', 'mode normal', 'montre les bateaux', 'masque les couches']) { dit.push([t, await p.evaluate(async t => { const V = await import('/terre-v2/voix.js'); return V.traiter(t); }, t)]); await pause(t.startsWith('va') || t.startsWith('zoome') ? 6000 : 1200); }
+console.log(dit.map(([a, b]) => `  « ${a} » → ${b}`).join(String.fromCharCode(10)));
+v(dit.every(([, r]) => typeof r === 'string' && r.length > 5), 'Raylé répond à chaque commande');
+v(/clé gratuite/.test(dit[5][1]), 'bateaux sans clé : procédure dite');
+e = await E(); v(e.couches.length === 0 && e.vision === 'normal', 'état final après les commandes');
+await p.screenshot({ path: path.join(SORTIE, 'voix-colisee.png') });
 // sortie
 await p.evaluate(() => document.querySelector('[data-a="quitter"]').click()); await pause(800);
 e = await E(); v(!e.actif && !e.globe, 'sortie : globe détruit');

@@ -12,7 +12,7 @@ Reprendre ici : lire ce fichier, puis `RAPPORT-NUIT.md`. Reprendre à la premiè
 | 6. Terre 2.0 : globe et villes 3D | fait (sans jeton testé) | 2026-11-05 |
 | 7. Terre 2.0 : couches gratuites | fait | 2026-11-05 |
 | 8. Terre 2.0 : modes de vision | fait | 2026-11-05 |
-| 9. Rayle pilote la Terre | à faire | |
+| 9. Rayle pilote la Terre | fait | 2026-11-05 |
 | 10. Vérification finale | à faire | |
 
 ## Fait
@@ -24,8 +24,10 @@ Reprendre ici : lire ce fichier, puis `RAPPORT-NUIT.md`. Reprendre à la premiè
 
 - **Phases 5-8** : `terre-v2/` (index, config, vision, couches/*, relais/ déployé), `TERRE-V2-PLAN.md`, `THIRD_PARTY_NOTICES.md`. Tests : `galaxie/tests/terre2-test.mjs` (dans `npm test` à la racine), Chrome `tests-navigateur/terre2-test.mjs`.
 
+- **Phase 9** : `terre-v2/voix.js` + branchement `core/intelligence/phrase.js`. Tests : `galaxie/tests/terre2-test.mjs`, Chrome `tests-navigateur/terre2-test.mjs`, `terre2-integration-test.mjs`.
+
 ## En cours
-- Phase 9.
+- Phase 10.
 
 ## Bloqué
 - (rien)

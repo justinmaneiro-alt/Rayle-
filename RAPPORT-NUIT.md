@@ -66,3 +66,9 @@ Premier résultat (historique Kraken BTC, ETH, HYPE, or) : ≈ 30 gros mouvement
 
 ## Phase 8 : modes de vision — FAIT
 - Nuanceurs de post-traitement Cesium (écrits pour Rayle) : normal, vision nocturne (vert, grain, lignes), thermique (palette fer), CRT (courbure, lignes, aberration), noir et blanc. Bouton « Vision » + touche V ; L ouvre les couches.
+
+## Phase 9 : Raylé pilote la Terre — FAIT
+- `terre-v2/voix.js` (sans IA), branché dans `core/intelligence/phrase.js` (voix ET texte), PC seulement : « va à Paris », « zoome sur la tour Eiffel », « montre les avions / satellites / séismes / bateaux / caméras de Londres », « mode nuit / thermique / CRT / noir et blanc / normal », « masque les couches », « cache les avions », « retour à la Terre classique », « ouvre la Terre 2.0 ».
+- Depuis n'importe quelle vue, une phrase claire (« va à Rome ») ouvre la galaxie puis la Terre 2.0 ; les phrases ambiguës (« montre les séismes » hors de la Terre) restent aux commandes existantes (sources en direct).
+- Raylé annonce ce qu'elle fait ; couche sans clé → elle explique comment obtenir la clé. Les commandes ne parlent que de la Terre.
+- Vérifié : 46 tests purs, Chrome sur le banc (7 phrases), et dans la vraie application (« va à Paris » depuis l'accueil → galaxie → Terre 2.0 ; retour à la Terre classique ; téléphone : rien de la Terre 2.0 n'est chargé).
