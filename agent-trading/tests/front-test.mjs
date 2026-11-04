@@ -90,4 +90,22 @@ t('même capital au centime PC / téléphone : mêmes fonctions, même JSON', ()
   const copie = JSON.parse(JSON.stringify(etatG)), b = htmlPositions(copie) + htmlPortefeuille(copie, { perf: { global: { n: 0 }, parCategorie: { normale: { n: 0, statut: 'PAS ENCORE PROUVÉ' }, grande: { n: 0, statut: 'PAS ENCORE PROUVÉ' } }, parType: {}, nClos: 0, echantillonTropPetit: true } });
   eq(a, b); vrai(/10\s035,43\s\$/.test(a), 'capital au centime'); vrai(htmlCategories({ parCategorie: { normale: { n: 1, statut: 'PAS ENCORE PROUVÉ' }, grande: { n: 0, statut: 'PAS ENCORE PROUVÉ' } } }).includes('GRANDE'));
 });
+/* v4 : bougies de volume net, bouton Backtest, plan et leçons, plus d'« Objectif semaine » */
+const v4 = await import('../front/graphique.js'), pv4 = await import('../front/panneaux.js');
+t('bougie de volume net : corps = CVD avant → après, mèches = extrêmes enregistrés, grisée si incomplète, vide si inconnue', () => {
+  const k = v4.bougieCvd([0, 1, 1, 1, 1, 8, 3, 5, 1, -2, -3, 2, 300, 500]); eq(k.open, 0); eq(k.close, -2); eq(k.high, 2); eq(k.low, -3); eq(k.color, undefined);
+  const g = v4.bougieCvd([0, 1, 1, 1, 1, 8, 3, 5, 0, -2, null, null, null, null]); vrai(/138,154,166/.test(g.color)); eq(g.high, 0); eq(g.low, -2);
+  eq(v4.bougieCvd([0, 1, 1, 1, 1, 8, null, null, 0, null]).open, undefined);
+});
+t('bouton Backtest : « en préparation » sans données, tous les trades listés, « trop petit » sous 20, candidate écrite', () => {
+  vrai(/en préparation/.test(pv4.htmlBacktestGraphe(null, 7, 'BTC')));
+  const tr = [1, 2].map(n => ({ n, actif: 'BTC', sens: 'vente', modele: 'cassure', score: 90, tSignal: n, tEntree: n, tSortie: n + 1, entree: 10, stop: 11, objectif: 7, R: -1, raison: 'stop' }));
+  const h = pv4.htmlBacktestGraphe({ strategie: { id: 'c', statut: 'CANDIDATE, non validée' }, fenetres: { 5: { trades: tr, stats: { n: 2, gagnants: 0, totalR: -2, moyR: -1, baisseMaxR: 2, parModele: {}, parActif: {}, tropPetit: true } } }, nonRejoue: ['Carnet'] }, 5, 'BTC');
+  eq((h.match(/<li class="at-btg-l /g) || []).length, 2); vrai(/trop petit/.test(h) && /CANDIDATE, non validée/.test(h) && /REJOUÉ/.test(h));
+});
+t('journal v4 et portefeuille : leçons, registre fantôme ; plus d’« Objectif semaine »', () => {
+  vrai(/Registre fantôme/.test(pv4.htmlPlanLecons({ lecons: { dernieres: [], parCause: { bruit: 1 }, causes: ['bruit'] }, fantome: { parVersion: {} } })));
+  eq(pv4.htmlPlanLecons(null), '');
+});
+
 console.log(`front : ${ok} réussis, ${ko} échoués`); if (ko) process.exitCode = 1;

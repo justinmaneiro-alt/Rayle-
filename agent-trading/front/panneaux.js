@@ -75,7 +75,6 @@ export function htmlPortefeuille(etat, lent) {
       <div><small>Réalisé ${info('realise')}</small><b class="${sgn(c.realise)}">${fmtUSD(c.realise, 2, true)}</b></div>
       <div><small>Flottant ${info('flottant')}</small><b class="${sgn(c.flottant)}">${fmtUSD(c.flottant, 2, true)}</b></div>
       <div><small>Cette semaine ${info('semaine')}</small><b class="${sgn(c.semaine.pnl)}">${fmtUSD(c.semaine.pnl, 2, true)} · ${fmtPct(c.semaine.pct)}</b>${c.semaine.depuisDemarrage ? '<em>depuis le démarrage</em>' : ''}</div>
-      <div><small>Objectif semaine ${info('objectif')}</small><b>${fmtPct(c.semaine.objectifPct, 1)}</b></div>
       <div><small>Baisse max ${info('baisseMax')}</small><b class="${c.baisse.maxUSD > 0 ? 'at-perte' : ''}">${fmtUSD(-c.baisse.maxUSD, 2)} · ${fmtPct(-c.baisse.maxPct)}</b></div>
       <div><small>Limite simulée (${c.baisse.mode}) ${info('limite')}</small><b class="${c.baisse.depassee ? 'at-perte' : ''}">${fmtPct(c.baisse.actuellePct, 2, false)} / ${fmtPct(c.baisse.limitePct, 0, false)}</b></div>
       <div><small>Risque par trade ${info('risque')}</small><b>${fmtUSD(c.risqueParTradeUSD, 2)} (${fmtNombre(c.risquePct, 1)} %)</b></div>
@@ -117,6 +116,41 @@ export function htmlBacktest7j(bt) {
     ${bt.echantillonTropPetit ? '<p class="at-avert">Échantillon trop petit pour conclure (moins de 20 signaux).</p>' : ''}
     <div class="at-bt-donnees"><div><h5>Données utilisées</h5><ul>${bt.donnees.utilisees.map(x => `<li>${esc(x)}</li>`).join('')}</ul></div><div><h5>Ce qui manque (jamais inventé)</h5><ul>${bt.donnees.manquantes.map(x => `<li>${esc(x)}</li>`).join('')}</ul></div></div>
     ${cal ? `<p class="at-doux at-bt-cal">Seuil des grandes positions (distance typique en 4 à 6 bougies M15) : ${cal}</p>` : ''}`;
+}
+
+/* ─── bouton « Backtest » du graphique : panneau (chiffres publiés par le moteur, rien n'est recalculé ici) ─── */
+const MODELE = { rebond: 'rebond', cassure: 'cassure', balayage: 'balayage', continuation: 'continuation' };
+export function tradesBacktestGraphe(bg, jours, actif) {
+  const f = bg && bg.fenetres && bg.fenetres[jours]; if (!f) return null;
+  return f.trades.filter(t => t.actif === actif);
+}
+export function htmlBacktestGraphe(bg, jours, actif) {
+  if (!bg || !bg.fenetres) return '<p class="at-vide">Rejeu en préparation : le moteur le calcule au démarrage puis chaque heure, et le publie ici (le même sur PC, tablette et téléphone).</p>';
+  const f = bg.fenetres[jours]; if (!f) return '<p class="at-vide">Aucun rejeu publié pour cette durée.</p>';
+  const s = f.stats, st = bg.strategie || {}, cand = st.statut !== 'EN MARCHE';
+  const grp = g => Object.entries(g || {}).map(([k, x]) => `<span><b>${esc(MODELE[k] || k)}</b> ${x.n} (${x.gagnants} gagnant${x.gagnants > 1 ? 's' : ''}, ${fmtR(x.totalR)})</span>`).join(' · ') || '—';
+  const ici = f.trades.filter(t => t.actif === actif).length;
+  const lignes = f.trades.map(t => `<li class="at-btg-l at-${t.sens}"><b class="at-btg-n">${t.n}</b> <b>${esc(t.actif)}</b> ${sens(t.sens)} <span class="at-doux">${esc(t.modele)} · score ${t.score}</span> <time>${dateHeureParis(t.tSignal)}</time> <span class="at-btg-niv">E ${fmtPrix(t.actif, t.entree)} · SL ${fmtPrix(t.actif, t.stop)} · TP ${fmtPrix(t.actif, t.objectif)}</span> → <b class="${sgn(t.R)}">${fmtR(t.R)}</b> <span class="at-doux">(${esc(t.raison)})</span></li>`).join('');
+  return `<p class="at-rejoue">REJOUÉ, pas réel · ${cand ? '<b>CANDIDATE, non validée</b>' : '<b>stratégie en marche</b>'} : ${esc(st.id || '—')} · ${jours} derniers jours · ${(bg.actifs || []).map(esc).join(', ')} · frais et glissement inclus · ne touche jamais le portefeuille</p>
+    <div class="at-btg-chiffres"><span>Trades <b>${s.n}</b></span><span>Gagnants <b>${s.gagnants}</b></span><span>R total <b class="${sgn(s.totalR)}">${s.n ? fmtR(s.totalR) : '—'}</b></span><span>R moyen <b class="${sgn(s.moyR)}">${s.moyR != null ? fmtR(s.moyR) : '—'}</b></span><span>Baisse max <b>${s.n ? fmtNombre(s.baisseMaxR, 2) + ' R' : '—'}</b></span></div>
+    ${s.tropPetit ? `<p class="at-avert">Échantillon trop petit pour conclure (${s.n} trade${s.n > 1 ? 's' : ''}, moins de 20).</p>` : ''}
+    <p class="at-btg-grp">Par modèle : ${grp(s.parModele)}</p><p class="at-btg-grp">Par actif : ${grp(s.parActif)}</p>
+    ${f.trades.length ? `<ol class="at-btg-liste">${lignes}</ol><p class="at-doux at-btg-note">Sur ce graphique : les ${ici} trade${ici > 1 ? 's' : ''} de ${esc(actif)} (numéros dans l’ordre du temps, tous actifs confondus).</p>` : '<p class="at-vide">Aucune position rejouée sur cette durée.</p>'}
+    ${bg.encoreOuvertes ? `<p class="at-doux at-btg-note">${bg.encoreOuvertes} position(s) encore ouverte(s) à la fin des données : non comptée(s).</p>` : ''}
+    <p class="at-doux at-btg-note">Non rejoué : ${(bg.nonRejoue || []).map(esc).join(' ')}</p>`;
+}
+
+/* ─── Journal : plan du jour, 5 dernières leçons, total par cause, registre fantôme (chiffres publiés par le moteur) ─── */
+export function htmlPlanLecons(v4) {
+  if (!v4) return '';
+  const p = v4.plan, L = v4.lecons, F = v4.fantome;
+  const plan = p && p.actifs && p.actifs.length ? `<details class="at-v4-bloc" open><summary>Plan du jour (${esc(p.jour)}, 08:00 Paris)</summary>${p.actifs.map(a => `<div class="at-plan"><b>${esc(a.actif)}</b> <span class="at-doux">flux ${esc(a.flux.sens)}</span><p class="at-plan-niv">${a.niveaux.map(n => `<span class="${n.type === 'support' ? 'at-achat' : 'at-vente'}">${n.type === 'support' ? 'S' : 'R'} ${fmtPrix(a.actif, n.p)}${n.tag ? ' · ' + esc(n.tag) : ''}</span>`).join(' ')}</p><ul>${a.scenarios.map(s => `<li>${esc(s)}</li>`).join('')}</ul></div>`).join('')}</details>` : '<p class="at-doux at-v4-vide">Plan du jour : rédigé chaque matin à 08:00 (heure de Paris).</p>';
+  const causes = L ? (L.causes || Object.keys(L.parCause || {})).map(c => `<span>${esc(c)} <b>${(L.parCause || {})[c] || 0}</b></span>`).join(' · ') : '';
+  const lecons = L && L.dernieres && L.dernieres.length ? `<ol class="at-lecons">${L.dernieres.map(l => `<li><time>${dateHeureParis(l.t)}</time> <span class="at-badge">${esc(l.cause)}</span> ${esc(l.texte)}</li>`).join('')}</ol>` : '<p class="at-doux at-v4-vide">Aucune leçon pour l’instant : elles arrivent à chaque position fantôme ou réelle clôturée.</p>';
+  const fv = F && F.parVersion ? Object.entries(F.parVersion).map(([v, s]) => `<span><b>${esc(v)}</b> ${s.n} clos${s.n ? ` (${s.gagnants} gagnant${s.gagnants > 1 ? 's' : ''}, ${fmtR(s.totalR)})` : ''} · ${s.ouvertes} en cours</span>`).join(' · ') : '';
+  return `<details class="at-v4-bloc" open><summary>Leçons (5 dernières) · total par cause : ${causes || '—'}</summary>${lecons}</details>
+    ${plan}
+    <p class="at-doux at-v4-fantome">Registre fantôme (positions que l’agent AURAIT prises, jamais dans le portefeuille) : ${fv || 'vide pour l’instant'}${v4.candidate ? ` · candidate : ${esc(v4.candidate.id)} (${v4.candidate.validee ? 'validée' : 'non validée'})` : ''}${v4.nVariantes ? ` · ${v4.nVariantes} variantes testées sur le banc long` : ''}</p>`;
 }
 
 /* capital animé jusqu'au centime + flash vert / rouge */

@@ -4,7 +4,6 @@ export const DEFINITIONS = {
   realise: 'Somme des P&L des positions clôturées, frais et glissement déduits.',
   flottant: 'Gain ou perte des positions encore ouvertes si on les fermait au dernier prix échangé (frais d’entrée déjà déduits, frais de sortie pas encore).',
   semaine: '« Cette semaine » = capital actuel − capital du lundi 00:00 (heure de Paris), flottant inclus.',
-  objectif: 'Objectif de la semaine : un gain en % du capital du lundi 00:00. Indicatif : l’agent ne prend pas plus de risque pour l’atteindre.',
   baisseMax: 'Baisse max = la plus forte chute du capital depuis son plus haut (flottant inclus), mesurée chaque minute.',
   limite: 'Limite simulée : perte maximale autorisée, en % du départ. Mode statique = mesurée depuis le capital de départ ; mode suiveuse = depuis le plus haut atteint. Si elle est franchie : bandeau « LIMITE DÉPASSÉE » et plus aucune nouvelle proposition.',
   risque: 'Risque par trade = 0,5 % du capital RÉALISÉ (sans le flottant). Quantité = risque ÷ |entrée − stop|, arrondie au pas de lot de Kraken.',
