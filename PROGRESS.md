@@ -1,3 +1,24 @@
+# Phase F « Copilote de l'or » (2026-11-05) — avancement
+
+Reprendre ici. Branche `copilote-or`, fusionnée dans `main`. Rapport complet HORS dépôt : `agent-trading/RAPPORT-OR.md`. Phases B et C : pas commencées (l'or passait avant).
+
+| Étape | État |
+|---|---|
+| 1. Flux comparés sur 30 j (7 sources gratuites) → référence Binance perpétuel XAUUSDT, exécution Kraken PF_XAUUSD (écart + fourchette en direct), « données insuffisantes » sinon | fait |
+| 2. Sessions figées (Asie 00:00–08:00 Paris, Londres 08:00 Londres, New York 08:30 NY) ; balayage, cassure avec volume, rejet | fait |
+| 3. Niveaux (8 au plus : veille, semaine, sessions, ronds 50/100, 2 zones de volume) | fait |
+| 4. Annonces : Forex Factory + secours manuel (NFP, Fed) ; blocage −30/+15 min ; compte à rebours | fait |
+| 5. Stops/cibles à l'ATR M15/H1, TROP TARD (R < 1,5), contrôle de fourchette Kraken | fait |
+| 6. Plans A/B + checklist de l'or 6 critères sur le graphique ; Telegram (pont existant) seulement si validé, mention « SIMULATION, setup NON VALIDÉ » | fait (« PHASE D » absente du dépôt : pont Telegram existant utilisé) |
+| 7. Bilan direct 8/24 bougies vs hasard ; rétro-test PAXG 2020→ + XAUUSDT, calibration/validation, Holm | fait : AUCUN setup validé, Telegram désactivé |
+| 8. RAPPORT-OR.md | fait |
+
+- Moteur (hors dépôt) : `agent-trading/moteur/copilote/or/` (`sources.js`, `comparer-sources.mjs`, `regles-or.js` figé `or-v1`, `calendrier-or.js`, `index.js`, `retro-or.mjs`). Tests : `moteur/tests/or-test.mjs` (dans `npm test`), Chrome `moteur/tests/ecran-or.mjs` (serveur 8011 + `REEL=1 relais-page.mjs 8799`).
+- Dépôt : `agent-trading/front/copilote-or.js` + branchements `graphique.js`, `vue.js`, `copilote-visuel.js`, `agent.css`.
+- Moteur redémarré le 2026-11-05 19:27 UTC : « copilote or : démarré or-v1 ».
+
+---
+
 # Mission « Copilote visuel » (2026-11-05) — avancement
 
 Reprendre ici. Branche `copilote-visuel`, fusionnée dans `main` à la fin. Rapport complet HORS dépôt : `agent-trading/RAPPORT-COPILOTE.md`.

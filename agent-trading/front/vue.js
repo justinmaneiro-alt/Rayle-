@@ -13,6 +13,7 @@ import { creerCarnet } from './carnet.js';
 import { htmlPositions, htmlRejeuCopilote, htmlHistorique, csvHistorique, htmlPortefeuille, htmlJournal, htmlBacktest7j, animerCapital, dessinerCourbe, brancherDefinitions, esc, info, htmlBacktestGraphe, tradesBacktestGraphe, htmlPlanLecons } from './panneaux.js';
 import { montrerCarte } from './carte-alerte.js';
 import { creerCopiloteVisuel, HTML_HAUT, HTML_BAS, HTML_ALERTE } from './copilote-visuel.js';
+import { adapterVisuelOr } from './copilote-or.js';
 
 const lire = (k, d) => { try { return localStorage.getItem(k) || d; } catch (e) { return d; } };
 const ecrire = (k, v) => { try { localStorage.setItem(k, v); } catch (e) { /* refusé */ } };
@@ -200,10 +201,11 @@ export function monterVue(el, { mode = 'auto', connexion = null } = {}) {
     const positions = e.trades.enCours.filter(t => t.actif === etat.actif).map(t => Object.assign({}, t, { pnlAffiche: pos[t.id] ? pos[t.id].pnl : null }));
     const passees = (lent && lent.passes || []).filter(t => t.actif === etat.actif && t.statut === 'clos').slice(-30).map(t => Object.assign({}, t, { pnlAffiche: t.pnl }));
     const profils = [];
-    if (x.profils && x.profils.jour && x.profils.jour.niveaux) profils.push(Object.assign({ etiquette: 'jour', pas: x.pas }, x.profils.jour, { fin: Date.now() }));
+    // or : 8 niveaux au plus sur le graphique → ni profil VAH/POC/VAL ni zones du copilote générique
+    if (!x.or && x.profils && x.profils.jour && x.profils.jour.niveaux) profils.push(Object.assign({ etiquette: 'jour', pas: x.pas }, x.profils.jour, { fin: Date.now() }));
     for (const a of (x.annotations && x.annotations.liste) || []) if (a.type === 'profil') profils.push(Object.assign({ etiquette: 'agent' }, a));
     copilote(x.copilote);
-    graph.surcouches({ positions, passees, profils, annotations: (x.annotations && x.annotations.liste || []).filter(a => a.type !== 'profil'), prix: x.prix, tPrix: x.tPrix, live: cnx.fraicheur().live, copilote: x.copilote || null, visuel: x.visuel ? Object.assign({}, x.visuel, { plans: etat.unite === 'M15' || etat.unite === 'H1' ? x.visuel.plans : [] }) : null });
+    graph.surcouches({ positions, passees, profils, annotations: (x.annotations && x.annotations.liste || []).filter(a => a.type !== 'profil'), prix: x.prix, tPrix: x.tPrix, live: cnx.fraicheur().live, copilote: x.or ? null : x.copilote || null, visuel: x.or ? Object.assign({}, x.visuel || {}, adapterVisuelOr(x.or), etat.unite === 'M15' || etat.unite === 'H1' ? {} : { plans: [] }) : x.visuel ? Object.assign({}, x.visuel, { plans: etat.unite === 'M15' || etat.unite === 'H1' ? x.visuel.plans : [] }) : null, or: x.or || null });
     cv.maj();
   }
   /* ─── copilote : bilan des flèches (près du graphique), message « marché instable », notification discrète d'une nouvelle flèche ─── */

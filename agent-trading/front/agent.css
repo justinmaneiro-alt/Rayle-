@@ -294,3 +294,23 @@
 .cv-regles li { margin: 3px 0; color: var(--at-doux); font-size: 12px; } .cv-regles b { color: var(--at-texte); }
 .at[data-disposition="colonne"] .cv-bandeau { font-size: 12.5px; }
 .at[data-disposition="colonne"] .cv-plan { font-size: 12.5px; }
+
+/* ── copilote de l'or ── */
+.cv-or { flex: none; max-height: 42%; overflow-y: auto; overscroll-behavior: contain; margin: 6px 0; padding: 8px 10px; border: 1px solid rgba(201,178,122,.35); background: rgba(201,178,122,.04); font-size: 13px; }
+.cv-or-tete { display: flex; flex-wrap: wrap; gap: 6px 14px; align-items: baseline; }
+.cv-or-tete small, .cv-or-ligne { color: var(--at-doux); }
+.cv-or-sim { color: var(--at-sable); border-color: var(--at-sable); }
+.cv-or-annonces { margin-top: 4px; font-family: var(--at-mono); }
+.cv-or-annonce { color: var(--at-vente); }
+.cv-or-insuffisant { margin: 6px 0 0; color: var(--at-perte); }
+.cv-or-plans { display: grid; gap: 6px; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); margin-top: 6px; }
+.cv-or-plan { padding: 6px 8px; border-left: 3px solid var(--at-achat); background: rgba(255,255,255,.02); }
+.cv-or-plan.cv-vente { border-left-color: var(--at-vente); }
+.cv-or-plan.cv-barre { opacity: .55; }
+.cv-or-plan p { margin: 4px 0; font-family: var(--at-mono); font-size: 12px; }
+.cv-or-alerte { margin-top: 4px; padding: 4px 6px; border: 1px dashed var(--at-sable); font-size: 12px; }
+.cv-or-figs { margin: 2px 0; padding-left: 18px; font-size: 12px; }
+.at[data-disposition="colonne"] .cv-or { max-height: 170px; font-size: 12.5px; }
+.at-fs .cv-or { max-height: 30%; }
+.at[data-disposition="colonne"] .at-zone-graphique:has(.cv-or:not([hidden])) { height: calc(var(--at-h, 640px) * .6 + 180px); }
+.at[data-disposition="colonne"] .at-zone-graphique.at-fs:has(.cv-or:not([hidden])) { height: 100dvh; }
