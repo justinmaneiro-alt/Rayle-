@@ -1,3 +1,22 @@
+# Copilote d'INFORMATION (2026-11-05, soir) — avancement
+
+Reprendre ici. Branche `copilote-info`, fusionnée dans `main`. Rapport HORS dépôt : `agent-trading/RAPPORT-INFO.md`. Changement de cap : plus aucune alerte « plan de position » ni ACHAT/VENTE ; constats de marché seulement (mode observation, Worker principal `rayle` intact).
+
+| Étape | État |
+|---|---|
+| A. Détecteur figé `info-v1` (approche, toucher, balayage dont Asie, volume anormal, delta retourné, cassure avec volume / fragile, ouverture 10 min, annonce 20 min), or puis BTC/ETH/HYPE/Nasdaq/S&P, prix Kraken = réf. Binance + écart affiché | fait |
+| B. Marques + survol, fil « Ce qui se passe », Telegram « INFO MARCHÉ, pas un signal » (pont existant, seulement si configuré) | fait (type technique ENTREE : seul type relayé par le Worker principal) |
+| C. Anti-bruit (1 par niveau et type, 60 min, plafond or 8 / autres 4, heures calmes 23–07 réglables, couper, regroupement) | fait côté moteur ; **réglages depuis l'app : déployer le Worker de l'agent** (`npx.cmd wrangler deploy --config agent-trading/worker/wrangler.toml`, refusé à Claude) puis redémarrer le moteur |
+| D. Pertinence vs 1000 niveaux au hasard ; types inutiles désactivés par défaut | fait : or = aucun type utile ; volume anormal / cassure avec volume utiles sur BTC, ETH, indices |
+| E. Phases B et C : graphique façon TradingView, profil masqué par défaut, 8 niveaux au plus, alertes en petit message en coin | fait |
+| F. Tests, rapport, commit, push | fait |
+
+- Moteur (hors dépôt) : `agent-trading/moteur/copilote/info/` (`regles-info.js`, `sources-info.js`, `index.js`, `retro-info.mjs`). Tests : `moteur/tests/info-test.mjs` (npm test), Chrome `moteur/tests/ecran-info.mjs`.
+- Dépôt : `agent-trading/front/copilote-info.js` + `copilote-visuel.js`, `graphique.js`, `vue.js`, `connexion.js`, `agent.css` ; relais `info-reglage` dans `agent-trading/worker/src/index.js` (NON déployé).
+- Le copilote de l'or « or-v1 » (plans A/B) n'est plus démarré ; `front/copilote-or.js` supprimé.
+
+---
+
 # Phase F « Copilote de l'or » (2026-11-05) — avancement
 
 Reprendre ici. Branche `copilote-or`, fusionnée dans `main`. Rapport complet HORS dépôt : `agent-trading/RAPPORT-OR.md`. Phases B et C : pas commencées (l'or passait avant).

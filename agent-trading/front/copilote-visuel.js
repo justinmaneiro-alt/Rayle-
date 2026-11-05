@@ -3,7 +3,7 @@
    Copilote, pas un bot : aucun ordre. « Je l'ai pris » = une NOTE (prix + heure) envoyée au moteur pour mesurer le retard d'entrée. */
 import { fmtPrix, fmtNombre, fmtR, heureParis, dateHeureParis } from '../commun/format.js';
 import { repondre } from '../commun/questions.js';
-import { htmlOr } from './copilote-or.js';
+import { htmlBandeauInfo, htmlFil, htmlPertinence, toast } from './copilote-info.js';
 
 const esc = s => String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 const SENS = { haussiere: 'haussière', baissiere: 'baissière', range: 'range', inconnue: '—' };
@@ -67,37 +67,35 @@ export function creerCopiloteVisuel(R, { cnx, graph, actif: lireActif, lire, ecr
   const $ = s => R.querySelector(s);
   let prises = new Set(JSON.parse(lire('rayle_cv_prises', '[]'))), vues = new Set(JSON.parse(lire('rayle_cv_alertes_vues', '[]'))), derniers = {};
   const poser = (sel, html, cle) => { if (derniers[cle] === html) return; const z = $(sel); if (!z) return; const ouverts = [...z.querySelectorAll('details[open]')].map(d => d.dataset.critere || d.className); z.innerHTML = html; derniers[cle] = html; for (const o of ouverts) { const d = z.querySelector(`details[data-critere="${o}"]`) || z.querySelector('details.' + o); if (d) d.open = true; } };
+  /* 2026-11-05 : COPILOTE D'INFORMATION — plus de plans A/B, de checklist ni d'alerte ACHAT/VENTE : bandeau d'information, fil « Ce qui se passe »,
+     pertinence des événements, réglages (couper, heures calmes, types) et petits messages en coin. */
   function maj() {
-    const e = cnx.store.etat, a = lireActif(); if (!e || !e.actifs[a]) { poser('[data-cv-bandeau]', htmlBandeau(a, null), 'b'); return; }
-    const v = e.actifs[a].visuel;
-    poser('[data-cv-bandeau]', htmlBandeau(a, v), 'b');
-    const o = e.actifs[a].or, zo = $('[data-cv-or]');
-    if (zo) { zo.hidden = !o; poser('[data-cv-or]', o ? htmlOr(o, cnx.store.lent && cnx.store.lent.or) : '', 'or'); }
-    // l'or a ses propres plans et sa checklist (référence + exécution Kraken) : ceux du copilote générique sont masqués
-    poser('[data-cv-checklist]', o ? '' : htmlChecklist(v && v.confluence), 'c');
-    poser('[data-cv-plans]', o ? '' : htmlPlans(a, v, prises), 'p');
-    const com = $('[data-cv-commentaire]'); if (com) com.textContent = v && v.commentaire ? v.commentaire : '';
+    const e = cnx.store.etat, a = lireActif(), i = e && e.actifs[a] ? e.actifs[a].info : null;
+    poser('[data-cv-bandeau]', htmlBandeauInfo(a, i), 'b');
+    poser('[data-ci-fil]', htmlFil(a, i), 'f');
     alertes();
   }
-  function majLent() { poser('[data-cv-section]', htmlSection(cnx.store.lent && cnx.store.lent.visuel), 's'); alertes(); }
-  /* alerte de confluence DANS L'APP (avec capture du graphique) ; jamais ailleurs */
+  function majLent() { poser('[data-cv-section]', htmlPertinence(lireActif(), cnx.store.lent && cnx.store.lent.info), 's'); alertes(); }
+  /* petits messages en coin : alertes du copilote d'information (après l'anti-bruit du moteur) */
   function alertes() {
-    const g = cnx.store.lent && cnx.store.lent.visuel; if (!g || !cnx.fraicheur().live) return;
+    const g = cnx.store.lent && cnx.store.lent.info; if (!g || !cnx.fraicheur().live) return;
     for (const al of g.alertes || []) {
-      if (vues.has(al.id)) continue; vues.add(al.id); ecrire('rayle_cv_alertes_vues', JSON.stringify([...vues].slice(-100)));
+      if (vues.has(al.id)) continue; vues.add(al.id); ecrire('rayle_cv_alertes_vues', JSON.stringify([...vues].slice(-200)));
       if (Date.now() - al.t > 30 * 60e3) continue;
-      montrerAlerte(al);
+      toast(R, al.actif, al);
     }
   }
-  function montrerAlerte(al) {
-    const z = $('[data-cv-alerte]'); if (!z) return;
-    let img = ''; try { img = graph.capture ? graph.capture() : ''; } catch (e) { /* pas de capture */ }
-    z.innerHTML = `<div class="cv-alerte-carte cv-${al.sens}" role="alertdialog" aria-label="Alerte de confluence"><b>Confluence ${al.n}/6 · ${esc(al.actif)} · plan ${esc(al.planNom)} ${sensTxt(al.sens)}</b><span class="at-badge">non validée</span>
-      <p>Zone ${fmtPrix(al.actif, al.zoneBas)} – ${fmtPrix(al.actif, al.zoneHaut)} · invalidation ${fmtPrix(al.actif, al.stop)} · ${heureParis(al.t)}. Information seulement : à toi de décider.</p>
-      ${img ? `<img src="${img}" alt="Capture du graphique au moment de l’alerte" class="cv-capture">` : '<p class="cv-doux">Capture indisponible.</p>'}
-      <div class="cv-alerte-boutons"><button type="button" class="at-btn" data-cv-fermer-alerte>Fermer</button></div></div>`;
-    z.hidden = false;
-  }
+  function montrerAlerte(al) { toast(R, al.actif, al); }
+  R.addEventListener('click', ev => {
+    const b = ev.target.closest('button'); if (!b) return;
+    if (b.hasAttribute('data-ci-couper')) { const i = cnx.store.etat && cnx.store.etat.actifs[lireActif()] && cnx.store.etat.actifs[lireActif()].info; cnx.reglerInfo && cnx.reglerInfo({ coupe: !(i && i.coupe) }); b.textContent = 'envoyé…'; }
+    else if (b.hasAttribute('data-ci-fermer')) { const t = b.closest('.ci-toast'); if (t) t.remove(); }
+  });
+  R.addEventListener('change', ev => {
+    const c = ev.target.closest('[data-ci-type]'), h = ev.target.closest('[data-ci-calme]');
+    if (c) cnx.reglerInfo && cnx.reglerInfo({ actif: lireActif(), type2: c.dataset.ciType, actifType: c.checked });
+    if (h && /^\d\d:\d\d$/.test(h.value)) { const [hh, mm] = h.value.split(':').map(Number); cnx.reglerInfo && cnx.reglerInfo({ [h.dataset.ciCalme === 'debut' ? 'calmeDebut' : 'calmeFin']: hh * 60 + mm }); }
+  });
   /* « Je l'ai pris » : petit formulaire prix + heure (préremplis) */
   function ouvrirPrise(id, prixDefaut) {
     const z = $('[data-cv-prise]'); if (!z) return;
@@ -126,18 +124,16 @@ export function creerCopiloteVisuel(R, { cnx, graph, actif: lireActif, lire, ecr
   function demander() {
     const i = $('[data-cv-question]'), o = $('[data-cv-reponse]'); if (!i || !o) return;
     const e = cnx.store.etat, a = lireActif(), x = e && e.actifs[a];
-    o.textContent = repondre(i.value, { actif: a, visuel: x && x.visuel, global: cnx.store.lent && cnx.store.lent.visuel, prix: x && x.prix });
+    o.textContent = repondre(i.value, { actif: a, visuel: x && x.visuel ? Object.assign({}, x.visuel, { plans: [], confluence: null, setups: [] }) : null, global: cnx.store.lent && cnx.store.lent.visuel, prix: x && x.prix });
   }
   return { maj, majLent, montrerAlerte, demander };
 }
 
 /* gabarits HTML insérés dans vue.js */
-export const HTML_HAUT = `<div class="cv-bandeau" data-cv-bandeau aria-live="polite"></div><div class="cv-or" data-cv-or hidden></div>`;
+export const HTML_HAUT = `<div class="cv-bandeau" data-cv-bandeau aria-live="polite"></div>`;
 export const HTML_BAS = `<div class="cv-zone">
-    <p class="cv-commentaire" data-cv-commentaire aria-live="polite"></p>
-    <div class="cv-checklist" data-cv-checklist></div>
-    <div class="cv-plans" data-cv-plans></div>
-    <div class="cv-prise" data-cv-prise hidden></div>
-    <form class="cv-demander" data-cv-q-form><label class="at-sr" for="cv-q">Demander au copilote</label><input id="cv-q" data-cv-question type="text" placeholder="Demander au copilote (niveaux, tendance, plan, delta, carnet, annonces…)" autocomplete="off"><button type="submit" class="at-btn" data-cv-demander>Demander</button><output data-cv-reponse></output></form>
+    <h4 class="ci-titre">Ce qui se passe <small>constats de marché, jamais des ordres</small></h4>
+    <div class="ci-fil" data-ci-fil aria-live="polite"></div>
+    <form class="cv-demander" data-cv-q-form><label class="at-sr" for="cv-q">Demander au copilote</label><input id="cv-q" data-cv-question type="text" placeholder="Demander au copilote (niveaux, tendance, delta, carnet, annonces…)" autocomplete="off"><button type="submit" class="at-btn" data-cv-demander>Demander</button><output data-cv-reponse></output></form>
   </div>`;
-export const HTML_ALERTE = `<div class="cv-alerte" data-cv-alerte hidden></div>`;
+export const HTML_ALERTE = `<div class="cv-alerte" data-cv-alerte hidden></div><div class="ci-toasts" data-ci-toasts aria-live="polite"></div>`;
