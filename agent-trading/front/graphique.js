@@ -6,7 +6,7 @@
 import { etendueTrait } from '../commun/traits.js';
 import { fmtPrix, fmtQte, fmtUSD } from '../commun/format.js';
 import { PAR_ID, UNITES } from '../commun/actifs.js';
-import { dessinerOr } from './copilote-or.js';
+import { dessinerMarques } from './copilote-info.js';
 
 const URL_LIB = new URL('./vendor/lightweight-charts.js', import.meta.url).href;
 let chargement = null;
@@ -54,6 +54,7 @@ export function espacer(etiquettes, ecart = 14, hMax = Infinity) {
   return l;
 }
 export const BOUGIES_DEFAUT = 120, MARGE_DROITE = 12;
+export const TV = { haut: '#26a69a', bas: '#ef5350' };   // couleurs de bougies « type TradingView »
 
 /* bougie de volume net (bougie compacte publiée par le moteur → bougie du 3e panneau) : ouverture = CVD avant la bougie, clôture = CVD après ;
    mèches = extrêmes enregistrés pendant la bougie (sinon égales au corps : rien d'inventé) ; grisée si le volume net est incomplet ; vide si inconnu */
@@ -333,26 +334,36 @@ export function creerGraphique(el, { racine, surSelection }) {
     ctx.restore();
   });
 
-  /* ─── copilote de l'or : plage asiatique, fenêtres d'ouverture, figures, « données insuffisantes » ─── */
-  const primOr = new Primitive((ctx, taille, P) => {
-    if (!P.series || !etat.or || etat.actif !== 'OR' || !etat.donnees.length) return;
+  /* ─── copilote d'information : marques d'événements (petit symbole ; survol = détail) ─── */
+  const primMarques = new Primitive((ctx, taille, P) => {
+    if (!P.series || !etat.info || !etat.donnees.length) { etat._marquesPos = []; return; }
     const ts = P.chart.timeScale(), U = UNITES[etat.unite];
-    dessinerOr(ctx, taille, { o: etat.or, series: P.series, xT: t => xDe(ts, indiceLogique(etat.donnees, t, U)), c: C(), alpha });
+    etat._marquesPos = dessinerMarques(ctx, taille, { marques: etat.info.marques, series: P.series, xT: t => xDe(ts, indiceLogique(etat.donnees, t, U)), c: C(), alpha, survol: etat._survol });
   });
+  let infobulle = null;
+  function survolMarque(p) {
+    const pos = etat._marquesPos || [], m = p && p.point ? pos.find(q => Math.abs(q.x - p.point.x) <= 9 && Math.abs(q.y - p.point.y) <= 9) : null;
+    const mk = m && etat.info && etat.info.marques.find(x => x.id === m.id);
+    if (!infobulle) { infobulle = document.createElement('div'); infobulle.className = 'ci-infobulle'; infobulle.setAttribute('role', 'tooltip'); el.appendChild(infobulle); }
+    if ((etat._survol && etat._survol.id) !== (mk && mk.id)) { etat._survol = mk || null; primMarques.maj && primMarques.maj(); }
+    if (!mk) { infobulle.hidden = true; return; }
+    infobulle.textContent = mk.texte; infobulle.hidden = false;
+    infobulle.style.left = Math.min(p.point.x + 12, el.clientWidth - 300) + 'px'; infobulle.style.top = Math.max(4, p.point.y - 10) + 'px';
+  }
 
   async function monter() {
     LW = await chargerLib();
     const c = C();
     chart = LW.createChart(el, {
       autoSize: true, layout: { attributionLogo: false, background: { type: 'solid', color: 'transparent' }, textColor: c.doux, fontFamily: c.mono, fontSize: 11, panes: { separatorColor: 'rgba(143,208,227,.12)' } },
-      grid: { vertLines: { color: 'rgba(143,208,227,.05)' }, horzLines: { color: 'rgba(143,208,227,.05)' } },
-      crosshair: { mode: LW.CrosshairMode.Normal },
+      grid: { vertLines: { color: 'rgba(42,46,57,.55)' }, horzLines: { color: 'rgba(42,46,57,.55)' } },
+      crosshair: { mode: LW.CrosshairMode.Normal, vertLine: { color: 'rgba(149,152,161,.6)', style: 3, labelBackgroundColor: '#2a2e39' }, horzLine: { color: 'rgba(149,152,161,.6)', style: 3, labelBackgroundColor: '#2a2e39' } },
       rightPriceScale: { borderColor: 'rgba(143,208,227,.15)' },
       timeScale: { borderColor: 'rgba(143,208,227,.15)', rightOffset: MARGE_DROITE, barSpacing: 8, timeVisible: true, secondsVisible: false, tickMarkFormatter: (t, type) => (type <= 2 ? FMT_J.format(t * 1000) : FMT_H.format(t * 1000)) },
       localization: { locale: 'fr-FR', timeFormatter: t => FMT_JH.format(t * 1000), priceFormatter: p => fmtPrix(etat.actif, p) },
       handleScroll: { mouseWheel: true, pressedMouseMove: true, horzTouchDrag: true, vertTouchDrag: true }, handleScale: { axisPressedMouseMove: true, mouseWheel: true, pinch: true }
     });
-    bougies = chart.addSeries(LW.CandlestickSeries, { upColor: c.haussier, downColor: c.baissier, wickUpColor: c.haussier, wickDownColor: c.baissier, borderVisible: false, lastValueVisible: false, priceLineVisible: true, priceLineStyle: 2 });
+    bougies = chart.addSeries(LW.CandlestickSeries, { upColor: TV.haut, downColor: TV.bas, wickUpColor: TV.haut, wickDownColor: TV.bas, borderVisible: false, lastValueVisible: false, priceLineVisible: true, priceLineStyle: 2 });
     // volume TOTAL (réel, Kraken) en gris pâle ; volume net (delta) par-dessus quand il est connu (enregistré)
     volS = chart.addSeries(LW.HistogramSeries, { priceScaleId: 'vol', color: 'rgba(138,154,166,.22)', priceFormat: { type: 'volume' }, lastValueVisible: false, priceLineVisible: false }, 1);
     deltaS = chart.addSeries(LW.HistogramSeries, { priceFormat: { type: 'volume' }, lastValueVisible: false, priceLineVisible: false }, 1);
@@ -361,7 +372,8 @@ export function creerGraphique(el, { racine, surSelection }) {
     cvdB = chart.addSeries(LW.CandlestickSeries, { upColor: alpha(c.gain, .85), downColor: alpha(c.perte, .85), wickUpColor: alpha(c.gain, .85), wickDownColor: alpha(c.perte, .85), borderVisible: false, lastValueVisible: false, priceLineVisible: false, priceFormat: { type: 'volume' } }, 2);
     try { chart.panes()[1].setHeight(Math.max(50, Math.round(el.clientHeight * 0.15))); chart.panes()[2].setHeight(Math.max(56, Math.round(el.clientHeight * 0.17))); } catch (e) { /* ancienne version */ }
     cvdB.attachPrimitive(primCvdIncomplet);
-    bougies.attachPrimitive(primCopilote); bougies.attachPrimitive(primVisuel); bougies.attachPrimitive(primOr); bougies.attachPrimitive(primProfils); bougies.attachPrimitive(primPositions); bougies.attachPrimitive(primBacktest); bougies.attachPrimitive(primPrix);
+    bougies.attachPrimitive(primCopilote); bougies.attachPrimitive(primVisuel); bougies.attachPrimitive(primMarques); bougies.attachPrimitive(primProfils); bougies.attachPrimitive(primPositions); bougies.attachPrimitive(primBacktest); bougies.attachPrimitive(primPrix);
+    chart.subscribeCrosshairMove(survolMarque);
     chart.subscribeClick(p => {
       if (!p.point) return;
       const fl = (etat._flechesDessinees || []).map(f => ({ ...f, d: Math.hypot(f.x - p.point.x, f.y - p.point.y) })).filter(f => f.d < 12).sort((a, b) => a.d - b.d)[0];
@@ -432,9 +444,9 @@ export function creerGraphique(el, { racine, surSelection }) {
       }
       etat.derniereBougie = etat.donnees[etat.donnees.length - 1];
     },
-    surcouches({ positions, passees, profils, annotations, prix, tPrix, live, copilote, visuel, or = null }) {
+    surcouches({ positions, passees, profils, annotations, prix, tPrix, live, copilote, visuel, info = null }) {
       etat.copilote = copilote || null; primCopilote.maj && primCopilote.maj();
-      etat.visuel = visuel || null; primVisuel.maj && primVisuel.maj(); etat.or = or; primOr.maj && primOr.maj();
+      etat.visuel = visuel || null; primVisuel.maj && primVisuel.maj(); etat.info = info; primMarques.maj && primMarques.maj();
       etat.positions = positions || []; etat.passees = passees || []; etat.profils = profils || []; etat.annotations = annotations || []; etat.prix = prix; etat.tPrix = tPrix; etat.live = live;
       primPositions.maj && primPositions.maj(); primProfils.maj && primProfils.maj(); primPrix.maj && primPrix.maj();
     },

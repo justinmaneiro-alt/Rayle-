@@ -60,6 +60,7 @@ export function creerConnexion({ url, jeton, WS = window.WebSocket, horloge = ()
     store, abonner(f) { abonnes.add(f); return () => abonnes.delete(f); },
     regarder(actif) { focus = actif; envoyerFocus(); },
     /* « Je l'ai pris » : une NOTE pour le copilote (prix + heure), jamais un ordre */
+    reglerInfo(o) { try { if (ws && ws.readyState === 1) { ws.send(JSON.stringify(Object.assign({}, o, { type: 'info-reglage' }))); return true; } } catch (e) { /* */ } return false; },
     pris(id, prix, t) { try { if (ws && ws.readyState === 1) { ws.send(JSON.stringify({ type: 'pris', id: String(id), prix: Number(prix), t: Number(t) })); return true; } } catch (e) { /* */ } return false; },
     /* état de fraîcheur : live seulement si le dernier état a moins de 15 s */
     fraicheur() {

@@ -100,6 +100,14 @@ export class EtatAgent extends DurableObject {
     if (att.role === 'ecran') {   // un écran peut dire ce qu'il regarde, et noter « je l'ai pris » (copilote : une note, jamais un ordre)
       let m; try { m = JSON.parse(msg); } catch (e) { return; }
       if (m.type === 'focus' && (m.actif == null || /^[A-Z0-9]{2,8}$/.test(m.actif))) { att.focus = m.actif; ws.serializeAttachment(att); this.informerMoteur(); }
+      else if (m.type === 'info-reglage') {   // copilote d'information : couper les alertes, heures calmes, types (jamais un ordre)
+        const n = Date.now(); att.reg = (att.reg || []).filter(x => n - x < 60000); if (att.reg.length >= 20) return; att.reg.push(n); ws.serializeAttachment(att);
+        const o = { type: 'info-reglage' };
+        if (typeof m.coupe === 'boolean') o.coupe = m.coupe;
+        for (const k of ['calmeDebut', 'calmeFin']) if (Number.isInteger(m[k]) && m[k] >= 0 && m[k] < 1440) o[k] = m[k];
+        if (typeof m.actif === 'string' && /^[A-Z0-9]{2,8}$/.test(m.actif) && typeof m.type2 === 'string' && /^[A-Z_]{3,30}$/.test(m.type2) && typeof m.actifType === 'boolean') { o.actif = m.actif; o.type2 = m.type2; o.actifType = m.actifType; }
+        const texte = JSON.stringify(o); for (const mo of this.moteurs()) try { mo.send(texte); } catch (e) { /* fermé */ }
+      }
       else if (m.type === 'pris' && typeof m.id === 'string' && /^[A-Za-z0-9:._-]{3,120}$/.test(m.id) && Number.isFinite(m.prix) && Number.isFinite(m.t)) {
         const n = Date.now(); att.pris = (att.pris || []).filter(x => n - x < 60000); if (att.pris.length >= 10) return;   // 10 notes par minute et par écran au plus
         att.pris.push(n); ws.serializeAttachment(att);

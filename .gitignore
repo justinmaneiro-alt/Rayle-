@@ -73,6 +73,7 @@ agent-trading/moteur/
 agent-trading/RAPPORT-AGENT.md
 agent-trading/RAPPORT-COPILOTE.md
 agent-trading/RAPPORT-OR.md
+agent-trading/RAPPORT-INFO.md
 agent-trading/worker/.wrangler/
 !agent-trading/worker/
 agent-trading/worker/.wrangler/

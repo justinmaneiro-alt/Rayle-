@@ -13,7 +13,7 @@ import { creerCarnet } from './carnet.js';
 import { htmlPositions, htmlRejeuCopilote, htmlHistorique, csvHistorique, htmlPortefeuille, htmlJournal, htmlBacktest7j, animerCapital, dessinerCourbe, brancherDefinitions, esc, info, htmlBacktestGraphe, tradesBacktestGraphe, htmlPlanLecons } from './panneaux.js';
 import { montrerCarte } from './carte-alerte.js';
 import { creerCopiloteVisuel, HTML_HAUT, HTML_BAS, HTML_ALERTE } from './copilote-visuel.js';
-import { adapterVisuelOr } from './copilote-or.js';
+import { adapterNiveaux } from './copilote-info.js';
 
 const lire = (k, d) => { try { return localStorage.getItem(k) || d; } catch (e) { return d; } };
 const ecrire = (k, v) => { try { localStorage.setItem(k, v); } catch (e) { /* refusé */ } };
@@ -29,7 +29,7 @@ export const disposition = (l, h) => (l >= 1000 && l >= h ? 'pc' : 'colonne');
 export function monterVue(el, { mode = 'auto', connexion = null } = {}) {
   chargerCss();
   const cnx = connexion || creerConnexion();
-  const etat = { actif: lire('rayle_at_actif', 'BTC'), unite: lire('rayle_at_unite', 'M15'), passees: lire('rayle_at_passees', '0') === '1', selection: null, histoActif: null, plein: false, rejoue: null,
+  const etat = { actif: lire('rayle_at_actif', 'BTC'), unite: lire('rayle_at_unite', 'M15'), passees: lire('rayle_at_passees', '0') === '1', profil: lire('rayle_at_profil', '0') === '1', selection: null, histoActif: null, plein: false, rejoue: null,
     btg: { actif: false, jours: ['5', '7', '14'].includes(lire('rayle_at_btg_jours', '7')) ? Number(lire('rayle_at_btg_jours', '7')) : 7 } };
   if (!PAR_ID[etat.actif]) etat.actif = 'BTC';
   const boutonsActifs = cls => ACTIFS.map(a => `<button type="button" class="${cls}" data-actif="${a.id}"><b>${a.id}</b><span data-prix="${a.id}">—</span></button>`).join('');
@@ -49,6 +49,7 @@ export function monterVue(el, { mode = 'auto', connexion = null } = {}) {
             <label class="at-fs-seul at-fs-actif"><span class="at-sr">Actif</span><select data-choix-actif>${ACTIFS.map(a => `<option value="${a.id}">${a.id}</option>`).join('')}</select></label>
             <span class="at-fs-seul at-fs-prix" data-fs-prix>—</span>
             <button type="button" class="at-btn" data-passees aria-pressed="false" title="Montrer les positions passées">Passées</button>
+            <button type="button" class="at-btn" data-profil aria-pressed="false" title="Profil de volume (VAH / POC / VAL) et annotations : masqués par défaut">Profil</button>
             <span class="at-btg-outil"><button type="button" class="at-btn" data-btg-ouvrir aria-pressed="false" title="Rejouer les positions de la stratégie sur le graphique (ne touche jamais le portefeuille)">Backtest</button><select data-btg-jours aria-label="Durée du backtest"><option value="5">5 j</option><option value="7" selected>7 j</option><option value="14">14 j</option></select><button type="button" class="at-btn" data-btg-effacer hidden>Effacer le backtest</button></span>
             <button type="button" class="at-btn" data-recadrer title="Revenir aux 120 dernières bougies">120 bougies</button>
             <button type="button" class="at-btn" data-tout-voir title="Voir tout l’historique chargé">Tout voir</button>
@@ -76,7 +77,7 @@ export function monterVue(el, { mode = 'auto', connexion = null } = {}) {
       <section class="at-section" data-section="historique"><h3>Historique des positions <button type="button" class="at-btn" data-csv>Export CSV</button></h3><div data-historique></div></section>
       <section class="at-section" data-section="portefeuille"><h3>Performance du portefeuille</h3><div data-pf></div></section>
       <section class="at-section" data-section="backtest"><h3>Backtest 7 jours <span class="at-badge at-badge-rejoue">REJOUÉ, pas réel</span></h3><div data-bt></div></section>
-      <section class="at-section" data-section="copilote"><h3>Copilote : setups, journal et bilan <span class="at-badge">information, jamais des ordres</span></h3><div data-cv-section></div></section>
+      <section class="at-section" data-section="copilote"><h3>Copilote d’information : pertinence des événements et alertes <span class="at-badge">INFO MARCHÉ, pas un signal</span></h3><div data-cv-section></div></section>
       <section class="at-section" data-section="journal"><h3>Journal du bot</h3><div data-v4-journal></div><div data-journal></div></section>
       <footer class="at-pied"><span data-version></span><span class="at-sim">SIMULATION · aucun ordre réel · données publiques Kraken Futures ${info('version')}</span><span class="at-licence">Graphique : <a href="https://www.tradingview.com/" target="_blank" rel="noopener">TradingView Lightweight Charts™</a> (Apache-2.0)</span></footer>
     </div>
@@ -104,6 +105,7 @@ export function monterVue(el, { mode = 'auto', connexion = null } = {}) {
     const b = e.target.closest('button'); if (!b) return;
     if (b.dataset.actif) choisirActif(b.dataset.actif);
     else if (b.dataset.unite) { etat.unite = b.dataset.unite; ecrire('rayle_at_unite', etat.unite); etat.histoActif = null; tout(); }
+    else if (b.hasAttribute('data-profil')) { etat.profil = !etat.profil; ecrire('rayle_at_profil', etat.profil ? '1' : '0'); surcouches(); majBoutons(); }
     else if (b.hasAttribute('data-passees')) { etat.passees = !etat.passees; ecrire('rayle_at_passees', etat.passees ? '1' : '0'); graph.montrerPassees(etat.passees); surcouches(); majBoutons(); }
     else if (b.hasAttribute('data-cop-reglages')) { const z = $('[data-cop-panneau]'); z.hidden = !z.hidden; b.setAttribute('aria-pressed', String(!z.hidden)); }
     else if (b.hasAttribute('data-recadrer')) graph.recadrer();
@@ -183,6 +185,7 @@ export function monterVue(el, { mode = 'auto', connexion = null } = {}) {
     R.querySelectorAll('[data-actif]').forEach(b => b.classList.toggle('actif', b.dataset.actif === etat.actif));
     R.querySelectorAll('[data-unite]').forEach(b => b.classList.toggle('actif', b.dataset.unite === etat.unite));
     const p = $('[data-passees]'); p.setAttribute('aria-pressed', String(etat.passees)); p.classList.toggle('actif', etat.passees);
+    const pf = $('[data-profil]'); if (pf) { pf.setAttribute('aria-pressed', String(!!etat.profil)); pf.classList.toggle('actif', !!etat.profil); }
     $('[data-choix-actif]').value = etat.actif;
     const fs = $('[data-plein]'); fs.setAttribute('aria-label', etat.plein ? 'Quitter le plein écran' : 'Plein écran'); fs.title = etat.plein ? 'Quitter le plein écran (Échap)' : 'Plein écran (touche F)';
   }
@@ -202,10 +205,10 @@ export function monterVue(el, { mode = 'auto', connexion = null } = {}) {
     const passees = (lent && lent.passes || []).filter(t => t.actif === etat.actif && t.statut === 'clos').slice(-30).map(t => Object.assign({}, t, { pnlAffiche: t.pnl }));
     const profils = [];
     // or : 8 niveaux au plus sur le graphique → ni profil VAH/POC/VAL ni zones du copilote générique
-    if (!x.or && x.profils && x.profils.jour && x.profils.jour.niveaux) profils.push(Object.assign({ etiquette: 'jour', pas: x.pas }, x.profils.jour, { fin: Date.now() }));
-    for (const a of (x.annotations && x.annotations.liste) || []) if (a.type === 'profil') profils.push(Object.assign({ etiquette: 'agent' }, a));
+    if (etat.profil && x.profils && x.profils.jour && x.profils.jour.niveaux) profils.push(Object.assign({ etiquette: 'jour', pas: x.pas }, x.profils.jour, { fin: Date.now() }));
+    if (etat.profil) for (const a of (x.annotations && x.annotations.liste) || []) if (a.type === 'profil') profils.push(Object.assign({ etiquette: 'agent' }, a));
     copilote(x.copilote);
-    graph.surcouches({ positions, passees, profils, annotations: (x.annotations && x.annotations.liste || []).filter(a => a.type !== 'profil'), prix: x.prix, tPrix: x.tPrix, live: cnx.fraicheur().live, copilote: x.or ? null : x.copilote || null, visuel: x.or ? Object.assign({}, x.visuel || {}, adapterVisuelOr(x.or), etat.unite === 'M15' || etat.unite === 'H1' ? {} : { plans: [] }) : x.visuel ? Object.assign({}, x.visuel, { plans: etat.unite === 'M15' || etat.unite === 'H1' ? x.visuel.plans : [] }) : null, or: x.or || null });
+    graph.surcouches({ positions, passees, profils, annotations: etat.profil ? (x.annotations && x.annotations.liste || []).filter(a => a.type !== 'profil') : [], prix: x.prix, tPrix: x.tPrix, live: cnx.fraicheur().live, copilote: null, visuel: adapterNiveaux(x.info), info: x.info || null });
     cv.maj();
   }
   /* ─── copilote : bilan des flèches (près du graphique), message « marché instable », notification discrète d'une nouvelle flèche ─── */
