@@ -6,6 +6,7 @@
 import { etendueTrait } from '../commun/traits.js';
 import { fmtPrix, fmtQte, fmtUSD } from '../commun/format.js';
 import { PAR_ID, UNITES } from '../commun/actifs.js';
+import { dessinerOr } from './copilote-or.js';
 
 const URL_LIB = new URL('./vendor/lightweight-charts.js', import.meta.url).href;
 let chargement = null;
@@ -332,6 +333,13 @@ export function creerGraphique(el, { racine, surSelection }) {
     ctx.restore();
   });
 
+  /* ─── copilote de l'or : plage asiatique, fenêtres d'ouverture, figures, « données insuffisantes » ─── */
+  const primOr = new Primitive((ctx, taille, P) => {
+    if (!P.series || !etat.or || etat.actif !== 'OR' || !etat.donnees.length) return;
+    const ts = P.chart.timeScale(), U = UNITES[etat.unite];
+    dessinerOr(ctx, taille, { o: etat.or, series: P.series, xT: t => xDe(ts, indiceLogique(etat.donnees, t, U)), c: C(), alpha });
+  });
+
   async function monter() {
     LW = await chargerLib();
     const c = C();
@@ -353,7 +361,7 @@ export function creerGraphique(el, { racine, surSelection }) {
     cvdB = chart.addSeries(LW.CandlestickSeries, { upColor: alpha(c.gain, .85), downColor: alpha(c.perte, .85), wickUpColor: alpha(c.gain, .85), wickDownColor: alpha(c.perte, .85), borderVisible: false, lastValueVisible: false, priceLineVisible: false, priceFormat: { type: 'volume' } }, 2);
     try { chart.panes()[1].setHeight(Math.max(50, Math.round(el.clientHeight * 0.15))); chart.panes()[2].setHeight(Math.max(56, Math.round(el.clientHeight * 0.17))); } catch (e) { /* ancienne version */ }
     cvdB.attachPrimitive(primCvdIncomplet);
-    bougies.attachPrimitive(primCopilote); bougies.attachPrimitive(primVisuel); bougies.attachPrimitive(primProfils); bougies.attachPrimitive(primPositions); bougies.attachPrimitive(primBacktest); bougies.attachPrimitive(primPrix);
+    bougies.attachPrimitive(primCopilote); bougies.attachPrimitive(primVisuel); bougies.attachPrimitive(primOr); bougies.attachPrimitive(primProfils); bougies.attachPrimitive(primPositions); bougies.attachPrimitive(primBacktest); bougies.attachPrimitive(primPrix);
     chart.subscribeClick(p => {
       if (!p.point) return;
       const fl = (etat._flechesDessinees || []).map(f => ({ ...f, d: Math.hypot(f.x - p.point.x, f.y - p.point.y) })).filter(f => f.d < 12).sort((a, b) => a.d - b.d)[0];
@@ -424,9 +432,9 @@ export function creerGraphique(el, { racine, surSelection }) {
       }
       etat.derniereBougie = etat.donnees[etat.donnees.length - 1];
     },
-    surcouches({ positions, passees, profils, annotations, prix, tPrix, live, copilote, visuel }) {
+    surcouches({ positions, passees, profils, annotations, prix, tPrix, live, copilote, visuel, or = null }) {
       etat.copilote = copilote || null; primCopilote.maj && primCopilote.maj();
-      etat.visuel = visuel || null; primVisuel.maj && primVisuel.maj();
+      etat.visuel = visuel || null; primVisuel.maj && primVisuel.maj(); etat.or = or; primOr.maj && primOr.maj();
       etat.positions = positions || []; etat.passees = passees || []; etat.profils = profils || []; etat.annotations = annotations || []; etat.prix = prix; etat.tPrix = tPrix; etat.live = live;
       primPositions.maj && primPositions.maj(); primProfils.maj && primProfils.maj(); primPrix.maj && primPrix.maj();
     },

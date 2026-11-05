@@ -3,6 +3,7 @@
    Copilote, pas un bot : aucun ordre. « Je l'ai pris » = une NOTE (prix + heure) envoyée au moteur pour mesurer le retard d'entrée. */
 import { fmtPrix, fmtNombre, fmtR, heureParis, dateHeureParis } from '../commun/format.js';
 import { repondre } from '../commun/questions.js';
+import { htmlOr } from './copilote-or.js';
 
 const esc = s => String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 const SENS = { haussiere: 'haussière', baissiere: 'baissière', range: 'range', inconnue: '—' };
@@ -70,8 +71,11 @@ export function creerCopiloteVisuel(R, { cnx, graph, actif: lireActif, lire, ecr
     const e = cnx.store.etat, a = lireActif(); if (!e || !e.actifs[a]) { poser('[data-cv-bandeau]', htmlBandeau(a, null), 'b'); return; }
     const v = e.actifs[a].visuel;
     poser('[data-cv-bandeau]', htmlBandeau(a, v), 'b');
-    poser('[data-cv-checklist]', htmlChecklist(v && v.confluence), 'c');
-    poser('[data-cv-plans]', htmlPlans(a, v, prises), 'p');
+    const o = e.actifs[a].or, zo = $('[data-cv-or]');
+    if (zo) { zo.hidden = !o; poser('[data-cv-or]', o ? htmlOr(o, cnx.store.lent && cnx.store.lent.or) : '', 'or'); }
+    // l'or a ses propres plans et sa checklist (référence + exécution Kraken) : ceux du copilote générique sont masqués
+    poser('[data-cv-checklist]', o ? '' : htmlChecklist(v && v.confluence), 'c');
+    poser('[data-cv-plans]', o ? '' : htmlPlans(a, v, prises), 'p');
     const com = $('[data-cv-commentaire]'); if (com) com.textContent = v && v.commentaire ? v.commentaire : '';
     alertes();
   }
@@ -128,7 +132,7 @@ export function creerCopiloteVisuel(R, { cnx, graph, actif: lireActif, lire, ecr
 }
 
 /* gabarits HTML insérés dans vue.js */
-export const HTML_HAUT = `<div class="cv-bandeau" data-cv-bandeau aria-live="polite"></div>`;
+export const HTML_HAUT = `<div class="cv-bandeau" data-cv-bandeau aria-live="polite"></div><div class="cv-or" data-cv-or hidden></div>`;
 export const HTML_BAS = `<div class="cv-zone">
     <p class="cv-commentaire" data-cv-commentaire aria-live="polite"></p>
     <div class="cv-checklist" data-cv-checklist></div>
