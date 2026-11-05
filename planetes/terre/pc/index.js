@@ -72,7 +72,8 @@ async function construire(G) {
     racine, reglages,
     surReglage: p => changerReglage(p),
     actions: {
-      orbite: () => api.orbite(), sortir: () => G.nav.fermerSas(), chercher: t => chercher(t), aller: r => api.aller(r),
+      orbite: () => api.orbite(), sortir: () => G.nav.fermerSas(),
+      'terre-v2': async () => { await api.sortir(); const m = await import('../../../terre-v2/index.js'); m.entrer(G, { rapide: true }); },   // Terre 2.0 : option expérimentale (PC), pour cette visite chercher: t => chercher(t), aller: r => api.aller(r),
       'meteo-ici': () => api.meteoIci(), monde: () => api.afficherFil({ portee: 'monde', panneau: true }), pays: () => { if (window.ActusPays) window.ActusPays.selecteur(); }, france: () => api.afficherFil({ portee: 'france', panneau: true }),
       'meteo-lieu': r => api.meteo(r.lat, r.lon, r.nom), 'actus-pays': (code, nom) => api.actualites(code, nom),
       radar: () => changerReglage({ radar: !reglages.radar }), evenements: () => { if (balisesEvt.actif()) api.masquerEvenements(); else api.afficherEvenements({ vol: false }); }, sources: () => { if (window.DirectPage) window.DirectPage.ouvrirHub('evenements'); }, 'radar-lecture': () => radarLecture(), 'radar-rang': n => { radarArret(); radarRang = n; radarMaj(); }

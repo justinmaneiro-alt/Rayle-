@@ -51,7 +51,8 @@ export async function traiter(texte, { ouvrir = ouvrirTerre2 } = {}) {
   let T = window.Terre2 && window.Terre2.etat().actif ? window.Terre2 : null;
   // hors de la Terre 2.0 : seulement les phrases qui la concernent sans ambiguïté (sinon les autres commandes décident)
   if (!T) {
-    const sansAmbiguite = a.terre || a.type === 'aller' || a.type === 'zoom' || (a.type === 'couche' && a.oui && ['avions', 'satellites', 'bateaux', 'cameras', 'lancements', 'incendies'].includes(a.couche));
+    // Terre classique par défaut : hors de la 2.0, SEULE la demande explicite (« Terre 2.0 ») l'ouvre ; « va à Paris » reste à la Terre classique
+    const sansAmbiguite = a.type === 'ouvrir';
     if (!sansAmbiguite) return null;
     if (a.type === 'classique') return null;   // la Terre classique s'ouvre déjà par ses propres commandes
     try { T = await ouvrir(); } catch (e) { return 'Je n’arrive pas à ouvrir la Terre 2.0 : ' + (e && e.message || e) + '.'; }
@@ -85,8 +86,9 @@ async function ouvrirTerre2(delai = 60000) {
   if (bus.demander('vue') !== 'galaxie') await bus.demander('vue:ouvrir', 'galaxie');
   const attendre = async (f, max) => { const t0 = Date.now(); while (Date.now() - t0 < max) { try { if (f()) return true; } catch (e) { /* */ } await new Promise(r => setTimeout(r, 150)); } return false; };
   if (!(await attendre(() => window.Galaxie && window.Galaxie.enMarche && window.Galaxie.enMarche(), 20000))) throw new Error('la galaxie ne répond pas');
-  try { sessionStorage.removeItem('rayle_terre_visite'); } catch (e) { /* */ }
-  if (window.Terre && window.Terre.etat && window.Terre.etat().actif && !window.Terre2) throw new Error('la Terre classique est ouverte (dis « Terre 2.0 » après en être sortie)');
+  // la Terre classique est la Terre par défaut : la 2.0 (expérimentale) s'ouvre pour CETTE visite seulement
+  if (window.Terre && window.Terre.etat && window.Terre.etat().actif) { if (window.Terre.sortir) window.Terre.sortir(); await new Promise(r => setTimeout(r, 400)); }
+  try { sessionStorage.setItem('rayle_terre_visite', 'v2'); } catch (e) { /* */ }
   window.Galaxie.nav.allerA('terre', { entrer: true });
   if (!(await attendre(() => window.Terre2 && window.Terre2.etat().actif && window.Terre2.etat().globe, delai))) throw new Error('le globe ne s’ouvre pas (réglage « Terre classique » ou hors ligne ?)');
   return window.Terre2;

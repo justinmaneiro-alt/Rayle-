@@ -312,8 +312,37 @@
 .ci-reglages input[type="time"] { background: transparent; color: inherit; border: 1px solid var(--at-bord); padding: 1px 4px; }
 .ci-infobulle { position: absolute; z-index: 30; max-width: 300px; padding: 6px 8px; font-size: 12px; line-height: 1.35; background: rgba(19,23,34,.96); border: 1px solid rgba(149,152,161,.35); border-radius: 4px; pointer-events: none; }
 .ci-infobulle[hidden] { display: none; }
-.ci-toasts { position: absolute; right: 78px; top: 96px; z-index: 40; display: flex; flex-direction: column; gap: 6px; width: min(320px, calc(100% - 20px)); pointer-events: none; }
+.ci-toasts { position: absolute; left: 10px; right: auto; top: auto; bottom: 14px; z-index: 40; display: flex; flex-direction: column; gap: 6px; width: min(320px, calc(100% - 20px)); pointer-events: none; }
 .ci-toast { position: relative; pointer-events: auto; padding: 6px 26px 6px 8px; font-size: 12px; line-height: 1.35; background: rgba(19,23,34,.95); border: 1px solid rgba(201,178,122,.5); border-radius: 4px; animation: at-entree var(--at-d-lent, .3s) ease-out; }
 .ci-toast b { display: block; color: var(--at-sable); font-size: 11px; }
 .ci-toast button { position: absolute; top: 2px; right: 4px; background: none; border: 0; color: var(--at-doux); font-size: 15px; cursor: pointer; }
 .at[data-disposition="colonne"] .ci-toasts { position: fixed; top: auto; right: 8px; bottom: 12px; }
+
+/* ── info-v2 : onglets du graphique et couches (cases à cocher, mémorisées) ── */
+.at-vue-g { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 10px; padding: 2px 4px 4px; font-size: 12px; }
+.at-vue-g [data-vue-g] { background: transparent; border: 1px solid rgba(120,130,150,.25); color: var(--at-doux); padding: 3px 9px; border-radius: 3px; font: inherit; cursor: pointer; }
+.at-vue-g [data-vue-g][aria-selected="true"] { color: var(--at-texte); border-color: var(--at-accent); background: rgba(143,208,227,.08); }
+.at-couches { display: inline-flex; flex-wrap: wrap; gap: 2px 12px; color: var(--at-doux); }
+.at-couches label { display: inline-flex; align-items: center; gap: 4px; cursor: pointer; white-space: nowrap; }
+.at-couches input { accent-color: #8f88cc; margin: 0; }
+.at-graphique[hidden], .at-tv[hidden] { display: none !important; }
+.at-tv { flex: 1; min-height: 320px; display: flex; flex-direction: column; }
+.at-tv-cadre { flex: 1; min-height: 300px; }
+.at-tv-pied, .at-tv-msg { font-size: 11px; color: var(--at-doux); margin: 4px; }
+.at-tv-msg { padding: 24px; text-align: center; }
+/* ── carnet Kraken en direct ── */
+.at-cn-instr { margin: 0 0 4px; font: 600 12px var(--at-mono, monospace); color: var(--at-texte); }
+.at-cn-barre { display: flex; flex-wrap: wrap; gap: 4px 12px; font-size: 11px; color: var(--at-doux); margin-bottom: 4px; align-items: center; }
+.at-cn-barre select { background: transparent; color: var(--at-texte); border: 1px solid rgba(120,130,150,.3); font: inherit; }
+.at-cn-erreur { margin: 4px 0; padding: 6px 8px; border: 1px solid var(--at-perte, #ef5350); color: var(--at-texte); font-size: 12px; }
+
+/* info-v2 : petits messages en coin plus discrets (en bas à gauche, jamais sur l'échelle de prix ni les étiquettes de niveaux), 3 lignes au plus */
+.ci-toast span { display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+.ci-toast { background: rgba(19,23,34,.9); font-size: 11.5px; }
+/* téléphone / colonne : le graphique garde une vraie hauteur malgré les onglets et les cases */
+.at[data-disposition="colonne"] .at-zone-graphique { height: auto; }
+.at[data-disposition="colonne"] .at-graphique { flex: none; height: max(380px, calc(var(--at-h, 640px) * .58)); }
+.at[data-disposition="colonne"] .at-vue-g { font-size: 11px; gap: 4px 8px; }
+.at[data-disposition="colonne"] .at-couches { gap: 2px 8px; }
+.at[data-disposition="colonne"] .ci-toasts { width: min(300px, calc(100% - 20px)); }
+.at[data-disposition="colonne"] .ci-toast:not(:last-child) { display: none; }
