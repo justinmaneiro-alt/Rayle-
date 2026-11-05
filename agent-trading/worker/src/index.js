@@ -97,9 +97,15 @@ export class EtatAgent extends DurableObject {
       this.informerMoteur();
       return;
     }
-    if (att.role === 'ecran') {   // un écran ne peut que dire ce qu'il regarde
+    if (att.role === 'ecran') {   // un écran peut dire ce qu'il regarde, et noter « je l'ai pris » (copilote : une note, jamais un ordre)
       let m; try { m = JSON.parse(msg); } catch (e) { return; }
       if (m.type === 'focus' && (m.actif == null || /^[A-Z0-9]{2,8}$/.test(m.actif))) { att.focus = m.actif; ws.serializeAttachment(att); this.informerMoteur(); }
+      else if (m.type === 'pris' && typeof m.id === 'string' && /^[A-Za-z0-9:._-]{3,120}$/.test(m.id) && Number.isFinite(m.prix) && Number.isFinite(m.t)) {
+        const n = Date.now(); att.pris = (att.pris || []).filter(x => n - x < 60000); if (att.pris.length >= 10) return;   // 10 notes par minute et par écran au plus
+        att.pris.push(n); ws.serializeAttachment(att);
+        const texte = JSON.stringify({ type: 'pris', id: m.id, prix: m.prix, t: m.t });
+        for (const mo of this.moteurs()) try { mo.send(texte); } catch (e) { /* fermé */ }
+      }
       return;
     }
     // moteur : on garde et on relaie tel quel

@@ -45,15 +45,16 @@ for (const cle of ['telephone', 'tablette']) {
   await page.screenshot({ path: 'docs/captures-v7b/' + cle + '-terminal.png' });
   await page.evaluate(() => RayleBus.demander('vue:fermer')); await attendre(600);
   v('retour à Jarvis', (await vueCourante(page)) === 'rayle');
-  // agent Kepler : positions du jour
-  const dK = await dire(page, 'Ouvre l’agent', 3500);
-  const pK = await page.evaluate(() => ({ ecran: document.documentElement.dataset.mEcran, onglets: Array.from(document.querySelectorAll('#m-agent .m-onglets [data-o]')).map(b => b.dataset.o), sw: document.documentElement.scrollWidth, iw: innerWidth }));
-  v('« ouvre l’agent » : l’écran Kepler s’ouvre avec Positions du jour, Graphique, Performance…', pK.ecran === 'agent' && ['positions', 'graphique', 'performance', 'strategies', 'reglages'].every(x => pK.onglets.includes(x) || (x === 'graphique' && cle === 'tablette')), JSON.stringify(pK) + dK);
-  const tpos = await page.evaluate(() => ({ texte: (document.querySelector('#m-agent') || {}).innerText || '', sw: document.documentElement.scrollWidth, iw: innerWidth }));
-  v('l’onglet « Positions du jour » répond honnêtement (service du PC absent, serveur verrouillé : message clair, pas de chiffre inventé)', /Positions du jour|verrouillée|pas encore calcul|indisponible|Aucune position/i.test(tpos.texte), tpos.texte.slice(0, 160));
-  v('…sans débordement horizontal', tpos.sw <= tpos.iw + 1, tpos.sw + '/' + tpos.iw);
+  // agent de trading (2026-11-05) : l'écran Kepler a été retiré le 2026-11-03 (voir idees/agents-trading/RAPPORT-RETRAIT.md).
+  // Ce qui existe aujourd'hui sur téléphone et tablette : la tuile « Agent de trading » de l'écran Marchés ouvre la page de l'agent en plein écran.
+  // (La voix ne parle pas de l'agent de trading : règle de la nuit du 2026-11-05.)
+  await page.evaluate(() => window.MobileCoque && MobileCoque.aller('marches')); await attendre(800);
+  const pK = await page.evaluate(async () => { const b = Array.from(document.querySelectorAll('.m-tuile')).find(x => /Agent de trading/.test(x.textContent)); if (!b) return { tuile: false }; b.click(); await new Promise(r => setTimeout(r, 2500)); const at = document.querySelector('.at-plein .at'); return { tuile: true, page: !!at, bandeau: !!(at && at.querySelector('[data-cv-bandeau]')), copilote: !!(at && at.querySelector('[data-section="copilote"]')) }; });
+  v('la tuile « Agent de trading » ouvre la page de l’agent en plein écran (bandeau du copilote et section copilote présents)', pK.tuile && pK.page && pK.bandeau && pK.copilote, JSON.stringify(pK));
+  const tpos = await page.evaluate(() => ({ texte: (document.querySelector('.at-plein') || {}).innerText || '', sw: document.documentElement.scrollWidth, iw: innerWidth }));
+  v('la page de l’agent répond honnêtement sans moteur (code d’accès absent, connexion, hors ligne : jamais de chiffre inventé) et sans débordement horizontal', /code d.accès|connexion|déconnecté|hors ligne|jeton refusé|en attente des données/i.test(tpos.texte) && tpos.sw <= tpos.iw + 1, tpos.texte.slice(0, 160) + ' ' + tpos.sw + '/' + tpos.iw);
   await page.screenshot({ path: 'docs/captures-v7b/' + cle + '-agent.png' });
-  await page.evaluate(() => Panneaux.fermerTout());
+  await page.evaluate(() => { const f = document.querySelector('.at-plein button'); if (f) f.click(); Panneaux.fermerTout(); if (window.MobileCoque) MobileCoque.aller('accueil'); }); await attendre(500);
   // carte de la Terre (sans galaxie)
   await page.evaluate(() => document.getElementById('btnCarteTerre').click()); await attendre(3500);
   const carte = await page.evaluate(() => ({ ouvert: window.HoteModules && HoteModules.ouvert(), ui: !!document.querySelector('#terre-leger:not([hidden])'), retour: (document.querySelector('.tl-retour') || {}).textContent }));

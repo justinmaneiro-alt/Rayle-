@@ -108,4 +108,38 @@ t('journal v4 et portefeuille : leçons, registre fantôme ; plus d’« Objecti
   eq(pv4.htmlPlanLecons(null), '');
 });
 
+/* ── copilote visuel : questions (données structurées seulement) et gabarits ── */
+const QV0 = await import('../commun/questions.js'), CV0 = await import('../front/copilote-visuel.js'), sp = x => String(x).replace(/\s/g, ' ');
+const QV = { repondre: (...a) => sp(QV0.repondre(...a)) }, CV = { htmlBandeau: (...a) => sp(CV0.htmlBandeau(...a)), htmlChecklist: (...a) => sp(CV0.htmlChecklist(...a)), htmlPlans: (...a) => sp(CV0.htmlPlans(...a)), htmlSection: (...a) => sp(CV0.htmlSection(...a)) };
+const VIS = { tendance: { h1: { sens: 'haussiere', raison: 'sommets et creux de plus en plus hauts' }, h4: { sens: 'range', raison: 'x' } },
+  situation: { ou: 'milieu', phrase: 'Tendance haussière H1. Le prix redescend vers 77 400. Rien à faire avant.', support: { p: 77400, nom: 'plus bas de la veille', court: 'B veille' }, resistance: { p: 78500, nom: 'plus haut de la veille', court: 'H veille' } },
+  niveaux: [{ id: 'veilleL', court: 'B veille', nom: 'plus bas de la veille', p: 77400 }, { id: 'vwap', court: 'VWAP', nom: 'VWAP du jour', p: 77900 }], profil: { vah: 78200, poc: 78000, val: 77700, source: 'approx' },
+  plans: [{ id: 'BTC:A:achat:x', nom: 'A', sens: 'achat', niveau: 77400, nomNiveau: 'plus bas de la veille', zoneBas: 77370, zoneHaut: 77430, entree: 77400, stop: 77280, cibles: [77640, 77760, 77880, 78000], cible: 77760, cibleNom: '3R', Rcible: 3, tropTard: 77472, seuil: 1.5, etat: 'attente', dansZone: false, avecTendance: true }],
+  confluence: { n: 2, sur: 6, planNom: 'A', sens: 'achat', criteres: [{ id: 'tendance', nom: 'Tendance H1 dans le sens', ok: true, detail: 'H1 haussière' }, { id: 'niveau', nom: 'Niveau touché', ok: false, detail: 'pas encore' }, { id: 'sweep', nom: 'Sweep + reclaim', ok: false, detail: 'non' }, { id: 'delta', nom: 'Retournement du delta / CVD', ok: null, detail: 'volume net incomplet : je ne sais pas' }, { id: 'mur', nom: 'Mur du carnet persistant', ok: false, detail: 'aucun mur' }, { id: 'macro', nom: 'Pas d’annonce macro dans l’heure', ok: true, detail: 'aucune annonce USD à fort impact dans l’heure' }] },
+  jauge: { n: 2, sur: 6, plan: 'A' }, donnees: { videsPct: 72.5, alerte: 'Données Kraken minces : 72,5 % des bougies sans échange.' }, commentaire: 'Plan A (achat) à 1,2 ATR.' };
+t('copilote : questions sur la tendance, les niveaux, le plan, trop tard', () => {
+  vrai(/H1 haussière/.test(QV.repondre('quelle est la tendance ?', { actif: 'BTC', visuel: VIS })));
+  vrai(/77 400/.test(QV.repondre('le plus bas de la veille ?', { actif: 'BTC', visuel: VIS })));
+  vrai(/Plan A : ACHAT zone 77 370 – 77 430/.test(QV.repondre('c’est quoi le plan ?', { actif: 'BTC', visuel: VIS })));
+  vrai(/TROP TARD/.test(QV.repondre('est-ce trop tard ?', { actif: 'BTC', visuel: VIS, prix: 77500 })) && /pas encore trop tard/.test(QV.repondre('trop tard ?', { actif: 'BTC', visuel: VIS, prix: 77420 })));
+  vrai(/POC 78 000/.test(QV.repondre('le POC ?', { actif: 'BTC', visuel: VIS })));
+});
+t('copilote : « je ne sais pas » quand la donnée manque, jamais de décision à la place', () => {
+  vrai(/^Je ne sais pas/.test(QV.repondre('et le delta ?', { actif: 'BTC', visuel: VIS })), 'delta inconnu');
+  vrai(/^Je ne sais pas/.test(QV.repondre('tendance ?', { actif: 'BTC', visuel: null })), 'pas de données');
+  vrai(/^Je ne sais pas/.test(QV.repondre('quel temps fait-il à Paris ?', { actif: 'BTC', visuel: VIS })), 'hors sujet');
+  vrai(/Je ne décide pas à ta place/.test(QV.repondre('dois-je acheter ?', { actif: 'BTC', visuel: VIS })));
+  vrai(/^Je ne sais pas/.test(QV.repondre('mon retard ?', { actif: 'BTC', visuel: VIS, global: { prises: { n: 0 } } })));
+  vrai(/72,5/.test(QV.repondre('les données sont fiables ?', { actif: 'SP500', visuel: VIS })));
+});
+t('copilote : gabarits (bandeau, checklist n sur 6 + détail, plans + Je l’ai pris, section)', () => {
+  const b = CV.htmlBandeau('BTC', VIS); vrai(/H1 haussière/.test(b) && /Rien à faire avant/.test(b) && /72,5/.test(b) && /2\/6/.test(b));
+  const c = CV.htmlChecklist(VIS.confluence); vrai(/2 sur 6/.test(c) && (c.match(/<details/g) || []).length === 6 && /je ne sais pas/.test(c));
+  const p = CV.htmlPlans('BTC', VIS); vrai(/Plan A · ACHAT/.test(p) && /data-cv-pris="plan:BTC:A:achat:x"/.test(p) && /trop tard 77 472/.test(p));
+  vrai(/noté/.test(CV.htmlPlans('BTC', VIS, new Set(['plan:BTC:A:achat:x']))));
+  const s = CV.htmlSection({ v: 'visuel-v1', setups: { PULLBACK_V1: { nom: 'Pullback', regle: 'r', statut: 'non validé', alerteActive: false } }, bilan: { PLAN_A: { n: 3, notes: 2, gagne: 1, perdu: 1, nonTouche: 0, ni: 0, Rmoy: 0.1, RmoyHasard: 0, verdict: 'pas assez de données' } }, prises: { n: 0 }, journal: [], retro: null });
+  vrai(/pas assez de données/.test(s) && /désactivée/.test(s) && /CANDIDATE, non validée/.test(s) && /REJOUÉ/.test(s));
+  vrai(/en attente des données/.test(CV.htmlBandeau('BTC', null)));
+});
+
 console.log(`front : ${ok} réussis, ${ko} échoués`); if (ko) process.exitCode = 1;
