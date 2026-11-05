@@ -1,3 +1,24 @@
+# Mission « Copilote visuel » (2026-11-05) — avancement
+
+Reprendre ici. Branche `copilote-visuel`, fusionnée dans `main` à la fin. Rapport complet HORS dépôt : `agent-trading/RAPPORT-COPILOTE.md`.
+
+| Phase | État |
+|---|---|
+| 1. Bandeau « situation » (tendance H1/H4 par structure, position, phrase) | fait |
+| 2. Niveaux (veille, semaine, Asie, Londres, VWAP ; VAH/POC/VAL affichage) | fait |
+| 3. Plans A/B (zone, invalidation, cibles 2R–5R, TROP TARD 1,5 réglable, recalcul M15, raison du retrait) | fait |
+| 4. Checklist de confluence n/6 (détail au toucher, alerte dans l'app avec capture, plafonds 4/j et 2/actif/j) | fait |
+| 5. Setups nommés v1 (figés, versionnés) | fait |
+| 6. Journal et bilan (8 et 24 bougies, R net, hasard, « Je l'ai pris », rétro-test calibration/validation) | fait : AUCUN setup validé, alertes des setups désactivées |
+| 7. Commentaire + « Demander au copilote » (données structurées, « je ne sais pas ») | fait |
+| Fin : tests, 4 tests Kepler obsolètes corrigés, rapport, Worker rayle-agent-trading redéployé | fait |
+
+- Moteur (hors dépôt) : `agent-trading/moteur/copilote/visuel/` (`regles.js`, `index.js`, `retro.mjs`, `qualite.mjs`). Tests : `moteur/tests/visuel-test.mjs` (dans `npm test`), Chrome `moteur/tests/ecran-visuel.mjs`.
+- Dépôt : `agent-trading/front/copilote-visuel.js`, `agent-trading/commun/questions.js`, ajouts `graphique.js`, `vue.js`, `connexion.js`, `agent.css`, Worker `agent-trading/worker/src/index.js` (relais « Je l'ai pris »).
+- Après un déploiement du Worker de l'agent : redémarrer le moteur (sinon il reste sur l'ancienne instance).
+
+---
+
 # Nuit autonome (2026-11-05) — avancement
 
 Reprendre ici : lire ce fichier, puis `RAPPORT-NUIT.md`. Reprendre à la première tâche non terminée. Branches de travail : `nuit/pN`, fusionnées dans `main` à chaque fin de phase.

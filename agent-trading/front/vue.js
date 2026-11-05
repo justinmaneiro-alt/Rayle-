@@ -12,6 +12,7 @@ import { creerGraphique } from './graphique.js';
 import { creerCarnet } from './carnet.js';
 import { htmlPositions, htmlRejeuCopilote, htmlHistorique, csvHistorique, htmlPortefeuille, htmlJournal, htmlBacktest7j, animerCapital, dessinerCourbe, brancherDefinitions, esc, info, htmlBacktestGraphe, tradesBacktestGraphe, htmlPlanLecons } from './panneaux.js';
 import { montrerCarte } from './carte-alerte.js';
+import { creerCopiloteVisuel, HTML_HAUT, HTML_BAS, HTML_ALERTE } from './copilote-visuel.js';
 
 const lire = (k, d) => { try { return localStorage.getItem(k) || d; } catch (e) { return d; } };
 const ecrire = (k, v) => { try { localStorage.setItem(k, v); } catch (e) { /* refusé */ } };
@@ -58,7 +59,9 @@ export function monterVue(el, { mode = 'auto', connexion = null } = {}) {
           <p class="at-fs-seul at-fs-paysage">Tournez le téléphone en paysage pour un graphique plus large.</p>
           <div class="at-rejoue-bandeau" data-rejoue hidden></div>
           <div class="at-cop-notif" data-cop-notif role="status" aria-live="polite" hidden></div>
+          ${HTML_HAUT}
           <div class="at-graphique"></div>
+          ${HTML_ALERTE}
           <div class="at-cop-bilan" data-cop-bilan hidden></div>
           <div class="at-cop-reglages" data-cop-panneau hidden><b>Réglages du copilote</b><label><input type="checkbox" data-cop-telegram disabled> Alertes Telegram des flèches</label><p class="at-doux">Désactivé. Même activé plus tard, rien ne partirait tant que l’agent est en OBSERVATION. Les flèches sont signalées ici seulement, discrètement.</p></div>
           <div class="at-flux-direct" data-flux-direct title="Bougie en cours : volume des acheteurs et des vendeurs agressifs (en dollars), enregistré par le moteur"><span class="at-fx-lbl">Volume net en bougies · bougie en cours</span><span class="at-achat">Achats agressifs <b data-fx-a>—</b></span><span class="at-fx-barre" aria-hidden="true"><i data-fx-barre></i></span><span class="at-vente">Ventes agressives <b data-fx-v>—</b></span></div>
@@ -67,10 +70,12 @@ export function monterVue(el, { mode = 'auto', connexion = null } = {}) {
         </section>
         <section class="at-zone at-zone-carnet" aria-label="Carnet"><h3>Carnet <small data-carnet-actif></small></h3><div class="at-carnet"></div></section>
       </div>
+      <section class="at-section cv-section-direct" data-section="copilote-direct" aria-label="Copilote en direct">${HTML_BAS}</section>
       <section class="at-section" data-section="positions"><h3>Positions en cours</h3><div data-positions></div></section>
       <section class="at-section" data-section="historique"><h3>Historique des positions <button type="button" class="at-btn" data-csv>Export CSV</button></h3><div data-historique></div></section>
       <section class="at-section" data-section="portefeuille"><h3>Performance du portefeuille</h3><div data-pf></div></section>
       <section class="at-section" data-section="backtest"><h3>Backtest 7 jours <span class="at-badge at-badge-rejoue">REJOUÉ, pas réel</span></h3><div data-bt></div></section>
+      <section class="at-section" data-section="copilote"><h3>Copilote : setups, journal et bilan <span class="at-badge">information, jamais des ordres</span></h3><div data-cv-section></div></section>
       <section class="at-section" data-section="journal"><h3>Journal du bot</h3><div data-v4-journal></div><div data-journal></div></section>
       <footer class="at-pied"><span data-version></span><span class="at-sim">SIMULATION · aucun ordre réel · données publiques Kraken Futures ${info('version')}</span><span class="at-licence">Graphique : <a href="https://www.tradingview.com/" target="_blank" rel="noopener">TradingView Lightweight Charts™</a> (Apache-2.0)</span></footer>
     </div>
@@ -87,6 +92,7 @@ export function monterVue(el, { mode = 'auto', connexion = null } = {}) {
 
   const graph = creerGraphique($('.at-graphique'), { racine: R, surSelection: id => { etat.selection = id; rendrePositions(true); } });
   const carnet = creerCarnet($('.at-carnet'), { racine: R });
+  const cv = creerCopiloteVisuel(R, { cnx, graph, actif: () => etat.actif, lire, ecrire });
   let derniers = {}, vus = new Set(JSON.parse(lire('rayle_at_vus', '[]')));
 
   function choisirActif(a) { if (!PAR_ID[a]) return; etat.actif = a; ecrire('rayle_at_actif', a); cnx.regarder(a); etat.histoActif = null; tout(); }
@@ -197,7 +203,8 @@ export function monterVue(el, { mode = 'auto', connexion = null } = {}) {
     if (x.profils && x.profils.jour && x.profils.jour.niveaux) profils.push(Object.assign({ etiquette: 'jour', pas: x.pas }, x.profils.jour, { fin: Date.now() }));
     for (const a of (x.annotations && x.annotations.liste) || []) if (a.type === 'profil') profils.push(Object.assign({ etiquette: 'agent' }, a));
     copilote(x.copilote);
-    graph.surcouches({ positions, passees, profils, annotations: (x.annotations && x.annotations.liste || []).filter(a => a.type !== 'profil'), prix: x.prix, tPrix: x.tPrix, live: cnx.fraicheur().live, copilote: x.copilote || null });
+    graph.surcouches({ positions, passees, profils, annotations: (x.annotations && x.annotations.liste || []).filter(a => a.type !== 'profil'), prix: x.prix, tPrix: x.tPrix, live: cnx.fraicheur().live, copilote: x.copilote || null, visuel: x.visuel ? Object.assign({}, x.visuel, { plans: etat.unite === 'M15' || etat.unite === 'H1' ? x.visuel.plans : [] }) : null });
+    cv.maj();
   }
   /* ─── copilote : bilan des flèches (près du graphique), message « marché instable », notification discrète d'une nouvelle flèche ─── */
   function copilote(cp) {
@@ -264,7 +271,7 @@ export function monterVue(el, { mode = 'auto', connexion = null } = {}) {
       if (Date.now() - tr.tSignal < 10 * 60e3 && cnx.fraicheur().live) montrerCarte(R, tr);
     }
   }
-  function tout() { majBoutons(); rendreTete(); rendreHistorique(); surcouches(); const e = cnx.store.etat; if (e) carnet.maj(etat.actif, e.actifs[etat.actif]); rendrePositions(); rendrePortefeuille(); majBtg(); }
+  function tout() { cv.majLent(); cv.maj(); majBoutons(); rendreTete(); rendreHistorique(); surcouches(); const e = cnx.store.etat; if (e) carnet.maj(etat.actif, e.actifs[etat.actif]); rendrePositions(); rendrePortefeuille(); majBtg(); }
 
   const desabonner = cnx.abonner(quoi => {
     if (quoi === 'etat') {
@@ -272,14 +279,14 @@ export function monterVue(el, { mode = 'auto', connexion = null } = {}) {
       if (etat.histoActif === etat.actif + etat.unite && x.bougies[etat.unite]) graph.bougieLive(x.bougies[etat.unite]); else rendreHistorique();
       rendreTete(); surcouches(); carnet.maj(etat.actif, x); rendrePositions(); rendrePortefeuille(); alertesNouvelles(); if (etat.btg.actif) majBtg();
     } else if (quoi.startsWith('historique:')) { if (quoi === 'historique:' + etat.actif) { etat.histoActif = null; rendreHistorique(); surcouches(); } }
-    else if (quoi === 'lent') { rendrePositions(); rendrePortefeuille(); surcouches(); majBtg(); }
+    else if (quoi === 'lent') { rendrePositions(); rendrePortefeuille(); surcouches(); majBtg(); cv.majLent(); }
     else if (quoi === 'courbe') { derniers.pf = null; rendrePortefeuille(); }
     else rendreTete();
   });
   graph.pret.then(() => { cnx.regarder(etat.actif); tout(); }).catch(e => { $('.at-graphique').innerHTML = '<p class="at-vide">' + esc(e.message) + '</p>'; tout(); });
   graph.montrerPassees(etat.passees);
   return {
-    connexion: cnx, racine: R, graphique: graph, defil,
+    connexion: cnx, racine: R, graphique: graph, defil, copiloteVisuel: cv,
     choisir: choisirActif, pleinEcran: () => etat.plein, entrerPlein, sortirPlein: () => sortirPlein(false), voirExemple,
     detruire() { if (etat.plein) sortirPlein(false); desabonner(); ro.disconnect(); document.removeEventListener('fullscreenchange', surPleinEcran); window.removeEventListener('popstate', surRetour); window.removeEventListener('keydown', surTouche, true); graph.detruire(); carnet.detruire(); if (!connexion) cnx.fermer(); }
   };

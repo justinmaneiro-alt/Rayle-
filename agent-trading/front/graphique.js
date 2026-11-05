@@ -83,7 +83,7 @@ class Primitive {
 }
 
 export function creerGraphique(el, { racine, surSelection }) {
-  const etat = { actif: null, unite: 'M15', donnees: [], positions: [], passees: [], rejoue: null, montrerPassees: false, selection: null, profils: [], annotations: [], prix: null, tPrix: null, derniereBougie: null, live: false, backtest: null, premierConnu: null, copilote: null };
+  const etat = { actif: null, unite: 'M15', donnees: [], positions: [], passees: [], rejoue: null, montrerPassees: false, selection: null, profils: [], annotations: [], prix: null, tPrix: null, derniereBougie: null, live: false, backtest: null, premierConnu: null, copilote: null, visuel: null };
   let LW = null, chart = null, bougies = null, deltaS = null, cvdS = null, volS = null, cvdB = null, zones = { traits: [] }, resize = null;
   const C = () => ({ haussier: couleur(racine, '--at-haussier'), baissier: couleur(racine, '--at-baissier'), achat: couleur(racine, '--at-achat'), vente: couleur(racine, '--at-vente'), texte: couleur(racine, '--at-texte'), doux: couleur(racine, '--at-doux'), gain: couleur(racine, '--at-gain'), perte: couleur(racine, '--at-perte'), accent: couleur(racine, '--at-accent'), sable: couleur(racine, '--at-sable'), mono: couleur(racine, '--at-mono') || 'monospace' });
 
@@ -290,6 +290,48 @@ export function creerGraphique(el, { racine, surSelection }) {
     return [vue(y, fmtPrix(etat.actif, etat.prix), etat.live ? coul : c.doux), vue(y + 17, etat.live ? cr : 'hors ligne', 'rgba(20,28,38,.95)')];
   });
 
+  /* ─── copilote visuel : niveaux (traits fins + étiquettes à droite), VAH/POC/VAL, VWAP ; plans A/B (zone, invalidation, cibles 2R–5R, TROP TARD) ───
+     ACHAT bleu, VENTE orange (vert / rouge réservés au résultat) ; un plan barré (TROP TARD) reste visible 2 h, barré et pâle. */
+  const primVisuel = new Primitive((ctx, taille, P) => {
+    const v = etat.visuel; if (!P.series || !v || !etat.donnees.length) return;
+    const c = C(), ts = P.chart.timeScale(), U = UNITES[etat.unite], xT = t => xDe(ts, indiceLogique(etat.donnees, t, U)), W = taille.width;
+    const COL = 96, xFin = W - COL, xDer = xT(etat.donnees[etat.donnees.length - 1].time * 1000);
+    ctx.save(); ctx.font = `10px ${c.mono}`; ctx.textBaseline = 'middle'; ctx.lineJoin = 'round';
+    const ecrire = (txt, x, y, col, align = 'left') => { ctx.textAlign = align; ctx.strokeStyle = 'rgba(5,8,12,.92)'; ctx.lineWidth = 3; ctx.strokeText(txt, x, y); ctx.fillStyle = col; ctx.fillText(txt, x, y); ctx.textAlign = 'left'; };
+    const trait = (y, x0, x1, col, tir = []) => { ctx.strokeStyle = col; ctx.lineWidth = 1; ctx.setLineDash(tir); ctx.beginPath(); ctx.moveTo(Math.round(x0) + .5, Math.round(y) + .5); ctx.lineTo(Math.round(x1) + .5, Math.round(y) + .5); ctx.stroke(); ctx.setLineDash([]); };
+    etat._visuelDessin = { niveaux: 0, plans: 0, barres: 0 };
+    // niveaux : trait fin sur toute la largeur ; étiquettes dans la colonne de droite, niveaux au même prix réunis
+    const parPrix = new Map();
+    for (const n of v.niveaux || []) {
+      const y = P.series.priceToCoordinate(n.p); if (y == null || y < 0 || y > taille.height) continue;
+      const vw = n.id === 'vwap'; trait(y, 0, W, vw ? alpha(c.sable, .65) : alpha(c.doux, .45), vw ? [6, 4] : n.id.startsWith('asie') || n.id.startsWith('londres') ? [2, 4] : []);
+      const k = fmtPrix(etat.actif, n.p), x = parPrix.get(k) || { y, noms: [], vw: false }; x.noms.push(n.court); x.vw = x.vw || vw; parPrix.set(k, x); etat._visuelDessin.niveaux++;
+    }
+    const etiq = [...parPrix].map(([k, x]) => ({ y: x.y, txt: `${x.noms.join(' · ')} ${k}`, col: x.vw ? c.sable : c.doux }));
+    // plans : bande lisible qui part de la dernière bougie (≥ 240 px) jusqu'à la colonne des niveaux
+    const focus = v.confluence && v.confluence.plan;
+    const plan = (p, barre) => {
+      const detail = barre || !focus || p.id === focus;
+      const col = p.sens === 'achat' ? c.achat : c.vente, yh = P.series.priceToCoordinate(p.zoneHaut), yb = P.series.priceToCoordinate(p.zoneBas); if (yh == null || yb == null) return;
+      const xa = xT(p.tCree), x0 = Math.max(0, Math.min(xa == null ? xFin - 240 : xa, (xDer == null ? xFin : xDer) - 60, xFin - 240)), haut = p.sens === 'achat';
+      let y0 = Math.min(yh, yb), hz = Math.abs(yb - yh); if (hz < 4) { y0 -= (4 - hz) / 2; hz = 4; }
+      ctx.globalAlpha = barre ? .35 : detail ? 1 : .6;
+      ctx.fillStyle = alpha(col, .12); ctx.fillRect(x0, y0, xFin - x0, hz);
+      ctx.strokeStyle = alpha(col, .85); ctx.lineWidth = 1; ctx.strokeRect(Math.round(x0) + .5, Math.round(y0) + .5, Math.round(xFin - x0), Math.round(hz));
+      ecrire(`PLAN ${p.nom} · ${haut ? 'ACHAT' : 'VENTE'}${barre ? ' · BARRÉ (trop tard)' : ''}`, x0 + 4, haut ? y0 + hz + 8 : y0 - 8, col);
+      const ys = P.series.priceToCoordinate(p.stop); if (ys != null && detail) { trait(ys, x0, xFin, alpha(col, .75), [5, 4]); ecrire(`invalidation ${fmtPrix(etat.actif, p.stop)}`, x0 + 4, ys + (haut ? 8 : -8), alpha(col, .9)); }
+      if (detail) (p.cibles || []).forEach((q, k) => { const y = P.series.priceToCoordinate(q); if (y == null || y < -6 || y > taille.height + 6) return; trait(y, xFin - 40, xFin, alpha(col, .6)); ecrire(`${k + 2}R`, xFin - 44, y, alpha(col, .9), 'right'); });
+      const yc = P.series.priceToCoordinate(p.cible); if (yc != null && detail) trait(yc, x0, xFin - 40, alpha(col, .35), [1, 2]);
+      const yt = P.series.priceToCoordinate(p.tropTard); if (yt != null && detail) { trait(yt, x0, xFin, alpha(col, .95), [1, 3]); ecrire('TROP TARD', x0 + 4 + 120, yt + (haut ? -8 : 8), col); }
+      if (barre) { ctx.strokeStyle = alpha(col, .8); ctx.lineWidth = 1.5; ctx.beginPath(); ctx.moveTo(x0, y0 + hz); ctx.lineTo(xFin, y0); ctx.stroke(); etat._visuelDessin.barres++; }
+      ctx.globalAlpha = 1; etat._visuelDessin.plans++;
+    };
+    for (const p of v.plans || []) plan(p, false);
+    for (const r of v.retiresBarres || []) plan(r, true);
+    for (const e of espacer(etiq, 12, taille.height)) ecrire(e.txt, W - 4, e.y, e.col, 'right');
+    ctx.restore();
+  });
+
   async function monter() {
     LW = await chargerLib();
     const c = C();
@@ -311,7 +353,7 @@ export function creerGraphique(el, { racine, surSelection }) {
     cvdB = chart.addSeries(LW.CandlestickSeries, { upColor: alpha(c.gain, .85), downColor: alpha(c.perte, .85), wickUpColor: alpha(c.gain, .85), wickDownColor: alpha(c.perte, .85), borderVisible: false, lastValueVisible: false, priceLineVisible: false, priceFormat: { type: 'volume' } }, 2);
     try { chart.panes()[1].setHeight(Math.max(50, Math.round(el.clientHeight * 0.15))); chart.panes()[2].setHeight(Math.max(56, Math.round(el.clientHeight * 0.17))); } catch (e) { /* ancienne version */ }
     cvdB.attachPrimitive(primCvdIncomplet);
-    bougies.attachPrimitive(primCopilote); bougies.attachPrimitive(primProfils); bougies.attachPrimitive(primPositions); bougies.attachPrimitive(primBacktest); bougies.attachPrimitive(primPrix);
+    bougies.attachPrimitive(primCopilote); bougies.attachPrimitive(primVisuel); bougies.attachPrimitive(primProfils); bougies.attachPrimitive(primPositions); bougies.attachPrimitive(primBacktest); bougies.attachPrimitive(primPrix);
     chart.subscribeClick(p => {
       if (!p.point) return;
       const fl = (etat._flechesDessinees || []).map(f => ({ ...f, d: Math.hypot(f.x - p.point.x, f.y - p.point.y) })).filter(f => f.d < 12).sort((a, b) => a.d - b.d)[0];
@@ -382,8 +424,9 @@ export function creerGraphique(el, { racine, surSelection }) {
       }
       etat.derniereBougie = etat.donnees[etat.donnees.length - 1];
     },
-    surcouches({ positions, passees, profils, annotations, prix, tPrix, live, copilote }) {
+    surcouches({ positions, passees, profils, annotations, prix, tPrix, live, copilote, visuel }) {
       etat.copilote = copilote || null; primCopilote.maj && primCopilote.maj();
+      etat.visuel = visuel || null; primVisuel.maj && primVisuel.maj();
       etat.positions = positions || []; etat.passees = passees || []; etat.profils = profils || []; etat.annotations = annotations || []; etat.prix = prix; etat.tPrix = tPrix; etat.live = live;
       primPositions.maj && primPositions.maj(); primProfils.maj && primProfils.maj(); primPrix.maj && primPrix.maj();
     },
@@ -399,7 +442,9 @@ export function creerGraphique(el, { racine, surSelection }) {
     /* flèches du copilote REJOUÉES (bouton Backtest), ou null */
     flechesRejeu(liste) { etat.flechesRejeu = liste || null; primCopilote.maj && primCopilote.maj(); },
     montrerBulle, cacherBulle,
-    _etat: etat, _zones: zones, _lw: () => ({ chart, bougies, primProfils, primPositions, primCopilote, cvdB }),
+    /* capture du graphique (alerte de confluence dans l'app) : petite image JPEG, jamais envoyée ailleurs */
+    capture(largeur = 520) { if (!chart || !chart.takeScreenshot) return ''; const src = chart.takeScreenshot(), k = Math.min(1, largeur / src.width), cv = document.createElement('canvas'); cv.width = Math.round(src.width * k); cv.height = Math.round(src.height * k); cv.getContext('2d').drawImage(src, 0, 0, cv.width, cv.height); return cv.toDataURL('image/jpeg', 0.72); },
+    _etat: etat, _zones: zones, _lw: () => ({ chart, bougies, primProfils, primPositions, primCopilote, primVisuel, cvdB }),
     detruire() { clearInterval(resize); try { chart && chart.remove(); } catch (e) { /* */ } }
   };
 }

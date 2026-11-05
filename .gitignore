@@ -71,6 +71,7 @@ captures-retrait/
 # Agent de trading V2 : le moteur, la stratégie et les données restent HORS dépôt (dépôt public)
 agent-trading/moteur/
 agent-trading/RAPPORT-AGENT.md
+agent-trading/RAPPORT-COPILOTE.md
 agent-trading/worker/.wrangler/
 !agent-trading/worker/
 agent-trading/worker/.wrangler/

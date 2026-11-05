@@ -241,3 +241,56 @@
 .at-cop-reglages { position: absolute; z-index: 7; left: 10px; top: 44px; width: min(320px, calc(100% - 20px)); padding: 10px 12px; font-size: 12px; background: rgba(8, 12, 18, .97); border: 1px solid var(--at-bord); }
 .at-cop-reglages label { display: flex; gap: 6px; align-items: center; margin: 8px 0 4px; }
 .at-cop-reglages p { margin: 0; }
+
+/* ═════════════ COPILOTE VISUEL (bandeau situation, checklist, plans, demander, alerte dans l'app) — sobre : traits fins, pas de carrés colorés ═════════════ */
+.cv-bandeau { padding: 5px 10px 6px; border-bottom: 1px solid var(--at-bord); font-size: 13px; line-height: 1.35; }
+.cv-puces { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 2px; }
+.cv-puce { font: 11px var(--at-mono, monospace); color: var(--at-doux); border: 1px solid var(--at-bord); padding: 0 6px; border-radius: 2px; white-space: nowrap; }
+.cv-puce.cv-h { color: var(--at-texte); border-color: var(--at-bord-fort); }
+.cv-puce.cv-b { color: var(--at-texte); border-color: var(--at-bord-fort); }
+.cv-puce-jauge { color: var(--at-accent); }
+.cv-phrase { margin: 0; color: var(--at-texte); }
+.cv-avert { margin: 2px 0 0; color: var(--at-alerte); font-size: 12px; }
+.cv-doux { color: var(--at-doux); font-size: 12px; }
+.cv-zone { display: grid; gap: 8px; font-size: 13px; }
+.at[data-disposition="pc"] .cv-zone { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); align-items: start; }
+.at[data-disposition="pc"] .cv-commentaire, .at[data-disposition="pc"] .cv-plans, .at[data-disposition="pc"] .cv-prise { grid-column: 1 / -1; }
+.cv-commentaire { margin: 0; color: var(--at-texte); border-left: 2px solid var(--at-accent); padding-left: 8px; min-height: 1.3em; }
+.cv-jauge { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.cv-jauge-barre { display: inline-flex; gap: 3px; }
+.cv-jauge-barre i { width: 14px; height: 4px; background: var(--at-bord); }
+.cv-jauge-barre i.cv-plein { background: var(--at-accent); }
+.cv-criteres { list-style: none; margin: 4px 0 0; padding: 0; display: grid; gap: 1px; }
+.cv-criteres summary { cursor: pointer; padding: 3px 0; list-style: none; }
+.cv-criteres summary::-webkit-details-marker { display: none; }
+.cv-criteres p { margin: 0 0 4px 18px; color: var(--at-doux); font-size: 12px; }
+.cv-oui { color: var(--at-accent); } .cv-non { color: var(--at-doux); } .cv-inc { color: var(--at-alerte); }
+.cv-plans { display: grid; gap: 4px; }
+.cv-plan { display: flex; flex-wrap: wrap; gap: 4px 12px; align-items: center; padding: 4px 8px; border-left: 2px solid var(--at-bord-fort); font-variant-numeric: tabular-nums; }
+.cv-plan.cv-achat { border-left-color: var(--at-achat); } .cv-plan.cv-vente { border-left-color: var(--at-vente); }
+.cv-plan-nom { font-weight: 600; }
+.cv-achat .cv-plan-nom, td.cv-achat { color: var(--at-achat); } .cv-vente .cv-plan-nom, td.cv-vente { color: var(--at-vente); }
+.cv-plan small { color: var(--at-doux); }
+.cv-plan-etat { color: var(--at-doux); }
+.cv-pris-ok { color: var(--at-accent); font-size: 12px; }
+.cv-retire { color: var(--at-doux); font-size: 12px; padding-left: 10px; }
+.cv-prise-form { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.cv-prise-form input { background: var(--at-verre-2); color: var(--at-texte); border: 1px solid var(--at-bord); padding: 3px 6px; width: 9em; font: inherit; }
+.cv-prise-form small { color: var(--at-doux); flex-basis: 100%; }
+.cv-demander { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.cv-demander input { flex: 1 1 260px; min-width: 0; background: var(--at-verre-2); color: var(--at-texte); border: 1px solid var(--at-bord); padding: 5px 8px; font: inherit; }
+.cv-demander output { flex-basis: 100%; color: var(--at-texte); min-height: 1.2em; }
+.cv-alerte { position: absolute; top: 44px; right: 10px; z-index: 6; max-width: min(360px, calc(100% - 20px)); }
+.cv-alerte-carte { background: var(--at-verre-2); border: 1px solid var(--at-bord-fort); padding: 8px 10px; font-size: 12.5px; display: grid; gap: 6px; }
+.cv-alerte-carte.cv-achat { border-left: 3px solid var(--at-achat); } .cv-alerte-carte.cv-vente { border-left: 3px solid var(--at-vente); }
+.cv-alerte-carte p { margin: 0; }
+.cv-capture { width: 100%; height: auto; border: 1px solid var(--at-bord); }
+.cv-table { border-collapse: collapse; width: 100%; font-size: 12px; font-variant-numeric: tabular-nums; }
+.cv-table th, .cv-table td { border-bottom: 1px solid var(--at-bord); padding: 3px 6px; text-align: left; vertical-align: top; }
+.cv-table th small { display: block; color: var(--at-doux); font-weight: 400; }
+.cv-statut-ok { color: var(--at-accent); } .cv-statut-non { color: var(--at-doux); }
+.cv-avertissement { color: var(--at-doux); font-size: 12px; }
+[data-section="copilote"] h4 { margin: 12px 0 4px; font-size: 13px; } [data-section="copilote"] h4 small { color: var(--at-doux); font-weight: 400; }
+.cv-regles li { margin: 3px 0; color: var(--at-doux); font-size: 12px; } .cv-regles b { color: var(--at-texte); }
+.at[data-disposition="colonne"] .cv-bandeau { font-size: 12.5px; }
+.at[data-disposition="colonne"] .cv-plan { font-size: 12.5px; }
