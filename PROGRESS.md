@@ -1,3 +1,20 @@
+# Étude « cassure de range M15, tenue 3-4 bougies » (2026-11-06) — avancement
+
+Reprendre ici. Branche `cassure-range`, fusionnée dans `main`. Rapport HORS dépôt : `agent-trading/RAPPORT-CASSURE-RANGE.md` (règles figées `cassure-v1` écrites avant tout test, 4 jeux de frais, verdict).
+
+| Étape | État |
+|---|---|
+| 1. Règles figées (range N=12/20 ≤ 2,5 ATR, 2 touches par bord, cassure 0,1 ATR, volume 1,5 × médiane 20 ou non, stop bord opposé 0,75–2 ATR, sortie 3e/4e bougie ; 8 variantes) | fait |
+| 2. Calibration < 01/11/2025, hors échantillon 12 derniers mois, 1000 tirages au hasard, Holm | fait |
+| 3. Frais (fichier local hors dépôt) : zéro, maker 0,02 %, taker 0,05 % + spread/glissement mesurés sur Kraken PF_XAUUSD, stress 0,215 % ; grille officielle Kraken Futures dans le rapport | fait |
+| 4-5. Résultats et verdict : or, Nasdaq (QQQ), S&P (SPY), BTC, ETH | fait : « pas assez de données » partout (< 100 trades hors échantillon) ; or négatif AVANT frais en calibration, frais taker ≈ 0,55 R/trade |
+| 6. Or non validé → seulement l'événement d'information « cassure de range détectée (avec ou sans volume) » (`CASSURE_RANGE`), aucune position | fait côté moteur ; **actif au prochain redémarrage du moteur** (redémarrage refusé à Claude) |
+| 7. Tests (`npm test` dans `agent-trading/`, `moteur/tests/cassure-test.mjs`), commit, push | fait |
+
+- Moteur (hors dépôt) : `agent-trading/moteur/copilote/cassure/` (`regles-cassure.js`, `series.js`, `etude-cassure.mjs`, `rapport-cassure.mjs`, `mesure-kraken.mjs`) ; branchement `moteur/copilote/info/{index,regles-info}.js`. Données et frais : `%LOCALAPPDATA%\Raylegent-trading\copilote\cassure\`.
+
+---
+
 # Graphique, carnets Kraken, Terre classique (2026-11-05/06) — avancement
 
 Reprendre ici. Branche `copilote-graphique`, fusionnée dans `main`. Rapport HORS dépôt : `agent-trading/RAPPORT-V2.md`.
