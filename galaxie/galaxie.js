@@ -219,6 +219,7 @@ export async function demarrer() {
     const dt = Math.min(horloge.getDelta(), 0.1); t += dt;
     const rp = composer.passes[0], sc = surcharge ? surcharge.scene : scene, cm = surcharge ? surcharge.camera : camera;
     if (rp.scene !== sc) { rp.scene = sc; rp.camera = cm; }
+    if (passeBloom) passeBloom.enabled = !(surcharge && surcharge.sansHalo);   // une planète peut refuser le halo (la Terre : flashs au zoom)
     if (surcharge) {                                         // une planète en orbite (la Terre) dessine sa propre scène : la galaxie est en pause
       if (params.animerDecor) ciel.maj(dt);
       surcharge.maj(dt, t);

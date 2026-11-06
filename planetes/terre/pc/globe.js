@@ -60,7 +60,8 @@ export function creerGlobe({ renderer, textures, ciel, chargeur, lire, modeleVec
       const s = soleilReel(date || new Date());
       partages.uSoleil.value.set(s.direction[0], s.direction[1], s.direction[2]);
       partages.uTemps.value = temps; partages.uExag.value = cfg.exag; partages.uOcean.value = cfg.ocean ? 1 : 0; partages.uRadA.value = cfg.radar ? 1 : 0; partages.uLumieres.value = 1;
-      partages.uHaze.value = alt < 100 ? 70 + Math.max(alt, 0) * 4 : 470 * Math.exp((alt - 100) * 0.2);
+      // brume : distance caractéristique qui croît DOUCEMENT avec l'altitude (avant : ×e tous les 5 km au-dessus de 100 km → la brume « s'allumait » d'un coup en zoomant, +18 de luminance en une image)
+      partages.uHaze.value = alt < 100 ? 70 + Math.max(alt, 0) * 4 : 470 * Math.exp((alt - 100) * 0.02);
       // caméra à l'origine, orientée d'après la pose ; plans proche/lointain adaptés à l'altitude (précision de profondeur)
       const sol = Math.max(alt - Math.max(hSol, hSolCam === null ? 0 : hSolCam) * cfg.exag, 0.0003);   // dégagement au-dessus du sol le plus haut entre le point visé et le sol sous la caméra (sinon le plan proche coupe le relief devant la caméra)
       const rc = norme(cam), horizon = horizonKm(Math.max(alt, 0)) + 700;

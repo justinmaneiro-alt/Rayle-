@@ -311,7 +311,7 @@ async function construire(G) {
       G.nav.selectionner(null);
       noms.vider(); globe.tuiles.forcer(); calculer(); chargerPays(); radarMaj();
       globe.scene.add(G.ciel.groupe);
-      G.surcharger({ scene: globe.scene, camera: globe.camera, maj });
+      G.surcharger({ scene: globe.scene, camera: globe.camera, maj, sansHalo: true });   // pas de halo (bloom) sur la Terre : il transformait toute tuile claire qui apparaît en éclair
       G.nav.deleguer(handlers);
       racine.classList.add('terre-orbite'); ui.montrer(true);
       window.dispatchEvent(new CustomEvent('terre:entree', {}));

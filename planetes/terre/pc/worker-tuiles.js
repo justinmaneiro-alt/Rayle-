@@ -37,7 +37,7 @@ function imageVide(bmp) {
   let somme = [0, 0, 0], carre = [0, 0, 0], n = 0;         // aplat uni (mer remplie d'une couleur unique par le serveur) : remplissage, pas une photo
   for (let i = 0; i < px.length; i += 4) { for (let k = 0; k < 3; k++) { somme[k] += px[i + k]; carre[k] += px[i + k] * px[i + k]; } n++; }
   const ecart = k => Math.sqrt(Math.max(0, carre[k] / n - (somme[k] / n) ** 2));
-  return Math.max(ecart(0), ecart(1), ecart(2)) < 2.2;
+  return Math.max(ecart(0), ecart(1), ecart(2)) < 3.2;   // mesuré sur l'IGN au large (2026-11-05) : aplats à 0,6–2,1 (bruit JPEG) ; une vraie photo de mer > 5
 }
 
 async function image({ id, url, candidats }) {

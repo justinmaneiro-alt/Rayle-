@@ -39,8 +39,8 @@ export function traitEau(p, z) {                                   // cours d'ea
 }
 /* Surfaces teintées (lac, parc) : utiles surtout quand l'imagerie haute résolution est absente ; discrètes sinon. */
 export function surface(couche, p, z) {
-  const fort = z >= 15 ? 1 : 0;                                    // à fort zoom l'image satellite est floue : le plan prend le relais
-  if (couche === 'water') return z >= 9 ? (fort ? 'rgba(30,100,190,0.80)' : 'rgba(40,110,200,0.28)') : null;
+  const fort = z >= 15 ? 1 : 0;                                    // à fort zoom l'image satellite est floue : le plan prend le relais ; eau en bleu de mer PROFOND, proche des photos (avant : bleu vif, contraste brutal tuile à tuile pendant le zoom)
+  if (couche === 'water') return z >= 9 ? (fort ? 'rgba(14,50,80,0.80)' : 'rgba(40,110,200,0.28)') : null;
   if (couche === 'park') return z >= 11 ? (fort ? 'rgba(46,160,96,0.32)' : 'rgba(40,200,120,0.15)') : null;
   if (couche === 'landcover') return fort && (p.class === 'wood' || p.class === 'grass' || p.class === 'farmland') ? (p.class === 'wood' ? 'rgba(30,110,70,0.28)' : 'rgba(80,150,80,0.16)') : null;
   if (couche === 'landuse') {

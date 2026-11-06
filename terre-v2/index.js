@@ -288,7 +288,7 @@ function construire(G) {
       window.dispatchEvent(new CustomEvent('terre:sortie', {}));
     },
     async recharger() { const garde = actif; if (viewer) { for (const [, c] of couches) try { c.desactiver(); } catch (e) { /* */ } couches.clear(); try { viewer.destroy(); } catch (e) { /* */ } viewer = null; tileset = null; google = null; labels = null; } if (garde) { await creerGlobe(); for (const [id, oui] of Object.entries(reglages.couches)) if (oui) await activerCouche(id, true); rendrePanneau(); } },
-    /* « retour à la Terre classique » : pour cette visite ; la Terre 2.0 reste la Terre par défaut (réglage rayle_terre_vue = 'classique' pour la garder) */
+    /* « retour à la Terre classique » (la Terre par défaut) ; la Terre 2.0 est une option expérimentale (réglage rayle_terre_vue = 'v2' pour la garder) */
     async classique() { await api.sortir(); const m = await import('../planetes/terre/pc/index.js'); await m.entrer(G, { rapide: true }); return true; },
     vision(mode) { if (!vision || !MODES[mode]) return false; vision.choisir(mode); reglages.vision = mode; CFG.ecrire(reglages); $('[data-vision]').textContent = MODES[mode].nom; dire('Vision : ' + MODES[mode].nom + '.', 2500); return true; },
     activerCouche, couches: () => COUCHES.map(c => ({ id: c.id, nom: c.nom, active: couches.has(c.id), cle: c.cle || null, cleManquante: !!(c.cle && !reglages[c.cle]), procedure: c.procedure || null })),
