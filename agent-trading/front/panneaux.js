@@ -6,7 +6,7 @@ import { PAR_ID } from '../commun/actifs.js';
 
 export const esc = t => String(t == null ? '' : t).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 const sgn = x => (x > 0 ? 'at-gain' : x < 0 ? 'at-perte' : '');
-const sens = s => `<span class="at-sens at-${s}">${s === 'achat' ? '▲ ACHAT' : '▼ VENTE'}</span>`;
+const sens = s => `<span class="at-sens at-${s}">${s === 'achat' ? '▲ haussier' : '▼ baissier'}</span>`;
 export const info = cle => `<button type="button" class="at-i" data-def="${cle}" aria-label="Définition">ⓘ</button>`;
 
 export function brancherDefinitions(racine) {
@@ -150,10 +150,12 @@ export function htmlBacktestGraphe(bg, jours, actif) {
 }
 
 /* ─── Journal : plan du jour, 5 dernières leçons, total par cause, registre fantôme (chiffres publiés par le moteur) ─── */
+/* plans du jour déjà enregistrés avant le passage au copilote d'information : formulation neutre à l'affichage (jamais « ACHAT / VENTE ») */
+export const neutre = t => String(t).replace(/je cherche (un|une) ACHAT/g, 'scénario haussier observé').replace(/je cherche (un|une) VENTE/g, 'scénario baissier observé').replace(/ACHAT/g, 'hausse').replace(/VENTE/g, 'baisse').replace(/, stop sous/g, ', invalidé sous').replace(/, stop au-dessus/g, ', invalidé au-dessus');
 export function htmlPlanLecons(v4) {
   if (!v4) return '';
   const p = v4.plan, L = v4.lecons, F = v4.fantome;
-  const plan = p && p.actifs && p.actifs.length ? `<details class="at-v4-bloc" open><summary>Plan du jour (${esc(p.jour)}, 08:00 Paris)</summary>${p.actifs.map(a => `<div class="at-plan"><b>${esc(a.actif)}</b> <span class="at-doux">flux ${esc(a.flux.sens)}</span><p class="at-plan-niv">${a.niveaux.map(n => `<span class="${n.type === 'support' ? 'at-achat' : 'at-vente'}">${n.type === 'support' ? 'S' : 'R'} ${fmtPrix(a.actif, n.p)}${n.tag ? ' · ' + esc(n.tag) : ''}</span>`).join(' ')}</p><ul>${a.scenarios.map(s => `<li>${esc(s)}</li>`).join('')}</ul></div>`).join('')}</details>` : '<p class="at-doux at-v4-vide">Plan du jour : rédigé chaque matin à 08:00 (heure de Paris).</p>';
+  const plan = p && p.actifs && p.actifs.length ? `<details class="at-v4-bloc" open><summary>Plan du jour (${esc(p.jour)}, 08:00 Paris)</summary>${p.actifs.map(a => `<div class="at-plan"><b>${esc(a.actif)}</b> <span class="at-doux">flux ${esc(a.flux.sens)}</span><p class="at-plan-niv">${a.niveaux.map(n => `<span class="${n.type === 'support' ? 'at-achat' : 'at-vente'}">${n.type === 'support' ? 'S' : 'R'} ${fmtPrix(a.actif, n.p)}${n.tag ? ' · ' + esc(n.tag) : ''}</span>`).join(' ')}</p><ul>${a.scenarios.map(s => `<li>${esc(neutre(s))}</li>`).join('')}</ul></div>`).join('')}</details>` : '<p class="at-doux at-v4-vide">Plan du jour : rédigé chaque matin à 08:00 (heure de Paris).</p>';
   const causes = L ? (L.causes || Object.keys(L.parCause || {})).map(c => `<span>${esc(c)} <b>${(L.parCause || {})[c] || 0}</b></span>`).join(' · ') : '';
   const lecons = L && L.dernieres && L.dernieres.length ? `<ol class="at-lecons">${L.dernieres.map(l => `<li><time>${dateHeureParis(l.t)}</time> <span class="at-badge">${esc(l.cause)}</span> ${esc(l.texte)}</li>`).join('')}</ol>` : '<p class="at-doux at-v4-vide">Aucune leçon pour l’instant : elles arrivent à chaque position fantôme ou réelle clôturée.</p>';
   const fv = F && F.parVersion ? Object.entries(F.parVersion).map(([v, s]) => `<span><b>${esc(v)}</b> ${s.n} clos${s.n ? ` (${s.gagnants} gagnant${s.gagnants > 1 ? 's' : ''}, ${fmtR(s.totalR)})` : ''} · ${s.ouvertes} en cours</span>`).join(' · ') : '';

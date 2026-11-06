@@ -38,7 +38,7 @@ t('indice logique : interpolé et extrapolé', () => {
 const tr = { id: 'x', actif: 'ETH', sens: 'vente', entree: 2263.5, stop: 2276.1, objectif: 2235.9, quantite: 8.169, rr: 2.2, validJusqu: Date.UTC(2026, 10, 3, 16, 45), pourquoi: 'repoussé du VAH', tSignal: 0, statut: 'propose' };
 t('alerte Telegram : format demandé', () => {
   const m = messageAlerte('proposition', tr).split('\n');
-  eq(m[1], '▼ VENTE ETH · M15'); vrai(/^Quantité 8,169 ETH \(≈ 18 491 \$\)$/.test(m[2]), m[2]); vrai(m[3].startsWith('Entrée 2 263,50 · Stop 2 276,10 · Objectif 2 235,90'), m[3]);
+  eq(m[1], '▼ BAISSIER (simulé) ETH · M15'); vrai(/^Quantité 8,169 ETH \(≈ 18 491 \$\)$/.test(m[2]), m[2]); vrai(m[3].startsWith('Entrée 2 263,50 · Stop 2 276,10 · Objectif 2 235,90'), m[3]);
   vrai(/^R:R 1:2,2 · valable jusqu’à 17:45$/.test(m[4]), m[4]); eq(m[5], 'Pourquoi : repoussé du VAH');
   const s = messageAlerte('sortie', Object.assign({}, tr, { prixEntree: 2263.5, tSortie: 1, prixSortie: 2235.9, raison: 'objectif', r: 2.04, pnl: 205.71 }));
   vrai(s.includes('Résultat réel : +2,04 R · +205,71 $'), s);
@@ -140,6 +140,64 @@ t('copilote : gabarits (bandeau, checklist n sur 6 + détail, plans + Je l’ai 
   const s = CV.htmlSection({ v: 'visuel-v1', setups: { PULLBACK_V1: { nom: 'Pullback', regle: 'r', statut: 'non validé', alerteActive: false } }, bilan: { PLAN_A: { n: 3, notes: 2, gagne: 1, perdu: 1, nonTouche: 0, ni: 0, Rmoy: 0.1, RmoyHasard: 0, verdict: 'pas assez de données' } }, prises: { n: 0 }, journal: [], retro: null });
   vrai(/pas assez de données/.test(s) && /désactivée/.test(s) && /CANDIDATE, non validée/.test(s) && /REJOUÉ/.test(s));
   vrai(/en attente des données/.test(CV.htmlBandeau('BTC', null)));
+});
+
+
+/* ── info-v2 : niveaux, zones, carnet Kraken, graphique Kraken ── */
+import * as NG from '../front/niveaux-graphique.js';
+import { espacerEtiquettes } from '../front/etiquettes-calcul.js';
+import * as CK from '../front/carnet-kraken.js';
+import { SYMBOLES_TV, configurationKraken } from '../front/graphique-kraken.js';
+import { ACTIFS } from '../commun/actifs.js';
+const yDe = p => 400 - (p - 4000) * 2, xDe = t => t == null ? null : (t - 1000) / 10;
+const tous = [{ p: 4100, cats: ['veille'], role: 'resistance', court: 'H veille' }, { p: 4050, cats: ['rond'], role: 'support', court: '4050' }, { p: 4101, cats: ['seance'], role: 'resistance', court: 'H Londres' },
+  { p: 4300, cats: ['semaine'], role: 'resistance', court: 'H sem.' }, { p: 3500, cats: ['semaine'], role: 'support', court: 'B sem.' }, { p: 4080, cats: ['volume'], role: 'support', court: 'Vol' }];
+const zones = [{ p: 4111, bas: 4108, haut: 4114, force: 1, niveau: 'forte', tFormation: 2000 }, { p: 4020, bas: 4018, haut: 4022, force: 0.2, niveau: 'faible', tFormation: 500 }];
+t('niveaux v2 : zones en rectangles du moment de formation au bord droit, opacité selon la force', () => {
+  const d = NG.disposer({ tous, zones, yDe, xDe, largeur: 800, hauteur: 400, fmt: p => String(p) });
+  eq(d.rects.length, 2); const r = d.rects.find(x => x.a === 0.25); vrai(r && r.x0 === 100 && r.x1 === 800, 'formation → bord droit');
+  vrai(Math.abs(r.h - 12) < 1e-9, 'épaisseur = largeur réelle'); vrai(d.rects.some(x => x.a === 0.13 && x.x0 === 0), 'zone faible, formée avant la vue : depuis le bord gauche');
+  vrai(d.etiquettes.some(e => e.texte === 'Zone volume 4111 · forte'), 'étiquette de zone');
+});
+t('niveaux v2 : hors vue → flèche au bord, l’échelle ne bouge pas', () => {
+  const d = NG.disposer({ tous, zones, yDe, xDe, largeur: 800, hauteur: 400 });
+  eq(d.fleches.haut.length, 1); eq(d.fleches.bas.length, 1); vrai(!d.lignes.some(l => l.y < 0 || l.y > 400));
+});
+t('niveaux v2 : couleurs douces (support bleu clair, résistance ambre, zones violet), jamais vert / rouge', () => {
+  const d = NG.disposer({ tous, zones, yDe, xDe, largeur: 800, hauteur: 400 });
+  vrai(d.lignes.every(l => [NG.COULEURS.support, NG.COULEURS.resistance].includes(l.col))); vrai(![NG.COULEURS.zone, NG.COULEURS.support, NG.COULEURS.resistance].some(c => /26a69a|ef5350/i.test(c)));
+});
+t('niveaux v2 : cases à cocher (défaut : 4 cochées, profil décoché) et filtrage', () => {
+  eq(JSON.stringify(NG.COUCHES_DEFAUT), JSON.stringify({ zones: true, sr: true, sessions: true, ronds: true, profil: false }));
+  const d = NG.disposer({ tous, zones, couches: { zones: false, sr: true, sessions: false, ronds: false }, yDe, xDe, largeur: 800, hauteur: 400 });
+  eq(d.rects.length, 0); eq(d.lignes.length, 1); vrai(!NG.niveauVisible(tous[5], NG.COUCHES_DEFAUT), 'zone de volume seule : rectangle, pas de trait');
+});
+t('étiquettes : anti-collision (écart ≥ 13 px, ordre gardé, dans le cadre)', () => {
+  const L = espacerEtiquettes([{ y: 100 }, { y: 101 }, { y: 102 }, { y: 398 }, { y: 399 }], 13, 400);
+  for (let i = 1; i < L.length; i++) vrai(L[i].y - L[i - 1].y >= 13 - 1e-9, 'écart'); vrai(L.every(e => e.y >= 6 && e.y <= 394), 'cadre');
+  vrai(espacerEtiquettes(Array.from({ length: 80 }, (_, i) => ({ y: i * 2 })), 13, 200).length <= 15, 'trop d’étiquettes : seules les lisibles restent');
+});
+t('carnet Kraken : instantané, modifications, trou de séquence, autre instrument refusé', () => {
+  const c = CK.carnetVide('PF_XAUUSD'); CK.appliquerInstantane(c, { seq: 10, bids: [{ price: 4100, qty: 1 }, { price: 4099.5, qty: 2 }], asks: [{ price: 4100.5, qty: 3 }] });
+  vrai(CK.appliquerDelta(c, { product_id: 'PF_XAUUSD', seq: 11, side: 'buy', price: 4100.2, qty: 0.5 }));
+  eq(CK.meilleurs(c).bid, 4100.2); vrai(CK.appliquerDelta(c, { product_id: 'PF_XAUUSD', seq: 12, side: 'buy', price: 4100.2, qty: 0 })); eq(CK.meilleurs(c).bid, 4100);
+  vrai(!CK.appliquerDelta(c, { product_id: 'PF_XAUUSD', seq: 14, side: 'sell', price: 4101, qty: 1 }), 'trou → false');
+  vrai(!CK.appliquerDelta(c, { product_id: 'PF_XBTUSD', seq: 13, side: 'sell', price: 76000, qty: 1 }), 'autre instrument → false');
+});
+t('carnet Kraken : regroupement, cumul, déséquilibre, spread', () => {
+  const c = CK.carnetVide('X'); CK.appliquerInstantane(c, { seq: 1, bids: [{ price: 100.4, qty: 1 }, { price: 100.1, qty: 2 }, { price: 99.7, qty: 4 }], asks: [{ price: 100.6, qty: 1 }, { price: 100.9, qty: 1 }] });
+  const G = CK.regrouper(c, 0.5); eq(JSON.stringify(G.bids), JSON.stringify([[100, 3, 3], [99.5, 4, 7]])); eq(JSON.stringify(G.asks), JSON.stringify([[101, 2, 2]]));
+  const m = CK.meilleurs(c); vrai(Math.abs(m.spread - 0.2) < 1e-9); vrai(CK.desequilibre(c, m.milieu) > 0.5);
+});
+t('carnet Kraken : contrôle 0,1 % du prix affiché', () => {
+  eq(CK.controlePrix(4100, 4102).ok, true); eq(CK.controlePrix(76000, 4100).ok, false); eq(CK.controlePrix(4100, null).ok, null);
+});
+t('carnet Kraken : pas de regroupement = multiples du tick ; seuil des grosses transactions', () => {
+  vrai(CK.pasProposes(0.01, 4100).slice(0, 3).join() === '0.01,0.02,0.05'); eq(CK.seuilGros([1, 2]), 5000); vrai(CK.seuilGros(Array.from({ length: 100 }, (_, i) => i * 1000)) === 90000);
+});
+t('graphique Kraken : un symbole TradingView (Kraken) par actif, or compris', () => {
+  for (const a of ACTIFS) vrai(/^KRAKEN:.+\.PM$/.test(SYMBOLES_TV[a.id]), a.id); eq(SYMBOLES_TV.OR, 'KRAKEN:XAUUSD.PM');
+  eq(configurationKraken('OR', 'H1', 'x').interval, '60'); eq(configurationKraken('ZZZ', 'M15', 'x'), null);
 });
 
 console.log(`front : ${ok} réussis, ${ko} échoués`); if (ko) process.exitCode = 1;

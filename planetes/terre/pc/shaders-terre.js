@@ -44,7 +44,7 @@ export const TUILE_FRAG = /* glsl */`
   uniform vec3 uImgR, uRelR, uVecR, uSoleil, uRadR;
   uniform vec4 uTuile;                 // z, x, y, largeur de la tuile (km)
   uniform mat4 uOmbreM;
-  uniform float uRelN, uOrtho, uImgZ, uOmbreOn, uOmbreTaille, uPasRelief, uDetail; uniform float uImgOk, uRelOk, uVecOk, uVecA, uExag, uTemps, uHaze, uOcean, uLumieres, uRadOk, uRadA, uFondu, uSens;
+  uniform float uRelN, uOrtho, uImgZ, uOmbreOn, uOmbreTaille, uPasRelief, uDetail; uniform float uImgOk, uRelOk, uVecOk, uVecA, uExag, uTemps, uHaze, uOcean, uLumieres, uRadOk, uRadA, uFondu, uSens, uRegional;
   varying vec2 vUv; varying vec3 vRad; varying vec3 vMonde; varying vec2 vGlobal;
   ${COMMUN}
   ${OMBRE_BATIMENTS}
@@ -84,6 +84,14 @@ export const TUILE_FRAG = /* glsl */`
     }
     // normale du relief : différences finies avancées (3 lectures de la texture de hauteurs)
     vec3 N = up; float eau = 0.0, profondeur = 0.0, sombreRel = 1.0;
+    // photo aérienne régionale : hors couverture, le serveur remplit de BLANC PUR (IGN au large, tuiles côtières des niveaux 13-14 :
+    // jusqu'à 86 % de blanc). Ce blanc, éclairé (× 2,2) puis passé au halo, faisait les FLASHS du zoom. En mer (ou tant que le relief
+    // n'est pas connu), un pixel blanc pur de la photo est remplacé par l'image mondiale ; la neige (sur terre, altitude > 0) est gardée.
+    if (uRegional > 0.5) {
+      float blanc = smoothstep(0.55, 0.85, min(img.r, min(img.g, img.b)));   // blanc du remplissage JPEG (250–255) et son liseré adouci
+      float mer = uRelOk > 0.5 ? 1.0 - smoothstep(0.5, 2.0, texture2D(uRel, uRelR.xy + vUv * uRelR.z).r) : 1.0;   // mer : relief ≤ 0,5 m (le niveau de la mer vaut 0 pile)
+      img = mix(img, vec3(0.006, 0.030, 0.062), blanc * mer);                  // bleu de mer profond, du ton des photos de mer (pas le bleu vif de l'image mondiale)
+    }
     if (uRelOk > 0.5) {
       vec2 ur = uRelR.xy + vUv * uRelR.z;
       float e = 1.0 / uRelN, texelKm = max(uTuile.w / uRelR.z / uRelN, 1e-4);

@@ -1,3 +1,21 @@
+# Graphique, carnets Kraken, Terre classique (2026-11-05/06) — avancement
+
+Reprendre ici. Branche `copilote-graphique`, fusionnée dans `main`. Rapport HORS dépôt : `agent-trading/RAPPORT-V2.md`.
+
+| Partie | État |
+|---|---|
+| 1. Graphique M15/H1 type TradingView, zones de volume en rectangles, tous les niveaux, cases à cocher mémorisées, prix Kraken, alertes actives par défaut, mesure « rejet net » (`info-v2`) | fait |
+| 2. Carnet Kraken par actif (WebSocket Futures depuis le navigateur, carnet complet, séquences, regroupement, spread, déséquilibre, âge, grosses transactions, contrôle 0,1 %) | fait (pas de checksum : l'API Futures n'en a pas) |
+| 3. Onglet « Graphique Kraken » (widget TradingView, symboles KRAKEN:*.PM, or compris) | fait |
+| 4a. Terre classique par défaut, Terre 2.0 = bouton expérimental (PC) | fait |
+| 4b. Flashs au zoom : cause = photos IGN hors couverture (blanc pur / aplat) + halo ; corrigé, test `tests-navigateur/terre-flash-test.mjs` | fait ; reste un « trou » sombre d'une image, parfois (non corrigé) |
+| 4c. PC, tablette, téléphone, captures | fait (émulation Chrome) |
+
+- Moteur (hors dépôt) : `moteur/copilote/info/regles-info-v2.js`, `retro-info-v2.mjs` (pertinence-v2.json), `index.js` ; tests `moteur/tests/info-v2-test.mjs`, Chrome `moteur/tests/ecran-v2.mjs`. Moteur redémarré (info-v2).
+- Dépôt : `agent-trading/front/{niveaux-graphique,etiquettes-calcul,carnet-kraken,graphique-kraken}.js`, `carnet.js`, `graphique.js`, `vue.js` ; Terre : `galaxie/galaxie.js`, `planetes/terre/pc/{index,interface-terre,tuiles,shaders-terre,worker-tuiles,globe,style-vecteur}.js`, `terre-v2/voix.js` ; tests `tests-navigateur/terre-flash-test.mjs`, `terre-classique-defaut-test.mjs`.
+
+---
+
 # Copilote d'INFORMATION (2026-11-05, soir) — avancement
 
 Reprendre ici. Branche `copilote-info`, fusionnée dans `main`. Rapport HORS dépôt : `agent-trading/RAPPORT-INFO.md`. Changement de cap : plus aucune alerte « plan de position » ni ACHAT/VENTE ; constats de marché seulement (mode observation, Worker principal `rayle` intact).

@@ -160,14 +160,14 @@ export async function demarrer() {
   const ui = creerInterface();
   /* Planètes dont le module prend le relais à l'arrivée (manifeste modules.pc.entree) : un clic suffit pour y aller. Seule la Terre en a un pour l'instant. */
   const AVEC_MODULE = new Set(PLANETES.filter(p => (p.id === 'terre' || p.id === 'mars' || p.id === 'saturne' || p.id === 'neptune' || p.id === 'jupiter') && p.etat === 'active' && p.modules && p.modules.pc && p.modules.pc.entree).map(p => p.id));
-  /* Module d'une planète : celui du PC, sauf la Terre sur tablette et téléphone (carte plate légère, manifeste modules.tablette / telephone) ; réglage rayle_terre_vue : 'auto' | 'leger' | '3d' | 'classique' (PC : sans réglage = Terre 2.0). */
+  /* Module d'une planète : celui du PC, sauf la Terre sur tablette et téléphone (carte plate légère, manifeste modules.tablette / telephone) ; réglage rayle_terre_vue : 'auto' | 'leger' | '3d' | 'v2' (PC : sans réglage = Terre CLASSIQUE ; Terre 2.0 = option expérimentale, PC seulement, bouton « Terre 2.0 (expérimental) »). */
   const cheminModule = p => {
     if (p.id === 'terre' && p.modules) {
       let pref = 'auto'; try { pref = localStorage.getItem('rayle_terre_vue') || 'auto'; } catch (e) { /* stockage refusé : automatique */ }
       const a = appareil(), leger = pref === 'leger' || (pref !== '3d' && a !== 'pc'), m = leger && (p.modules[a === 'pc' ? 'tablette' : a] || p.modules.tablette);
       if (m && m.entree) return m.entree;
-      let visite = null; try { visite = sessionStorage.getItem('rayle_terre_visite'); sessionStorage.removeItem('rayle_terre_visite'); } catch (e) { /* */ }   // une visite « classique » demandée par les outils d'actualités de Raylé
-      if (a === 'pc' && pref !== 'classique' && visite !== 'classique' && !leger) return 'terre-v2/index.js';   // Terre 2.0 (CesiumJS, à la demande, PC seulement) ; repli : réglage 'classique' ou bouton « Terre classique »
+      let visite = null; try { visite = sessionStorage.getItem('rayle_terre_visite'); sessionStorage.removeItem('rayle_terre_visite'); } catch (e) { /* */ }   // visite « v2 » demandée par le bouton ou la voix ; « classique » par les outils d'actualités
+      if (a === 'pc' && !leger && visite !== 'classique' && (pref === 'v2' || visite === 'v2')) return 'terre-v2/index.js';   // Terre 2.0 (CesiumJS) : SEULEMENT sur demande, PC seulement
     } else if (p.modules && appareil() !== 'pc' && p.modules[appareil()] && p.modules[appareil()].entree) return p.modules[appareil()].entree;   // autre planète avec un module tablette / téléphone (Jupiter : terminal 2D)
     return p.modules.pc.entree;
   };
@@ -219,6 +219,7 @@ export async function demarrer() {
     const dt = Math.min(horloge.getDelta(), 0.1); t += dt;
     const rp = composer.passes[0], sc = surcharge ? surcharge.scene : scene, cm = surcharge ? surcharge.camera : camera;
     if (rp.scene !== sc) { rp.scene = sc; rp.camera = cm; }
+    if (passeBloom) passeBloom.enabled = !(surcharge && surcharge.sansHalo);   // une planète peut refuser le halo (la Terre : flashs au zoom)
     if (surcharge) {                                         // une planète en orbite (la Terre) dessine sa propre scène : la galaxie est en pause
       if (params.animerDecor) ciel.maj(dt);
       surcharge.maj(dt, t);

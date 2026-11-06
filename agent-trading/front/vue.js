@@ -10,6 +10,8 @@ import { fmtPrix, heureParis, fmtDuree, fmtNombre, fmtUSD } from '../commun/form
 import { creerConnexion } from './connexion.js';
 import { creerGraphique } from './graphique.js';
 import { creerCarnet } from './carnet.js';
+import { COUCHES_DEFAUT, NOMS_COUCHES } from './niveaux-graphique.js';
+import { creerGraphiqueKraken } from './graphique-kraken.js';
 import { htmlPositions, htmlRejeuCopilote, htmlHistorique, csvHistorique, htmlPortefeuille, htmlJournal, htmlBacktest7j, animerCapital, dessinerCourbe, brancherDefinitions, esc, info, htmlBacktestGraphe, tradesBacktestGraphe, htmlPlanLecons } from './panneaux.js';
 import { montrerCarte } from './carte-alerte.js';
 import { creerCopiloteVisuel, HTML_HAUT, HTML_BAS, HTML_ALERTE } from './copilote-visuel.js';
@@ -49,7 +51,7 @@ export function monterVue(el, { mode = 'auto', connexion = null } = {}) {
             <label class="at-fs-seul at-fs-actif"><span class="at-sr">Actif</span><select data-choix-actif>${ACTIFS.map(a => `<option value="${a.id}">${a.id}</option>`).join('')}</select></label>
             <span class="at-fs-seul at-fs-prix" data-fs-prix>—</span>
             <button type="button" class="at-btn" data-passees aria-pressed="false" title="Montrer les positions passées">Passées</button>
-            <button type="button" class="at-btn" data-profil aria-pressed="false" title="Profil de volume (VAH / POC / VAL) et annotations : masqués par défaut">Profil</button>
+            <button type="button" class="at-btn" data-profil aria-pressed="false" hidden title="Profil de volume (VAH / POC / VAL) et annotations : masqués par défaut">Profil</button>
             <span class="at-btg-outil"><button type="button" class="at-btn" data-btg-ouvrir aria-pressed="false" title="Rejouer les positions de la stratégie sur le graphique (ne touche jamais le portefeuille)">Backtest</button><select data-btg-jours aria-label="Durée du backtest"><option value="5">5 j</option><option value="7" selected>7 j</option><option value="14">14 j</option></select><button type="button" class="at-btn" data-btg-effacer hidden>Effacer le backtest</button></span>
             <button type="button" class="at-btn" data-recadrer title="Revenir aux 120 dernières bougies">120 bougies</button>
             <button type="button" class="at-btn" data-tout-voir title="Voir tout l’historique chargé">Tout voir</button>
@@ -62,7 +64,10 @@ export function monterVue(el, { mode = 'auto', connexion = null } = {}) {
           <div class="at-rejoue-bandeau" data-rejoue hidden></div>
           <div class="at-cop-notif" data-cop-notif role="status" aria-live="polite" hidden></div>
           ${HTML_HAUT}
+          <div class="at-vue-g" role="tablist" aria-label="Graphique"><button type="button" role="tab" data-vue-g="copilote" aria-selected="true">Graphique copilote</button><button type="button" role="tab" data-vue-g="kraken" aria-selected="false" title="Widget TradingView, symboles Kraken (sans les zones du copilote)">Graphique Kraken</button>
+            <span class="at-couches" data-couches>${Object.entries(NOMS_COUCHES).map(([k, n]) => `<label><input type="checkbox" data-couche="${k}"> ${n}</label>`).join('')}</span></div>
           <div class="at-graphique"></div>
+          <div class="at-tv" data-tv hidden></div>
           ${HTML_ALERTE}
           <div class="at-cop-bilan" data-cop-bilan hidden></div>
           <div class="at-cop-reglages" data-cop-panneau hidden><b>Réglages du copilote</b><label><input type="checkbox" data-cop-telegram disabled> Alertes Telegram des flèches</label><p class="at-doux">Désactivé. Même activé plus tard, rien ne partirait tant que l’agent est en OBSERVATION. Les flèches sont signalées ici seulement, discrètement.</p></div>
@@ -94,6 +99,15 @@ export function monterVue(el, { mode = 'auto', connexion = null } = {}) {
 
   const graph = creerGraphique($('.at-graphique'), { racine: R, surSelection: id => { etat.selection = id; rendrePositions(true); } });
   const carnet = creerCarnet($('.at-carnet'), { racine: R });
+  // couches affichées (mémoire sur l'appareil) et onglet du graphique
+  let couches = { ...COUCHES_DEFAUT }; try { couches = { ...couches, ...JSON.parse(lire('rayle_at_couches', '{}')) }; } catch (e) { /* défauts */ }
+  etat.profil = couches.profil;
+  const appliquerCouches = () => { for (const c of R.querySelectorAll('[data-couche]')) c.checked = !!couches[c.dataset.couche]; graph.couches(couches); };
+  R.querySelector('[data-couches]').addEventListener('change', e => { const k = e.target.dataset.couche; if (!k) return; couches[k] = e.target.checked; ecrire('rayle_at_couches', JSON.stringify(couches)); if (k === 'profil') { etat.profil = couches.profil; ecrire('rayle_at_profil', etat.profil ? '1' : '0'); } appliquerCouches(); surcouches(); });
+  graph.pret.then(appliquerCouches);
+  const tvK = creerGraphiqueKraken($('[data-tv]')); etat.vueG = 'copilote';
+  const montrerVueG = v => { etat.vueG = v; for (const b of R.querySelectorAll('[data-vue-g]')) b.setAttribute('aria-selected', String(b.dataset.vueG === v)); $('.at-graphique').hidden = v !== 'copilote'; $('[data-tv]').hidden = v !== 'kraken'; if (v === 'kraken') tvK.afficher(etat.actif, etat.unite); };
+  R.querySelector('.at-vue-g').addEventListener('click', e => { const b = e.target.closest('[data-vue-g]'); if (b) montrerVueG(b.dataset.vueG); });
   const cv = creerCopiloteVisuel(R, { cnx, graph, actif: () => etat.actif, lire, ecrire });
   let derniers = {}, vus = new Set(JSON.parse(lire('rayle_at_vus', '[]')));
 
@@ -178,7 +192,7 @@ export function monterVue(el, { mode = 'auto', connexion = null } = {}) {
   }
   function majRejoue() {
     const z = $('[data-rejoue]'), s = etat.rejoue; z.hidden = !s;
-    z.innerHTML = s ? `REJOUÉ, pas réel · ${esc(s.actif)} ${s.sens === 'achat' ? '▲ ACHAT' : '▼ VENTE'}${s.categorie === 'grande' ? ' GRANDE' : ''} du ${heureParis(s.tSignal)} <button type="button" class="at-btn" data-fin-rejoue>Masquer</button>` : '';
+    z.innerHTML = s ? `REJOUÉ, pas réel · ${esc(s.actif)} ${s.sens === 'achat' ? '▲ haussier' : '▼ baissier'}${s.categorie === 'grande' ? ' GRANDE' : ''} du ${heureParis(s.tSignal)} <button type="button" class="at-btn" data-fin-rejoue>Masquer</button>` : '';
   }
 
   function majBoutons() {
@@ -208,7 +222,8 @@ export function monterVue(el, { mode = 'auto', connexion = null } = {}) {
     if (etat.profil && x.profils && x.profils.jour && x.profils.jour.niveaux) profils.push(Object.assign({ etiquette: 'jour', pas: x.pas }, x.profils.jour, { fin: Date.now() }));
     if (etat.profil) for (const a of (x.annotations && x.annotations.liste) || []) if (a.type === 'profil') profils.push(Object.assign({ etiquette: 'agent' }, a));
     copilote(x.copilote);
-    graph.surcouches({ positions, passees, profils, annotations: etat.profil ? (x.annotations && x.annotations.liste || []).filter(a => a.type !== 'profil') : [], prix: x.prix, tPrix: x.tPrix, live: cnx.fraicheur().live, copilote: null, visuel: adapterNiveaux(x.info), info: x.info || null });
+    graph.surcouches({ positions, passees, profils, annotations: etat.profil ? (x.annotations && x.annotations.liste || []).filter(a => a.type !== 'profil') : [], prix: x.prix, tPrix: x.tPrix, live: cnx.fraicheur().live, copilote: null, visuel: x.info && x.info.v2 ? null : adapterNiveaux(x.info), info: x.info || null });
+    if (etat.vueG === 'kraken') tvK.afficher(etat.actif, etat.unite);
     cv.maj();
   }
   /* ─── copilote : bilan des flèches (près du graphique), message « marché instable », notification discrète d'une nouvelle flèche ─── */

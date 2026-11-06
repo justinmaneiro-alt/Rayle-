@@ -20,7 +20,7 @@ export function montrerCarte(racine, tr, { surFermer } = {}) {
   const d = document.createElement('div'); d.className = 'at-carte ' + (achat ? 'at-carte-achat' : 'at-carte-vente'); d.setAttribute('role', 'dialog'); d.setAttribute('aria-label', 'Nouvelle position');
   d.innerHTML = `<div class="at-carte-boite">
       <p class="at-carte-sim">${grande ? 'NOUVELLE GRANDE POSITION' : 'NOUVELLE POSITION'} · simulation · ${esc(tr.actif)} M15</p>
-      <h2 class="at-carte-sens">${achat ? '▲ ACHAT' : '▼ VENTE'} ${esc(tr.actif)}${grande ? ' <span class="at-badge at-badge-grande">GRANDE</span>' : ' <span class="at-badge">normale</span>'}</h2>
+      <h2 class="at-carte-sens">${achat ? '▲ haussier (simulé)' : '▼ baissier (simulé)'} ${esc(tr.actif)}${grande ? ' <span class="at-badge at-badge-grande">GRANDE</span>' : ' <span class="at-badge">normale</span>'}</h2>
       <p class="at-carte-risque">Risque ${tr.risqueUSD != null ? fmtUSD(tr.risqueUSD, 2) : '—'} · ${fmtNombre(tr.risquePct != null ? tr.risquePct : 0.5, 1)} % du capital réalisé (même risque pour toutes les positions)</p>
       <div class="at-carte-qte"><small>Quantité</small><b>${fmtQte(tr.actif, tr.quantite)} <span>${esc(a.unite)}</span></b><button type="button" class="at-btn" data-copie="${esc(copieQte(tr.actif, tr.quantite))}">Copier</button><em>≈ ${fmtNombre(tr.entree * tr.quantite, 0)} $</em></div>
       ${champ('Entrée', fmtPrix(tr.actif, tr.entree), copiePrix(tr.actif, tr.entree))}

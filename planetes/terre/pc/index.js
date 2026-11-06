@@ -72,7 +72,8 @@ async function construire(G) {
     racine, reglages,
     surReglage: p => changerReglage(p),
     actions: {
-      orbite: () => api.orbite(), sortir: () => G.nav.fermerSas(), chercher: t => chercher(t), aller: r => api.aller(r),
+      orbite: () => api.orbite(), sortir: () => G.nav.fermerSas(),
+      'terre-v2': async () => { await api.sortir(); const m = await import('../../../terre-v2/index.js'); m.entrer(G, { rapide: true }); },   // Terre 2.0 : option expérimentale (PC), pour cette visite chercher: t => chercher(t), aller: r => api.aller(r),
       'meteo-ici': () => api.meteoIci(), monde: () => api.afficherFil({ portee: 'monde', panneau: true }), pays: () => { if (window.ActusPays) window.ActusPays.selecteur(); }, france: () => api.afficherFil({ portee: 'france', panneau: true }),
       'meteo-lieu': r => api.meteo(r.lat, r.lon, r.nom), 'actus-pays': (code, nom) => api.actualites(code, nom),
       radar: () => changerReglage({ radar: !reglages.radar }), evenements: () => { if (balisesEvt.actif()) api.masquerEvenements(); else api.afficherEvenements({ vol: false }); }, sources: () => { if (window.DirectPage) window.DirectPage.ouvrirHub('evenements'); }, 'radar-lecture': () => radarLecture(), 'radar-rang': n => { radarArret(); radarRang = n; radarMaj(); }
@@ -310,7 +311,7 @@ async function construire(G) {
       G.nav.selectionner(null);
       noms.vider(); globe.tuiles.forcer(); calculer(); chargerPays(); radarMaj();
       globe.scene.add(G.ciel.groupe);
-      G.surcharger({ scene: globe.scene, camera: globe.camera, maj });
+      G.surcharger({ scene: globe.scene, camera: globe.camera, maj, sansHalo: true });   // pas de halo (bloom) sur la Terre : il transformait toute tuile claire qui apparaît en éclair
       G.nav.deleguer(handlers);
       racine.classList.add('terre-orbite'); ui.montrer(true);
       window.dispatchEvent(new CustomEvent('terre:entree', {}));

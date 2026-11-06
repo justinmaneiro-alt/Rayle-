@@ -3,7 +3,7 @@
 import { PAR_ID } from './actifs.js';
 import { fmtPrix, fmtQte, fmtNombre, fmtUSD, fmtR, heureParis } from './format.js';
 
-export const fleche = sens => (sens === 'achat' ? '▲ ACHAT' : '▼ VENTE');
+export const fleche = sens => (sens === 'achat' ? '▲ HAUSSIER (simulé)' : '▼ BAISSIER (simulé)');
 /* catégorie : « GRANDE » ou « normale » (les anciens trades sans catégorie sont normaux) */
 export const categorie = tr => (tr && tr.categorie === 'grande' ? 'grande' : 'normale');
 export const badgeCategorie = tr => (categorie(tr) === 'grande' ? 'GRANDE' : 'normale');

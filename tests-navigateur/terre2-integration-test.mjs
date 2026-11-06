@@ -1,4 +1,4 @@
-/* Terre 2.0 dans la VRAIE application (index.html, PC) : « va à Paris » ouvre la galaxie puis la Terre 2.0 ; « retour à la Terre classique » ; repli.
+/* Terre 2.0 dans la VRAIE application (index.html, PC) : la Terre classique est la Terre par défaut ; « ouvre la Terre 2.0 » ouvre l'option expérimentale ; « retour à la Terre classique » ; repli.
    Téléphone (412 px) : la Terre 2.0 n'est jamais chargée. Prérequis : node serveur.mjs 8011. Usage : node --import ./tests-navigateur/theme-jarvis-hook.mjs tests-navigateur/terre2-integration-test.mjs */
 import { createRequire } from 'node:module';
 import fs from 'node:fs';
@@ -18,8 +18,13 @@ await p.evaluateOnNewDocument(() => { try { localStorage.setItem('rayle_theme', 
 await p.goto(`http://127.0.0.1:${PORT}/index.html`, { waitUntil: 'load' });
 await p.waitForFunction(() => window.RayleBus && window.RayleBus.demander, { timeout: 60000 });
 await pause(3000);
+// Terre CLASSIQUE par défaut : « va à Paris » ne doit plus ouvrir la Terre 2.0 ; seule la demande explicite l'ouvre (option expérimentale)
+const rep0 = await p.evaluate(async () => { const V = await import('/terre-v2/voix.js'); return V.traiter('va à Paris'); });
+v(rep0 === null && !(await p.evaluate(() => !!(window.Terre2 && window.Terre2.etat().actif))), 'PC : « va à Paris » laissé à la Terre classique → ' + rep0);
+const rep1 = await p.evaluate(async () => { const V = await import('/terre-v2/voix.js'); return V.traiter('ouvre la Terre 2.0'); });
+v(/Terre 2/.test(rep1 || ''), 'PC : « ouvre la Terre 2.0 » → ' + rep1);
 const rep = await p.evaluate(async () => { const V = await import('/terre-v2/voix.js'); return V.traiter('va à Paris'); });
-v(/Paris/.test(rep), 'PC : « va à Paris » → ' + rep);
+v(/Paris/.test(rep), 'PC : dans la Terre 2.0, « va à Paris » → ' + rep);
 const e = await p.evaluate(() => window.Terre2 && window.Terre2.etat());
 v(e && e.actif && e.globe, 'PC : Terre 2.0 ouverte depuis la galaxie');
 await pause(7000); await p.screenshot({ path: path.join(SORTIE, 'integration-paris.png') });

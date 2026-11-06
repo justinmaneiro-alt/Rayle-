@@ -7,6 +7,7 @@ import { etendueTrait } from '../commun/traits.js';
 import { fmtPrix, fmtQte, fmtUSD } from '../commun/format.js';
 import { PAR_ID, UNITES } from '../commun/actifs.js';
 import { dessinerMarques } from './copilote-info.js';
+import { disposer, dessinerNiveaux, COUCHES_DEFAUT } from './niveaux-graphique.js';
 
 const URL_LIB = new URL('./vendor/lightweight-charts.js', import.meta.url).href;
 let chargement = null;
@@ -53,7 +54,7 @@ export function espacer(etiquettes, ecart = 14, hMax = Infinity) {
   if (debord > 0) { l[l.length - 1].y -= debord; for (let i = l.length - 2; i >= 0; i--) if (l[i].y > l[i + 1].y - ecart) l[i].y = l[i + 1].y - ecart; }
   return l;
 }
-export const BOUGIES_DEFAUT = 120, MARGE_DROITE = 12;
+export const BOUGIES_DEFAUT = 120, MARGE_DROITE = 8;   // marge droite ≈ 8 bougies (comme TradingView / Kraken Pro)
 export const TV = { haut: '#26a69a', bas: '#ef5350' };   // couleurs de bougies « type TradingView »
 
 /* bougie de volume net (bougie compacte publiée par le moteur → bougie du 3e panneau) : ouverture = CVD avant la bougie, clôture = CVD après ;
@@ -76,7 +77,7 @@ export function xDe(ts, l) {
 }
 
 class Primitive {
-  constructor(dessiner, axe) { this._d = dessiner; this._axe = axe; this._vues = [{ zOrder: () => 'top', renderer: () => ({ draw: cible => cible.useMediaCoordinateSpace(s => { try { this._d(s.context, s.mediaSize, this); } catch (e) { if (!this._signale) { this._signale = true; console.error('primitive graphique :', e); } } }) }) }]; }
+  constructor(dessiner, axe, z = 'top') { this._d = dessiner; this._axe = axe; this._vues = [{ zOrder: () => z, renderer: () => ({ draw: cible => cible.useMediaCoordinateSpace(s => { try { this._d(s.context, s.mediaSize, this); } catch (e) { if (!this._signale) { this._signale = true; console.error('primitive graphique :', e); } } }) }) }]; }
   attached(p) { this.chart = p.chart; this.series = p.series; this.maj = p.requestUpdate; }
   detached() { this.chart = this.series = null; }
   updateAllViews() {}
@@ -85,7 +86,7 @@ class Primitive {
 }
 
 export function creerGraphique(el, { racine, surSelection }) {
-  const etat = { actif: null, unite: 'M15', donnees: [], positions: [], passees: [], rejoue: null, montrerPassees: false, selection: null, profils: [], annotations: [], prix: null, tPrix: null, derniereBougie: null, live: false, backtest: null, premierConnu: null, copilote: null, visuel: null };
+  const etat = { actif: null, unite: 'M15', donnees: [], positions: [], passees: [], rejoue: null, montrerPassees: false, selection: null, profils: [], annotations: [], prix: null, tPrix: null, derniereBougie: null, live: false, backtest: null, premierConnu: null, copilote: null, visuel: null, couches: { ...COUCHES_DEFAUT } };
   let LW = null, chart = null, bougies = null, deltaS = null, cvdS = null, volS = null, cvdB = null, zones = { traits: [] }, resize = null;
   const C = () => ({ haussier: couleur(racine, '--at-haussier'), baissier: couleur(racine, '--at-baissier'), achat: couleur(racine, '--at-achat'), vente: couleur(racine, '--at-vente'), texte: couleur(racine, '--at-texte'), doux: couleur(racine, '--at-doux'), gain: couleur(racine, '--at-gain'), perte: couleur(racine, '--at-perte'), accent: couleur(racine, '--at-accent'), sable: couleur(racine, '--at-sable'), mono: couleur(racine, '--at-mono') || 'monospace' });
 
@@ -121,7 +122,7 @@ export function creerGraphique(el, { racine, surSelection }) {
         if (yE != null) {
           const pnl = tr.pnlAffiche;
           const cat = tr.categorie === 'grande' ? ' GRANDE' : '';
-          etiquettes.push({ x: x1 + 4, y: yE - H / 2, w: 0, badge: true, texte: `${rej ? 'REJOUÉ · ' : ''}${tr.sens === 'achat' ? '▲ ACHAT' : '▼ VENTE'}${cat} ${fmtQte(tr.actif, tr.quantite)} ${PAR_ID[tr.actif] ? PAR_ID[tr.actif].unite : ''}`, pnl, statut: rej ? 'rejoue' : tr.statut, col, a, yTrait: yE });
+          etiquettes.push({ x: x1 + 4, y: yE - H / 2, w: 0, badge: true, texte: `${rej ? 'REJOUÉ · ' : ''}${tr.sens === 'achat' ? '▲ haussier' : '▼ baissier'}${cat} ${fmtQte(tr.actif, tr.quantite)} ${PAR_ID[tr.actif] ? PAR_ID[tr.actif].unite : ''}`, pnl, statut: rej ? 'rejoue' : tr.statut, col, a, yTrait: yE });
         }
       }
     }
@@ -334,6 +335,18 @@ export function creerGraphique(el, { racine, surSelection }) {
     ctx.restore();
   });
 
+  /* ─── info-v2 : zones de volume (rectangles) + tous les niveaux ; fond SOUS les bougies, étiquettes au-dessus ─── */
+  const niveauxDispo = (taille, P) => {
+    const i = etat.info; if (!P.series || !i || !i.v2 || i.insuffisant || !etat.donnees.length) return null;
+    const ts = P.chart.timeScale(), U = UNITES[etat.unite];
+    return disposer({ tous: i.tous || [], zones: i.zones || [], couches: etat.couches, yDe: p => P.series.priceToCoordinate(p), xDe: t => xDe(ts, indiceLogique(etat.donnees, t, U)), largeur: taille.width, hauteur: taille.height, fmt: p => fmtPrix(etat.actif, p) });
+  };
+  const primNiveauxFond = new Primitive((ctx, taille, P) => {
+    const d = niveauxDispo(taille, P); etat._niveauxDessin = d ? { zones: d.rects.length, niveaux: d.lignes.length, haut: d.fleches.haut.length, bas: d.fleches.bas.length, etiquettes: d.etiquettes.map(e => ({ y: Math.round(e.y), texte: e.texte })) } : null; if (!d) return;
+    dessinerNiveaux(ctx, taille, { ...d, etiquettes: [], fleches: { haut: [], bas: [] } }, { mono: C().mono, alpha });
+  }, null, 'bottom');
+  const primNiveauxTexte = new Primitive((ctx, taille, P) => { const d = niveauxDispo(taille, P); if (d) dessinerNiveaux(ctx, taille, { ...d, rects: [], lignes: [] }, { mono: C().mono, alpha }); });
+
   /* ─── copilote d'information : marques d'événements (petit symbole ; survol = détail) ─── */
   const primMarques = new Primitive((ctx, taille, P) => {
     if (!P.series || !etat.info || !etat.donnees.length) { etat._marquesPos = []; return; }
@@ -356,12 +369,12 @@ export function creerGraphique(el, { racine, surSelection }) {
     const c = C();
     chart = LW.createChart(el, {
       autoSize: true, layout: { attributionLogo: false, background: { type: 'solid', color: 'transparent' }, textColor: c.doux, fontFamily: c.mono, fontSize: 11, panes: { separatorColor: 'rgba(143,208,227,.12)' } },
-      grid: { vertLines: { color: 'rgba(42,46,57,.55)' }, horzLines: { color: 'rgba(42,46,57,.55)' } },
-      crosshair: { mode: LW.CrosshairMode.Normal, vertLine: { color: 'rgba(149,152,161,.6)', style: 3, labelBackgroundColor: '#2a2e39' }, horzLine: { color: 'rgba(149,152,161,.6)', style: 3, labelBackgroundColor: '#2a2e39' } },
-      rightPriceScale: { borderColor: 'rgba(143,208,227,.15)' },
-      timeScale: { borderColor: 'rgba(143,208,227,.15)', rightOffset: MARGE_DROITE, barSpacing: 8, timeVisible: true, secondsVisible: false, tickMarkFormatter: (t, type) => (type <= 2 ? FMT_J.format(t * 1000) : FMT_H.format(t * 1000)) },
+      grid: { vertLines: { color: 'rgba(120,130,150,.07)' }, horzLines: { color: 'rgba(120,130,150,.07)' } },   // grille très discrète
+      crosshair: { mode: LW.CrosshairMode.Normal, vertLine: { color: 'rgba(149,152,161,.55)', width: 1, style: 2, labelBackgroundColor: '#363a45' }, horzLine: { color: 'rgba(149,152,161,.55)', width: 1, style: 2, labelBackgroundColor: '#363a45' } },
+      rightPriceScale: { borderColor: 'rgba(120,130,150,.18)', scaleMargins: { top: 0.08, bottom: 0.08 }, autoScale: true },
+      timeScale: { borderColor: 'rgba(120,130,150,.18)', rightOffset: MARGE_DROITE, barSpacing: 9, minBarSpacing: 2, shiftVisibleRangeOnNewBar: true, timeVisible: true, secondsVisible: false, tickMarkFormatter: (t, type) => (type <= 2 ? FMT_J.format(t * 1000) : FMT_H.format(t * 1000)) },
       localization: { locale: 'fr-FR', timeFormatter: t => FMT_JH.format(t * 1000), priceFormatter: p => fmtPrix(etat.actif, p) },
-      handleScroll: { mouseWheel: true, pressedMouseMove: true, horzTouchDrag: true, vertTouchDrag: true }, handleScale: { axisPressedMouseMove: true, mouseWheel: true, pinch: true }
+      handleScroll: { mouseWheel: false, pressedMouseMove: true, horzTouchDrag: true, vertTouchDrag: true }, handleScale: { axisPressedMouseMove: { time: true, price: true }, axisDoubleClickReset: true, mouseWheel: true, pinch: true }, kineticScroll: { mouse: false, touch: true }
     });
     bougies = chart.addSeries(LW.CandlestickSeries, { upColor: TV.haut, downColor: TV.bas, wickUpColor: TV.haut, wickDownColor: TV.bas, borderVisible: false, lastValueVisible: false, priceLineVisible: true, priceLineStyle: 2 });
     // volume TOTAL (réel, Kraken) en gris pâle ; volume net (delta) par-dessus quand il est connu (enregistré)
@@ -372,7 +385,7 @@ export function creerGraphique(el, { racine, surSelection }) {
     cvdB = chart.addSeries(LW.CandlestickSeries, { upColor: alpha(c.gain, .85), downColor: alpha(c.perte, .85), wickUpColor: alpha(c.gain, .85), wickDownColor: alpha(c.perte, .85), borderVisible: false, lastValueVisible: false, priceLineVisible: false, priceFormat: { type: 'volume' } }, 2);
     try { chart.panes()[1].setHeight(Math.max(50, Math.round(el.clientHeight * 0.15))); chart.panes()[2].setHeight(Math.max(56, Math.round(el.clientHeight * 0.17))); } catch (e) { /* ancienne version */ }
     cvdB.attachPrimitive(primCvdIncomplet);
-    bougies.attachPrimitive(primCopilote); bougies.attachPrimitive(primVisuel); bougies.attachPrimitive(primMarques); bougies.attachPrimitive(primProfils); bougies.attachPrimitive(primPositions); bougies.attachPrimitive(primBacktest); bougies.attachPrimitive(primPrix);
+    bougies.attachPrimitive(primNiveauxFond); bougies.attachPrimitive(primNiveauxTexte); bougies.attachPrimitive(primCopilote); bougies.attachPrimitive(primVisuel); bougies.attachPrimitive(primMarques); bougies.attachPrimitive(primProfils); bougies.attachPrimitive(primPositions); bougies.attachPrimitive(primBacktest); bougies.attachPrimitive(primPrix);
     chart.subscribeCrosshairMove(survolMarque);
     chart.subscribeClick(p => {
       if (!p.point) return;
@@ -446,10 +459,12 @@ export function creerGraphique(el, { racine, surSelection }) {
     },
     surcouches({ positions, passees, profils, annotations, prix, tPrix, live, copilote, visuel, info = null }) {
       etat.copilote = copilote || null; primCopilote.maj && primCopilote.maj();
-      etat.visuel = visuel || null; primVisuel.maj && primVisuel.maj(); etat.info = info; primMarques.maj && primMarques.maj();
+      etat.visuel = visuel || null; primVisuel.maj && primVisuel.maj(); etat.info = info; primMarques.maj && primMarques.maj(); primNiveauxFond.maj && primNiveauxFond.maj(); primNiveauxTexte.maj && primNiveauxTexte.maj();
       etat.positions = positions || []; etat.passees = passees || []; etat.profils = profils || []; etat.annotations = annotations || []; etat.prix = prix; etat.tPrix = tPrix; etat.live = live;
       primPositions.maj && primPositions.maj(); primProfils.maj && primProfils.maj(); primPrix.maj && primPrix.maj();
     },
+    /* couches affichées (cases à cocher) : { zones, sr, sessions, ronds, profil } */
+    couches(c) { etat.couches = { ...etat.couches, ...c }; primNiveauxFond.maj && primNiveauxFond.maj(); primNiveauxTexte.maj && primNiveauxTexte.maj(); },
     montrerPassees(v) { etat.montrerPassees = v; primPositions.maj && primPositions.maj(); },
     selectionner, recadrer() { if (chart) chart.timeScale().setVisibleLogicalRange({ from: Math.max(0, etat.donnees.length - BOUGIES_DEFAUT), to: etat.donnees.length + MARGE_DROITE }); },
     toutVoir() { if (chart) chart.timeScale().fitContent(); },

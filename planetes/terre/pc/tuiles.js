@@ -70,7 +70,7 @@ export function creerTuiles({ scene, chargeur, partages, lire, modeleVecteur, re
   }
   function demandeVecteur(t, prio) {
     const modele = modeleVecteur(); if (!modele) { t.vec = AUCUN; return; }
-    const v = src.vecteur(modele, t.z, t.x, t.y), avecB = t.z >= 15 && lire().batiments, ortho = !!(t.imgCands && t.imgCands[0].regional);
+    const v = src.vecteur(modele, t.z, t.x, t.y), avecB = t.z >= 15 && lire().batiments, ortho = !t.pasRegional && !!(t.imgCands && t.imgCands[0].regional);
     t.vecRect = v.rect; t.uniforms.uOrtho.value = ortho ? 1 : 0;
     const taille = t.z >= 13 ? 512 : t.z >= 10 ? 384 : 256;
     return acquerir(t, 'vec', 'vec|' + v.url + '|' + (t.z > 14 ? t.cle : '') + '|' + taille + '|' + (avecB ? 1 : 0) + (ortho ? 'o' : ''), r => {
@@ -96,7 +96,7 @@ export function creerTuiles({ scene, chargeur, partages, lire, modeleVecteur, re
       uVec: { value: vide4 }, uVecR: { value: new THREE.Vector3(0, 0, 1) }, uVecOk: { value: 0 },
       uRad: { value: vide4 }, uRadR: { value: new THREE.Vector3(0, 0, 1) }, uRadOk: { value: 0 },
       uTuile: { value: new THREE.Vector4(z, x, y, tuileLargeurKm(z, x, y)) },
-      uFondu: { value: 1 }, uSens: { value: 0 }, uOrtho: { value: 0 }, uImgZ: { value: 8 }
+      uFondu: { value: 1 }, uSens: { value: 0 }, uOrtho: { value: 0 }, uRegional: { value: 0 }, uImgZ: { value: 8 }
     };
     const mat = new THREE.ShaderMaterial({ vertexShader: TUILE_VERT, fragmentShader: TUILE_FRAG, uniforms, side: THREE.DoubleSide });
     const mesh = new THREE.Mesh(geo, mat); mesh.frustumCulled = false; mesh.visible = false; mesh.matrixAutoUpdate = false;
@@ -137,7 +137,10 @@ export function creerTuiles({ scene, chargeur, partages, lire, modeleVecteur, re
   }
   /* Branche sur chaque tuile les ressources arrivées. */
   function brancher(t) {
-    if (t.img && t.img.etat === 1 && t.uniforms.uImgOk.value === 0) { const c = t.imgCands[t.img.valeur.utilise] || t.imgCands[t.imgCands.length - 1]; t.imgRect = c.rect; t.imgSource = c.source; t.uniforms.uImgZ.value = c.zSource; t.uniforms.uImg.value = t.img.valeur.tex; t.uniforms.uImgR.value.set(...c.rect); t.uniforms.uImgOk.value = 1; }
+    if (t.img && t.img.etat === 1 && t.uniforms.uImgOk.value === 0) { const c = t.imgCands[t.img.valeur.utilise] || t.imgCands[t.imgCands.length - 1]; t.imgRect = c.rect; t.imgSource = c.source; t.uniforms.uImgZ.value = c.zSource; t.uniforms.uImg.value = t.img.valeur.tex; t.uniforms.uImgR.value.set(...c.rect); t.uniforms.uImgOk.value = 1; t.uniforms.uRegional.value = c.regional ? 1 : 0;
+      // la photo régionale prévue a échoué (hors couverture : blanc pur au large) : le calque vectoriel avait été demandé SANS surfaces (eau non peinte)
+      // → la mer restait presque noire (Sentinel-2) ; on le redemande AVEC les surfaces
+      if (!c.regional && t.imgCands[0].regional && !t.pasRegional) { t.pasRegional = true; if (t.vec && t.vec !== AUCUN) { liberer(t.vec); t.vec = null; t.uniforms.uVecOk.value = 0; } } }
     if (t.rel && t.rel.etat === 1 && t.uniforms.uRelOk.value === 0) { const c = t.relCands[t.rel.valeur.utilise] || t.relCands[0]; t.relRect = c.rect; t.uniforms.uRel.value = t.rel.valeur.tex; t.uniforms.uRelR.value.set(...c.rect); t.uniforms.uRelN.value = t.rel.valeur.w; t.uniforms.uRelOk.value = 1; }
     if (t.vec && t.vec.etat === 1 && t.uniforms.uVecOk.value === 0) { t.uniforms.uVec.value = t.vec.valeur.tex; t.uniforms.uVecR.value.set(0, 0, 1); t.uniforms.uVecOk.value = 1; t.lieux = t.vec.valeur.lieux; }  /* le Worker a déjà découpé le sous-rectangle : la texture couvre exactement la tuile (l'appliquer deux fois agrandissait et décalait le plan au-delà du niveau 14) */
   }

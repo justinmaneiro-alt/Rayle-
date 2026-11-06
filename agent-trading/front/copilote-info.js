@@ -47,7 +47,7 @@ export function toast(R, actif, al) {
   let z = R.querySelector('[data-ci-toasts]'); if (!z) return;
   const d = document.createElement('div'); d.className = 'ci-toast'; d.setAttribute('role', 'status');
   d.innerHTML = `<b>${ENTETE}</b><span>${esc(al.texte)}</span><button type="button" aria-label="Fermer" data-ci-fermer>×</button>`;
-  z.appendChild(d); while (z.children.length > 3) z.firstChild.remove();
+  d.title = al.texte; z.appendChild(d); while (z.children.length > 2) z.firstChild.remove();
   setTimeout(() => d.remove(), 12000);
 }
 

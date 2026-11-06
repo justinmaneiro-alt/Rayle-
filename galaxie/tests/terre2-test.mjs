@@ -56,7 +56,10 @@ for (const t of ['va sur Mars', 'retour à la galaxie', 'quelle heure est-il', '
 globalThis.window = {};
 v(await traiter('montre les séismes', { ouvrir: async () => { throw new Error('ne doit pas ouvrir'); } }) === null, 'séismes hors Terre 2.0 → laissé aux sources en direct');
 const faux = { etat: () => ({ actif: true }), activerCouche: async () => ({ ok: false, cleManquante: true, erreur: 'Clé gratuite : aisstream.io …' }), chercher: async q => [{ court: 'Londres', lat: 51.5, lon: -0.12 }], aller: () => true, zoomerSur: () => true, vision: () => true, masquerCouches: () => true, classique: async () => true };
-const rep = await traiter('montre les bateaux', { ouvrir: async () => faux }); v(/clé gratuite/.test(rep) && /aisstream/.test(rep), 'couche sans clé : Raylé explique : ' + rep);
-v(/Londres/.test(await traiter('va à Londres', { ouvrir: async () => faux })), 'Raylé annonce ce qu’elle fait');
+// Terre CLASSIQUE par défaut : hors de la 2.0, « va à Londres » / « montre les bateaux » ne l'ouvrent plus ; seule « Terre 2.0 » l'ouvre
+v(await traiter('va à Londres', { ouvrir: async () => { throw new Error('ne doit pas ouvrir'); } }) === null, 'hors Terre 2.0, « va à Londres » reste à la Terre classique');
+v(/Terre 2/.test(await traiter('ouvre la Terre 2.0', { ouvrir: async () => faux })), 'demande explicite « Terre 2.0 » → ouverte');
+window.Terre2 = faux; const rep = await traiter('montre les bateaux'); v(/clé gratuite/.test(rep) && /aisstream/.test(rep), 'couche sans clé (dans la 2.0) : Raylé explique : ' + rep);
+v(/Londres/.test(await traiter('va à Londres')), 'Raylé annonce ce qu’elle fait (dans la 2.0)'); window.Terre2 = undefined;
 window.Terre2 = faux; v(/thermique/i.test(await traiter('mode thermique')), 'vision par la voix');
 console.log(`terre 2.0 : ${ok} ok, ${ko} échec(s)`); process.exit(ko ? 1 : 0);
