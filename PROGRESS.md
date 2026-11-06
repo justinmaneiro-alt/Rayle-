@@ -11,7 +11,7 @@ Reprendre ici. Branche `cassure-range`, fusionnée dans `main`. Rapport HORS dé
 | 6. Or non validé → seulement l'événement d'information « cassure de range détectée (avec ou sans volume) » (`CASSURE_RANGE`), aucune position | fait côté moteur ; **actif au prochain redémarrage du moteur** (redémarrage refusé à Claude) |
 | 7. Tests (`npm test` dans `agent-trading/`, `moteur/tests/cassure-test.mjs`), commit, push | fait |
 
-- Moteur (hors dépôt) : `agent-trading/moteur/copilote/cassure/` (`regles-cassure.js`, `series.js`, `etude-cassure.mjs`, `rapport-cassure.mjs`, `mesure-kraken.mjs`) ; branchement `moteur/copilote/info/{index,regles-info}.js`. Données et frais : `%LOCALAPPDATA%\Raylegent-trading\copilote\cassure\`.
+- Moteur (hors dépôt) : `agent-trading/moteur/copilote/cassure/` (`regles-cassure.js`, `series.js`, `etude-cassure.mjs`, `rapport-cassure.mjs`, `mesure-kraken.mjs`) ; branchement `moteur/copilote/info/{index,regles-info}.js`. Données et frais : `%LOCALAPPDATA%\Rayle\agent-trading\copilote\cassure\`.
 
 ---
 
