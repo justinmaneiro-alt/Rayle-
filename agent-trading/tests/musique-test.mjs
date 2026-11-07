@@ -15,4 +15,15 @@ eq(volumeBorne(130), 100); eq(volumeBorne(-5), 0);
 eq(mixRefuse({ erreur: 150 }), true); eq(mixRefuse({ playlist: null, attenduMs: 7000 }), true, 'liste non chargée'); eq(mixRefuse({ playlist: new Array(50), attenduMs: 7000 }), false); eq(mixRefuse({ playlist: null, attenduMs: 1000 }), false, 'trop tôt pour conclure');
 eq(estMobile('Mozilla/5.0 (Linux; Android 14; SM-S918B) Mobile'), true); eq(estMobile('Mozilla/5.0 (Windows NT 10.0; Win64; x64)'), false);
 eq(MIX.liste.startsWith('RD'), true);
+// commandes depuis n'importe quel écran de Rayle (tuiles indépendantes) : strictes, jamais de vol de phrase aux autres écrans
+const { interpreter } = await import('../front/or/commandes-or.js');
+const G = (t, actif) => interpreter(t, { global: true, musiqueActive: actif });
+eq(G('lance ma playlist', false), { type: 'musique', cmd: 'playlist' }); eq(G('ouvre la musique', false), { type: 'fenetre', quoi: 'musique' }); eq(G('ouvre le mode télé', false), { type: 'fenetre', quoi: 'tele' });
+for (const t of ['pause', 'suivant', 'plus fort', 'stop', 'reviens']) eq(G(t, false).type, null, `« ${t} » sans musique en cours : laissé aux autres écrans`);
+eq(G('pause', true).cmd, 'pause'); eq(G('suivant', true).cmd, 'suivant'); eq(G('Raylé, morceau suivant', false).cmd, 'suivant', 'formulation explicite');
+for (const t of ['qu’est-ce qui se passe à Paris', 'image suivante', 'monte à bord', 'pause les gestes', 'affiche la Terre', 'passe sur le Bitcoin']) eq(G(t, true).type, null, `« ${t} » n’est pas de la musique`);
+eq(G('mets en pause la musique', false).cmd, 'pause', '« mets en pause la musique » ≠ « mets la musique »');
+eq(interpreter('affiche la Terre').vue, 'terre', 'mode télé : les vues restent');
+const { pluriel } = await import('../front/or/texte-or.js');
+eq([0, 1, 2, 13].map(k => pluriel(k, 'morceau', 'morceaux')), ['0 morceau', '1 morceau', '2 morceaux', '13 morceaux']); eq(pluriel(1500, 'trade'), '1 500 trades');
 console.log(`musique-test : ${n} vérifications OK`);

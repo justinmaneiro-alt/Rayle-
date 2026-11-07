@@ -10,6 +10,8 @@ import { zonesRetournement, etudeReaction } from './zones-or.js';
 import { etatZone, evenementZone, creerAntiBruit } from './etats-or.js';
 import { lecture, phraseEvenement } from './lecture-or.js';
 import { marcheOr, retard, heureLocale, dateParis } from './temps-or.js';
+import { reperes } from './reperes-or.js';
+import { chargerHistorique, chargerPlusAncien, rafraichirVolume, serieAffichee } from './historique-or.js';
 
 const lireJ = (k, d) => { try { const v = globalThis.localStorage && localStorage.getItem(k); return v ? JSON.parse(v) : d; } catch (e) { return d; } };
 const ecrireJ = (k, v) => { try { globalThis.localStorage && localStorage.setItem(k, JSON.stringify(v)); } catch (e) { /* plein ou refusé */ } };
@@ -18,16 +20,35 @@ export function creerMoteurOr({ fetchFn = (...a) => fetch(...a), horloge = () =>
   const S = {
     periode: lireJ('rayle_or_periode', 'M15'), k: [], kM15: [], refM15: [], refH1: [], refP: [], atrH1: [], ecart: null, ecartN: 0,
     prix: null, tPrix: null, ticker: null, ref24h: null, erreurs: {}, niveaux: [], zonesVol: [], zones: [], etats: {}, lecture: null, etude: null, etudeEtat: 'à faire',
-    chargement: true, derniereRefM15: null, evenements: []
+    chargement: true, derniereRefM15: null, evenements: [], hist: null, chargementAncien: false
   };
   if (!PERIODES[S.periode]) S.periode = 'M15';
   const anti = creerAntiBruit(); const regl = lireJ('rayle_or_alertes', null); if (regl) { anti.regler(regl); if (regl.coupe) anti.couper(true); }
   let minuteries = [], arrete = false;
   const err = (k, e) => { S.erreurs[k] = e ? (e.message || String(e)) : null; };
 
+  /* historique de la période affichée : Kraken paginé jusqu'à la mise en ligne du perpétuel, puis la référence Binance (historique-or.js) */
   async function chargerPeriode() {
-    try { S.k = await bougiesKraken(S.periode, { fetchFn, maintenant: horloge(), n: S.periode === 'J' ? 400 : 1500 }); err('kraken', null); } catch (e) { err('kraken', e); }
-    try { S.refP = S.periode === 'M15' ? S.refM15 : await bougiesBinance(S.periode, { depuis: S.k.length ? S.k[0].t : horloge() - 1500 * PERIODES[S.periode].ms, jusqua: horloge() + 1, fetchFn, max: 3 }); err('binanceP', null); } catch (e) { err('binanceP', e); }
+    const p = S.periode;
+    try {
+      const H = await chargerHistorique(p, { fetchFn, maintenant: horloge() }); if (p !== S.periode) return;
+      S.hist = H; S.k = H.k.slice(); S.refP = H.vol; err('kraken', null); err('binanceP', H.erreurRef);
+    } catch (e) {
+      err('kraken', e);   // secours : les 1500 dernières bougies, comme avant
+      try { S.k = await bougiesKraken(p, { fetchFn, maintenant: horloge(), n: p === 'J' ? 400 : 1500 }); S.hist = null; err('kraken', null); } catch (e2) { /* l'erreur reste affichée */ }
+    }
+  }
+  /* glisser vers la gauche : un morceau plus ancien (Kraken tant qu'il en a, puis la référence) */
+  async function plusAncien() {
+    if (!S.hist || S.chargementAncien || (S.hist.krakenEpuise && S.hist.refEpuise)) return false;
+    const p = S.periode, avant = S.hist.debut; S.chargementAncien = true; surMaj(S);
+    try {
+      const H = await chargerPlusAncien(S.hist, { fetchFn }); if (p !== S.periode) return false;
+      const nouveaux = H.k.filter(b => !S.k.length || b.t < S.k[0].t);
+      S.hist = H; S.k = [...nouveaux, ...S.k]; S.refP = H.vol; err('ancien', null);
+      return H.debut !== avant;
+    } catch (e) { err('ancien', e); return false; }
+    finally { S.chargementAncien = false; surMaj(S); }
   }
   async function chargerReference() {
     const n = horloge();
@@ -36,7 +57,8 @@ export function creerMoteurOr({ fetchFn = (...a) => fetch(...a), horloge = () =>
       S.refH1 = fusionner(S.refH1, await bougiesBinance('H1', { depuis: S.refH1.length ? S.refH1[S.refH1.length - 1].t : n - 90 * 86400e3, jusqua: n + 1, fetchFn, max: 3 }));
       S.atrH1 = atr(S.refH1.filter(b => b.t + 3600e3 <= n), REGLES.atr); err('binance', null);
     } catch (e) { err('binance', e); }
-    if (S.periode !== 'M15') try { S.kM15 = await bougiesKraken('M15', { fetchFn, maintenant: n, n: 400 }); } catch (e) { /* écart seulement */ }
+    if (S.periode !== 'M15') try { S.kM15 = await bougiesKraken('M15', { fetchFn, maintenant: n, n: 700 }); } catch (e) { /* écart seulement */ }
+    if (S.hist) try { const p = S.periode, H = await rafraichirVolume(S.hist, { fetchFn, maintenant: n }); if (p === S.periode) { S.hist = H; S.refP = H.vol; } } catch (e) { /* volume de la bougie en cours : au prochain tour */ }
     try { S.ref24h = await ticker24hBinance({ fetchFn }); } catch (e) { S.ref24h = null; }
     try { S.ticker = await tickerKraken({ fetchFn }); if (S.ticker && S.ticker.last > 0 && !S.prix) { S.prix = S.ticker.last; S.tPrix = Date.parse(S.ticker.lastTime) || n; } } catch (e) { /* le WebSocket donnera le prix */ }
   }
@@ -51,6 +73,8 @@ export function creerMoteurOr({ fetchFn = (...a) => fetch(...a), horloge = () =>
     S.etats = Object.fromEntries(S.zonesRef.map(z => [z.id, etatZone(prixRef, z, a)]));
     S.a = a; S.biais = biaisH1(h1c); S.marche = marcheOr(n); S.retard = retard(S.tPrix, n, S.marche.ouvert);
     const v24 = S.ref24h ? +S.ref24h.quoteVolume : null; S.fiable = v24 == null ? null : v24 >= REGLES.volumeFaible24h; S.volume24h = v24;
+    // repères AFFICHÉS (veille, semaine, ronds, 3 zones de volume, retournement, séance en cours) : prix Kraken M15
+    S.reperes = reperes({ niveaux: decaler(nivRef, e), zonesVol: S.zonesVol, retournement: S.zones, prix: S.prix, m15: S.periode === 'M15' ? S.k : S.kM15, marche: S.marche, t: n });
     S.lecture = lecture({ prix: S.prix, zones: S.zones, biais: S.biais, etats: S.etats, marche: S.marche, fiable: S.fiable !== false });
     S.chargement = false;
   }
@@ -93,12 +117,12 @@ export function creerMoteurOr({ fetchFn = (...a) => fetch(...a), horloge = () =>
   const api = {
     S,
     async demarrer() {
-      await chargerPeriode(); await chargerReference(); if (S.periode === 'M15') S.refP = S.refM15; calculer(); S.derniereRefM15 = (S.refM15.filter(b => b.t + 15 * 60e3 <= horloge()).pop() || {}).t ?? null; surMaj(S);
+      await chargerPeriode(); await chargerReference(); if (S.periode === 'M15' && !S.hist) S.refP = S.refM15; calculer(); S.derniereRefM15 = (S.refM15.filter(b => b.t + 15 * 60e3 <= horloge()).pop() || {}).t ?? null; surMaj(S);
       minuteries.push(setInterval(cycleRapide, 15e3), setInterval(cycleLent, 60e3));
       if (etudeAuto) setTimeout(etude, 3000);
       return S;
     },
-    async periode(p) { if (!PERIODES[p] || p === S.periode) return; S.periode = p; ecrireJ('rayle_or_periode', p); S.k = []; await chargerPeriode(); calculer(); surMaj(S); },
+    async periode(p) { if (!PERIODES[p] || p === S.periode) return; S.periode = p; ecrireJ('rayle_or_periode', p); S.k = []; S.hist = null; await chargerPeriode(); calculer(); surMaj(S); },
     /* transactions du WebSocket Kraken (carnet) : prix en direct et bougie en cours */
     transactions(L) {
       let maj = false;
@@ -106,7 +130,9 @@ export function creerMoteurOr({ fetchFn = (...a) => fetch(...a), horloge = () =>
       if (maj) { const av = { ...S.etats }; calculer(); detecter(av); }
       return maj;
     },
-    anti, etude, calculer,
+    anti, etude, calculer, plusAncien,
+    /* bougies affichées : référence décalée (avant le perpétuel) + Kraken */
+    serie: () => serieAffichee(S.hist, S.k, S.ecart),
     reglerAlertes(o) { anti.regler(o); if ('coupe' in o) anti.couper(o.coupe); ecrireJ('rayle_or_alertes', { ...anti.reglages() }); },
     arreter() { arrete = true; minuteries.forEach(clearInterval); minuteries = []; }
   };

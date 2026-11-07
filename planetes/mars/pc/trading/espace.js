@@ -199,7 +199,10 @@ export function creerEspace({ conteneur, client, tactile = false, depart = {}, s
   const bAgentTrading = h('button', 'tg-btn tg-agent-trading', '◈ Agent de trading'); bAgentTrading.type = 'button'; bAgentTrading.title = 'Agent de trading SIMULÉ (aucun ordre réel)';
   const URL_AGENT_TRADING = '../../../../agent-trading/front/fenetre-agent.js';
   bAgentTrading.onclick = () => import(URL_AGENT_TRADING).then(m => m.ouvrirFenetre()).catch(() => { bAgentTrading.remove(); });
-  actions.append(sourceBtns, menuInd, bRecadrer, bDock, bPlein, bRafraichir, bLiq, bAgentTrading);
+  // Musique et Télé : tuiles indépendantes de Rayle (core/commun/media-pont.js), absentes si le module n'est pas là
+  const bMedia = (quoi, texte) => { const b = h('button', 'tg-btn tg-' + quoi, texte); b.type = 'button'; b.title = quoi === 'musique' ? 'Musique (fenêtre indépendante)' : 'Télé : mode télé et télécommande'; b.onclick = () => window.RayleMedia ? window.RayleMedia.ouvrir(quoi) : b.remove(); return b; };
+  const bMusique = bMedia('musique', '♪ Musique'), bTele = bMedia('tele', '📺 Télé');
+  actions.append(sourceBtns, menuInd, bRecadrer, bDock, bPlein, bRafraichir, bLiq, bAgentTrading, bMusique, bTele);
   barre.append(chips, unites, actions);
 
   // panneaux

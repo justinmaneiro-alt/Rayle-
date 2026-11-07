@@ -25,6 +25,9 @@
     const cmdL=window.LiquiditeVoix?await LiquiditeVoix.commande(text):null;    // « ouvre la carte de liquidité », « où va le marché ? » : carnet d'ordres en direct
     if(my!==epoch) return;
     if(cmdL){ diagAction('carte de liquidité'); addLine('ray',cmdL); await speak(cmdL); return; }
+    const cmdMu=window.RayleMedia?await RayleMedia.commande(text):null;    // musique et télé, depuis n'importe quel écran : « lance ma playlist », « pause », « suivant », « ouvre la télé »
+    if(my!==epoch) return;
+    if(cmdMu){ diagAction('musique et télé'); addLine('ray',cmdMu); await speak(cmdMu); return; }
     const cmdM=await commandeMars(text);    // terminal de la base Mars (seulement quand Mars est ouverte) : « montre-moi l'or en H1 »
     if(my!==epoch) return;
     if(cmdM){ diagAction('terminal de Mars'); addLine('ray',cmdM); await speak(cmdM); return; }
@@ -40,7 +43,7 @@
     const cmdF=window.G1&&G1.commande?await G1.commande(text):null;    // « ouvre la fenêtre météo », « mes tâches », « ferme la fenêtre » : grande fenêtre de l'accueil Aurore
     if(my!==epoch) return;
     if(cmdF){ diagAction('fenêtre de l accueil'); addLine('ray',cmdF); await speak(cmdF); return; }
-    const cmdOr=window.TableauOr&&TableauOr.commande?await TableauOr.commande(text):null;    // tableau de bord de l'or ouvert : « on en est où ? », « lance ma playlist » (il parle lui-même)
+    const cmdOr=window.TableauOr&&TableauOr.commande?await TableauOr.commande(text):null;    // tableau de bord de l'or ouvert : « on en est où ? » (il parle lui-même)
     if(my!==epoch) return;
     if(cmdOr){ diagAction('tableau de bord de l or'); addLine('ray',cmdOr); return; }
     const quick=quickAnswer(text);

@@ -28,6 +28,8 @@
     {id:'carte',nom:'Carte du monde',sous:'Pays, actualités, météo',ico:'carte',agir:()=>{ if(window.HoteModules) HoteModules.ouvrirTerre().catch(e=>Coque.feuille({titre:'Carte',rendre(c){ c.innerHTML='<p class="m-vide">'+esc(C.messageErreur(e))+'</p>'; }})); else clic('btnCarteTerre'); }},
     {id:'pays',nom:'Pays',sous:'Actualités par pays',ico:'pays',agir:()=>clic('btnPays')},
     {id:'sources',nom:'Sources en direct',sous:'Séismes, communiqués, TV',ico:'sources',agir:()=>clic('btnSources')},
+    {id:'musique',nom:'Musique',sous:'Ma playlist, le Mix',ico:'sources',agir:()=>{ if(window.RayleMedia) RayleMedia.ouvrir('musique'); }},    // tuiles indépendantes (core/commun/media-pont.js)
+    {id:'tele',nom:'Télé',sous:'Mode télé, télécommande',ico:'sources',agir:()=>{ if(window.RayleMedia) RayleMedia.ouvrir('tele'); }},
     {id:'evenements',nom:'Événements de la Terre',sous:'Séismes, tempêtes, volcans',ico:'terre',agir:evenements},
     {id:'fenetres',nom:'Fenêtres ouvertes',sous:'Retrouver une fenêtre',ico:'sources',agir:fenetres},
     {id:'affichage',nom:'Affichage mobile',sous:'Images, vibration, économie',ico:'affichage',agir:affichage},

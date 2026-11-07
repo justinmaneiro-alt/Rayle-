@@ -7,13 +7,11 @@ export function estTele(loc = location, m = globalThis.matchMedia) {
   try { return screen.width >= 1900 && m && m('(pointer: coarse), (pointer: none)').matches && !m('(pointer: fine)').matches && !('ontouchstart' in window); } catch (e) { return false; }
 }
 
-/* monte les modules B et C dans leurs blocs ; chacun est indépendant (un échec n'empêche pas le reste) */
+/* monte le journal et le gardien (avec le calculateur de taille) dans leurs blocs ; chacun est indépendant (un échec n'empêche pas le reste) */
 export async function monterModules(T) {
   const R = T.R, essais = [
     ['journal', './journal-ui.js', 'monterJournal', '[data-journal-bloc]'],
-    ['gardien', './gardien-ui.js', 'monterGardien', '[data-gardien-bloc]'],
-    ['musique', './musique.js', 'monterMusique', '[data-musique-bloc]'],
-    ['tele', './telecommande.js', 'monterTelecommandeBloc', '[data-tele-bloc]']
+    ['gardien', './gardien-ui.js', 'monterGardien', '[data-gardien-bloc]']   // musique et télé : tuiles indépendantes (media-rayle.js)
   ];
   for (const [nom, f, fn, sel] of essais) {
     try { const m = await import(f); T.monterModule(nom, m[fn](R.querySelector(sel), { tableau: T })); }

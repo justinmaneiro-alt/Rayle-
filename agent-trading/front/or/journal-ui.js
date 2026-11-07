@@ -2,6 +2,7 @@
    Saisie en 30 secondes (étiquette choisie AVANT le résultat), clôture, R net, enrichissement automatique sans futur, trade affiché sur le graphique,
    journal du jour, bilans, comparaison avec le hasard, règles candidates, imports CSV (XTB, Kraken) et historique XTB de départ.
    Données : sur l'appareil seulement (localStorage + IndexedDB), export / import JSON pour passer d'un appareil à l'autre. */
+import { pluriel } from './texte-or.js';
 import { ETIQUETTES, ETIQUETTE_XTB, MIN_CATEGORIE, valider, rNet, plNet, ferme, enrichir, bilan, compareHasard, reglesCandidates, lectureJour, importerCsv, depuisXtbJson, fusionnerTrades, nouvelId, mfeR, dureeMin } from './journal-calcul.js';
 import { lireJSON, ecrireJSON, enregistrerCapture, lireCapture, copier } from './stockage-or.js';
 import { cleJour } from './niveaux-or.js';
@@ -76,12 +77,12 @@ export function monterJournal(el, { tableau }) {
       const cap = v('capture').files[0]; if (cap) try { t.captureSortie = await enregistrerCapture(t.id + '-sortie', cap); } catch (er) { /* message plus haut */ }
       t.mfeR = mfeR(t, S().k); sauver(); tableau.notifier(`Trade clôturé : ${fR(rNet(t))} net.`, { niveau: 'info', dit: false, raison: 'journal' }); rendre(); return;
     }
-    if (b.dataset.a === 'j-exporter') { const ok = await copier(JSON.stringify({ format: 'rayle-or-journal-1', trades })); tableau.notifier(ok ? `Journal copié (${trades.length} trades) : colle-le sur l’autre appareil.` : 'Copie refusée par le navigateur.', { niveau: 'doux', dit: false, raison: 'journal' }); return; }
-    if (b.dataset.a === 'j-importer') { const z = q('[data-j-zone]'); if (z.hidden) { z.hidden = false; z.focus(); return; } try { const d = JSON.parse(z.value); const r = fusionnerTrades(trades, d.trades || []); trades = r.trades; sauver(); z.value = ''; z.hidden = true; tableau.notifier(`${r.ajoutes} trades importés.`, { niveau: 'doux', dit: false, raison: 'journal' }); rendre(); } catch (er) { tableau.notifier('Journal collé illisible.', { niveau: 'doux' }); } }
+    if (b.dataset.a === 'j-exporter') { const ok = await copier(JSON.stringify({ format: 'rayle-or-journal-1', trades })); tableau.notifier(ok ? `Journal copié (${pluriel(trades.length, 'trade')}) : colle-le sur l’autre appareil.` : 'Copie refusée par le navigateur.', { niveau: 'doux', dit: false, raison: 'journal' }); return; }
+    if (b.dataset.a === 'j-importer') { const z = q('[data-j-zone]'); if (z.hidden) { z.hidden = false; z.focus(); return; } try { const d = JSON.parse(z.value); const r = fusionnerTrades(trades, d.trades || []); trades = r.trades; sauver(); z.value = ''; z.hidden = true; tableau.notifier(`${pluriel(r.ajoutes, 'trade importé', 'trades importés')}.`, { niveau: 'doux', dit: false, raison: 'journal' }); rendre(); } catch (er) { tableau.notifier('Journal collé illisible.', { niveau: 'doux' }); } }
   });
-  q('[data-j-csv]').addEventListener('change', async e => { const fi = e.target.files[0]; if (!fi) return; const r = importerCsv(await fi.text()); const m = fusionnerTrades(trades, r.trades); trades = m.trades; sauver(); tableau.notifier(`Import ${r.format} : ${m.ajoutes} trades ajoutés, ${r.ignores} lignes ignorées (hors or ou illisibles).`, { niveau: 'doux', dit: false, raison: 'journal' }); rendre(); });
+  q('[data-j-csv]').addEventListener('change', async e => { const fi = e.target.files[0]; if (!fi) return; const r = importerCsv(await fi.text()); const m = fusionnerTrades(trades, r.trades); trades = m.trades; sauver(); tableau.notifier(`Import ${r.format} : ${pluriel(m.ajoutes, 'trade ajouté', 'trades ajoutés')}, ${pluriel(r.ignores, 'ligne ignorée', 'lignes ignorées')} (hors or ou illisibles).`, { niveau: 'doux', dit: false, raison: 'journal' }); rendre(); });
   q('[data-j-xtbjson]').addEventListener('change', async e => { const fi = e.target.files[0]; if (!fi) return; try { importerXtb(JSON.parse(await fi.text())); } catch (er) { tableau.notifier('Fichier XTB illisible.', { niveau: 'doux' }); } });
-  function importerXtb(d) { const m = fusionnerTrades(trades, depuisXtbJson(d)); trades = m.trades; sauver(); tableau.notifier(`Historique XTB : ${m.ajoutes} trades d’or ajoutés (« ${ETIQUETTE_XTB} »).`, { niveau: 'doux', dit: false, raison: 'journal' }); rendre(); }
+  function importerXtb(d) { const m = fusionnerTrades(trades, depuisXtbJson(d)); trades = m.trades; sauver(); tableau.notifier(`Historique XTB : ${pluriel(m.ajoutes, 'trade d’or ajouté', 'trades d’or ajoutés')} (« ${ETIQUETTE_XTB} »).`, { niveau: 'doux', dit: false, raison: 'journal' }); rendre(); }
   for (const s of ['[data-j-jour]', '[data-j-periode]', '[data-j-cle]', '[data-j-xtb]']) q(s).addEventListener('change', rendre);
 
   function rendre() {

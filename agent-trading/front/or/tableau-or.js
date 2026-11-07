@@ -1,5 +1,6 @@
 /* ═════════════ TABLEAU DE BORD DE L'OR (une seule page qui défile ; même composant pour la page or.html, le terminal de Mars et le mode télé) ═════════════
-   PC (≥ 1000 px, paysage) : graphique à gauche, carnet d'ordres à droite, puis Lecture du graphique, zones, journal, gardien, musique.
+   PC (≥ 1000 px, paysage) : graphique à gauche, carnet d'ordres à droite, puis Lecture du graphique, zones, journal, gardien et calculateur de taille.
+   La musique et la télé ne sont PAS ici : ce sont des tuiles indépendantes de Rayle (media-rayle.js).
    Téléphone et tablette : une colonne. Un seul centre de notifications (cloche), aucun message éparpillé.
    Modules partagés : carnet.js + carnet-kraken.js (le même carnet que l'agent), moteur-or.js (données et calculs), graphique-or.js. */
 import { creerCarnet } from '../carnet.js';
@@ -8,6 +9,7 @@ import { creerGraphiqueOr, COUCHES, ratio } from './graphique-or.js';
 import { PERIODES, REGLES, TEXTE_REGLES, KRAKEN } from './config-or.js';
 import { texteType, texteHistorique, NOMS_TYPES } from './zones-or.js';
 import { heureParis } from './temps-or.js';
+import { nomClair } from './reperes-or.js';
 import { interpreter } from './commandes-or.js';
 
 const lireJ = (k, d) => { try { const v = localStorage.getItem(k); return v ? JSON.parse(v) : d; } catch (e) { return d; } };
@@ -49,15 +51,13 @@ export function monterTableauOr(el, { modules = {}, contexte = 'page', fetchFn, 
   <section class="tor-bloc tor-lecture" data-lecture>
     <h2>Lecture du graphique <small>informations de marché, jamais un ordre</small></h2>
     <dl><dt>Biais H1</dt><dd data-l-biais>—</dd><dt>Zone au-dessus</dt><dd data-l-dessus>—</dd><dt>Zone au-dessous</dt><dd data-l-dessous>—</dd><dt>État</dt><dd data-l-etat>—</dd></dl>
-    <form class="tor-demande" data-demande><input type="text" placeholder="Demander à Rayle… (« on en est où ? », « lance ma playlist »)" aria-label="Demander à Rayle"><button type="button" data-a="micro" title="Parler">🎤</button><button type="submit">Envoyer</button><button type="button" data-a="ou" title="Rayle, on en est où ?">🔊 On en est où ?</button></form>
+    <form class="tor-demande" data-demande><input type="text" placeholder="Demander à Rayle… (« on en est où ? »)" aria-label="Demander à Rayle"><button type="button" data-a="micro" title="Parler">🎤</button><button type="submit">Envoyer</button><button type="button" data-a="ou" title="Rayle, on en est où ?">🔊 On en est où ?</button></form>
     <p class="tor-reponse" data-reponse aria-live="polite"></p>
+    <details class="tor-zones-det" data-zones><summary>Zones de retournement en détail <small>les plus proches, classées par confluence</small></summary><ol class="tor-zones" data-zones-liste></ol><p class="tor-doux" data-etude></p>
+    <details><summary>Règles figées ${REGLES.version}</summary><pre class="tor-regles">${esc(TEXTE_REGLES)}</pre></details></details>
   </section>
-  <section class="tor-bloc" data-zones><h2>Zones de retournement <small>les plus proches, classées par confluence</small></h2><ol class="tor-zones" data-zones-liste></ol><p class="tor-doux" data-etude></p>
-    <details><summary>Règles figées ${REGLES.version}</summary><pre class="tor-regles">${esc(TEXTE_REGLES)}</pre></details></section>
   <section class="tor-bloc" data-journal-bloc></section>
   <section class="tor-bloc" data-gardien-bloc></section>
-  <section class="tor-bloc" data-musique-bloc></section>
-  <section class="tor-bloc" data-tele-bloc></section>
   <footer class="tor-pied">Simulation et information seulement : Rayle ne passe aucun ordre. Prix : Kraken Futures ${KRAKEN.symbole} (relais public sans clé). Volume, delta et niveaux : Binance XAUUSDT, décalés de l’écart mesuré. Graphique : <a href="https://www.tradingview.com/" target="_blank" rel="noopener">TradingView</a> Lightweight Charts™ (Apache-2.0). Heure de Paris.</footer>
   <div class="tor-notifs" data-notifs hidden><header><b>Notifications</b><button type="button" data-a="fermer-notifs" aria-label="Fermer">✕</button></header>
     <div class="tor-notifs-regl">
@@ -81,6 +81,7 @@ export function monterTableauOr(el, { modules = {}, contexte = 'page', fetchFn, 
   /* moteur + graphique + carnet (le même carnet que l'agent) */
   const graph = creerGraphiqueOr(q('[data-graph]'), { mobile });
   graph.surPosition = (pos, outil) => majPosition(pos, outil);
+  graph.surBordGauche = () => { moteur.plusAncien(); };   // glisser vers la gauche : historique plus ancien
   const carnet = creerCarnet(q('[data-carnet]'), { racine: q('[data-carnet]'), WS });   // racine = élément « .at » qui porte les couleurs du carnet (jetons.css)
   carnet.maj('OR', null);
   const moteur = creerMoteurOr({ ...(fetchFn ? { fetchFn } : {}), etudeAuto, surMaj: () => rendre(), surEvenement: ev => evenement(ev) });
@@ -115,12 +116,21 @@ export function monterTableauOr(el, { modules = {}, contexte = 'page', fetchFn, 
     q('[data-or-var]').textContent = p && o ? `${p >= o ? '+' : ''}${nb((p / o - 1) * 100)} % sur 24 h` : '';
     carnet.maj('OR', p ? { prix: p } : null);
   }
+  /* où en est l'historique chargé (glisser vers la gauche pour en charger plus) */
+  function texteHistoriqueCharge(S) {
+    const H = S.hist; if (!H) return '';
+    const d = t => new Date(t).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', year: 'numeric' });
+    if (S.chargementAncien) return ' · chargement de l’historique plus ancien…';
+    const k = S.k.length ? `Kraken depuis le ${d(S.k[0].t)}${H.krakenEpuise ? ' (mise en ligne du perpétuel)' : ''}` : '';
+    const r = H.ref.length ? ` · référence Binance depuis le ${d(H.ref[0].t)}${H.refEpuise ? ' (début de la série)' : ''}` : '';
+    return ` · ${k}${r}${H.krakenEpuise && H.refEpuise ? ' · tout l’historique disponible est chargé' : ' · glisse vers la gauche pour remonter'}`;
+  }
   function rendre() {
     const S = moteur.S;
     rendreTete();
     for (const b of R.querySelectorAll('[data-periode]')) b.setAttribute('aria-pressed', String(b.dataset.periode === S.periode));
-    graph.bougies(S.k, S.periode === 'M15' ? S.refM15 : S.refP);
-    graph.dessin({ zonesVol: S.zonesVol, niveaux: S.niveaux, retournement: S.zones, prix: S.prix });
+    graph.bougies(moteur.serie(), S.hist ? S.refP : S.periode === 'M15' ? S.refM15 : S.refP, { cle: S.periode + (S.hist ? ':historique' : ':court'), debutKraken: S.hist && S.k.length ? S.k[0].t : null, ecart: S.ecart });
+    graph.dessin({ zonesVol: S.zonesVol, niveaux: S.niveaux, retournement: S.zones, prix: S.prix, reperes: S.reperes || [], a: S.a });
     // bandeau unique : marché fermé, retard, données peu fiables, panne
     const msg = [];
     if (S.erreurs.kraken) msg.push('Prix Kraken indisponible : ' + S.erreurs.kraken);
@@ -129,16 +139,16 @@ export function monterTableauOr(el, { modules = {}, contexte = 'page', fetchFn, 
     else if (S.retard && S.retard.enRetard) msg.push(S.retard.texte);
     if (S.fiable === false) msg.push(`Données peu fiables : seulement ${nb(S.volume24h / 1e6, 0)} M$ échangés sur 24 h sur la référence.`);
     const b = q('[data-bandeau]'); b.hidden = !msg.length; b.textContent = msg.join(' · ');
-    q('[data-source]').textContent = `Prix Kraken · volume Binance · écart Kraken − Binance ${S.ecart == null ? 'non mesuré' : (S.ecart >= 0 ? '+' : '') + nb(S.ecart)} $${S.ecartN ? ` (médiane de ${S.ecartN} bougies)` : ''} · ATR H1 ${nb(S.a)} $`;
+    q('[data-source]').textContent = `Prix Kraken · volume Binance · écart Kraken − Binance ${S.ecart == null ? 'non mesuré' : (S.ecart >= 0 ? '+' : '') + nb(S.ecart)} $${S.ecartN ? ` (médiane de ${S.ecartN} bougies)` : ''} · ATR H1 ${nb(S.a)} $${texteHistoriqueCharge(S)}`;
     // lecture
     const L = S.lecture; if (L) {
       q('[data-l-biais]').textContent = S.biais ? `${L.biais} (${S.biais.texte})` : '—';
-      const zl = z => z ? `${nb(z.p, 0)} · ${z.noms.slice(0, 2).join(' + ')} · ${texteHistorique(z)}` : 'aucune dans la liste';
+      const zl = z => z ? `${nb(z.p, 0)} (${z.noms.slice(0, 2).map(nomClair).join(', ')}) · ${texteHistorique(z)}` : 'aucune dans la liste';
       q('[data-l-dessus]').textContent = zl(L.dessus); q('[data-l-dessous]').textContent = zl(L.dessous); q('[data-l-etat]').textContent = L.etat;
     }
     // zones
-    q('[data-zones-liste]').innerHTML = S.zones.map((z, i) => `<li data-zone="${z.id}"><div><b>Z${i + 1} · ${z.cote === 'support' ? 'Support' : 'Résistance'} ${nb(z.p, 0)}</b> <span class="tor-etat tor-etat-${S.etats[z.id]}">${ETATS[S.etats[z.id]] || '—'}</span></div>
-      <span>${esc(z.noms.join(' + '))} · ${nb(z.bas)} – ${nb(z.haut)} · à ${nb(z.distAtr, 1)} ATR</span>
+    q('[data-zones-liste]').innerHTML = S.zones.map((z, i) => `<li data-zone="${z.id}"><div><b>${z.cote === 'support' ? 'Support' : 'Résistance'} ${nb(z.p, 0)}</b> <span class="tor-etat tor-etat-${S.etats[z.id]}">${ETATS[S.etats[z.id]] || '—'}</span></div>
+      <span>${esc(z.noms.map(nomClair).join(', '))} · de ${nb(z.bas)} à ${nb(z.haut)} · à ${nb(z.distAtr, 1)} ATR H1 du prix</span>
       <span>Historique réel (30 derniers jours) : ${texteHistorique(z)}${z.tests ? '' : ''}</span>
       <small>${[...new Set(z.types)].map(t => esc(S.etude ? texteType(S.etude, t) : `${NOMS_TYPES[t]} : mesure ${S.etudeEtat}`)).join('<br>')}</small></li>`).join('') || '<li>Aucune zone pour le moment (données en cours de chargement).</li>';
     const E = S.etude;
@@ -160,17 +170,14 @@ export function monterTableauOr(el, { modules = {}, contexte = 'page', fetchFn, 
   async function repondre(texte) {
     const c = interpreter(texte), rep = q('[data-reponse]');
     let dire = null;
-    const versTele = (c.type === 'musique' || c.type === 'vue') && modules.tele && modules.tele.connectee() ? modules.tele.phrase(texte) : null;
-    if (versTele) dire = versTele;
-    else if (c.type === 'lecture') dire = moteur.S.lecture ? moteur.S.lecture.phrase : 'Je charge encore les données de l’or.';
-    else if (c.type === 'musique' && modules.musique) dire = await modules.musique.commande(c);
-    else if (c.type === 'musique') dire = 'Le lecteur de musique n’est pas chargé ici.';
+    if (c.type === 'lecture') dire = moteur.S.lecture ? moteur.S.lecture.phrase : 'Je charge encore les données de l’or.';
     else if (c.type === 'vue' && modules.surVue) dire = modules.surVue(c.vue);
-    else dire = 'Je n’ai pas compris. Essaie « on en est où ? » ou « lance ma playlist ».';
+    else if (c.type === 'musique' || c.type === 'fenetre') { try { dire = await (await import('./media-rayle.js')).commande(texte, { global: false }); } catch (e) { dire = 'La musique n’est pas disponible ici.'; } }
+    else dire = 'Je n’ai pas compris. Essaie « on en est où ? ».';
     if (dire) { rep.textContent = dire; parler(dire); }
     return dire;
   }
-  api.repondre = repondre; api.commande = texte => interpreter(texte).type ? repondre(texte) : null;
+  api.repondre = repondre; api.commande = texte => interpreter(texte).type === 'lecture' ? repondre(texte) : null;   // musique et télé : media-rayle.js, depuis n'importe quel écran
 
   /* événements de l'interface */
   R.addEventListener('click', e => {

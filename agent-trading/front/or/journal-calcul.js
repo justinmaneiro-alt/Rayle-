@@ -4,6 +4,7 @@
    R net = (gain brut − frais) / risque initial ($) ; risque = |entrée − stop| × taille. Sans stop : R inconnu (jamais inventé).
    Statistiques : « pas assez de données » sous 20 trades par catégorie ; intervalles à 95 % ; comparaison avec des entrées au hasard aux mêmes heures ;
    règles candidates : « à garder » seulement si positive sur ≥ 30 trades (Holm) ET confirmée sur les trades du mois suivant, jamais vus lors du choix. */
+import { pluriel } from './texte-or.js';
 import { atrA, sma, biaisH1, regrouperBougies } from './bougies-or.js';
 import { niveauxCles, zonesVolume, cleJour } from './niveaux-or.js';
 import { seance, heureLocale } from './temps-or.js';
@@ -94,7 +95,7 @@ export function rHasard(m15, t0, duree, distStop, sens) {
 }
 export function compareHasard(trades, m15, { tirages = 500, graine = 11 } = {}) {
   const T = trades.filter(t => rNet(t) != null && t.tEntree && t.tSortie && m15.length && t.tEntree >= m15[0].t && t.tSortie <= m15[m15.length - 1].t + 15 * 60e3);
-  if (T.length < MIN_CATEGORIE) return { n: T.length, assez: false, texte: `pas assez de données (${T.length} trades couverts par les bougies, il en faut ${MIN_CATEGORIE})` };
+  if (T.length < MIN_CATEGORIE) return { n: T.length, assez: false, texte: `pas assez de données (${pluriel(T.length, 'trade')} couvert${T.length >= 2 ? 's' : ''} par les bougies, il en faut ${MIN_CATEGORIE})` };
   const reel = stats(T.map(rNet)).moyenne, rnd = alea(graine), moyennes = [];
   for (let k = 0; k < tirages; k++) {
     const R = []; for (const t of T) { const r = rHasard(m15, t.tEntree, t.tSortie - t.tEntree, Math.abs(t.entree - t.stop), rnd() < 0.5 ? 1 : -1); if (r != null) R.push(r); }
@@ -117,12 +118,12 @@ export function reglesCandidates(trades, { maintenant = Date.now() } = {}) {
   return lignes.map((l, i) => {
     const c = l.choix, k = l.confirmation; let statut, raison;
     if (!mConf) { statut = 'à surveiller'; raison = 'pas encore de mois complet pour confirmer'; }
-    else if (c.n < MIN_GARDER) { statut = 'à surveiller'; raison = `pas assez de données : ${c.n} trades avant ${mConf}, il en faut ${MIN_GARDER}`; }
-    else if (c.moyenne <= 0) { statut = 'à abandonner'; raison = `R moyen ${f2(c.moyenne)} sur ${c.n} trades (≤ 0)`; }
+    else if (c.n < MIN_GARDER) { statut = 'à surveiller'; raison = `pas assez de données : ${pluriel(c.n, 'trade')} avant ${mConf}, il en faut ${MIN_GARDER}`; }
+    else if (c.moyenne <= 0) { statut = 'à abandonner'; raison = `R moyen ${f2(c.moyenne)} sur ${pluriel(c.n, 'trade')} (≤ 0)`; }
     else if (!(adj[i] < 0.05)) { statut = 'à surveiller'; raison = `positive (${f2(c.moyenne)} R) mais pas assez nette après correction des tests multiples (p corrigée ${adj[i] == null ? '—' : adj[i].toFixed(3).replace('.', ',')})`; }
-    else if (k.n < 10) { statut = 'à surveiller'; raison = `confirmation impossible : ${k.n} trades en ${mConf}, il en faut 10`; }
-    else if (k.moyenne <= 0) { statut = 'à abandonner'; raison = `non confirmée en ${mConf} : ${f2(k.moyenne)} R sur ${k.n} trades`; }
-    else { statut = 'à garder'; raison = `positive sur ${c.n} trades (${f2(c.moyenne)} R, p corrigée ${adj[i].toFixed(3).replace('.', ',')}) et confirmée en ${mConf} (${f2(k.moyenne)} R sur ${k.n})`; }
+    else if (k.n < 10) { statut = 'à surveiller'; raison = `confirmation impossible : ${pluriel(k.n, 'trade')} en ${mConf}, il en faut 10`; }
+    else if (k.moyenne <= 0) { statut = 'à abandonner'; raison = `non confirmée en ${mConf} : ${f2(k.moyenne)} R sur ${pluriel(k.n, 'trade')}`; }
+    else { statut = 'à garder'; raison = `positive sur ${pluriel(c.n, 'trade')} (${f2(c.moyenne)} R, p corrigée ${adj[i].toFixed(3).replace('.', ',')}) et confirmée en ${mConf} (${f2(k.moyenne)} R sur ${k.n})`; }
     return { ...l, pHolm: adj[i], statut, raison, moisConfirmation: mConf };
   });
 }
@@ -143,7 +144,7 @@ export function lectureJour(trades, jour, m15 = []) {
     const atteint = apres.some(b => (d > 0 ? b.h >= t.objectif : b.l <= t.objectif)), stopAtteint = t.stop && apres.some(b => (d > 0 ? b.l <= t.stop : b.h >= t.stop));
     if ((plNet(t) ?? 0) > 0 && atteint && (d > 0 ? t.sortie < t.objectif : t.sortie > t.objectif)) ph.push(`Sortie peut-être trop précoce à ${t.sortie} : l’objectif ${t.objectif} a été touché dans les 4 h suivantes${stopAtteint ? ', mais le stop aussi' : ''}.`);
   }
-  for (const t of T) { const r = rNet(t); if (r != null && r < 0 && t.mfeR != null && t.mfeR >= 1) ph.push(`Sortie peut-être trop tardive : le trade de ${t.entree} a été à +${t.mfeR.toFixed(1).replace('.', ',')} R avant de finir à ${f2(r)} R.`); }
+  for (const t of T) { const r = rNet(t); if (r != null && r < 0 && t.mfeR != null && t.mfeR >= 1) ph.push(`Sortie peut-être trop tardive : le trade de ${Number(t.entree).toLocaleString('fr-FR', { maximumFractionDigits: 2 }).replace(/[  ]/g, ' ')} a été à +${t.mfeR.toFixed(1).replace('.', ',')} R avant de finir à ${f2(r)} R.`); }
   return { trades: T, total, phrases: ph };
 }
 /* meilleur gain latent (en R) pendant le trade, mesuré sur les bougies Kraken ENTRE l'entrée et la sortie */

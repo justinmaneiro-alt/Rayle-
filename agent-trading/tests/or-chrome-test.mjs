@@ -1,6 +1,6 @@
 /* Test Chrome du tableau de bord de l'or (parties A à D) avec les VRAIES données (Kraken, Binance, relais dédié, YouTube) :
    graphique = API Kraken (bougies closes, heure de Paris), milieu du carnet ≈ prix affiché, PC (carnet à droite) / téléphone (une colonne, pas de
-   défilement horizontal), parité terminal de Mars = page or.html, outil Position, journal + gardien, musique, mode télé 1920 × 1080 + télécommande.
+   défilement horizontal), parité terminal de Mars = page or.html, outil Position, journal + gardien, ni musique ni télé dans la page (tuiles indépendantes : media-chrome-test.mjs), mode télé 1920 × 1080 + télécommande.
    Prérequis : node serveur.mjs 8011 (racine du dépôt).  Usage : node agent-trading/tests/or-chrome-test.mjs  (captures dans captures-or/, ignoré par git) */
 import { createRequire } from 'node:module';
 import fs from 'node:fs'; import path from 'node:path';
@@ -55,18 +55,21 @@ const j = await pc.evaluate(async () => {
   return { n: T.length, r: T.at(-1), jour: el.querySelector('[data-j-jour-lecture]').innerText, gardien: document.querySelector('[data-g-statut]').dataset.gStatut, taille: document.querySelector('[data-g-taille]').innerText };
 });
 verifier(j.n >= 1 && j.r.sortie > 0 && j.r.enrich && j.r.enrich.seance, 'journal : trade saisi, enrichi (séance, distances), clôturé', JSON.stringify(j.r && j.r.enrich));
-verifier(/trade/.test(j.jour), 'journal du jour : lecture factuelle'); verifier(['ok', 'attention'].includes(j.gardien), 'gardien : statut affiché ' + j.gardien); verifier(/contrats/.test(j.taille), 'calculateur de taille en contrats', j.taille);
+verifier(/trade/.test(j.jour), 'journal du jour : lecture factuelle'); verifier(['ok', 'attention'].includes(j.gardien), 'gardien : statut affiché ' + j.gardien); verifier(/contrat/.test(j.taille), 'calculateur de taille en contrats', j.taille);
 await pc.evaluate(() => document.querySelector('[data-journal-bloc]').scrollIntoView()); await w(300); await pc.screenshot({ path: path.join(SORTIE, 'pc-journal.png') });
 await pc.evaluate(() => document.querySelector('[data-gardien-bloc]').scrollIntoView()); await w(300); await pc.screenshot({ path: path.join(SORTIE, 'pc-gardien.png') });
-// musique : le Mix dans le lecteur intégré, garder sans doublon, playlist fixe
+// barre du haut opaque : le contenu ne passe jamais en transparence dessous
+await pc.evaluate(() => window.scrollTo(0, 500)); await w(300);
+const barre = await pc.evaluate(() => { const b = document.querySelector('.tor-tete'), r = b.getBoundingClientRect(), fond = getComputedStyle(b).backgroundColor, dessus = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2); return { fond, dessus: b.contains(dessus), haut: r.top }; });
+verifier(/^rgb\(/.test(barre.fond) && barre.dessus && barre.haut <= 1, 'barre du haut opaque et au-dessus du contenu en défilant', JSON.stringify(barre));
+await pc.screenshot({ path: path.join(SORTIE, 'pc-barre-defilement.png') }); await pc.evaluate(() => window.scrollTo(0, 0));
+// la page de l'or ne garde que graphique, carnet, lecture, journal, gardien et calculateur : ni musique ni télé
+const blocs = await pc.evaluate(() => ({ mu: !!document.querySelector('[data-musique-bloc], [data-m="playlist"]'), tv: !!document.querySelector('[data-tele-bloc], [data-tc-form]'), txt: /Mode télé|Ma playlist fixe/.test(document.querySelector('.tor').innerText) }));
+verifier(!blocs.mu && !blocs.tv && !blocs.txt, 'page de l’or : aucune section Musique ni Mode télé', JSON.stringify(blocs));
+// la musique reste pilotable depuis la zone de demande (même lecteur unique que le reste de Rayle)
 await pc.evaluate(() => window.__or.repondre('joue le mix')); await w(9000);
-const m1 = await pc.evaluate(() => { const p = window.__or.modules.musique.lecteur(); return { pl: (p.getPlaylist() || []).length, etat: p.getPlayerState(), msg: document.querySelector('[data-m-etat]').textContent }; });
-verifier(m1.pl > 1 || /refuse le Mix/.test(m1.msg), `Mix : ${m1.pl > 1 ? m1.pl + ' morceaux dans le lecteur intégré' : 'refusé → lien YouTube'} (état ${m1.etat})`);
-const g1 = await pc.evaluate(() => window.__or.repondre('garde ce morceau')), g2 = await pc.evaluate(() => window.__or.repondre('garde ce morceau'));
-verifier(/gardé|déjà/.test(g1) && /déjà/.test(g2), 'garde ce morceau, sans doublon', g1 + ' / ' + g2);
-verifier(/morceau/.test(await pc.evaluate(() => window.__or.repondre('combien de morceaux dans ma playlist ?'))), 'combien de morceaux');
-verifier(/lance ta playlist/i.test(await pc.evaluate(() => window.__or.repondre('lance ma playlist'))), 'lance ma playlist (fixe, intégrée)'); await w(4000);
-await pc.evaluate(() => document.querySelector('[data-musique-bloc]').scrollIntoView()); await w(300); await pc.screenshot({ path: path.join(SORTIE, 'pc-musique.png') });
+const m1 = await pc.evaluate(async () => { const M = await import('/agent-trading/front/or/media-rayle.js'), p = M.lecteur().lecteur(); return { pl: (p.getPlaylist() || []).length, etat: p.getPlayerState() }; });
+verifier(m1.pl > 1 || m1.etat != null, `Mix lancé depuis la page de l’or par le lecteur commun (${m1.pl} morceaux, état ${m1.etat})`);
 await pc.evaluate(() => window.__or.repondre('arrête la musique'));
 
 /* ── parité : terminal de Mars (fenêtre de l'agent) = page or.html ── */
@@ -75,6 +78,7 @@ await mars.evaluate(async () => { const m = await import('/agent-trading/front/f
 const [vm, vp] = [await mars.evaluate(() => window.TableauOr.valeurs()), await pc.evaluate(() => window.__or.valeurs())];
 verifier(vm.zones.join() === vp.zones.join() && Math.abs(vm.prix - vp.prix) / vp.prix < 0.0005, 'Mars et le tableau de bord : mêmes zones, même prix', `${vm.prix} / ${vp.prix} · ${vm.zones} / ${vp.zones}`);
 verifier(await mars.evaluate(() => /OR · TABLEAU DE BORD/.test(document.querySelector('.at-pc-barre').textContent)), 'fenêtre de Mars : tableau de bord de l’or');
+verifier(await mars.evaluate(() => !document.querySelector('.at-pc [data-musique-bloc], .at-pc [data-tele-bloc]') && !!document.querySelector('.at-pc-barre [data-a="musique"]') && !!document.querySelector('.at-pc-barre [data-a="tele"]')), 'fenêtre « ◈ » de Mars : sans musique ni télé, boutons ♪ et 📺 vers les tuiles');
 await mars.screenshot({ path: path.join(SORTIE, 'mars-fenetre.png') }); await mars.close();
 
 /* ── téléphone 390 × 844 et tablette 820 × 1180 ── */
@@ -83,7 +87,7 @@ for (const [l, h, nom] of [[390, 844, 'telephone'], [820, 1180, 'tablette']]) {
   const d = await t.evaluate(() => ({ disp: document.querySelector('.tor').dataset.disposition, ovf: document.documentElement.scrollWidth - document.documentElement.clientWidth, carnetSous: document.querySelector('.tor-carnet').getBoundingClientRect().top >= document.querySelector('.tor-graph').getBoundingClientRect().bottom - 2 }));
   verifier(d.disp === 'colonne' && d.carnetSous, `${nom} : une colonne (carnet sous le graphique)`); verifier(d.ovf <= 0, `${nom} : pas de défilement horizontal`, d.ovf);
   await t.screenshot({ path: path.join(SORTIE, `${nom}-tableau.png`) });
-  for (const [s, f] of [['[data-journal-bloc]', 'journal'], ['[data-gardien-bloc]', 'gardien'], ['[data-musique-bloc]', 'musique']]) { await t.evaluate(x => document.querySelector(x).scrollIntoView(), s); await w(250); await t.screenshot({ path: path.join(SORTIE, `${nom}-${f}.png`) }); }
+  for (const [s, f] of [['[data-journal-bloc]', 'journal'], ['[data-gardien-bloc]', 'gardien']]) { await t.evaluate(x => document.querySelector(x).scrollIntoView(), s); await w(250); await t.screenshot({ path: path.join(SORTIE, `${nom}-${f}.png`) }); }
   await t.close();
 }
 

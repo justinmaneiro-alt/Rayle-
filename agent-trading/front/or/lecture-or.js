@@ -1,10 +1,11 @@
 /* ═════════════ LECTURE DU GRAPHIQUE EN FRANÇAIS SIMPLE (pur, testé) ═════════════
    Phrases courtes, parlables (pas de markdown, pas d'émoji). Jamais d'ordre d'achat ou de vente : des constats. */
+import { nomClair } from './reperes-or.js';
 import { texteHistorique } from './zones-or.js';
 
 const nb = p => Math.round(p).toLocaleString('fr-FR').replace(/ | /g, ' ');
 export const NOM_COTE = { support: 'un support', resistance: 'une résistance' };
-const nomZone = z => (z.vol && z.cles.length ? 'zone de volume et niveau clé' : z.vol ? 'zone de volume' : (z.noms[0] || 'niveau').toLowerCase());
+const nomZone = z => (z.vol && z.cles.length ? 'zone de volume et niveau clé' : z.vol ? 'zone de volume' : (z.noms[0] ? nomClair(z.noms[0]) : 'niveau'));   // « plus bas de la séance de Londres », jamais « londres bas »
 
 /* une zone et son état : « on est sur un support à 4 085, testé 6 fois, a tenu 4 » */
 export function phraseZone(z, etat) {
