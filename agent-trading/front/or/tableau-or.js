@@ -75,7 +75,7 @@ export function monterTableauOr(el, { modules = {}, contexte = 'page', fetchFn, 
     const n = q('[data-notifs-n]'); n.hidden = !nonLues; n.textContent = nonLues;
     q('[data-notifs-liste]').innerHTML = notifs.map(x => `<li class="tor-n-${x.niveau}${x.dit ? '' : ' tor-n-tu'}"><time>${heureParis(x.t)}</time> ${esc(x.texte)}${x.dit ? '' : ` <small>(non annoncé : ${esc(x.raison)})</small>`}</li>`).join('');
   }
-  const api = { notifier, R };
+  const api = { notifier, R, modules };
 
   /* moteur + graphique + carnet (le même carnet que l'agent) */
   const graph = creerGraphiqueOr(q('[data-graph]'), { mobile });
@@ -136,7 +136,7 @@ export function monterTableauOr(el, { modules = {}, contexte = 'page', fetchFn, 
       q('[data-l-dessus]').textContent = zl(L.dessus); q('[data-l-dessous]').textContent = zl(L.dessous); q('[data-l-etat]').textContent = L.etat;
     }
     // zones
-    q('[data-zones-liste]').innerHTML = S.zones.map((z, i) => `<li data-zone="${z.id}"><b>Z${i + 1} · ${z.cote === 'support' ? 'Support' : 'Résistance'} ${nb(z.p, 0)}</b> <span class="tor-etat tor-etat-${S.etats[z.id]}">${ETATS[S.etats[z.id]] || '—'}</span>
+    q('[data-zones-liste]').innerHTML = S.zones.map((z, i) => `<li data-zone="${z.id}"><div><b>Z${i + 1} · ${z.cote === 'support' ? 'Support' : 'Résistance'} ${nb(z.p, 0)}</b> <span class="tor-etat tor-etat-${S.etats[z.id]}">${ETATS[S.etats[z.id]] || '—'}</span></div>
       <span>${esc(z.noms.join(' + '))} · ${nb(z.bas)} – ${nb(z.haut)} · à ${nb(z.distAtr, 1)} ATR</span>
       <span>Historique réel (30 derniers jours) : ${texteHistorique(z)}${z.tests ? '' : ''}</span>
       <small>${[...new Set(z.types)].map(t => esc(S.etude ? texteType(S.etude, t) : `${NOMS_TYPES[t]} : mesure ${S.etudeEtat}`)).join('<br>')}</small></li>`).join('') || '<li>Aucune zone pour le moment (données en cours de chargement).</li>';
