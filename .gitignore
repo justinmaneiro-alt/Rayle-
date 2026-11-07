@@ -81,3 +81,9 @@ agent-trading/worker/.wrangler/
 agent-trading/worker/.wrangler/
 agent-trading/RAPPORT-BALAYAGE-RANGE.md
 agent-trading/PLANCHE-BALAYAGE.html
+
+# Mes trades XTB (données personnelles) : jamais dans le dépôt public
+donnees-privees/
+agent-trading/RAPPORT-MES-TRADES.md
+agent-trading/PLANCHE-MES-TRADES.html
+agent-trading/RAPPORT-DUREES.md

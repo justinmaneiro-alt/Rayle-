@@ -24,6 +24,8 @@ Reprendre ici : lire ce fichier, puis `RAPPORT-AGENT.md` (local, choix faits seu
 
 - **Cadre swing 1-2 jours (2026-11-04, nuit)** : voir `moteur/etude-ancien/RAPPORT-SWING.md` (hors dépôt). Décision H1 (niveaux de volume, CVD 24 h), entrée limite M15 traversée d'un pas, stop large, objectif 2-5 R, 72 h ; 40 variantes, témoin 1000 tirages même cadre : **aucune ne passe ni ne bat le témoin** (q min 0,24) ; retenue en calibration « 4 modèles · stop ≥ 4 ATR · flux ≥ 2 » = −0,022 R hors échantillon (360 trades). Version « swing » ajoutée au registre fantôme (`moteur/swing/`, `v4/fantome.js` `cadre:'swing'`, archive `registre-fantome-archive.jsonl`), **active au prochain redémarrage du moteur**. Tests : `moteur/tests/swing-test.mjs`.
 
+- **Durées longues + étude de mes trades (2026-11-07)** : familles figées `cassure-v1-durees` et `balayage-v1-durees` (tenue 4/8/16/32 bougies M15, 8 variantes par famille, ajoutées APRÈS l'analyse de l'historique de Justin = hypothèse supplémentaire, Holm sur v1 + durées) : `etude-cassure.mjs <actif> --durees`, `etude-balayage.mjs --durees`, rapport local `RAPPORT-DUREES.md` (verdict : pas assez de données partout). Étude des trades XTB de Justin : `moteur/copilote/mes-trades/` (`extraire.py`, `etude-mes-trades.mjs`, `planche-mes-trades.mjs`, `rapport-durees.mjs`), données dans `donnees-privees/` ; rapport `RAPPORT-MES-TRADES.md` et planche `PLANCHE-MES-TRADES.html` LOCAUX (tous ignorés par git, données personnelles). Tests : `node moteur/tests/mes-trades-test.mjs`.
+
 ## En cours
 - Rien. Le moteur tourne en OBSERVATION et remplit le registre fantôme.
 
