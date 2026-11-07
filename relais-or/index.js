@@ -12,7 +12,7 @@
    Déploiement : npx.cmd wrangler deploy --config relais-or/wrangler.toml */
 const ORIGINES = ['https://justinmaneiro-alt.github.io', 'http://127.0.0.1:8000', 'http://127.0.0.1:8011', 'http://localhost:8000'];
 export const RESOLUTIONS = ['5m', '15m', '1h', '4h', '1d'];
-export const COMMANDES = ['playlist', 'mix', 'pause', 'reprendre', 'suivant', 'precedent', 'volume_plus', 'volume_moins', 'muet', 'stop', 'melange', 'or', 'terre', 'musique', 'ping'];
+export const COMMANDES = ['playlist', 'mix', 'pause', 'reprendre', 'pause_reprendre', 'suivant', 'precedent', 'volume_plus', 'volume_moins', 'muet', 'stop', 'melange', 'or', 'terre', 'musique', 'ping'];
 const KRAKEN = 'https://futures.kraken.com';
 
 export function cors(origine) {

@@ -12,7 +12,8 @@ export async function monterModules(T) {
   const R = T.R, essais = [
     ['journal', './journal-ui.js', 'monterJournal', '[data-journal-bloc]'],
     ['gardien', './gardien-ui.js', 'monterGardien', '[data-gardien-bloc]'],
-    ['musique', './musique.js', 'monterMusique', '[data-musique-bloc]']
+    ['musique', './musique.js', 'monterMusique', '[data-musique-bloc]'],
+    ['tele', './telecommande.js', 'monterTelecommandeBloc', '[data-tele-bloc]']
   ];
   for (const [nom, f, fn, sel] of essais) {
     try { const m = await import(f); T.monterModule(nom, m[fn](R.querySelector(sel), { tableau: T })); }
