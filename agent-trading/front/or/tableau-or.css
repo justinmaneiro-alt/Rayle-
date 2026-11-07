@@ -1,0 +1,77 @@
+/* Tableau de bord de l'or : sobre, une seule page qui défile. Couleurs : fond noir, accent cyan froid, sable discret ; vert / rouge pour les données. */
+.tor{--f:#05080c;--p:#0b1117;--b:rgba(143,208,227,.16);--t:#d7e3ea;--d:#7d8a90;--a:#8fd0e3;--s:#c9b27a;--g:#5fb894;--r:#d86a6a;
+  color:var(--t);background:var(--f);font:14px/1.45 system-ui,'Segoe UI',sans-serif;min-height:100%;box-sizing:border-box;padding:0 0 24px}
+.tor *{box-sizing:border-box}
+.tor button,.tor summary{font:inherit;color:var(--t);background:#101820;border:1px solid var(--b);border-radius:4px;padding:5px 10px;cursor:pointer;min-height:32px}
+.tor button:hover,.tor summary:hover{border-color:rgba(143,208,227,.5)}
+.tor button[aria-pressed="true"]{border-color:var(--a);color:var(--a)}
+.tor input[type=text],.tor input[type=number],.tor select,.tor textarea{font:inherit;color:var(--t);background:#0c131a;border:1px solid var(--b);border-radius:4px;padding:5px 8px}
+.tor input[type=number]{width:5.5em}
+.tor-tete{position:sticky;top:0;z-index:5;display:flex;flex-wrap:wrap;align-items:center;gap:8px 14px;padding:8px 12px;background:rgba(5,8,12,.94);border-bottom:1px solid var(--b)}
+.tor-titre{display:flex;align-items:baseline;gap:8px;flex-wrap:wrap}
+.tor-titre b{font-size:16px;letter-spacing:.06em}
+.tor-titre small{color:var(--d)}
+.tor-prix{font:600 20px ui-monospace,Consolas,monospace}
+.tor-periodes{display:flex;gap:4px}
+.tor-outils{display:flex;gap:6px;margin-left:auto;align-items:center}
+.tor-couches{position:relative}
+.tor-couches[open]>label{display:flex}
+.tor-couches>label{display:none;position:absolute;right:0;z-index:6;background:#0b1117;border:1px solid var(--b);padding:6px 10px;white-space:nowrap;gap:6px}
+.tor-couches>label:nth-of-type(1){top:36px}.tor-couches>label:nth-of-type(2){top:70px}.tor-couches>label:nth-of-type(3){top:104px}
+.tor-cloche{position:relative}
+.tor-cloche i{position:absolute;top:-6px;right:-6px;min-width:18px;height:18px;border-radius:9px;background:var(--s);color:#000;font:600 11px/18px system-ui;font-style:normal;text-align:center}
+.tor-bandeau{margin:0;padding:6px 12px;background:rgba(201,178,122,.12);border-bottom:1px solid rgba(201,178,122,.3);color:var(--s)}
+.tor-ecran1{display:grid;grid-template-columns:minmax(0,1fr) 360px;gap:0;height:calc(100vh - 110px);min-height:420px;border-bottom:1px solid var(--b)}
+.tor[data-contexte="fenetre"]{height:100%;overflow:auto}
+.tor[data-contexte="fenetre"] .tor-ecran1{height:min(74vh,760px)}
+.tor-graph{position:relative;min-width:0;min-height:0;display:flex;flex-direction:column}
+.tor-graph-lw{flex:1;min-height:0}
+.tor-graph-source{margin:0;padding:3px 10px;color:var(--d);font-size:12px;border-top:1px solid var(--b)}
+.tor-pos{position:absolute;left:10px;top:8px;z-index:3;margin:0;max-width:calc(100% - 90px);padding:6px 10px;background:rgba(8,12,16,.9);border:1px solid var(--b);border-radius:4px;font-size:13px}
+.tor-carnet{min-width:0;min-height:0;overflow:auto;border-left:1px solid var(--b)}
+.tor-bloc{padding:14px 16px;border-bottom:1px solid var(--b);max-width:1400px}
+.tor-bloc h2{margin:0 0 10px;font-size:15px;letter-spacing:.04em;font-weight:600}
+.tor-bloc h2 small{font-weight:400;color:var(--d);margin-left:6px}
+.tor-bloc h3{font-size:14px;margin:14px 0 6px}
+.tor-lecture dl{display:grid;grid-template-columns:max-content 1fr;gap:4px 14px;margin:0 0 10px}
+.tor-lecture dt{color:var(--d)}
+.tor-lecture dd{margin:0}
+.tor-demande{display:flex;flex-wrap:wrap;gap:6px}
+.tor-demande input{flex:1;min-width:220px}
+.tor-reponse{min-height:1.4em;color:var(--a)}
+.tor-zones{margin:0;padding-left:0;list-style:none;display:grid;gap:8px}
+.tor-zones li{display:flex;flex-direction:column;gap:2px;padding:8px 10px;border:1px solid var(--b);border-radius:4px;background:var(--p)}
+.tor-zones small{color:var(--d)}
+.tor-etat{display:inline-block;margin-left:8px;padding:0 6px;border-radius:3px;font-size:12px;border:1px solid var(--b)}
+.tor-etat-sur{border-color:var(--s);color:var(--s)}
+.tor-etat-approche{border-color:var(--a);color:var(--a)}
+.tor-doux,.tor-pied{color:var(--d);font-size:12.5px}
+.tor-pied{padding:12px 16px}
+.tor-pied a{color:var(--a)}
+.tor-regles{white-space:pre-wrap;font:12px/1.5 ui-monospace,Consolas,monospace;color:var(--d)}
+.tor-notifs{position:fixed;right:12px;top:58px;z-index:20;width:min(420px,calc(100vw - 24px));max-height:70vh;overflow:auto;background:#0b1117;border:1px solid rgba(143,208,227,.35);border-radius:6px;box-shadow:0 12px 40px rgba(0,0,0,.6);padding:10px}
+.tor-notifs header{display:flex;justify-content:space-between;align-items:center}
+.tor-notifs-regl{display:grid;gap:6px;padding:8px 0;border-bottom:1px solid var(--b)}
+.tor-notifs ol{list-style:none;margin:0;padding:6px 0;display:grid;gap:6px}
+.tor-notifs li time{color:var(--d);font:12px ui-monospace,monospace;margin-right:6px}
+.tor-n-fort{color:var(--s)} .tor-n-doux,.tor-n-tu{color:var(--d)}
+.tor table{border-collapse:collapse;width:100%;font-size:13px}
+.tor th,.tor td{text-align:left;padding:4px 8px;border-bottom:1px solid var(--b);white-space:nowrap}
+.tor td.num,.tor th.num{text-align:right;font-family:ui-monospace,Consolas,monospace}
+.tor .tor-tableau{overflow-x:auto}
+.tor .pos{color:var(--g)} .tor .neg{color:var(--r)}
+.tor-grille{display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:8px}
+.tor-grille label{display:flex;flex-direction:column;gap:3px;color:var(--d);font-size:12.5px}
+.tor-grille label input,.tor-grille label select{color:var(--t)}
+.tor-actions{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
+.tor-alerte{padding:8px 10px;border-radius:4px;border:1px solid var(--b);margin:6px 0}
+.tor-alerte-orange{border-color:var(--s);color:var(--s)} .tor-alerte-rouge{border-color:var(--r);color:var(--r);font-weight:600}
+.tor-barre{height:8px;background:#111a22;border-radius:4px;overflow:hidden}
+.tor-barre i{display:block;height:100%;background:var(--a)}
+/* une colonne : téléphone et tablette */
+.tor[data-disposition="colonne"] .tor-ecran1{display:flex;flex-direction:column;height:auto}
+.tor[data-disposition="colonne"] .tor-graph{height:min(68vh,560px)}
+.tor[data-disposition="colonne"] .tor-carnet{border-left:0;border-top:1px solid var(--b);height:min(80vh,620px)}
+.tor[data-disposition="colonne"] .tor-outils{margin-left:0}
+.tor[data-disposition="colonne"] .tor-bloc{padding:12px}
+@media (max-width:600px){.tor-tete{padding:6px 8px;gap:6px}.tor-prix{font-size:18px}.tor button{padding:5px 8px}.tor-periodes button{padding:5px 7px}}

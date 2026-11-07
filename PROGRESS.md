@@ -1,3 +1,17 @@
+# Refonte « Tableau de bord de l'OR » + journal, gardien, musique, mode télé (2026-11-07) — avancement
+
+Reprendre ici. Branche `tableau-or`, fusionnée dans `main` à la fin de chaque partie. Rapport HORS dépôt : `agent-trading/RAPPORT-TABLEAU-OR.md`. Simulation seulement, aucun ordre ; Worker principal `rayle` jamais touché ; relais dédié `rayle-or-relais` (sans secret).
+
+| Partie | État |
+|---|---|
+| A. Tableau de bord de l'or (périmètre or seul, graphique Kraken heure de Paris, 3 couches, états de zone, lecture, carnet) | fait : `agent-trading/front/or.html` + `front/or/` ; relais `relais-or/` déployé (d6cf0acb) ; tests `tests/or-test.mjs` (105), `or-reseau-test.mjs` (vraie API Kraken) ; étude des taux : `moteur/copilote/tableau-or/etude-reaction.mjs` (hors dépôt) |
+| B. Journal de trades + gardien de drawdown | à faire |
+| C. Lecteur de musique YouTube (IFrame officielle) | à faire |
+| D. Mode télé + appairage (relais dédié) + Presentation API | à faire |
+| E. Vérifications finales (Terre, tests, captures, rapport) | à faire |
+
+---
+
 # Étude « balayage de liquidité sous un range, contexte MA200 / zone de volume » sur l'or (2026-11-07) — avancement
 
 Reprendre ici. Branche `balayage-range`, fusionnée dans `main`. Le rapport est HORS dépôt : `agent-trading/RAPPORT-BALAYAGE-RANGE.md`. Ses règles figées `balayage-v1` ont été écrites le 2026-11-07 à 13:15 UTC, avant tout test. La planche de contrôle est aussi HORS dépôt : `agent-trading/PLANCHE-BALAYAGE.html`.
