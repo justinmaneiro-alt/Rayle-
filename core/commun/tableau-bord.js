@@ -289,6 +289,6 @@
   window.TableauBord={detacher,rattacher,titres:()=>T.FENETRES.map(f=>({id:f.id,titre:f.titre})),vue:id=>{ const e=fen[id]||T.FENETRES.find(f=>f.id===id); const v=e&&VUES[e.dataset?e.dataset.ouvre:e.ouvre]; if(v) v(); return !!v; },donnees:()=>donnees,etat:()=>({actif:corps.classList.contains('tb-actif'),fenetres:Object.keys(fen),donnees:Object.keys(donnees).filter(k=>donnees[k]&&Object.keys(donnees[k]).length),reglages}),
     rafraichir:rafraichirTout,reglages:()=>reglages,definirReglages:r=>{ reglages=T.normaliserReglages(r); sauver(); dessinerReglages(); construire(); },ouvrir:id=>{ const e=fen[id]; if(e&&VUES[e.dataset.ouvre]){ VUES[e.dataset.ouvre](); return true; } return false; },
     /* tests : injecter des données sans réseau */
-    injecter:(cle,val)=>{ donnees[cle]=val; ({meteo:dessinerMeteo,actus:dessinerActus,marche:dessinerMarche,terre:dessinerTerre})[cle]&&({meteo:dessinerMeteo,actus:dessinerActus,marche:dessinerMarche,terre:dessinerTerre,reels:dessinerAgent,pilote:dessinerAgent})[cle](); }};
+    injecter:(cle,val)=>{ donnees[cle]=val; const f=({meteo:dessinerMeteo,actus:dessinerActus,marche:dessinerMarche,terre:dessinerTerre})[cle]; if(f) f(); }};    // dessinerAgent n'existe plus depuis le retrait des agents (2026-11-03)
   construire(); tic(); corps.classList.toggle('tb-pause',!visible());
 })();
