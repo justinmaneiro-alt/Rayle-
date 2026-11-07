@@ -4,6 +4,7 @@
    lecteur de musique (même playlist sur cet appareil), Terre classique allégée, heure et météo, adresse courte, QR code et code d'appairage. */
 import { creerMoteurOr } from './moteur-or.js';
 import { creerGraphiqueOr } from './graphique-or.js';
+import { dessinPeriode } from './tableau-or.js';
 import { monterMusique } from './musique.js';
 import { creerLien } from './tele-lien.js';
 import { ADRESSE_COURTE, urlTelecommande, toucheVersAction, voisin, texteMeteo } from './tele-calcul.js';
@@ -56,7 +57,7 @@ export async function monterTele(el) {
   // or : mêmes modules que le tableau de bord
   const graph = creerGraphiqueOr(q('[data-graph]'), { mobile: false });
   const moteur = creerMoteurOr({ etudeAuto: false, surMaj: S => {
-    graph.bougies(moteur.serie(), S.hist ? S.refP : S.periode === 'M15' ? S.refM15 : S.refP, { cle: S.periode + (S.hist ? ':historique' : ':court'), debutKraken: S.hist && S.k.length ? S.k[0].t : null, ecart: S.ecart }); graph.dessin({ zonesVol: S.zonesVol, niveaux: S.niveaux, retournement: S.zones, prix: S.prix, reperes: S.reperes || [], a: S.a });
+    graph.bougies(moteur.serie(), S.hist ? S.refP : S.periode === 'M15' ? S.refM15 : S.refP, { cle: S.periode + (S.hist ? ':historique' : ':court'), debutKraken: S.hist && S.k.length ? S.k[0].t : null, ecart: S.ecart }); graph.dessin({ zonesVol: S.zonesVol, niveaux: S.niveaux, retournement: S.zones, prix: S.prix, a: S.a, ...dessinPeriode(S) });
     q('[data-prix]').textContent = nb(S.prix); const o = S.ticker && S.ticker.open24h; q('[data-var]').textContent = S.prix && o ? `${S.prix >= o ? '+' : ''}${nb((S.prix / o - 1) * 100)} % sur 24 h` : '';
     if (S.lecture) q('[data-lecture]').textContent = S.lecture.phrase;
     const b = q('[data-bandeau]'), msg = S.marche && !S.marche.ouvert ? S.marche.texte : S.retard && S.retard.enRetard ? S.retard.texte : null; b.hidden = !msg; b.textContent = msg || '';

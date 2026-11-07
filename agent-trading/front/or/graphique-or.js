@@ -6,9 +6,9 @@
 import { chargerLib } from '../graphique.js';
 import { espacerEtiquettes } from '../etiquettes-calcul.js';
 import { tempsGraphique, tempsMonotones } from './temps-or.js';
-import { grouper, choisirEtiquettes, texteBord, FUSION_ATR, LARGEUR_MAX_ATR, ETIQUETTES_MAX } from './reperes-or.js';
 
-export const COUCHES = Object.freeze({ volume: 'Zones de volume', sr: 'Supports et résistances', retournement: 'Zones de retournement' });
+export const COUCHES = Object.freeze({ sr: 'Supports et résistances', liquidite: 'Zones de liquidité', fleches: 'Flèches de rebond', volume: 'Zones de volume' });
+const COUCHES_DEFAUT = Object.freeze({ sr: true, liquidite: true, fleches: true, volume: false });
 const lire = (k, d) => { try { const v = localStorage.getItem(k); return v ? JSON.parse(v) : d; } catch (e) { return d; } };
 const ecrire = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) { /* stockage refusé */ } };
 const nb = (p, d = 2) => Number(p).toLocaleString('fr-FR', { minimumFractionDigits: d, maximumFractionDigits: d }).replace(/ | /g, ' ');
@@ -29,9 +29,9 @@ export function ratio(pos) {
 }
 
 export function creerGraphiqueOr(el, { surClicPrix, mobile = false } = {}) {
-  const etat = { bougies: [], volumes: [], cle: null, debutKraken: null, ecart: null, chargementAncien: false, zonesVol: [], niveaux: [], retournement: [], reperes: [], a: null, cadres: [], marques: [], couches: lire('rayle_or_couches', { volume: true, sr: true, retournement: true }), pos: lire('rayle_or_position', null), outil: null, prix: null };
+  const etat = { bougies: [], volumes: [], cle: null, debutKraken: null, ecart: null, chargementAncien: false, zonesVol: [], niveaux: [], retournement: [], bandes: [], liquidite: [], balayages: [], fleches: [], a: null, cadres: [], marques: [], tSerie: new Map(), barres: new Map(), couches: { ...COUCHES_DEFAUT, ...lire('rayle_or_couches_v2', {}) }, pos: lire('rayle_or_position', null), outil: null, prix: null };
   let LW = null, chart = null, serie = null, vol = null, pret = null;
-  const C = { refHaut: 'rgba(160,170,150,.55)', refBas: 'rgba(170,140,140,.55)', bande: 'rgba(201,178,122,.07)', sable: '#c9b27a', haut: '#5fb894', bas: '#d86a6a', volZone: '143,136,204', support: '#86c3e8', resistance: '#e2ae62', retour: '#e8e2cf', texte: '#cfd8dc', doux: '#7d8a90', fond: 'rgba(8,12,16,.86)' };
+  const C = { liquidite: '#c39be0', flecheHaut: '#4fd18b', flecheBas: '#ef5f5f', refHaut: 'rgba(160,170,150,.55)', refBas: 'rgba(170,140,140,.55)', bande: 'rgba(201,178,122,.07)', sable: '#c9b27a', haut: '#5fb894', bas: '#d86a6a', volZone: '143,136,204', support: '#86c3e8', resistance: '#e2ae62', retour: '#e8e2cf', texte: '#cfd8dc', doux: '#7d8a90', fond: 'rgba(8,12,16,.86)' };
   const yDe = p => serie ? serie.priceToCoordinate(p) : null;
 
   /* bande « historique de référence » : tout ce qui est avant la première bougie Kraken (Binance décalé de l'écart mesuré) */
@@ -48,10 +48,12 @@ export function creerGraphiqueOr(el, { surClicPrix, mobile = false } = {}) {
     ctx.font = `600 ${fs}px system-ui, sans-serif`; ctx.fillStyle = C.sable;
     const e = etat.ecart == null ? 'non mesuré' : `${etat.ecart >= 0 ? '+' : '−'}${nb(Math.abs(etat.ecart))} $`;
     const L = [['Historique de référence', `Binance XAUUSDT décalé de ${e}`], ['Kraken PF_XAUUSD →', 'mise en ligne du perpétuel']];
+    const d = fs + 10;   // la première ligne reste aux repères des niveaux hors champ (▲)
     const w0 = Math.max(...L[0].map(t => ctx.measureText(t).width)) + 12;
-    if (x > w0 + 6) { ctx.fillStyle = 'rgba(8,12,16,.86)'; ctx.fillRect(6, 6, w0, fs * 2 + 12); ctx.fillStyle = C.sable; ctx.fillText(L[0][0], 12, 8 + fs); ctx.font = `${fs}px system-ui, sans-serif`; ctx.fillText(L[0][1], 12, 12 + fs * 2); }
+    if (x > w0 + 6) { ctx.fillStyle = 'rgba(8,12,16,.86)'; ctx.fillRect(6, 6 + d, w0, fs * 2 + 12); ctx.fillStyle = C.sable; ctx.fillText(L[0][0], 12, 8 + fs + d); ctx.font = `${fs}px system-ui, sans-serif`; ctx.fillText(L[0][1], 12, 12 + fs * 2 + d); }
     ctx.font = `${fs}px system-ui, sans-serif`; const w1 = Math.max(...L[1].map(t => ctx.measureText(t).width)) + 12;
-    if (x + w1 + 6 < T.width - 60) { ctx.fillStyle = 'rgba(8,12,16,.86)'; ctx.fillRect(x + 6, 6, w1, fs * 2 + 12); ctx.fillStyle = C.sable; ctx.fillText(L[1][0], x + 12, 8 + fs); ctx.fillText(L[1][1], x + 12, 12 + fs * 2); }
+    if (x + w1 + 6 < T.width * (mobile ? 0.34 : 0.55)) {   // jamais dans la colonne des étiquettes de niveaux (à droite)
+      ctx.fillStyle = 'rgba(8,12,16,.86)'; ctx.fillRect(x + 6, 6 + d, w1, fs * 2 + 12); ctx.fillStyle = C.sable; ctx.fillText(L[1][0], x + 12, 8 + fs + d); ctx.fillText(L[1][1], x + 12, 12 + fs * 2 + d); }
   }, 'bottom');
   const primFond = new Primitive((ctx, T) => {
     if (!serie) return;
@@ -59,37 +61,43 @@ export function creerGraphiqueOr(el, { surClicPrix, mobile = false } = {}) {
       const y0 = yDe(z.haut), y1 = yDe(z.bas); if (y0 == null || y1 == null) continue;
       ctx.fillStyle = `rgba(${C.volZone},${(0.10 + 0.15 * (z.force || 0)).toFixed(3)})`; ctx.fillRect(0, y0, T.width, Math.max(1, y1 - y0));
     }
-    if (etat.couches.retournement) for (const z of etat.retournement) {
-      const y0 = yDe(z.haut), y1 = yDe(z.bas); if (y0 == null || y1 == null) continue;
-      ctx.strokeStyle = 'rgba(232,226,207,.55)'; ctx.setLineDash([4, 3]); ctx.lineWidth = 1; ctx.strokeRect(0.5, y0 + 0.5, T.width - 1, Math.max(1, y1 - y0)); ctx.setLineDash([]);
-    }
   }, 'bottom');
 
   const primTexte = new Primitive((ctx, T) => {
     if (!serie) return;
     const fs = mobile ? 10 : 11; ctx.font = `${fs}px system-ui, 'Segoe UI', sans-serif`;
-    /* repères : fusionnés à 0,3 ATR H1, au plus 8 étiquettes (5 sur téléphone), les plus importantes ; un repère par bord pour ce qui sort de la vue */
-    const cochees = etat.reperes.filter(x => etat.couches[x.couche] !== false);
-    const G = grouper(cochees, etat.a ? FUSION_ATR * etat.a : 0.5, etat.a ? LARGEUR_MAX_ATR * etat.a : 10);
-    const { dedans, bords } = choisirEtiquettes(G, yDe, T.height, { max: mobile ? 5 : ETIQUETTES_MAX, prix: etat.prix });
-    const couleur = g => g.types.length === 1 && g.types[0] === 'volume' ? `rgb(${C.volZone})` : etat.prix != null && g.p > etat.prix ? C.resistance : C.support;
-    for (const g of dedans) {   // trait (un seul niveau) ou bande fine (zone fusionnée)
-      const col = couleur(g); ctx.strokeStyle = col; ctx.fillStyle = col; ctx.globalAlpha = 0.7; ctx.lineWidth = 1;
-      if (g.zone) { const y0 = yDe(g.haut), y1 = yDe(g.bas); if (y0 != null && y1 != null && y1 - y0 >= 2) { ctx.globalAlpha = 0.10; ctx.fillRect(0, y0, T.width, y1 - y0); ctx.globalAlpha = 0.55; ctx.setLineDash([3, 3]); ctx.beginPath(); ctx.moveTo(0, Math.round(y0) + 0.5); ctx.lineTo(T.width, Math.round(y0) + 0.5); ctx.moveTo(0, Math.round(y1) + 0.5); ctx.lineTo(T.width, Math.round(y1) + 0.5); ctx.stroke(); ctx.setLineDash([]); ctx.globalAlpha = 1; continue; } }
-      ctx.setLineDash(g.types.every(t => t === 'rond50' || t === 'rond100') ? [1, 3] : g.types.includes('seance') && g.n === 1 ? [5, 4] : []);
-      ctx.beginPath(); ctx.moveTo(0, Math.round(g.y) + 0.5); ctx.lineTo(T.width - 4, Math.round(g.y) + 0.5); ctx.stroke(); ctx.setLineDash([]); ctx.globalAlpha = 1;
+    /* supports et résistances de LA PÉRIODE (au plus 4 au-dessus, 4 au-dessous) : les plus forts bien visibles, les autres discrets ;
+       liquidité en pointillés ; étiquettes courtes alignées à droite, SANS trait de rappel : une étiquette qui chevaucherait est omise (détail au survol) */
+    const etq = [], hors = { haut: null, bas: null }, xDe = t => { const x = chart.timeScale().timeToCoordinate(etat.tSerie.get(t) ?? tempsGraphique(t)); return x == null ? 0 : Math.max(0, x); };
+    if (etat.couches.sr !== false) for (const b of etat.bandes) {
+      const col = b.cote === 'resistance' ? C.resistance : C.support, y0 = yDe(b.haut), y1 = yDe(b.bas); if (y0 == null || y1 == null) continue;
+      if (y1 < 0 || y0 > T.height) { const k = y1 < 0 ? 'haut' : 'bas'; if (!hors[k] || Math.abs(b.p - (etat.prix ?? b.p)) < Math.abs(hors[k].p - (etat.prix ?? b.p))) hors[k] = b; continue; }
+      ctx.strokeStyle = col; ctx.fillStyle = col; ctx.lineWidth = b.fort ? 1.5 : 1; ctx.setLineDash(b.fort ? [] : [4, 4]);
+      if (y1 - y0 >= 3) { ctx.globalAlpha = b.fort ? 0.13 : 0.05; ctx.fillRect(0, y0, T.width, y1 - y0); }
+      ctx.globalAlpha = b.fort ? 0.85 : 0.35; ctx.beginPath();
+      for (const y of y1 - y0 >= 3 ? [y0, y1] : [(y0 + y1) / 2]) { ctx.moveTo(0, Math.round(y) + 0.5); ctx.lineTo(T.width, Math.round(y) + 0.5); }
+      ctx.stroke(); ctx.setLineDash([]); ctx.globalAlpha = 1;
+      etq.push({ y: (y0 + y1) / 2, texte: b.texte, col, prio: b.fort ? 3 : 1, gras: b.fort, g: { texte: b.texte, detail: b.detail, p: b.p } });
     }
-    const etq = [...dedans.map(g => ({ y: g.y, texte: g.texte, col: couleur(g), g })), ...bords.map(g => ({ y: g.bord === 'haut' ? fs : T.height - fs, texte: texteBord(g, etat.prix), col: C.doux, g }))];
+    if (etat.couches.liquidite !== false) for (const z of etat.liquidite) {
+      const y = yDe(z.p); if (y == null || y < 0 || y > T.height) continue;
+      ctx.strokeStyle = C.liquidite; ctx.globalAlpha = 0.85; ctx.lineWidth = 1; ctx.setLineDash([2, 3]); ctx.beginPath(); ctx.moveTo(xDe(z.depuis), Math.round(y) + 0.5); ctx.lineTo(T.width, Math.round(y) + 0.5); ctx.stroke(); ctx.setLineDash([]); ctx.globalAlpha = 1;
+      etq.push({ y, texte: z.texte, col: C.liquidite, prio: 2, g: { texte: z.texte, detail: [`zone de liquidité ${z.sorte} non balayée : ${z.raisons.join(', ')}`, 'disparaît dès qu’une bougie la dépasse (une marque reste à cet endroit)'], p: z.p } });
+    }
+    for (const [k, b] of Object.entries(hors)) if (b) { const t = `${k === 'haut' ? '▲' : '▼'} ${b.texte}${etat.prix != null ? ` · ${b.p >= etat.prix ? '+' : '−'}${nb(Math.abs(b.p - etat.prix), 0)} $` : ''}`; etq.push({ y: k === 'haut' ? fs : T.height - fs, texte: t, col: C.doux, prio: 2.5, g: { texte: t, detail: b.detail, p: b.p, bord: k } }); }
     etat.cadres = [];
-    const wMax = Math.max(120, T.width * (mobile ? 0.62 : 0.45));
-    for (const e of espacerEtiquettes(etq, fs + 8, T.height)) {   // cadre de fs + 6 px + 2 px d'écart : jamais de chevauchement
+    const wMax = Math.max(120, T.width * (mobile ? 0.66 : 0.45)), h = fs + 6, places = [];
+    for (const e of etq.sort((x, y) => y.prio - x.prio)) {
+      const y = Math.max(h / 2 + 1, Math.min(T.height - h / 2 - 1, e.y));
+      if (places.some(q => Math.abs(q - y) < h + 2)) continue;   // chevauchement : étiquette omise (jamais d'éventail)
+      places.push(y); ctx.font = `${e.gras ? '600 ' : ''}${fs}px system-ui, 'Segoe UI', sans-serif`;
       let t = e.texte; while (ctx.measureText(t).width > wMax - 10 && t.length > 8) t = t.slice(0, -2);
       if (t !== e.texte) t = t.replace(/\s*\S?$/, '') + '…';
-      const w = ctx.measureText(t).width + 10, x = T.width - w - 2, y0 = e.y - fs / 2 - 3;
-      if (Math.abs(e.y - e.yTrait) > 3 && !e.g.bord) { ctx.strokeStyle = e.col; ctx.globalAlpha = 0.5; ctx.beginPath(); ctx.moveTo(x, e.y); ctx.lineTo(x - 10, e.yTrait); ctx.stroke(); ctx.globalAlpha = 1; }   // trait de rappel : l'étiquette a été décalée
-      ctx.fillStyle = C.fond; ctx.fillRect(x, y0, w, fs + 6); ctx.fillStyle = e.col; ctx.fillText(t, x + 5, e.y + fs / 2 - 1);
-      etat.cadres.push({ x, y: y0, w, h: fs + 6, g: e.g });
+      const w = ctx.measureText(t).width + 10, x = T.width - w - 2, y0 = y - h / 2;
+      ctx.fillStyle = C.fond; ctx.fillRect(x, y0, w + 2, h); ctx.fillStyle = e.col; ctx.globalAlpha = e.prio === 1 ? 0.75 : 1; ctx.fillText(t, x + 5, y + fs / 2 - 1); ctx.globalAlpha = 1;
+      etat.cadres.push({ x, y: y0, w, h, g: e.g });
     }
+    ctx.font = `${fs}px system-ui, 'Segoe UI', sans-serif`;
     // outil Position
     const r = ratio(etat.pos);
     if (etat.pos && etat.pos.entree) {
@@ -108,11 +116,12 @@ export function creerGraphiqueOr(el, { surClicPrix, mobile = false } = {}) {
     if (!serie) return;
     const B = etat.bougies, V = etat.volumes, s = { n: B.length, t0: B.length ? B[0].t : null, nv: V.length, v0: V.length ? V[0].t : null, ref: B.length ? B.filter(b => b.ref).length : 0, e: etat.ecart };
     if (sig && s.t0 === sig.t0 && s.v0 === sig.v0 && s.ref === sig.ref && s.e === sig.e && s.n >= sig.n && s.n - sig.n <= 1 && s.nv >= sig.nv && s.nv - sig.nv <= 1 && B.length) {
-      const tb = tempsMonotones(B.slice(-3).map(b => b.t)); for (let i = Math.max(0, B.length - 2), j = tb.length - (B.length - Math.max(0, B.length - 2)); i < B.length; i++, j++) serie.update(pointBougie(B[i], tb[j]));
+      const tb = tempsMonotones(B.slice(-3).map(b => b.t)); for (let i = Math.max(0, B.length - 2), j = tb.length - (B.length - Math.max(0, B.length - 2)); i < B.length; i++, j++) { serie.update(pointBougie(B[i], tb[j])); etat.tSerie.set(B[i].t, tb[j]); etat.barres.set(tb[j], B[i]); }
       if (V.length) { const tv = tempsMonotones(V.slice(-3).map(b => b.t)); for (let i = Math.max(0, V.length - 2), j = tv.length - (V.length - Math.max(0, V.length - 2)); i < V.length; i++, j++) vol.update(pointVolume(V[i], tv[j])); }
     } else {
       const tb = tempsMonotones(B.map(b => b.t)), tv = tempsMonotones(V.map(b => b.t));
       serie.setData(B.map((b, i) => pointBougie(b, tb[i]))); vol.setData(V.map((b, i) => pointVolume(b, tv[i])));
+      etat.tSerie = new Map(B.map((b, i) => [b.t, tb[i]])); etat.barres = new Map(B.map((b, i) => [tb[i], b]));
     }
     sig = s;
     if (marqueurs) marqueurs.setMarkers(marquesLW());
@@ -121,7 +130,13 @@ export function creerGraphiqueOr(el, { surClicPrix, mobile = false } = {}) {
   const VUE_DEFAUT = 150, MARGE_DROITE = 5;
   function vueDefaut() { if (!chart || !etat.bougies.length) return; const n = etat.bougies.length; chart.timeScale().setVisibleLogicalRange({ from: Math.max(0, n - VUE_DEFAUT), to: n - 1 + MARGE_DROITE }); }
   let marqueurs = null;
-  const marquesLW = () => etat.marques.filter(m => m.t).map(m => ({ time: tempsGraphique(m.t), position: m.sens === 'achat' ? 'belowBar' : 'aboveBar', color: m.r == null ? '#cfd8dc' : m.r >= 0 ? C.haut : C.bas, shape: m.sens === 'achat' ? 'arrowUp' : 'arrowDown', text: m.texte || '' })).sort((a, b) => a.time - b.time);
+  /* marques du graphique (dessinées par Lightweight Charts, à la bougie près) : flèches de rebond, zones de liquidité balayées, trades du journal */
+  const tDe = t => etat.tSerie.get(t) ?? tempsGraphique(t);
+  const marquesLW = () => [
+    ...(etat.couches.fleches !== false ? etat.fleches.map(f => ({ id: 'f' + f.t, time: tDe(f.t), position: f.sens === 'baisse' ? 'aboveBar' : 'belowBar', color: f.sens === 'baisse' ? C.flecheBas : C.flecheHaut, shape: f.sens === 'baisse' ? 'arrowDown' : 'arrowUp', size: 0.6 })) : []),
+    ...(etat.couches.liquidite !== false ? etat.balayages.map(b => ({ id: 'b' + b.t + b.sorte, time: tDe(b.t), position: b.sorte === 'haute' ? 'aboveBar' : 'belowBar', color: 'rgba(195,155,224,.75)', shape: 'circle', size: 0.35 })) : []),
+    ...marquesJournal()].filter(m => m.time != null).sort((a, b) => a.time - b.time);
+  const marquesJournal = () => etat.marques.filter(m => m.t).map(m => ({ time: tDe(m.t), position: m.sens === 'achat' ? 'belowBar' : 'aboveBar', color: m.r == null ? '#cfd8dc' : m.r >= 0 ? C.haut : C.bas, shape: m.sens === 'achat' ? 'arrowUp' : 'arrowDown', text: m.texte || '' })).sort((a, b) => a.time - b.time);
 
   async function monter() {
     LW = await chargerLib();
@@ -176,7 +191,18 @@ export function creerGraphiqueOr(el, { surClicPrix, mobile = false } = {}) {
     tip.style.cssText = 'position:absolute;right:8px;z-index:4;max-width:min(360px,80%);padding:7px 10px;background:#0b1117;border:1px solid rgba(143,208,227,.4);border-radius:5px;color:#d7e3ea;font:12.5px/1.4 system-ui,sans-serif;pointer-events:none;box-shadow:0 6px 20px rgba(0,0,0,.5)';
     el.appendChild(tip);
     let epingle = null;
-    const trouver = (x, y) => { const c = etat.cadres.find(c => x >= c.x - 2 && x <= c.x + c.w + 2 && y >= c.y - 2 && y <= c.y + c.h + 2); return c ? c.g : null; };
+    const trouver = (x, y) => { const c = etat.cadres.find(c => x >= c.x - 2 && x <= c.x + c.w + 2 && y >= c.y - 2 && y <= c.y + c.h + 2); return c ? c.g : marqueSous(x, y); };
+    /* flèche ou marque de balayage sous le pointeur (au-dessus de la mèche haute, ou sous la mèche basse, de la bougie) */
+    const NOMS = { 'résistance': 'sous une résistance', support: 'sur un support', 'liquidité haute': 'sous une zone de liquidité haute', 'liquidité basse': 'sur une zone de liquidité basse' };
+    function marqueSous(x, y) {
+      if (!chart) return null; const t = chart.timeScale().coordinateToTime(x), b = t != null ? etat.barres.get(t) : null; if (!b) return null;
+      const yH = yDe(b.h), yL = yDe(b.l), dessus = yH != null && y <= yH + 3 && y >= yH - 30, dessous = yL != null && y >= yL - 3 && y <= yL + 30;
+      const f = etat.couches.fleches !== false && etat.fleches.find(q => q.t === b.t && (q.sens === 'baisse' ? dessus : dessous));
+      if (f) return { p: f.niveau, texte: `Rebond ${NOMS[f.type] || 'sur un niveau'} · flèche ${f.sens === 'baisse' ? 'rouge' : 'verte'}`, detail: [`niveau ${nb(f.niveau)} · ${f.touches} touche${f.touches >= 2 ? 's' : ''}`, `volume ${nb(f.volume, 0)} (médiane des 20 bougies précédentes : ${nb(f.mediane, 0)})`, `posée à la clôture de cette bougie, avec les seuls niveaux connus avant elle (jamais redessinée)`, 'information de lecture, jamais un ordre'] };
+      const z = etat.couches.liquidite !== false && etat.balayages.find(q => q.t === b.t && (q.sorte === 'haute' ? dessus : dessous));
+      if (z) return { p: z.p, texte: `Liquidité ${z.sorte} ${nb(z.p, 0)} balayée`, detail: [`${z.raison} dépassé par cette bougie`] };
+      return null;
+    }
     const montrer = (g, y) => {
       const L = (g.detail || []).filter(d => d !== g.texte);
       tip.innerHTML = `<b>${esc(g.bord ? texteBord(g, etat.prix) : g.texte)}</b>${L.length ? '<ul style="margin:4px 0 0;padding-left:16px">' + L.map(d => `<li>${esc(d)}</li>`).join('') + '</ul>' : ''}<div style="color:#7d8a90;margin-top:3px">${etat.prix != null ? `à ${nb(Math.abs(g.p - etat.prix), 2)} $ du prix` : ''}</div>`;
@@ -208,8 +234,9 @@ export function creerGraphiqueOr(el, { surClicPrix, mobile = false } = {}) {
       if (!der) return;
       try { serie.update({ time: tempsGraphique(b.t), open: b.o, high: b.h, low: b.l, close: b.c }); } catch (e) { console.warn('bougie en cours :', e.message); }
     },
-    couches(c) { if (c) { etat.couches = { ...etat.couches, ...c }; ecrire('rayle_or_couches', etat.couches); redessiner(); } return { ...etat.couches }; },
-    dessin({ zonesVol, niveaux, retournement, prix, reperes, a }) { if (zonesVol) etat.zonesVol = zonesVol.slice().sort((x, y) => (y.force || 0) - (x.force || 0)).slice(0, 3); if (niveaux) etat.niveaux = niveaux; if (retournement) etat.retournement = retournement; if (reperes) etat.reperes = reperes; if (a != null) etat.a = a; if (prix != null) etat.prix = prix; redessiner(); },
+    couches(c) { if (c) { etat.couches = { ...etat.couches, ...c }; ecrire('rayle_or_couches_v2', etat.couches); redessiner(); if (marqueurs) marqueurs.setMarkers(marquesLW()); } return { ...etat.couches }; },
+    fleches: () => etat.fleches.slice(), marquesAffichees: () => marquesLW(),
+    dessin({ zonesVol, niveaux, retournement, prix, a, bandes, liquidite, balayages, fleches }) { if (bandes) etat.bandes = bandes; if (liquidite) etat.liquidite = liquidite; if (balayages) etat.balayages = balayages; if (fleches) { const ch = fleches !== etat.fleches; etat.fleches = fleches; if (ch && marqueurs) marqueurs.setMarkers(marquesLW()); } if (zonesVol) etat.zonesVol = zonesVol.slice().sort((x, y) => (y.force || 0) - (x.force || 0)).slice(0, 3); if (niveaux) etat.niveaux = niveaux; if (retournement) etat.retournement = retournement; if (a != null) etat.a = a; if (prix != null) etat.prix = prix; redessiner(); },
     etiquettes: () => etat.cadres.map(c => ({ texte: c.g.texte, bord: c.g.bord || null, n: c.g.n, detail: c.g.detail, x: c.x, y: c.y, w: c.w, h: c.h })),
     marques(L) { etat.marques = L || []; if (marqueurs) marqueurs.setMarkers(marquesLW()); },
     outil(v) { etat.outil = v; if (v === 'entree') etat.pos = null; redessiner(); return etat.outil; },

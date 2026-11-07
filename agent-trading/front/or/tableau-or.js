@@ -10,6 +10,7 @@ import { PERIODES, REGLES, TEXTE_REGLES, KRAKEN } from './config-or.js';
 import { texteType, texteHistorique, NOMS_TYPES } from './zones-or.js';
 import { heureParis } from './temps-or.js';
 import { nomClair } from './reperes-or.js';
+import { REGLES_NIVEAUX, REGLES_FLECHES, TEXTE_REGLES_FLECHES } from './niveaux-periode.js';
 import { interpreter } from './commandes-or.js';
 
 const lireJ = (k, d) => { try { const v = localStorage.getItem(k); return v ? JSON.parse(v) : d; } catch (e) { return d; } };
@@ -22,6 +23,9 @@ export function chargerCssOr() {
   if (cssCharge || document.getElementById('tor-css')) return; cssCharge = true;
   for (const [f, id] of [['../jetons.css', 'at-jetons'], ['../agent.css', 'at-css'], ['./tableau-or.css', 'tor-css']]) { if (document.getElementById(id)) continue; const l = document.createElement('link'); l.rel = 'stylesheet'; l.href = new URL(f, import.meta.url).href; l.id = id; document.head.appendChild(l); }
 }
+/* niveaux, liquidité et flèches de la période affichée (niveaux-periode.js) pour le graphique */
+const VIDE = Object.freeze([]);
+export const dessinPeriode = S => ({ bandes: S.niveauxP ? S.niveauxP.bandes : VIDE, liquidite: S.liquidite ? S.liquidite.zones : VIDE, balayages: S.liquidite ? S.liquidite.balayages : VIDE, fleches: S.fleches && S.fleches.periode === S.periode ? S.fleches.liste : VIDE });
 export const disposition = (l, h) => (l >= 1000 && l >= h ? 'pc' : 'colonne');
 
 /* voix : celle de Rayle si la page est dans Rayle (window.speak), sinon la synthèse du navigateur */
@@ -45,7 +49,7 @@ export function monterTableauOr(el, { modules = {}, contexte = 'page', fetchFn, 
   </header>
   <p class="tor-bandeau" data-bandeau role="status" hidden></p>
   <section class="tor-ecran1">
-    <div class="tor-graph"><div class="tor-graph-lw" data-graph></div><p class="tor-pos" data-pos hidden></p><p class="tor-graph-source" data-source></p></div>
+    <div class="tor-graph"><div class="tor-graph-lw" data-graph></div><p class="tor-pos" data-pos hidden></p><p class="tor-graph-source" data-source></p><p class="tor-graph-source tor-bilan" data-bilan-fleches></p></div>
     <aside class="tor-carnet at" data-carnet aria-label="Carnet d’ordres"></aside>
   </section>
   <section class="tor-bloc tor-lecture" data-lecture>
@@ -54,7 +58,8 @@ export function monterTableauOr(el, { modules = {}, contexte = 'page', fetchFn, 
     <form class="tor-demande" data-demande><input type="text" placeholder="Demander à Rayle… (« on en est où ? »)" aria-label="Demander à Rayle"><button type="button" data-a="micro" title="Parler">🎤</button><button type="submit">Envoyer</button><button type="button" data-a="ou" title="Rayle, on en est où ?">🔊 On en est où ?</button></form>
     <p class="tor-reponse" data-reponse aria-live="polite"></p>
     <details class="tor-zones-det" data-zones><summary>Zones de retournement en détail <small>les plus proches, classées par confluence</small></summary><ol class="tor-zones" data-zones-liste></ol><p class="tor-doux" data-etude></p>
-    <details><summary>Règles figées ${REGLES.version}</summary><pre class="tor-regles">${esc(TEXTE_REGLES)}</pre></details></details>
+    <details><summary>Règles figées ${REGLES.version}</summary><pre class="tor-regles">${esc(TEXTE_REGLES)}</pre></details>
+    <details><summary>Règles figées des niveaux et des flèches (${REGLES_NIVEAUX.version}, ${REGLES_FLECHES.version})</summary><pre class="tor-regles">${esc(TEXTE_REGLES_FLECHES)}</pre></details></details>
   </section>
   <section class="tor-bloc" data-journal-bloc></section>
   <section class="tor-bloc" data-gardien-bloc></section>
@@ -130,7 +135,7 @@ export function monterTableauOr(el, { modules = {}, contexte = 'page', fetchFn, 
     rendreTete();
     for (const b of R.querySelectorAll('[data-periode]')) b.setAttribute('aria-pressed', String(b.dataset.periode === S.periode));
     graph.bougies(moteur.serie(), S.hist ? S.refP : S.periode === 'M15' ? S.refM15 : S.refP, { cle: S.periode + (S.hist ? ':historique' : ':court'), debutKraken: S.hist && S.k.length ? S.k[0].t : null, ecart: S.ecart });
-    graph.dessin({ zonesVol: S.zonesVol, niveaux: S.niveaux, retournement: S.zones, prix: S.prix, reperes: S.reperes || [], a: S.a });
+    graph.dessin({ zonesVol: S.zonesVol, niveaux: S.niveaux, retournement: S.zones, prix: S.prix, a: S.a, ...dessinPeriode(S) });
     // bandeau unique : marché fermé, retard, données peu fiables, panne
     const msg = [];
     if (S.erreurs.kraken) msg.push('Prix Kraken indisponible : ' + S.erreurs.kraken);
@@ -139,6 +144,8 @@ export function monterTableauOr(el, { modules = {}, contexte = 'page', fetchFn, 
     else if (S.retard && S.retard.enRetard) msg.push(S.retard.texte);
     if (S.fiable === false) msg.push(`Données peu fiables : seulement ${nb(S.volume24h / 1e6, 0)} M$ échangés sur 24 h sur la référence.`);
     const b = q('[data-bandeau]'); b.hidden = !msg.length; b.textContent = msg.join(' · ');
+    const bf = q('[data-bilan-fleches]'), BF = S.bilanFleches && S.fleches && S.fleches.periode === S.periode ? S.bilanFleches : null;
+    bf.textContent = BF ? `Flèches de rebond (${S.periode}) : ${BF.texte} Informations de lecture, jamais un ordre.` : 'Flèches de rebond : calcul en cours…';
     q('[data-source]').textContent = `Prix Kraken · volume Binance · écart Kraken − Binance ${S.ecart == null ? 'non mesuré' : (S.ecart >= 0 ? '+' : '') + nb(S.ecart)} $${S.ecartN ? ` (médiane de ${S.ecartN} bougies)` : ''} · ATR H1 ${nb(S.a)} $${texteHistoriqueCharge(S)}`;
     // lecture
     const L = S.lecture; if (L) {
