@@ -26,6 +26,8 @@ Reprendre ici : lire ce fichier, puis `RAPPORT-AGENT.md` (local, choix faits seu
 
 - **Durées longues + étude de mes trades (2026-11-07)** : familles figées `cassure-v1-durees` et `balayage-v1-durees` (tenue 4/8/16/32 bougies M15, 8 variantes par famille, ajoutées APRÈS l'analyse de l'historique de Justin = hypothèse supplémentaire, Holm sur v1 + durées) : `etude-cassure.mjs <actif> --durees`, `etude-balayage.mjs --durees`, rapport local `RAPPORT-DUREES.md` (verdict : pas assez de données partout). Étude des trades XTB de Justin : `moteur/copilote/mes-trades/` (`extraire.py`, `etude-mes-trades.mjs`, `planche-mes-trades.mjs`, `rapport-durees.mjs`), données dans `donnees-privees/` ; rapport `RAPPORT-MES-TRADES.md` et planche `PLANCHE-MES-TRADES.html` LOCAUX (tous ignorés par git, données personnelles). Tests : `node moteur/tests/mes-trades-test.mjs`.
 
+- **Retour sur niveau clé avec la tendance H1 (or, 2026-11-07)** : règles figées `retour-v1` (tendance H1+H4+MA200, niveaux clés, rejet avec volume, 6 variantes), code `moteur/copilote/retour-niveau/` (hors dépôt), rapport local `RAPPORT-RETOUR-NIVEAU.md`. Verdict : **aucune règle validée** (6 variantes rejetées, ≥ 177 trades hors échantillon chacune, R brut ≈ 0, négatif après frais taker, pas mieux que le hasard du même régime). Aucune proposition ajoutée au suivi ; pas de variante supplémentaire. Tests : `node moteur/tests/retour-test.mjs`.
+
 ## En cours
 - Rien. Le moteur tourne en OBSERVATION et remplit le registre fantôme.
 
