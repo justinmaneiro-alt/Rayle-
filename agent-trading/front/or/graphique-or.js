@@ -28,11 +28,30 @@ export function ratio(pos) {
 }
 
 export function creerGraphiqueOr(el, { surClicPrix, mobile = false } = {}) {
-  const etat = { bougies: [], volumes: [], zonesVol: [], niveaux: [], retournement: [], marques: [], couches: lire('rayle_or_couches', { volume: true, sr: true, retournement: true }), pos: lire('rayle_or_position', null), outil: null, prix: null };
+  const etat = { bougies: [], volumes: [], cle: null, debutKraken: null, ecart: null, chargementAncien: false, zonesVol: [], niveaux: [], retournement: [], marques: [], couches: lire('rayle_or_couches', { volume: true, sr: true, retournement: true }), pos: lire('rayle_or_position', null), outil: null, prix: null };
   let LW = null, chart = null, serie = null, vol = null, pret = null;
-  const C = { haut: '#5fb894', bas: '#d86a6a', volZone: '143,136,204', support: '#86c3e8', resistance: '#e2ae62', retour: '#e8e2cf', texte: '#cfd8dc', doux: '#7d8a90', fond: 'rgba(8,12,16,.86)' };
+  const C = { refHaut: 'rgba(160,170,150,.55)', refBas: 'rgba(170,140,140,.55)', bande: 'rgba(201,178,122,.07)', sable: '#c9b27a', haut: '#5fb894', bas: '#d86a6a', volZone: '143,136,204', support: '#86c3e8', resistance: '#e2ae62', retour: '#e8e2cf', texte: '#cfd8dc', doux: '#7d8a90', fond: 'rgba(8,12,16,.86)' };
   const yDe = p => serie ? serie.priceToCoordinate(p) : null;
 
+  /* bande « historique de référence » : tout ce qui est avant la première bougie Kraken (Binance décalé de l'écart mesuré) */
+  function xDebutKraken(T) {
+    if (!chart || etat.debutKraken == null || !etat.bougies.length || !etat.bougies[0].ref) return null;
+    const ts = chart.timeScale(), x = ts.timeToCoordinate(tempsGraphique(etat.debutKraken)); if (x != null) return x;
+    const r = ts.getVisibleRange(); if (!r) return null;
+    return tempsGraphique(etat.debutKraken) <= r.from ? -1 : T.width;   // perpétuel à gauche de la vue : pas de bande ; à droite : toute la largeur
+  }
+  const primBande = new Primitive((ctx, T) => {
+    const x = xDebutKraken(T); if (x == null || x <= 0) return;
+    const fs = mobile ? 10 : 11; ctx.fillStyle = C.bande; ctx.fillRect(0, 0, x, T.height);
+    ctx.strokeStyle = 'rgba(201,178,122,.55)'; ctx.setLineDash([4, 4]); ctx.beginPath(); ctx.moveTo(Math.round(x) + 0.5, 0); ctx.lineTo(Math.round(x) + 0.5, T.height); ctx.stroke(); ctx.setLineDash([]);
+    ctx.font = `600 ${fs}px system-ui, sans-serif`; ctx.fillStyle = C.sable;
+    const e = etat.ecart == null ? 'non mesuré' : `${etat.ecart >= 0 ? '+' : '−'}${nb(Math.abs(etat.ecart))} $`;
+    const L = [['Historique de référence', `Binance XAUUSDT décalé de ${e}`], ['Kraken PF_XAUUSD →', 'mise en ligne du perpétuel']];
+    const w0 = Math.max(...L[0].map(t => ctx.measureText(t).width)) + 12;
+    if (x > w0 + 6) { ctx.fillStyle = 'rgba(8,12,16,.86)'; ctx.fillRect(6, 6, w0, fs * 2 + 12); ctx.fillStyle = C.sable; ctx.fillText(L[0][0], 12, 8 + fs); ctx.font = `${fs}px system-ui, sans-serif`; ctx.fillText(L[0][1], 12, 12 + fs * 2); }
+    ctx.font = `${fs}px system-ui, sans-serif`; const w1 = Math.max(...L[1].map(t => ctx.measureText(t).width)) + 12;
+    if (x + w1 + 6 < T.width - 60) { ctx.fillStyle = 'rgba(8,12,16,.86)'; ctx.fillRect(x + 6, 6, w1, fs * 2 + 12); ctx.fillStyle = C.sable; ctx.fillText(L[1][0], x + 12, 8 + fs); ctx.fillText(L[1][1], x + 12, 12 + fs * 2); }
+  }, 'bottom');
   const primFond = new Primitive((ctx, T) => {
     if (!serie) return;
     if (etat.couches.volume) for (const z of etat.zonesVol) {
@@ -72,13 +91,25 @@ export function creerGraphiqueOr(el, { surClicPrix, mobile = false } = {}) {
     }
   });
 
+  const pointBougie = (b, t) => b.ref ? { time: t, open: b.o, high: b.h, low: b.l, close: b.c, color: b.c >= b.o ? C.refHaut : C.refBas, wickColor: b.c >= b.o ? C.refHaut : C.refBas } : { time: t, open: b.o, high: b.h, low: b.l, close: b.c };
+  const pointVolume = (b, t) => ({ time: t, value: b.v, color: b.c >= b.o ? 'rgba(95,184,148,.35)' : 'rgba(216,106,106,.35)' });
+  let sig = null;   // signature des données déjà envoyées : seule la dernière bougie change → update (pas de setData de 20 000 bougies)
   function versSerie() {
     if (!serie) return;
-    const tb = tempsMonotones(etat.bougies.map(b => b.t)), tv = tempsMonotones(etat.volumes.map(b => b.t));
-    serie.setData(etat.bougies.map((b, i) => ({ time: tb[i], open: b.o, high: b.h, low: b.l, close: b.c })));
-    vol.setData(etat.volumes.map((b, i) => ({ time: tv[i], value: b.v, color: b.c >= b.o ? 'rgba(95,184,148,.35)' : 'rgba(216,106,106,.35)' })));
+    const B = etat.bougies, V = etat.volumes, s = { n: B.length, t0: B.length ? B[0].t : null, nv: V.length, v0: V.length ? V[0].t : null, ref: B.length ? B.filter(b => b.ref).length : 0, e: etat.ecart };
+    if (sig && s.t0 === sig.t0 && s.v0 === sig.v0 && s.ref === sig.ref && s.e === sig.e && s.n >= sig.n && s.n - sig.n <= 1 && s.nv >= sig.nv && s.nv - sig.nv <= 1 && B.length) {
+      const tb = tempsMonotones(B.slice(-3).map(b => b.t)); for (let i = Math.max(0, B.length - 2), j = tb.length - (B.length - Math.max(0, B.length - 2)); i < B.length; i++, j++) serie.update(pointBougie(B[i], tb[j]));
+      if (V.length) { const tv = tempsMonotones(V.slice(-3).map(b => b.t)); for (let i = Math.max(0, V.length - 2), j = tv.length - (V.length - Math.max(0, V.length - 2)); i < V.length; i++, j++) vol.update(pointVolume(V[i], tv[j])); }
+    } else {
+      const tb = tempsMonotones(B.map(b => b.t)), tv = tempsMonotones(V.map(b => b.t));
+      serie.setData(B.map((b, i) => pointBougie(b, tb[i]))); vol.setData(V.map((b, i) => pointVolume(b, tv[i])));
+    }
+    sig = s;
     if (marqueurs) marqueurs.setMarkers(marquesLW());
   }
+  /* vue par défaut : les 150 dernières bougies, calées à droite, petite marge */
+  const VUE_DEFAUT = 150, MARGE_DROITE = 5;
+  function vueDefaut() { if (!chart || !etat.bougies.length) return; const n = etat.bougies.length; chart.timeScale().setVisibleLogicalRange({ from: Math.max(0, n - VUE_DEFAUT), to: n - 1 + MARGE_DROITE }); }
   let marqueurs = null;
   const marquesLW = () => etat.marques.filter(m => m.t).map(m => ({ time: tempsGraphique(m.t), position: m.sens === 'achat' ? 'belowBar' : 'aboveBar', color: m.r == null ? '#cfd8dc' : m.r >= 0 ? C.haut : C.bas, shape: m.sens === 'achat' ? 'arrowUp' : 'arrowDown', text: m.texte || '' })).sort((a, b) => a.time - b.time);
 
@@ -89,20 +120,22 @@ export function creerGraphiqueOr(el, { surClicPrix, mobile = false } = {}) {
       layout: { attributionLogo: true, background: { type: 'solid', color: 'transparent' }, textColor: C.doux, fontFamily: 'ui-monospace, Consolas, monospace', fontSize: mobile ? 10 : 11 },
       grid: { vertLines: { color: 'rgba(143,208,227,.05)' }, horzLines: { color: 'rgba(143,208,227,.05)' } },
       rightPriceScale: { borderVisible: false, scaleMargins: { top: 0.06, bottom: 0.2 } },
-      timeScale: { borderVisible: false, timeVisible: true, secondsVisible: false, rightOffset: 6 },
+      timeScale: { borderVisible: false, timeVisible: true, secondsVisible: false, rightOffset: MARGE_DROITE },
       crosshair: { mode: 0 }, localization: { locale: 'fr-FR', priceFormatter: p => nb(p) }
     });
     serie = chart.addSeries(LW.CandlestickSeries, { upColor: C.haut, downColor: C.bas, wickUpColor: C.haut, wickDownColor: C.bas, borderVisible: false, priceLineColor: '#cfd8dc', priceLineStyle: 2 });
     vol = chart.addSeries(LW.HistogramSeries, { priceScaleId: 'vol', priceFormat: { type: 'volume' }, lastValueVisible: false, priceLineVisible: false });
     chart.priceScale('vol').applyOptions({ scaleMargins: { top: 0.84, bottom: 0 } });
-    serie.attachPrimitive(primFond); serie.attachPrimitive(primTexte);
+    serie.attachPrimitive(primBande); serie.attachPrimitive(primFond); serie.attachPrimitive(primTexte);
     if (LW.createSeriesMarkers) marqueurs = LW.createSeriesMarkers(serie, []);
     chart.subscribeClick(p => {
       if (!p.point || !serie) return; const prix = serie.coordinateToPrice(p.point.y); if (prix == null) return;
       if (etat.outil) { poser(prix); return; }
       surClicPrix && surClicPrix(prix, p);
     });
-    brancherGlisser(); versSerie(); if (etat.bougies.length) chart.timeScale().scrollToRealTime();
+    // glisser vers la gauche : arrivée près du bord des données → un morceau plus ancien (Kraken, puis la référence)
+    chart.timeScale().subscribeVisibleLogicalRangeChange(r => { if (r && r.from < 40 && etat.bougies.length && api.surBordGauche) api.surBordGauche(); redessiner(); });
+    brancherGlisser(); versSerie(); vueDefaut();
     return api;
   }
   /* outil Position : clic 1 = entrée, clic 2 = stop, clic 3 = objectif ; ensuite, glisser un trait le déplace */
@@ -127,9 +160,18 @@ export function creerGraphiqueOr(el, { surClicPrix, mobile = false } = {}) {
 
   const api = {
     pret: () => pret,
-    bougies(L, volumes) { const premier = !etat.bougies.length; etat.bougies = L; if (volumes) etat.volumes = volumes; try { versSerie(); } catch (e) { console.warn('bougies :', e.message); } if (premier && chart && L.length) chart.timeScale().scrollToRealTime(); },
+    /* L : bougies affichées (référence décalée « ref: true » puis Kraken) ; cle : la période (nouvelle période → vue par défaut) */
+    bougies(L, volumes, { cle = null, debutKraken = null, ecart = null } = {}) {
+      const nouvelle = (cle !== etat.cle) || (!etat.bougies.length && L.length);
+      etat.bougies = L; if (volumes) etat.volumes = volumes; etat.cle = cle; etat.debutKraken = debutKraken; etat.ecart = ecart;
+      if (nouvelle) sig = null;
+      try { versSerie(); } catch (e) { console.warn('bougies :', e.message); }
+      if (nouvelle && chart && L.length) vueDefaut();
+      redessiner();
+    },
+    vueDefaut,
     majDerniere(b) {
-      if (!serie || !b) return; const der = etat.bougies[etat.bougies.length - 1];
+      if (!serie || !b) return; const der = etat.bougies[etat.bougies.length - 1]; sig = sig && { ...sig, n: etat.bougies.length };
       if (der && b.t < der.t) return;
       if (!der) return;
       try { serie.update({ time: tempsGraphique(b.t), open: b.o, high: b.h, low: b.l, close: b.c }); } catch (e) { console.warn('bougie en cours :', e.message); }

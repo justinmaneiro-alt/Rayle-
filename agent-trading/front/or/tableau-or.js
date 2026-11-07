@@ -80,6 +80,7 @@ export function monterTableauOr(el, { modules = {}, contexte = 'page', fetchFn, 
   /* moteur + graphique + carnet (le même carnet que l'agent) */
   const graph = creerGraphiqueOr(q('[data-graph]'), { mobile });
   graph.surPosition = (pos, outil) => majPosition(pos, outil);
+  graph.surBordGauche = () => { moteur.plusAncien(); };   // glisser vers la gauche : historique plus ancien
   const carnet = creerCarnet(q('[data-carnet]'), { racine: q('[data-carnet]'), WS });   // racine = élément « .at » qui porte les couleurs du carnet (jetons.css)
   carnet.maj('OR', null);
   const moteur = creerMoteurOr({ ...(fetchFn ? { fetchFn } : {}), etudeAuto, surMaj: () => rendre(), surEvenement: ev => evenement(ev) });
@@ -114,11 +115,20 @@ export function monterTableauOr(el, { modules = {}, contexte = 'page', fetchFn, 
     q('[data-or-var]').textContent = p && o ? `${p >= o ? '+' : ''}${nb((p / o - 1) * 100)} % sur 24 h` : '';
     carnet.maj('OR', p ? { prix: p } : null);
   }
+  /* où en est l'historique chargé (glisser vers la gauche pour en charger plus) */
+  function texteHistoriqueCharge(S) {
+    const H = S.hist; if (!H) return '';
+    const d = t => new Date(t).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', year: 'numeric' });
+    if (S.chargementAncien) return ' · chargement de l’historique plus ancien…';
+    const k = S.k.length ? `Kraken depuis le ${d(S.k[0].t)}${H.krakenEpuise ? ' (mise en ligne du perpétuel)' : ''}` : '';
+    const r = H.ref.length ? ` · référence Binance depuis le ${d(H.ref[0].t)}${H.refEpuise ? ' (début de la série)' : ''}` : '';
+    return ` · ${k}${r}${H.krakenEpuise && H.refEpuise ? ' · tout l’historique disponible est chargé' : ' · glisse vers la gauche pour remonter'}`;
+  }
   function rendre() {
     const S = moteur.S;
     rendreTete();
     for (const b of R.querySelectorAll('[data-periode]')) b.setAttribute('aria-pressed', String(b.dataset.periode === S.periode));
-    graph.bougies(S.k, S.periode === 'M15' ? S.refM15 : S.refP);
+    graph.bougies(moteur.serie(), S.hist ? S.refP : S.periode === 'M15' ? S.refM15 : S.refP, { cle: S.periode + (S.hist ? ':historique' : ':court'), debutKraken: S.hist && S.k.length ? S.k[0].t : null, ecart: S.ecart });
     graph.dessin({ zonesVol: S.zonesVol, niveaux: S.niveaux, retournement: S.zones, prix: S.prix });
     // bandeau unique : marché fermé, retard, données peu fiables, panne
     const msg = [];
@@ -128,7 +138,7 @@ export function monterTableauOr(el, { modules = {}, contexte = 'page', fetchFn, 
     else if (S.retard && S.retard.enRetard) msg.push(S.retard.texte);
     if (S.fiable === false) msg.push(`Données peu fiables : seulement ${nb(S.volume24h / 1e6, 0)} M$ échangés sur 24 h sur la référence.`);
     const b = q('[data-bandeau]'); b.hidden = !msg.length; b.textContent = msg.join(' · ');
-    q('[data-source]').textContent = `Prix Kraken · volume Binance · écart Kraken − Binance ${S.ecart == null ? 'non mesuré' : (S.ecart >= 0 ? '+' : '') + nb(S.ecart)} $${S.ecartN ? ` (médiane de ${S.ecartN} bougies)` : ''} · ATR H1 ${nb(S.a)} $`;
+    q('[data-source]').textContent = `Prix Kraken · volume Binance · écart Kraken − Binance ${S.ecart == null ? 'non mesuré' : (S.ecart >= 0 ? '+' : '') + nb(S.ecart)} $${S.ecartN ? ` (médiane de ${S.ecartN} bougies)` : ''} · ATR H1 ${nb(S.a)} $${texteHistoriqueCharge(S)}`;
     // lecture
     const L = S.lecture; if (L) {
       q('[data-l-biais]').textContent = S.biais ? `${L.biais} (${S.biais.texte})` : '—';
