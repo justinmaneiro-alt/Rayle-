@@ -2,6 +2,7 @@
 .tor{--f:#05080c;--p:#0b1117;--b:rgba(143,208,227,.16);--t:#d7e3ea;--d:#7d8a90;--a:#8fd0e3;--s:#c9b27a;--g:#5fb894;--r:#d86a6a;
   color:var(--t);background:var(--f);font:14px/1.45 system-ui,'Segoe UI',sans-serif;min-height:100%;box-sizing:border-box;padding:0 0 24px}
 .tor *{box-sizing:border-box}
+.tor a{color:var(--a)}.tor a:visited{color:var(--s)}
 .tor button,.tor summary{font:inherit;color:var(--t);background:#101820;border:1px solid var(--b);border-radius:4px;padding:5px 10px;cursor:pointer;min-height:32px}
 .tor button:hover,.tor summary:hover{border-color:rgba(143,208,227,.5)}
 .tor button[aria-pressed="true"]{border-color:var(--a);color:var(--a)}

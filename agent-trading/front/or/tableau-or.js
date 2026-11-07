@@ -1,5 +1,6 @@
 /* ═════════════ TABLEAU DE BORD DE L'OR (une seule page qui défile ; même composant pour la page or.html, le terminal de Mars et le mode télé) ═════════════
-   PC (≥ 1000 px, paysage) : graphique à gauche, carnet d'ordres à droite, puis Lecture du graphique, zones, journal, gardien, musique.
+   PC (≥ 1000 px, paysage) : graphique à gauche, carnet d'ordres à droite, puis Lecture du graphique, zones, journal, gardien et calculateur de taille.
+   La musique et la télé ne sont PAS ici : ce sont des tuiles indépendantes de Rayle (media-rayle.js).
    Téléphone et tablette : une colonne. Un seul centre de notifications (cloche), aucun message éparpillé.
    Modules partagés : carnet.js + carnet-kraken.js (le même carnet que l'agent), moteur-or.js (données et calculs), graphique-or.js. */
 import { creerCarnet } from '../carnet.js';
@@ -49,15 +50,13 @@ export function monterTableauOr(el, { modules = {}, contexte = 'page', fetchFn, 
   <section class="tor-bloc tor-lecture" data-lecture>
     <h2>Lecture du graphique <small>informations de marché, jamais un ordre</small></h2>
     <dl><dt>Biais H1</dt><dd data-l-biais>—</dd><dt>Zone au-dessus</dt><dd data-l-dessus>—</dd><dt>Zone au-dessous</dt><dd data-l-dessous>—</dd><dt>État</dt><dd data-l-etat>—</dd></dl>
-    <form class="tor-demande" data-demande><input type="text" placeholder="Demander à Rayle… (« on en est où ? », « lance ma playlist »)" aria-label="Demander à Rayle"><button type="button" data-a="micro" title="Parler">🎤</button><button type="submit">Envoyer</button><button type="button" data-a="ou" title="Rayle, on en est où ?">🔊 On en est où ?</button></form>
+    <form class="tor-demande" data-demande><input type="text" placeholder="Demander à Rayle… (« on en est où ? »)" aria-label="Demander à Rayle"><button type="button" data-a="micro" title="Parler">🎤</button><button type="submit">Envoyer</button><button type="button" data-a="ou" title="Rayle, on en est où ?">🔊 On en est où ?</button></form>
     <p class="tor-reponse" data-reponse aria-live="polite"></p>
   </section>
   <section class="tor-bloc" data-zones><h2>Zones de retournement <small>les plus proches, classées par confluence</small></h2><ol class="tor-zones" data-zones-liste></ol><p class="tor-doux" data-etude></p>
     <details><summary>Règles figées ${REGLES.version}</summary><pre class="tor-regles">${esc(TEXTE_REGLES)}</pre></details></section>
   <section class="tor-bloc" data-journal-bloc></section>
   <section class="tor-bloc" data-gardien-bloc></section>
-  <section class="tor-bloc" data-musique-bloc></section>
-  <section class="tor-bloc" data-tele-bloc></section>
   <footer class="tor-pied">Simulation et information seulement : Rayle ne passe aucun ordre. Prix : Kraken Futures ${KRAKEN.symbole} (relais public sans clé). Volume, delta et niveaux : Binance XAUUSDT, décalés de l’écart mesuré. Graphique : <a href="https://www.tradingview.com/" target="_blank" rel="noopener">TradingView</a> Lightweight Charts™ (Apache-2.0). Heure de Paris.</footer>
   <div class="tor-notifs" data-notifs hidden><header><b>Notifications</b><button type="button" data-a="fermer-notifs" aria-label="Fermer">✕</button></header>
     <div class="tor-notifs-regl">
@@ -160,17 +159,14 @@ export function monterTableauOr(el, { modules = {}, contexte = 'page', fetchFn, 
   async function repondre(texte) {
     const c = interpreter(texte), rep = q('[data-reponse]');
     let dire = null;
-    const versTele = (c.type === 'musique' || c.type === 'vue') && modules.tele && modules.tele.connectee() ? modules.tele.phrase(texte) : null;
-    if (versTele) dire = versTele;
-    else if (c.type === 'lecture') dire = moteur.S.lecture ? moteur.S.lecture.phrase : 'Je charge encore les données de l’or.';
-    else if (c.type === 'musique' && modules.musique) dire = await modules.musique.commande(c);
-    else if (c.type === 'musique') dire = 'Le lecteur de musique n’est pas chargé ici.';
+    if (c.type === 'lecture') dire = moteur.S.lecture ? moteur.S.lecture.phrase : 'Je charge encore les données de l’or.';
     else if (c.type === 'vue' && modules.surVue) dire = modules.surVue(c.vue);
-    else dire = 'Je n’ai pas compris. Essaie « on en est où ? » ou « lance ma playlist ».';
+    else if (c.type === 'musique' || c.type === 'fenetre') { try { dire = await (await import('./media-rayle.js')).commande(texte, { global: false }); } catch (e) { dire = 'La musique n’est pas disponible ici.'; } }
+    else dire = 'Je n’ai pas compris. Essaie « on en est où ? ».';
     if (dire) { rep.textContent = dire; parler(dire); }
     return dire;
   }
-  api.repondre = repondre; api.commande = texte => interpreter(texte).type ? repondre(texte) : null;
+  api.repondre = repondre; api.commande = texte => interpreter(texte).type === 'lecture' ? repondre(texte) : null;   // musique et télé : media-rayle.js, depuis n'importe quel écran
 
   /* événements de l'interface */
   R.addEventListener('click', e => {

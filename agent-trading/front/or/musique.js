@@ -4,6 +4,7 @@
    Commandes : voir commandes-or.js. Liste stockée sur l'appareil (localStorage, erreurs rattrapées) ; jamais par le Worker « rayle ». */
 import { MIX, CLE_FIXE, lireListe, exporter, garder, retirer, fusionner, melanger, volumeBorne, mixRefuse, estMobile } from './musique-calcul.js';
 import { lireJSON, ecrireJSON, copier } from './stockage-or.js';
+import { pluriel } from './texte-or.js';
 
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 let promesseApi = null;
@@ -26,26 +27,28 @@ const CSS = `.mu-flot{position:fixed;right:14px;bottom:14px;z-index:2147480000;b
 .mu-liste{max-height:260px;overflow:auto;margin:6px 0;padding-left:22px}.mu-liste li{margin:2px 0}.mu-liste li.mu-cur{color:#8fd0e3}
 @media (max-width:600px){.mu-flot{left:8px;right:8px;bottom:8px}.mu-lecteur{width:100%;height:200px}.mu-flot header span{max-width:none}}`;
 
-export function monterMusique(el, { tableau = null, notifier, parler: dire, conteneurFlottant = document.body } = {}) {
+export function monterMusique(elDepart, { tableau = null, notifier, parler: dire, conteneurFlottant = document.body } = {}) {
   const note = notifier || (tableau ? tableau.notifier : () => {});
   if (!document.getElementById('mu-css')) { const s = document.createElement('style'); s.id = 'mu-css'; s.textContent = CSS; document.head.appendChild(s); }
   let fixe = lireJSON(CLE_FIXE, []); if (!Array.isArray(fixe)) fixe = [];
   let player = null, source = null, pret = null, debutMix = 0, verifMix = null, ordre = [], volume = lireJSON('rayle_musique_volume', 60);
   const sauver = () => { if (!ecrireJSON(CLE_FIXE, fixe)) note('Musique : impossible d’enregistrer la liste sur cet appareil (stockage refusé). Exporte-la.', { niveau: 'fort' }); };
-  if (el) el.innerHTML = `<h2>Musique <small>lecteur officiel YouTube · « lance ma playlist », « joue le mix », « garde ce morceau »…</small></h2>
+  let el = elDepart;
+  const rendreControles = () => { if (el) el.innerHTML = `<h2>Musique <small>lecteur officiel YouTube · « lance ma playlist », « joue le mix », « garde ce morceau »…</small></h2>
     <div class="tor-actions"><button type="button" data-m="playlist">▶ Ma playlist fixe</button><button type="button" data-m="mix">▶ Le Mix</button><button type="button" data-m="pause">⏸</button><button type="button" data-m="reprendre">⏵</button><button type="button" data-m="precedent">⏮</button><button type="button" data-m="suivant">⏭</button><button type="button" data-m="volume_moins">🔉</button><button type="button" data-m="volume_plus">🔊</button><button type="button" data-m="muet">🔇</button><button type="button" data-m="melange">🔀</button><button type="button" data-m="stop">⏹</button><button type="button" data-m="garder">＋ Garde ce morceau</button><button type="button" data-m="retirer">－ Retire ce morceau</button></div>
     <p data-m-etat class="tor-doux"></p>
-    <details><summary>Ma playlist fixe (<span data-m-n>0</span> morceaux)</summary><ol class="mu-liste" data-m-liste></ol>
+    <details><summary>Ma playlist fixe (<span data-m-n>0 morceau</span>)</summary><ol class="mu-liste" data-m-liste></ol>
       <p class="tor-doux">Importer une liste : colle des liens YouTube, un par ligne (texte après « # » = titre).</p>
       <textarea data-m-import rows="4" style="width:100%" placeholder="https://www.youtube.com/watch?v=…&#10;https://youtu.be/… # titre"></textarea>
-      <div class="tor-actions"><button type="button" data-m="importer">Importer</button><button type="button" data-m="exporter">Exporter ma liste (presse-papiers)</button></div></details>`;
+      <div class="tor-actions"><button type="button" data-m="importer">Importer</button><button type="button" data-m="exporter">Exporter ma liste (presse-papiers)</button></div></details>` };
+  rendreControles();
   const flot = document.createElement('section'); flot.className = 'mu-flot'; flot.hidden = true; flot.setAttribute('aria-label', 'Lecteur de musique');
   flot.innerHTML = '<header><span data-m-titre>Musique</span><button type="button" data-m="taille" title="Agrandir / réduire">⤢</button><button type="button" data-m="stop" title="Arrêter">✕</button></header><div class="mu-lecteur"><div data-m-yt></div></div>';
   conteneurFlottant.appendChild(flot);
   const q = s => el && el.querySelector(s);
   function etat(t) { const e = q('[data-m-etat]'); if (e) e.textContent = t; }
   function majListe() {
-    const n = q('[data-m-n]'); if (n) n.textContent = fixe.length;
+    const n = q('[data-m-n]'); if (n) n.textContent = pluriel(fixe.length, 'morceau', 'morceaux');
     const cur = player && player.getVideoData ? (player.getVideoData() || {}).video_id : null, L = q('[data-m-liste]');
     if (L) L.innerHTML = fixe.map(m => `<li class="${m.id === cur ? 'mu-cur' : ''}">${esc(m.titre || 'titre inconnu')} <small class="tor-doux">${m.id}</small></li>`).join('');
   }
@@ -104,7 +107,7 @@ export function monterMusique(el, { tableau = null, notifier, parler: dire, cont
     }
     if (!fixe.length) { etat('Ta playlist fixe est vide : lance le Mix et dis « garde ce morceau », ou importe des liens.'); return 'Ta playlist fixe est vide. Lance le Mix et dis garde ce morceau, ou importe des liens.'; }
     source = 'fixe'; ordre = fixe.map(m => m.id);
-    p.loadPlaylist(ordre.slice(0, 200), 0); surveillerDemarrage(); etat(`Lecture de ta playlist fixe (${fixe.length} morceaux).`);
+    p.loadPlaylist(ordre.slice(0, 200), 0); surveillerDemarrage(); etat(`Lecture de ta playlist fixe (${pluriel(fixe.length, 'morceau', 'morceaux')}).`);
     return `Je lance ta playlist, ${fixe.length} morceau${fixe.length > 1 ? 'x' : ''}.`;
   }
   async function commande(c) {
@@ -133,11 +136,15 @@ export function monterMusique(el, { tableau = null, notifier, parler: dire, cont
   }
   async function surBouton(m) {
     if (m === 'taille') { flot.classList.toggle('mu-grand'); return; }
-    if (m === 'importer') { const z = q('[data-m-import]'), r = lireListe(z.value), f = fusionner(fixe, r.morceaux); fixe = f.liste; sauver(); majListe(); z.value = ''; etat(`${f.ajoutes} morceau(x) ajouté(s)${r.rejets.length ? `, ${r.rejets.length} ligne(s) non reconnue(s)` : ''}.`); return; }
-    if (m === 'exporter') { const ok = await copier(exporter(fixe)); etat(ok ? `Liste copiée (${fixe.length} liens) : colle-la dans « Importer » sur l’autre appareil.` : 'Copie refusée par le navigateur.'); return; }
+    if (m === 'importer') { const z = q('[data-m-import]'), r = lireListe(z.value), f = fusionner(fixe, r.morceaux); fixe = f.liste; sauver(); majListe(); z.value = ''; etat(`${pluriel(f.ajoutes, 'morceau ajouté', 'morceaux ajoutés')}${r.rejets.length ? `, ${pluriel(r.rejets.length, 'ligne non reconnue', 'lignes non reconnues')}` : ''}.`); return; }
+    if (m === 'exporter') { const ok = await copier(exporter(fixe)); etat(ok ? `Liste copiée (${pluriel(fixe.length, 'lien', 'liens')}) : colle-la dans « Importer » sur l’autre appareil.` : 'Copie refusée par le navigateur.'); return; }
     const r = await commande({ cmd: m }); if (r) etat(r);
   }
-  for (const root of [el, flot]) if (root) root.addEventListener('click', e => { const b = e.target.closest('[data-m]'); if (b) surBouton(b.dataset.m); });
+  const surClic = e => { const b = e.target.closest('[data-m]'); if (b) surBouton(b.dataset.m); };
+  for (const root of [el, flot]) if (root) root.addEventListener('click', surClic);
   majListe();
-  return { commande, lancer, liste: () => fixe.slice(), titre: titreCourant, lecteur: () => player, surEtat(f) { surEtat = f; }, detruire() { clearTimeout(verifMix); try { player && player.destroy(); } catch (e) { /* */ } flot.remove(); } };
+  /* tuile indépendante : les commandes s'affichent dans une fenêtre qu'on peut fermer sans couper la musique */
+  function attacher(nouvel) { if (el) el.removeEventListener('click', surClic); el = nouvel; rendreControles(); if (el) el.addEventListener('click', surClic); majListe(); diffuser(); }
+  const actif = () => !!player && source != null;
+  return { commande, lancer, attacher, detacher: () => attacher(null), actif, liste: () => fixe.slice(), titre: titreCourant, lecteur: () => player, surEtat(f) { surEtat = f; }, detruire() { clearTimeout(verifMix); try { player && player.destroy(); } catch (e) { /* */ } flot.remove(); } };
 }
