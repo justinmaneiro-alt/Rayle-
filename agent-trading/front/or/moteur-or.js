@@ -10,7 +10,7 @@ import { zonesRetournement, etudeReaction } from './zones-or.js';
 import { etatZone, evenementZone, creerAntiBruit } from './etats-or.js';
 import { lecture, phraseEvenement } from './lecture-or.js';
 import { marcheOr, retard, heureLocale, dateParis } from './temps-or.js';
-import { reperes } from './reperes-or.js';
+import { niveauxPeriode, liquidite, fleches, bilanFleches } from './niveaux-periode.js';
 import { chargerHistorique, chargerPlusAncien, rafraichirVolume, serieAffichee } from './historique-or.js';
 
 const lireJ = (k, d) => { try { const v = globalThis.localStorage && localStorage.getItem(k); return v ? JSON.parse(v) : d; } catch (e) { return d; } };
@@ -20,7 +20,7 @@ export function creerMoteurOr({ fetchFn = (...a) => fetch(...a), horloge = () =>
   const S = {
     periode: lireJ('rayle_or_periode', 'M15'), k: [], kM15: [], refM15: [], refH1: [], refP: [], atrH1: [], ecart: null, ecartN: 0,
     prix: null, tPrix: null, ticker: null, ref24h: null, erreurs: {}, niveaux: [], zonesVol: [], zones: [], etats: {}, lecture: null, etude: null, etudeEtat: 'à faire',
-    chargement: true, derniereRefM15: null, evenements: [], hist: null, chargementAncien: false
+    chargement: true, derniereRefM15: null, evenements: [], hist: null, chargementAncien: false, niveauxP: null, liquidite: null, fleches: null, bilanFleches: null
   };
   if (!PERIODES[S.periode]) S.periode = 'M15';
   const anti = creerAntiBruit(); const regl = lireJ('rayle_or_alertes', null); if (regl) { anti.regler(regl); if (regl.coupe) anti.couper(true); }
@@ -73,10 +73,35 @@ export function creerMoteurOr({ fetchFn = (...a) => fetch(...a), horloge = () =>
     S.etats = Object.fromEntries(S.zonesRef.map(z => [z.id, etatZone(prixRef, z, a)]));
     S.a = a; S.biais = biaisH1(h1c); S.marche = marcheOr(n); S.retard = retard(S.tPrix, n, S.marche.ouvert);
     const v24 = S.ref24h ? +S.ref24h.quoteVolume : null; S.fiable = v24 == null ? null : v24 >= REGLES.volumeFaible24h; S.volume24h = v24;
-    // repères AFFICHÉS (veille, semaine, ronds, 3 zones de volume, retournement, séance en cours) : prix Kraken M15
-    S.reperes = reperes({ niveaux: decaler(nivRef, e), zonesVol: S.zonesVol, retournement: S.zones, prix: S.prix, m15: S.periode === 'M15' ? S.k : S.kM15, marche: S.marche, t: n });
+    analysePeriode(n);
     S.lecture = lecture({ prix: S.prix, zones: S.zones, biais: S.biais, etats: S.etats, marche: S.marche, fiable: S.fiable !== false });
     S.chargement = false;
+  }
+  /* supports, résistances, liquidité et flèches de LA PÉRIODE AFFICHÉE (niveaux-periode.js) : recalculés seulement quand une bougie se
+     clôt (ou que le prix change de demi-ATR) ; les flèches, plus longues à calculer, juste après le rendu (sans bloquer la page) */
+  let cleNiv = null, cleFl = null, minuterieFl = null; const memoFleches = new Map();
+  function analysePeriode(n) {
+    const serie = serieAffichee(S.hist, S.k, S.ecart); if (serie.length < 30) { S.niveauxP = null; S.liquidite = null; return; }
+    const P = PERIODES[S.periode].ms; let j = serie.length - 1; while (j >= 0 && serie[j].t + P > n) j--;
+    const base = `${S.periode}|${serie[0].t}|${j >= 0 ? serie[j].t : 0}|${Math.round((S.ecart || 0) * 10)}`, a = S.niveauxP && S.niveauxP.a;
+    const cle = base + '|' + (a && S.prix ? Math.round(S.prix / (0.5 * a)) : 0);
+    if (cle !== cleNiv) {
+      cleNiv = cle;
+      S.niveauxP = niveauxPeriode(serie, { periode: S.periode, maintenant: n, prix: S.prix });
+      S.liquidite = liquidite(serie, { periode: S.periode, maintenant: n, prix: S.prix, a: S.niveauxP.a, pivotsL: S.niveauxP.pivots, i0: S.niveauxP.i0 });
+    }
+    if (base !== cleFl) {
+      cleFl = base; const periode = S.periode, V = new Map((S.refP || []).map(b => [b.t, b.v]));
+      clearTimeout(minuterieFl);
+      minuterieFl = setTimeout(() => {
+        if (arrete || periode !== S.periode) return;
+        const F = fleches(serie, { periode, maintenant: n, volumes: V });
+        // une flèche affichée ne disparaît jamais et ne bouge jamais : elles sont gardées par période (même si l'on charge un historique plus ancien)
+        const memo = memoFleches.get(periode) || new Map(); for (const f of F) if (!memo.has(f.t)) memo.set(f.t, f); memoFleches.set(periode, memo);
+        const liste = [...memo.values()].sort((x, y) => x.t - y.t);
+        S.fleches = { periode, liste }; S.bilanFleches = bilanFleches(serie, liste, { periode, maintenant: n }); surMaj(S);
+      }, 0);
+    }
   }
   /* événements : à chaque nouvelle M15 de référence close, et à chaque changement d'état « approche » / « sur » */
   function detecter(ancienEtats) {

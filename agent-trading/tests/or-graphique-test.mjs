@@ -40,15 +40,50 @@ for (const P of ['M5', 'M15', 'H1', 'H4', 'J']) {
   verifier(g.nv >= 140 && g.nv <= 160 && g.a >= g.n - 1 + 3 && g.a <= g.n - 1 + 8, `${P} : vue par défaut ≈ 150 dernières bougies calées à droite avec une marge`, `${g.nv} visibles, ${(g.a - g.n + 1).toFixed(1)} de marge`);
   verifier(g.panes === 2 && g.hVol > 40 && g.hVol < g.hPrix / 2, `${P} : volume dans son propre panneau (${g.hVol} px sous ${g.hPrix} px)`);
   verifier(g.yHi >= 0 && g.yLo <= g.hPrix && g.yHi < g.hPrix * 0.2 && g.yLo > g.hPrix * 0.8, `${P} : échelle calée sur les bougies visibles (haut à ${g.yHi.toFixed(0)} px, bas à ${g.yLo.toFixed(0)} px sur ${g.hPrix})`);
-  const E = await pc.evaluate(() => window.__or.graph.etiquettes());
-  const chevauche = E.some((a, i) => E.some((b, j) => j > i && a.x < b.x + b.w && b.x < a.x + a.w && a.y < b.y + b.h && b.y < a.y + a.h));
-  verifier(E.length >= 1 && E.length <= 8 && !chevauche, `${P} : ${E.length} étiquettes (≤ 8), aucune ne se chevauche`, E.map(e => e.texte).join(' | '));
-  verifier(E.every(e => !/\b(V\.|S\.|NY\.|Asi\.|Lon\.|Vol\.)|\bZ\d|\d+\/\d+/.test(e.texte)), `${P} : libellés en français clair, sans abréviation`);
+  await pc.waitForFunction(p => { const S = window.__or.moteur.S; return S.niveauxP && S.fleches && S.fleches.periode === p; }, { timeout: 60000 }, P); await w(600);
+  const nv = await pc.evaluate(() => {
+    const T = window.__or, S = T.moteur.S, N = S.niveauxP, ch = T.graph.chart(), d = T.graph.serie().data(), r = ch.timeScale().getVisibleLogicalRange();
+    const vis = d.slice(Math.max(0, Math.ceil(r.from)), Math.floor(r.to) + 1), hi = Math.max(...vis.map(b => b.high)), lo = Math.min(...vis.map(b => b.low));
+    const M = T.graph.marquesAffichees();
+    return { a: N.a, prix: S.prix, hi, lo, bandes: N.bandes.map(b => ({ bas: b.bas, haut: b.haut, p: b.p, cote: b.cote, fort: b.fort, texte: b.texte })), liq: (S.liquidite.zones || []).map(z => z.texte),
+      fl: S.fleches.liste.length, rouges: M.filter(m => m.shape === 'arrowDown' && /ef5f5f/i.test(m.color)).length, vertes: M.filter(m => m.shape === 'arrowUp' && /4fd18b/i.test(m.color)).length,
+      bilan: document.querySelector('[data-bilan-fleches]').textContent, E: T.graph.etiquettes() };
+  });
+  const parCote = c => nv.bandes.filter(b => b.cote === c).length, tri = nv.bandes.slice().sort((x, y) => x.bas - y.bas);
+  verifier(parCote('resistance') <= 4 && parCote('support') <= 4 && nv.bandes.length >= 2, `${P} : ${parCote('resistance')} résistances et ${parCote('support')} supports (≤ 4 de chaque côté)`, nv.bandes.map(b => (b.fort ? '■ ' : '□ ') + b.texte).join(' | '));
+  verifier(tri.every((b, i) => !i || b.bas - tri[i - 1].haut >= nv.a - 1e-6), `${P} : bandes espacées d’au moins 1 ATR (${nv.a.toFixed(2)} $)`);
+  const chevauche = nv.E.some((a, i) => nv.E.some((b, j) => j > i && a.x < b.x + b.w && b.x < a.x + a.w && a.y < b.y + b.h && b.y < a.y + a.h));
+  verifier(nv.E.length >= 1 && !chevauche, `${P} : ${nv.E.length} étiquettes alignées à droite, aucune ne se chevauche`, nv.E.map(e => e.texte).join(' | '));
+  verifier(nv.E.every(e => /^(▲ |▼ )?(Résistance|Support|Liquidité (haute|basse)) [\d ]+/.test(e.texte) && e.texte.length <= 80), `${P} : étiquettes courtes en français`);
+  verifier(nv.fl > 0 && nv.rouges + nv.vertes === nv.fl, `${P} : ${nv.fl} flèches (${nv.rouges} rouges vers le bas, ${nv.vertes} vertes vers le haut)`);
+  verifier(/Flèches de rebond/.test(nv.bilan) && (/pas assez de données/.test(nv.bilan) || /au hasard aux mêmes heures/.test(nv.bilan)) && /jamais un ordre/.test(nv.bilan), `${P} : bilan honnête sous le graphique`, nv.bilan.slice(0, 200));
+  if (P === 'H4' || P === 'J') {   // acceptation : plus hauts et plus bas majeurs de l'historique visible présents, jamais tous autour du prix
+    const couvre = x => nv.bandes.some(b => x >= b.bas - nv.a && x <= b.haut + nv.a);
+    verifier(couvre(nv.hi) && couvre(nv.lo), `${P} : le plus haut (${nv.hi.toFixed(0)}) et le plus bas (${nv.lo.toFixed(0)}) visibles sont des niveaux affichés`);
+    const etendue = Math.max(...nv.bandes.map(b => b.haut)) - Math.min(...nv.bandes.map(b => b.bas));
+    verifier(etendue >= 0.6 * (nv.hi - nv.lo), `${P} : niveaux répartis sur ${Math.round(etendue)} $ (vue : ${Math.round(nv.hi - nv.lo)} $), pas regroupés autour du prix`);
+  }
   await pc.screenshot({ path: path.join(SORTIE, `graphique-${P}-pc.png`) });
 }
-// détail au survol : une étiquette fusionnée ou une zone montre ses niveaux
-const cible = await pc.evaluate(() => { const E = window.__or.graph.etiquettes(), r = document.querySelector('[data-graph]').getBoundingClientRect(), e = E.find(x => x.n > 1) || E[0]; return e && { x: r.left + e.x + e.w / 2, y: r.top + e.y + e.h / 2, texte: e.texte, n: e.n }; });
-if (cible) { await pc.mouse.move(cible.x, cible.y); await w(300); const tip = await pc.evaluate(() => { const t = document.querySelector('.tor-info'); return t && !t.hidden ? t.innerText : ''; }); verifier(tip.length > 10 && tip.includes(cible.texte.slice(0, 12)), `survol d’une étiquette : détail affiché (${cible.n} niveau${cible.n > 1 ? 'x' : ''})`, tip.replace(/\n/g, ' / ').slice(0, 200)); await pc.screenshot({ path: path.join(SORTIE, 'graphique-detail-survol.png') }); await pc.mouse.move(5, 5); }
+// détail au survol : une étiquette, puis une flèche (H1)
+await pc.evaluate(() => window.__or.moteur.periode('H1'));
+await pc.waitForFunction(() => { const S = window.__or.moteur.S; return S.periode === 'H1' && S.fleches && S.fleches.periode === 'H1'; }, { timeout: 60000 }); await w(1200);
+const cible = await pc.evaluate(() => { const E = window.__or.graph.etiquettes(), r = document.querySelector('[data-graph]').getBoundingClientRect(), e = E[0]; return e && { x: r.left + e.x + e.w / 2, y: r.top + e.y + e.h / 2, texte: e.texte }; });
+if (cible) { await pc.mouse.move(cible.x, cible.y); await w(300); const tip = await pc.evaluate(() => { const t = document.querySelector('.tor-info'); return t && !t.hidden ? t.innerText : ''; }); verifier(tip.length > 10 && tip.includes(cible.texte.slice(0, 12)), 'survol d’une étiquette : détail affiché', tip.replace(/\n/g, ' / ').slice(0, 200)); await pc.mouse.move(5, 5); }
+const fl = await pc.evaluate(() => {
+  const T = window.__or, ch = T.graph.chart(), se = T.graph.serie(), r = document.querySelector('[data-graph]').getBoundingClientRect(), vr = ch.timeScale().getVisibleRange(), d = se.data();
+  for (const f of T.moteur.S.fleches.liste.slice().reverse()) {
+    const b = d.find(x => x.time >= vr.from && x.time <= vr.to && Math.abs(x.time - (f.t / 1000)) < 7200 && Math.abs((f.sens === 'baisse' ? x.high : x.low) - (f.sens === 'baisse' ? Math.max(x.high) : Math.min(x.low))) < 1e-9);
+    const tm = T.graph.marquesAffichees().find(m => m.id === 'f' + f.t); if (!tm) continue;
+    const bar = d.find(x => x.time === tm.time); if (!bar) continue;
+    const x = ch.timeScale().timeToCoordinate(tm.time); if (x == null || x < 20) continue;
+    const y = f.sens === 'baisse' ? se.priceToCoordinate(bar.high) - 12 : se.priceToCoordinate(bar.low) + 12;
+    return { x: r.left + x, y: r.top + y, sens: f.sens };
+  }
+  return null;
+});
+if (fl) { await pc.mouse.move(fl.x, fl.y); await w(400); const tip = await pc.evaluate(() => { const t = document.querySelector('.tor-info'); return t && !t.hidden ? t.innerText : ''; }); verifier(/Rebond/.test(tip) && /touche/.test(tip) && /volume/.test(tip) && /jamais un ordre/.test(tip), `survol d’une flèche ${fl.sens === 'baisse' ? 'rouge' : 'verte'} : niveau, touches, volume`, tip.replace(/\n/g, ' / ').slice(0, 220)); await pc.screenshot({ path: path.join(SORTIE, 'graphique-fleche-survol.png') }); await pc.mouse.move(5, 5); }
+else verifier(false, 'une flèche visible en H1 pour le survol');
 // glisser vers la gauche (M5) : un morceau plus ancien se charge, la vue ne saute pas
 await pc.evaluate(() => window.__or.moteur.periode('M5'));
 await pc.waitForFunction(() => { const S = window.__or.moteur.S; return S.periode === 'M5' && S.hist && S.hist.periode === 'M5'; }, { timeout: 60000 }); await w(1000);
@@ -70,11 +105,14 @@ await pc.screenshot({ path: path.join(SORTIE, 'graphique-H1-bande-reference.png'
 
 /* ── téléphone 390 × 844 ── */
 const tel = await page(390, 844, true);
-for (const P of ['M5', 'M15', 'H1', 'H4', 'J']) {
+for (const P of ['M15', 'H1', 'H4', 'J']) {
   await tel.evaluate(p => window.__or.moteur.periode(p), P);
   await tel.waitForFunction(p => { const S = window.__or.moteur.S; return S.periode === p && S.hist && S.hist.periode === p; }, { timeout: 60000 }, P); await w(1000);
   const g = await lire(tel);
   verifier(g.panes === 2 && g.yHi >= 0 && g.yLo <= g.hPrix, `téléphone ${P} : bougies visibles dans l’échelle, volume à part`);
+  await tel.waitForFunction(p => { const S = window.__or.moteur.S; return S.fleches && S.fleches.periode === p; }, { timeout: 60000 }, P); await w(500);
+  const Et = await tel.evaluate(() => window.__or.graph.etiquettes());
+  verifier(!Et.some((a, i) => Et.some((b, j) => j > i && a.y < b.y + b.h && b.y < a.y + a.h)), `téléphone ${P} : ${Et.length} étiquettes sans chevauchement`);
   await tel.screenshot({ path: path.join(SORTIE, `graphique-${P}-telephone.png`) });
 }
 verifier(await tel.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth), 'téléphone : pas de défilement horizontal');
