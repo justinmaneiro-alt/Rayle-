@@ -1,3 +1,21 @@
+# Étude « balayage de liquidité sous un range, contexte MA200 / zone de volume » sur l'or (2026-11-07) — avancement
+
+Reprendre ici. Branche `balayage-range`, fusionnée dans `main`. Le rapport est HORS dépôt : `agent-trading/RAPPORT-BALAYAGE-RANGE.md`. Ses règles figées `balayage-v1` ont été écrites le 2026-11-07 à 13:15 UTC, avant tout test. La planche de contrôle est aussi HORS dépôt : `agent-trading/PLANCHE-BALAYAGE.html`.
+
+| Étape | État |
+|---|---|
+| 1. Règles figées. Range de 20 bougies, largeur ≤ 2,5 ATR, 2 touches par bord. Balayage ≥ 0,1 ATR, puis clôture de retour en 1 à 3 bougies. Stop au point extrême ± 0,1 ATR, au plus 2 ATR. Sortie à 4 ou 8 bougies. Contextes a, b (MA200 H1) et c (niveau clé). 6 variantes, plus 2 variantes à objectif (milieu, 3R) pour le meilleur contexte choisi sur la calibration. | fait |
+| 2. Calibration PAXG avant le 01/11/2025, hors échantillon sur XAUUSDT, 1000 tirages au hasard, correction de Holm. Une confirmation sur XAUUSDT avant la coupe est impossible : la série commence le 2025-12-11. | fait |
+| 3. Frais : 4 jeux, comme pour `cassure-v1` (`frais.json` local). Coût en R, réussite nécessaire à l'équilibre, achats et ventes séparés. | fait |
+| 4. Planche de 40 balayages tirés au hasard, sans résultat. | faite ; **retours de Justin en attente** (à noter dans le rapport comme limites, sans changer les règles) |
+| 5. Résultats et verdict | « pas assez de données » pour les 8 variantes et les 4 jeux de frais : 0 à 12 trades hors échantillon. Frais taker ≈ 0,6 à 0,85 R par trade en médiane (stops serrés), toutes les variantes négatives après frais. |
+| 6. Non validé : pas de famille de propositions. Seul l'événement d'information « balayage de range détecté » (`BALAYAGE_RANGE`) est ajouté. | fait côté moteur ; **actif au prochain redémarrage du moteur** |
+| 7. Tests (`moteur/tests/balayage-test.mjs` dans `npm test`), commit, push | fait |
+
+- Moteur (hors dépôt) : `agent-trading/moteur/copilote/balayage/` (`regles-balayage.js`, `etude-balayage.mjs`, `rapport-balayage.mjs`, `planche-balayage.mjs`) ; branchement dans `moteur/copilote/info/{index,regles-info}.js`. Résultats : `etude-or.json` et `rapport-fin.md` dans le dossier `copilote/balayage` des données locales du moteur.
+
+---
+
 # Étude « cassure de range M15, tenue 3-4 bougies » (2026-11-06) — avancement
 
 Reprendre ici. Branche `cassure-range`, fusionnée dans `main`. Rapport HORS dépôt : `agent-trading/RAPPORT-CASSURE-RANGE.md` (règles figées `cassure-v1` écrites avant tout test, 4 jeux de frais, verdict).
