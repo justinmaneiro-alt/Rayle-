@@ -8,7 +8,7 @@ Reprendre ici. Branche `tableau-or`, fusionnée dans `main` à la fin de chaque 
 | B. Journal de trades + gardien de drawdown | fait : `front/or/journal-{calcul,ui}.js`, `gardien-{calcul,ui}.js`, `stockage-or.js` ; historique XTB lu en local seulement (fichier ignoré) ; tests `tests/journal-test.mjs` (61) |
 | C. Lecteur de musique YouTube (IFrame officielle) | fait : `front/or/musique{,-calcul}.js` (Mix accepté seulement si le lecteur est CRÉÉ avec la vidéo de départ + la liste ; repli lien sinon) ; tests `tests/musique-test.mjs` (30) |
 | D. Mode télé + appairage (relais dédié) + Presentation API | fait : `front/or/tele*.js`, `terre-tele.js`, `telecommande.js`, adresses courtes `tv/` et `tc/` ; relais redéployé (90a69b7b) ; tests `tele-test.mjs` (35), `tele-reseau-test.mjs` (vrai relais). Presentation API : bouton seulement si un écran est disponible (non vérifié sur une vraie télé) |
-| E. Vérifications finales (Terre, tests, captures, rapport) | à faire |
+| E. Vérifications finales (Terre, tests, captures, rapport) | fait : Terre classique par défaut 13/13, aucun flash au zoom (non touchée) ; `npm test` passe ; Chrome `agent-trading/tests/or-chrome-test.mjs` 31/31 ; captures `captures-or/` ; rapport local `agent-trading/RAPPORT-TABLEAU-OR.md` |
 
 ---
 
