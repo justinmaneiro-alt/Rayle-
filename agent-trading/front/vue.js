@@ -5,7 +5,8 @@
    Téléphone / tablette en portrait : une colonne dans l'ordre graphique → narration → carnet → grosses transactions → positions → … → journal.
    Bouton ⤢ « Plein écran » du graphique (touche F sur PC) : API plein écran, repli en superposition CSS ; Échap, le bouton ou « retour »
    ramènent à la page à la même position de défilement. Rien n'est calculé ici : tout vient de l'état publié par le moteur. */
-import { ACTIFS, PAR_ID } from '../commun/actifs.js';
+import { PAR_ID, actifsVisibles } from '../commun/actifs.js';
+const ACTIFS = actifsVisibles();   // l'or seul par défaut (réglage rayle_at_tous_actifs)
 import { fmtPrix, heureParis, fmtDuree, fmtNombre, fmtUSD } from '../commun/format.js';
 import { creerConnexion } from './connexion.js';
 import { creerGraphique } from './graphique.js';
@@ -31,7 +32,7 @@ export const disposition = (l, h) => (l >= 1000 && l >= h ? 'pc' : 'colonne');
 export function monterVue(el, { mode = 'auto', connexion = null } = {}) {
   chargerCss();
   const cnx = connexion || creerConnexion();
-  const etat = { actif: lire('rayle_at_actif', 'BTC'), unite: lire('rayle_at_unite', 'M15'), passees: lire('rayle_at_passees', '0') === '1', profil: lire('rayle_at_profil', '0') === '1', selection: null, histoActif: null, plein: false, rejoue: null,
+  const etat = { actif: ACTIFS.some(a => a.id === lire('rayle_at_actif', 'OR')) ? lire('rayle_at_actif', 'OR') : ACTIFS[0].id, unite: lire('rayle_at_unite', 'M15'), passees: lire('rayle_at_passees', '0') === '1', profil: lire('rayle_at_profil', '0') === '1', selection: null, histoActif: null, plein: false, rejoue: null,
     btg: { actif: false, jours: ['5', '7', '14'].includes(lire('rayle_at_btg_jours', '7')) ? Number(lire('rayle_at_btg_jours', '7')) : 7 } };
   if (!PAR_ID[etat.actif]) etat.actif = 'BTC';
   const boutonsActifs = cls => ACTIFS.map(a => `<button type="button" class="${cls}" data-actif="${a.id}"><b>${a.id}</b><span data-prix="${a.id}">—</span></button>`).join('');

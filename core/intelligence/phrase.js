@@ -40,6 +40,9 @@
     const cmdF=window.G1&&G1.commande?await G1.commande(text):null;    // « ouvre la fenêtre météo », « mes tâches », « ferme la fenêtre » : grande fenêtre de l'accueil Aurore
     if(my!==epoch) return;
     if(cmdF){ diagAction('fenêtre de l accueil'); addLine('ray',cmdF); await speak(cmdF); return; }
+    const cmdOr=window.TableauOr&&TableauOr.commande?await TableauOr.commande(text):null;    // tableau de bord de l'or ouvert : « on en est où ? », « lance ma playlist » (il parle lui-même)
+    if(my!==epoch) return;
+    if(cmdOr){ diagAction('tableau de bord de l or'); addLine('ray',cmdOr); return; }
     const quick=quickAnswer(text);
     if(quick){ diagAction('réponse rapide'); addLine('ray',quick); await speak(quick); return; }
     // Questions visuelles (« montre-moi… », « à quoi ressemble… », « photo de… ») : des images libres dans une fenêtre holographique, sans IA ; « qui est… » : l'IA répond, les images arrivent en même temps

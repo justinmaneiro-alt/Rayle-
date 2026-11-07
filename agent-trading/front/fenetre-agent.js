@@ -4,6 +4,14 @@
    Téléphone / tablette : la même vue en plein écran, ouverte depuis l'écran « Marchés ».
    Supprimer le dossier agent-trading/ suffit : les entrées font un import() qui échoue alors en silence et se retirent. */
 import { monterVue } from './vue.js';
+import { monterTableauOr } from './or/tableau-or.js';
+import { monterModules } from './or/page-or.js';
+/* Par défaut : le TABLEAU DE BORD DE L'OR (même composant que la page or.html). L'ancienne vue de l'agent reste disponible : localStorage « rayle_at_ancienne_vue » = « 1 ». */
+const ancienneVue = () => { try { return localStorage.getItem('rayle_at_ancienne_vue') === '1'; } catch (e) { return false; } };
+function monter(el) {
+  if (ancienneVue()) return monterVue(el, { mode: 'auto' });
+  const T = monterTableauOr(el, { contexte: 'fenetre' }); window.TableauOr = T; monterModules(T); return T;
+}
 
 let instance = null, fenetre = null;
 const CSS_PC = `
@@ -24,14 +32,14 @@ export function ouvrirFenetre() {
   if (fenetre) { fenetre.boite.focus(); return instance; }
   if (!document.getElementById('at-pc-css')) { const s = document.createElement('style'); s.id = 'at-pc-css'; s.textContent = CSS_PC; document.head.appendChild(s); }
   const fond = document.createElement('div'); fond.className = 'at-pc-fond';
-  fond.innerHTML = '<section class="at-pc" role="dialog" aria-modal="true" aria-label="Agent de trading" tabindex="-1"><header class="at-pc-barre"><span>◈ AGENT DE TRADING · SIMULATION</span><span><button type="button" data-a="plein" title="Plein écran" aria-label="Plein écran">⛶</button><button type="button" data-a="fermer" title="Fermer (Échap)" aria-label="Fermer">✕</button></span></header><div class="at-pc-corps"></div><i class="at-pc-poignee" title="Redimensionner"></i></section>';
+  fond.innerHTML = '<section class="at-pc" role="dialog" aria-modal="true" aria-label="Agent de trading" tabindex="-1"><header class="at-pc-barre"><span>◈ OR · TABLEAU DE BORD · SIMULATION</span><span><button type="button" data-a="plein" title="Plein écran" aria-label="Plein écran">⛶</button><button type="button" data-a="fermer" title="Fermer (Échap)" aria-label="Fermer">✕</button></span></header><div class="at-pc-corps"></div><i class="at-pc-poignee" title="Redimensionner"></i></section>';
   document.body.appendChild(fond);
   const boite = fond.firstElementChild, barre = boite.querySelector('.at-pc-barre');
   // taille de départ : grande (jusqu'à 1760 × 1000), centrée, JAMAIS plus large que l'écran (rien de coupé à droite)
   const vw = document.documentElement.clientWidth || innerWidth, vh = document.documentElement.clientHeight || innerHeight;
   const l = Math.min(1760, Math.round(vw * 0.96)), h = Math.min(1000, Math.round(vh * 0.94));
   Object.assign(boite.style, { width: l + 'px', height: h + 'px', left: Math.round((vw - l) / 2) + 'px', top: Math.round((vh - h) / 2) + 'px' });
-  instance = monterVue(boite.querySelector('.at-pc-corps'), { mode: 'auto' });   // même composant que le téléphone : une seule page qui défile
+  instance = monter(boite.querySelector('.at-pc-corps'));   // même composant que le téléphone : une seule page qui défile
 
   // déplacer (barre de titre) et redimensionner (coin)
   const glisser = (el, f) => el.addEventListener('pointerdown', e => {
@@ -74,7 +82,7 @@ export function ouvrirPleinEcran() {
   fond.style.cssText = 'position:fixed;inset:0;z-index:9000;display:flex;flex-direction:column;background:#05080c;padding:env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left)';
   fond.innerHTML = '<div style="display:flex;align-items:center;justify-content:space-between;padding:6px 10px;border-bottom:1px solid rgba(143,208,227,.16);color:#d7e3ea;font:600 12px system-ui;letter-spacing:.08em">AGENT DE TRADING · SIMULATION<button type="button" aria-label="Fermer" style="min-width:44px;min-height:36px;background:none;border:1px solid rgba(143,208,227,.3);border-radius:4px;color:#d7e3ea;font-size:16px">✕</button></div><div style="flex:1;min-height:0"></div>';
   document.body.appendChild(fond);
-  instance = monterVue(fond.lastElementChild, { mode: 'auto' });
+  instance = monter(fond.lastElementChild);
   fond.querySelector('button').onclick = () => { instance.detruire(); instance = null; fond.remove(); };
   return instance;
 }

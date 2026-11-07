@@ -1,0 +1,19 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Or · Rayle</title>
+<link rel="icon" href="data:,">
+<meta name="theme-color" content="#05080c">
+<style>html,body{margin:0;background:#05080c;color:#d7e3ea}#vue{min-height:100vh}</style>
+</head>
+<body>
+<div id="vue"></div>
+<script type="module">
+  // Tableau de bord de l'or (page autonome). ?tele=1 (ou un grand écran sans souris fine) = mode télé.
+  import { demarrerPage } from './or/page-or.js';
+  window.__or = demarrerPage(document.getElementById('vue'));
+</script>
+</body>
+</html>

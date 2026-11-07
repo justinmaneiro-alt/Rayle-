@@ -1,0 +1,15 @@
+# Relais du tableau de bord de l'or et du mode télé : Worker DÉDIÉ, sans aucun secret, offre gratuite (jamais le Worker principal « rayle »).
+# Déployer : npx.cmd wrangler deploy --config relais-or/wrangler.toml
+name = "rayle-or-relais"
+main = "index.js"
+compatibility_date = "2026-10-01"
+workers_dev = true
+preview_urls = false
+
+[[durable_objects.bindings]]
+name = "SALONS"
+class_name = "Salon"
+
+[[migrations]]
+tag = "v1-salon"
+new_sqlite_classes = ["Salon"]
