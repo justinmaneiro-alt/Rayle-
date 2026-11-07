@@ -28,6 +28,8 @@ Reprendre ici : lire ce fichier, puis `RAPPORT-AGENT.md` (local, choix faits seu
 
 - **Retour sur niveau clé avec la tendance H1 (or, 2026-11-07)** : règles figées `retour-v1` (tendance H1+H4+MA200, niveaux clés, rejet avec volume, 6 variantes), code `moteur/copilote/retour-niveau/` (hors dépôt), rapport local `RAPPORT-RETOUR-NIVEAU.md`. Verdict : **aucune règle validée** (6 variantes rejetées, ≥ 177 trades hors échantillon chacune, R brut ≈ 0, négatif après frais taker, pas mieux que le hasard du même régime). Aucune proposition ajoutée au suivi ; pas de variante supplémentaire. Tests : `node moteur/tests/retour-test.mjs`.
 
+- **Tableau de bord de l'OR + journal, gardien, musique, mode télé (2026-11-07)** : voir `RAPPORT-TABLEAU-OR.md` (local) et le `PROGRESS.md` racine. Interface = l'or seul (autres actifs masqués, réglage `rayle_at_tous_actifs`), fenêtre « ◈ » de Mars = tableau de bord (`front/or/`), ancienne vue : `rayle_at_ancienne_vue`. Règles figées `zones-or-v1` ; aucun type de niveau ne bat le hasard. Relais dédié `relais-or/` (sans secret). Tests : `tests/{or,journal,musique,tele}-test.mjs`, réseau `or-reseau-test.mjs`, `tele-reseau-test.mjs`, Chrome `or-chrome-test.mjs`.
+
 ## En cours
 - Rien. Le moteur tourne en OBSERVATION et remplit le registre fantôme.
 

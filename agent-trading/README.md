@@ -12,3 +12,6 @@ Points d'entrée dans Rayle : bouton « ◈ Agent de trading » du terminal de M
 Positions « normales » et « GRANDES » (même risque fixe de 0,5 % du capital réalisé), backtest « 7 derniers jours » publié par le moteur (étiqueté « REJOUÉ, pas réel »).
 
 Tests : `npm test` dans ce dossier. Détail de la page unique, des grandes positions et du backtest : `RAPPORT-PAGE-UNIQUE.md`.
+
+## Tableau de bord de l'or (2026-11-07)
+`front/or.html` : graphique Kraken PF_XAUUSD (heure de Paris), 3 couches (zones de volume, supports-résistances, zones de retournement mesurées contre le hasard), lecture du graphique, carnet complet, journal de trades, gardien de drawdown, musique (lecteur officiel YouTube), mode télé (`?tele=1`, adresses courtes `/tv` et `/tc`). Relais dédié sans secret : `relais-or/`. Rien n'est un signal ; aucun ordre.

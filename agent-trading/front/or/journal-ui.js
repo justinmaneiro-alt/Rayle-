@@ -98,7 +98,7 @@ export function monterJournal(el, { tableau }) {
     q('[data-j-hasard]').textContent = 'Comparaison avec des entrées au hasard aux mêmes heures : ' + H.texte + '.';
     const RC = reglesCandidates(trades);
     q('[data-j-regles]').innerHTML = RC.length ? `<table><tr><th>Étiquette</th><th>Statut</th><th>Raison</th></tr>${RC.map(r => `<tr><td>${esc(r.etiquette)}</td><td>${r.statut}</td><td class="tor-doux" style="white-space:normal">${esc(r.raison)}</td></tr>`).join('')}</table><p class="tor-doux">« À garder » seulement si l’étiquette est positive sur au moins 30 trades (correction de Holm) ET confirmée sur les trades du mois suivant, jamais vus lors du choix. L’historique XTB n’a pas d’étiquette : il n’entre pas ici.</p>` : '<p class="tor-doux">Aucune étiquette avec des trades clôturés.</p>';
-    tableau.graph.marques(trades.filter(t => t.tEntree && t.source !== 'xtb').map(t => ({ t: t.tEntree, sens: t.sens, r: rNet(t), texte: t.etiquette })));
+    tableau.graph.marques(trades.filter(t => t.tEntree && t.source !== 'xtb').map(t => { const r = rNet(t); return { t: t.tEntree, sens: t.sens, r, texte: r == null ? '' : (r >= 0 ? '+' : '') + r.toFixed(1).replace('.', ',') + 'R' }; }));
   }
   // historique XTB de départ : lu automatiquement SEULEMENT en local (serveur du PC, fichier ignoré par git), une seule fois
   if (local() && !lireJSON('rayle_or_xtb_importe', false)) fetch(new URL('../../donnees-privees/trades-xtb.json', import.meta.url)).then(r => (r.ok ? r.json() : null)).then(d => { if (d) { importerXtb(d); ecrireJSON('rayle_or_xtb_importe', true); } }).catch(() => { /* absent : rien */ });

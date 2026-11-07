@@ -33,7 +33,7 @@ export function monterTelecommande(el, { codeDepart = null, compact = false } = 
 export const CSS_TC = `.tc{font:18px/1.4 system-ui,sans-serif;color:#d7e3ea}.tc h1{font-size:22px}.tc-code{display:flex;gap:8px;align-items:flex-end;flex-wrap:wrap}
 .tc input{font:700 28px ui-monospace,monospace;width:5.5em;letter-spacing:.2em;padding:6px 10px;background:#0c131a;color:#e0c27f;border:1px solid rgba(143,208,227,.3);border-radius:6px}
 .tc button{font:600 18px system-ui;color:#d7e3ea;background:#101820;border:1px solid rgba(143,208,227,.3);border-radius:10px;padding:14px 12px;min-height:56px;cursor:pointer}
-.tc-boutons{display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:10px;margin-top:12px}.tc-titre{color:#8fd0e3}`;
+.tc-boutons[hidden]{display:none}.tc-boutons{display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:10px;margin-top:12px}.tc-titre{color:#8fd0e3}`;
 /* bloc du tableau de bord (téléphone, tablette, application PC) */
 export function monterTelecommandeBloc(el) {
   if (!document.getElementById('tc-css')) { const s = document.createElement('style'); s.id = 'tc-css'; s.textContent = CSS_TC; document.head.appendChild(s); }

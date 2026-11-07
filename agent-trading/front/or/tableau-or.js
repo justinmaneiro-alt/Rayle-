@@ -81,7 +81,7 @@ export function monterTableauOr(el, { modules = {}, contexte = 'page', fetchFn, 
   /* moteur + graphique + carnet (le même carnet que l'agent) */
   const graph = creerGraphiqueOr(q('[data-graph]'), { mobile });
   graph.surPosition = (pos, outil) => majPosition(pos, outil);
-  const carnet = creerCarnet(q('[data-carnet]'), { racine: R, WS });
+  const carnet = creerCarnet(q('[data-carnet]'), { racine: q('[data-carnet]'), WS });   // racine = élément « .at » qui porte les couleurs du carnet (jetons.css)
   carnet.maj('OR', null);
   const moteur = creerMoteurOr({ ...(fetchFn ? { fetchFn } : {}), etudeAuto, surMaj: () => rendre(), surEvenement: ev => evenement(ev) });
   api.moteur = moteur; api.graph = graph; api.carnet = carnet;
