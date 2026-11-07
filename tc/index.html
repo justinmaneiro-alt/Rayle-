@@ -1,0 +1,11 @@
+<!doctype html>
+<html lang="fr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"><title>Rayle · Télécommande</title>
+<meta name="theme-color" content="#05080c"><link rel="icon" href="data:,">
+<style>html,body{margin:0;background:#05080c}main{padding:16px;max-width:720px;margin:auto}</style></head>
+<body><main id="tc"></main>
+<script type="module">
+  // Télécommande du mode télé : ouvre cette adresse sur le téléphone (ou scanne le QR code affiché sur la télé).
+  import { monterTelecommande, CSS_TC } from '../agent-trading/front/or/telecommande.js';
+  const s = document.createElement('style'); s.textContent = CSS_TC; document.head.appendChild(s);
+  window.__tc = monterTelecommande(document.getElementById('tc'), { codeDepart: new URLSearchParams(location.search).get('code') });
+</script></body></html>

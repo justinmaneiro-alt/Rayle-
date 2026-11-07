@@ -57,6 +57,7 @@ export function monterTableauOr(el, { modules = {}, contexte = 'page', fetchFn, 
   <section class="tor-bloc" data-journal-bloc></section>
   <section class="tor-bloc" data-gardien-bloc></section>
   <section class="tor-bloc" data-musique-bloc></section>
+  <section class="tor-bloc" data-tele-bloc></section>
   <footer class="tor-pied">Simulation et information seulement : Rayle ne passe aucun ordre. Prix : Kraken Futures ${KRAKEN.symbole} (relais public sans clé). Volume, delta et niveaux : Binance XAUUSDT, décalés de l’écart mesuré. Graphique : <a href="https://www.tradingview.com/" target="_blank" rel="noopener">TradingView</a> Lightweight Charts™ (Apache-2.0). Heure de Paris.</footer>
   <div class="tor-notifs" data-notifs hidden><header><b>Notifications</b><button type="button" data-a="fermer-notifs" aria-label="Fermer">✕</button></header>
     <div class="tor-notifs-regl">
@@ -159,7 +160,9 @@ export function monterTableauOr(el, { modules = {}, contexte = 'page', fetchFn, 
   async function repondre(texte) {
     const c = interpreter(texte), rep = q('[data-reponse]');
     let dire = null;
-    if (c.type === 'lecture') dire = moteur.S.lecture ? moteur.S.lecture.phrase : 'Je charge encore les données de l’or.';
+    const versTele = (c.type === 'musique' || c.type === 'vue') && modules.tele && modules.tele.connectee() ? modules.tele.phrase(texte) : null;
+    if (versTele) dire = versTele;
+    else if (c.type === 'lecture') dire = moteur.S.lecture ? moteur.S.lecture.phrase : 'Je charge encore les données de l’or.';
     else if (c.type === 'musique' && modules.musique) dire = await modules.musique.commande(c);
     else if (c.type === 'musique') dire = 'Le lecteur de musique n’est pas chargé ici.';
     else if (c.type === 'vue' && modules.surVue) dire = modules.surVue(c.vue);

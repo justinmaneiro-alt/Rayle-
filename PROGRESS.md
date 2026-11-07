@@ -7,7 +7,7 @@ Reprendre ici. Branche `tableau-or`, fusionnée dans `main` à la fin de chaque 
 | A. Tableau de bord de l'or (périmètre or seul, graphique Kraken heure de Paris, 3 couches, états de zone, lecture, carnet) | fait : `agent-trading/front/or.html` + `front/or/` ; relais `relais-or/` déployé (d6cf0acb) ; tests `tests/or-test.mjs` (105), `or-reseau-test.mjs` (vraie API Kraken) ; étude des taux : `moteur/copilote/tableau-or/etude-reaction.mjs` (hors dépôt) |
 | B. Journal de trades + gardien de drawdown | fait : `front/or/journal-{calcul,ui}.js`, `gardien-{calcul,ui}.js`, `stockage-or.js` ; historique XTB lu en local seulement (fichier ignoré) ; tests `tests/journal-test.mjs` (61) |
 | C. Lecteur de musique YouTube (IFrame officielle) | fait : `front/or/musique{,-calcul}.js` (Mix accepté seulement si le lecteur est CRÉÉ avec la vidéo de départ + la liste ; repli lien sinon) ; tests `tests/musique-test.mjs` (30) |
-| D. Mode télé + appairage (relais dédié) + Presentation API | à faire |
+| D. Mode télé + appairage (relais dédié) + Presentation API | fait : `front/or/tele*.js`, `terre-tele.js`, `telecommande.js`, adresses courtes `tv/` et `tc/` ; relais redéployé (90a69b7b) ; tests `tele-test.mjs` (35), `tele-reseau-test.mjs` (vrai relais). Presentation API : bouton seulement si un écran est disponible (non vérifié sur une vraie télé) |
 | E. Vérifications finales (Terre, tests, captures, rapport) | à faire |
 
 ---
