@@ -55,9 +55,14 @@ const j = await pc.evaluate(async () => {
   return { n: T.length, r: T.at(-1), jour: el.querySelector('[data-j-jour-lecture]').innerText, gardien: document.querySelector('[data-g-statut]').dataset.gStatut, taille: document.querySelector('[data-g-taille]').innerText };
 });
 verifier(j.n >= 1 && j.r.sortie > 0 && j.r.enrich && j.r.enrich.seance, 'journal : trade saisi, enrichi (séance, distances), clôturé', JSON.stringify(j.r && j.r.enrich));
-verifier(/trade/.test(j.jour), 'journal du jour : lecture factuelle'); verifier(['ok', 'attention'].includes(j.gardien), 'gardien : statut affiché ' + j.gardien); verifier(/contrats/.test(j.taille), 'calculateur de taille en contrats', j.taille);
+verifier(/trade/.test(j.jour), 'journal du jour : lecture factuelle'); verifier(['ok', 'attention'].includes(j.gardien), 'gardien : statut affiché ' + j.gardien); verifier(/contrat/.test(j.taille), 'calculateur de taille en contrats', j.taille);
 await pc.evaluate(() => document.querySelector('[data-journal-bloc]').scrollIntoView()); await w(300); await pc.screenshot({ path: path.join(SORTIE, 'pc-journal.png') });
 await pc.evaluate(() => document.querySelector('[data-gardien-bloc]').scrollIntoView()); await w(300); await pc.screenshot({ path: path.join(SORTIE, 'pc-gardien.png') });
+// barre du haut opaque : le contenu ne passe jamais en transparence dessous
+await pc.evaluate(() => window.scrollTo(0, 500)); await w(300);
+const barre = await pc.evaluate(() => { const b = document.querySelector('.tor-tete'), r = b.getBoundingClientRect(), fond = getComputedStyle(b).backgroundColor, dessus = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2); return { fond, dessus: b.contains(dessus), haut: r.top }; });
+verifier(/^rgb\(/.test(barre.fond) && barre.dessus && barre.haut <= 1, 'barre du haut opaque et au-dessus du contenu en défilant', JSON.stringify(barre));
+await pc.screenshot({ path: path.join(SORTIE, 'pc-barre-defilement.png') }); await pc.evaluate(() => window.scrollTo(0, 0));
 // la page de l'or ne garde que graphique, carnet, lecture, journal, gardien et calculateur : ni musique ni télé
 const blocs = await pc.evaluate(() => ({ mu: !!document.querySelector('[data-musique-bloc], [data-m="playlist"]'), tv: !!document.querySelector('[data-tele-bloc], [data-tc-form]'), txt: /Mode télé|Ma playlist fixe/.test(document.querySelector('.tor').innerText) }));
 verifier(!blocs.mu && !blocs.tv && !blocs.txt, 'page de l’or : aucune section Musique ni Mode télé', JSON.stringify(blocs));

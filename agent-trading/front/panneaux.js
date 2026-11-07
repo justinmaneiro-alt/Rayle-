@@ -1,5 +1,6 @@
 /* ═════════════ PANNEAUX : positions en cours, historique (CSV), portefeuille, journal du bot ═════════════
    Rendu SEULEMENT : chaque chiffre vient tel quel de l'état publié (compte, trades, perf). Aucune addition, aucun P&L recalculé ici. */
+import { pluriel } from './or/texte-or.js';
 import { fmtPrix, fmtQte, fmtUSD, fmtR, fmtPct, fmtNombre, heureParis, dateHeureParis, fmtDuree, copiePrix, copieQte } from '../commun/format.js';
 import { DEFINITIONS } from '../commun/definitions.js';
 import { PAR_ID } from '../commun/actifs.js';
@@ -145,7 +146,7 @@ export function htmlBacktestGraphe(bg, jours, actif) {
     ${s.tropPetit ? `<p class="at-avert">Échantillon trop petit pour conclure (${s.n} trade${s.n > 1 ? 's' : ''}, moins de 20).</p>` : ''}
     <p class="at-btg-grp">Par modèle : ${grp(s.parModele)}</p><p class="at-btg-grp">Par actif : ${grp(s.parActif)}</p>
     ${f.trades.length ? `<ol class="at-btg-liste">${lignes}</ol><p class="at-doux at-btg-note">Sur ce graphique : les ${ici} trade${ici > 1 ? 's' : ''} de ${esc(actif)} (numéros dans l’ordre du temps, tous actifs confondus).</p>` : '<p class="at-vide">Aucune position rejouée sur cette durée.</p>'}
-    ${bg.encoreOuvertes ? `<p class="at-doux at-btg-note">${bg.encoreOuvertes} position(s) encore ouverte(s) à la fin des données : non comptée(s).</p>` : ''}
+    ${bg.encoreOuvertes ? `<p class="at-doux at-btg-note">${bg.encoreOuvertes >= 2 ? `${bg.encoreOuvertes} positions encore ouvertes à la fin des données : non comptées.` : `${bg.encoreOuvertes} position encore ouverte à la fin des données : non comptée.`}</p>` : ''}
     <p class="at-doux at-btg-note">Non rejoué : ${(bg.nonRejoue || []).map(esc).join(' ')}</p>`;
 }
 

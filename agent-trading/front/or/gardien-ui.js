@@ -1,6 +1,7 @@
 /* ═════════════ GARDIEN DE DRAWDOWN + CALCULATEUR DE TAILLE (sur la page du tableau de bord) ═════════════
    Trades : ceux du journal (saisis ou importés en CSV Kraken ; l'historique XTB, en euros et d'un autre compte, n'est pas compté).
    N'agit sur aucun ordre réel : il affiche les paliers et dit « stop pour aujourd'hui ». */
+import { pluriel } from './texte-or.js';
 import { DEFAUTS, etatGardien, taillePosition } from './gardien-calcul.js';
 import { lireJSON, ecrireJSON } from './stockage-or.js';
 import { esc, nb, parler } from './tableau-or.js';
@@ -38,7 +39,7 @@ export function monterGardien(el, { tableau }) {
         <div>Équité ${E.base === 'equite' ? '' : '(solde) '}<b>${nb(E.actuel)} $</b><br><small class="tor-doux">réalisé ${nb(E.realise)} $${E.base === 'equite' ? ` · latent ${nb(E.latent)} $` : ''}</small></div>
         <div>Perte du jour <b>${nb(E.perteJourPct)} %</b> ${barre(E.perteJourPct, R.limiteJour)}<small class="tor-doux">stop à ${R.stopJour} % · limite ${R.limiteJour} % · encore ${nb(E.resteJour)} $ avant le stop</small></div>
         <div>Perte totale <b>${nb(E.perteTotalePct)} %</b> ${barre(E.perteTotalePct, R.limiteTotale)}<small class="tor-doux">alertes à ${R.alertesTotales.join(' et ')} % · limite ${R.limiteTotale} % · marge ${nb(E.resteTotal)} $</small></div>
-        <div>Vers +${R.objectif} % <b>${nb(E.gainPct)} %</b> ${barre(E.avancement, 1)}<small class="tor-doux">${E.tradesJour} trade(s) aujourd’hui · ${E.pertesDeSuite} perte(s) de suite</small></div>
+        <div>Vers +${R.objectif} % <b>${nb(E.gainPct)} %</b> ${barre(E.avancement, 1)}<small class="tor-doux">${pluriel(E.tradesJour, 'trade')} aujourd’hui · ${pluriel(E.pertesDeSuite, 'perte')} de suite</small></div>
       </div>`;
     if (dernierStatut && E.statut !== dernierStatut && E.statut !== 'ok') { const t = E.alertes[0] ? E.alertes[0].texte : titre; tableau.notifier('Gardien : ' + t, { niveau: 'fort' }); parler('Gardien. ' + t); }
     dernierStatut = E.statut; rendreTaille(E);
@@ -47,7 +48,7 @@ export function monterGardien(el, { tableau }) {
     const entree = +q('[data-c="entree"]').value, stop = +q('[data-c="stop"]').value;
     const r = taillePosition({ equite: E.actuel, risquePct: R.risque, entree, stop });
     calc = r.ok ? r.contrats : null;
-    q('[data-g-taille]').innerHTML = r.ok ? `Risque ${nb(R.risque)} % de ${nb(E.actuel)} $ = <b>${nb(r.risque$)} $</b> · stop à ${nb(r.distance)} $ → <b>${nb(r.contrats, 3)} contrats</b> (${nb(r.onces, 3)} once${r.onces > 1 ? 's' : ''}, valeur ${nb(r.valeur$, 0)} $, risque réel ${nb(r.risqueReel$)} $ ; ≈ ${nb(r.lotsXtb, 2)} lot XTB de 100 onces)` + (E.statut === 'stop' || E.statut === 'limite' ? ' <b class="neg">— le gardien dit : pas de nouveau trade aujourd’hui.</b>' : '') : `<span class="tor-doux">${esc(r.raison)}</span>`;
+    q('[data-g-taille]').innerHTML = r.ok ? `Risque ${nb(R.risque)} % de ${nb(E.actuel)} $ = <b>${nb(r.risque$)} $</b> · stop à ${nb(r.distance)} $ → <b>${nb(r.contrats, 3)} contrat${r.contrats >= 2 ? 's' : ''}</b> (${nb(r.onces, 3)} once${r.onces > 1 ? 's' : ''}, valeur ${nb(r.valeur$, 0)} $, risque réel ${nb(r.risqueReel$)} $ ; ≈ ${nb(r.lotsXtb, 2)} lot XTB de 100 onces)` + (E.statut === 'stop' || E.statut === 'limite' ? ' <b class="neg">— le gardien dit : pas de nouveau trade aujourd’hui.</b>' : '') : `<span class="tor-doux">${esc(r.raison)}</span>`;
   }
   const api = {
     majMarche() { rendre(); }, majPosition(p) { if (p && p.entree && p.stop) { q('[data-c="entree"]').value = p.entree; q('[data-c="stop"]').value = p.stop; rendreTaille(); } },

@@ -81,6 +81,17 @@ verifier(ft.l <= 390 && ft.ovf <= 0, 'téléphone : tuile Musique en plein écra
 await tel.screenshot({ path: path.join(SORTIE, 'tuile-musique-telephone.png') });
 await tel.close();
 
+/* ── téléphone : menu « Plus » de la coque mobile → tuile Musique ── */
+const tm = await nav.newPage(); await tm.setViewport({ width: 390, height: 844, isMobile: true, hasTouch: true, deviceScaleFactor: 1 });
+await tm.setUserAgent('Mozilla/5.0 (Linux; Android 14; SM-S918B) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0 Mobile Safari/537.36');
+await tm.evaluateOnNewDocument(() => { localStorage.setItem('rayle_m_sw', '0'); });
+await tm.goto(BASE + '/index.html?appareil=telephone', { waitUntil: 'load' }); await w(4000);
+await tm.evaluate(() => window.MobileCoque && MobileCoque.aller('plus')); await w(800);
+const plus = await tm.evaluate(() => { const b = document.querySelector('.m-tuile[data-id="musique"]'), t = document.querySelector('.m-tuile[data-id="tele"]'); if (b) b.click(); return !!b && !!t; }); await w(1200);
+const tmu = await tm.evaluate(() => !![...document.querySelectorAll('.at-pc')].find(x => !x.hidden && /MUSIQUE/.test(x.textContent)));
+verifier(plus && tmu, 'téléphone : menu « Plus » → tuiles Musique et Télé ; Musique s’ouvre', JSON.stringify({ plus, tmu }));
+await tm.screenshot({ path: path.join(SORTIE, 'tuile-musique-menu-plus-telephone.png') }); await tm.close();
+
 verifier(!erreurs.length, 'aucune erreur de page', erreurs.slice(0, 5).join(' | '));
 await nav.close();
 console.log(`\n${nOk} réussis, ${echecs.length} échecs`); process.exit(echecs.length ? 1 : 0);

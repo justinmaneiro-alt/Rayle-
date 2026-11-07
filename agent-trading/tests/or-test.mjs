@@ -91,7 +91,7 @@ const P = creerAntiBruit({ plafond: 2 }); P.autoriser('a', 0, 12, 'j'); P.autori
 
 /* ── lecture ── */
 const zs = { id: 'z1', p: 4085, bas: 4084, haut: 4086, cote: 'support', noms: ['Veille bas'], vol: false, cles: ['veille'], tests: 6, tenues: 4, dist: 0 };
-eq(phraseZone(zs, 'sur'), 'on est sur un support à 4 085 (veille bas), testé 6 fois, a tenu 4');
+eq(phraseZone(zs, 'sur'), 'on est sur un support à 4 085 (plus bas de la veille), testé 6 fois, a tenu 4');
 ok(/delta se retourne/.test(phraseEvenement({ type: 'rejet' }, zs)), 'phrase de rejet'); ok(/pas un signal/.test(phraseEvenement({ type: 'cassure', sens: 'baisse' }, zs)), 'jamais un signal');
 const Lc = lecture({ prix: 4085.5, zones: [zs], biais: { biais: 'haussier' }, etats: { z1: 'sur' }, marche: { ouvert: true } });
 ok(/Biais H1 haussier/.test(Lc.phrase) && !/achet|vend/i.test(Lc.phrase), 'lecture sans ordre');

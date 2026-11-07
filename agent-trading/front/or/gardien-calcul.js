@@ -4,6 +4,7 @@
    de suite dans la journée ; alertes à 3 % puis 5 % de perte totale ; avancement vers +10 %.
    Base de calcul réglable : « solde » (trades clôturés seulement) ou « équité » (solde + latent saisi). Jour = jour de Paris, réglable.
    Le gardien ne passe et ne bloque aucun ordre réel : il affiche. */
+import { pluriel } from './texte-or.js';
 import { plNet, ferme } from './journal-calcul.js';
 import { cleJour } from './niveaux-or.js';
 import { KRAKEN } from './config-or.js';
@@ -23,7 +24,7 @@ export function etatGardien(trades, { reglages = DEFAUTS, maintenant = Date.now(
   let statut = 'ok';
   if (perteTotalePct >= R.limiteTotale) { statut = 'limite'; alertes.push({ niveau: 'rouge', texte: `Limite de perte totale du compte atteinte (${perteTotalePct.toFixed(2)} % ≥ ${R.limiteTotale} %).` }); }
   if (perteJourPct >= R.limiteJour) { statut = 'limite'; alertes.push({ niveau: 'rouge', texte: `Limite de perte du jour du compte atteinte (${perteJourPct.toFixed(2)} % ≥ ${R.limiteJour} %).` }); }
-  if (statut !== 'limite' && (perteJourPct >= R.stopJour || suite >= R.pertesDeSuite)) { statut = 'stop'; alertes.push({ niveau: 'rouge', texte: `STOP POUR AUJOURD'HUI : ${perteJourPct >= R.stopJour ? `perte du jour ${perteJourPct.toFixed(2)} % (palier ${R.stopJour} %)` : `${suite} pertes de suite`}.` }); }
+  if (statut !== 'limite' && (perteJourPct >= R.stopJour || suite >= R.pertesDeSuite)) { statut = 'stop'; alertes.push({ niveau: 'rouge', texte: `STOP POUR AUJOURD'HUI : ${perteJourPct >= R.stopJour ? `perte du jour ${perteJourPct.toFixed(2)} % (palier ${R.stopJour} %)` : `${pluriel(suite, 'perte', 'pertes')} de suite`}.` }); }
   if (statut === 'ok' && perteJourPct >= R.alerteJour) { statut = 'attention'; alertes.push({ niveau: 'orange', texte: `Attention : perte du jour ${perteJourPct.toFixed(2)} % (alerte à ${R.alerteJour} %, stop à ${R.stopJour} %).` }); }
   for (const a of [...R.alertesTotales].sort((x, y) => y - x)) if (perteTotalePct >= a && perteTotalePct < R.limiteTotale) { alertes.push({ niveau: a >= 5 ? 'rouge' : 'orange', texte: `Perte totale ${perteTotalePct.toFixed(2)} % (palier ${a} %, limite du compte ${R.limiteTotale} %).` }); if (statut === 'ok') statut = 'attention'; break; }
   return {

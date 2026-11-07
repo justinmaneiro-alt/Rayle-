@@ -4,6 +4,7 @@
    Spread, déséquilibre acheteurs / vendeurs (± 0,5 %), âge de la dernière mise à jour, grosses transactions de CET actif.
    Contrôle : milieu du carnet à moins de 0,1 % du prix affiché, sinon erreur claire et carnet masqué (jamais deux carnets mélangés).
    Murs et cases regardées : publiés par le moteur (affichage seulement). */
+import { pluriel } from './or/texte-or.js';
 import { fmtPrix, fmtNombre, heureParis } from '../commun/format.js';
 import { PAR_ID } from '../commun/actifs.js';
 import { creerFluxKraken, regrouper, meilleurs, desequilibre, controlePrix, pasProposes, seuilGros } from './carnet-kraken.js';
@@ -121,7 +122,7 @@ export function creerCarnet(el, { racine, WS } = {}) {
     });
     ctx.strokeStyle = 'rgba(143,208,227,.5)'; ctx.setLineDash([3, 3]); ctx.beginPath(); ctx.moveTo(0, yMid + .5); ctx.lineTo(W, yMid + .5); ctx.stroke(); ctx.setLineDash([]);
     if (centrer) { defil._auto = true; defil.scrollTop = Math.max(0, yMid - defil.clientHeight / 2); }
-    info.textContent = `${c.bids.size} niveaux acheteurs / ${c.asks.size} vendeurs reçus (carnet complet) · séquences contrôlées (pas de checksum dans l’API Futures)${etatCx.resync ? ` · ${etatCx.resync} resynchronisation(s)` : ''}`;
+    info.textContent = `${c.bids.size} niveaux acheteurs / ${c.asks.size} vendeurs reçus (carnet complet) · séquences contrôlées (pas de checksum dans l’API Futures)${etatCx.resync ? ` · ${pluriel(etatCx.resync, 'resynchronisation')}` : ''}`;
     // grosses transactions de CET actif (flux du même instrument)
     const tr = flux.transactions(), s = seuilGros(tr.map(x => x.usd)), G2 = tr.filter(x => x.usd >= s).slice(-8).reverse();
     gros.innerHTML = G2.map(g => `<li class="${g.cote === 'buy' ? 'at-achat' : 'at-vente'}"><time>${heureParis(g.t, true)}</time> ${g.cote === 'buy' ? 'achat' : 'vente'} ${fmtNombre(g.q, 3)} à ${fmtPrix(a, g.p)} <b>${fmtNombre(g.usd / 1000, 1)} k$</b></li>`).join('') || '<li class="at-doux">aucune pour l’instant</li>';
