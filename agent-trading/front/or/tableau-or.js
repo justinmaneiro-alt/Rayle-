@@ -9,6 +9,7 @@ import { creerGraphiqueOr, COUCHES, ratio } from './graphique-or.js';
 import { PERIODES, REGLES, TEXTE_REGLES, KRAKEN } from './config-or.js';
 import { texteType, texteHistorique, NOMS_TYPES } from './zones-or.js';
 import { heureParis } from './temps-or.js';
+import { nomClair } from './reperes-or.js';
 import { interpreter } from './commandes-or.js';
 
 const lireJ = (k, d) => { try { const v = localStorage.getItem(k); return v ? JSON.parse(v) : d; } catch (e) { return d; } };
@@ -52,9 +53,9 @@ export function monterTableauOr(el, { modules = {}, contexte = 'page', fetchFn, 
     <dl><dt>Biais H1</dt><dd data-l-biais>—</dd><dt>Zone au-dessus</dt><dd data-l-dessus>—</dd><dt>Zone au-dessous</dt><dd data-l-dessous>—</dd><dt>État</dt><dd data-l-etat>—</dd></dl>
     <form class="tor-demande" data-demande><input type="text" placeholder="Demander à Rayle… (« on en est où ? »)" aria-label="Demander à Rayle"><button type="button" data-a="micro" title="Parler">🎤</button><button type="submit">Envoyer</button><button type="button" data-a="ou" title="Rayle, on en est où ?">🔊 On en est où ?</button></form>
     <p class="tor-reponse" data-reponse aria-live="polite"></p>
+    <details class="tor-zones-det" data-zones><summary>Zones de retournement en détail <small>les plus proches, classées par confluence</small></summary><ol class="tor-zones" data-zones-liste></ol><p class="tor-doux" data-etude></p>
+    <details><summary>Règles figées ${REGLES.version}</summary><pre class="tor-regles">${esc(TEXTE_REGLES)}</pre></details></details>
   </section>
-  <section class="tor-bloc" data-zones><h2>Zones de retournement <small>les plus proches, classées par confluence</small></h2><ol class="tor-zones" data-zones-liste></ol><p class="tor-doux" data-etude></p>
-    <details><summary>Règles figées ${REGLES.version}</summary><pre class="tor-regles">${esc(TEXTE_REGLES)}</pre></details></section>
   <section class="tor-bloc" data-journal-bloc></section>
   <section class="tor-bloc" data-gardien-bloc></section>
   <footer class="tor-pied">Simulation et information seulement : Rayle ne passe aucun ordre. Prix : Kraken Futures ${KRAKEN.symbole} (relais public sans clé). Volume, delta et niveaux : Binance XAUUSDT, décalés de l’écart mesuré. Graphique : <a href="https://www.tradingview.com/" target="_blank" rel="noopener">TradingView</a> Lightweight Charts™ (Apache-2.0). Heure de Paris.</footer>
@@ -129,7 +130,7 @@ export function monterTableauOr(el, { modules = {}, contexte = 'page', fetchFn, 
     rendreTete();
     for (const b of R.querySelectorAll('[data-periode]')) b.setAttribute('aria-pressed', String(b.dataset.periode === S.periode));
     graph.bougies(moteur.serie(), S.hist ? S.refP : S.periode === 'M15' ? S.refM15 : S.refP, { cle: S.periode + (S.hist ? ':historique' : ':court'), debutKraken: S.hist && S.k.length ? S.k[0].t : null, ecart: S.ecart });
-    graph.dessin({ zonesVol: S.zonesVol, niveaux: S.niveaux, retournement: S.zones, prix: S.prix });
+    graph.dessin({ zonesVol: S.zonesVol, niveaux: S.niveaux, retournement: S.zones, prix: S.prix, reperes: S.reperes || [], a: S.a });
     // bandeau unique : marché fermé, retard, données peu fiables, panne
     const msg = [];
     if (S.erreurs.kraken) msg.push('Prix Kraken indisponible : ' + S.erreurs.kraken);
@@ -142,12 +143,12 @@ export function monterTableauOr(el, { modules = {}, contexte = 'page', fetchFn, 
     // lecture
     const L = S.lecture; if (L) {
       q('[data-l-biais]').textContent = S.biais ? `${L.biais} (${S.biais.texte})` : '—';
-      const zl = z => z ? `${nb(z.p, 0)} · ${z.noms.slice(0, 2).join(' + ')} · ${texteHistorique(z)}` : 'aucune dans la liste';
+      const zl = z => z ? `${nb(z.p, 0)} (${z.noms.slice(0, 2).map(nomClair).join(', ')}) · ${texteHistorique(z)}` : 'aucune dans la liste';
       q('[data-l-dessus]').textContent = zl(L.dessus); q('[data-l-dessous]').textContent = zl(L.dessous); q('[data-l-etat]').textContent = L.etat;
     }
     // zones
-    q('[data-zones-liste]').innerHTML = S.zones.map((z, i) => `<li data-zone="${z.id}"><div><b>Z${i + 1} · ${z.cote === 'support' ? 'Support' : 'Résistance'} ${nb(z.p, 0)}</b> <span class="tor-etat tor-etat-${S.etats[z.id]}">${ETATS[S.etats[z.id]] || '—'}</span></div>
-      <span>${esc(z.noms.join(' + '))} · ${nb(z.bas)} – ${nb(z.haut)} · à ${nb(z.distAtr, 1)} ATR</span>
+    q('[data-zones-liste]').innerHTML = S.zones.map((z, i) => `<li data-zone="${z.id}"><div><b>${z.cote === 'support' ? 'Support' : 'Résistance'} ${nb(z.p, 0)}</b> <span class="tor-etat tor-etat-${S.etats[z.id]}">${ETATS[S.etats[z.id]] || '—'}</span></div>
+      <span>${esc(z.noms.map(nomClair).join(', '))} · de ${nb(z.bas)} à ${nb(z.haut)} · à ${nb(z.distAtr, 1)} ATR H1 du prix</span>
       <span>Historique réel (30 derniers jours) : ${texteHistorique(z)}${z.tests ? '' : ''}</span>
       <small>${[...new Set(z.types)].map(t => esc(S.etude ? texteType(S.etude, t) : `${NOMS_TYPES[t]} : mesure ${S.etudeEtat}`)).join('<br>')}</small></li>`).join('') || '<li>Aucune zone pour le moment (données en cours de chargement).</li>';
     const E = S.etude;

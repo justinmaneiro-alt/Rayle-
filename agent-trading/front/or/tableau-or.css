@@ -40,6 +40,7 @@
 .tor-demande{display:flex;flex-wrap:wrap;gap:6px}
 .tor-demande input{flex:1;min-width:220px}
 .tor-reponse{min-height:1.4em;color:var(--a)}
+.tor-zones-det{margin-top:12px}.tor-zones-det>summary small{color:var(--d);margin-left:6px}.tor-zones-det .tor-zones{margin-top:8px}
 .tor-zones{margin:0;padding-left:0;list-style:none;display:grid;gap:8px}
 .tor-zones li{display:flex;flex-direction:column;gap:2px;padding:8px 10px;border:1px solid var(--b);border-radius:4px;background:var(--p)}
 .tor-zones small{color:var(--d)}

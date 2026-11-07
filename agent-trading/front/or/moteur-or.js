@@ -10,6 +10,7 @@ import { zonesRetournement, etudeReaction } from './zones-or.js';
 import { etatZone, evenementZone, creerAntiBruit } from './etats-or.js';
 import { lecture, phraseEvenement } from './lecture-or.js';
 import { marcheOr, retard, heureLocale, dateParis } from './temps-or.js';
+import { reperes } from './reperes-or.js';
 import { chargerHistorique, chargerPlusAncien, rafraichirVolume, serieAffichee } from './historique-or.js';
 
 const lireJ = (k, d) => { try { const v = globalThis.localStorage && localStorage.getItem(k); return v ? JSON.parse(v) : d; } catch (e) { return d; } };
@@ -56,7 +57,7 @@ export function creerMoteurOr({ fetchFn = (...a) => fetch(...a), horloge = () =>
       S.refH1 = fusionner(S.refH1, await bougiesBinance('H1', { depuis: S.refH1.length ? S.refH1[S.refH1.length - 1].t : n - 90 * 86400e3, jusqua: n + 1, fetchFn, max: 3 }));
       S.atrH1 = atr(S.refH1.filter(b => b.t + 3600e3 <= n), REGLES.atr); err('binance', null);
     } catch (e) { err('binance', e); }
-    if (S.periode !== 'M15') try { S.kM15 = await bougiesKraken('M15', { fetchFn, maintenant: n, n: 400 }); } catch (e) { /* écart seulement */ }
+    if (S.periode !== 'M15') try { S.kM15 = await bougiesKraken('M15', { fetchFn, maintenant: n, n: 700 }); } catch (e) { /* écart seulement */ }
     if (S.hist) try { const p = S.periode, H = await rafraichirVolume(S.hist, { fetchFn, maintenant: n }); if (p === S.periode) { S.hist = H; S.refP = H.vol; } } catch (e) { /* volume de la bougie en cours : au prochain tour */ }
     try { S.ref24h = await ticker24hBinance({ fetchFn }); } catch (e) { S.ref24h = null; }
     try { S.ticker = await tickerKraken({ fetchFn }); if (S.ticker && S.ticker.last > 0 && !S.prix) { S.prix = S.ticker.last; S.tPrix = Date.parse(S.ticker.lastTime) || n; } } catch (e) { /* le WebSocket donnera le prix */ }
@@ -72,6 +73,8 @@ export function creerMoteurOr({ fetchFn = (...a) => fetch(...a), horloge = () =>
     S.etats = Object.fromEntries(S.zonesRef.map(z => [z.id, etatZone(prixRef, z, a)]));
     S.a = a; S.biais = biaisH1(h1c); S.marche = marcheOr(n); S.retard = retard(S.tPrix, n, S.marche.ouvert);
     const v24 = S.ref24h ? +S.ref24h.quoteVolume : null; S.fiable = v24 == null ? null : v24 >= REGLES.volumeFaible24h; S.volume24h = v24;
+    // repères AFFICHÉS (veille, semaine, ronds, 3 zones de volume, retournement, séance en cours) : prix Kraken M15
+    S.reperes = reperes({ niveaux: decaler(nivRef, e), zonesVol: S.zonesVol, retournement: S.zones, prix: S.prix, m15: S.periode === 'M15' ? S.k : S.kM15, marche: S.marche, t: n });
     S.lecture = lecture({ prix: S.prix, zones: S.zones, biais: S.biais, etats: S.etats, marche: S.marche, fiable: S.fiable !== false });
     S.chargement = false;
   }

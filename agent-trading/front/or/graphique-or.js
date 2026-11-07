@@ -6,6 +6,7 @@
 import { chargerLib } from '../graphique.js';
 import { espacerEtiquettes } from '../etiquettes-calcul.js';
 import { tempsGraphique, tempsMonotones } from './temps-or.js';
+import { grouper, choisirEtiquettes, texteBord, FUSION_ATR, LARGEUR_MAX_ATR, ETIQUETTES_MAX } from './reperes-or.js';
 
 export const COUCHES = Object.freeze({ volume: 'Zones de volume', sr: 'Supports et résistances', retournement: 'Zones de retournement' });
 const lire = (k, d) => { try { const v = localStorage.getItem(k); return v ? JSON.parse(v) : d; } catch (e) { return d; } };
@@ -28,7 +29,7 @@ export function ratio(pos) {
 }
 
 export function creerGraphiqueOr(el, { surClicPrix, mobile = false } = {}) {
-  const etat = { bougies: [], volumes: [], cle: null, debutKraken: null, ecart: null, chargementAncien: false, zonesVol: [], niveaux: [], retournement: [], marques: [], couches: lire('rayle_or_couches', { volume: true, sr: true, retournement: true }), pos: lire('rayle_or_position', null), outil: null, prix: null };
+  const etat = { bougies: [], volumes: [], cle: null, debutKraken: null, ecart: null, chargementAncien: false, zonesVol: [], niveaux: [], retournement: [], reperes: [], a: null, cadres: [], marques: [], couches: lire('rayle_or_couches', { volume: true, sr: true, retournement: true }), pos: lire('rayle_or_position', null), outil: null, prix: null };
   let LW = null, chart = null, serie = null, vol = null, pret = null;
   const C = { refHaut: 'rgba(160,170,150,.55)', refBas: 'rgba(170,140,140,.55)', bande: 'rgba(201,178,122,.07)', sable: '#c9b27a', haut: '#5fb894', bas: '#d86a6a', volZone: '143,136,204', support: '#86c3e8', resistance: '#e2ae62', retour: '#e8e2cf', texte: '#cfd8dc', doux: '#7d8a90', fond: 'rgba(8,12,16,.86)' };
   const yDe = p => serie ? serie.priceToCoordinate(p) : null;
@@ -66,25 +67,28 @@ export function creerGraphiqueOr(el, { surClicPrix, mobile = false } = {}) {
 
   const primTexte = new Primitive((ctx, T) => {
     if (!serie) return;
-    const etq = [], fs = mobile ? 10 : 11; ctx.font = `${fs}px ui-monospace, Consolas, monospace`;
-    if (etat.couches.sr) for (const n of etat.niveaux) {
-      const y = yDe(n.p); if (y == null || y < 0 || y > T.height) continue;
-      const col = etat.prix != null && n.p > etat.prix ? C.resistance : C.support;
-      ctx.strokeStyle = col; ctx.globalAlpha = 0.7; ctx.lineWidth = 1; ctx.setLineDash(n.types.includes('rond') && n.types.length === 1 ? [1, 3] : n.types.includes('seance') && !n.types.some(t => t === 'veille' || t === 'semaine') ? [5, 4] : []);
-      ctx.beginPath(); ctx.moveTo(0, Math.round(y) + 0.5); ctx.lineTo(T.width - 4, Math.round(y) + 0.5); ctx.stroke(); ctx.setLineDash([]); ctx.globalAlpha = 1;
-      etq.push({ y, texte: n.court, col });
+    const fs = mobile ? 10 : 11; ctx.font = `${fs}px system-ui, 'Segoe UI', sans-serif`;
+    /* repères : fusionnés à 0,3 ATR H1, au plus 8 étiquettes (5 sur téléphone), les plus importantes ; un repère par bord pour ce qui sort de la vue */
+    const cochees = etat.reperes.filter(x => etat.couches[x.couche] !== false);
+    const G = grouper(cochees, etat.a ? FUSION_ATR * etat.a : 0.5, etat.a ? LARGEUR_MAX_ATR * etat.a : 10);
+    const { dedans, bords } = choisirEtiquettes(G, yDe, T.height, { max: mobile ? 5 : ETIQUETTES_MAX, prix: etat.prix });
+    const couleur = g => g.types.length === 1 && g.types[0] === 'volume' ? `rgb(${C.volZone})` : etat.prix != null && g.p > etat.prix ? C.resistance : C.support;
+    for (const g of dedans) {   // trait (un seul niveau) ou bande fine (zone fusionnée)
+      const col = couleur(g); ctx.strokeStyle = col; ctx.fillStyle = col; ctx.globalAlpha = 0.7; ctx.lineWidth = 1;
+      if (g.zone) { const y0 = yDe(g.haut), y1 = yDe(g.bas); if (y0 != null && y1 != null && y1 - y0 >= 2) { ctx.globalAlpha = 0.10; ctx.fillRect(0, y0, T.width, y1 - y0); ctx.globalAlpha = 0.55; ctx.setLineDash([3, 3]); ctx.beginPath(); ctx.moveTo(0, Math.round(y0) + 0.5); ctx.lineTo(T.width, Math.round(y0) + 0.5); ctx.moveTo(0, Math.round(y1) + 0.5); ctx.lineTo(T.width, Math.round(y1) + 0.5); ctx.stroke(); ctx.setLineDash([]); ctx.globalAlpha = 1; continue; } }
+      ctx.setLineDash(g.types.every(t => t === 'rond50' || t === 'rond100') ? [1, 3] : g.types.includes('seance') && g.n === 1 ? [5, 4] : []);
+      ctx.beginPath(); ctx.moveTo(0, Math.round(g.y) + 0.5); ctx.lineTo(T.width - 4, Math.round(g.y) + 0.5); ctx.stroke(); ctx.setLineDash([]); ctx.globalAlpha = 1;
     }
-    if (etat.couches.volume) for (const z of etat.zonesVol) { const y0 = yDe(z.haut), y1 = yDe(z.bas); if (y0 == null || y1 == null) continue; const y = (y0 + y1) / 2; if (y > 0 && y < T.height) etq.push({ y, texte: 'Vol.', col: `rgb(${C.volZone})` }); }
-    if (etat.couches.retournement) etat.retournement.forEach((z, i) => { const y = yDe(z.p); if (y != null && y > 0 && y < T.height) etq.push({ y, texte: `Z${i + 1} ${z.tests ? z.tenues + '/' + z.tests : 'neuve'}`, col: C.retour }); });
-    // niveaux HORS de la zone visible : ils ne tirent pas l'échelle ; un petit repère en bord de graphique donne leur direction et leur distance
-    if (etat.couches.sr && etat.prix != null) {
-      const hors = { haut: null, bas: null };
-      for (const n of etat.niveaux) { const y = yDe(n.p); if (y == null) continue; if (y < 0 && (!hors.haut || n.p < hors.haut.p)) hors.haut = n; if (y > T.height && (!hors.bas || n.p > hors.bas.p)) hors.bas = n; }
-      for (const [k, n] of Object.entries(hors)) if (n) etq.push({ y: k === 'haut' ? fs : T.height - fs, texte: `${k === 'haut' ? '▲' : '▼'} ${n.court} ${nb(n.p, 0)} · ${n.p >= etat.prix ? '+' : '−'}${nb(Math.abs(n.p - etat.prix), 0)} $`, col: C.doux, bord: true });
-    }
-    for (const e of espacerEtiquettes(etq, fs + 3, T.height)) {
-      const w = ctx.measureText(e.texte).width + 8, x = T.width - w - 2;
-      ctx.fillStyle = C.fond; ctx.fillRect(x, e.y - fs / 2 - 2, w, fs + 4); ctx.fillStyle = e.col; ctx.fillText(e.texte, x + 4, e.y + fs / 2 - 2);
+    const etq = [...dedans.map(g => ({ y: g.y, texte: g.texte, col: couleur(g), g })), ...bords.map(g => ({ y: g.bord === 'haut' ? fs : T.height - fs, texte: texteBord(g, etat.prix), col: C.doux, g }))];
+    etat.cadres = [];
+    const wMax = Math.max(120, T.width * (mobile ? 0.62 : 0.45));
+    for (const e of espacerEtiquettes(etq, fs + 8, T.height)) {   // cadre de fs + 6 px + 2 px d'écart : jamais de chevauchement
+      let t = e.texte; while (ctx.measureText(t).width > wMax - 10 && t.length > 8) t = t.slice(0, -2);
+      if (t !== e.texte) t = t.replace(/\s*\S?$/, '') + '…';
+      const w = ctx.measureText(t).width + 10, x = T.width - w - 2, y0 = e.y - fs / 2 - 3;
+      if (Math.abs(e.y - e.yTrait) > 3 && !e.g.bord) { ctx.strokeStyle = e.col; ctx.globalAlpha = 0.5; ctx.beginPath(); ctx.moveTo(x, e.y); ctx.lineTo(x - 10, e.yTrait); ctx.stroke(); ctx.globalAlpha = 1; }   // trait de rappel : l'étiquette a été décalée
+      ctx.fillStyle = C.fond; ctx.fillRect(x, y0, w, fs + 6); ctx.fillStyle = e.col; ctx.fillText(t, x + 5, e.y + fs / 2 - 1);
+      etat.cadres.push({ x, y: y0, w, h: fs + 6, g: e.g });
     }
     // outil Position
     const r = ratio(etat.pos);
@@ -143,7 +147,7 @@ export function creerGraphiqueOr(el, { surClicPrix, mobile = false } = {}) {
     });
     // glisser vers la gauche : arrivée près du bord des données → un morceau plus ancien (Kraken, puis la référence)
     chart.timeScale().subscribeVisibleLogicalRangeChange(r => { if (r && r.from < 40 && etat.bougies.length && api.surBordGauche) api.surBordGauche(); redessiner(); });
-    brancherGlisser(); versSerie(); vueDefaut();
+    brancherGlisser(); brancherInfo(); versSerie(); vueDefaut();
     return api;
   }
   /* outil Position : clic 1 = entrée, clic 2 = stop, clic 3 = objectif ; ensuite, glisser un trait le déplace */
@@ -163,6 +167,26 @@ export function creerGraphiqueOr(el, { surClicPrix, mobile = false } = {}) {
     el.addEventListener('pointermove', e => { if (!prise) return; const r = el.getBoundingClientRect(), p = serie.coordinateToPrice(e.clientY - r.top); if (p != null) { etat.pos[prise] = Math.round(p * 100) / 100; redessiner(); } }, true);
     const fin = () => { if (!prise) return; prise = null; chart.applyOptions({ handleScroll: true, handleScale: true }); ecrire('rayle_or_position', etat.pos); api.surPosition && api.surPosition(etat.pos, null); };
     el.addEventListener('pointerup', fin, true); el.addEventListener('pointercancel', fin, true);
+  }
+  /* détail d'une étiquette au survol (souris) ou au clic / toucher (épinglé jusqu'au clic suivant) */
+  function brancherInfo() {
+    const esc = t => String(t ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+    if (getComputedStyle(el).position === 'static') el.style.position = 'relative';
+    const tip = document.createElement('div'); tip.className = 'tor-info'; tip.hidden = true; tip.setAttribute('role', 'tooltip');
+    tip.style.cssText = 'position:absolute;right:8px;z-index:4;max-width:min(360px,80%);padding:7px 10px;background:#0b1117;border:1px solid rgba(143,208,227,.4);border-radius:5px;color:#d7e3ea;font:12.5px/1.4 system-ui,sans-serif;pointer-events:none;box-shadow:0 6px 20px rgba(0,0,0,.5)';
+    el.appendChild(tip);
+    let epingle = null;
+    const trouver = (x, y) => { const c = etat.cadres.find(c => x >= c.x - 2 && x <= c.x + c.w + 2 && y >= c.y - 2 && y <= c.y + c.h + 2); return c ? c.g : null; };
+    const montrer = (g, y) => {
+      const L = (g.detail || []).filter(d => d !== g.texte);
+      tip.innerHTML = `<b>${esc(g.bord ? texteBord(g, etat.prix) : g.texte)}</b>${L.length ? '<ul style="margin:4px 0 0;padding-left:16px">' + L.map(d => `<li>${esc(d)}</li>`).join('') + '</ul>' : ''}<div style="color:#7d8a90;margin-top:3px">${etat.prix != null ? `à ${nb(Math.abs(g.p - etat.prix), 2)} $ du prix` : ''}</div>`;
+      tip.hidden = false; tip.style.top = Math.max(4, Math.min(y + 16, el.clientHeight - tip.offsetHeight - 4)) + 'px';
+    };
+    const pos = e => { const r = el.getBoundingClientRect(); return [e.clientX - r.left, e.clientY - r.top]; };
+    el.addEventListener('pointermove', e => { if (epingle) return; const [x, y] = pos(e), g = trouver(x, y); if (g) montrer(g, y); else tip.hidden = true; el.style.cursor = g ? 'help' : ''; });
+    el.addEventListener('pointerleave', () => { if (!epingle) tip.hidden = true; });
+    el.addEventListener('click', e => { const [x, y] = pos(e), g = trouver(x, y); if (g) { e.stopPropagation(); epingle = epingle === g.texte ? null : g.texte; if (epingle) montrer(g, y); else tip.hidden = true; } else if (epingle) { epingle = null; tip.hidden = true; } }, true);
+    api.info = (texte) => { const c = etat.cadres.find(c => c.g.texte === texte); if (!c) return null; montrer(c.g, c.y); epingle = texte; return tip.innerText; };
   }
   const redessiner = () => { primTexte.maj && primTexte.maj(); primFond.maj && primFond.maj(); };
 
@@ -185,7 +209,8 @@ export function creerGraphiqueOr(el, { surClicPrix, mobile = false } = {}) {
       try { serie.update({ time: tempsGraphique(b.t), open: b.o, high: b.h, low: b.l, close: b.c }); } catch (e) { console.warn('bougie en cours :', e.message); }
     },
     couches(c) { if (c) { etat.couches = { ...etat.couches, ...c }; ecrire('rayle_or_couches', etat.couches); redessiner(); } return { ...etat.couches }; },
-    dessin({ zonesVol, niveaux, retournement, prix }) { if (zonesVol) etat.zonesVol = zonesVol; if (niveaux) etat.niveaux = niveaux; if (retournement) etat.retournement = retournement; if (prix != null) etat.prix = prix; redessiner(); },
+    dessin({ zonesVol, niveaux, retournement, prix, reperes, a }) { if (zonesVol) etat.zonesVol = zonesVol.slice().sort((x, y) => (y.force || 0) - (x.force || 0)).slice(0, 3); if (niveaux) etat.niveaux = niveaux; if (retournement) etat.retournement = retournement; if (reperes) etat.reperes = reperes; if (a != null) etat.a = a; if (prix != null) etat.prix = prix; redessiner(); },
+    etiquettes: () => etat.cadres.map(c => ({ texte: c.g.texte, bord: c.g.bord || null, n: c.g.n, detail: c.g.detail, x: c.x, y: c.y, w: c.w, h: c.h })),
     marques(L) { etat.marques = L || []; if (marqueurs) marqueurs.setMarkers(marquesLW()); },
     outil(v) { etat.outil = v; if (v === 'entree') etat.pos = null; redessiner(); return etat.outil; },
     position: () => etat.pos, effacerPosition() { etat.pos = null; etat.outil = null; ecrire('rayle_or_position', null); redessiner(); },

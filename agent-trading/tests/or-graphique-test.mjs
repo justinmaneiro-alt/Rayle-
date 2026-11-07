@@ -40,8 +40,15 @@ for (const P of ['M5', 'M15', 'H1', 'H4', 'J']) {
   verifier(g.nv >= 140 && g.nv <= 160 && g.a >= g.n - 1 + 3 && g.a <= g.n - 1 + 8, `${P} : vue par défaut ≈ 150 dernières bougies calées à droite avec une marge`, `${g.nv} visibles, ${(g.a - g.n + 1).toFixed(1)} de marge`);
   verifier(g.panes === 2 && g.hVol > 40 && g.hVol < g.hPrix / 2, `${P} : volume dans son propre panneau (${g.hVol} px sous ${g.hPrix} px)`);
   verifier(g.yHi >= 0 && g.yLo <= g.hPrix && g.yHi < g.hPrix * 0.2 && g.yLo > g.hPrix * 0.8, `${P} : échelle calée sur les bougies visibles (haut à ${g.yHi.toFixed(0)} px, bas à ${g.yLo.toFixed(0)} px sur ${g.hPrix})`);
+  const E = await pc.evaluate(() => window.__or.graph.etiquettes());
+  const chevauche = E.some((a, i) => E.some((b, j) => j > i && a.x < b.x + b.w && b.x < a.x + a.w && a.y < b.y + b.h && b.y < a.y + a.h));
+  verifier(E.length >= 1 && E.length <= 8 && !chevauche, `${P} : ${E.length} étiquettes (≤ 8), aucune ne se chevauche`, E.map(e => e.texte).join(' | '));
+  verifier(E.every(e => !/\b(V\.|S\.|NY\.|Asi\.|Lon\.|Vol\.)|\bZ\d|\d+\/\d+/.test(e.texte)), `${P} : libellés en français clair, sans abréviation`);
   await pc.screenshot({ path: path.join(SORTIE, `graphique-${P}-pc.png`) });
 }
+// détail au survol : une étiquette fusionnée ou une zone montre ses niveaux
+const cible = await pc.evaluate(() => { const E = window.__or.graph.etiquettes(), r = document.querySelector('[data-graph]').getBoundingClientRect(), e = E.find(x => x.n > 1) || E[0]; return e && { x: r.left + e.x + e.w / 2, y: r.top + e.y + e.h / 2, texte: e.texte, n: e.n }; });
+if (cible) { await pc.mouse.move(cible.x, cible.y); await w(300); const tip = await pc.evaluate(() => { const t = document.querySelector('.tor-info'); return t && !t.hidden ? t.innerText : ''; }); verifier(tip.length > 10 && tip.includes(cible.texte.slice(0, 12)), `survol d’une étiquette : détail affiché (${cible.n} niveau${cible.n > 1 ? 'x' : ''})`, tip.replace(/\n/g, ' / ').slice(0, 200)); await pc.screenshot({ path: path.join(SORTIE, 'graphique-detail-survol.png') }); await pc.mouse.move(5, 5); }
 // glisser vers la gauche (M5) : un morceau plus ancien se charge, la vue ne saute pas
 await pc.evaluate(() => window.__or.moteur.periode('M5'));
 await pc.waitForFunction(() => { const S = window.__or.moteur.S; return S.periode === 'M5' && S.hist && S.hist.periode === 'M5'; }, { timeout: 60000 }); await w(1000);
