@@ -5,7 +5,7 @@ Reprendre ici. Branche `tableau-or`, fusionnée dans `main` à la fin de chaque 
 | Partie | État |
 |---|---|
 | A. Tableau de bord de l'or (périmètre or seul, graphique Kraken heure de Paris, 3 couches, états de zone, lecture, carnet) | fait : `agent-trading/front/or.html` + `front/or/` ; relais `relais-or/` déployé (d6cf0acb) ; tests `tests/or-test.mjs` (105), `or-reseau-test.mjs` (vraie API Kraken) ; étude des taux : `moteur/copilote/tableau-or/etude-reaction.mjs` (hors dépôt) |
-| B. Journal de trades + gardien de drawdown | à faire |
+| B. Journal de trades + gardien de drawdown | fait : `front/or/journal-{calcul,ui}.js`, `gardien-{calcul,ui}.js`, `stockage-or.js` ; historique XTB lu en local seulement (fichier ignoré) ; tests `tests/journal-test.mjs` (61) |
 | C. Lecteur de musique YouTube (IFrame officielle) | à faire |
 | D. Mode télé + appairage (relais dédié) + Presentation API | à faire |
 | E. Vérifications finales (Terre, tests, captures, rapport) | à faire |

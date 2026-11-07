@@ -75,3 +75,6 @@
 .tor[data-disposition="colonne"] .tor-outils{margin-left:0}
 .tor[data-disposition="colonne"] .tor-bloc{padding:12px}
 @media (max-width:600px){.tor-tete{padding:6px 8px;gap:6px}.tor-prix{font-size:18px}.tor button{padding:5px 8px}.tor-periodes button{padding:5px 7px}}
+.tor-grille input,.tor-grille select{width:100%}
+.tor-zones li>div{display:flex;flex-wrap:wrap;align-items:center;gap:6px}
+.tor-reponse:empty{display:none}
