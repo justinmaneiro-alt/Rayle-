@@ -76,6 +76,12 @@ export function creerGraphiqueOr(el, { surClicPrix, mobile = false } = {}) {
     }
     if (etat.couches.volume) for (const z of etat.zonesVol) { const y0 = yDe(z.haut), y1 = yDe(z.bas); if (y0 == null || y1 == null) continue; const y = (y0 + y1) / 2; if (y > 0 && y < T.height) etq.push({ y, texte: 'Vol.', col: `rgb(${C.volZone})` }); }
     if (etat.couches.retournement) etat.retournement.forEach((z, i) => { const y = yDe(z.p); if (y != null && y > 0 && y < T.height) etq.push({ y, texte: `Z${i + 1} ${z.tests ? z.tenues + '/' + z.tests : 'neuve'}`, col: C.retour }); });
+    // niveaux HORS de la zone visible : ils ne tirent pas l'échelle ; un petit repère en bord de graphique donne leur direction et leur distance
+    if (etat.couches.sr && etat.prix != null) {
+      const hors = { haut: null, bas: null };
+      for (const n of etat.niveaux) { const y = yDe(n.p); if (y == null) continue; if (y < 0 && (!hors.haut || n.p < hors.haut.p)) hors.haut = n; if (y > T.height && (!hors.bas || n.p > hors.bas.p)) hors.bas = n; }
+      for (const [k, n] of Object.entries(hors)) if (n) etq.push({ y: k === 'haut' ? fs : T.height - fs, texte: `${k === 'haut' ? '▲' : '▼'} ${n.court} ${nb(n.p, 0)} · ${n.p >= etat.prix ? '+' : '−'}${nb(Math.abs(n.p - etat.prix), 0)} $`, col: C.doux, bord: true });
+    }
     for (const e of espacerEtiquettes(etq, fs + 3, T.height)) {
       const w = ctx.measureText(e.texte).width + 8, x = T.width - w - 2;
       ctx.fillStyle = C.fond; ctx.fillRect(x, e.y - fs / 2 - 2, w, fs + 4); ctx.fillStyle = e.col; ctx.fillText(e.texte, x + 4, e.y + fs / 2 - 2);
@@ -119,13 +125,15 @@ export function creerGraphiqueOr(el, { surClicPrix, mobile = false } = {}) {
       autoSize: true,
       layout: { attributionLogo: true, background: { type: 'solid', color: 'transparent' }, textColor: C.doux, fontFamily: 'ui-monospace, Consolas, monospace', fontSize: mobile ? 10 : 11 },
       grid: { vertLines: { color: 'rgba(143,208,227,.05)' }, horzLines: { color: 'rgba(143,208,227,.05)' } },
-      rightPriceScale: { borderVisible: false, scaleMargins: { top: 0.06, bottom: 0.2 } },
+      rightPriceScale: { borderVisible: false, scaleMargins: { top: 0.08, bottom: 0.08 } },   // l'échelle se cale sur les bougies VISIBLES (+ marge) : ni les niveaux ni le volume ne la tirent
       timeScale: { borderVisible: false, timeVisible: true, secondsVisible: false, rightOffset: MARGE_DROITE },
       crosshair: { mode: 0 }, localization: { locale: 'fr-FR', priceFormatter: p => nb(p) }
     });
     serie = chart.addSeries(LW.CandlestickSeries, { upColor: C.haut, downColor: C.bas, wickUpColor: C.haut, wickDownColor: C.bas, borderVisible: false, priceLineColor: '#cfd8dc', priceLineStyle: 2 });
-    vol = chart.addSeries(LW.HistogramSeries, { priceScaleId: 'vol', priceFormat: { type: 'volume' }, lastValueVisible: false, priceLineVisible: false });
-    chart.priceScale('vol').applyOptions({ scaleMargins: { top: 0.84, bottom: 0 } });
+    // volume : son propre panneau sous le graphique, avec sa propre échelle
+    vol = chart.addSeries(LW.HistogramSeries, { priceFormat: { type: 'volume' }, lastValueVisible: false, priceLineVisible: false }, 1);
+    try { const P = chart.panes(); P[0].setStretchFactor(mobile ? 4 : 5); P[1].setStretchFactor(1); } catch (e) { /* ancienne version : panneau par défaut */ }
+    vol.priceScale().applyOptions({ scaleMargins: { top: 0.12, bottom: 0 }, borderVisible: false });
     serie.attachPrimitive(primBande); serie.attachPrimitive(primFond); serie.attachPrimitive(primTexte);
     if (LW.createSeriesMarkers) marqueurs = LW.createSeriesMarkers(serie, []);
     chart.subscribeClick(p => {
