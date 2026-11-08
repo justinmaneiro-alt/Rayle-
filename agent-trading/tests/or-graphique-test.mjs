@@ -45,18 +45,18 @@ for (const P of ['M5', 'M15', 'H1', 'H4', 'J']) {
     const T = window.__or, S = T.moteur.S, N = S.niveauxP, ch = T.graph.chart(), d = T.graph.serie().data(), r = ch.timeScale().getVisibleLogicalRange();
     const vis = d.slice(Math.max(0, Math.ceil(r.from)), Math.floor(r.to) + 1), hi = Math.max(...vis.map(b => b.high)), lo = Math.min(...vis.map(b => b.low));
     const M = T.graph.marquesAffichees();
-    return { a: N.a, prix: S.prix, hi, lo, bandes: N.bandes.map(b => ({ bas: b.bas, haut: b.haut, p: b.p, cote: b.cote, fort: b.fort, texte: b.texte })), liq: (S.liquidite.zones || []).map(z => z.texte),
+    return { a: N.a, version: N.version || null, prix: S.prix, hi, lo, bandes: N.bandes.map(b => ({ bas: b.bas, haut: b.haut, p: b.p, cote: b.cote, fort: b.fort, texte: b.texte })), liq: (S.liquidite.zones || []).map(z => z.texte),
       fl: S.fleches.liste.length, rouges: M.filter(m => m.shape === 'arrowDown' && /ef5f5f/i.test(m.color)).length, vertes: M.filter(m => m.shape === 'arrowUp' && /4fd18b/i.test(m.color)).length,
       bilan: document.querySelector('[data-bilan-fleches]').textContent, E: T.graph.etiquettes() };
   });
   const parCote = c => nv.bandes.filter(b => b.cote === c).length, tri = nv.bandes.slice().sort((x, y) => x.bas - y.bas);
-  verifier(parCote('resistance') <= 4 && parCote('support') <= 4 && nv.bandes.length >= 2, `${P} : ${parCote('resistance')} résistances et ${parCote('support')} supports (≤ 4 de chaque côté)`, nv.bandes.map(b => (b.fort ? '■ ' : '□ ') + b.texte).join(' | '));
+  const maxC = P === 'H1' ? 6 : 4; verifier(parCote('resistance') <= maxC && parCote('support') <= maxC && nv.bandes.length >= 2 && (P !== 'H1' || nv.version === 'niveaux-h1-v5'), `${P} : ${parCote('resistance')} résistances et ${parCote('support')} supports (≤ ${maxC} de chaque côté${P === 'H1' ? ', règles niveaux-h1-v5' : ''})`, nv.bandes.map(b => (b.fort ? '■ ' : '□ ') + b.texte).join(' | '));
   verifier(tri.every((b, i) => !i || b.bas - tri[i - 1].haut >= nv.a - 1e-6), `${P} : bandes espacées d’au moins 1 ATR (${nv.a.toFixed(2)} $)`);
   const chevauche = nv.E.some((a, i) => nv.E.some((b, j) => j > i && a.x < b.x + b.w && b.x < a.x + a.w && a.y < b.y + b.h && b.y < a.y + a.h));
   verifier(nv.E.length >= 1 && !chevauche, `${P} : ${nv.E.length} étiquettes alignées à droite, aucune ne se chevauche`, nv.E.map(e => e.texte).join(' | '));
   verifier(nv.E.every(e => /^(▲ |▼ )?(Résistance|Support|Liquidité (haute|basse)) [\d ]+/.test(e.texte) && e.texte.length <= 80), `${P} : étiquettes courtes en français`);
   verifier(nv.fl > 0 && nv.rouges + nv.vertes === nv.fl, `${P} : ${nv.fl} flèches (${nv.rouges} rouges vers le bas, ${nv.vertes} vertes vers le haut)`);
-  verifier((P === 'H1' ? /^Flèches H1 \(version 4\)/.test(nv.bilan) && (/pas assez de données/.test(nv.bilan) || /au hasard \(même régime, mêmes heures\)/.test(nv.bilan)) : /Flèches de rebond/.test(nv.bilan) && (/pas assez de données/.test(nv.bilan) || /au hasard aux mêmes heures/.test(nv.bilan))) && /jamais un ordre/.test(nv.bilan), `${P} : bilan honnête sous le graphique${P === 'H1' ? ' (H1 : version 4, depuis le commit de sa règle)' : ''}`, nv.bilan.slice(0, 200));
+  verifier((P === 'H1' ? /^Flèches H1 \(version 5\)/.test(nv.bilan) && (/pas assez de données/.test(nv.bilan) || /au hasard \(même régime, mêmes heures\)/.test(nv.bilan)) : /Flèches de rebond/.test(nv.bilan) && (/pas assez de données/.test(nv.bilan) || /au hasard aux mêmes heures/.test(nv.bilan))) && /jamais un ordre/.test(nv.bilan), `${P} : bilan honnête sous le graphique${P === 'H1' ? ' (H1 : version 5, depuis le commit de sa règle)' : ''}`, nv.bilan.slice(0, 200));
   if (P === 'H4' || P === 'J') {   // acceptation : plus hauts et plus bas majeurs de l'historique visible présents, jamais tous autour du prix
     const couvre = x => nv.bandes.some(b => x >= b.bas - nv.a && x <= b.haut + nv.a);
     verifier(couvre(nv.hi) && couvre(nv.lo), `${P} : le plus haut (${nv.hi.toFixed(0)}) et le plus bas (${nv.lo.toFixed(0)}) visibles sont des niveaux affichés`);
@@ -82,7 +82,7 @@ const fl = await pc.evaluate(() => {
   }
   return null;
 });
-if (fl) { await pc.mouse.move(fl.x, fl.y); await w(400); const tip = await pc.evaluate(() => { const t = document.querySelector('.tor-info'); return t && !t.hidden ? t.innerText : ''; }); verifier(/Rebond/.test(tip) && /touches|régime H1 (haussier|baissier)/.test(tip) && /version fleches-h1-v4/.test(tip) && !/undefined/.test(tip) && /volume/.test(tip) && /jamais un ordre/.test(tip), `survol d’une flèche H1 ${fl.sens === 'baisse' ? 'rouge' : 'verte'} : niveau, touches ou régime, version, volume (plus de « undefined »)`, tip.replace(/\n/g, ' / ').slice(0, 220)); await pc.screenshot({ path: path.join(SORTIE, 'graphique-fleche-survol.png') }); await pc.mouse.move(5, 5); }
+if (fl) { await pc.mouse.move(fl.x, fl.y); await w(400); const tip = await pc.evaluate(() => { const t = document.querySelector('.tor-info'); return t && !t.hidden ? t.innerText : ''; }); verifier(/Rebond/.test(tip) && /touches|régime H1 (haussier|baissier)/.test(tip) && /version fleches-h1-v5/.test(tip) && !/undefined/.test(tip) && /volume/.test(tip) && /jamais un ordre/.test(tip), `survol d’une flèche H1 ${fl.sens === 'baisse' ? 'rouge' : 'verte'} : niveau, touches ou régime, version, volume (plus de « undefined »)`, tip.replace(/\n/g, ' / ').slice(0, 220)); await pc.screenshot({ path: path.join(SORTIE, 'graphique-fleche-survol.png') }); await pc.mouse.move(5, 5); }
 else verifier(false, 'une flèche visible en H1 pour le survol');
 // glisser vers la gauche (M5) : un morceau plus ancien se charge, la vue ne saute pas
 await pc.evaluate(() => window.__or.moteur.periode('M5'));

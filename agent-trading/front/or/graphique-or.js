@@ -132,7 +132,7 @@ export function creerGraphiqueOr(el, { surClicPrix, mobile = false } = {}) {
   let marqueurs = null;
   /* marques du graphique (dessinées par Lightweight Charts, à la bougie près) : flèches de rebond, zones de liquidité balayées, trades du journal */
   const tDe = t => etat.tSerie.get(t) ?? tempsGraphique(t);
-  const court = v => ({ 'fleches-v1': 'v1', 'fleches-h1-v2': 'v2', 'fleches-h1-v3': 'v3', 'fleches-h1-v4': 'v4' }[v] || 'v1');
+  const court = v => ({ 'fleches-v1': 'v1', 'fleches-h1-v2': 'v2', 'fleches-h1-v3': 'v3', 'fleches-h1-v4': 'v4', 'fleches-h1-v5': 'v5' }[v] || 'v1');
   const plusieursVersions = () => new Set(etat.fleches.map(f => f.version || 'fleches-v1')).size > 1;
   const marquesLW = () => [
     ...(etat.couches.fleches !== false ? etat.fleches.map(f => ({ id: 'f' + f.t + (plusieursVersions() ? '-' + court(f.version) : ''), time: tDe(f.t), position: f.sens === 'baisse' ? 'aboveBar' : 'belowBar', color: f.sens === 'baisse' ? C.flecheBas : C.flecheHaut, shape: f.sens === 'baisse' ? 'arrowDown' : 'arrowUp', size: 0.6, ...(plusieursVersions() ? { text: court(f.version) } : {}) })) : []),
