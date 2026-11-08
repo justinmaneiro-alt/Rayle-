@@ -12,6 +12,7 @@ import { flechesH1v5, listesV5 } from '../front/or/fleches-h1-v5.js';
 import { flechesH1v6, listesV6 } from '../front/or/fleches-h1-v6.js';
 import { flechesH1v7, listesV7Seule } from '../front/or/fleches-h1-v7.js';
 import { flechesH1v8, bandesV8Avant } from '../front/or/fleches-h1-v8.js';
+import { flechesH1v9, bandesV9Avant } from '../front/or/fleches-h1-v9.js';
 const maintenant = Date.now(), H15 = await chargerHistorique('M15', { maintenant }), ecart = ecartMesure(H15.k, H15.vol).ecart;
 const cle = f => `${f.t}|${f.sens}|${f.niveau.toFixed(4)}|${f.type}`;
 let echecs = 0;
@@ -69,5 +70,11 @@ for (const [P, pas] of [['H4', 250], ['H1', 120], ['M15', 60]]) {
   const t8 = Date.now(), tout8 = flechesH1v8(C, { maintenant, volumes: V, listes, bandes: b8 }); let e8 = 0;
   for (let i = C.length - pas; i < C.length; i++) { const pref = C.slice(0, i + 1), F = flechesH1v8(pref, { maintenant: pref[i].t + ms, volumes: V, listes, bandes: b8 }); if (F.map(cle).join(';') !== tout8.filter(f => f.i <= i).map(cle).join(';')) e8++; }
   console.log(`${e8 ? 'ÉCHEC' : 'OK  '} H1 v8 : ${pas} bougies rejouées une par une, ${tout8.filter(f => f.i >= C.length - pas).length} flèche(s) posée(s) pendant le rejeu, ${e8} différence(s), ${tout8.length} flèches v8 (${((Date.now() - t8) / 1000).toFixed(0)} s)`);
-  if (e8) echecs++; }
+  if (e8) echecs++;
+  // version 9 (flèches v2, trois filtres) : même rejeu
+  const memo9 = new Map(), b9 = (X, i) => { const k = X[i].t; if (!memo9.has(k)) memo9.set(k, bandesV9Avant(X, i)); return memo9.get(k); };
+  const t9 = Date.now(), tout9 = flechesH1v9(C, { maintenant, volumes: V, listes, bandes: b9 }); let e9 = 0;
+  for (let i = C.length - pas; i < C.length; i++) { const pref = C.slice(0, i + 1), F = flechesH1v9(pref, { maintenant: pref[i].t + ms, volumes: V, listes, bandes: b9 }); if (F.map(cle).join(';') !== tout9.filter(f => f.i <= i).map(cle).join(';')) e9++; }
+  console.log(`${e9 ? 'ÉCHEC' : 'OK  '} H1 v9 : ${pas} bougies rejouées une par une, ${tout9.filter(f => f.i >= C.length - pas).length} flèche(s) posée(s) pendant le rejeu, ${e9} différence(s), ${tout9.length} flèches v9 (${((Date.now() - t9) / 1000).toFixed(0)} s)`);
+  if (e9) echecs++; }
 process.exit(echecs ? 1 : 0);
