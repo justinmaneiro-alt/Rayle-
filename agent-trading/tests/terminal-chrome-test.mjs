@@ -29,7 +29,7 @@ if (PHASES.includes('A')) {
     const T = window.__terminal, ch = T.graph.chart(), series = ch.panes().flatMap(x => x.getSeries());
     return { cats: [...document.querySelectorAll('.tr-outils .tr-cat')].map(c => c.title).filter(Boolean), outils: [...document.querySelectorAll('[data-outil]')].map(b => b.dataset.outil),
       unites: [...document.querySelectorAll('[data-unite]')].map(b => b.dataset.unite), actifs: [...document.querySelectorAll('[data-actif] option')].map(o => o.value),
-      carnet: !!document.querySelector('.tr-carnet canvas'), bas: [...document.querySelectorAll('[data-onglet]')].map(b => b.dataset.onglet), nSeries: series.length,
+      carnet: !!document.querySelector('.tr-carnet canvas'), bas: [...document.querySelectorAll('[data-section]')].map(b => b.dataset.section), nSeries: series.length,
       menus: [...document.querySelectorAll('[data-m]')].map(b => b.dataset.m), cloche: !!document.querySelector('[data-a="alertes"]'), prix: document.querySelector('[data-prix]').textContent, couches: T.couches() };
   });
   verifier(d.cats.join() === 'Curseur,Lignes,Zones,Mesure,Position,Texte,Gomme', 'barre d’outils à gauche rangée par catégories', d.cats.join());
@@ -37,7 +37,7 @@ if (PHASES.includes('A')) {
   verifier(d.unites.join() === 'M5,M15,H1,H4,J' && d.menus.join() === 'indicateurs,couches' && d.cloche, 'barre du haut : unités, indicateurs, couches, alertes');
   verifier(d.actifs.join() === 'OR,NASDAQ,BTC,SOL,DOGE', 'sélecteur : les 5 actifs seulement');
   verifier(d.carnet, 'carnet d’ordres à droite');
-  verifier(['dash', 'journal', 'alertes'].every(x => d.bas.includes(x)), 'panneau bas : dashboards, journal, alertes');
+  verifier(['tableau', 'sante', 'calendrier', 'cot', 'rapports', 'actus', 'journal', 'alertes', 'registre'].every(x => d.bas.includes(x)), 'page qui défile : sections tableau, santé, calendrier, COT, rapports, actualités, journal, alertes, registre', d.bas.join());
   verifier(d.nSeries === 2 && !d.couches.ma200 && !d.couches.sr && d.couches.volume, 'graphique VIERGE par défaut : bougies + volume', 'séries : ' + d.nSeries);
   verifier(/\d/.test(d.prix), 'prix affiché', d.prix);
   // SMA 200 sur tout l'historique : couche ajoutée, mémorisée par actif
@@ -66,7 +66,7 @@ if (PHASES.includes('A')) {
   const nq = await p.evaluate(() => ({ e: window.__terminal.graph.etat(), h: document.querySelector('[data-hist]').textContent, prix: window.__terminal.prix() }));
   verifier(nq.e.actif === 'NASDAQ' && (nq.e.n === 0 ? /indisponibles/.test(nq.h) : nq.prix > 10000), 'Nasdaq : vraies bougies ou erreur claire (jamais celles d’un autre actif)', nq.h.slice(0, 90));
   await p.evaluate(() => { window.__terminal.choisirActif('OR'); window.__terminal.ongletBas('dash'); }); await p.waitForFunction(() => window.__terminal.graph.etat().actif === 'OR' && window.__terminal.graph.etat().n > 50, { timeout: 60000 }); await w(4000);
-  const dash = await p.evaluate(() => ({ cot: document.querySelector('[data-d="cotations"]').textContent, sante: document.querySelector('[data-d="sante"]').textContent }));
+  const dash = await p.evaluate(() => ({ cot: document.querySelector('[data-d="cotations"]').textContent, sante: document.querySelector('[data-section="sante"]').textContent }));
   verifier(/Or/.test(dash.cot) && /Bitcoin/.test(dash.cot), 'cotations des 5 actifs');
   verifier(/Volatilit/.test(dash.sante) && /Spread/.test(dash.sante), 'santé du marché');
   const L = await p.evaluate(() => window.__longues.slice());
@@ -86,7 +86,7 @@ if (PHASES.includes('A')) {
 }
 
 const suite = { verifier, w, ouvrirTerminal, nav, erreurs };
-for (const ph of ['B', 'C', 'D', 'E']) if (PHASES.includes(ph)) { const m = await import(`./terminal-chrome-${ph.toLowerCase()}.mjs`); await m.default(suite); }
+for (const ph of ['B', 'C', 'D', 'E', 'F']) if (PHASES.includes(ph)) { const m = await import(`./terminal-chrome-${ph.toLowerCase()}.mjs`); await m.default(suite); }
 
 verifier(!erreurs.length, 'aucune erreur JavaScript', erreurs.slice(0, 5).join(' | '));
 await nav.close();

@@ -113,7 +113,13 @@ export function creerGraphique(el, { mobile = false } = {}) {
     redessiner() { for (const p of E.prims) p.maj && p.maj(); },
     yDe: p => serie ? serie.priceToCoordinate(p) : null,
     prixDe: y => serie ? serie.coordinateToPrice(y) : null,
-    xDe(t) { if (!chart || !E.vue.length) return null; return chart.timeScale().logicalToCoordinate(indiceDe(E.vue, t, E.ms)); },
+    xDe(t) {
+      if (!chart || !E.vue.length) return null; const ts = chart.timeScale(), n = E.vue.length, li = indiceDe(E.vue, t, E.ms);
+      // au-delà des bougies (instant présent dans la bougie en cours, futur) : extrapolé avec l'espacement des bougies (Lightweight Charts renvoie 0)
+      const bord = li > n - 1 ? n - 1 : li < 0 ? 0 : null; if (bord == null) return ts.logicalToCoordinate(li);
+      const x0 = ts.logicalToCoordinate(bord), x1 = ts.logicalToCoordinate(bord === 0 ? Math.min(1, n - 1) : bord - 1), pas = n > 1 ? Math.abs(x0 - x1) : (ts.options().barSpacing || 6);
+      return x0 == null ? null : x0 + (li - bord) * pas;
+    },
     tDe(x) { if (!chart) return null; const li = chart.timeScale().coordinateToLogical(x); return li == null ? null : tempsDe(E.vue, li, E.ms); },
     largeur: () => el.clientWidth, hauteur: () => el.clientHeight,
     bougies: () => E.tout, visibles() { if (!chart) return []; const r = chart.timeScale().getVisibleLogicalRange(); if (!r) return []; return E.vue.slice(Math.max(0, Math.floor(r.from)), Math.ceil(r.to) + 1); },

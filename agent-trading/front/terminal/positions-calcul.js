@@ -21,7 +21,7 @@ export function calcul(p, { pasQ = 0.001 } = {}) {
 }
 export function creerPosition(d, { t = Date.now(), pasQ } = {}) {
   const p = { id: d.id || idPosition(t), actif: d.actif, unite: d.unite || 'M15', cree: d.cree ?? t, entree: +d.entree, stop: +d.stop, stop0: +(d.stop0 ?? d.stop), objectif: +d.objectif, capital: +(d.capital || DEFAUTS.capital), risquePct: +(d.risquePct ?? DEFAUTS.risquePct),
-    etat: d.etat || 'attente', setup: d.setup || '', actualite: d.actualite || '', note: d.note || '', origine: d.origine || 'moi', historique: d.historique || [], tEntree: d.tEntree ?? null, tSortie: d.tSortie ?? null, prixSortie: d.prixSortie ?? null, plus1R: !!d.plus1R, be: !!d.be };
+    etat: d.etat || 'attente', setup: d.setup || '', actualite: d.actualite || '', note: d.note || '', origine: d.origine || 'moi', historique: d.historique || [], tEntree: d.tEntree ?? null, tSortie: d.tSortie ?? null, prixSortie: d.prixSortie ?? null, plus1R: !!d.plus1R, be: !!d.be, tAff0: d.tAff0 ?? null, tAff1: d.tAff1 ?? null };   // tAff0 / tAff1 : longueur horizontale affichée (réglable), sans effet sur le suivi
   const c = calcul(p, { pasQ }); if (!c) return null;
   if (!(p.objectif > 0) || (p.objectif - p.entree) * c.sens <= 0) return null;   // objectif du bon côté
   return p;

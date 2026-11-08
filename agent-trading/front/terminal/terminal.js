@@ -10,6 +10,7 @@ import { creerGraphique, COULEURS } from './graphique-terminal.js';
 import { sma, smaProjetee, atr, derniere, tendance, sante as calcSante } from './indicateurs.js';
 import { COUCHES, lireCouches, ecrireCouches } from './couches-terminal.js';
 import { creerDashboards } from './dashboards-terminal.js';
+import { choisirRelais, relaisEstLocal } from './sources-terminal.js';
 import { creerCarnet } from '../carnet.js';
 import { meilleurs, desequilibre } from '../carnet-kraken.js';
 import { niveauxPeriode, liquidite as calcLiquidite } from '../or/niveaux-periode.js';
@@ -31,6 +32,21 @@ export const OUTILS = Object.freeze([
   { cat: 'Gomme', liste: [['gomme', '⌫', 'Gomme (supprimer un objet)']] }
 ]);
 
+/* page unique qui défile (2026-11-08) : au-dessus graphique + carnet (hauteur de l'écran), en dessous ces sections empilées (pas d'onglets) */
+export const SECTIONS = Object.freeze([
+  ['tableau', 'Tableau de bord multi-unités', 'M5 · M15 · H1 · Jour · Global'],
+  ['sante', 'Santé du marché', 'volatilité, volume, spread, carnet, séances, corrélations, entreprises liées'],
+  ['calendrier', 'Calendrier et annonces économiques', 'ForexFactory · semaine en cours · heure de Paris'],
+  ['cot', 'Rapport COT', 'CFTC · Legacy futures only · hebdomadaire'],
+  ['rapports', 'Rapports et analyses', 'sources publiques et gratuites'],
+  ['actus', 'Actualités financières', 'médias internationaux, regroupés'],
+  ['journal', 'Journal', 'positions simulées · aucun ordre réel'],
+  ['alertes', 'Alertes', 'mes objets et zones surveillés'],
+  ['registre', 'Registre', 'chaque alerte, ce qui a suivi'],
+  ['cotations', 'Cotations et réglages', 'Kraken Futures · carte de chaleur']
+]);
+const PANNEAU_DE = Object.freeze({ journal: 'journal', alertes: 'alertes', registre: 'registre', cotations: 'dash' });
+
 let cssCharge = false;
 export function chargerCss() {
   if (cssCharge || typeof document === 'undefined' || document.getElementById('tr-css')) return; cssCharge = true;
@@ -39,12 +55,13 @@ export function chargerCss() {
 
 export function monterTerminal(el, { contexte = 'vue', fetchFn, WS, modules: mods = ['dessin', 'positions', 'rayle', 'chaleur'] } = {}) {
   chargerCss();
-  const S = { actif: lire('rayle_term_actif', ID_DEFAUT), unite: null, couches: null, series: new Map(), serie: null, prix: null, t24: null, outil: 'curseur', bas: lire('rayle_term_bas', { ouvert: true, onglet: 'dash', h: 260 }), cache: null, niveaux: null, liq: null, modules: {}, ecouteurs: {}, gen: 0 };
+  const S = { actif: lire('rayle_term_actif', ID_DEFAUT), unite: null, couches: null, series: new Map(), serie: null, prix: null, t24: null, outil: 'curseur', cache: null, niveaux: null, liq: null, modules: {}, ecouteurs: {}, gen: 0 };
   if (!PAR_ID_T[S.actif]) S.actif = ID_DEFAUT;
   S.unite = lire('rayle_term_unite_' + S.actif, 'M15'); if (!UNITES[S.unite]) S.unite = 'M15';
   S.couches = lireCouches(S.actif);
 
   el.innerHTML = `<div class="tr" data-contexte="${esc(contexte)}">
+  <div class="tr-ecran" data-ecran>
   <header class="tr-haut-barre">
     <div class="tr-marque">RAYLÉ<span>//</span>TERMINAL</div>
     <label class="tr-actif-sel"><span class="sr">Actif</span><select data-actif aria-label="Actif">${ACTIFS_TERMINAL.map(a => `<option value="${a.id}">${esc(a.nom)}</option>`).join('')}</select></label>
@@ -57,10 +74,9 @@ export function monterTerminal(el, { contexte = 'vue', fetchFn, WS, modules: mod
     </div>
     <span class="tr-source" data-source title="Source des bougies"></span>
     <span class="tr-espace"></span>
-    <button type="button" class="tr-btn" data-a="rayle" title="Demander à Rayle (voix ou texte)">◉ Rayle</button>
     <button type="button" class="tr-btn" data-a="retour" title="Revenir à l’écran de Rayle">✕</button>
   </header>
-  <aside class="tr-outils" aria-label="Outils de dessin">${OUTILS.map(g => `<div class="tr-cat" title="${esc(g.cat)}">${g.liste.map(([id, ic, nom]) => `<button type="button" data-outil="${id}" title="${esc(nom)}" aria-label="${esc(nom)}">${ic}</button>`).join('')}</div>`).join('')}
+  <aside class="tr-outils" aria-label="Outils de dessin">${OUTILS.map(g => `<div class="tr-cat" title="${esc(g.cat)}">${g.liste.map(([id, ic, nom]) => `<button type="button" data-outil="${id}" title="${esc(nom)}" aria-label="${esc(nom)}" data-libelle="${esc(nom)}">${ic}${id === 'position' ? '<small>Pos.</small>' : ''}</button>`).join('')}</div>`).join('')}
     <div class="tr-cat tr-cat-bas"><button type="button" data-a="annuler" title="Annuler (Ctrl+Z)" aria-label="Annuler">↶</button><button type="button" data-a="retablir" title="Rétablir (Ctrl+Y)" aria-label="Rétablir">↷</button><button type="button" data-a="aimant" title="Aimantation aux bougies" aria-label="Aimantation">⊕</button><button type="button" data-a="tout-effacer" title="Supprimer tout ce que j’ai dessiné" aria-label="Tout effacer">🗑</button></div>
   </aside>
   <main class="tr-centre">
@@ -68,12 +84,13 @@ export function monterTerminal(el, { contexte = 'vue', fetchFn, WS, modules: mod
     <div class="tr-graph-info" data-hist></div>
     <div class="tr-edition" data-edition hidden></div>
     <div class="tr-bandeau" data-bandeau role="status" hidden></div>
+    <button type="button" class="tr-plein-btn" data-a="plein" title="Plein écran (F) · sortie : Échap ou ce bouton" aria-label="Plein écran" aria-pressed="false">⛶</button>
   </main>
   <aside class="tr-carnet at" data-carnet aria-label="Carnet d’ordres"></aside>
-  <section class="tr-bas" data-bas>
-    <nav class="tr-bas-onglets"><button type="button" data-onglet="dash">Dashboards</button><button type="button" data-onglet="journal">Journal</button><button type="button" data-onglet="alertes">Alertes</button><button type="button" data-onglet="registre">Registre</button><button type="button" data-onglet="rayle">Rayle</button><span class="tr-espace"></span><span class="tr-mention">Information de lecture, pas un signal ni une promesse · aucun ordre réel</span><button type="button" data-a="replier" title="Replier / déplier">▾</button></nav>
-    <div class="tr-bas-corps"><div data-panneau="dash"></div><div data-panneau="journal" hidden><p class="tr-doux">Journal : chargement…</p></div><div data-panneau="alertes" hidden><p class="tr-doux">Alertes : chargement…</p></div><div data-panneau="registre" hidden><p class="tr-doux">Registre : chargement…</p></div><div data-panneau="rayle" hidden><p class="tr-doux">Rayle : chargement…</p></div></div>
-  </section>
+  </div>
+  <nav class="tr-ancres" aria-label="Sections du terminal">${SECTIONS.map(([id, nom]) => `<a href="#" data-ancre="${id}">${esc(nom)}</a>`).join('')}<span class="tr-espace"></span><span class="tr-mention">Information de lecture, pas un signal ni une promesse · aucun ordre réel</span></nav>
+  <div class="tr-sections">${SECTIONS.map(([id, nom, sous]) => `<section class="tr-section" data-section="${id}" aria-label="${esc(nom)}"><header class="tr-section-tete"><h2>${esc(nom)}</h2><small data-sous>${esc(sous)}</small><span class="tr-espace"></span><button type="button" class="tr-demander" data-demander="${id}" title="Rayle explique cette section (voix ou texte)">◉ Demander à Rayle</button></header><div class="tr-section-corps" ${PANNEAU_DE[id] ? `data-panneau="${PANNEAU_DE[id]}"` : 'data-c'}>${PANNEAU_DE[id] && PANNEAU_DE[id] !== 'dash' ? `<p class="tr-doux">${esc(nom)} : chargement…</p>` : ''}</div></section>`).join('')}</div>
+  <div class="tr-bulle" data-bulle><button type="button" class="tr-bulle-btn" data-a="rayle" title="Rayle (voix ou texte)" aria-expanded="false">◉<span>Rayle</span><i data-bulle-n hidden></i></button><div class="tr-bulle-panneau" data-panneau="rayle" hidden><p class="tr-doux">Rayle : chargement…</p></div></div>
 </div>`;
   const R = el.firstElementChild, q = s => R.querySelector(s), qa = s => [...R.querySelectorAll(s)];
   const graph = creerGraphique(q('[data-graph]'));
@@ -88,9 +105,11 @@ export function monterTerminal(el, { contexte = 'vue', fetchFn, WS, modules: mod
     const m = e.target.closest('[data-m]'); if (m) { const d = q(`[data-deroule="${m.dataset.m}"]`), ouvert = d.hidden; qa('[data-deroule]').forEach(x => { x.hidden = true; }); d.hidden = !ouvert; if (ouvert) rendreDeroule(m.dataset.m); return; }
     if (!e.target.closest('.tr-menu')) qa('[data-deroule]').forEach(x => { x.hidden = true; });
     const o = e.target.closest('[data-outil]'); if (o) return api.choisirOutil(o.dataset.outil);
-    const on = e.target.closest('[data-onglet]'); if (on) return api.ongletBas(on.dataset.onglet);
+    const an = e.target.closest('[data-ancre]'); if (an) { e.preventDefault(); return api.ongletBas(an.dataset.ancre); }
+    const dm = e.target.closest('[data-demander]'); if (dm) return emettre('demander', dm.dataset.demander);
     const a = e.target.closest('[data-a]'); if (!a) return;
-    if (a.dataset.a === 'replier') { S.bas.ouvert = !S.bas.ouvert; ecrire('rayle_term_bas', S.bas); majBas(); }
+    if (a.dataset.a === 'plein') api.pleinEcran();
+    else if (a.dataset.a === 'rayle') { api.bulle(); emettre('action', 'rayle'); }
     else if (a.dataset.a === 'retour') { try { if (window.RayleBus) RayleBus.emit('vue:demande', { vue: 'rayle' }); else history.back(); } catch (x) { /* */ } }
     else emettre('action', a.dataset.a);
   });
@@ -106,14 +125,27 @@ export function monterTerminal(el, { contexte = 'vue', fetchFn, WS, modules: mod
     }
   }
 
-  /* ── panneau bas ── */
-  function majBas() {
-    q('[data-bas]').classList.toggle('replie', !S.bas.ouvert); q('[data-a="replier"]').textContent = S.bas.ouvert ? '▾' : '▴';
-    R.style.setProperty('--tr-bas-h', (S.bas.ouvert ? S.bas.h : 34) + 'px');
-    qa('[data-onglet]').forEach(b => b.classList.toggle('actif', b.dataset.onglet === S.bas.onglet));
-    qa('[data-panneau]').forEach(p => { p.hidden = p.dataset.panneau !== S.bas.onglet; });
+  /* ── sections qui défilent (plus d'onglets) : la section la plus visible est « ouverte » ; la bulle de Rayle ── */
+  S.vue = 'tableau'; S.visibles = new Set(); S.bulle = false; S.plein = false;
+  let io = null;
+  try {
+    io = new IntersectionObserver(L => {
+      for (const x of L) { const id = x.target.dataset.section; if (x.isIntersecting) S.visibles.add(id); else S.visibles.delete(id); }
+      const prem = SECTIONS.map(s => s[0]).find(id => S.visibles.has(id));
+      if (prem && prem !== S.vue) { S.vue = prem; qa('[data-ancre]').forEach(b => b.classList.toggle('actif', b.dataset.ancre === prem)); }
+      for (const x of L) if (x.isIntersecting) { emettre('onglet', PANNEAU_DE[x.target.dataset.section] || x.target.dataset.section); emettre('section', x.target.dataset.section); }
+    }, { root: R, threshold: 0.05 });
+    qa('[data-section]').forEach(s => io.observe(s));
+  } catch (e) { /* sans IntersectionObserver : tout est rendu */ }
+  function majBulle() { const p = q('.tr-bulle-panneau'), b = q('.tr-bulle-btn'); p.hidden = !S.bulle; b.setAttribute('aria-expanded', String(S.bulle)); b.classList.toggle('actif', S.bulle); if (S.bulle) { const i = p.querySelector('input[type=text]'); if (i) setTimeout(() => i.focus({ preventScroll: true }), 30); } }
+  const ecranEl = q('[data-ecran]');
+  function majPlein() {
+    R.classList.toggle('plein', S.plein); const b = q('[data-a="plein"]'); b.setAttribute('aria-pressed', String(S.plein)); b.textContent = S.plein ? '⤡' : '⛶'; b.title = S.plein ? 'Quitter le plein écran (Échap, F ou ce bouton)' : 'Plein écran (F) · sortie : Échap ou ce bouton';
+    try { graph.redessiner(); } catch (e) { /* */ }
   }
-  const dash = creerDashboards(q('[data-panneau="dash"]'), { actif: () => S.actif, unite: () => S.unite, choisirActif: a => api.choisirActif(a), sante: () => api.sante() });
+  const surFs = () => { if (!document.fullscreenElement && S.plein && S.fsNatif) { S.plein = false; S.fsNatif = false; majPlein(); emettre('plein', false); } };
+  document.addEventListener('fullscreenchange', surFs);
+  const dash = creerDashboards(R, { actif: () => S.actif, unite: () => S.unite, choisirActif: a => api.choisirActif(a), sante: () => api.sante(), terminal: () => api, graph, on: (nom, f) => { (S.ecouteurs[nom] = S.ecouteurs[nom] || []).push(f); return () => { S.ecouteurs[nom] = S.ecouteurs[nom].filter(x => x !== f); }; }, visible: id => S.visibles.size === 0 || S.visibles.has(id) });
 
   /* ── données ── */
   async function serieDe(actif, unite) {
@@ -133,7 +165,7 @@ export function monterTerminal(el, { contexte = 'vue', fetchFn, WS, modules: mod
   }
   function texteSource(info) {
     const A = PAR_ID_T[S.actif];
-    const nom = info.source === 'kraken' ? `Kraken ${A.symbole}` : info.source === 'worker' ? 'SECOURS · ' + (A.secours ? A.secours.nom : 'Worker') : info.source === 'binance' ? `SECOURS · ${A.ref ? A.ref.nom : 'Binance'} (relais à redéployer)` : info.source;
+    const nom = info.source === 'kraken' ? `Kraken ${A.symbole}${relaisEstLocal() ? ' · lu par le PC' : ''}` : info.source === 'worker' ? 'SECOURS · ' + (A.secours ? A.secours.nom : 'Worker') : info.source === 'binance' ? `SECOURS · ${A.ref ? A.ref.nom : 'Binance'} (relais à redéployer)` : info.source;
     const s = q('[data-source]'); s.textContent = nom; s.classList.toggle('secours', info.source !== 'kraken');
     const d = info.debut ? new Date(info.debut).toLocaleDateString('fr-FR', { timeZone: 'Europe/Paris', month: 'short', year: 'numeric' }) : '—';
     const parts = [`${info.n.toLocaleString('fr-FR')} bougies ${S.unite} depuis ${d}`];
@@ -237,13 +269,31 @@ export function monterTerminal(el, { contexte = 'vue', fetchFn, WS, modules: mod
     R, graph, carnet, dash, S,
     actif: () => S.actif, unite: () => S.unite, prix: () => S.prix, couches: () => ({ ...S.couches }), serie: () => S.serie, valeursMA: () => V,
     niveauxAuto: () => ({ niveaux: S.niveaux, liquidite: S.liq }),
-    serieDe: (a, u) => serieDe(a, u), ongletOuvert: () => (S.bas.ouvert ? S.bas.onglet : null),
+    serieDe: (a, u) => serieDe(a, u), ongletOuvert: () => (S.bulle ? 'rayle' : PANNEAU_DE[S.vue] || S.vue),
+    sectionVisible: id => S.visibles.has(id) || (id === 'rayle' && S.bulle),
+    /* bulle de Rayle : ouvrir / fermer (sans argument : bascule) */
+    bulle(ouvrir) { S.bulle = ouvrir == null ? !S.bulle : !!ouvrir; majBulle(); if (S.bulle) emettre('onglet', 'rayle'); return S.bulle; },
+    /* plein écran : graphique + outils à gauche + carnet à droite (à sa place) ; Échap, F ou le bouton pour sortir */
+    pleinEcran(on) {
+      const v = on == null ? !S.plein : !!on; if (v === S.plein) return S.plein; S.plein = v;
+      if (v) { try { if (ecranEl.requestFullscreen && !document.fullscreenElement) { const pr = ecranEl.requestFullscreen({ navigationUI: 'hide' }); S.fsNatif = true; if (pr && pr.catch) pr.catch(() => { S.fsNatif = false; }); } } catch (e) { S.fsNatif = false; } }
+      else if (S.fsNatif && document.fullscreenElement) { S.fsNatif = false; try { document.exitFullscreen(); } catch (e) { /* */ } }
+      majPlein(); emettre('plein', v); return v;
+    },
+    plein: () => S.plein,
     choisirActif(a) { if (!PAR_ID_T[a] || a === S.actif) return false; S.actif = a; ecrire('rayle_term_actif', a); S.unite = lire('rayle_term_unite_' + a, S.unite); if (!UNITES[S.unite]) S.unite = 'M15'; S.couches = lireCouches(a); S.niveaux = S.liq = null; dernierT = 0; emettre('actif', a); charger(); return true; },
     choisirUnite(u) { if (!UNITES[u] || u === S.unite) return false; S.unite = u; ecrire('rayle_term_unite_' + S.actif, u); dernierT = 0; charger(); emettre('unite', u); return true; },
     couche(id, on) { if (!(id in S.couches)) return false; S.couches[id] = on == null ? !S.couches[id] : !!on; ecrireCouches(S.actif, S.couches); const d = q('[data-deroule="couches"]'); if (!d.hidden) rendreDeroule('couches'); if (id === 'volume') graph.volumeVisible(S.couches.volume); else calculerCouches(); emettre('couches', S.couches); return true; },
     choisirOutil(o) { S.outil = o; qa('[data-outil]').forEach(b => b.classList.toggle('actif', b.dataset.outil === o)); emettre('outil', o); return true; },
     outil: () => S.outil,
-    ongletBas(o) { S.bas.onglet = o; S.bas.ouvert = true; ecrire('rayle_term_bas', S.bas); majBas(); emettre('onglet', o); return true; },
+    /* nom historique : amène la section à l'écran (défilement) ; « rayle » ouvre la bulle ; « dash » = tableau de bord */
+    ongletBas(o) {
+      if (o === 'rayle') { api.bulle(true); return true; }
+      const id = o === 'dash' ? 'tableau' : o, s = q(`[data-section="${id}"]`); if (!s) return false;
+      if (S.plein) api.pleinEcran(false);
+      try { R.scrollTo({ top: s.offsetTop - (q('.tr-ancres').offsetHeight || 0), behavior: 'instant' }); } catch (e) { R.scrollTop = s.offsetTop; }
+      S.visibles.add(id); emettre('onglet', o); emettre('section', id); return true;
+    },
     panneau: id => q(`[data-panneau="${id}"]`),
     bandeau, esc, q, qa,
     on(nom, f) { (S.ecouteurs[nom] = S.ecouteurs[nom] || []).push(f); return () => { S.ecouteurs[nom] = S.ecouteurs[nom].filter(x => x !== f); }; },
@@ -261,17 +311,20 @@ export function monterTerminal(el, { contexte = 'vue', fetchFn, WS, modules: mod
 
   // raccourcis clavier
   const clavier = e => {
+    if (e.key === 'Escape' && S.bulle && e.target.closest && e.target.closest('.tr-bulle')) { api.bulle(false); return; }
     if (e.target.closest && e.target.closest('input, textarea, select, [contenteditable]')) return;
     if (!R.isConnected || R.offsetParent === null) return;
     if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z') { e.preventDefault(); emettre('action', e.shiftKey ? 'retablir' : 'annuler'); }
     else if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'y') { e.preventDefault(); emettre('action', 'retablir'); }
-    else if (e.key === 'Escape') { api.choisirOutil('curseur'); emettre('action', 'echap'); }
+    else if (e.key === 'Escape') { if (S.plein) api.pleinEcran(false); else if (S.bulle) api.bulle(false); api.choisirOutil('curseur'); emettre('action', 'echap'); }
+    else if ((e.key === 'f' || e.key === 'F') && !e.ctrlKey && !e.metaKey && !e.altKey) { e.preventDefault(); api.pleinEcran(); }
     else if (e.key === 'Delete' || e.key === 'Backspace') emettre('action', 'supprimer-selection');
   };
   document.addEventListener('keydown', clavier);
-  const detruire0 = api.detruire; api.detruire = () => { document.removeEventListener('keydown', clavier); detruire0(); };
+  const detruire0 = api.detruire; api.detruire = () => { document.removeEventListener('keydown', clavier); document.removeEventListener('fullscreenchange', surFs); if (io) io.disconnect(); if (S.fsNatif && document.fullscreenElement) { try { document.exitFullscreen(); } catch (e) { /* */ } } try { dash.detruire && dash.detruire(); } catch (e) { /* */ } detruire0(); };
 
-  majBas(); api.choisirOutil('curseur'); charger();
+  api.choisirOutil('curseur');
+  choisirRelais({ fetchFn: fetchFn || undefined }).then(() => { if (!S.detruit) charger(); });   // PC : Kraken lu par le serveur local (Nasdaq compris)
   // modules (chacun indépendant)
   (async () => {
     const LISTE = { dessin: ['./dessin-terminal.js', 'monterDessin'], positions: ['./positions-terminal.js', 'monterPositions'], rayle: ['./rayle-terminal.js', 'monterRayle'], chaleur: ['./chaleur-terminal.js', 'monterChaleur'] };
