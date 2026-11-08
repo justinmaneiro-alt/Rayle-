@@ -18,7 +18,8 @@ import { flechesH1v4, listesDetail } from './fleches-h1-v4.js';
 import { flechesH1v5 } from './fleches-h1-v5.js';
 import { flechesH1v6, selectionV6, indicesV6, REGLES_NIVEAUX_H1_V6 } from './fleches-h1-v6.js';
 import { flechesH1v7, listesQuatre, listesV7Seule, indicesV7, segmentsV7 } from './fleches-h1-v7.js';
-import { flechesH1v8, bandesV8Avant, segmentsV8, bilans8, NOMS_8 } from './fleches-h1-v8.js';
+import { flechesH1v8, bandesV8Avant, segmentsV8 } from './fleches-h1-v8.js';
+import { flechesH1v9, bandesV9Avant, segmentsV9, bilans9, NOMS_9 } from './fleches-h1-v9.js';
 import { chargerHistorique, chargerPlusAncien, rafraichirVolume, serieAffichee } from './historique-or.js';
 
 const lireJ = (k, d) => { try { const v = globalThis.localStorage && localStorage.getItem(k); return v ? JSON.parse(v) : d; } catch (e) { return d; } };
@@ -85,17 +86,17 @@ export function creerMoteurOr({ fetchFn = (...a) => fetch(...a), horloge = () =>
   }
   /* H1 : versions affichées (cases à cocher v1 / v2 / v3 ; v3 par défaut), mémorisées sur l'appareil */
   // v5 par défaut ; seules v5 et v2 sont proposées à l'affichage (v1, v3, v4 tournent en arrière-plan, registres seulement) ; nouvelle clé : un ancien choix ne masque pas v5
-  const DEFAUT_H1 = ['fleches-h1-v8'], AFFICHABLES_H1 = ['fleches-h1-v2', 'fleches-h1-v7', 'fleches-h1-v8'], CLE_CHOIX_H1 = 'rayle_or_fleches_h1_choix_v8';   // v8 par défaut, cases v7 et v2 ; v1, v3 à v6 en arrière-plan ; cases v6, v5, v2
+  const DEFAUT_H1 = ['fleches-h1-v9'], AFFICHABLES_H1 = ['fleches-h1-v2', 'fleches-h1-v7', 'fleches-h1-v8', 'fleches-h1-v9'], CLE_CHOIX_H1 = 'rayle_or_fleches_h1_choix_v9';   // v9 par défaut, cases v8, v7 et v2 ; v1, v3 à v6 en arrière-plan ; cases v6, v5, v2
   let versionsH1 = (lireJ(CLE_CHOIX_H1, null) || []).filter(v => AFFICHABLES_H1.includes(v)); if (!versionsH1.length) versionsH1 = DEFAUT_H1.slice();
   function composerH1() {
     if (!S.flechesH1 || S.periode !== 'H1') return;
     const sel = VERSIONS.filter(v => versionsH1.includes(v)), liste = sel.flatMap(v => S.flechesH1[v].map(f => ({ ...f, version: v }))).sort((x, y) => x.t - y.t || (x.version < y.version ? -1 : 1));
     S.fleches = { periode: 'H1', liste, version: sel[0], versions: sel };
     const cs = S.serieH1 || [];   // segments des niveaux déclencheurs de v7 et v8
-    S.segmentsH1 = [...(sel.includes('fleches-h1-v7') ? segmentsV7(S.flechesH1['fleches-h1-v7'].map(f => ({ ...f, version: 'fleches-h1-v7' }))) : []), ...(sel.includes('fleches-h1-v8') && cs.length ? segmentsV8(cs, S.flechesH1['fleches-h1-v8']) : [])];
+    S.segmentsH1 = [...(sel.includes('fleches-h1-v7') ? segmentsV7(S.flechesH1['fleches-h1-v7'].map(f => ({ ...f, version: 'fleches-h1-v7' }))) : []), ...(sel.includes('fleches-h1-v8') && cs.length ? segmentsV8(cs, S.flechesH1['fleches-h1-v8']) : []), ...(sel.includes('fleches-h1-v9') && cs.length ? segmentsV9(cs, S.flechesH1['fleches-h1-v9']) : [])];
     const B = S.bilansH1 || {};
-    S.bilanFleches = sel.length === 1 ? { ...B[sel[0]], titre: `Flèches H1 (version ${NOMS_8[sel[0]].slice(1)})` }
-      : { titre: 'Flèches H1 (comparaison)', parVersion: B, texte: sel.map(v => `${NOMS_8[v]} : ${B[v] ? B[v].texte : 'calcul en cours'}`).join(' | ') };
+    S.bilanFleches = sel.length === 1 ? { ...B[sel[0]], titre: `Flèches H1 (version ${NOMS_9[sel[0]].slice(1)})` }
+      : { titre: 'Flèches H1 (comparaison)', parVersion: B, texte: sel.map(v => `${NOMS_9[v]} : ${B[v] ? B[v].texte : 'calcul en cours'}`).join(' | ') };
   }
   function calculer() {
     const n = horloge(), m15c = S.refM15.filter(b => b.t + 15 * 60e3 <= n), h1c = S.refH1.filter(b => b.t + 3600e3 <= n), a = derniereValeur(S.atrH1);
@@ -152,18 +153,18 @@ export function creerMoteurOr({ fetchFn = (...a) => fetch(...a), horloge = () =>
         const deux = complete, lst = (X, i) => deux(X, i).detail, lst5 = (X, i) => deux(X, i).v5, lst6 = (X, i) => deux(X, i).v6;
         // v8 : bandes aux bougies des flèches v2 (calcul complet de v2), précalculées par morceaux et gardées
         const F2plein = flechesH1v2(serie, { maintenant: n, volumes: V, listes: lst }), b8 = new Map();
-        const manque8 = F2plein.map(f => f.i).filter(i => { const e = cacheListes.m.get(C[i].t); return !(e && e.b8); });
+        const manque8 = F2plein.map(f => f.i).filter(i => { const e = cacheListes.m.get(C[i].t); return !(e && e.b8 && e.b9); });
         for (let d = 0; d < manque8.length; d += 20) {
-          for (const i of manque8.slice(d, d + 20)) { const e = cacheListes.m.get(C[i].t) || {}; e.b8 = bandesV8Avant(C, i); cacheListes.m.set(C[i].t, e); }
+          for (const i of manque8.slice(d, d + 20)) { const e = cacheListes.m.get(C[i].t) || {}; e.b8 = bandesV8Avant(C, i); e.b9 = bandesV9Avant(C, i); cacheListes.m.set(C[i].t, e); }
           await new Promise(r => setTimeout(r, 0)); if (arrete || periode !== S.periode || cleFl !== cleLancee) return;
         }
-        const lst8 = (X, i) => { const e = cacheListes.m.get(X[i].t); return e && e.b8 ? e.b8 : bandesV8Avant(X, i); };
-        const liste2 = garder('H1|v2', flechesH1v2(serie, { maintenant: n, volumes: V, listes: lst })), liste3 = garder('H1|v3', flechesH1v3(serie, { maintenant: n, volumes: V, listes: lst })), liste4 = garder('H1|v4', flechesH1v4(serie, { maintenant: n, volumes: V, listes: lst })), liste5 = garder('H1|v5', flechesH1v5(serie, { maintenant: n, volumes: V, listes: lst5 })), liste6 = garder('H1|v6', flechesH1v6(serie, { maintenant: n, volumes: V, listes: lst6 })), liste7 = garder('H1|v7', flechesH1v7(serie, { maintenant: n, listes: lst7 })), liste8 = garder('H1|v8', flechesH1v8(serie, { maintenant: n, volumes: V, F2: F2plein, bandes: lst8 }));   // v8 : les flèches v2 (calcul complet, pas la mémoire d'affichage), filtrées
-        const par = { 'fleches-v1': liste1, 'fleches-h1-v2': liste2, 'fleches-h1-v3': liste3, 'fleches-h1-v4': liste4, 'fleches-h1-v5': liste5, 'fleches-h1-v6': liste6, 'fleches-h1-v7': liste7, 'fleches-h1-v8': liste8 }, reg = enregistrerH1(par, horloge());
+        const lst8 = (X, i) => { const e = cacheListes.m.get(X[i].t); return e && e.b8 ? e.b8 : bandesV8Avant(X, i); }, lst9 = (X, i) => { const e = cacheListes.m.get(X[i].t); return e && e.b9 ? e.b9 : bandesV9Avant(X, i); };
+        const liste2 = garder('H1|v2', flechesH1v2(serie, { maintenant: n, volumes: V, listes: lst })), liste3 = garder('H1|v3', flechesH1v3(serie, { maintenant: n, volumes: V, listes: lst })), liste4 = garder('H1|v4', flechesH1v4(serie, { maintenant: n, volumes: V, listes: lst })), liste5 = garder('H1|v5', flechesH1v5(serie, { maintenant: n, volumes: V, listes: lst5 })), liste6 = garder('H1|v6', flechesH1v6(serie, { maintenant: n, volumes: V, listes: lst6 })), liste7 = garder('H1|v7', flechesH1v7(serie, { maintenant: n, listes: lst7 })), liste8 = garder('H1|v8', flechesH1v8(serie, { maintenant: n, volumes: V, F2: F2plein, bandes: lst8 })), liste9 = garder('H1|v9', flechesH1v9(serie, { maintenant: n, volumes: V, F2: F2plein, bandes: lst9 }));   // v8 : les flèches v2 (calcul complet, pas la mémoire d'affichage), filtrées
+        const par = { 'fleches-v1': liste1, 'fleches-h1-v2': liste2, 'fleches-h1-v3': liste3, 'fleches-h1-v4': liste4, 'fleches-h1-v5': liste5, 'fleches-h1-v6': liste6, 'fleches-h1-v7': liste7, 'fleches-h1-v8': liste8, 'fleches-h1-v9': liste9 }, reg = enregistrerH1(par, horloge());
         S.flechesH1 = par; // bilan : registre (ajout seul) ∪ flèches recalculées (causales, donc identiques) : v1 part du commit de sa règle, avant l'ouverture du registre
         const union = v => { const m = new Map(flechesDu(reg, v).map(f => [f.t + '|' + f.sens, f])); for (const f of par[v]) if (!m.has(f.t + '|' + f.sens)) m.set(f.t + '|' + f.sens, f); return [...m.values()]; };
         await new Promise(r => setTimeout(r, 0)); if (arrete || periode !== S.periode || cleFl !== cleLancee) return;   // bilans dans une autre tâche (page fluide)
-        S.serieH1 = serie.filter(b => b.t + 3600e3 <= n); S.bilansH1 = bilans8(serie, Object.fromEntries(VERSIONS.map(v => [v, union(v)])), { maintenant: n, spread: spreadMesure() });
+        S.serieH1 = serie.filter(b => b.t + 3600e3 <= n); S.bilansH1 = bilans9(serie, Object.fromEntries(VERSIONS.map(v => [v, union(v)])), { maintenant: n, spread: spreadMesure() });
         composerH1(); surMaj(S);
       }, 0);
     }
