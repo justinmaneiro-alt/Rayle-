@@ -1,0 +1,19 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Terminal · Rayle</title>
+<link rel="icon" href="data:,">
+<meta name="theme-color" content="#05080c">
+<style>html,body{margin:0;height:100%;background:#05080c;color:#d7e3ea}#vue{height:100vh}</style>
+</head>
+<body>
+<div id="vue"></div>
+<script type="module">
+  // Terminal de trading de Rayle (page seule ; dans Rayle, c'est la vue « Terminal »). Simulation et lecture seulement : aucun ordre.
+  import { monterTerminal } from './terminal/terminal.js';
+  window.__terminal = monterTerminal(document.getElementById('vue'), { contexte: 'page' });
+</script>
+</body>
+</html>

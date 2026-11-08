@@ -6,7 +6,10 @@
 (function(){
   const VUES={
     terminal:{el:()=>document.getElementById('vueTerminal'), hash:'#terminal', classe:'vue-terminal', libelle:'Terminal',
-      charger:()=>import(new URL('terminal/js/terminal.js?v=2026.10.10.7',document.baseURI).href)},
+      // 2026-11-08 : terminal de trading de Rayle (agent-trading/front/terminal/) ; l'ancien terminal 2D reste disponible : localStorage « rayle_terminal_ancien » = « 1 »
+      charger:()=>{ let ancien=false; try{ ancien=localStorage.getItem('rayle_terminal_ancien')==='1'; }catch(e){}
+        return ancien ? import(new URL('terminal/js/terminal.js?v=2026.10.10.7',document.baseURI).href)
+          : import(new URL('agent-trading/front/terminal/vue-terminal.js',document.baseURI).href).catch(()=>import(new URL('terminal/js/terminal.js?v=2026.10.10.7',document.baseURI).href)); }},
     galaxie:{el:()=>document.getElementById('vueGalaxie'), hash:'#galaxie', classe:'vue-galaxie', libelle:'Galaxie',
       charger:()=>import(new URL('galaxie/vue.js',document.baseURI).href)}
   };

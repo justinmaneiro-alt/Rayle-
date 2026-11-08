@@ -9,11 +9,7 @@
     el.innerHTML='<div class="m-titre"><h1>Marchés</h1><small>cotations</small></div>'
       +'<section class="m-carte m-large" data-carte="marche"><h3>Cotations <em data-m-et></em></h3><div data-z><div class="m-squelette"><i></i><i></i><i></i></div></div></section>'
       +'<div class="m-tuiles"><button type="button" class="m-tuile" data-terminal><span><b>Ouvrir le terminal</b><small>Graphique, indicateurs, volume, carnet, actualités, calendrier</small></span></button></div>';
-    // Agent de trading (module isolé agent-trading/ : s'il est supprimé, la tuile disparaît)
-    const tuiles=el.querySelector('.m-tuiles'), bAgent=document.createElement('button');
-    bAgent.type='button'; bAgent.className='m-tuile'; bAgent.innerHTML='<span><b>Agent de trading</b><small>Simulation : graphique, carnet, positions, portefeuille</small></span>';
-    bAgent.addEventListener('click',()=>{ Coque.vibrer(8); import('../../agent-trading/front/fenetre-agent.js').then(m=>m.ouvrirPleinEcran()).catch(()=>bAgent.remove()); });
-    tuiles.appendChild(bAgent);
+    // 2026-11-08 : tuile « Agent de trading » retirée (copie : idees/agent-tuile/) ; le terminal reste la tuile « Terminal »
     el.querySelector('[data-terminal]').addEventListener('click',()=>{ Coque.vibrer(8); const b=document.getElementById('btnOuvrirTerminal'); if(b) b.click(); });
     if(window.MobileMarche){
       const zone=el.querySelector('[data-z]');

@@ -30,8 +30,7 @@
   const puces = document.createElement('div'); puces.className = 'gm-puces'; puces.id = 'g1MiniPuces'; puces.hidden = true; document.body.appendChild(puces);
   // « + Agent » : ouvre la fenêtre de l'agent de trading (module isolé agent-trading/ ; s'il est supprimé, le bouton disparaît)
   const URL_AGENT = base('agent-trading/front/fenetre-agent.js');
-  let agentPresent = true;
-  fetch(URL_AGENT, { method: 'HEAD', cache: 'no-store' }).then(r => { if (!r.ok) { agentPresent = false; majPuces(); } }).catch(() => {});
+  let agentPresent = false;   // 2026-11-08 : « + Agent » retiré (copie : idees/agent-tuile/) ; le terminal de trading s'ouvre par « Terminal »
   puces.addEventListener('click', e => {
     if (e.target.closest('[data-agent]')) { import(URL_AGENT).then(m => m.ouvrirFenetre()).catch(() => { agentPresent = false; majPuces(); }); return; }
     const b = e.target.closest('[data-ouvre]'); if (!b) return; ouvrir(b.dataset.ouvre);

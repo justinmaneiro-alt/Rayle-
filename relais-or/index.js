@@ -4,6 +4,7 @@
         GET /kraken/bougies?res=5m|15m|1h|4h|1d&from=<s>&to=<s>  → /api/charts/v1/trade/PF_XAUUSD/<res>   (cache 10 s)
         GET /kraken/ticker                                         → /derivatives/api/v3/tickers/PF_XAUUSD   (cache 2 s)
         GET /kraken/instrument                                     → fiche PF_XAUUSD (taille du contrat, pas)  (cache 1 h)
+        Terminal (2026-11-08) : paramètre facultatif &sym= parmi SYMBOLES (défaut PF_XAUUSD : ancien comportement) ; GET /kraken/tickers → tickers des SYMBOLES
    2) Mode télé : appairage par code à 4 chiffres. Un objet durable « Salon » par code (objet SQLite de l'offre gratuite), WebSocket seulement,
       AUCUN stockage : les messages passent de la télécommande à la télé et disparaissent. Liste blanche de commandes, 20 messages/s au plus,
       512 octets au plus, salon fermé après 30 min sans télécommande et 3 h au total.
@@ -12,6 +13,8 @@
    Déploiement : npx.cmd wrangler deploy --config relais-or/wrangler.toml */
 const ORIGINES = ['https://justinmaneiro-alt.github.io', 'http://127.0.0.1:8000', 'http://127.0.0.1:8011', 'http://localhost:8000'];
 export const RESOLUTIONS = ['5m', '15m', '1h', '4h', '1d'];
+/* terminal de Rayle (2026-11-08) : liste blanche FIXE des perpétuels publics lus (or, Nasdaq 100, Bitcoin, Solana, Dogecoin, + QQQx pour l'historique ancien du Nasdaq) */
+export const SYMBOLES = ['PF_XAUUSD', 'PF_US100USD', 'PF_XBTUSD', 'PF_SOLUSD', 'PF_DOGEUSD', 'PF_QQQXUSD'];
 export const COMMANDES = ['playlist', 'mix', 'pause', 'reprendre', 'pause_reprendre', 'suivant', 'precedent', 'volume_plus', 'volume_moins', 'muet', 'stop', 'melange', 'or', 'terre', 'musique', 'ping'];
 const KRAKEN = 'https://futures.kraken.com';
 
@@ -21,16 +24,18 @@ export function cors(origine) {
 }
 
 export function cible(url) {
-  const u = new URL(url), p = u.searchParams;
+  const u = new URL(url), p = u.searchParams, sym = p.get('sym') || 'PF_XAUUSD';
+  if (!SYMBOLES.includes(sym)) return { erreur: 'sym doit être ' + SYMBOLES.join(', ') };
+  if (u.pathname === '/kraken/tickers') return { url: `${KRAKEN}/derivatives/api/v3/tickers`, ttl: 2, filtre: 'tickers' };
   if (u.pathname === '/kraken/bougies') {
     const res = p.get('res'); if (!RESOLUTIONS.includes(res)) return { erreur: 'res doit être 5m, 15m, 1h, 4h ou 1d' };
     const from = Number(p.get('from')), to = p.get('to') == null ? null : Number(p.get('to'));
-    if (!Number.isInteger(from) || from < 1.7e9 || from > 4e9) return { erreur: 'from (secondes) invalide' };
+    if (!Number.isInteger(from) || from < 1.5e9 || from > 4e9) return { erreur: 'from (secondes) invalide' };
     if (to != null && (!Number.isInteger(to) || to <= from || to > 4e9)) return { erreur: 'to (secondes) invalide' };
-    return { url: `${KRAKEN}/api/charts/v1/trade/PF_XAUUSD/${res}?from=${from}${to != null ? '&to=' + to : ''}`, ttl: 10 };
+    return { url: `${KRAKEN}/api/charts/v1/trade/${sym}/${res}?from=${from}${to != null ? '&to=' + to : ''}`, ttl: 10 };
   }
-  if (u.pathname === '/kraken/ticker') return { url: `${KRAKEN}/derivatives/api/v3/tickers/PF_XAUUSD`, ttl: 2 };
-  if (u.pathname === '/kraken/instrument') return { url: `${KRAKEN}/derivatives/api/v3/instruments`, ttl: 3600, filtre: 'instrument' };
+  if (u.pathname === '/kraken/ticker') return { url: `${KRAKEN}/derivatives/api/v3/tickers/${sym}`, ttl: 2 };
+  if (u.pathname === '/kraken/instrument') return { url: `${KRAKEN}/derivatives/api/v3/instruments`, ttl: 3600, filtre: 'instrument', sym };
   return null;
 }
 
@@ -104,13 +109,14 @@ export default {
     const c = cible(req.url);
     if (!c) return new Response('route inconnue', { status: 404, headers: h });
     if (c.erreur) return new Response(c.erreur, { status: 400, headers: h });
-    const cache = caches.default, cle = new Request(c.url);
-    let r = await cache.match(cle);
+    const cache = caches.default, cle = new Request(c.sym ? c.url + '?_s=' + c.sym : c.url);
+    let r = await cache.match(cle);   // instrument : une clé de cache par symbole (la liste Kraken est filtrée)
     if (!r) {
       const brut = await fetch(c.url, { headers: { 'User-Agent': 'rayle-or-relais' } });
       if (!brut.ok) return new Response('source Kraken indisponible (' + brut.status + ')', { status: 502, headers: h });
       let corps = await brut.text();
-      if (c.filtre === 'instrument') { try { const d = JSON.parse(corps); corps = JSON.stringify({ instrument: (d.instruments || []).find(i => i.symbol === 'PF_XAUUSD') || null }); } catch (e) { return new Response('réponse Kraken illisible', { status: 502, headers: h }); } }
+      if (c.filtre === 'tickers') { try { const d = JSON.parse(corps); corps = JSON.stringify({ tickers: (d.tickers || []).filter(x => SYMBOLES.includes(x.symbol)) }); } catch (e) { return new Response('réponse Kraken illisible', { status: 502, headers: h }); } }
+      if (c.filtre === 'instrument') { try { const d = JSON.parse(corps); corps = JSON.stringify({ instrument: (d.instruments || []).find(i => i.symbol === (c.sym || 'PF_XAUUSD')) || null }); } catch (e) { return new Response('réponse Kraken illisible', { status: 502, headers: h }); } }
       r = new Response(corps, { headers: { 'Content-Type': 'application/json', 'Cache-Control': `public, max-age=${c.ttl}` } });
       ctx.waitUntil(cache.put(cle, r.clone()));
     }

@@ -19,6 +19,12 @@ export function actifsVisibles(store = globalThis.localStorage) {
   let tous = false; try { tous = !!store && store.getItem('rayle_at_tous_actifs') === '1'; } catch (e) { /* stockage refusé */ }
   return tous ? ACTIFS : ACTIFS.filter(a => ACTIFS_INTERFACE.includes(a.id));
 }
-export const PAR_ID = Object.fromEntries(ACTIFS.map(a => [a.id, a]));
+/* Terminal de Rayle (2026-11-08) : instruments supplémentaires connus du CARNET seulement (jamais suivis par le moteur : ils ne sont pas dans ACTIFS). */
+export const ACTIFS_CARNET_TERMINAL = [
+  { id: 'US100', nom: 'Nasdaq 100', symbole: 'PF_US100USD', lot: 0.0001, tick: 1,       unite: 'indice', decimales: 0, tradable: false },
+  { id: 'SOL',   nom: 'Solana',     symbole: 'PF_SOLUSD',   lot: 0.01,   tick: 0.01,    unite: 'SOL',    decimales: 2, tradable: false },
+  { id: 'DOGE',  nom: 'Dogecoin',   symbole: 'PF_DOGEUSD',  lot: 1,      tick: 0.00001, unite: 'DOGE',   decimales: 5, tradable: false }
+];
+export const PAR_ID = Object.fromEntries(ACTIFS.concat(ACTIFS_CARNET_TERMINAL).map(a => [a.id, a]));
 export const PAR_SYMBOLE = Object.fromEntries(ACTIFS.map(a => [a.symbole, a]));
 export const UNITES = { M15: 15 * 60e3, H1: 60 * 60e3 };

@@ -1,3 +1,15 @@
+# Terminal de trading de Rayle, phases A à E (2026-11-08) — avancement
+
+Reprendre ici. Branches `terminal-rayle-a` … `-e`, fusionnées dans `main` à la fin de chaque phase. Code : `agent-trading/front/terminal/` (page seule `agent-trading/front/terminal.html` ; dans Rayle = la vue « Terminal », `core/commun/vues.js` ; ancien terminal 2D : localStorage `rayle_terminal_ancien` = `1`). Simulation et lecture seulement, aucun ordre ; Worker `rayle` et ses secrets jamais touchés ; règles et registres des flèches v1 à v10 inchangés. Ce qui est retiré va dans `idees/` (ignoré par git).
+
+| Phase | État |
+|---|---|
+| A. Base du terminal | fait : 5 actifs Kraken vérifiés le 2026-11-08 (PF_XAUUSD, **PF_US100USD** = Nasdaq 100 disponible depuis le 2026-08-25, PF_XBTUSD, PF_SOLUSD, PF_DOGEUSD) ; disposition type TradingView (outils à gauche par catégories, barre du haut, graphique, carnet complet à droite, panneau bas repliable) ; graphique vierge + panneau « Couches » mémorisé par actif ; SMA 200 sur TOUT l'historique chargé (+ SMA 200 H1 et Jour projetées sans valeur du futur) ; historique sans limite, remonté page par page en arrière-plan, cache IndexedDB `rayle-terminal` par morceaux de 5000 ; référence Binance décalée de l'écart mesuré, bande PAXG (or) / QQQx × rapport mesuré (Nasdaq) ; dashboards COT (or, Nasdaq, BTC ; « pas de rapport » pour SOL et DOGE), calendrier ForexFactory, actualités financières, santé du marché, cotations. Case « Agent » retirée (copies : `idees/agent-tuile/`). Tests : `node agent-trading/tests/terminal-a-test.mjs` (53), Chrome `node agent-trading/tests/terminal-chrome-test.mjs A` (25, serveur `node serveur.mjs 8125`). |
+
+**Blocage à lever par Justin (relais dédié, PAS le Worker `rayle`) :** le relais `rayle-or-relais` en ligne ne lit que l'or. La nouvelle version (paramètre `&sym=`, liste blanche fixe des 5 symboles + QQQx, route `/kraken/tickers`, aucun secret) est prête dans `relais-or/index.js` ; le déploiement m'a été refusé par le garde-fou. Commande : `npx.cmd wrangler deploy --config relais-or/wrangler.toml`. En attendant : Bitcoin, Solana et Dogecoin passent en SECOURS Binance (étiqueté), le Nasdaq par le Worker de Rayle (Yahoo ^NDX, étiqueté) ou « indisponible » en page seule. Le client vérifie que le ticker du relais porte bien le symbole demandé : jamais le prix de l'or sous un autre nom.
+
+---
+
 # Refonte « Tableau de bord de l'OR » + journal, gardien, musique, mode télé (2026-11-07) — avancement
 
 Reprendre ici. Branche `tableau-or`, fusionnée dans `main` à la fin de chaque partie. Rapport HORS dépôt : `agent-trading/RAPPORT-TABLEAU-OR.md`. Simulation seulement, aucun ordre ; Worker principal `rayle` jamais touché ; relais dédié `rayle-or-relais` (sans secret).
