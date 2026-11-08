@@ -10,7 +10,10 @@ import { niveauxCles, zonesVolume, cleJour } from './niveaux-or.js';
 import { seance, heureLocale } from './temps-or.js';
 import { wilson, holm, alea, phi } from './zones-or.js';
 
-export const ETIQUETTES = ['balayage', 'support de volume', 'MA200', 'cassure de range', 'retournement', 'autre', 'hors plan'];
+export const ETIQUETTES = ['balayage', 'support de volume', 'MA200', 'cassure de range', 'retournement', 'flèche H1', 'autre', 'hors plan'];
+/* « flèche H1 » porte la version des règles de la flèche suivie (bilan séparé par version) */
+export const VERSIONS_FLECHE_H1 = ['fleches-h1-v2', 'fleches-v1'];
+export const etiquetteComplete = t => t.etiquette === 'flèche H1' ? `flèche H1 · ${VERSIONS_FLECHE_H1.includes(t.versionFleche) ? t.versionFleche : 'version inconnue'}` : t.etiquette;
 export const ETIQUETTE_XTB = 'historique XTB, sans étiquette de setup';
 export const MIN_CATEGORIE = 20, MIN_GARDER = 30;
 const dir = t => (t.sens === 'vente' ? -1 : 1);
@@ -23,6 +26,7 @@ export function valider(t) {
   for (const k of ['entree', 'taille']) if (!(+t[k] > 0)) e.push(k);
   if (t.stop != null && t.stop !== '' && +t.stop > 0 && (dir(t) > 0 ? +t.stop >= +t.entree : +t.stop <= +t.entree)) e.push('stop du mauvais côté');
   if (t.source === 'saisie' && !ETIQUETTES.includes(t.etiquette)) e.push('étiquette de setup');
+  if (t.source === 'saisie' && t.etiquette === 'flèche H1' && !VERSIONS_FLECHE_H1.includes(t.versionFleche)) e.push('version de la flèche H1');
   return e;
 }
 export const risqueDollars = t => (+t.stop > 0 && +t.entree > 0 && +t.taille > 0) ? Math.abs(t.entree - t.stop) * t.taille : null;
@@ -71,7 +75,7 @@ export function pPositif(x) { const s = stats(x); if (s.n < 2 || !s.se) return n
 
 /* BILAN par catégorie */
 export const CLES = {
-  etiquette: t => t.etiquette || 'sans étiquette', seance: t => (t.enrich && t.enrich.seance) || (t.tEntree ? seance(t.tEntree) : 'inconnue'),
+  etiquette: t => etiquetteComplete(t) || 'sans étiquette', seance: t => (t.enrich && t.enrich.seance) || (t.tEntree ? seance(t.tEntree) : 'inconnue'),
   taille: t => { const x = +t.taille; return !(x > 0) ? 'inconnue' : x < 1 ? '< 1' : x < 5 ? '1 – 5' : x < 20 ? '5 – 20' : x < 100 ? '20 – 100' : '≥ 100'; },
   heure: t => (t.tEntree ? String(heureLocale(t.tEntree, 'Europe/Paris').h).padStart(2, '0') + ' h' : 'inconnue'), duree: t => trancheDuree(dureeMin(t))
 };
@@ -112,8 +116,8 @@ export function reglesCandidates(trades, { maintenant = Date.now() } = {}) {
   const mois = [...new Set(L.map(t => moisDe(t.tSortie)))].sort(), courant = moisDe(maintenant);
   const complets = mois.filter(m => m < courant), mConf = complets[complets.length - 1] || null;
   const choix = L.filter(t => mConf && moisDe(t.tSortie) < mConf), conf = L.filter(t => mConf && moisDe(t.tSortie) === mConf);
-  const etiq = [...new Set(L.map(t => t.etiquette))];
-  const lignes = etiq.map(e => { const R = choix.filter(t => t.etiquette === e).map(rNet), Rc = conf.filter(t => t.etiquette === e).map(rNet); return { etiquette: e, choix: stats(R), confirmation: stats(Rc), p: pPositif(R) }; });
+  const etiq = [...new Set(L.map(etiquetteComplete))];
+  const lignes = etiq.map(e => { const R = choix.filter(t => etiquetteComplete(t) === e).map(rNet), Rc = conf.filter(t => etiquetteComplete(t) === e).map(rNet); return { etiquette: e, choix: stats(R), confirmation: stats(Rc), p: pPositif(R) }; });
   const adj = holm(lignes.map(l => (l.choix.n >= MIN_GARDER ? l.p : null)));
   return lignes.map((l, i) => {
     const c = l.choix, k = l.confirmation; let statut, raison;
