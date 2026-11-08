@@ -28,6 +28,10 @@
     const cmdMu=window.RayleMedia?await RayleMedia.commande(text):null;    // musique et télé, depuis n'importe quel écran : « lance ma playlist », « pause », « suivant », « ouvre la télé »
     if(my!==epoch) return;
     if(cmdMu){ diagAction('musique et télé'); addLine('ray',cmdMu); await speak(cmdMu); return; }
+    // terminal de trading de Rayle ouvert : « comment tu le sens ? », « qu'est-ce qui se passe sur le carnet ? », « passe en H4 », « trace les scénarios » (agent-trading/front/terminal/rayle-terminal.js)
+    const TR=window.TerminalRayle, cmdTR=(TR&&TR.R&&TR.R.isConnected&&TR.module&&TR.module('rayle'))?await TR.module('rayle').commande(text):null;
+    if(my!==epoch) return;
+    if(cmdTR){ diagAction('terminal de trading'); addLine('ray',cmdTR); await speak(cmdTR); return; }
     const cmdM=await commandeMars(text);    // terminal de la base Mars (seulement quand Mars est ouverte) : « montre-moi l'or en H1 »
     if(my!==epoch) return;
     if(cmdM){ diagAction('terminal de Mars'); addLine('ray',cmdM); await speak(cmdM); return; }
