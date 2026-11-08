@@ -26,7 +26,7 @@ export function monterJournal(el, { tableau }) {
     <label>Objectif <input type="number" step="0.01" name="objectif"></label>
     <label>Taille (contrats = onces) <input type="number" step="0.001" name="taille" required></label>
     <label>Étiquette de setup (avant le résultat) <select name="etiquette" required><option value="">— choisir —</option>${ETIQUETTES.map(e => `<option>${e}</option>`).join('')}</select></label>
-    <label>Version de la flèche H1 (si « flèche H1 ») <select name="versionFleche">${VERSIONS_FLECHE_H1.map(v => `<option value="${v}">${{ 'fleches-h1-v6': 'v6 (affichée par défaut en H1)', 'fleches-h1-v5': 'v5', 'fleches-h1-v4': 'v4', 'fleches-h1-v3': 'v3', 'fleches-h1-v2': 'v2', 'fleches-v1': 'v1 (ancienne)' }[v]}</option>`).join('')}</select></label>
+    <label>Version de la flèche H1 (si « flèche H1 ») <select name="versionFleche">${VERSIONS_FLECHE_H1.map(v => `<option value="${v}">${{ 'fleches-h1-v7': 'v7 (affichée par défaut en H1)', 'fleches-h1-v6': 'v6', 'fleches-h1-v5': 'v5', 'fleches-h1-v4': 'v4', 'fleches-h1-v3': 'v3', 'fleches-h1-v2': 'v2', 'fleches-v1': 'v1 (ancienne)' }[v]}</option>`).join('')}</select></label>
     <label style="grid-column:span 2">Raison en une ligne <input type="text" name="raison" maxlength="140"></label>
     <label>Heure d’entrée <input type="datetime-local" name="tEntree"></label>
     <label>Capture (facultative) <input type="file" name="capture" accept="image/*"></label>

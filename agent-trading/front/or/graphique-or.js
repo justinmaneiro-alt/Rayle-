@@ -29,7 +29,7 @@ export function ratio(pos) {
 }
 
 export function creerGraphiqueOr(el, { surClicPrix, mobile = false } = {}) {
-  const etat = { bougies: [], volumes: [], cle: null, debutKraken: null, ecart: null, chargementAncien: false, zonesVol: [], niveaux: [], retournement: [], bandes: [], liquidite: [], balayages: [], fleches: [], a: null, cadres: [], marques: [], tSerie: new Map(), barres: new Map(), couches: { ...COUCHES_DEFAUT, ...lire('rayle_or_couches_v2', {}) }, pos: lire('rayle_or_position', null), outil: null, prix: null };
+  const etat = { bougies: [], volumes: [], cle: null, debutKraken: null, ecart: null, chargementAncien: false, zonesVol: [], niveaux: [], retournement: [], bandes: [], liquidite: [], balayages: [], fleches: [], segments: [], segCadres: [], a: null, cadres: [], marques: [], tSerie: new Map(), barres: new Map(), couches: { ...COUCHES_DEFAUT, ...lire('rayle_or_couches_v2', {}) }, pos: lire('rayle_or_position', null), outil: null, prix: null };
   let LW = null, chart = null, serie = null, vol = null, pret = null;
   const C = { liquidite: '#c39be0', flecheHaut: '#4fd18b', flecheBas: '#ef5f5f', refHaut: 'rgba(160,170,150,.55)', refBas: 'rgba(170,140,140,.55)', bande: 'rgba(201,178,122,.07)', sable: '#c9b27a', haut: '#5fb894', bas: '#d86a6a', volZone: '143,136,204', support: '#86c3e8', resistance: '#e2ae62', retour: '#e8e2cf', texte: '#cfd8dc', doux: '#7d8a90', fond: 'rgba(8,12,16,.86)' };
   const yDe = p => serie ? serie.priceToCoordinate(p) : null;
@@ -85,6 +85,18 @@ export function creerGraphiqueOr(el, { surClicPrix, mobile = false } = {}) {
       etq.push({ y, texte: z.texte, col: C.liquidite, prio: 2, g: { texte: z.texte, detail: [`zone de liquidité ${z.sorte} non balayée : ${z.raisons.join(', ')}`, 'disparaît dès qu’une bougie la dépasse (une marque reste à cet endroit)'], p: z.p } });
     }
     for (const [k, b] of Object.entries(hors)) if (b) { const t = `${k === 'haut' ? '▲' : '▼'} ${b.texte}${etat.prix != null ? ` · ${b.p >= etat.prix ? '+' : '−'}${nb(Math.abs(b.p - etat.prix), 0)} $` : ''}`; etq.push({ y: k === 'haut' ? fs : T.height - fs, texte: t, col: C.doux, prio: 2.5, g: { texte: t, detail: b.detail, p: b.p, bord: k } }); }
+    /* v7 : segment horizontal sur le niveau déclencheur de chaque flèche (de la bougie de touche à la bougie de confirmation), étiquette courte */
+    etat.segCadres = [];
+    if (etat.couches.fleches !== false) for (const sg of etat.segments) {
+      const y = yDe(sg.p); if (y == null || y < 0 || y > T.height) continue;
+      const x0 = xDe(sg.t0), x1 = xDe(sg.t1); if (!(x1 > x0)) continue;
+      const col = sg.sens === 'baisse' ? C.flecheBas : C.flecheHaut, yy = Math.round(y) + 0.5;
+      ctx.strokeStyle = col; ctx.globalAlpha = 0.9; ctx.lineWidth = 2; ctx.setLineDash([]); ctx.beginPath(); ctx.moveTo(x0, yy); ctx.lineTo(x1, yy); ctx.stroke();
+      ctx.font = `${fs - 1}px system-ui, 'Segoe UI', sans-serif`; const w = ctx.measureText(sg.libelle).width + 6, yt = sg.sens === 'baisse' ? yy + 3 : yy - fs - 3;
+      ctx.globalAlpha = 0.85; ctx.fillStyle = C.fond; ctx.fillRect(x0, yt, w, fs + 1); ctx.globalAlpha = 1; ctx.fillStyle = col; ctx.fillText(sg.libelle, x0 + 3, yt + fs - 2);
+      etat.segCadres.push({ x0, x1, y, sg });
+    }
+    ctx.globalAlpha = 1; ctx.lineWidth = 1;
     etat.cadres = [];
     const wMax = Math.max(120, T.width * (mobile ? 0.66 : 0.45)), h = fs + 6, places = [];
     for (const e of etq.sort((x, y) => y.prio - x.prio)) {
@@ -132,7 +144,7 @@ export function creerGraphiqueOr(el, { surClicPrix, mobile = false } = {}) {
   let marqueurs = null;
   /* marques du graphique (dessinées par Lightweight Charts, à la bougie près) : flèches de rebond, zones de liquidité balayées, trades du journal */
   const tDe = t => etat.tSerie.get(t) ?? tempsGraphique(t);
-  const court = v => ({ 'fleches-v1': 'v1', 'fleches-h1-v2': 'v2', 'fleches-h1-v3': 'v3', 'fleches-h1-v4': 'v4', 'fleches-h1-v5': 'v5', 'fleches-h1-v6': 'v6' }[v] || 'v1');
+  const court = v => ({ 'fleches-v1': 'v1', 'fleches-h1-v2': 'v2', 'fleches-h1-v3': 'v3', 'fleches-h1-v4': 'v4', 'fleches-h1-v5': 'v5', 'fleches-h1-v6': 'v6', 'fleches-h1-v7': 'v7' }[v] || 'v1');
   const plusieursVersions = () => new Set(etat.fleches.map(f => f.version || 'fleches-v1')).size > 1;
   const marquesLW = () => [
     ...(etat.couches.fleches !== false ? etat.fleches.map(f => ({ id: 'f' + f.t + (plusieursVersions() ? '-' + court(f.version) : ''), time: tDe(f.t), position: f.sens === 'baisse' ? 'aboveBar' : 'belowBar', color: f.sens === 'baisse' ? C.flecheBas : C.flecheHaut, shape: f.sens === 'baisse' ? 'arrowDown' : 'arrowUp', size: 0.6, ...(plusieursVersions() ? { text: court(f.version) } : {}) })) : []),
@@ -200,7 +212,10 @@ export function creerGraphiqueOr(el, { surClicPrix, mobile = false } = {}) {
       if (!chart) return null; const t = chart.timeScale().coordinateToTime(x), b = t != null ? etat.barres.get(t) : null; if (!b) return null;
       const yH = yDe(b.h), yL = yDe(b.l), dessus = yH != null && y <= yH + 3 && y >= yH - 30, dessous = yL != null && y >= yL - 3 && y <= yL + 30;
       const f = etat.couches.fleches !== false && etat.fleches.find(q => q.t === b.t && (q.sens === 'baisse' ? dessus : dessous));
-      if (f) return { p: f.niveau, texte: `Rebond ${NOMS[f.type] || 'sur un niveau'} · flèche ${f.sens === 'baisse' ? 'rouge' : 'verte'}`, detail: [f.touches != null ? `niveau ${nb(f.niveau)} · ${f.touches} touche${f.touches >= 2 ? 's' : ''}` : `niveau ${nb(f.niveau)} · régime H1 ${f.regime || '—'}`, ...(f.version && f.version !== 'fleches-v1' || plusieursVersions() ? [`version ${f.version || 'fleches-v1'}`] : []), ...(f.raisons ? [`liquidité : ${f.raisons.join(', ')}`] : []), ...(f.retourne ? [`niveau retourné (${f.retourne})`] : []), ...(f.mode === 'rebond confirmé' ? [`rebond confirmé contre le régime : touche du niveau à ${new Date(f.tTouche).toLocaleTimeString('fr-FR', { timeZone: 'Europe/Paris', hour: '2-digit', minute: '2-digit' })}, confirmée à la clôture de cette bougie`] : []), `volume ${nb(f.volume, 0)} (médiane des 20 bougies précédentes : ${nb(f.mediane, 0)})`, `posée à la clôture de cette bougie, avec les seuls niveaux connus avant elle (jamais redessinée)`, 'information de lecture, jamais un ordre'] };
+      const hpar = t => new Date(t).toLocaleString('fr-FR', { timeZone: 'Europe/Paris', weekday: 'short', day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
+      const sgt = !f && etat.couches.fleches !== false && etat.segCadres.find(q => Math.abs(y - q.y) <= 4 && x >= q.x0 - 3 && x <= q.x1 + 3);
+      if (sgt) { const g = sgt.sg; return { p: g.p, texte: `${g.libelle} · niveau déclencheur de la flèche v7 ${g.sens === 'baisse' ? 'rouge' : 'verte'}`, detail: [`régime H1 à la confirmation : ${g.regime}`, `distance de la touche au niveau : ${nb(g.distance, 2)} ATR`, `bougie de touche : ${hpar(g.tTouche)}`, `bougie de confirmation : ${hpar(g.tConfirmation)} (flèche posée à sa clôture)`, 'information de lecture, jamais un ordre'] }; }
+      if (f) return { p: f.niveau, texte: `Rebond ${NOMS[f.type] || 'sur un niveau'} · flèche ${f.sens === 'baisse' ? 'rouge' : 'verte'}`, detail: [f.touches != null ? `niveau ${nb(f.niveau)} · ${f.touches} touche${f.touches >= 2 ? 's' : ''}` : `niveau ${nb(f.niveau)} · régime H1 ${f.regime || '—'}`, ...(f.version && f.version !== 'fleches-v1' || plusieursVersions() ? [`version ${f.version || 'fleches-v1'}`] : []), ...(f.raisons ? [`liquidité : ${f.raisons.join(', ')}`] : []), ...(f.retourne ? [`niveau retourné (${f.retourne})`] : []), ...(f.version === 'fleches-h1-v7' ? [f.libelle, `rebond confirmé (v7) : touche à ${nb(f.distance, 2)} ATR du niveau le ${new Date(f.tTouche).toLocaleString('fr-FR', { timeZone: 'Europe/Paris', day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}, confirmée à la clôture de cette bougie (≥ 1,5 ATR)`] : []), ...(f.mode === 'rebond confirmé' && f.version !== 'fleches-h1-v7' ? [`rebond confirmé contre le régime : touche du niveau à ${new Date(f.tTouche).toLocaleTimeString('fr-FR', { timeZone: 'Europe/Paris', hour: '2-digit', minute: '2-digit' })}, confirmée à la clôture de cette bougie`] : []), `volume ${nb(f.volume, 0)} (médiane des 20 bougies précédentes : ${nb(f.mediane, 0)})`, `posée à la clôture de cette bougie, avec les seuls niveaux connus avant elle (jamais redessinée)`, 'information de lecture, jamais un ordre'] };
       const z = etat.couches.liquidite !== false && etat.balayages.find(q => q.t === b.t && (q.sorte === 'haute' ? dessus : dessous));
       if (z) return { p: z.p, texte: `Liquidité ${z.sorte} ${nb(z.p, 0)} balayée`, detail: [`${z.raison} dépassé par cette bougie`] };
       return null;
@@ -237,8 +252,8 @@ export function creerGraphiqueOr(el, { surClicPrix, mobile = false } = {}) {
       try { serie.update({ time: tempsGraphique(b.t), open: b.o, high: b.h, low: b.l, close: b.c }); } catch (e) { console.warn('bougie en cours :', e.message); }
     },
     couches(c) { if (c) { etat.couches = { ...etat.couches, ...c }; ecrire('rayle_or_couches_v2', etat.couches); redessiner(); if (marqueurs) marqueurs.setMarkers(marquesLW()); } return { ...etat.couches }; },
-    fleches: () => etat.fleches.slice(), marquesAffichees: () => marquesLW(),
-    dessin({ zonesVol, niveaux, retournement, prix, a, bandes, liquidite, balayages, fleches }) { if (bandes) etat.bandes = bandes; if (liquidite) etat.liquidite = liquidite; if (balayages) etat.balayages = balayages; if (fleches) { const ch = fleches !== etat.fleches; etat.fleches = fleches; if (ch && marqueurs) marqueurs.setMarkers(marquesLW()); } if (zonesVol) etat.zonesVol = zonesVol.slice().sort((x, y) => (y.force || 0) - (x.force || 0)).slice(0, 3); if (niveaux) etat.niveaux = niveaux; if (retournement) etat.retournement = retournement; if (a != null) etat.a = a; if (prix != null) etat.prix = prix; redessiner(); },
+    fleches: () => etat.fleches.slice(), segments: () => etat.segCadres.map(q => ({ x0: q.x0, x1: q.x1, y: q.y, libelle: q.sg.libelle, sens: q.sg.sens })), marquesAffichees: () => marquesLW(),
+    dessin({ zonesVol, niveaux, retournement, prix, a, bandes, liquidite, balayages, fleches, segments }) { if (segments) etat.segments = segments; if (bandes) etat.bandes = bandes; if (liquidite) etat.liquidite = liquidite; if (balayages) etat.balayages = balayages; if (fleches) { const ch = fleches !== etat.fleches; etat.fleches = fleches; if (ch && marqueurs) marqueurs.setMarkers(marquesLW()); } if (zonesVol) etat.zonesVol = zonesVol.slice().sort((x, y) => (y.force || 0) - (x.force || 0)).slice(0, 3); if (niveaux) etat.niveaux = niveaux; if (retournement) etat.retournement = retournement; if (a != null) etat.a = a; if (prix != null) etat.prix = prix; redessiner(); },
     etiquettes: () => etat.cadres.map(c => ({ texte: c.g.texte, bord: c.g.bord || null, n: c.g.n, detail: c.g.detail, x: c.x, y: c.y, w: c.w, h: c.h })),
     marques(L) { etat.marques = L || []; if (marqueurs) marqueurs.setMarkers(marquesLW()); },
     outil(v) { etat.outil = v; if (v === 'entree') etat.pos = null; redessiner(); return etat.outil; },
