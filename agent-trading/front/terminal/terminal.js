@@ -237,6 +237,7 @@ export function monterTerminal(el, { contexte = 'vue', fetchFn, WS, modules: mod
     R, graph, carnet, dash, S,
     actif: () => S.actif, unite: () => S.unite, prix: () => S.prix, couches: () => ({ ...S.couches }), serie: () => S.serie, valeursMA: () => V,
     niveauxAuto: () => ({ niveaux: S.niveaux, liquidite: S.liq }),
+    serieDe: (a, u) => serieDe(a, u), ongletOuvert: () => (S.bas.ouvert ? S.bas.onglet : null),
     choisirActif(a) { if (!PAR_ID_T[a] || a === S.actif) return false; S.actif = a; ecrire('rayle_term_actif', a); S.unite = lire('rayle_term_unite_' + a, S.unite); if (!UNITES[S.unite]) S.unite = 'M15'; S.couches = lireCouches(a); S.niveaux = S.liq = null; dernierT = 0; emettre('actif', a); charger(); return true; },
     choisirUnite(u) { if (!UNITES[u] || u === S.unite) return false; S.unite = u; ecrire('rayle_term_unite_' + S.actif, u); dernierT = 0; charger(); emettre('unite', u); return true; },
     couche(id, on) { if (!(id in S.couches)) return false; S.couches[id] = on == null ? !S.couches[id] : !!on; ecrireCouches(S.actif, S.couches); const d = q('[data-deroule="couches"]'); if (!d.hidden) rendreDeroule('couches'); if (id === 'volume') graph.volumeVisible(S.couches.volume); else calculerCouches(); emettre('couches', S.couches); return true; },

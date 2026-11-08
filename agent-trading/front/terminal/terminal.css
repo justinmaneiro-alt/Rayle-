@@ -31,7 +31,7 @@
 .tr-graph{ position:absolute; inset:0 0 18px 0 } .tr-graph[data-outil-actif]{ cursor:crosshair }
 .tr-graph-info{ position:absolute; left:8px; right:8px; bottom:2px; height:16px; font:11px var(--tr-mono); color:var(--tr-doux); white-space:nowrap; overflow:hidden; text-overflow:ellipsis }
 .tr-bandeau{ position:absolute; left:50%; top:10px; transform:translateX(-50%); z-index:30; max-width:80%; padding:6px 14px; background:var(--tr-verre); border:1px solid var(--tr-bord-fort); color:var(--tr-texte) }
-.tr-edition{ position:absolute; z-index:35; top:10px; left:10px; width:280px; padding:10px 12px; background:var(--tr-verre); backdrop-filter:blur(10px); border:1px solid var(--tr-bord-fort); clip-path:polygon(0 0,calc(100% - 10px) 0,100% 10px,100% 100%,0 100%) }
+.tr-edition{ position:absolute; z-index:35; top:10px; right:86px; width:280px; padding:10px 12px; background:var(--tr-verre); backdrop-filter:blur(10px); border:1px solid var(--tr-bord-fort); clip-path:polygon(0 0,calc(100% - 10px) 0,100% 10px,100% 100%,0 100%) }
 .tr-edition h4{ margin:0 0 8px; font:600 12px 'Segoe UI'; color:var(--tr-cyan); letter-spacing:.06em }
 .tr-edition label{ display:grid; grid-template-columns:96px 1fr; gap:6px; align-items:center; margin:4px 0 } .tr-edition input,.tr-edition select{ background:#0b141a; color:var(--tr-texte); border:1px solid var(--tr-bord); padding:3px 6px; font:12px var(--tr-mono); width:100% }
 .tr-edition input[type=checkbox]{ width:auto } .tr-edition .tr-ligne-btn{ display:flex; gap:6px; flex-wrap:wrap; margin-top:8px }
@@ -64,3 +64,9 @@
 .tr-proposition{ margin-top:8px; padding:8px 10px; border:1px dashed var(--tr-bord-fort) }
 @media (max-width:1100px){ .tr{ --tr-carnet-l:250px } .tr-mention{ display:none } }
 @media (max-width:820px){ .tr{ grid-template-columns:40px minmax(0,1fr); grid-template-rows:auto minmax(320px,1fr) 300px var(--tr-bas-h); grid-template-areas:"haut haut" "outils centre" "carnet carnet" "bas bas"; height:auto; overflow:auto } .tr-haut-barre{ flex-wrap:wrap; padding:6px 8px } .tr-carnet{ border-left:0; border-top:1px solid var(--tr-bord) } .tr-carte.tr-large{ grid-column:auto } .tr-rayle{ grid-template-columns:1fr } }
+
+.tr-regles{ white-space:pre-wrap; font:11px/1.45 var(--tr-mono); color:var(--tr-doux); max-height:240px; overflow:auto; padding:8px; border:1px solid var(--tr-bord) }
+.tr-sous{ margin:10px 0 4px; font:600 11px 'Segoe UI'; letter-spacing:.12em; text-transform:uppercase; color:var(--tr-sable) }
+.tr-tableau tr.nonlu td{ color:var(--tr-texte); font-weight:600 } .tr-tableau tr td{ color:#b7c6cf }
+.tr-outils button:disabled{ opacity:.35; cursor:default }
+details summary{ cursor:pointer; color:var(--tr-doux) }
