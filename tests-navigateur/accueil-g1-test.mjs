@@ -37,7 +37,7 @@ async function page(opts = {}) {
     if (theme) localStorage.setItem('rayle_theme', theme); else localStorage.removeItem('rayle_theme'); if (!sessionStorage.getItem('__c')) { localStorage.removeItem('rayle_g1_couleur'); sessionStorage.setItem('__c', '1'); }
     window.__geoAppels = 0; try { Object.defineProperty(navigator, 'geolocation', { value: { getCurrentPosition: (ok, ko) => { window.__geoAppels++; ok({ coords: { latitude: 43.2951, longitude: -0.3708 } }); } }, configurable: true }); } catch (e) {}
   }, opts.qualite ?? null, opts.theme || null, opts.rotation || null);
-  await p.goto(BASE + '/index.html', { waitUntil: 'load' }); await attendre(opts.attente || 3500);
+  await p.goto(BASE + '/index.html?appareil=pc', { waitUntil: 'load' }); await attendre(opts.attente || 3500);
   return p;
 }
 const injecter = p => p.evaluate(async () => {

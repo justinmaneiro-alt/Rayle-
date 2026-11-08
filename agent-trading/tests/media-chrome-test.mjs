@@ -16,7 +16,7 @@ async function accueil(theme, l = 1600, h = 900) {
   p.on('pageerror', e => erreurs.push(`${theme} : ${e.message}`));
   await p.evaluateOnNewDocument(t => {
     if (t) localStorage.setItem('rayle_theme', t); else localStorage.removeItem('rayle_theme');
-    localStorage.setItem('rayle_musique_fixe', JSON.stringify([{ id: '5Xq5Up-6bSg', titre: null }, { id: 'jfKfPfyJRdk', titre: null }]));
+    localStorage.setItem('rayle_musique_fixe', JSON.stringify([{ id: '5Xq5Up-6bSg', titre: null }, { id: 'aqz-KE-bpKQ', titre: null }]));   // 2e morceau : Big Buck Bunny (Blender, intégration autorisée ; jfKfPfyJRdk refuse désormais l'intégration)
   }, theme);
   await p.goto(BASE + '/index.html?appareil=pc', { waitUntil: 'load' }); await w(4000);
   return p;
