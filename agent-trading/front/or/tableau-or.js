@@ -90,6 +90,7 @@ export function monterTableauOr(el, { modules = {}, contexte = 'page', fetchFn, 
     q('[data-notifs-liste]').innerHTML = notifs.map(x => `<li class="tor-n-${x.niveau}${x.dit ? '' : ' tor-n-tu'}"><time>${heureParis(x.t)}</time> ${esc(x.texte)}${x.dit ? '' : ` <small>(non annoncé : ${esc(x.raison)})</small>`}</li>`).join('');
   }
   const api = { notifier, R, modules };
+  const regOutils = () => (modules.outils && modules.outils.regl) || null;   // réglages des outils (anciennes flèches désactivées par défaut)
 
   /* moteur + graphique + carnet (le même carnet que l'agent) */
   const graph = creerGraphiqueOr(q('[data-graph]'), { mobile });
@@ -98,7 +99,7 @@ export function monterTableauOr(el, { modules = {}, contexte = 'page', fetchFn, 
   const carnet = creerCarnet(q('[data-carnet]'), { racine: q('[data-carnet]'), WS });   // racine = élément « .at » qui porte les couleurs du carnet (jetons.css)
   carnet.maj('OR', null);
   const moteur = creerMoteurOr({ ...(fetchFn ? { fetchFn } : {}), etudeAuto, surMaj: () => rendre(), surEvenement: ev => evenement(ev) });
-  api.moteur = moteur; api.graph = graph; api.carnet = carnet;
+  api.moteur = moteur; api.graph = graph; api.carnet = carnet; api.envoyerTelegram = t => envoyerTelegram(t);
   let derTr = 0;
   const pompe = setInterval(() => {
     const L = carnet._flux.transactions().filter(x => x.t > derTr); if (!L.length) return; derTr = L[L.length - 1].t;
@@ -153,7 +154,8 @@ export function monterTableauOr(el, { modules = {}, contexte = 'page', fetchFn, 
     if (S.fiable === false) msg.push(`Données peu fiables : seulement ${nb(S.volume24h / 1e6, 0)} M$ échangés sur 24 h sur la référence.`);
     const b = q('[data-bandeau]'); b.hidden = !msg.length; b.textContent = msg.join(' · ');
     const bf = q('[data-bilan-fleches]'), BF = S.bilanFleches && S.fleches && S.fleches.periode === S.periode ? S.bilanFleches : null;
-    const vh = q('[data-versions-h1]'); vh.hidden = S.periode !== 'H1'; if (!vh.hidden) { const sel = moteur.versionsH1(); for (const c of vh.querySelectorAll('[data-vh1]')) c.checked = sel.includes(c.dataset.vh1); }
+    const ro = regOutils(), anc = !ro || ro.anciennesFleches; bf.hidden = !anc;
+    const vh = q('[data-versions-h1]'); vh.hidden = S.periode !== 'H1' || !anc; if (!vh.hidden) { const sel = moteur.versionsH1(); for (const c of vh.querySelectorAll('[data-vh1]')) c.checked = sel.includes(c.dataset.vh1); }
     bf.textContent = BF ? `${BF.titre || `Flèches de rebond (${S.periode})`} : ${BF.texte} Informations de lecture, jamais un ordre.` : 'Flèches de rebond : calcul en cours…';
     q('[data-source]').textContent = `Prix Kraken · volume Binance · écart Kraken − Binance ${S.ecart == null ? 'non mesuré' : (S.ecart >= 0 ? '+' : '') + nb(S.ecart)} $${S.ecartN ? ` (médiane de ${S.ecartN} bougies)` : ''} · ATR H1 ${nb(S.a)} $${texteHistoriqueCharge(S)}`;
     // lecture
@@ -172,11 +174,12 @@ export function monterTableauOr(el, { modules = {}, contexte = 'page', fetchFn, 
     if (E && Object.values(E.parType).some(r => r.assez && r.pHolm < 0.05 && r.taux > r.hasard.taux)) q('[data-etude]').textContent = q('[data-etude]').textContent.replace('Aucun type ne bat le hasard de façon nette : ces zones décrivent le marché, elles ne prédisent rien.', 'Au moins un type tient mieux que le hasard (voir chaque zone) ; cela reste une mesure passée, pas une promesse.');
     modules.journal && modules.journal.majMarche && modules.journal.majMarche(S);
     modules.gardien && modules.gardien.majMarche && modules.gardien.majMarche(S);
+    modules.outils && modules.outils.majMarche && modules.outils.majMarche(S);
     api.surRendu && api.surRendu(S);
   }
   function majPosition(pos, outil) {
     const p = q('[data-pos]'), r = ratio(pos);
-    p.hidden = !outil && !pos; const btn = q('[data-a="position"]'); btn.setAttribute('aria-pressed', String(!!outil));
+    p.hidden = !outil && !pos; const btn = q('[data-a="position"]'); btn && btn.setAttribute('aria-pressed', String(!!outil));
     p.textContent = outil ? `Clique sur le graphique pour poser ${outil === 'entree' ? 'l’entrée' : outil === 'stop' ? 'le stop' : 'l’objectif'}.` : r ? `${r.sens === 'achat' ? 'Achat' : 'Vente'} · entrée ${nb(pos.entree)} · stop ${nb(pos.stop)} · objectif ${nb(pos.objectif)} · gain/risque ${nb(r.rr, 1)}${r.coherent ? '' : ' · objectif du mauvais côté'} · glisse un trait pour l’ajuster` : '';
     if (r) p.insertAdjacentHTML('beforeend', ' <button type="button" data-a="effacer-pos">Effacer</button>');
     modules.gardien && modules.gardien.majPosition && modules.gardien.majPosition(pos);
@@ -200,8 +203,7 @@ export function monterTableauOr(el, { modules = {}, contexte = 'page', fetchFn, 
     const b = e.target.closest('[data-periode],[data-a]'); if (!b) return;
     if (b.dataset.periode) { moteur.periode(b.dataset.periode); return; }
     const a = b.dataset.a;
-    if (a === 'position') { const o = graph.outil(graph.etat().outil ? null : 'entree'); majPosition(graph.position(), o); }
-    else if (a === 'effacer-pos') { graph.effacerPosition(); majPosition(null, null); }
+    if (a === 'effacer-pos') { graph.effacerPosition(); majPosition(null, null); }
     else if (a === 'notifs') { const n = q('[data-notifs]'); n.hidden = !n.hidden; if (!n.hidden) { nonLues = 0; q('[data-notifs-n]').hidden = true; } }
     else if (a === 'fermer-notifs') q('[data-notifs]').hidden = true;
     else if (a === 'ou') repondre('on en est où');
@@ -232,7 +234,9 @@ export function monterTableauOr(el, { modules = {}, contexte = 'page', fetchFn, 
   const ro = typeof ResizeObserver !== 'undefined' ? new ResizeObserver(surTaille) : null; ro ? ro.observe(el) : addEventListener('resize', surTaille); surTaille();
 
   // modules B et C (montés dans leurs blocs) : chargés à la demande, chacun indépendant
-  api.monterModule = (nom, m) => { modules[nom] = m; };
+  api.monterModule = (nom, m) => { modules[nom] = m; }; api.rendre = () => rendre();
+  // mes outils (dessin, surveillance, alertes, registre) : dans tous les contextes ; un échec n'empêche pas le reste
+  import('./terminal-outils.js').then(m => { if (!R.isConnected && el.innerHTML === '') return; modules.outils = m.monterOutils(api, { ...(fetchFn ? { fetchFn } : {}), ...(window.__RAYLE_OR_OUTILS_TEST__ || {}) /* crochet de test : horloge et bougies H1 rejouées */ }); api.outils = modules.outils; }).catch(e => notifier('Outils de dessin indisponibles : ' + e.message, { niveau: 'doux', dit: false, raison: 'module' }));
   moteur.demarrer().then(() => { notifier('Données de l’or chargées.', { niveau: 'doux', dit: false, raison: 'information interne' }); }).catch(e => notifier('Chargement impossible : ' + e.message, { niveau: 'fort' }));
   api.detruire = () => { if (window.TableauOr === api) window.TableauOr = null; clearInterval(pompe); moteur.arreter(); carnet.detruire(); graph.detruire(); ro && ro.disconnect(); for (const m of Object.values(modules)) m && m.detruire && m.detruire(); el.innerHTML = ''; };
   api.valeurs = () => { const c = carnet._flux.carnet(), m = c && c.pret ? (() => { let b = -Infinity, a = Infinity; for (const p of c.bids.keys()) b = Math.max(b, p); for (const p of c.asks.keys()) a = Math.min(a, p); return { bid: b, ask: a, milieu: (a + b) / 2, spread: a - b }; })() : null; return { prix: moteur.S.prix, carnet: m, zones: moteur.S.zones.map(z => z.id), lecture: moteur.S.lecture && moteur.S.lecture.phrase }; };

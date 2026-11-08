@@ -42,9 +42,10 @@ verifier(await pc.evaluate(() => !!document.querySelector('.tv-lw-attribution, a
 verifier(/L’or est à/.test(await pc.evaluate(() => window.__or.repondre('Rayle, on en est où ?'))), '« Rayle, on en est où ? » répond');
 // outil Position : 3 clics → ratio
 const r = await pc.evaluate(() => { const lw = document.querySelector('[data-graph]').getBoundingClientRect(); return { x: lw.left + lw.width * 0.4, y: lw.top + lw.height * 0.5 }; });
-await pc.click('[data-a="position"]'); await pc.mouse.click(r.x, r.y); await w(600); await pc.mouse.click(r.x + 40, r.y + 60); await w(600); await pc.mouse.click(r.x + 80, r.y - 120); await w(400);
-const pos = await pc.evaluate(() => ({ p: window.__or.graph.position(), t: document.querySelector('[data-pos]').textContent }));
-verifier(pos.p && pos.p.entree && pos.p.stop && pos.p.objectif && /gain\/risque 2/.test(pos.t), 'outil Position : entrée, stop, objectif, gain/risque ≈ 2', pos.t);
+await pc.waitForFunction(() => window.__or.outils && window.__or.outils.E.pret, { timeout: 60000 }); await pc.evaluate(() => window.__or.outils.regler({ aimant: false }));
+await pc.click('[data-outil="position"]'); await pc.mouse.click(r.x, r.y); await w(600); await pc.mouse.click(r.x + 40, r.y + 60); await w(600); await pc.mouse.click(r.x + 80, r.y - 120); await w(400);
+const pos = await pc.evaluate(() => { const O = window.__or.outils, o = O.E.objets.find(x => x.type === 'position'); O.selectionner(o.id); document.querySelector('[data-mo="journal"]').click(); return { p: window.__or.graph.position(), t: document.querySelector('[data-mo-liste]').textContent }; });
+verifier(pos.p && pos.p.entree && pos.p.stop && pos.p.objectif && /R 2,0/.test(pos.t), 'outil Position (lignes) : entrée, stop, objectif, R ≈ 2, repris par le journal', (pos.t.match(/Achat[^]*?oz\)/) || [''])[0]);
 await pc.screenshot({ path: path.join(SORTIE, 'pc-tableau.png') });
 // journal → clôture → gardien → taille
 const j = await pc.evaluate(async () => {

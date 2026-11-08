@@ -15,7 +15,7 @@ const JOUR = 86400e3, PROF = { M5: 30, M15: 182, H1: 330, H4: 330, J: 330 };   /
 async function page(l, h, mobile = false) {
   const p = await nav.newPage(); await p.setViewport({ width: l, height: h, isMobile: mobile, hasTouch: mobile, deviceScaleFactor: 1 });
   p.on('pageerror', e => erreurs.push(`${l}px : ${e.message}`)); p.on('console', m => { if (m.type() === 'error' && !/favicon|status of 404/i.test(m.text())) erreurs.push(`${l}px console : ${m.text().slice(0, 160)}`); });
-  await p.evaluateOnNewDocument(() => { localStorage.setItem('rayle_or_periode', JSON.stringify('M15')); });
+  await p.evaluateOnNewDocument(() => { localStorage.setItem('rayle_or_periode', JSON.stringify('M15')); localStorage.setItem('rayle_or_outils_regl', JSON.stringify({ niveauxAuto: true, anciennesFleches: true })); });
   await p.goto(BASE + '/agent-trading/front/or.html', { waitUntil: 'domcontentloaded' });
   await p.waitForFunction(() => window.__or && window.__or.moteur.S.hist && window.__or.graph.serie() && window.__or.graph.serie().data().length > 100, { timeout: 60000 });
   await w(1500); return p;
