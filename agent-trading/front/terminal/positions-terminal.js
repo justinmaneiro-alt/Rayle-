@@ -47,36 +47,55 @@ export async function monterPositions(T, { stockage = null, maintenant = () => D
     if (T.couches().positions === false) return; const W = Dm.width; ctx.font = '11px Segoe UI, system-ui, sans-serif';
     for (const p of E.P) {
       if (p.actif !== T.actif() || (FINAUX.includes(p.etat) && p.id !== E.sel && !(p.tSortie && maintenant() - p.tSortie < 6 * 3600e3))) continue;
-      const c = calcul(p); if (!c) continue; const x0 = Math.max(0, G.xDe(p.cree) ?? 0), x1 = p.tSortie ? Math.min(W, G.xDe(p.tSortie) ?? W) : W, actif = p.id === E.sel, prop = p.etat === 'proposee';
+      const c = calcul(p); if (!c) continue; const [x0, x1] = bornesX(p, W), actif = p.id === E.sel, prop = p.etat === 'proposee';
       const trait = (prix, col, dash) => { const y = G.yDe(prix); if (y == null) return null; ctx.strokeStyle = col; ctx.lineWidth = actif ? 1.6 : 1; ctx.setLineDash(dash); ctx.beginPath(); ctx.moveTo(x0, Math.round(y) + 0.5); ctx.lineTo(x1, Math.round(y) + 0.5); ctx.stroke(); ctx.setLineDash([]); return y; };
       const d = prop ? [6, 4] : [];
       const ye = trait(p.entree, prop ? '#c9b27a' : '#cfd8dc', d), ys = trait(p.stop, '#ef6a5f', prop ? d : [4, 3]), yt = trait(p.objectif, '#4fd18b', prop ? d : [4, 3]);
       if (ye == null) continue;
       const t = `${prop ? 'scénario Rayle · à valider · ' : ''}${c.achat ? 'Achat' : 'Vente'} · ${c.rObjectif.toFixed(1).replace('.', ',')} R · risque ${Math.round(c.risqueReel$)} $ · ${c.taille.toLocaleString('fr-FR', { maximumFractionDigits: 4 })} contrats · ${ETATS[p.etat]}${p.etat === 'ouverte' ? ' · ' + r2(resultatR(p, T.prix())) : FINAUX.includes(p.etat) && p.prixSortie ? ' · ' + r2(resultatR(p, p.prixSortie)) : ''}`;
       const w = ctx.measureText(t).width + 8, xx = Math.max(4, Math.min(x1 - w - 6, W - w - 6));
-      ctx.fillStyle = 'rgba(5,8,12,.82)'; ctx.fillRect(xx, ye - 15, w, 14); ctx.fillStyle = prop ? '#c9b27a' : '#cfd8dc'; ctx.fillText(t, xx + 4, ye - 4);
-      ctx.fillStyle = '#ef6a5f'; if (ys != null) ctx.fillText('SL ' + f(p.actif, p.stop), xx + 4, ys + (ys > ye ? 12 : -4)); ctx.fillStyle = '#4fd18b'; if (yt != null) ctx.fillText('TP ' + f(p.actif, p.objectif), xx + 4, yt + (yt > ye ? 12 : -4));
+      const ecrire = (txt, x, y, col) => { ctx.lineWidth = 3; ctx.strokeStyle = 'rgba(5,8,12,.9)'; ctx.lineJoin = 'round'; ctx.strokeText(txt, x, y); ctx.fillStyle = col; ctx.fillText(txt, x, y); };
+      ecrire(t, xx + 4, ye - 5, prop ? '#c9b27a' : '#cfd8dc');
+      if (ys != null) ecrire('SL ' + f(p.actif, p.stop), xx + 4, ys + (ys > ye ? 13 : -5), '#ef6a5f'); if (yt != null) ecrire('TP ' + f(p.actif, p.objectif), xx + 4, yt + (yt > ye ? 13 : -5), '#4fd18b');
+      if (actif) { ctx.strokeStyle = 'rgba(207,216,220,.8)'; ctx.lineWidth = 1; for (const x of [x0, x1]) { const a = Math.min(ye, ys ?? ye, yt ?? ye), b = Math.max(ye, ys ?? ye, yt ?? ye); ctx.beginPath(); ctx.moveTo(Math.round(x) + 0.5, a); ctx.lineTo(Math.round(x) + 0.5, b); ctx.stroke(); } }
     }
   }, 'top');
+  /* bornes horizontales : tAff0 / tAff1 réglables en tirant les extrémités ; par défaut de la création au bord droit (ou à la sortie) */
+  function bornesX(p, W) {
+    const x0 = Math.max(0, (p.tAff0 != null ? G.xDe(p.tAff0) : G.xDe(p.cree)) ?? 0);
+    const x1 = Math.min(W, (p.tAff1 != null ? G.xDe(p.tAff1) : p.tSortie ? G.xDe(p.tSortie) : W) ?? W);
+    return [x0, Math.max(x0 + 12, x1)];
+  }
+  const largeurPane = () => { try { return G.chart().timeScale().width(); } catch (e) { return el.clientWidth; } };
+  function toucherBout(x, y) {
+    const W = largeurPane();
+    for (const p of E.P) { if (p.actif !== T.actif() || FINAUX.includes(p.etat)) continue; const [x0, x1] = bornesX(p, W), ys = [p.entree, p.stop, p.objectif].map(v => G.yDe(v)).filter(v => v != null); if (!ys.length) continue;
+      if (y < Math.min(...ys) - 4 || y > Math.max(...ys) + 4) continue;
+      if (Math.abs(x - x0) <= 6) return { p, bout: 'tAff0' }; if (x >= x1 - 8 && x <= x1 + 3) return { p, bout: 'tAff1' }; }
+    return null;
+  }
   function toucherLigne(x, y) {
     let best = null, bd = 7;
-    for (const p of E.P) { if (p.actif !== T.actif() || FINAUX.includes(p.etat)) continue; const x0 = G.xDe(p.cree) ?? 0; if (x < x0 - 4) continue;
+    for (const p of E.P) { if (p.actif !== T.actif() || FINAUX.includes(p.etat)) continue; const [x0, x1] = bornesX(p, largeurPane()); if (x < x0 - 4 || x > x1 + 4) continue;
       for (const [k, prix] of [['entree', p.entree], ['stop', p.stop], ['objectif', p.objectif]]) { const yy = G.yDe(prix); if (yy == null) continue; const d = Math.abs(yy - y); if (d < bd) { bd = d; best = { p, ligne: k }; } } }
     return best;
   }
   const pos = e => { const r = el.getBoundingClientRect(); return { x: e.clientX - r.left, y: e.clientY - r.top }; };
   const surDown = async e => {
     if (e.button !== 0 || E.detruit) return; const { x, y } = pos(e); let lw = el.clientWidth; try { lw = G.chart().timeScale().width(); } catch (x2) { /* */ } if (x > lw) return;
-    if (T.outil() === 'position') { e.preventDefault(); e.stopPropagation(); const prix = G.prixDe(y); if (prix > 0) await ajouter(nouvelle(prix)); return; }
+    if (T.outil() === 'position') { e.preventDefault(); e.stopPropagation(); const prix = G.prixDe(y); if (prix > 0) { const n = nouvelle(prix), t = G.tDe(x); if (n && t != null && t < n.cree) n.tAff0 = t; await ajouter(n); } return; }   // l'outil commence là où l'on clique
     if (T.outil() !== 'curseur' || e.defaultPrevented) return;
+    const b = toucherBout(x, y);
+    if (b) { e.preventDefault(); e.stopPropagation(); E.sel = b.p.id; E.drag = { id: b.p.id, bout: b.bout, bouge: false }; const c = G.chart(); if (c) c.applyOptions({ handleScroll: false, handleScale: false }); G.redessiner(); return; }
     const h = toucherLigne(x, y); if (!h) return;
     e.preventDefault(); e.stopPropagation(); E.sel = h.p.id; ouvrirEdition(h.p);
     if (h.ligne === 'entree' && h.p.etat === 'ouverte') { G.redessiner(); return; }   // l'entrée d'une position ouverte ne bouge plus
     E.drag = { id: h.p.id, ligne: h.ligne, bouge: false }; const c = G.chart(); if (c) c.applyOptions({ handleScroll: false, handleScale: false }); G.redessiner();
   };
-  const surMove = e => { if (!E.drag) return; const { y } = pos(e), prix = G.prixDe(y); if (!(prix > 0)) return; const p = E.P.find(q => q.id === E.drag.id); const n = p && modifierPosition(p, { [E.drag.ligne]: prix }, { pasQ: pasQ(p.actif) }); if (n) { E.P = E.P.map(q => q.id === n.id ? n : q); E.drag.bouge = true; G.redessiner(); } };
+  const surMove = e => { if (!E.drag) return; if (E.drag.bout) { const { x } = pos(e), t = G.tDe(x); const p = E.P.find(q => q.id === E.drag.id); if (p && t != null) { const n = { ...p, [E.drag.bout]: t }; if (n.tAff0 != null && n.tAff1 != null && n.tAff1 <= n.tAff0) return; E.P = E.P.map(q => q.id === n.id ? n : q); E.drag.bouge = true; G.redessiner(); } return; } const { y } = pos(e), prix = G.prixDe(y); if (!(prix > 0)) return; const p = E.P.find(q => q.id === E.drag.id); const n = p && modifierPosition(p, { [E.drag.ligne]: prix }, { pasQ: pasQ(p.actif) }); if (n) { E.P = E.P.map(q => q.id === n.id ? n : q); E.drag.bouge = true; G.redessiner(); } };
   const surUp = async () => { if (!E.drag) return; const d = E.drag; E.drag = null; const c = G.chart(); if (c) c.applyOptions({ handleScroll: true, handleScale: true }); const p = E.P.find(q => q.id === d.id); if (p && d.bouge) { await sauver(p); ouvrirEdition(p); } };
-  el.addEventListener('pointerdown', surDown, true); el.addEventListener('pointermove', surMove, true); window.addEventListener('pointerup', surUp, true);
+  const surSurvol = e => { if (E.drag || T.outil() !== 'curseur') return; const { x, y } = pos(e); el.style.cursor = toucherBout(x, y) ? 'ew-resize' : toucherLigne(x, y) ? 'ns-resize' : ''; };
+  el.addEventListener('pointerdown', surDown, true); el.addEventListener('pointermove', surMove, true); el.addEventListener('pointermove', surSurvol); window.addEventListener('pointerup', surUp, true);
 
   /* ── panneau d'édition de la position ── */
   const panneau = T.q('[data-edition]');
@@ -173,11 +192,11 @@ export async function monterPositions(T, { stockage = null, maintenant = () => D
 
   rendreJournal(); suivreTout();
   return {
-    E, positions: () => E.P, lignes: () => E.lignes, gardien: () => etatGardien(), suivreTout, rendreJournal,
+    E, bornes: id => { const p = E.P.find(q => q.id === id); return p ? bornesX(p, largeurPane()) : null; }, positions: () => E.P, lignes: () => E.lignes, gardien: () => etatGardien(), suivreTout, rendreJournal,
     /* Rayle (phase D) : propose une position pré-remplie, à valider d'un clic ; jamais un ordre */
     async proposer({ actif = T.actif(), entree, stop, objectif, note = '' }) { const p = nouvelle(entree, { actif, stop, objectif, origine: 'rayle', etat: 'proposee', note }); if (!p) return null; return ajouter(p); },
     async creer(d) { const p = nouvelle(d.entree, d); return ajouter(p); },
     async actionner(id, a) { const p = E.P.find(q => q.id === id); if (!p) return null; panneau.dataset.pos = id; const b = document.createElement('button'); b.dataset.pa = a; panneau.appendChild(b); b.click(); b.remove(); return E.P.find(q => q.id === id); },
-    detruire() { E.detruit = true; clearInterval(minut); offPrix(); offClot(); offActif(); el.removeEventListener('pointerdown', surDown, true); el.removeEventListener('pointermove', surMove, true); window.removeEventListener('pointerup', surUp, true); }
+    detruire() { E.detruit = true; clearInterval(minut); offPrix(); offClot(); offActif(); el.removeEventListener('pointerdown', surDown, true); el.removeEventListener('pointermove', surMove, true); el.removeEventListener('pointermove', surSurvol); window.removeEventListener('pointerup', surUp, true); }
   };
 }

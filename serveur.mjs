@@ -11,6 +11,7 @@ import { fileURLToPath } from 'node:url';
 import { creerMulti } from './app-pc/multi-ecrans.mjs';
 import { creerTelecommande } from './app-pc/telecommande.mjs';
 import { creerPontCamera } from './app-pc/camera-pont.mjs';
+import { gererTerminal } from './app-pc/terminal-sources.mjs';
 
 const RACINE = path.dirname(fileURLToPath(import.meta.url));
 const PORT = Number(process.argv[2]) || Number(process.env.PORT) || 8000;
@@ -32,6 +33,7 @@ export function creerServeur({ portReseau, dossierDonnees = process.env.RAYLE_DO
     if (chemin.startsWith('/__multi/')) return multi.gerer(req, res, chemin);
     if (chemin.startsWith('/__tele/')) return tele.gererLocal(req, res, chemin);
     if (chemin.startsWith('/__cam/')) return camera.gererLocal(req, res, chemin);
+    if ((chemin.startsWith('/__relais/') || chemin === '/__rapports' || chemin === '/__yahoo' || chemin === '/__calendrier') && gererTerminal(req, res, chemin)) return;   // sources publiques du terminal lues par le PC (app-pc/terminal-sources.mjs)
     if (chemin === '/clavier/telecommande-calcul.js') chemin = '/core/commun/telecommande-calcul.js';   // même fichier que sur le réseau local
     if (chemin === '/clavier') chemin = '/clavier/';   // clavier en éventail (K1), aussi disponible en local
     if (chemin.endsWith('/')) chemin += 'index.html';

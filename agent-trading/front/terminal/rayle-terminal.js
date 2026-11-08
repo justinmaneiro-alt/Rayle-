@@ -13,6 +13,9 @@ import { IMPORTANTS } from './alertes-calcul.js';
 import { calcul } from './positions-calcul.js';
 import { seuilGros } from '../carnet-kraken.js';
 import { ouvrirStockage } from './stockage-terminal.js';
+import { QUESTIONS_SECTIONS, lignesSections, texteSection, signaux } from './sections-rayle.js';
+import { rangAtr, variationJour } from './tableau-calcul.js';
+import { FINAUX, ETATS } from './positions-calcul.js';
 
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const HM = new Intl.DateTimeFormat('fr-FR', { timeZone: 'Europe/Paris', hour: '2-digit', minute: '2-digit' });
@@ -21,7 +24,7 @@ const jour = () => new Date().toLocaleDateString('fr-CA', { timeZone: 'Europe/Pa
 
 export async function monterRayle(T, { stockage = null, maintenant = () => Date.now(), parlerFn = null, wfetchFn = null } = {}) {
   const st = stockage || await ouvrirStockage();
-  const E = { scen: [], surligne: null, memoire: ((await st.lire('contexte', 'jour')) || { id: 'jour', jour: jour(), m: [] }), derniere: null, annoncesDites: new Set(), detruit: false };
+  const E = { signaux: [], signauxDits: new Set(), nonLus: 0, scen: [], surligne: null, memoire: ((await st.lire('contexte', 'jour')) || { id: 'jour', jour: jour(), m: [] }), derniere: null, annoncesDites: new Set(), detruit: false };
   if (E.memoire.jour !== jour()) E.memoire = { id: 'jour', jour: jour(), m: [] };
   const G = T.graph, f = p => fmt(T.actif(), p), nom = () => PAR_ID_T[T.actif()].nom;
   const parler = async txt => { if (!txt) return; try { if (parlerFn) return parlerFn(txt); if (typeof window.speak === 'function') return await window.speak(txt); const u = new SpeechSynthesisUtterance(txt); u.lang = 'fr-FR'; speechSynthesis.speak(u); } catch (e) { /* pas de voix */ } };
@@ -40,13 +43,25 @@ export async function monterRayle(T, { stockage = null, maintenant = () => Date.
       annonces: dd.annonces || [], cot: dd.cot && T.actif() && PAR_ID_T[T.actif()].cot ? dd.cot : null, cotAbsent: COT_ABSENT[T.actif()] || null, maintenant: maintenant(), source: S ? S.info().source : null, memoire: E.memoire.m });
   }
 
+  /* ── données structurées de toutes les sections (tableau, santé, annonces, COT, rapports, actualités, journal) ── */
+  function sections() {
+    const dd = T.dash.donnees(), P = T.module('positions'), S = T.serie(), B = S ? S.bougies() : [], ra = rangAtr(B);
+    const Pl = P ? P.positions() : [], Lg = P ? P.lignes().slice().sort((a, b) => b.t - a.t) : [];
+    return { tableau: dd.tableau || null, annonces: dd.annonces || [], rapports: dd.rapports || null, actus: dd.actus || [],
+      cot: dd.cot && dd.cot.complet ? dd.cot.complet : null,
+      sante: { rangAtr: ra ? ra.rang : null, seances: dd.seances || null, correlations: dd.correlations ? dd.correlations.L : null, lies: dd.lies ? dd.lies.L.map(x => ({ s: x.s, var: variationJour(x) })) : null },
+      journal: P ? { ouvertes: Pl.filter(p => p.etat === 'ouverte').length, attente: Pl.filter(p => p.etat === 'attente').length, closes: Pl.filter(p => FINAUX.includes(p.etat)).length, dernier: Lg[0] ? `${(PAR_ID_T[Lg[0].actif] || {}).nom || Lg[0].actif} ${Lg[0].sens} ${ETATS[Lg[0].evenement] || Lg[0].evenement}${Lg[0].R != null ? ' ' + Lg[0].R.toFixed(2).replace('.', ',') + ' R' : ''}` : null } : null };
+  }
+  function contexteComplet(e) { const L = texteContexte(e, { fmt: f, heure }).split('\n'), consignes = L.pop(); return L.concat(lignesSections(sections(), { fmt: f, heure, maintenant: maintenant() }), [consignes]).join('\n'); }
+
   /* ── question : IA par la route /chat (contexte), chiffres vérifiés ; sinon texte local ── */
   async function repondre(question, sujet) {
-    const e = etat(); E.derniere = e; const local = texteLocal(e, sujet, { fmt: f, heure });
+    const e = etat(); E.derniere = e; const sec = String(sujet || '').startsWith('section:') ? sujet.slice(8) : null;
+    const local = (sec && texteSection(sec, e, sections(), { fmt: f, heure, maintenant: maintenant() })) || texteLocal(e, sec === 'carnet' ? 'carnet' : sec ? 'etat' : sujet, { fmt: f, heure });
     const wf = wfetchFn || (typeof window.wfetch === 'function' && (typeof window.workerReady !== 'function' || window.workerReady()) ? window.wfetch : null);
     let txt = local, source = 'lecture locale (sans IA)';
     if (wf) {
-      const ctx = texteContexte(e, { fmt: f, heure });
+      const ctx = contexteComplet(e);
       try {
         const r = await wf('/chat', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ text: question, context: ctx, history: [] }) }, 40000);
         if (r.ok) { const d = await r.json(), rep = String(d.reply || '').trim(); const v = chiffresVerifies(rep, ctx);
@@ -54,7 +69,7 @@ export async function monterRayle(T, { stockage = null, maintenant = () => Date.
           else if (rep) source = `lecture locale : la réponse de l’IA citait des chiffres absents du terminal (${v.inconnus.slice(0, 3).join(', ')})`; }
       } catch (x) { source = 'lecture locale : Worker indisponible'; }
     }
-    if (T.couches().scenarios !== false && e.scenarios.liste.length && sujet === 'etat') tracer(e.scenarios.liste);
+    if (T.couches().scenarios !== false && e.scenarios.liste.length && sujet === 'etat') tracer(e.scenarios.liste);   // au plus deux scénarios (lecture-rayle.js)
     await retenir(`question « ${question.slice(0, 60)} » sur ${e.nomActif} à ${f(e.prix)}${e.scenarios.liste.length ? ', scénarios ' + e.scenarios.liste.map(s => s.nom.split(' · ')[0] + ' ' + f(s.niveau)).join(' / ') : ''}`);
     afficherReponse(question, txt, source); return txt;
   }
@@ -125,6 +140,22 @@ export async function monterRayle(T, { stockage = null, maintenant = () => Date.
     return rep;
   }
 
+  /* ── « demander à Rayle » d'une section : la bulle s'ouvre, Rayle explique la section (jamais d'ordre) ── */
+  const offDem = T.on('demander', async id => { if (T.bulle) T.bulle(true); const q = QUESTIONS_SECTIONS[id] || 'Explique-moi cette section.'; E.attente = q; rendre(); const r = await repondre(q, 'section:' + id); E.attente = null; rendre(); const D = T.module('dessin'); if (D && D.E.regl.voix) parler(r); });
+  /* ── signaux (annonce forte à 30 min, prix qui approche la SMA 200, mouvement du COT) : notés dans la bulle, dits si la voix est activée ── */
+  function verifierSignaux() {
+    let e; try { e = etat(); } catch (x) { return; }
+    for (const sg of signaux(e, sections(), { maintenant: maintenant(), fmt: f, heure })) {
+      if (E.signauxDits.has(sg.id)) continue; E.signauxDits.add(sg.id); E.signaux.unshift({ ...sg, t: maintenant() }); E.signaux = E.signaux.slice(0, 8);
+      if (!(T.ongletOuvert && T.ongletOuvert() === 'rayle')) E.nonLus++;
+      const D = T.module('dessin'); if (D && D.E.regl.voix) parler(sg.texte);
+    }
+    majBadge(); rendre();
+  }
+  function majBadge() { const b = T.q && T.q('[data-bulle-n]'); if (!b) return; b.hidden = !E.nonLus; b.textContent = String(E.nonLus); }
+  const offOng = T.on('onglet', o => { if (o === 'rayle') { E.nonLus = 0; majBadge(); } });
+  const tSig = setInterval(() => { if (!document.hidden) verifierSignaux(); }, 20000); setTimeout(verifierSignaux, 4000);
+
   /* ── alertes parlées et annonces économiques à 15 minutes ── */
   const offAlerte = T.on('alerte', a => { const D = T.module('dessin'); if (!D || !D.E.regl.voix) return; if (!IMPORTANTS.includes(a.type) && a.type !== 'gardien') return; parler(a.phrase || a.texte); retenir('alerte : ' + a.texte); });
   const minut = setInterval(() => {
@@ -141,19 +172,20 @@ export async function monterRayle(T, { stockage = null, maintenant = () => Date.
     const x = E.dernierEchange, e = E.derniere;
     pR.innerHTML = `<div class="tr-rayle"><div>
       <form data-rq><input type="text" placeholder="Demande à Rayle : « comment tu le sens ? », « qu’est-ce qui se passe sur le carnet ? », « trace les scénarios », « propose-moi une position »" aria-label="Question à Rayle"><button class="tr-btn" type="submit">Envoyer</button><button class="tr-btn" type="button" data-ra="micro" title="Parler à Rayle">🎤</button></form>
-      ${x ? `<p class="tr-reponse"><b>${esc(x.q)}</b>\n${esc(x.rep)}</p><p class="tr-mini">Source : ${esc(x.source)}</p>` : '<p class="tr-doux">Rayle lit le terminal (prix, tendance, SMA 200, tes niveaux, zones, carnet, annonces, COT) et répond avec un ou deux scénarios. Elle ne passe jamais d’ordre.</p>'}
+      ${E.attente ? `<p class="tr-doux">Rayle lit : « ${esc(E.attente)} »…</p>` : x ? `<p class="tr-reponse"><b>${esc(x.q)}</b>\n${esc(x.rep)}</p><p class="tr-mini">Source : ${esc(x.source)}</p>` : '<p class="tr-doux">Rayle lit tout le terminal (graphique, carnet, positions, tableau multi-unités, santé, annonces, COT, rapports, journal) et explique, résume, oriente ou signale, avec au plus un ou deux scénarios. Elle ne passe jamais d’ordre.</p>'}
+      ${E.signaux.length ? `<h4 class="tr-sous">Signaux</h4><ul class="tr-signaux">${E.signaux.map(s => `<li>${esc(heure(s.t))} · ${esc(s.texte)}</li>`).join('')}</ul>` : ''}
       <p class="tr-mini">${esc(MENTION_LECTURE)}</p></div>
       <div><h4 class="tr-sous">Scénarios tracés</h4>${E.scen.length ? `<ul class="tr-liste">${E.scen.map(s => `<li>${esc(s.nom)} : ${fmt(s.actif, s.niveau)} → ${fmt(s.actif, s.cible)} (stop ${fmt(s.actif, s.stop)})</li>`).join('')}</ul><button class="tr-btn" data-ra="effacer">Effacer les scénarios de Rayle</button>` : '<p class="tr-doux">Aucun.</p>'}
       <h4 class="tr-sous">Mémoire du jour</h4>${E.memoire.m.length ? `<ul class="tr-liste">${E.memoire.m.slice(-8).reverse().map(m => `<li>${esc(m.quoi)}</li>`).join('')}</ul>` : '<p class="tr-doux">Rien encore aujourd’hui.</p>'}
-      ${e ? `<details><summary>Ce que Rayle voit</summary><pre class="tr-regles">${esc(texteContexte(e, { fmt: f, heure }))}</pre></details>` : ''}</div></div>`;
+      ${e ? `<details><summary>Ce que Rayle voit</summary><pre class="tr-regles">${esc(contexteComplet(e))}</pre></details>` : ''}</div></div>`;
   }
   pR.addEventListener('submit', async ev => { ev.preventDefault(); const i = pR.querySelector('[data-rq] input'), q = i.value.trim(); if (!q) return; i.value = ''; const r = await commande(q, { force: true }); if (r) parler(r); });
   pR.addEventListener('click', ev => { const a = ev.target.dataset.ra; if (a === 'effacer') effacerScenarios(); if (a === 'micro') { try { if (window.RayleBus) RayleBus.emit('raylé:ecouter', {}); const b = document.getElementById('miniReactor') || document.querySelector('.reactor'); if (b) b.click(); } catch (x) { /* */ } } });
-  const offAct = T.on('action', a => { if (a === 'rayle') T.ongletBas('rayle'); });
+  const offAct = T.on('action', a => { if (a === 'rayle' && !T.bulle) T.ongletBas('rayle'); });   // la bulle s'ouvre déjà d'elle-même
   rendre();
 
   return {
-    commande, etat, repondre, tracer, effacerScenarios, scenarios: () => E.scen, memoire: () => E.memoire.m, actions,
-    detruire() { E.detruit = true; clearInterval(minut); offAlerte(); offAct(); }
+    commande, etat, sections, signaux: () => E.signaux, verifierSignaux, repondre, tracer, effacerScenarios, scenarios: () => E.scen, memoire: () => E.memoire.m, actions,
+    detruire() { E.detruit = true; clearInterval(minut); clearInterval(tSig); offAlerte(); offAct(); offDem(); offOng(); }
   };
 }

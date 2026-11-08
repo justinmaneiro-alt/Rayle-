@@ -229,7 +229,7 @@ export async function monterDessin(T, { stockage = null, maintenant = () => Date
     // état « retourné » des objets de l'actif affiché (affichage seulement ; ne change pas l'objet)
     const et = (parActif.get(T.actif()) || {}).etats || {}; let ch = false; E.objets = E.objets.map(o => { const r = !!(et[o.id] && et[o.id].retourne); if (!!o.retourne !== r) { ch = true; return { ...o, retourne: r }; } return o; });
     if (ch) { E.hist.remplacer(E.objets); majBoutons(); }
-    G.redessiner(); if (T.ongletOuvert && T.ongletOuvert() === 'registre') rendreRegistre();
+    G.redessiner(); if (T.sectionVisible ? T.sectionVisible('registre') : (T.ongletOuvert && T.ongletOuvert() === 'registre')) rendreRegistre();
     T.emettre('surveillance', { resultats: parActif });
   }
   async function enregistrer(ev, now, ms, o) {
