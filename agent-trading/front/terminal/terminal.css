@@ -70,3 +70,4 @@
 .tr-tableau tr.nonlu td{ color:var(--tr-texte); font-weight:600 } .tr-tableau tr td{ color:#b7c6cf }
 .tr-outils button:disabled{ opacity:.35; cursor:default }
 details summary{ cursor:pointer; color:var(--tr-doux) }
+.tr-carte input[type=number],.tr-carte input[type=text]{ background:#0b141a; color:var(--tr-texte); border:1px solid var(--tr-bord); padding:2px 6px; font:12px var(--tr-mono) }

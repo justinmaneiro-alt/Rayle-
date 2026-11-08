@@ -121,7 +121,7 @@ export function intention(texte) {
   if (/propose.*(position|trade|entree)|prepare.*position/.test(t)) return { type: 'proposer' };
   if (/(zoom|zoome|rapproche|agrandis)/.test(t)) return { type: 'zoomer' };
   if (/(surligne|souligne|montre[- ]moi (le|la|les) (support|resistance|niveau|ma200|moyenne))/.test(t)) return { type: 'surligner' };
-  if (/(affiche|montre|active|ajoute|masque|cache|enleve|desactive|retire)\b.*(ma ?200|sma|moyenne|support|resistance|liquidit|zones?|volume|fleche|position|dessin|scenario)/.test(t)) return { type: 'couche', on: !/(masque|cache|enleve|desactive|retire)/.test(t) };
+  if (/(affiche|montre|active|ajoute|masque|cache|enleve|desactive|retire)\b.*(ma ?200|sma|moyenne|support|resistance|liquidit|zones?|volume|fleche|position|dessin|scenario|chaleur|heatmap|bookmap)/.test(t)) return { type: 'couche', on: !/(masque|cache|enleve|desactive|retire)/.test(t) };
   if (/(carnet|order ?book|murs?|gros paquets|ordres en attente)/.test(t)) return { type: 'question', sujet: 'carnet' };
   if (/(comment tu le sens|tu le sens comment|ou on en est|on en est ou|qu'est-ce qui se passe|que se passe|analyse|scenario|ton avis|lecture du marche|resume|point sur)/.test(t)) return { type: 'question', sujet: 'etat' };
   if (/(passe|mets|montre|affiche|va) .*(m5|m15|h1|h4|jour|journalier|minutes|heure)/.test(t) || /^(m5|m15|h1|h4|jour)$/.test(t.trim())) return { type: 'unite' };
