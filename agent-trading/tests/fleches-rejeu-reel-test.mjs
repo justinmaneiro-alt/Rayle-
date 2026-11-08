@@ -6,6 +6,7 @@ import { ecartMesure } from '../front/or/bougies-or.js';
 import { PERIODES } from '../front/or/config-or.js';
 import { fleches } from '../front/or/niveaux-periode.js';
 import { flechesH1v2, listesAvant } from '../front/or/fleches-h1-v2.js';
+import { flechesH1v3 } from '../front/or/fleches-h1-v3.js';
 const maintenant = Date.now(), H15 = await chargerHistorique('M15', { maintenant }), ecart = ecartMesure(H15.k, H15.vol).ecart;
 const cle = f => `${f.t}|${f.sens}|${f.niveau.toFixed(4)}|${f.type}`;
 let echecs = 0;
@@ -28,5 +29,10 @@ for (const [P, pas] of [['H4', 250], ['H1', 120], ['M15', 60]]) {
   // contrôle : le cache ne change rien (calcul sans cache sur la série complète)
   const sans = flechesH1v2(C, { maintenant, volumes: V }); if (sans.map(cle).join(';') !== tout.map(cle).join(';')) ecarts++;
   console.log(`${ecarts ? 'ÉCHEC' : 'OK  '} H1 v2 : ${pas} bougies rejouées une par une, ${tout.filter(f => f.i >= C.length - pas).length} flèche(s) posée(s) pendant le rejeu, ${ecarts} différence(s), ${tout.length} flèches v2 sur ${C.length} bougies (${((Date.now() - t0) / 1000).toFixed(0)} s)`);
-  if (ecarts) echecs++; }
+  if (ecarts) echecs++;
+  // version 3 : même rejeu
+  const t3 = Date.now(), tout3 = flechesH1v3(C, { maintenant, volumes: V, listes }); let e3 = 0;
+  for (let i = C.length - pas; i < C.length; i++) { const pref = C.slice(0, i + 1), F = flechesH1v3(pref, { maintenant: pref[i].t + ms, volumes: V, listes }); if (F.map(cle).join(';') !== tout3.filter(f => f.i <= i).map(cle).join(';')) e3++; }
+  console.log(`${e3 ? 'ÉCHEC' : 'OK  '} H1 v3 : ${pas} bougies rejouées une par une, ${tout3.filter(f => f.i >= C.length - pas).length} flèche(s) posée(s) pendant le rejeu, ${e3} différence(s), ${tout3.length} flèches v3 (${((Date.now() - t3) / 1000).toFixed(0)} s)`);
+  if (e3) echecs++; }
 process.exit(echecs ? 1 : 0);

@@ -132,8 +132,10 @@ export function creerGraphiqueOr(el, { surClicPrix, mobile = false } = {}) {
   let marqueurs = null;
   /* marques du graphique (dessinées par Lightweight Charts, à la bougie près) : flèches de rebond, zones de liquidité balayées, trades du journal */
   const tDe = t => etat.tSerie.get(t) ?? tempsGraphique(t);
+  const court = v => ({ 'fleches-v1': 'v1', 'fleches-h1-v2': 'v2', 'fleches-h1-v3': 'v3' }[v] || 'v1');
+  const plusieursVersions = () => new Set(etat.fleches.map(f => f.version || 'fleches-v1')).size > 1;
   const marquesLW = () => [
-    ...(etat.couches.fleches !== false ? etat.fleches.map(f => ({ id: 'f' + f.t, time: tDe(f.t), position: f.sens === 'baisse' ? 'aboveBar' : 'belowBar', color: f.sens === 'baisse' ? C.flecheBas : C.flecheHaut, shape: f.sens === 'baisse' ? 'arrowDown' : 'arrowUp', size: 0.6 })) : []),
+    ...(etat.couches.fleches !== false ? etat.fleches.map(f => ({ id: 'f' + f.t + (plusieursVersions() ? '-' + court(f.version) : ''), time: tDe(f.t), position: f.sens === 'baisse' ? 'aboveBar' : 'belowBar', color: f.sens === 'baisse' ? C.flecheBas : C.flecheHaut, shape: f.sens === 'baisse' ? 'arrowDown' : 'arrowUp', size: 0.6, ...(plusieursVersions() ? { text: court(f.version) } : {}) })) : []),
     ...(etat.couches.liquidite !== false ? etat.balayages.map(b => ({ id: 'b' + b.t + b.sorte, time: tDe(b.t), position: b.sorte === 'haute' ? 'aboveBar' : 'belowBar', color: 'rgba(195,155,224,.75)', shape: 'circle', size: 0.35 })) : []),
     ...marquesJournal()].filter(m => m.time != null).sort((a, b) => a.time - b.time);
   const marquesJournal = () => etat.marques.filter(m => m.t).map(m => ({ time: tDe(m.t), position: m.sens === 'achat' ? 'belowBar' : 'aboveBar', color: m.r == null ? '#cfd8dc' : m.r >= 0 ? C.haut : C.bas, shape: m.sens === 'achat' ? 'arrowUp' : 'arrowDown', text: m.texte || '' })).sort((a, b) => a.time - b.time);
@@ -198,7 +200,7 @@ export function creerGraphiqueOr(el, { surClicPrix, mobile = false } = {}) {
       if (!chart) return null; const t = chart.timeScale().coordinateToTime(x), b = t != null ? etat.barres.get(t) : null; if (!b) return null;
       const yH = yDe(b.h), yL = yDe(b.l), dessus = yH != null && y <= yH + 3 && y >= yH - 30, dessous = yL != null && y >= yL - 3 && y <= yL + 30;
       const f = etat.couches.fleches !== false && etat.fleches.find(q => q.t === b.t && (q.sens === 'baisse' ? dessus : dessous));
-      if (f) return { p: f.niveau, texte: `Rebond ${NOMS[f.type] || 'sur un niveau'} · flèche ${f.sens === 'baisse' ? 'rouge' : 'verte'}`, detail: [`niveau ${nb(f.niveau)} · ${f.touches} touche${f.touches >= 2 ? 's' : ''}`, `volume ${nb(f.volume, 0)} (médiane des 20 bougies précédentes : ${nb(f.mediane, 0)})`, `posée à la clôture de cette bougie, avec les seuls niveaux connus avant elle (jamais redessinée)`, 'information de lecture, jamais un ordre'] };
+      if (f) return { p: f.niveau, texte: `Rebond ${NOMS[f.type] || 'sur un niveau'} · flèche ${f.sens === 'baisse' ? 'rouge' : 'verte'}`, detail: [f.touches != null ? `niveau ${nb(f.niveau)} · ${f.touches} touche${f.touches >= 2 ? 's' : ''}` : `niveau ${nb(f.niveau)} · régime H1 ${f.regime || '—'}`, ...(f.version && f.version !== 'fleches-v1' || plusieursVersions() ? [`version ${f.version || 'fleches-v1'}`] : []), `volume ${nb(f.volume, 0)} (médiane des 20 bougies précédentes : ${nb(f.mediane, 0)})`, `posée à la clôture de cette bougie, avec les seuls niveaux connus avant elle (jamais redessinée)`, 'information de lecture, jamais un ordre'] };
       const z = etat.couches.liquidite !== false && etat.balayages.find(q => q.t === b.t && (q.sorte === 'haute' ? dessus : dessous));
       if (z) return { p: z.p, texte: `Liquidité ${z.sorte} ${nb(z.p, 0)} balayée`, detail: [`${z.raison} dépassé par cette bougie`] };
       return null;

@@ -12,7 +12,7 @@ import { wilson, holm, alea, phi } from './zones-or.js';
 
 export const ETIQUETTES = ['balayage', 'support de volume', 'MA200', 'cassure de range', 'retournement', 'flèche H1', 'autre', 'hors plan'];
 /* « flèche H1 » porte la version des règles de la flèche suivie (bilan séparé par version) */
-export const VERSIONS_FLECHE_H1 = ['fleches-h1-v2', 'fleches-v1'];
+export const VERSIONS_FLECHE_H1 = ['fleches-h1-v3', 'fleches-h1-v2', 'fleches-v1'];
 export const etiquetteComplete = t => t.etiquette === 'flèche H1' ? `flèche H1 · ${VERSIONS_FLECHE_H1.includes(t.versionFleche) ? t.versionFleche : 'version inconnue'}` : t.etiquette;
 export const ETIQUETTE_XTB = 'historique XTB, sans étiquette de setup';
 export const MIN_CATEGORIE = 20, MIN_GARDER = 30;
