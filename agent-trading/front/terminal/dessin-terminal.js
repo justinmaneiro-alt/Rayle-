@@ -185,7 +185,7 @@ export async function monterDessin(T, { stockage = null, maintenant = () => Date
       <label>M’alerter <span><input data-e="alerte" type="checkbox" ${o.alerte ? 'checked' : ''}> quand le prix l’atteint</span></label>
       <label>Alertes <span>${['approche', 'touche', 'rebond', 'cassure'].map(k => `<label style="display:inline-flex;gap:3px;margin-right:6px"><input type="checkbox" data-al="${k}" ${o.alertes[k] !== false ? 'checked' : ''}>${TEXTES[k]}</label>`).join('')}</span></label>` : ''}
       <div class="tr-ligne-btn"><button type="button" class="tr-btn" data-e-a="supprimer">Supprimer</button><button type="button" class="tr-btn" data-e-a="fermer">Fermer</button></div>`;
-    panneau.hidden = false; panneau.dataset.id = o.id;
+    panneau.hidden = false; panneau.dataset.id = o.id; delete panneau.dataset.pos;
   }
   panneau.addEventListener('change', e => {
     const o = E.objets.find(q => q.id === panneau.dataset.id); if (!o) return; const k = e.target.dataset.e, al = e.target.dataset.al; let ch = {};
