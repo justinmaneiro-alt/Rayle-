@@ -13,7 +13,8 @@ import { marcheOr, retard, heureLocale, dateParis } from './temps-or.js';
 import { niveauxPeriode, liquidite, fleches, bilanFleches } from './niveaux-periode.js';
 import { flechesH1v2, bilanH1, DEPUIS_H1_V2, indicesCandidats, listesAvant } from './fleches-h1-v2.js';
 import { CLE_REGISTRE, lireRegistre, ajouter, prefixeDe, flechesDu, VERSIONS } from './registre-fleches.js';
-import { flechesH1v3, bilansH1, NOM_VERSION } from './fleches-h1-v3.js';
+import { flechesH1v3 } from './fleches-h1-v3.js';
+import { flechesH1v4, listesDetail, bilans4, NOMS_4 } from './fleches-h1-v4.js';
 import { chargerHistorique, chargerPlusAncien, rafraichirVolume, serieAffichee } from './historique-or.js';
 
 const lireJ = (k, d) => { try { const v = globalThis.localStorage && localStorage.getItem(k); return v ? JSON.parse(v) : d; } catch (e) { return d; } };
@@ -79,14 +80,15 @@ export function creerMoteurOr({ fetchFn = (...a) => fetch(...a), horloge = () =>
     S.registreH1 = reg; return reg;
   }
   /* H1 : versions affichées (cases à cocher v1 / v2 / v3 ; v3 par défaut), mémorisées sur l'appareil */
-  let versionsH1 = (lireJ('rayle_or_fleches_h1_versions', null) || []).filter(v => VERSIONS.includes(v)); if (!versionsH1.length) versionsH1 = ['fleches-h1-v3'];
+  const DEFAUT_H1 = ['fleches-h1-v4'], CLE_CHOIX_H1 = 'rayle_or_fleches_h1_choix';   // v4 par défaut (nouvelle clé : l'ancien choix « v3 » ne la remplace pas)
+  let versionsH1 = (lireJ(CLE_CHOIX_H1, null) || []).filter(v => VERSIONS.includes(v)); if (!versionsH1.length) versionsH1 = DEFAUT_H1.slice();
   function composerH1() {
     if (!S.flechesH1 || S.periode !== 'H1') return;
     const sel = VERSIONS.filter(v => versionsH1.includes(v)), liste = sel.flatMap(v => S.flechesH1[v].map(f => ({ ...f, version: v }))).sort((x, y) => x.t - y.t || (x.version < y.version ? -1 : 1));
     S.fleches = { periode: 'H1', liste, version: sel[0], versions: sel };
     const B = S.bilansH1 || {};
-    S.bilanFleches = sel.length === 1 ? { ...B[sel[0]], titre: `Flèches H1 (version ${NOM_VERSION[sel[0]].slice(1)})` }
-      : { titre: 'Flèches H1 (comparaison)', parVersion: B, texte: sel.map(v => `${NOM_VERSION[v]} : ${B[v] ? B[v].texte : 'calcul en cours'}`).join(' | ') };
+    S.bilanFleches = sel.length === 1 ? { ...B[sel[0]], titre: `Flèches H1 (version ${NOMS_4[sel[0]].slice(1)})` }
+      : { titre: 'Flèches H1 (comparaison)', parVersion: B, texte: sel.map(v => `${NOMS_4[v]} : ${B[v] ? B[v].texte : 'calcul en cours'}`).join(' | ') };
   }
   function calculer() {
     const n = horloge(), m15c = S.refM15.filter(b => b.t + 15 * 60e3 <= n), h1c = S.refH1.filter(b => b.t + 3600e3 <= n), a = derniereValeur(S.atrH1);
@@ -132,15 +134,15 @@ export function creerMoteurOr({ fetchFn = (...a) => fetch(...a), horloge = () =>
         const cc = `${serie[0].t}|${Math.round((S.ecart || 0) * 10)}`; if (cacheListes.cle !== cc) cacheListes = { cle: cc, m: new Map() };
         const { C, indices } = indicesCandidats(serie, { maintenant: n, volumes: V }), manque = indices.filter(i => !cacheListes.m.has(C[i].t));
         for (let d = 0; d < manque.length; d += 40) {
-          for (const i of manque.slice(d, d + 40)) cacheListes.m.set(C[i].t, listesAvant(C, i));
+          for (const i of manque.slice(d, d + 40)) cacheListes.m.set(C[i].t, listesDetail(C, i));   // liste détaillée : v2 / v3 y lisent les mêmes bas, haut, type (vérifié par test)
           await new Promise(r => setTimeout(r, 0)); if (arrete || periode !== S.periode || cleFl !== cleLancee) return;
         }
-        const lst = (X, i) => cacheListes.m.get(X[i].t) || listesAvant(X, i);
-        const liste2 = garder('H1|v2', flechesH1v2(serie, { maintenant: n, volumes: V, listes: lst })), liste3 = garder('H1|v3', flechesH1v3(serie, { maintenant: n, volumes: V, listes: lst }));
-        const par = { 'fleches-v1': liste1, 'fleches-h1-v2': liste2, 'fleches-h1-v3': liste3 }, reg = enregistrerH1(par, horloge());
+        const lst = (X, i) => cacheListes.m.get(X[i].t) || listesDetail(X, i);
+        const liste2 = garder('H1|v2', flechesH1v2(serie, { maintenant: n, volumes: V, listes: lst })), liste3 = garder('H1|v3', flechesH1v3(serie, { maintenant: n, volumes: V, listes: lst })), liste4 = garder('H1|v4', flechesH1v4(serie, { maintenant: n, volumes: V, listes: lst }));
+        const par = { 'fleches-v1': liste1, 'fleches-h1-v2': liste2, 'fleches-h1-v3': liste3, 'fleches-h1-v4': liste4 }, reg = enregistrerH1(par, horloge());
         S.flechesH1 = par; // bilan : registre (ajout seul) ∪ flèches recalculées (causales, donc identiques) : v1 part du commit de sa règle, avant l'ouverture du registre
         const union = v => { const m = new Map(flechesDu(reg, v).map(f => [f.t + '|' + f.sens, f])); for (const f of par[v]) if (!m.has(f.t + '|' + f.sens)) m.set(f.t + '|' + f.sens, f); return [...m.values()]; };
-        S.bilansH1 = bilansH1(serie, Object.fromEntries(VERSIONS.map(v => [v, union(v)])), { maintenant: n, spread: spreadMesure() });
+        S.bilansH1 = bilans4(serie, Object.fromEntries(VERSIONS.map(v => [v, union(v)])), { maintenant: n, spread: spreadMesure() });
         composerH1(); surMaj(S);
       }, 0);
     }
@@ -189,7 +191,7 @@ export function creerMoteurOr({ fetchFn = (...a) => fetch(...a), horloge = () =>
       if (etudeAuto) setTimeout(etude, 3000);
       return S;
     },
-    versionsH1(sel) { if (sel) { const L = VERSIONS.filter(v => sel.includes(v)); versionsH1 = L.length ? L : ['fleches-h1-v3']; ecrireJ('rayle_or_fleches_h1_versions', versionsH1); composerH1(); surMaj(S); } return versionsH1.slice(); },
+    versionsH1(sel) { if (sel) { const L = VERSIONS.filter(v => sel.includes(v)); versionsH1 = L.length ? L : DEFAUT_H1.slice(); ecrireJ(CLE_CHOIX_H1, versionsH1); composerH1(); surMaj(S); } return versionsH1.slice(); },
     async periode(p) { if (!PERIODES[p] || p === S.periode) return; S.periode = p; ecrireJ('rayle_or_periode', p); S.k = []; S.hist = null; await chargerPeriode(); calculer(); surMaj(S); },
     /* transactions du WebSocket Kraken (carnet) : prix en direct et bougie en cours */
     transactions(L) {

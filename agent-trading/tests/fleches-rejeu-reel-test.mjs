@@ -7,6 +7,7 @@ import { PERIODES } from '../front/or/config-or.js';
 import { fleches } from '../front/or/niveaux-periode.js';
 import { flechesH1v2, listesAvant } from '../front/or/fleches-h1-v2.js';
 import { flechesH1v3 } from '../front/or/fleches-h1-v3.js';
+import { flechesH1v4, listesDetail } from '../front/or/fleches-h1-v4.js';
 const maintenant = Date.now(), H15 = await chargerHistorique('M15', { maintenant }), ecart = ecartMesure(H15.k, H15.vol).ecart;
 const cle = f => `${f.t}|${f.sens}|${f.niveau.toFixed(4)}|${f.type}`;
 let echecs = 0;
@@ -34,5 +35,11 @@ for (const [P, pas] of [['H4', 250], ['H1', 120], ['M15', 60]]) {
   const t3 = Date.now(), tout3 = flechesH1v3(C, { maintenant, volumes: V, listes }); let e3 = 0;
   for (let i = C.length - pas; i < C.length; i++) { const pref = C.slice(0, i + 1), F = flechesH1v3(pref, { maintenant: pref[i].t + ms, volumes: V, listes }); if (F.map(cle).join(';') !== tout3.filter(f => f.i <= i).map(cle).join(';')) e3++; }
   console.log(`${e3 ? 'ÉCHEC' : 'OK  '} H1 v3 : ${pas} bougies rejouées une par une, ${tout3.filter(f => f.i >= C.length - pas).length} flèche(s) posée(s) pendant le rejeu, ${e3} différence(s), ${tout3.length} flèches v3 (${((Date.now() - t3) / 1000).toFixed(0)} s)`);
-  if (e3) echecs++; }
+  if (e3) echecs++;
+  // version 4 (liste détaillée, mise en cache) : même rejeu
+  const memoD = new Map(), lD = (X, i) => { const k = X[i].t; if (!memoD.has(k)) memoD.set(k, listesDetail(X, i)); return memoD.get(k); };
+  const t4 = Date.now(), tout4 = flechesH1v4(C, { maintenant, volumes: V, listes: lD }); let e4 = 0;
+  for (let i = C.length - pas; i < C.length; i++) { const pref = C.slice(0, i + 1), F = flechesH1v4(pref, { maintenant: pref[i].t + ms, volumes: V, listes: lD }); if (F.map(cle).join(';') !== tout4.filter(f => f.i <= i).map(cle).join(';')) e4++; }
+  console.log(`${e4 ? 'ÉCHEC' : 'OK  '} H1 v4 : ${pas} bougies rejouées une par une, ${tout4.filter(f => f.i >= C.length - pas).length} flèche(s) posée(s) pendant le rejeu, ${e4} différence(s), ${tout4.length} flèches v4 (${((Date.now() - t4) / 1000).toFixed(0)} s)`);
+  if (e4) echecs++; }
 process.exit(echecs ? 1 : 0);
