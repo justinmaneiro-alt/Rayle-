@@ -196,9 +196,9 @@ export function creerEspace({ conteneur, client, tactile = false, depart = {}, s
   const bLiq = h('button', 'tg-btn tg-liq', '💧 Carte de liquidité'); bLiq.type = 'button'; bLiq.title = 'Ouvrir la carte de liquidité (carnet d’ordres de Kraken et Binance)';
   bLiq.onclick = () => import('../liquidite/fenetre-liquidite.js').then(m => m.ouvrirCarte({ actif: ACT_LIQ[etat.instrument] || undefined })).catch(() => { /* indisponible */ });
   // Agent de trading (module isolé agent-trading/ : s'il est supprimé, le bouton disparaît)
-  const bAgentTrading = h('button', 'tg-btn tg-agent-trading', '◈ Agent de trading'); bAgentTrading.type = 'button'; bAgentTrading.title = 'Agent de trading SIMULÉ (aucun ordre réel)';
-  const URL_AGENT_TRADING = '../../../../agent-trading/front/fenetre-agent.js';
-  bAgentTrading.onclick = () => import(URL_AGENT_TRADING).then(m => m.ouvrirFenetre()).catch(() => { bAgentTrading.remove(); });
+  // 2026-11-08 : « ◈ Agent de trading » remplacé par l'ouverture du terminal de trading de Rayle (ancien bouton : idees/agent-tuile/)
+  const bAgentTrading = h('button', 'tg-btn tg-agent-trading', '◈ Terminal Rayle'); bAgentTrading.type = 'button'; bAgentTrading.title = 'Terminal de trading de Rayle (lecture et simulation, aucun ordre réel)';
+  bAgentTrading.onclick = () => { try { RayleBus.demander('vue:ouvrir', 'terminal'); } catch (e) { bAgentTrading.remove(); } };
   // Musique et Télé : tuiles indépendantes de Rayle (core/commun/media-pont.js), absentes si le module n'est pas là
   const bMedia = (quoi, texte) => { const b = h('button', 'tg-btn tg-' + quoi, texte); b.type = 'button'; b.title = quoi === 'musique' ? 'Musique (fenêtre indépendante)' : 'Télé : mode télé et télécommande'; b.onclick = () => window.RayleMedia ? window.RayleMedia.ouvrir(quoi) : b.remove(); return b; };
   const bMusique = bMedia('musique', '♪ Musique'), bTele = bMedia('tele', '📺 Télé');

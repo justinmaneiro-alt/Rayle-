@@ -1,0 +1,66 @@
+/* ═════════════ TERMINAL DE RAYLÉ : thème Jarvis sobre (fond noir, un accent cyan froid, sable discret ; rouge / vert pour les données seulement) ═════════════ */
+.tr{ --tr-fond:#05080c; --tr-verre:rgba(10,18,24,.86); --tr-bord:rgba(143,208,227,.14); --tr-bord-fort:rgba(143,208,227,.32); --tr-cyan:#8fd0e3; --tr-sable:#c9b27a; --tr-texte:#d7e3ea; --tr-doux:#8296a2; --tr-haut:#4fd18b; --tr-bas:#ef6a5f; --tr-mono:'Cascadia Mono','Consolas','SF Mono',ui-monospace,monospace;
+  --tr-bas-h:260px; --tr-carnet-l:320px; --tr-outils-l:44px;
+  position:relative; height:100%; min-height:520px; display:grid; background:var(--tr-fond); color:var(--tr-texte); font:13px/1.4 'Segoe UI',system-ui,sans-serif;
+  grid-template-columns:var(--tr-outils-l) minmax(0,1fr) var(--tr-carnet-l); grid-template-rows:46px minmax(0,1fr) var(--tr-bas-h);
+  grid-template-areas:"haut haut haut" "outils centre carnet" "bas bas bas"; overflow:hidden }
+.tr *{ box-sizing:border-box }
+.tr button{ font:inherit; color:inherit; cursor:pointer }
+.tr .sr{ position:absolute; width:1px; height:1px; overflow:hidden; clip:rect(0 0 0 0) }
+.tr-haut-barre{ grid-area:haut; display:flex; align-items:center; gap:10px; padding:0 10px; border-bottom:1px solid var(--tr-bord); background:linear-gradient(180deg,rgba(143,208,227,.05),transparent) }
+.tr-marque{ font:600 12px/1 'Segoe UI',system-ui; letter-spacing:.22em; color:var(--tr-cyan); white-space:nowrap } .tr-marque span{ color:var(--tr-sable); margin:0 .2em }
+.tr-actif-sel select{ background:#0b141a; color:var(--tr-texte); border:1px solid var(--tr-bord-fort); padding:5px 8px; font:600 13px 'Segoe UI',system-ui; clip-path:polygon(6px 0,100% 0,100% calc(100% - 6px),calc(100% - 6px) 100%,0 100%,0 6px) }
+.tr-prix{ display:flex; align-items:baseline; gap:8px; min-width:150px } .tr-prix b{ font:600 15px var(--tr-mono) } .tr-prix small{ font:12px var(--tr-mono) }
+.tr-up{ color:var(--tr-haut) } .tr-down{ color:var(--tr-bas) }
+.tr-unites{ display:flex; border:1px solid var(--tr-bord) } .tr-unites button{ background:none; border:0; border-right:1px solid var(--tr-bord); padding:5px 10px; color:var(--tr-doux) } .tr-unites button:last-child{ border-right:0 }
+.tr-unites button.actif,.tr-unites button:hover{ color:var(--tr-cyan); background:rgba(143,208,227,.08) }
+.tr-menus{ display:flex; gap:6px; align-items:center } .tr-menu{ position:relative }
+.tr-menus button,.tr-btn{ background:rgba(143,208,227,.04); border:1px solid var(--tr-bord); padding:5px 10px; color:var(--tr-texte) }
+.tr-menus button:hover,.tr-btn:hover{ border-color:var(--tr-bord-fort); color:var(--tr-cyan) }
+.tr-deroule{ position:absolute; top:calc(100% + 6px); left:0; z-index:40; min-width:290px; max-height:70vh; overflow:auto; padding:8px 12px 10px; background:var(--tr-verre); backdrop-filter:blur(10px); border:1px solid var(--tr-bord-fort); clip-path:polygon(0 0,calc(100% - 10px) 0,100% 10px,100% 100%,0 100%) }
+.tr-deroule h4{ margin:8px 0 4px; font:600 11px 'Segoe UI'; letter-spacing:.12em; text-transform:uppercase; color:var(--tr-sable) }
+.tr-deroule label{ display:flex; gap:8px; align-items:center; padding:3px 0; cursor:pointer } .tr-deroule input{ accent-color:#8fd0e3 }
+.tr-cloche{ position:relative } .tr-cloche i{ position:absolute; top:-6px; right:-6px; min-width:16px; height:16px; padding:0 4px; font:600 10px/16px var(--tr-mono); font-style:normal; color:#05080c; background:var(--tr-cyan); border-radius:8px }
+.tr-source{ font:11px var(--tr-mono); color:var(--tr-doux); white-space:nowrap } .tr-source.secours{ color:var(--tr-sable) }
+.tr-espace{ flex:1 }
+.tr-outils{ grid-area:outils; display:flex; flex-direction:column; gap:2px; padding:6px 4px; border-right:1px solid var(--tr-bord); overflow-y:auto }
+.tr-cat{ display:flex; flex-direction:column; gap:2px; padding-bottom:5px; margin-bottom:3px; border-bottom:1px solid rgba(143,208,227,.07) } .tr-cat-bas{ margin-top:auto; border-bottom:0 }
+.tr-outils button{ width:34px; height:32px; background:none; border:1px solid transparent; color:var(--tr-doux); font:15px/1 var(--tr-mono) }
+.tr-outils button:hover{ color:var(--tr-texte); border-color:var(--tr-bord) } .tr-outils button.actif{ color:var(--tr-cyan); border-color:var(--tr-bord-fort); background:rgba(143,208,227,.07) }
+.tr-centre{ grid-area:centre; position:relative; min-width:0; min-height:0 }
+.tr-graph{ position:absolute; inset:0 0 18px 0 } .tr-graph[data-outil-actif]{ cursor:crosshair }
+.tr-graph-info{ position:absolute; left:8px; right:8px; bottom:2px; height:16px; font:11px var(--tr-mono); color:var(--tr-doux); white-space:nowrap; overflow:hidden; text-overflow:ellipsis }
+.tr-bandeau{ position:absolute; left:50%; top:10px; transform:translateX(-50%); z-index:30; max-width:80%; padding:6px 14px; background:var(--tr-verre); border:1px solid var(--tr-bord-fort); color:var(--tr-texte) }
+.tr-edition{ position:absolute; z-index:35; top:10px; left:10px; width:280px; padding:10px 12px; background:var(--tr-verre); backdrop-filter:blur(10px); border:1px solid var(--tr-bord-fort); clip-path:polygon(0 0,calc(100% - 10px) 0,100% 10px,100% 100%,0 100%) }
+.tr-edition h4{ margin:0 0 8px; font:600 12px 'Segoe UI'; color:var(--tr-cyan); letter-spacing:.06em }
+.tr-edition label{ display:grid; grid-template-columns:96px 1fr; gap:6px; align-items:center; margin:4px 0 } .tr-edition input,.tr-edition select{ background:#0b141a; color:var(--tr-texte); border:1px solid var(--tr-bord); padding:3px 6px; font:12px var(--tr-mono); width:100% }
+.tr-edition input[type=checkbox]{ width:auto } .tr-edition .tr-ligne-btn{ display:flex; gap:6px; flex-wrap:wrap; margin-top:8px }
+.tr-carnet{ grid-area:carnet; min-width:0; min-height:0; border-left:1px solid var(--tr-bord); display:flex; flex-direction:column; overflow:hidden; background:#04070a }
+.tr-carnet .at-cn-defil{ flex:1; min-height:0 } .tr-carnet .at-cn-gros{ max-height:28% ; overflow:auto }
+.tr-bas{ grid-area:bas; display:flex; flex-direction:column; border-top:1px solid var(--tr-bord); min-height:0; background:#04070a }
+.tr-bas-onglets{ display:flex; align-items:center; gap:2px; height:33px; padding:0 8px; border-bottom:1px solid var(--tr-bord) }
+.tr-bas-onglets button{ background:none; border:0; border-bottom:2px solid transparent; padding:6px 10px; color:var(--tr-doux) } .tr-bas-onglets button.actif{ color:var(--tr-cyan); border-bottom-color:var(--tr-cyan) }
+.tr-mention{ font:11px 'Segoe UI'; color:var(--tr-sable); opacity:.8; margin-right:8px }
+.tr-bas-corps{ flex:1; min-height:0; overflow:auto; padding:10px 12px } .tr-bas.replie .tr-bas-corps{ display:none }
+.tr-dash{ display:grid; grid-template-columns:repeat(auto-fill,minmax(270px,1fr)); gap:10px }
+.tr-carte{ padding:8px 10px; border:1px solid var(--tr-bord); background:rgba(143,208,227,.025); min-width:0 } .tr-carte.tr-large{ grid-column:span 2 }
+.tr-carte h3{ margin:0 0 6px; font:600 11px 'Segoe UI'; letter-spacing:.14em; text-transform:uppercase; color:var(--tr-cyan) } .tr-carte h3 small{ text-transform:none; letter-spacing:0; color:var(--tr-doux); font-weight:400; margin-left:6px }
+.tr-carte p{ margin:4px 0 }
+.tr-doux{ color:var(--tr-doux) } .tr-mini{ font-size:11px; color:var(--tr-doux); opacity:.85 } .tr-mono{ font-family:var(--tr-mono) }
+.tr-tab{ width:100%; border-collapse:collapse; font-size:12px } .tr-tab th,.tr-tab td{ text-align:right; padding:2px 4px; border-bottom:1px solid rgba(143,208,227,.06) } .tr-tab th:first-child,.tr-tab td:first-child{ text-align:left }
+.tr-tab th{ color:var(--tr-doux); font-weight:400 } .tr-cot tr{ cursor:pointer } .tr-cot tr.actif td:first-child{ color:var(--tr-cyan) } .tr-cot tr:hover{ background:rgba(143,208,227,.05) }
+.tr-liste{ margin:0; padding:0; list-style:none } .tr-liste li{ padding:3px 0; border-bottom:1px solid rgba(143,208,227,.05) } .tr-liste li.passe{ opacity:.5 }
+.tr-liste time{ font:11px var(--tr-mono); color:var(--tr-doux); margin-right:4px } .tr-liste small{ color:var(--tr-doux); margin-left:4px } .tr-liste a{ color:var(--tr-texte); text-decoration:none } .tr-liste a:hover{ color:var(--tr-cyan) }
+.imp-fort{ color:var(--tr-bas) } .imp-moyen{ color:var(--tr-sable) }
+.tr-alerte-douce{ padding:4px 8px; border-left:2px solid var(--tr-sable); background:rgba(201,178,122,.06) }
+.tr-barres{ display:flex; align-items:center; gap:2px; height:44px; margin:6px 0 } .tr-barres i{ flex:1; min-height:1px; background:rgba(79,209,139,.5) } .tr-barres i.b{ background:rgba(239,106,95,.5) }
+.tr-dl{ display:grid; grid-template-columns:auto 1fr; gap:3px 10px; margin:0 } .tr-dl dt{ color:var(--tr-doux) } .tr-dl dd{ margin:0 } .tr-dl small{ color:var(--tr-doux); margin-left:4px }
+.tr-tableau{ width:100%; border-collapse:collapse; font-size:12px } .tr-tableau th{ text-align:left; color:var(--tr-doux); font-weight:400; padding:3px 6px; border-bottom:1px solid var(--tr-bord) } .tr-tableau td{ padding:3px 6px; border-bottom:1px solid rgba(143,208,227,.05) }
+.tr-filtres{ display:flex; gap:8px; flex-wrap:wrap; align-items:center; margin-bottom:8px } .tr-filtres select,.tr-filtres input{ background:#0b141a; color:var(--tr-texte); border:1px solid var(--tr-bord); padding:3px 6px; font:12px 'Segoe UI' }
+.tr-pastille{ display:inline-block; padding:0 6px; border:1px solid var(--tr-bord); font-size:11px; color:var(--tr-doux) } .tr-pastille.ok{ color:var(--tr-haut); border-color:rgba(79,209,139,.4) } .tr-pastille.ko{ color:var(--tr-bas); border-color:rgba(239,106,95,.4) } .tr-pastille.at{ color:var(--tr-sable); border-color:rgba(201,178,122,.4) }
+.tr-gardien{ display:flex; gap:14px; align-items:center; flex-wrap:wrap; padding:6px 10px; margin-bottom:8px; border:1px solid var(--tr-bord) } .tr-gardien.alerte{ border-color:rgba(201,178,122,.6) } .tr-gardien.danger{ border-color:rgba(239,106,95,.7); background:rgba(239,106,95,.06) }
+.tr-rayle{ display:grid; grid-template-columns:minmax(0,1fr) 320px; gap:12px } .tr-rayle form{ display:flex; gap:6px } .tr-rayle input[type=text]{ flex:1; background:#0b141a; color:var(--tr-texte); border:1px solid var(--tr-bord-fort); padding:6px 8px; font:13px 'Segoe UI' }
+.tr-reponse{ white-space:pre-wrap; margin-top:8px; padding:8px 10px; border-left:2px solid var(--tr-cyan); background:rgba(143,208,227,.04) }
+.tr-proposition{ margin-top:8px; padding:8px 10px; border:1px dashed var(--tr-bord-fort) }
+@media (max-width:1100px){ .tr{ --tr-carnet-l:250px } .tr-mention{ display:none } }
+@media (max-width:820px){ .tr{ grid-template-columns:40px minmax(0,1fr); grid-template-rows:auto minmax(320px,1fr) 300px var(--tr-bas-h); grid-template-areas:"haut haut" "outils centre" "carnet carnet" "bas bas"; height:auto; overflow:auto } .tr-haut-barre{ flex-wrap:wrap; padding:6px 8px } .tr-carnet{ border-left:0; border-top:1px solid var(--tr-bord) } .tr-carte.tr-large{ grid-column:auto } .tr-rayle{ grid-template-columns:1fr } }

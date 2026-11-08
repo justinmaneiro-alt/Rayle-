@@ -86,7 +86,8 @@ export function creerPiles({ parent, centreTable, ouvrirDossier = () => {}, ouvr
     return { plan, pivot, ctx, tex, survol: false, module: null, cnx: null, sig: '' };
   })();
   const URL_AGENT = new URL('../../../agent-trading/front/', import.meta.url).href;
-  Promise.all([import(URL_AGENT + 'fenetre-agent.js'), import(URL_AGENT + 'connexion.js'), import(URL_AGENT + '../commun/format.js')]).then(([fen, cx, fmt]) => {
+  // 2026-11-08 : le 6e dossier « Agent de trading » est retiré (copie : idees/agent-tuile/) ; il reste caché
+  if (false) Promise.all([import(URL_AGENT + 'fenetre-agent.js'), import(URL_AGENT + 'connexion.js'), import(URL_AGENT + '../commun/format.js')]).then(([fen, cx, fmt]) => {
     agent.module = fen; agent.fmt = fmt; pivot0();
     if (!connexionAgent) connexionAgent = cx.creerConnexion();   // une seule connexion par page, même JSON que la fenêtre
     agent.cnx = connexionAgent;
