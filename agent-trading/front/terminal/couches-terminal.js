@@ -9,6 +9,7 @@ export const COUCHES = Object.freeze([
   { id: 'sr', nom: 'Supports et résistances automatiques', groupe: 'Niveaux', defaut: false },
   { id: 'liquidite', nom: 'Liquidités (plus hauts / bas non balayés)', groupe: 'Niveaux', defaut: false },
   { id: 'zonesVol', nom: 'Zones de réaction (profil de volume)', groupe: 'Niveaux', defaut: false },
+  { id: 'chaleur', nom: 'Carte de chaleur du carnet (enregistrée depuis l’activation)', groupe: 'Carnet', defaut: false },
   { id: 'fleches', nom: 'Flèches et croix de mes outils', groupe: 'Mes outils', defaut: true },
   { id: 'outils', nom: 'Mes dessins', groupe: 'Mes outils', defaut: true },
   { id: 'positions', nom: 'Mes positions', groupe: 'Mes outils', defaut: true },
@@ -35,6 +36,7 @@ export function coucheDepuisTexte(texte) {
   if (/support|resistance|niveaux auto/.test(t)) return 'sr';
   if (/liquidit/.test(t)) return 'liquidite';
   if (/zones? de (volume|reaction)|profil de volume|volume profile/.test(t)) return 'zonesVol';
+  if (/chaleur|heatmap|bookmap/.test(t)) return 'chaleur';
   if (/fleche|croix/.test(t)) return 'fleches';
   if (/scenario/.test(t)) return 'scenarios';
   if (/position/.test(t)) return 'positions';
