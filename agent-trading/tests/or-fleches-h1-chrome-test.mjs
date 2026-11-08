@@ -16,7 +16,7 @@ const w = ms => new Promise(r => setTimeout(r, ms));
 const TOUS = ['fleches-h1-v2', 'fleches-h1-v7', 'fleches-h1-v8', 'fleches-h1-v9'];
 const p = await nav.newPage(); await p.setViewport({ width: 1600, height: 900, deviceScaleFactor: 1 });
 p.on('pageerror', e => erreurs.push(e.message));
-await p.evaluateOnNewDocument(() => { localStorage.setItem('rayle_or_periode', JSON.stringify('M15')); localStorage.removeItem('rayle_or_registre_fleches_h1'); localStorage.removeItem('rayle_or_fleches_h1_choix_v9'); localStorage.setItem('rayle_or_fleches_h1_choix_v8', JSON.stringify(['fleches-h1-v7'])); });
+await p.evaluateOnNewDocument(() => { localStorage.setItem('rayle_or_periode', JSON.stringify('M15')); localStorage.setItem('rayle_or_outils_regl', JSON.stringify({ niveauxAuto: true, anciennesFleches: true })); localStorage.removeItem('rayle_or_registre_fleches_h1'); localStorage.removeItem('rayle_or_fleches_h1_choix_v9'); localStorage.setItem('rayle_or_fleches_h1_choix_v8', JSON.stringify(['fleches-h1-v7'])); });
 await p.goto(BASE + '/agent-trading/front/or.html', { waitUntil: 'domcontentloaded' });
 await p.waitForFunction(() => window.__or && window.__or.moteur.S.hist && window.__or.graph.serie() && window.__or.graph.serie().data().length > 100, { timeout: 60000 }); await w(1500);
 

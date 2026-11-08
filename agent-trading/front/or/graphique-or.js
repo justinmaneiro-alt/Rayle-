@@ -6,6 +6,7 @@
 import { chargerLib } from '../graphique.js';
 import { espacerEtiquettes } from '../etiquettes-calcul.js';
 import { tempsGraphique, tempsMonotones } from './temps-or.js';
+import { libelle, libellePosition, aimanter, NOMS as NOMS_OUTILS } from './outils-calcul.js';
 
 export const COUCHES = Object.freeze({ sr: 'Supports et résistances', liquidite: 'Zones de liquidité', fleches: 'Flèches de rebond', volume: 'Zones de volume' });
 const COUCHES_DEFAUT = Object.freeze({ sr: true, liquidite: true, fleches: true, volume: false });
@@ -29,8 +30,9 @@ export function ratio(pos) {
 }
 
 export function creerGraphiqueOr(el, { surClicPrix, mobile = false } = {}) {
-  const etat = { bougies: [], volumes: [], cle: null, debutKraken: null, ecart: null, chargementAncien: false, zonesVol: [], niveaux: [], retournement: [], bandes: [], liquidite: [], balayages: [], fleches: [], segments: [], segCadres: [], a: null, cadres: [], marques: [], tSerie: new Map(), barres: new Map(), couches: { ...COUCHES_DEFAUT, ...lire('rayle_or_couches_v2', {}) }, pos: lire('rayle_or_position', null), outil: null, prix: null };
-  let LW = null, chart = null, serie = null, vol = null, pret = null;
+  const etat = { bougies: [], volumes: [], cle: null, debutKraken: null, ecart: null, chargementAncien: false, zonesVol: [], niveaux: [], retournement: [], bandes: [], liquidite: [], balayages: [], fleches: [], segments: [], segCadres: [], a: null, cadres: [], marques: [], tSerie: new Map(), barres: new Map(), couches: { ...COUCHES_DEFAUT, ...lire('rayle_or_couches_v2', {}) }, pos: lire('rayle_or_position', null), outil: null, prix: null,
+    outils: { objets: [], proposes: [], croix: [], fleches10: [], selection: null }, modeOutil: null, brouillon: [], aimant: true, outilsCadres: [] };
+  let LW = null, chart = null, serie = null, vol = null, pret = null, maSerie = null;
   const C = { liquidite: '#c39be0', flecheHaut: '#4fd18b', flecheBas: '#ef5f5f', refHaut: 'rgba(160,170,150,.55)', refBas: 'rgba(170,140,140,.55)', bande: 'rgba(201,178,122,.07)', sable: '#c9b27a', haut: '#5fb894', bas: '#d86a6a', volZone: '143,136,204', support: '#86c3e8', resistance: '#e2ae62', retour: '#e8e2cf', texte: '#cfd8dc', doux: '#7d8a90', fond: 'rgba(8,12,16,.86)' };
   const yDe = p => serie ? serie.priceToCoordinate(p) : null;
 
@@ -110,17 +112,60 @@ export function creerGraphiqueOr(el, { surClicPrix, mobile = false } = {}) {
       etat.cadres.push({ x, y: y0, w, h, g: e.g });
     }
     ctx.font = `${fs}px system-ui, 'Segoe UI', sans-serif`;
-    // outil Position
-    const r = ratio(etat.pos);
-    if (etat.pos && etat.pos.entree) {
-      const yE = yDe(etat.pos.entree), yS = etat.pos.stop ? yDe(etat.pos.stop) : null, yO = etat.pos.objectif ? yDe(etat.pos.objectif) : null, x0 = T.width * 0.55, x1 = T.width - 70;
-      if (yE != null && yO != null) { ctx.fillStyle = 'rgba(95,184,148,.16)'; ctx.fillRect(x0, Math.min(yE, yO), x1 - x0, Math.abs(yO - yE)); }
-      if (yE != null && yS != null) { ctx.fillStyle = 'rgba(216,106,106,.16)'; ctx.fillRect(x0, Math.min(yE, yS), x1 - x0, Math.abs(yS - yE)); }
-      for (const [y, col, t] of [[yE, C.texte, 'Entrée'], [yS, C.bas, 'Stop'], [yO, C.haut, 'Objectif']]) if (y != null) { ctx.strokeStyle = col; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.moveTo(x0, y); ctx.lineTo(x1, y); ctx.stroke(); ctx.fillStyle = col; ctx.fillText(t, x0 + 4, y - 4); }
-      if (r && yE != null) { const t = `${r.sens === 'achat' ? 'Achat' : 'Vente'} · gain/risque ${nb(r.rr, 1)}${r.coherent ? '' : ' (objectif du mauvais côté)'}`; ctx.fillStyle = C.fond; const w = ctx.measureText(t).width + 10; ctx.fillRect(x0, yE + 4, w, fs + 6); ctx.fillStyle = r.coherent ? C.texte : C.bas; ctx.fillText(t, x0 + 5, yE + fs + 5); }
-    }
+    // (l'ancien outil Position en blocs de couleur est remplacé par l'outil Position en lignes : couche des outils ci-dessous)
   });
 
+  /* temps ↔ abscisse pour n'importe quel instant (ancres valables sur toutes les unités) : index logique des bougies affichées */
+  const perBougie = () => { const B = etat.bougies; return B.length > 1 ? B[B.length - 1].t - B[B.length - 2].t : 3600e3; };
+  const kDeT = t => { const B = etat.bougies; let lo = 0, hi = B.length; while (lo < hi) { const m = (lo + hi) >> 1; if (B[m].t <= t) lo = m + 1; else hi = m; } return lo - 1; };
+  function xDeT(t) { const B = etat.bougies; if (!chart || !B.length || t == null) return null; const k = kDeT(t), per = perBougie();
+    const lg = k < 0 ? -(B[0].t - t) / per : k >= B.length - 1 ? B.length - 1 + (t - B[B.length - 1].t) / per : k + (t - B[k].t) / ((B[k + 1].t - B[k].t) || per);
+    return chart.timeScale().logicalToCoordinate(lg); }
+  function tDeX(x) { const B = etat.bougies; if (!chart || !B.length) return null; const lg = chart.timeScale().coordinateToLogical(x); if (lg == null) return null; const per = perBougie(), k = Math.floor(lg);
+    if (k >= B.length - 1) return Math.round(B[B.length - 1].t + (lg - (B.length - 1)) * per); if (k < 0) return Math.round(B[0].t + lg * per); return Math.round(B[k].t + (lg - k) * (B[k + 1].t - B[k].t)); }
+  const bougieA = x => { const B = etat.bougies; if (!chart || !B.length) return null; const lg = chart.timeScale().coordinateToLogical(x); if (lg == null) return null; const k = Math.round(lg); return k >= 0 && k < B.length ? B[k] : null; };
+  const tBougie = t => { const k = kDeT(t); return k >= 0 ? etat.bougies[k].t : null; };
+  const COUL_PROP = 'rgba(201,178,122,.55)', COUL_CROIX = '#e2ae62';
+  const primOutils = new Primitive((ctx, T) => {
+    if (!serie || !chart) return; const O = etat.outils, fs = mobile ? 10 : 11; etat.outilsCadres = [];
+    const trait = (x0, y0, x1, y1, col, w, dash = [], alpha = 1) => { ctx.strokeStyle = col; ctx.lineWidth = w; ctx.globalAlpha = alpha; ctx.setLineDash(dash); ctx.beginPath(); ctx.moveTo(x0, y0); ctx.lineTo(x1, y1); ctx.stroke(); ctx.setLineDash([]); ctx.globalAlpha = 1; };
+    const texte = (t, x, y, col, alpha = 0.95) => { ctx.font = `${fs}px system-ui, 'Segoe UI', sans-serif`; ctx.globalAlpha = alpha; ctx.fillStyle = col; ctx.fillText(t, x, y); ctx.globalAlpha = 1; };
+    const poignee = (x, y, col) => { ctx.fillStyle = '#0b1117'; ctx.strokeStyle = col; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.arc(x, y, 3.5, 0, 6.3); ctx.fill(); ctx.stroke(); };
+    const hy = y => Math.round(y) + 0.5;
+    for (const pr of O.proposes) { const y = yDe(pr.p); if (y == null || y < 0 || y > T.height) continue;
+      trait(0, hy(y), T.width, hy(y), COUL_PROP, 1, [3, 4], 0.7); texte(`proposé ${pr.unite === 'J' ? 'Jour' : pr.unite} ${nb(pr.p, 0)}`, 4, y - 3, C.sable, 0.75); etat.outilsCadres.push({ sorte: 'propose', y, pr }); }
+    for (const o of O.objets) {
+      const sel = O.selection === o.id, col = o.couleur || C.texte, w = (o.epaisseur || 1) + (sel ? 0.5 : 0), lab = libelle(o) + (o.alerte ? ' · alerte' : '') + (o.retourne ? '' : '');
+      if (o.type === 'horizontale') { const y = yDe(o.p); if (y == null || y < -2 || y > T.height + 2) continue; trait(0, hy(y), T.width, hy(y), col, w); texte(lab, 4, y - 3, col); if (sel) { poignee(8, y, col); poignee(T.width - 8, y, col); } etat.outilsCadres.push({ sorte: 'objet', o, y }); }
+      else if (o.type === 'zone') { const y0 = yDe(o.haut), y1 = yDe(o.bas); if (y0 == null || y1 == null) continue; ctx.globalAlpha = 0.07; ctx.fillStyle = col; ctx.fillRect(0, y0, T.width, Math.max(1, y1 - y0)); ctx.globalAlpha = 1;
+        trait(0, hy(y0), T.width, hy(y0), col, w, [], 0.6); trait(0, hy(y1), T.width, hy(y1), col, w, [], 0.6); texte(lab, 4, y0 - 3, col); if (sel) { poignee(8, y0, col); poignee(8, y1, col); } etat.outilsCadres.push({ sorte: 'objet', o, y0, y1 }); }
+      else if (o.type === 'tendance' || o.type === 'rayon') { const x1 = xDeT(o.t1), y1 = yDe(o.p1), x2 = xDeT(o.t2), y2 = yDe(o.p2); if ([x1, y1, x2, y2].some(v => v == null) || x2 === x1) continue;
+        const pente = (y2 - y1) / (x2 - x1), xd = T.width, yd = y1 + pente * (xd - x1);
+        if (o.type === 'tendance') { trait(x1, y1, x2, y2, col, w); trait(x2, y2, xd, yd, col, w, [4, 4], 0.5); } else trait(x1, y1, xd, yd, col, w);
+        texte(lab, Math.max(4, x1 + 4), y1 - 4, col); if (sel) { poignee(x1, y1, col); poignee(x2, y2, col); } etat.outilsCadres.push({ sorte: 'objet', o, x1, y1, x2, y2, xd, yd }); }
+      else if (o.type === 'position') { const x0 = Math.max(0, o.t0 != null ? (xDeT(o.t0) ?? T.width * 0.6) : T.width * 0.6), L = [['entree', C.texte], ['stop', C.bas], ['objectif', C.haut]], ys = {};
+        for (const [k, c] of L) { const y = yDe(o[k]); if (y == null) continue; ys[k] = y; trait(x0, hy(y), T.width, hy(y), c, w, k === 'entree' ? [] : [], 0.95); if (sel) poignee(x0 + 6, y, c); }
+        if (ys.entree != null) { const t = libellePosition(o); ctx.font = `${fs}px system-ui, sans-serif`; texte(t, x0 + 4, ys.entree - 4, C.texte); }
+        etat.outilsCadres.push({ sorte: 'objet', o, x0, ys }); }
+    }
+    for (const c of O.croix) { const x = xDeT(tBougie(c.t) ?? c.t), y = yDe(c.niveau); if (x == null || y == null || x < -6 || x > T.width + 6) continue; const d = 4.5;
+      trait(x - d, y - d, x + d, y + d, COUL_CROIX, 1.6); trait(x - d, y + d, x + d, y - d, COUL_CROIX, 1.6); etat.outilsCadres.push({ sorte: 'croix', c, x, y }); }
+    for (const b of etat.brouillon) { const x = xDeT(b.t), y = yDe(b.p); if (x != null && y != null) poignee(x, y, C.sable); }
+  });
+  /* objet du dessin sous le pointeur (distance en pixels) */
+  function outilSous(x, y, tol = 6) {
+    let best = null; const prendre = (d, r) => { if (d <= tol && (!best || d < best.d)) best = { d, ...r }; };
+    const dSeg = (x0, y0, x1, y1) => { const dx = x1 - x0, dy = y1 - y0, L = dx * dx + dy * dy || 1, u = Math.max(0, Math.min(1, ((x - x0) * dx + (y - y0) * dy) / L)); return Math.hypot(x - (x0 + u * dx), y - (y0 + u * dy)); };
+    for (const c of etat.outilsCadres) {
+      if (c.sorte === 'croix') prendre(Math.hypot(x - c.x, y - c.y), { c }); else if (c.sorte === 'propose') prendre(Math.abs(y - c.y), { pr: c.pr });
+      else { const o = c.o;
+        if (o.type === 'horizontale') prendre(Math.abs(y - c.y), { o, part: 'p' });
+        else if (o.type === 'zone') { const d0 = Math.abs(y - c.y0), d1 = Math.abs(y - c.y1); if (y > c.y0 + tol && y < c.y1 - tol) prendre(tol - 0.1, { o, part: 'tout' }); else prendre(Math.min(d0, d1), { o, part: d0 <= d1 ? 'haut' : 'bas' }); }
+        else if (o.type === 'tendance' || o.type === 'rayon') { const da = Math.hypot(x - c.x1, y - c.y1), db = Math.hypot(x - c.x2, y - c.y2); if (da <= tol + 2) prendre(da - 2, { o, part: 'a1' }); else if (db <= tol + 2) prendre(db - 2, { o, part: 'a2' }); else prendre(Math.min(dSeg(c.x1, c.y1, c.x2, c.y2), dSeg(c.x2, c.y2, c.xd, c.yd)), { o, part: 'tout' }); }
+        else if (o.type === 'position') { if (x < c.x0 - tol) continue; for (const k of ['entree', 'stop', 'objectif']) if (c.ys[k] != null) prendre(Math.abs(y - c.ys[k]), { o, part: k }); } }
+    }
+    return best;
+  }
   const pointBougie = (b, t) => b.ref ? { time: t, open: b.o, high: b.h, low: b.l, close: b.c, color: b.c >= b.o ? C.refHaut : C.refBas, wickColor: b.c >= b.o ? C.refHaut : C.refBas } : { time: t, open: b.o, high: b.h, low: b.l, close: b.c };
   const pointVolume = (b, t) => ({ time: t, value: b.v, color: b.c >= b.o ? 'rgba(95,184,148,.35)' : 'rgba(216,106,106,.35)' });
   let sig = null;   // signature des données déjà envoyées : seule la dernière bougie change → update (pas de setData de 20 000 bougies)
@@ -149,6 +194,7 @@ export function creerGraphiqueOr(el, { surClicPrix, mobile = false } = {}) {
   const marquesLW = () => [
     ...(etat.couches.fleches !== false ? etat.fleches.map(f => ({ id: 'f' + f.t + (plusieursVersions() ? '-' + court(f.version) : ''), time: tDe(f.t), position: f.sens === 'baisse' ? 'aboveBar' : 'belowBar', color: f.sens === 'baisse' ? C.flecheBas : C.flecheHaut, shape: f.sens === 'baisse' ? 'arrowDown' : 'arrowUp', size: f.version === 'fleches-h1-v9' ? 1 : 0.6, ...(plusieursVersions() ? { text: court(f.version) } : {}) })) : []),
     ...(etat.couches.liquidite !== false ? etat.balayages.map(b => ({ id: 'b' + b.t + b.sorte, time: tDe(b.t), position: b.sorte === 'haute' ? 'aboveBar' : 'belowBar', color: 'rgba(195,155,224,.75)', shape: 'circle', size: 0.35 })) : []),
+    ...(etat.outils.fleches10 || []).map(f => { const tb = tBougie(f.t); return tb == null ? null : { id: 'w' + f.t + f.objet, time: tDe(tb), position: f.sens === 'baisse' ? 'aboveBar' : 'belowBar', color: f.sens === 'baisse' ? C.flecheBas : C.flecheHaut, shape: f.sens === 'baisse' ? 'arrowDown' : 'arrowUp', size: 0.9 }; }).filter(Boolean),
     ...marquesJournal()].filter(m => m.time != null).sort((a, b) => a.time - b.time);
   const marquesJournal = () => etat.marques.filter(m => m.t).map(m => ({ time: tDe(m.t), position: m.sens === 'achat' ? 'belowBar' : 'aboveBar', color: m.r == null ? '#cfd8dc' : m.r >= 0 ? C.haut : C.bas, shape: m.sens === 'achat' ? 'arrowUp' : 'arrowDown', text: m.texte || '' })).sort((a, b) => a.time - b.time);
 
@@ -167,17 +213,62 @@ export function creerGraphiqueOr(el, { surClicPrix, mobile = false } = {}) {
     vol = chart.addSeries(LW.HistogramSeries, { priceFormat: { type: 'volume' }, lastValueVisible: false, priceLineVisible: false }, 1);
     try { const P = chart.panes(); P[0].setStretchFactor(mobile ? 4 : 5); P[1].setStretchFactor(1); } catch (e) { /* ancienne version : panneau par défaut */ }
     vol.priceScale().applyOptions({ scaleMargins: { top: 0.12, bottom: 0 }, borderVisible: false });
-    serie.attachPrimitive(primBande); serie.attachPrimitive(primFond); serie.attachPrimitive(primTexte);
+    serie.attachPrimitive(primBande); serie.attachPrimitive(primFond); serie.attachPrimitive(primTexte); serie.attachPrimitive(primOutils);
     if (LW.createSeriesMarkers) marqueurs = LW.createSeriesMarkers(serie, []);
     chart.subscribeClick(p => {
       if (!p.point || !serie) return; const prix = serie.coordinateToPrice(p.point.y); if (prix == null) return;
+      if (etat.modeOutil) return;   // création : gérée par les événements du pointeur (brancherGlisserOutils), un clic n'est jamais perdu
       if (etat.outil) { poser(prix); return; }
+      if (glisseFait) { glisseFait = false; return; }
+      const h = outilSous(p.point.x, p.point.y); if (h && h.o) { etat.outils.selection = h.o.id; redessiner(); api.surSelectionOutil && api.surSelectionOutil(h.o.id); return; }
+      if (h && h.pr) { api.surClicPropose && api.surClicPropose(h.pr); return; }
+      if (etat.outils.selection) { etat.outils.selection = null; redessiner(); api.surSelectionOutil && api.surSelectionOutil(null); }
       surClicPrix && surClicPrix(prix, p);
     });
     // glisser vers la gauche : arrivée près du bord des données → un morceau plus ancien (Kraken, puis la référence)
     chart.timeScale().subscribeVisibleLogicalRangeChange(r => { if (r && r.from < 40 && etat.bougies.length && api.surBordGauche) api.surBordGauche(); redessiner(); });
-    brancherGlisser(); brancherInfo(); versSerie(); vueDefaut();
+    /* l'ancien glisser des traits de position (blocs) est remplacé par celui des outils */ brancherGlisserOutils(); brancherInfo(); versSerie(); vueDefaut();
     return api;
+  }
+  /* création d'un outil : 1 clic (ligne), 2 clics (zone, tendance, rayon), 3 clics (position : entrée, stop, objectif) ; aimantation facultative */
+  const POINTS = { horizontale: 1, zone: 2, tendance: 2, rayon: 2, position: 3 };
+  function poserOutil(x, y) {
+    let p = serie.coordinateToPrice(y), t = tDeX(x); if (p == null || t == null) return;
+    if (etat.aimant) { const b = bougieA(x), tol = Math.abs(serie.coordinateToPrice(y) - serie.coordinateToPrice(y + 8)); p = aimanter(p, b, tol); if (b && (etat.modeOutil === 'tendance' || etat.modeOutil === 'rayon')) t = b.t; }
+    etat.brouillon.push({ t, p: Math.round(p * 100) / 100 }); const type = etat.modeOutil;
+    if (etat.brouillon.length >= POINTS[type]) { const pts = etat.brouillon; etat.brouillon = []; etat.modeOutil = null; redessiner(); api.surCreationOutil && api.surCreationOutil(type, pts); }
+    else { redessiner(); api.surEtapeOutil && api.surEtapeOutil(type, etat.brouillon.length); }
+  }
+  /* déplacer un objet à la souris (ou au doigt) : ligne, bord de zone, ancre ou droite entière, ligne de la position */
+  let glisseFait = false;
+  function brancherGlisserOutils() {
+    let prise = null;
+    let pose = null;
+    el.addEventListener('pointerdown', e => {
+      if (etat.modeOutil && serie) { const r = el.getBoundingClientRect(); pose = { x: e.clientX - r.left, y: e.clientY - r.top }; return; }
+      if (etat.modeOutil || etat.outil || !serie) return; const r = el.getBoundingClientRect(), x = e.clientX - r.left, y = e.clientY - r.top, h = outilSous(x, y, e.pointerType === 'touch' ? 12 : 6);
+      if (!h || !h.o) return; prise = { h, x0: x, y0: y, p0: serie.coordinateToPrice(y), t0: tDeX(x), orig: { ...h.o }, bouge: false };
+      e.preventDefault(); e.stopPropagation(); chart.applyOptions({ handleScroll: false, handleScale: false }); el.setPointerCapture && el.setPointerCapture(e.pointerId);
+    }, true);
+    el.addEventListener('pointermove', e => {
+      if (!prise) return; const r = el.getBoundingClientRect(), x = e.clientX - r.left, y = e.clientY - r.top; if (!prise.bouge && Math.hypot(x - prise.x0, y - prise.y0) < 3) return; prise.bouge = true;
+      const p = serie.coordinateToPrice(y), t = tDeX(x); if (p == null) return; const dp = p - prise.p0, dt = t != null && prise.t0 != null ? t - prise.t0 : 0, o = prise.orig, part = prise.h.part, ch = {};
+      const r2 = v => Math.round(v * 100) / 100;
+      if (o.type === 'horizontale') ch.p = r2(p);
+      else if (o.type === 'zone') { if (part === 'tout') { ch.bas = r2(o.bas + dp); ch.haut = r2(o.haut + dp); } else ch[part] = r2(p); }
+      else if (o.type === 'tendance' || o.type === 'rayon') { if (part === 'a1') { ch.t1 = t; ch.p1 = r2(p); } else if (part === 'a2') { ch.t2 = t; ch.p2 = r2(p); } else { ch.t1 = o.t1 + dt; ch.t2 = o.t2 + dt; ch.p1 = r2(o.p1 + dp); ch.p2 = r2(o.p2 + dp); } }
+      else if (o.type === 'position') ch[part] = r2(p);
+      prise.champs = ch; const i = etat.outils.objets.findIndex(q => q.id === o.id); if (i >= 0) etat.outils.objets[i] = { ...o, ...ch }; redessiner();
+    }, true);
+    el.addEventListener('pointerup', e => {
+      if (!pose || !etat.modeOutil) { pose = null; return; } const r = el.getBoundingClientRect(), x = e.clientX - r.left, y = e.clientY - r.top, P = pose; pose = null;
+      if (Math.hypot(x - P.x, y - P.y) > 6 || !chart || y > chart.panes()[0].getHeight() || x > chart.timeScale().width()) return;   // glisser = déplacer le graphique ; hors du panneau des prix : ignoré
+      poserOutil(x, y);
+    }, true);
+    const fin = () => { if (!prise) return; const P = prise; prise = null; chart.applyOptions({ handleScroll: true, handleScale: true });
+      if (P.bouge && P.champs) { glisseFait = true; api.surModifOutil && api.surModifOutil(P.orig.id, P.champs); setTimeout(() => { glisseFait = false; }, 300); }
+      else { etat.outils.selection = P.orig.id; redessiner(); api.surSelectionOutil && api.surSelectionOutil(P.orig.id); } };
+    el.addEventListener('pointerup', fin, true); el.addEventListener('pointercancel', fin, true);
   }
   /* outil Position : clic 1 = entrée, clic 2 = stop, clic 3 = objectif ; ensuite, glisser un trait le déplace */
   function poser(prix) {
@@ -205,7 +296,12 @@ export function creerGraphiqueOr(el, { surClicPrix, mobile = false } = {}) {
     tip.style.cssText = 'position:absolute;right:8px;z-index:4;max-width:min(360px,80%);padding:7px 10px;background:#0b1117;border:1px solid rgba(143,208,227,.4);border-radius:5px;color:#d7e3ea;font:12.5px/1.4 system-ui,sans-serif;pointer-events:none;box-shadow:0 6px 20px rgba(0,0,0,.5)';
     el.appendChild(tip);
     let epingle = null;
-    const trouver = (x, y) => { const c = etat.cadres.find(c => x >= c.x - 2 && x <= c.x + c.w + 2 && y >= c.y - 2 && y <= c.y + c.h + 2); return c ? c.g : marqueSous(x, y); };
+    const hparis = t => new Date(t).toLocaleString('fr-FR', { timeZone: 'Europe/Paris', weekday: 'short', day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
+    const infoOutil = (x, y) => { const h = outilSous(x, y); if (!h) return null;
+      if (h.c) return { p: h.c.niveau, texte: `Cassure confirmée · ${nb(h.c.niveau)}`, detail: [`clôture à au moins 0,5 ATR au-delà de l’objet (bougie H1 du ${hparis(h.c.t)})`, 'l’objet est marqué « retourné »', 'information de lecture, pas un signal ni une promesse'] };
+      if (h.pr) return { p: h.pr.p, texte: `Niveau proposé ${h.pr.unite === 'J' ? 'Jour' : h.pr.unite} · ${nb(h.pr.p)}`, detail: [`grand ${h.pr.sorte} de swing (fractale de 60 bougies de chaque côté) du ${hparis(h.pr.t)}`, 'clic : confirmer en « mon niveau » ou supprimer (liste des outils)'] };
+      const o = h.o; return { p: o.p ?? o.entree ?? o.p1 ?? o.bas, texte: libelle(o), detail: [NOMS_OUTILS[o.type] + (o.retourne ? ' · retourné' : ''), o.alerte ? 'alerte de prix active' : 'clic : sélectionner, glisser : déplacer', 'surveillé à la clôture des bougies H1 tant que Rayle est ouvert'] }; };
+    const trouver = (x, y) => { const c = etat.cadres.find(c => x >= c.x - 2 && x <= c.x + c.w + 2 && y >= c.y - 2 && y <= c.y + c.h + 2); return c ? c.g : (marqueSous(x, y) || infoOutil(x, y)); };
     /* flèche ou marque de balayage sous le pointeur (au-dessus de la mèche haute, ou sous la mèche basse, de la bougie) */
     const NOMS = { 'résistance': 'sous une résistance', support: 'sur un support', 'liquidité haute': 'sous une zone de liquidité haute', 'liquidité basse': 'sur une zone de liquidité basse' };
     function marqueSous(x, y) {
@@ -258,7 +354,16 @@ export function creerGraphiqueOr(el, { surClicPrix, mobile = false } = {}) {
     etiquettes: () => etat.cadres.map(c => ({ texte: c.g.texte, bord: c.g.bord || null, n: c.g.n, detail: c.g.detail, x: c.x, y: c.y, w: c.w, h: c.h })),
     marques(L) { etat.marques = L || []; if (marqueurs) marqueurs.setMarkers(marquesLW()); },
     outil(v) { etat.outil = v; if (v === 'entree') etat.pos = null; redessiner(); return etat.outil; },
-    position: () => etat.pos, effacerPosition() { etat.pos = null; etat.outil = null; ecrire('rayle_or_position', null); redessiner(); },
+    /* outils dessinés (terminal-outils.js) */
+    outils(d) { if (d) { etat.outils = { ...etat.outils, ...d, objets: d.objets ? d.objets.map(o => ({ ...o })) : etat.outils.objets }; if (marqueurs) marqueurs.setMarkers(marquesLW()); redessiner(); } return etat.outils; },
+    modeOutil(type) { etat.modeOutil = POINTS[type] ? type : null; etat.brouillon = []; redessiner(); return etat.modeOutil; },
+    aimant(v) { if (v != null) etat.aimant = !!v; return etat.aimant; },
+    async ma200(points, { couleur = 'rgba(201,178,122,.85)' } = {}) { await pret; if (!points) { if (maSerie) { chart.removeSeries(maSerie); maSerie = null; } return; }
+      if (!maSerie) maSerie = chart.addSeries(LW.LineSeries, { color: couleur, lineWidth: 1, priceLineVisible: false, lastValueVisible: false, crosshairMarkerVisible: false, autoscaleInfoProvider: () => null });
+      const m = new Map(); for (const q of points) { const tt = tDe(q.t); if (tt != null && Number.isFinite(q.v)) m.set(tt, q.v); } maSerie.setData([...m.entries()].sort((a, b) => a[0] - b[0]).map(([time, value]) => ({ time, value }))); return maSerie; },
+    xDeT, tDeX, outilsCadres: () => etat.outilsCadres.map(c => ({ sorte: c.sorte, id: c.o ? c.o.id : c.pr ? c.pr.cle : null, y: c.y ?? c.y0 ?? (c.ys && c.ys.entree) ?? c.y1, x: c.x ?? c.x1 ?? c.x0 ?? null, ys: c.ys || null, y0: c.y0, y1: c.y1, x1: c.x1, x2: c.x2, y2: c.y2 })),
+    position: () => etat.pos, poserPosition(p) { etat.pos = p ? { entree: p.entree, stop: p.stop, objectif: p.objectif } : null; ecrire('rayle_or_position', etat.pos); },   // données seulement (dessin : outil Position en lignes)
+    effacerPosition() { etat.pos = null; etat.outil = null; ecrire('rayle_or_position', null); redessiner(); },
     allerA(t) { if (!chart) return; const ts = chart.timeScale(), s = tempsGraphique(t); ts.setVisibleRange({ from: s - 60 * 3600, to: s + 30 * 3600 }); },
     yDe, chart: () => chart, serie: () => serie, etat: () => etat,
     detruire() { try { chart && chart.remove(); } catch (e) { /* */ } }

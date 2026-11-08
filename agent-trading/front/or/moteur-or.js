@@ -186,6 +186,14 @@ export function creerMoteurOr({ fetchFn = (...a) => fetch(...a), horloge = () =>
       surEvenement(ev);
     }
   }
+  /* l'étude tourne dans un Worker du navigateur (même fonction, même résultat) ; repli sur le calcul direct (Node, Worker refusé) */
+  function etudeHorsFil(m15, h1, a) {
+    if (typeof Worker === 'undefined') return Promise.resolve(etudeReaction(m15, h1, a));
+    return new Promise(ok => { let w; try { w = new Worker(new URL('./etude-worker.js', import.meta.url), { type: 'module' }); } catch (e) { ok(etudeReaction(m15, h1, a)); return; }
+      const fin = r => { w.terminate(); ok(r); };
+      w.onmessage = e => fin(e.data && e.data.ok ? e.data.etude : etudeReaction(m15, h1, a)); w.onerror = e => { e.preventDefault && e.preventDefault(); fin(etudeReaction(m15, h1, a)); };
+      w.postMessage({ m15, h1, a }); });
+  }
   async function etude() {
     const cache = lireJ('rayle_or_etude', null);
     if (cache && cache.version === REGLES.version && horloge() - cache.calcule < 24 * 3600e3) { S.etude = cache.etude; S.etudeEtat = 'faite'; return; }
@@ -194,7 +202,7 @@ export function creerMoteurOr({ fetchFn = (...a) => fetch(...a), horloge = () =>
       const n = horloge(), m15 = await bougiesBinance('M15', { depuis: n - 365 * 86400e3, jusqua: n, fetchFn, max: 30 });
       const h1 = regrouperBougies(m15, 3600e3), a = atr(h1, REGLES.atr);
       await new Promise(r => setTimeout(r, 0));
-      S.etude = etudeReaction(m15, h1, a); S.etudeEtat = 'faite';
+      S.etude = await etudeHorsFil(m15, h1, a); S.etudeEtat = 'faite';
       ecrireJ('rayle_or_etude', { version: REGLES.version, calcule: n, etude: S.etude });
     } catch (e) { S.etudeEtat = 'échec : ' + e.message; }
     surMaj(S);
