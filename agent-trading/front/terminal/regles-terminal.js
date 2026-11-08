@@ -1,10 +1,10 @@
-/* ═════════════ RÈGLES FIGÉES « alertes-terminal-v1 » (écrites le 2026-11-08 AVANT le code et tout test, dans leur propre commit) ═════════════
+/* ═════════════ RÈGLES FIGÉES « alertes-terminal-v2 » (v1 écrite le 2026-11-08 avant le code, commit d751a08 ; v2 = correction d'un défaut de logique, voir le texte) ═════════════
    Surveillance des outils dessinés dans le terminal de Rayle, sur les 5 actifs et toutes les unités. Les seuils sont ceux de la consigne
    (0,5 ATR, 0,25 ATR, 1 ATR, 0,5 ATR, 48 bougies, 30 événements) ; les autres sont fixés ici une fois pour toutes. Ces règles sont DISTINCTES
    de « fleches-v10 » (or, H1) : v1 à v10, leurs règles et leurs registres ne sont pas modifiés et restent calculés à part.
    Information de lecture, pas un signal ni une promesse ; jamais un ordre. */
 export const REGLES_TERMINAL = Object.freeze({
-  version: 'alertes-terminal-v1', ecrites: '2026-11-08',
+  version: 'alertes-terminal-v2', ecrites: '2026-11-08', remplace: 'alertes-terminal-v1',
   atrN: 14,                    // ATR = moyenne simple des 14 dernières étendues vraies de l'unité surveillée, connue à la clôture de la bougie d'avant
   approcheAtr: 0.5,            // approche : extrême de la bougie à moins de 0,5 ATR de l'objet
   toucheAtr: 0.25,             // touche : extrême à au plus 0,25 ATR (ou au-delà)
@@ -22,10 +22,10 @@ export const REGLES_TERMINAL = Object.freeze({
   zoneTenue: { rejet: 0.5, depassement: 0.25 }   // un test « tient » si le prix s'en éloigne d'au moins 0,5 ATR avant de la dépasser de 0,25 ATR
 });
 
-export const TEXTE_REGLES_TERMINAL = `Règles figées ${REGLES_TERMINAL.version} (écrites le ${REGLES_TERMINAL.ecrites}, avant le code et tout test, dans leur propre commit) :
+export const TEXTE_REGLES_TERMINAL = `Règles figées ${REGLES_TERMINAL.version} (écrites le ${REGLES_TERMINAL.ecrites} dans leur propre commit, avant toute mesure sur le marché ; elles remplacent alertes-terminal-v1 (commit d751a08) pour UN défaut de logique trouvé par un scénario synthétique : en v1 le côté suivait la clôture précédente, si bien qu'un objet traversé en deux clôtures changeait de côté sans croix ni cassure ; tous les seuils sont inchangés) :
 - unité surveillée : celle affichée quand l'objet est créé (modifiable ensuite) ; détection sur les bougies CLOSES de cette unité, prix Kraken de l'actif (ou la source de secours étiquetée) ; aucun repeint : un événement de la bougie i n'utilise que les bougies jusqu'à i ; ATR = moyenne simple des 14 dernières étendues vraies à la bougie d'avant ; chaque objet n'est surveillé qu'à partir de sa création ;
 - valeur de l'objet : ligne horizontale = son prix ; zone = de son bas à son haut, à partir de son premier point ; ligne de tendance et rayon = la droite passant par leurs deux ancres, à l'heure de la bougie, prolongée à droite ; ligne verticale, texte et mesure : jamais surveillés ;
-- côté : support si la clôture précédente est au-dessus de l'objet, résistance si elle est au-dessous (zone : au-dessus du haut / au-dessous du bas ; dedans, le dernier côté connu) ; distance = écart entre l'extrême de la bougie tourné vers l'objet et l'objet, 0 s'il l'atteint ou le dépasse ;
+- côté : à la première bougie surveillée, support si la clôture précédente est au-dessus de l'objet, résistance si elle est au-dessous (zone : au-dessus du haut / au-dessous du bas) ; ENSUITE le côté ne change QUE par une cassure confirmée (une clôture juste de l'autre côté ne le retourne pas) ; distance = écart entre l'extrême de la bougie tourné vers l'objet et l'objet, 0 s'il l'atteint ou le dépasse ;
 - approche : distance ≤ 0,5 ATR alors que l'approche précédente est finie ; touche : distance ≤ 0,25 ATR, une fois par approche ; une approche finit à la première clôture à au moins 1 ATR de l'objet, de son côté ;
 - rebond confirmé : après une touche, la première bougie qui CLÔTURE à au moins 1 ATR du bon côté sans qu'aucune bougie depuis la touche (elle comprise) n'ait fait un nouvel extrême au-delà de celui de la touche → petite flèche verte sur un support, rouge sur une résistance, posée à cette clôture, jamais déplacée ; une seule par objet et par approche ;
 - cassure confirmée : une CLÔTURE à au moins 0,5 ATR au-delà de l'objet (au-delà de son bord éloigné pour une zone) → petite croix à cette bougie ; l'objet devient « retourné » (ancien support → résistance et inversement) et une nouvelle approche peut commencer ;
