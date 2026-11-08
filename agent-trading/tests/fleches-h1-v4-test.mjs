@@ -85,14 +85,14 @@ eq(v4(serie(160, { 100: rejHausse, 108: rejBaisse }), { 100: sup(), 108: res() }
   ok(Object.values(T).every(b => !b.assez || (b.pHolm >= b.p && /Holm, 4 versions/.test(b.texte))), 'Holm sur 4 versions, dit dans le texte'); }
 
 /* registre et journal */
-{ eq(VERSIONS, ['fleches-v1', 'fleches-h1-v2', 'fleches-h1-v3', 'fleches-h1-v4'], 'registre : quatre versions');
+{ eq(VERSIONS.slice(0, 4), ['fleches-v1', 'fleches-h1-v2', 'fleches-h1-v3', 'fleches-h1-v4'], 'registre : v1 à v4 (v5 ajoutée ensuite à côté)');
   const f = (t, s = 'hausse') => ({ t, sens: s, niveau: 2000, type: 'support' });
   let R = registreVide(1); for (const v of VERSIONS.slice(0, 3)) R = ajouter(R, v, [f(5)], { vu: 10 }).registre;
   const avant = JSON.stringify(VERSIONS.slice(0, 3).map(v => R.versions[v]));
   R = ajouter(R, 'fleches-h1-v4', [f(5), f(9)], { vu: 20 }).registre;
   eq(JSON.stringify(VERSIONS.slice(0, 3).map(v => R.versions[v])), avant, 'registres v1, v2, v3 intacts');
   eq([R.versions['fleches-h1-v4'].length, verifier(R, 'fleches-h1-v4').ok], [2, true], 'registre v4 chaîné'); }
-eq(VERSIONS_FLECHE_H1[0], 'fleches-h1-v4', 'journal : v4 en premier');
+ok(VERSIONS_FLECHE_H1.includes('fleches-h1-v4'), 'journal : v4 proposée');
 const tr = { source: 'saisie', sens: 'achat', entree: 4000, stop: 3990, taille: 1, etiquette: 'flèche H1', versionFleche: 'fleches-h1-v4' };
 eq([valider(tr), etiquetteComplete(tr)], [[], 'flèche H1 · fleches-h1-v4'], 'journal : flèche H1 · fleches-h1-v4');
 ok(REGLES_H1_V2.version === 'fleches-h1-v2', 'v2 toujours là');
