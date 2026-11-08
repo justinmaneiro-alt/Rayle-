@@ -11,6 +11,7 @@ import { texteType, texteHistorique, NOMS_TYPES } from './zones-or.js';
 import { heureParis } from './temps-or.js';
 import { nomClair } from './reperes-or.js';
 import { REGLES_NIVEAUX, REGLES_FLECHES, TEXTE_REGLES_FLECHES } from './niveaux-periode.js';
+import { REGLES_H1_V2, TEXTE_REGLES_H1_V2 } from './fleches-h1-v2.js';
 import { interpreter } from './commandes-or.js';
 
 const lireJ = (k, d) => { try { const v = localStorage.getItem(k); return v ? JSON.parse(v) : d; } catch (e) { return d; } };
@@ -59,7 +60,7 @@ export function monterTableauOr(el, { modules = {}, contexte = 'page', fetchFn, 
     <p class="tor-reponse" data-reponse aria-live="polite"></p>
     <details class="tor-zones-det" data-zones><summary>Zones de retournement en détail <small>les plus proches, classées par confluence</small></summary><ol class="tor-zones" data-zones-liste></ol><p class="tor-doux" data-etude></p>
     <details><summary>Règles figées ${REGLES.version}</summary><pre class="tor-regles">${esc(TEXTE_REGLES)}</pre></details>
-    <details><summary>Règles figées des niveaux et des flèches (${REGLES_NIVEAUX.version}, ${REGLES_FLECHES.version})</summary><pre class="tor-regles">${esc(TEXTE_REGLES_FLECHES)}</pre></details></details>
+    <details><summary>Règles figées des niveaux et des flèches (${REGLES_NIVEAUX.version}, ${REGLES_FLECHES.version})</summary><pre class="tor-regles">${esc(TEXTE_REGLES_FLECHES)}</pre></details><details><summary>Règles figées des flèches H1, version 2 (${REGLES_H1_V2.version}, affichées seulement en H1)</summary><pre class="tor-regles">${esc(TEXTE_REGLES_H1_V2)}</pre></details></details>
   </section>
   <section class="tor-bloc" data-journal-bloc></section>
   <section class="tor-bloc" data-gardien-bloc></section>
@@ -145,7 +146,7 @@ export function monterTableauOr(el, { modules = {}, contexte = 'page', fetchFn, 
     if (S.fiable === false) msg.push(`Données peu fiables : seulement ${nb(S.volume24h / 1e6, 0)} M$ échangés sur 24 h sur la référence.`);
     const b = q('[data-bandeau]'); b.hidden = !msg.length; b.textContent = msg.join(' · ');
     const bf = q('[data-bilan-fleches]'), BF = S.bilanFleches && S.fleches && S.fleches.periode === S.periode ? S.bilanFleches : null;
-    bf.textContent = BF ? `Flèches de rebond (${S.periode}) : ${BF.texte} Informations de lecture, jamais un ordre.` : 'Flèches de rebond : calcul en cours…';
+    bf.textContent = BF ? `${BF.titre || `Flèches de rebond (${S.periode})`} : ${BF.texte} Informations de lecture, jamais un ordre.` : 'Flèches de rebond : calcul en cours…';
     q('[data-source]').textContent = `Prix Kraken · volume Binance · écart Kraken − Binance ${S.ecart == null ? 'non mesuré' : (S.ecart >= 0 ? '+' : '') + nb(S.ecart)} $${S.ecartN ? ` (médiane de ${S.ecartN} bougies)` : ''} · ATR H1 ${nb(S.a)} $${texteHistoriqueCharge(S)}`;
     // lecture
     const L = S.lecture; if (L) {
