@@ -95,11 +95,11 @@ const rougeF = k0 => ({ [k0 + 1]: p => ({ h: pF(k0) + 0.9, o: pF(k0) + 0.4, c: p
   const T = bilans7(B, Object.fromEntries(Object.keys(DEPUIS_7).map(v => [v, Fl])), { maintenant: fin(B), spread: 0.5 });
   ok(T['fleches-h1-v7'].total === Fl.filter(f => f.t >= DEPUIS_H1_V7.t).length && /depuis le 8 nov\. 2026, 10 h 38/.test(T['fleches-h1-v7'].texte), 'v7 : depuis le commit f9a9b5b');
   ok(Object.values(T).every(b => !b.assez || (b.pHolm >= b.p && /Holm, 7 versions suivies/.test(b.texte))), 'Holm sur les 7 versions suivies'); }
-{ eq(VERSIONS.length, 7, 'registre : sept versions'); const f = (t, s = 'hausse') => ({ t, sens: s, niveau: 2000, type: 'support' });
+{ ok(VERSIONS.length >= 7 && VERSIONS[6] === 'fleches-h1-v7', 'registre : v1 à v7 (v8 ajoutée ensuite à côté)'); const f = (t, s = 'hausse') => ({ t, sens: s, niveau: 2000, type: 'support' });
   let R = registreVide(1); for (const v of VERSIONS.slice(0, 6)) R = ajouter(R, v, [f(5)], { vu: 10 }).registre;
   const avant = JSON.stringify(VERSIONS.slice(0, 6).map(v => R.versions[v])); R = ajouter(R, 'fleches-h1-v7', [f(5), f(9)], { vu: 20 }).registre;
   eq(JSON.stringify(VERSIONS.slice(0, 6).map(v => R.versions[v])), avant, 'registres v1 à v6 intacts'); eq(verifier(R, 'fleches-h1-v7').ok, true, 'registre v7 chaîné'); }
-eq(VERSIONS_FLECHE_H1[0], 'fleches-h1-v7', 'journal : v7 en premier');
+ok(VERSIONS_FLECHE_H1.includes('fleches-h1-v7'), 'journal : v7 proposée');
 const tr = { source: 'saisie', sens: 'achat', entree: 4000, stop: 3990, taille: 1, etiquette: 'flèche H1', versionFleche: 'fleches-h1-v7' };
 eq([valider(tr), etiquetteComplete(tr)], [[], 'flèche H1 · fleches-h1-v7'], 'journal : flèche H1 · fleches-h1-v7');
 

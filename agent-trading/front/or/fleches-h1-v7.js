@@ -136,7 +136,7 @@ export function flechesH1v7(B, { maintenant = Date.now(), R = REGLES_H1_V7, list
     if (conf) {
       const der = out[out.length - 1], raison = REG[i] === 'range' || REG[i] === 'inconnu' ? 'range' : der && der.sens === conf.sens ? 'alternance' : der && i - der.i < R.espacementBougies ? 'espacement' : null;
       if (raison) { if (T) T({ i, t: b.t, etape: raison, sens: conf.sens, touche: conf.j, regime: REG[i] }); }
-      else { const f = { t: b.t, i, sens: conf.sens, niveau: conf.niveau, type: conf.type, touches: conf.touches, retourne: conf.retourne || null, source: conf.source, libelle: conf.libelle, regime: REG[i], atr: conf.a, distance: conf.d / conf.a, touche: conf.j, tTouche: C[conf.j].t, mode: 'rebond confirmé', version: R.version };
+      else { const f = { t: b.t, i, sens: conf.sens, niveau: conf.niveau, type: conf.type, touches: conf.touches, retourne: conf.retourne || null, source: conf.source, libelle: conf.libelle ?? `${conf.type === 'résistance' ? 'Résistance' : 'Support'} ${fourchette(conf.pMaj, conf.pMaj)} · ${conf.quoi}`, regime: REG[i], atr: conf.a, distance: conf.d / conf.a, touche: conf.j, tTouche: C[conf.j].t, mode: 'rebond confirmé', version: R.version };
         out.push(f); if (T) T({ i, t: b.t, etape: 'posee', sens: f.sens, touche: f.touche }); }
     }
     // 1) la bougie i touche-t-elle un niveau admis ? (support pour une verte, résistance pour une rouge ; position par rapport à la clôture précédente)
@@ -144,10 +144,10 @@ export function flechesH1v7(B, { maintenant = Date.now(), R = REGLES_H1_V7, list
     for (const sens of ['hausse', 'baisse']) {
       if (!touchePossible(C, A, REG, i, sens, R)) continue;
       const ext = sens === 'hausse' ? b.l : b.h, type = sens === 'hausse' ? 'support' : 'résistance';
-      const niv = [...listes(C, i, R), ...(MAJ[i] || []).map(m => ({ bas: m.p, haut: m.p, p: m.p, type: m.p > ref ? 'résistance' : 'support', touches: null, source: 'majeur', libelle: `${m.p > ref ? 'Résistance' : 'Support'} ${fourchette(m.p, m.p)} · ${m.quoi}` }))];
+      const niv = [...listes(C, i, R), ...(MAJ[i] || []).map(m => ({ bas: m.p, haut: m.p, p: m.p, type: m.p > ref ? 'résistance' : 'support', touches: null, source: 'majeur', quoi: m.quoi, libelle: null }))];   // étiquette mise en forme à la pose
       let best = null;
       for (const L of niv) { if (L.type !== type) continue; const d = dist(ext, L); if (d <= R.toucheAtr * a && (!best || d < best.d)) best = { d, L }; }
-      if (best) attente.push({ j: i, sens, ext, a, d: best.d, niveau: Math.min(Math.max(ext, best.L.bas), best.L.haut), type, touches: best.L.touches, retourne: best.L.retourne, source: best.L.source, libelle: best.L.libelle });
+      if (best) attente.push({ j: i, sens, ext, a, d: best.d, niveau: Math.min(Math.max(ext, best.L.bas), best.L.haut), type, touches: best.L.touches, retourne: best.L.retourne, source: best.L.source, libelle: best.L.libelle, quoi: best.L.quoi || null, pMaj: best.L.p });
     }
   }
   return out;

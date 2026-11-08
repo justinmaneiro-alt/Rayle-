@@ -3,7 +3,7 @@
    fois qu'elle est vue, avec cette date ; une entrée n'est JAMAIS modifiée ni retirée. Chaque entrée porte l'empreinte de la précédente
    (chaîne) : une retouche ou une suppression se voit à la vérification. Navigateur : localStorage ; Node : fichier JSON (rapport local). */
 export const CLE_REGISTRE = 'rayle_or_registre_fleches_h1';
-export const VERSIONS = Object.freeze(['fleches-v1', 'fleches-h1-v2', 'fleches-h1-v3', 'fleches-h1-v4', 'fleches-h1-v5', 'fleches-h1-v6', 'fleches-h1-v7']);   // une liste par version ; ajouter une version n'en touche aucune autre
+export const VERSIONS = Object.freeze(['fleches-v1', 'fleches-h1-v2', 'fleches-h1-v3', 'fleches-h1-v4', 'fleches-h1-v5', 'fleches-h1-v6', 'fleches-h1-v7', 'fleches-h1-v8']);   // une liste par version ; ajouter une version n'en touche aucune autre
 
 /* FNV-1a 32 bits en hexadécimal : simple, sans dépendance, identique navigateur / Node */
 export function empreinte(s) { let h = 0x811c9dc5; for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 0x01000193) >>> 0; } return h.toString(16).padStart(8, '0'); }
