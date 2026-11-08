@@ -92,14 +92,14 @@ eq(v5(serie(150, HA, { 110: rejHausse, 113: rejHausse }), { 110: niv(HA, -1.5, '
   ok(Object.values(T).every(b => !b.assez || (b.pHolm >= b.p && /Holm, 5 versions suivies/.test(b.texte))), 'Holm sur les 5 versions suivies'); }
 
 /* registre et journal */
-{ eq(VERSIONS, ['fleches-v1', 'fleches-h1-v2', 'fleches-h1-v3', 'fleches-h1-v4', 'fleches-h1-v5'], 'registre : cinq versions');
+{ eq(VERSIONS.slice(0, 5), ['fleches-v1', 'fleches-h1-v2', 'fleches-h1-v3', 'fleches-h1-v4', 'fleches-h1-v5'], 'registre : v1 à v5 (v6 ajoutée ensuite à côté)');
   const f = (t, s = 'hausse') => ({ t, sens: s, niveau: 2000, type: 'support' });
   let R = registreVide(1); for (const v of VERSIONS.slice(0, 4)) R = ajouter(R, v, [f(5)], { vu: 10 }).registre;
   const avant = JSON.stringify(VERSIONS.slice(0, 4).map(v => R.versions[v]));
   R = ajouter(R, 'fleches-h1-v5', [f(5), f(9)], { vu: 20 }).registre;
   eq(JSON.stringify(VERSIONS.slice(0, 4).map(v => R.versions[v])), avant, 'registres v1 à v4 intacts');
   eq([R.versions['fleches-h1-v5'].length, verifier(R, 'fleches-h1-v5').ok], [2, true], 'registre v5 chaîné'); }
-eq(VERSIONS_FLECHE_H1[0], 'fleches-h1-v5', 'journal : v5 en premier');
+ok(VERSIONS_FLECHE_H1.includes('fleches-h1-v5'), 'journal : v5 proposée');
 const tr = { source: 'saisie', sens: 'achat', entree: 4000, stop: 3990, taille: 1, etiquette: 'flèche H1', versionFleche: 'fleches-h1-v5' };
 eq([valider(tr), etiquetteComplete(tr)], [[], 'flèche H1 · fleches-h1-v5'], 'journal : flèche H1 · fleches-h1-v5');
 

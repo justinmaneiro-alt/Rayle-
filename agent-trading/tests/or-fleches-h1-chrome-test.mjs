@@ -1,4 +1,4 @@
-/* Test Chrome des flèches et niveaux H1 (v5 par défaut, cases v5 / v2 seulement) avec les VRAIES données (Kraken par le relais dédié, Binance) :
+/* Test Chrome des flèches et niveaux H1 (v6 par défaut, cases v6 / v5 / v2 seulement) avec les VRAIES données (Kraken par le relais dédié, Binance) :
    - en H1, flèches affichées par défaut = fleches-h1-v5, posées sur les niveaux DESSINÉS (niveaux-h1-v5), toujours dans le sens du régime ;
      case v2 pour comparer (chaque flèche porte alors sa version) ; v1, v3, v4 calculées en arrière-plan, sans case ;
    - niveaux H1 : au plus 6 par côté, au moins 5 touches (ou extrême), étiquettes sans chevauchement ;
@@ -17,24 +17,28 @@ const w = ms => new Promise(r => setTimeout(r, ms));
 const p = await nav.newPage(); await p.setViewport({ width: 1600, height: 900, deviceScaleFactor: 1 });
 p.on('pageerror', e => erreurs.push(e.message));
 // un ancien choix (v4) ne doit pas empêcher v5 d'être la version par défaut
-await p.evaluateOnNewDocument(() => { localStorage.setItem('rayle_or_periode', JSON.stringify('M15')); localStorage.removeItem('rayle_or_registre_fleches_h1'); localStorage.removeItem('rayle_or_fleches_h1_choix_v5'); localStorage.setItem('rayle_or_fleches_h1_choix', JSON.stringify(['fleches-h1-v4'])); });
+await p.evaluateOnNewDocument(() => { localStorage.setItem('rayle_or_periode', JSON.stringify('M15')); localStorage.removeItem('rayle_or_registre_fleches_h1'); localStorage.removeItem('rayle_or_fleches_h1_choix_v6'); localStorage.setItem('rayle_or_fleches_h1_choix_v5', JSON.stringify(['fleches-h1-v2'])); });
 await p.goto(BASE + '/agent-trading/front/or.html', { waitUntil: 'domcontentloaded' });
 await p.waitForFunction(() => window.__or && window.__or.moteur.S.hist && window.__or.graph.serie() && window.__or.graph.serie().data().length > 100, { timeout: 60000 }); await w(1500);
 
 const controle = (versions) => p.evaluate(async versions => {
-  const T = window.__or, S = T.moteur.S, NP = await import('/agent-trading/front/or/niveaux-periode.js'), V2 = await import('/agent-trading/front/or/fleches-h1-v2.js'), V5 = await import('/agent-trading/front/or/fleches-h1-v5.js'), H = await import('/agent-trading/front/or/historique-or.js');
+  const T = window.__or, S = T.moteur.S, NP = await import('/agent-trading/front/or/niveaux-periode.js'), V2 = await import('/agent-trading/front/or/fleches-h1-v2.js'), V5 = await import('/agent-trading/front/or/fleches-h1-v5.js'), V6 = await import('/agent-trading/front/or/fleches-h1-v6.js'), H = await import('/agent-trading/front/or/historique-or.js');
   const serie = H.serieAffichee(S.hist, S.k, S.ecart), Vm = new Map((S.refP || []).map(b => [b.t, b.v])), n = Date.now();
   const calc = { 'fleches-v1': NP.fleches(serie, { periode: S.periode, maintenant: n, volumes: Vm }).map(f => f.t) };
   let aligne = null;
-  if (S.periode === 'H1') { const memo = new Map(), l = (X, i) => { if (!memo.has(X[i].t)) memo.set(X[i].t, V5.listesDeux(X, i)); return memo.get(X[i].t); };
+  if (S.periode === 'H1') { const memo = new Map(), l = (X, i) => { if (!memo.has(X[i].t)) memo.set(X[i].t, V6.listesTrois(X, i)); return memo.get(X[i].t); };
     calc['fleches-h1-v2'] = V2.flechesH1v2(serie, { maintenant: n, volumes: Vm, listes: (X, i) => l(X, i).detail }).map(f => f.t);
-    const F5 = V5.flechesH1v5(serie, { maintenant: n, volumes: Vm, listes: (X, i) => l(X, i).v5 }); calc['fleches-h1-v5'] = F5.map(f => f.t);
-    aligne = S.flechesH1['fleches-h1-v5'].every(f => (f.sens === 'hausse') === (f.regime === 'haussier') && ['haussier', 'baissier'].includes(f.regime)); }
-  const cleA = versions.flatMap(v => calc[v].map(t => v + '|' + t)).sort(), cleB = S.fleches.liste.map(f => (S.periode === 'H1' ? f.version : 'fleches-v1') + '|' + f.t).sort();
+    calc['fleches-h1-v5'] = V5.flechesH1v5(serie, { maintenant: n, volumes: Vm, listes: (X, i) => l(X, i).v5 }).map(f => f.t); calc['fleches-h1-v6'] = V6.flechesH1v6(serie, { maintenant: n, volumes: Vm, listes: (X, i) => l(X, i).v6 }).map(f => f.t);
+    aligne = S.flechesH1['fleches-h1-v5'].every(f => (f.sens === 'hausse') === (f.regime === 'haussier') && ['haussier', 'baissier'].includes(f.regime))
+      && S.flechesH1['fleches-h1-v6'].every(f => ['haussier', 'baissier'].includes(f.regime) && (f.mode === 'rejet' ? (f.sens === 'hausse') === (f.regime === 'haussier') : (f.sens === 'hausse') === (f.regime === 'baissier') && f.tTouche < f.t)); }
+  const dk = (S.hist && S.hist.debutKraken) || 0, apres = c => +c.split('|')[1] >= dk;
+  const cleA = [...new Set(versions.flatMap(v => calc[v].map(t => v + '|' + t)))].sort(),   // une marque par bougie et par version (deux flèches du même sens sur une même bougie : une seule marque, comme le registre)
+        cleB = S.fleches.liste.map(f => (S.periode === 'H1' ? f.version : 'fleches-v1') + '|' + f.t).sort();
+  const egalKraken = JSON.stringify(cleA.filter(apres)) === JSON.stringify(cleB.filter(apres)), contient = cleA.every(c => cleB.includes(c));
   const M = T.graph.marquesAffichees().filter(m => /^f\d/.test(m.id)), E = T.graph.etiquettes(), N = S.niveauxP;
-  return { version: S.fleches.version, versions: S.fleches.versions || null, n: S.fleches.liste.length, egal: JSON.stringify(cleA) === JSON.stringify(cleB), nMarques: M.length, ids: M.map(m => m.id), textes: M.map(m => m.text || ''), aligne,
+  return { version: S.fleches.version, versions: S.fleches.versions || null, n: S.fleches.liste.length, egal: egalKraken && contient, egalStrict: JSON.stringify(cleA) === JSON.stringify(cleB), manque: cleA.filter(c => !cleB.includes(c)).slice(0, 4).map(c => c.split('|')[0] + ' ' + new Date(+c.split('|')[1]).toISOString()), enTrop: cleB.filter(c => !cleA.includes(c)).slice(0, 4).map(c => c.split('|')[0] + ' ' + new Date(+c.split('|')[1]).toISOString()), dk: new Date(dk).toISOString(), nMarques: M.length, ids: M.map(m => m.id), textes: M.map(m => m.text || ''), aligne,
     longueurs: Object.fromEntries(Object.entries(calc).map(([k, v]) => [k, v.length])), bilan: document.querySelector('[data-bilan-fleches]').textContent, casesCachees: document.querySelector('[data-versions-h1]').hidden,
-    niveaux: { version: N.version || 'niveaux-periode-v1', r: N.bandes.filter(b => b.cote === 'resistance').length, s: N.bandes.filter(b => b.cote === 'support').length, touches: N.bandes.every(b => b.touches >= 5 || b.extreme), n: N.bandes.length },
+    niveaux: { version: N.version || 'niveaux-periode-v1', r: N.bandes.filter(b => b.cote === 'resistance').length, s: N.bandes.filter(b => b.cote === 'support').length, touches: N.bandes.every(b => b.touches >= 5 || b.extreme || b.retourne), retournes: N.bandes.filter(b => b.retourne).length, n: N.bandes.length },
     chevauche: E.some((a, i) => E.some((b, j) => j > i && a.x < b.x + b.w && b.x < a.x + a.w && a.y < b.y + b.h && b.y < a.y + a.h)), etiquettes: E.length };
 }, versions);
 const simples = c => c.ids.every(id => /^f\d+$/.test(id)) && c.textes.every(t => t === '');
@@ -45,7 +49,8 @@ const m15 = await controle(['fleches-v1']);
 verifier(m15.version === 'fleches-v1' && m15.egal && m15.nMarques === m15.n && simples(m15) && m15.casesCachees, 'M15 : flèches v1 identiques au calcul fleches-v1, marques comme avant, cases cachées', JSON.stringify({ n: m15.n }));
 verifier(m15.niveaux.version === 'niveaux-periode-v1' && m15.niveaux.r <= 4 && m15.niveaux.s <= 4, 'M15 : niveaux inchangés (niveaux-periode-v1, ≤ 4 par côté)', JSON.stringify(m15.niveaux));
 
-/* 2. H1 : v5 par défaut */
+/* 2. H1 : v6 par défaut ; on attend d'abord la fin de l'étude des zones (tâche longue déjà existante, sans rapport avec les flèches) */
+await p.waitForFunction(() => { const e = window.__or.moteur.S.etudeEtat; return e === 'faite' || /^échec/.test(e); }, { timeout: 120000 }); await w(500);
 const fluide = await p.evaluate(async () => {
   let pire = 0, der = performance.now(), fin = false; const mes = () => { const t = performance.now(); pire = Math.max(pire, t - der); der = t; if (!fin) setTimeout(mes, 16); }; mes();
   window.__or.moteur.periode('H1');
@@ -54,31 +59,31 @@ const fluide = await p.evaluate(async () => {
 });
 verifier(fluide.pire < 800, `H1 : la page reste fluide pendant le calcul (plus longue pause ${fluide.pire} ms, calcul ${fluide.duree} ms)`);
 await w(800);
-const h1 = await controle(['fleches-h1-v5']);
-verifier(h1.version === 'fleches-h1-v5' && h1.egal && h1.nMarques === h1.n, 'H1 : par défaut, flèches affichées = fleches-h1-v5 (malgré un ancien choix « v4 »)', JSON.stringify(h1.longueurs));
-verifier(h1.aligne === true, 'H1 : toutes les flèches v5 dans le sens du régime (aucune contre la tendance)');
+const h1 = await controle(['fleches-h1-v6']);
+verifier(h1.version === 'fleches-h1-v6' && h1.egal && h1.nMarques === h1.n, 'H1 : par défaut, flèches affichées = fleches-h1-v6 (malgré un ancien choix « v2 »)', JSON.stringify({ ...h1.longueurs, n: h1.n, manque: h1.manque, enTrop: h1.enTrop, dk: h1.dk }));
+verifier(h1.aligne === true, 'H1 : v5 toujours dans le sens du régime ; v6 : rejet dans le sens du régime, contre le régime seulement en rebond confirmé (touche avant la flèche)');
 verifier(simples(h1), 'H1, une seule version : marques comme avant (sans étiquette)');
-verifier(h1.niveaux.version === 'niveaux-h1-v5' && h1.niveaux.r <= 6 && h1.niveaux.s <= 6 && h1.niveaux.touches, 'H1 : niveaux affichés niveaux-h1-v5 (≤ 6 par côté, ≥ 5 touches ou extrême)', JSON.stringify(h1.niveaux));
+verifier(h1.niveaux.version === 'niveaux-h1-v6' && h1.niveaux.r <= 8 && h1.niveaux.s <= 8 && h1.niveaux.touches, 'H1 : niveaux affichés niveaux-h1-v6 (≤ 6 + 2 retournés par côté, ≥ 5 touches, extrême ou retourné)', JSON.stringify(h1.niveaux));
 verifier(!h1.chevauche && h1.etiquettes >= 1, `H1 : ${h1.etiquettes} étiquettes, aucune ne se chevauche`);
-verifier(/^Flèches H1 \(version 5\) : .*depuis le 8 nov\. 2026, 02 h 58/.test(h1.bilan) && /Aucune décision avant 100/.test(h1.bilan), 'H1 : bilan de v5 depuis le commit de sa règle', h1.bilan.slice(0, 160));
+verifier(/^Flèches H1 \(version 6\) : .*depuis le 8 nov\. 2026, 03 h 18/.test(h1.bilan) && /Aucune décision avant 100/.test(h1.bilan), 'H1 : bilan de v6 depuis le commit de sa règle', h1.bilan.slice(0, 160));
 const cases = await p.evaluate(() => { const b = document.querySelector('[data-versions-h1]'); return { vis: !b.hidden, toutes: [...b.querySelectorAll('[data-vh1]')].map(c => c.dataset.vh1), coches: [...b.querySelectorAll('[data-vh1]')].filter(c => c.checked).map(c => c.dataset.vh1) }; });
-verifier(cases.vis && JSON.stringify(cases.toutes) === '["fleches-h1-v5","fleches-h1-v2"]' && JSON.stringify(cases.coches) === '["fleches-h1-v5"]', 'H1 : seulement les cases v5 et v2, v5 cochée par défaut', JSON.stringify(cases));
+verifier(cases.vis && JSON.stringify(cases.toutes) === '["fleches-h1-v6","fleches-h1-v5","fleches-h1-v2"]' && JSON.stringify(cases.coches) === '["fleches-h1-v6"]', 'H1 : seulement les cases v6, v5 et v2, v6 cochée par défaut', JSON.stringify(cases));
 const fond = await p.evaluate(() => { const F = window.__or.moteur.S.flechesH1; return F && ['fleches-v1', 'fleches-h1-v3', 'fleches-h1-v4'].every(v => Array.isArray(F[v])); });
 verifier(fond, 'v1, v3 et v4 toujours calculées en arrière-plan');
-await p.screenshot({ path: path.join(SORTIE, 'fleches-h1-v5.png') });
+await p.screenshot({ path: path.join(SORTIE, 'fleches-h1-v6.png') });
 
-/* 3. comparer v5 et v2 ; une version cachée ne peut pas être forcée */
-await p.evaluate(() => { const c = document.querySelector('[data-vh1="fleches-h1-v2"]'); c.checked = true; c.dispatchEvent(new Event('change')); }); await w(800);
-const cmp = await controle(['fleches-h1-v2', 'fleches-h1-v5']);
-verifier(JSON.stringify(cmp.versions) === '["fleches-h1-v2","fleches-h1-v5"]' && cmp.egal, 'comparaison : v2 et v5 affichées, chacune complète', JSON.stringify(cmp.longueurs));
-verifier(JSON.stringify([...new Set(cmp.textes)].sort()) === '["v2","v5"]' && cmp.nMarques === cmp.n && new Set(cmp.ids).size === cmp.ids.length, 'comparaison : chaque flèche porte sa version, aucune marque perdue ni en double', JSON.stringify({ n: cmp.n }));
-verifier(/^Flèches H1 \(comparaison\) : v2 : .*01 h 07.* \| v5 : .*02 h 58/.test(cmp.bilan), 'comparaison : un bilan par version, chacune depuis le commit de sa règle', cmp.bilan.slice(0, 200));
+/* 3. comparer v6, v5 et v2 ; une version cachée ne peut pas être forcée */
+await p.evaluate(() => { for (const v of ['fleches-h1-v5', 'fleches-h1-v2']) { const c = document.querySelector(`[data-vh1="${v}"]`); c.checked = true; c.dispatchEvent(new Event('change')); } }); await w(800);
+const cmp = await controle(['fleches-h1-v2', 'fleches-h1-v5', 'fleches-h1-v6']);
+verifier(JSON.stringify(cmp.versions) === '["fleches-h1-v2","fleches-h1-v5","fleches-h1-v6"]' && cmp.egal, 'comparaison : v2, v5 et v6 affichées, chacune complète', JSON.stringify(cmp.longueurs));
+verifier(JSON.stringify([...new Set(cmp.textes)].sort()) === '["v2","v5","v6"]' && cmp.nMarques === cmp.n && new Set(cmp.ids).size === cmp.ids.length, 'comparaison : chaque flèche porte sa version, aucune marque perdue ni en double', JSON.stringify({ n: cmp.n }));
+verifier(/^Flèches H1 \(comparaison\) : v2 : .*01 h 07.* \| v5 : .*02 h 58.* \| v6 : .*03 h 18/.test(cmp.bilan), 'comparaison : un bilan par version, chacune depuis le commit de sa règle', cmp.bilan.slice(0, 200));
 await p.screenshot({ path: path.join(SORTIE, 'fleches-h1-comparaison.png') });
 const force = await p.evaluate(() => window.__or.moteur.versionsH1(['fleches-v1', 'fleches-h1-v4']));
-verifier(JSON.stringify(force) === '["fleches-h1-v5"]', 'v1 / v4 ne peuvent pas être affichées (retour à v5)', JSON.stringify(force));
-const reg = await p.evaluate(() => { const r = JSON.parse(localStorage.getItem('rayle_or_registre_fleches_h1') || 'null'); return r && ['fleches-v1', 'fleches-h1-v2', 'fleches-h1-v3', 'fleches-h1-v4', 'fleches-h1-v5'].every(v => Array.isArray(r.versions[v])); });
-verifier(reg === null || reg === true, 'registre daté des 5 versions (créé dès qu’une flèche nouvelle existe)', JSON.stringify(reg));
-verifier(await p.evaluate(() => [...document.querySelectorAll('details summary')].some(s => s.textContent.includes('flèches H1, version 5'))), 'règles figées de v5 consultables');
+verifier(JSON.stringify(force) === '["fleches-h1-v6"]', 'v1 / v4 ne peuvent pas être affichées (retour à v6)', JSON.stringify(force));
+const reg = await p.evaluate(() => { const r = JSON.parse(localStorage.getItem('rayle_or_registre_fleches_h1') || 'null'); return r && ['fleches-v1', 'fleches-h1-v2', 'fleches-h1-v3', 'fleches-h1-v4', 'fleches-h1-v5', 'fleches-h1-v6'].every(v => Array.isArray(r.versions[v])); });
+verifier(reg === null || reg === true, 'registre daté des 6 versions (créé dès qu’une flèche nouvelle existe)', JSON.stringify(reg));
+verifier(await p.evaluate(() => [...document.querySelectorAll('details summary')].some(s => s.textContent.includes('flèches H1, version 6'))), 'règles figées de v6 consultables');
 
 /* 4. H4 puis M15 : inchangés */
 for (const P of ['H4', 'M15']) {
@@ -90,7 +95,7 @@ for (const P of ['H4', 'M15']) {
 
 /* 5. journal */
 const j = await p.evaluate(() => { const s = document.querySelector('select[name="etiquette"]'), v = document.querySelector('select[name="versionFleche"]'); return { et: !!s && [...s.options].some(o => o.textContent === 'flèche H1'), v: !!v && [...v.options].map(o => o.value) }; });
-verifier(j.et && j.v[0] === 'fleches-h1-v5' && j.v.includes('fleches-h1-v2'), 'journal : étiquette « flèche H1 » et version (v5 par défaut)', JSON.stringify(j));
+verifier(j.et && j.v[0] === 'fleches-h1-v6' && j.v.includes('fleches-h1-v5') && j.v.includes('fleches-h1-v2'), 'journal : étiquette « flèche H1 » et version (v6 par défaut)', JSON.stringify(j));
 
 const utiles = erreurs.filter(e => !/ResizeObserver|Failed to fetch|NetworkError|net::/.test(e));
 verifier(utiles.length === 0, 'aucune erreur de page', JSON.stringify(utiles.slice(0, 3)));
