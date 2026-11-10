@@ -10,9 +10,10 @@ import { libelle, libellePosition, aimanter, NOMS as NOMS_OUTILS } from './outil
 import { fiche as ficheMouv, etiquette as etiquetteMouv } from './mouvements-calcul.js';
 import { LIBELLES } from './institutionnel-calcul.js';
 import { dessinerInstitutionnel } from './institutionnel-dessin.js';
+import { dessinerStructure } from './structure-dessin.js';
 
-export const COUCHES = Object.freeze({ sr: 'Supports et résistances', liquidite: 'Zones de liquidité', fleches: 'Flèches de rebond', volume: 'Zones de volume', mouvements: 'Mouvements H1', ...LIBELLES });
-const COUCHES_DEFAUT = Object.freeze({ sr: true, liquidite: true, fleches: true, volume: false, mouvements: true, ...Object.fromEntries(Object.keys(LIBELLES).map(k => [k, false])) });
+export const COUCHES = Object.freeze({ sr: 'Supports et résistances', liquidite: 'Zones de liquidité', fleches: 'Flèches de rebond', volume: 'Zones de volume', mouvements: 'Mouvements H1', ...LIBELLES, structure: 'Structure de marché H1 / H4 (cassures, impulsions, retournements)', retournements: 'Retournements : toutes les zones (probabilité mesurée)' });
+const COUCHES_DEFAUT = Object.freeze({ sr: true, liquidite: true, fleches: true, volume: false, mouvements: true, structure: false, retournements: false, ...Object.fromEntries(Object.keys(LIBELLES).map(k => [k, false])) });
 const lire = (k, d) => { try { const v = localStorage.getItem(k); return v ? JSON.parse(v) : d; } catch (e) { return d; } };
 const ecrire = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) { /* stockage refusé */ } };
 const nb = (p, d = 2) => Number(p).toLocaleString('fr-FR', { minimumFractionDigits: d, maximumFractionDigits: d }).replace(/ | /g, ' ');
@@ -311,7 +312,8 @@ export function creerGraphiqueOr(el, { surClicPrix, mobile = false } = {}) {
       if (h.c) return { p: h.c.niveau, texte: `Cassure confirmée · ${nb(h.c.niveau)}`, detail: [`clôture à au moins 0,5 ATR au-delà de l’objet (bougie H1 du ${hparis(h.c.t)})`, 'l’objet est marqué « retourné »', 'information de lecture, pas un signal ni une promesse'] };
       if (h.pr) return { p: h.pr.p, texte: `Niveau proposé ${h.pr.unite === 'J' ? 'Jour' : h.pr.unite} · ${nb(h.pr.p)}`, detail: [`grand ${h.pr.sorte} de swing (fractale de 60 bougies de chaque côté) du ${hparis(h.pr.t)}`, 'clic : confirmer en « mon niveau » ou supprimer (liste des outils)'] };
       const o = h.o; return { p: o.p ?? o.entree ?? o.p1 ?? o.bas, texte: libelle(o), detail: [NOMS_OUTILS[o.type] + (o.retourne ? ' · retourné' : ''), o.alerte ? 'alerte de prix active' : 'clic : sélectionner, glisser : déplacer', 'surveillé à la clôture des bougies H1 tant que Rayle est ouvert'] }; };
-    const trouver = (x, y) => { const c = etat.cadres.find(c => x >= c.x - 2 && x <= c.x + c.w + 2 && y >= c.y - 2 && y <= c.y + c.h + 2); return c ? c.g : (marqueSous(x, y) || infoOutil(x, y)); };
+    const structSous = (x, y) => { const L = inst.cadresS || []; const c = L.find(q => q.kind === 'evt' && x >= q.x0 && x <= q.x1 && y >= q.y0 && y <= q.y1) || L.find(q => q.kind === 'bos' && x >= q.x0 && x <= q.x1 && y >= q.y0 && y <= q.y1) || L.find(q => q.kind === 'zone' && x >= q.x0 && x <= q.x1 && y >= q.y0 && y <= q.y1); return c ? c.g : null; };
+    const trouver = (x, y) => { const c = etat.cadres.find(c => x >= c.x - 2 && x <= c.x + c.w + 2 && y >= c.y - 2 && y <= c.y + c.h + 2); return c ? c.g : (marqueSous(x, y) || infoOutil(x, y) || structSous(x, y)); };
     /* flèche ou marque de balayage sous le pointeur (au-dessus de la mèche haute, ou sous la mèche basse, de la bougie) */
     const NOMS = { 'résistance': 'sous une résistance', support: 'sur un support', 'liquidité haute': 'sous une zone de liquidité haute', 'liquidité basse': 'sur une zone de liquidité basse' };
     function marqueSous(x, y) {
@@ -357,8 +359,8 @@ export function creerGraphiqueOr(el, { surClicPrix, mobile = false } = {}) {
     }
   }, 'bottom');
   /* outils institutionnels (VWAP, profil de volume, CVD, séances…) : modèle calculé par institutionnel-or.js, dessiné par institutionnel-dessin.js */
-  const inst = { m: null, props: [] };
-  const primInst = new Primitive((ctx, T) => { if (!chart || !serie || !etat.bougies.length) return; dessinerInstitutionnel(ctx, T, inst.m, { xDeT, yDe, mobile, props: inst.props }); }, 'top');
+  const inst = { m: null, props: [], struct: null, cadresS: [] };
+  const primInst = new Primitive((ctx, T) => { if (!chart || !serie || !etat.bougies.length) return; dessinerInstitutionnel(ctx, T, inst.m, { xDeT, yDe, mobile, props: inst.props }); inst.cadresS = (etat.couches.structure || etat.couches.retournements) ? dessinerStructure(ctx, T, inst.struct, { xDeT, yDe, mobile }) : []; }, 'top');
   const redessiner = () => { primTexte.maj && primTexte.maj(); primFond.maj && primFond.maj(); primMouv.maj && primMouv.maj(); primInst.maj && primInst.maj(); };
 
   const api = {
@@ -382,6 +384,8 @@ export function creerGraphiqueOr(el, { surClicPrix, mobile = false } = {}) {
     couches(c) { if (c) { etat.couches = { ...etat.couches, ...c }; ecrire('rayle_or_couches_v2', etat.couches); redessiner(); if (marqueurs) marqueurs.setMarkers(marquesLW()); } return { ...etat.couches }; },
     institutionnel(m) { inst.m = m; redessiner(); },
     propositions(L) { inst.props = L || []; redessiner(); },
+    structure(m) { inst.struct = m; redessiner(); },
+    structureEtat: () => ({ cadres: (inst.cadresS || []).length, types: (inst.cadresS || []).reduce((o, c) => (o[c.kind] = (o[c.kind] || 0) + 1, o), {}) }),
     mouvements(liste, { h1 = false } = {}) { mouv.liste = liste || []; mouv.h1 = !!h1; redessiner(); return mouv.liste.length; },
     mouvementsEtat: () => ({ h1: mouv.h1, actif: mouv.h1 && etat.couches.mouvements !== false, total: mouv.liste.length, dessines: mouv.cadres.length, cadres: mouv.cadres.map(c => ({ x0: c.x0, x1: c.x1, y0: c.y0, y1: c.y1, sens: c.m.sens, bougies: c.m.bougies, enCours: !!c.m.enCours, t0: c.m.t0 })) }),
     fleches: () => etat.fleches.slice(), segments: () => etat.segCadres.map(q => ({ x0: q.x0, x1: q.x1, y: q.y, libelle: q.sg.libelle, sens: q.sg.sens, etiquette: !q.sg.sansEtiquette })), marquesAffichees: () => marquesLW(),
