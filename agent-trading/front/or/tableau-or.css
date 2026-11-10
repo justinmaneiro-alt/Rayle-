@@ -140,3 +140,4 @@
 .tor-ctx-val{font-family:ui-monospace,Consolas,monospace;white-space:nowrap}.tor-ctx-favorable{color:#5fb894}.tor-ctx-defavorable{color:#d86a6a}.tor-ctx-neutre,.tor-ctx-inconnu{color:var(--d)}.tor-ctx-nd{color:#e0b25f}.tor-ctx-det summary{cursor:pointer;color:var(--d);font-size:12px}.tor-ctx-pied{color:var(--d);font-size:12px;margin:6px 0 0}
 .tor-ctx-actions{display:flex;gap:8px;flex-wrap:wrap;margin:6px 0 8px}.tor-qm{margin-left:4px;min-width:22px;height:22px;border-radius:50%;border:1px solid var(--b);background:#0b1620;color:#8fd0e3;cursor:pointer;font-size:12px;padding:0}
 @media (max-width:700px){.tor-ctx thead{display:none}.tor-ctx tr{display:block;border-bottom:1px solid var(--b);padding:4px 0}.tor-ctx th,.tor-ctx td{display:block;border:0;padding:2px 8px}}
+.tor-contexte{min-width:0;overflow-x:auto}.tor-ctx{table-layout:fixed}.tor-ctx td,.tor-ctx th{overflow-wrap:anywhere}

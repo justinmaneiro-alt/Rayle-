@@ -14,7 +14,7 @@ export function creerContexte({ racine, moteur, graph = null, fetchFn = (...a) =
     const r = await fetchFn(w.url + chemin, { headers: { 'X-Rayle-Token': w.jeton }, signal: AbortSignal.timeout ? AbortSignal.timeout(20000) : undefined }); if (!r.ok) throw new Error('le Worker a répondu ' + r.status); return r.json();
   }
   async function texteLibre(url) {
-    try { const r = await fetchFn(url, { signal: AbortSignal.timeout ? AbortSignal.timeout(15000) : undefined }); if (r.ok) return await r.text(); } catch (e) { /* pas de CORS : repli par relais public */ }
+    // FRED et le calendrier public n'envoient pas d'en-tête CORS : relais public directement (un essai direct ne ferait qu'une erreur de console)
     const r = await fetchFn(PROXY + encodeURIComponent(url), { signal: AbortSignal.timeout ? AbortSignal.timeout(20000) : undefined }); if (!r.ok) throw new Error(new URL(url).host + ' : ' + r.status); return r.text();
   }
   let rendreProgressif = () => {}; const poser = (id, o) => { E.facteurs.set(id, { id, ...o }); rendreProgressif(); };
