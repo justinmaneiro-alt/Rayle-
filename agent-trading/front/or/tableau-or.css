@@ -133,3 +133,5 @@
 .tor .tor-gb{background:#0b1620;color:#d7e3ea;border:1px solid rgba(143,208,227,.45);border-radius:6px;padding:8px 14px;font:600 13px system-ui,sans-serif;min-height:38px;cursor:pointer;white-space:nowrap}
 .tor .tor-gb-pos{border-color:#8fd0e3;color:#8fd0e3}
 .tor .tor-gb.actif{background:#8fd0e3;color:#05080c;border-color:#8fd0e3}
+.tor a.tor-gb{display:inline-flex;align-items:center;text-decoration:none;color:#8a9aa5;border-color:rgba(143,208,227,.25);font-weight:500}
+.tor a.tor-gb:hover{color:#d7e3ea}

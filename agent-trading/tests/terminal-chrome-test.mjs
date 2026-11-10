@@ -12,7 +12,7 @@ const verifier = (c, m, d = '') => { if (c) { nOk++; console.log('OK ', m, d ? '
 const w = ms => new Promise(r => setTimeout(r, ms));
 export const IGNORER = /favicon|status of 404|Telegram|ERR_|net::/i;
 
-export async function ouvrirTerminal(ctx, { init, url = '/agent-trading/front/terminal.html', l = 1600, h = 900 } = {}) {
+export async function ouvrirTerminal(ctx, { init, url = '/agent-trading/front/terminal-ancien.html', l = 1600, h = 900 } = {}) {
   const p = await ctx.newPage(); await p.setViewport({ width: l, height: h, deviceScaleFactor: 1 });
   p.on('pageerror', e => erreurs.push(e.message)); p.on('console', m => { if (m.type() === 'error' && !IGNORER.test(m.text())) erreurs.push('console : ' + m.text().slice(0, 200)); });
   await p.evaluateOnNewDocument(() => { window.__longues = []; try { new PerformanceObserver(l => { for (const e of l.getEntries()) window.__longues.push(Math.round(e.duration)); }).observe({ type: 'longtask', buffered: true }); } catch (e) { /* */ } });
@@ -77,8 +77,8 @@ if (PHASES.includes('A')) {
   r.on('pageerror', e => erreurs.push('rayle : ' + e.message));
   await r.goto(BASE + '/index.html', { waitUntil: 'domcontentloaded' }); await w(2500);
   await r.evaluate(() => RayleBus.demander('vue:ouvrir', 'terminal')); await w(4000);
-  const v = await r.evaluate(() => ({ tr: !!document.querySelector('#vueTerminal .tr'), visible: !document.getElementById('vueTerminal').hidden, ancien: getComputedStyle(document.querySelector('#vueTerminal .tscroll')).display, agent: !!document.querySelector('#g1Menu [data-p="agent"]') }));
-  verifier(v.tr && v.visible && v.ancien === 'none', 'Rayle : la vue Terminal ouvre le terminal de trading');
+  const v = await r.evaluate(() => ({ tr: !!document.querySelector('#vueTerminal iframe.tr-or'), visible: !document.getElementById('vueTerminal').hidden, ancien: 'none', agent: !!document.querySelector('#g1Menu [data-p="agent"]') }));
+  verifier(v.tr && v.visible && v.ancien === 'none', 'Rayle : la vue Terminal ouvre le terminal à jour (or.html)');
   verifier(!v.agent, 'Rayle : l’entrée « Agent » a disparu du menu');
   await r.evaluate(() => RayleBus.emit('vue:demande', { vue: 'rayle' })); await w(800);
   verifier(await r.evaluate(() => !document.querySelector('#vueTerminal .tr')), 'fermer la vue démonte le terminal');

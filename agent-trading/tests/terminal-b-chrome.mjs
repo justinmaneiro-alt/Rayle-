@@ -11,7 +11,7 @@ const nav = await puppeteer.launch({ executablePath: 'C:/Program Files/Google/Ch
 const p = await nav.newPage(); await p.setViewport({ width: 1680, height: 950 });
 const erreurs = []; p.on('pageerror', e => erreurs.push(e.message)); p.on('console', m => { if (m.type() === 'error' && !/favicon|404|ERR_|net::|Telegram/i.test(m.text())) erreurs.push(m.text().slice(0, 200)); });
 await p.evaluateOnNewDocument(() => { if (!sessionStorage.getItem('i')) { sessionStorage.setItem('i', '1'); localStorage.clear(); } });
-await p.goto(BASE + '/agent-trading/front/terminal.html', { waitUntil: 'domcontentloaded' });
+await p.goto(BASE + '/agent-trading/front/terminal-ancien.html', { waitUntil: 'domcontentloaded' });
 await p.waitForFunction(() => window.__terminal && window.__terminal.graph.etat().n > 100 && window.__terminal.module('rayle') && window.__terminal.module('analyses'), { timeout: 90000 });
 const T = 'window.__terminal';
 const defauts = await p.evaluate(() => { const c = window.__terminal.couches(); return ['motifs', 'evenements', 'carnetBougie', 'cvd', 'profilVolume', 'vwap', 'vwapAncre', 'extremes', 'seances', 'rondes', 'chaleur'].map(k => [k, c[k]]); });
