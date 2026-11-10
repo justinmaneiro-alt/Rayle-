@@ -1,0 +1,347 @@
+{
+ "fige_le": "2026-11-10",
+ "nombre_variantes": 24,
+ "sha256_liste": "b2c4229ac14068638aeb1eb5ef68deb98e498794704e400f2041e0402397bf49",
+ "sha256_criteres": "5dcade97758fdb0a2f0a4a84402028efe37b9316c76d8437c5480bad2d024b08",
+ "sha256_familles_gros": "5d252474097208581ec7a5bdaf538f0205fbc2191e7c3a374af71b7132a0ce50",
+ "sha256_simulateur_gros": "0cb4fe9210469d2d3bbf1c4aa42494edd94a13e7bb403d86401b6b7752289d05",
+ "sha256_liste_precedente": "af2639ef067896be372256f16cdd921389aad1a589038181b4be09e815bafd55",
+ "variantes": [
+  {
+   "id": "g-P1-ch2",
+   "famille": "g-P1",
+   "libelle": "Démarrage confirmé + balayage de la veille · chandelier 2 ATR",
+   "entree": "P1",
+   "sortie": "ch2",
+   "min": 1,
+   "qui": [
+    0
+   ],
+   "chandelier": 2,
+   "be": false
+  },
+  {
+   "id": "g-P1-ch3",
+   "famille": "g-P1",
+   "libelle": "Démarrage confirmé + balayage de la veille · chandelier 3 ATR",
+   "entree": "P1",
+   "sortie": "ch3",
+   "min": 1,
+   "qui": [
+    0
+   ],
+   "chandelier": 3,
+   "be": false
+  },
+  {
+   "id": "g-P1-ch4",
+   "famille": "g-P1",
+   "libelle": "Démarrage confirmé + balayage de la veille · chandelier 4 ATR",
+   "entree": "P1",
+   "sortie": "ch4",
+   "min": 1,
+   "qui": [
+    0
+   ],
+   "chandelier": 4,
+   "be": false
+  },
+  {
+   "id": "g-P1-be3",
+   "famille": "g-P1",
+   "libelle": "Démarrage confirmé + balayage de la veille · break-even après +1 R puis chandelier 3 ATR",
+   "entree": "P1",
+   "sortie": "be3",
+   "min": 1,
+   "qui": [
+    0
+   ],
+   "chandelier": 3,
+   "be": true
+  },
+  {
+   "id": "g-P2-ch2",
+   "famille": "g-P2",
+   "libelle": "Démarrage confirmé + ouverture de Londres ou de New York · chandelier 2 ATR",
+   "entree": "P2",
+   "sortie": "ch2",
+   "min": 1,
+   "qui": [
+    1
+   ],
+   "chandelier": 2,
+   "be": false
+  },
+  {
+   "id": "g-P2-ch3",
+   "famille": "g-P2",
+   "libelle": "Démarrage confirmé + ouverture de Londres ou de New York · chandelier 3 ATR",
+   "entree": "P2",
+   "sortie": "ch3",
+   "min": 1,
+   "qui": [
+    1
+   ],
+   "chandelier": 3,
+   "be": false
+  },
+  {
+   "id": "g-P2-ch4",
+   "famille": "g-P2",
+   "libelle": "Démarrage confirmé + ouverture de Londres ou de New York · chandelier 4 ATR",
+   "entree": "P2",
+   "sortie": "ch4",
+   "min": 1,
+   "qui": [
+    1
+   ],
+   "chandelier": 4,
+   "be": false
+  },
+  {
+   "id": "g-P2-be3",
+   "famille": "g-P2",
+   "libelle": "Démarrage confirmé + ouverture de Londres ou de New York · break-even après +1 R puis chandelier 3 ATR",
+   "entree": "P2",
+   "sortie": "be3",
+   "min": 1,
+   "qui": [
+    1
+   ],
+   "chandelier": 3,
+   "be": true
+  },
+  {
+   "id": "g-P3-ch2",
+   "famille": "g-P3",
+   "libelle": "Démarrage confirmé + prix à plus de 1,5 écart-type du VWAP · chandelier 2 ATR",
+   "entree": "P3",
+   "sortie": "ch2",
+   "min": 1,
+   "qui": [
+    2
+   ],
+   "chandelier": 2,
+   "be": false
+  },
+  {
+   "id": "g-P3-ch3",
+   "famille": "g-P3",
+   "libelle": "Démarrage confirmé + prix à plus de 1,5 écart-type du VWAP · chandelier 3 ATR",
+   "entree": "P3",
+   "sortie": "ch3",
+   "min": 1,
+   "qui": [
+    2
+   ],
+   "chandelier": 3,
+   "be": false
+  },
+  {
+   "id": "g-P3-ch4",
+   "famille": "g-P3",
+   "libelle": "Démarrage confirmé + prix à plus de 1,5 écart-type du VWAP · chandelier 4 ATR",
+   "entree": "P3",
+   "sortie": "ch4",
+   "min": 1,
+   "qui": [
+    2
+   ],
+   "chandelier": 4,
+   "be": false
+  },
+  {
+   "id": "g-P3-be3",
+   "famille": "g-P3",
+   "libelle": "Démarrage confirmé + prix à plus de 1,5 écart-type du VWAP · break-even après +1 R puis chandelier 3 ATR",
+   "entree": "P3",
+   "sortie": "be3",
+   "min": 1,
+   "qui": [
+    2
+   ],
+   "chandelier": 3,
+   "be": true
+  },
+  {
+   "id": "g-P4-ch2",
+   "famille": "g-P4",
+   "libelle": "Démarrage confirmé + compression de volatilité · chandelier 2 ATR",
+   "entree": "P4",
+   "sortie": "ch2",
+   "min": 1,
+   "qui": [
+    3
+   ],
+   "chandelier": 2,
+   "be": false
+  },
+  {
+   "id": "g-P4-ch3",
+   "famille": "g-P4",
+   "libelle": "Démarrage confirmé + compression de volatilité · chandelier 3 ATR",
+   "entree": "P4",
+   "sortie": "ch3",
+   "min": 1,
+   "qui": [
+    3
+   ],
+   "chandelier": 3,
+   "be": false
+  },
+  {
+   "id": "g-P4-ch4",
+   "famille": "g-P4",
+   "libelle": "Démarrage confirmé + compression de volatilité · chandelier 4 ATR",
+   "entree": "P4",
+   "sortie": "ch4",
+   "min": 1,
+   "qui": [
+    3
+   ],
+   "chandelier": 4,
+   "be": false
+  },
+  {
+   "id": "g-P4-be3",
+   "famille": "g-P4",
+   "libelle": "Démarrage confirmé + compression de volatilité · break-even après +1 R puis chandelier 3 ATR",
+   "entree": "P4",
+   "sortie": "be3",
+   "min": 1,
+   "qui": [
+    3
+   ],
+   "chandelier": 3,
+   "be": true
+  },
+  {
+   "id": "g-C1-ch2",
+   "famille": "g-C1",
+   "libelle": "Démarrage confirmé + au moins 1 précurseur · chandelier 2 ATR",
+   "entree": "C1",
+   "sortie": "ch2",
+   "min": 1,
+   "qui": [
+    0,
+    1,
+    2,
+    3
+   ],
+   "chandelier": 2,
+   "be": false
+  },
+  {
+   "id": "g-C1-ch3",
+   "famille": "g-C1",
+   "libelle": "Démarrage confirmé + au moins 1 précurseur · chandelier 3 ATR",
+   "entree": "C1",
+   "sortie": "ch3",
+   "min": 1,
+   "qui": [
+    0,
+    1,
+    2,
+    3
+   ],
+   "chandelier": 3,
+   "be": false
+  },
+  {
+   "id": "g-C1-ch4",
+   "famille": "g-C1",
+   "libelle": "Démarrage confirmé + au moins 1 précurseur · chandelier 4 ATR",
+   "entree": "C1",
+   "sortie": "ch4",
+   "min": 1,
+   "qui": [
+    0,
+    1,
+    2,
+    3
+   ],
+   "chandelier": 4,
+   "be": false
+  },
+  {
+   "id": "g-C1-be3",
+   "famille": "g-C1",
+   "libelle": "Démarrage confirmé + au moins 1 précurseur · break-even après +1 R puis chandelier 3 ATR",
+   "entree": "C1",
+   "sortie": "be3",
+   "min": 1,
+   "qui": [
+    0,
+    1,
+    2,
+    3
+   ],
+   "chandelier": 3,
+   "be": true
+  },
+  {
+   "id": "g-C2-ch2",
+   "famille": "g-C2",
+   "libelle": "Démarrage confirmé + au moins 2 précurseurs · chandelier 2 ATR",
+   "entree": "C2",
+   "sortie": "ch2",
+   "min": 2,
+   "qui": [
+    0,
+    1,
+    2,
+    3
+   ],
+   "chandelier": 2,
+   "be": false
+  },
+  {
+   "id": "g-C2-ch3",
+   "famille": "g-C2",
+   "libelle": "Démarrage confirmé + au moins 2 précurseurs · chandelier 3 ATR",
+   "entree": "C2",
+   "sortie": "ch3",
+   "min": 2,
+   "qui": [
+    0,
+    1,
+    2,
+    3
+   ],
+   "chandelier": 3,
+   "be": false
+  },
+  {
+   "id": "g-C2-ch4",
+   "famille": "g-C2",
+   "libelle": "Démarrage confirmé + au moins 2 précurseurs · chandelier 4 ATR",
+   "entree": "C2",
+   "sortie": "ch4",
+   "min": 2,
+   "qui": [
+    0,
+    1,
+    2,
+    3
+   ],
+   "chandelier": 4,
+   "be": false
+  },
+  {
+   "id": "g-C2-be3",
+   "famille": "g-C2",
+   "libelle": "Démarrage confirmé + au moins 2 précurseurs · break-even après +1 R puis chandelier 3 ATR",
+   "entree": "C2",
+   "sortie": "be3",
+   "min": 2,
+   "qui": [
+    0,
+    1,
+    2,
+    3
+   ],
+   "chandelier": 3,
+   "be": true
+  }
+ ]
+}

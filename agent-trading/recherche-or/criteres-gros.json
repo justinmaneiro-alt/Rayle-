@@ -1,0 +1,8 @@
+{
+  "fige_le": "2026-11-10",
+  "note": "Étude « gros mouvements ». Mêmes critères que criteres.json (jamais assouplis), évalués sur le scénario le plus défavorable après filtre de coût propre à chaque scénario. Holm sur 67 + 24 = 91 variantes.",
+  "validation": { "R_net_moyen_min": 0.15, "trades_min": 150, "ic95_au_dessus_de": 0, "hasard": { "tirages": 1000, "p_max_apres_holm": 0.01, "memes": "heures, régime Jour, sens, gestion (stop suiveur), filtre de coût" }, "annees_rentables_min": 0.7, "voisins": "les 3 autres sorties de la même entrée ont un R net moyen > 0", "audit": { "trades": 50 } },
+  "filtre_cout": "ATR H1 ≥ 5 × coût aller-retour (CFD : spread + 0,5 $ ; Kraken : 0,1 % du prix + 0,5 $)",
+  "sorties": "aucune sortie par le temps ; stop initial 1,5 ATR ; chandelier 2/3/4 ATR ; break-even après +1 R puis chandelier 3 ATR ; sécurité 48 bougies H1",
+  "test_final": "2020–2025 : ouvert UNE fois, seulement si une variante passe tous les critères de validation"
+}

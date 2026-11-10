@@ -1,0 +1,19 @@
+/* Tests de l'étude « gros mouvements » (données synthétiques) : gel, aucune sortie par le temps, chandelier jamais relâché, filtre de coût, accord des deux simulateurs. */
+import fs from 'node:fs'; import crypto from 'node:crypto';
+import { construire } from '../recherche-or/contexte.mjs'; import { SPECS_GROS, SORTIES, ENTREES, LIMITE_BOUGIES } from '../recherche-or/familles-gros.mjs'; import { essaiGros, enchainerGros } from '../recherche-or/simulateur-gros.mjs'; import { rejouerGros } from '../recherche-or/simulateur2-gros.mjs'; import { prng } from '../recherche-or/stats.mjs';
+let ok = 0, ko = 0; const v = (c, m) => { if (c) ok++; else { ko++; console.log('ÉCHEC', m); } };
+const F = JSON.parse(fs.readFileSync(new URL('../recherche-or/liste-gros-figee.json', import.meta.url), 'utf8')); v(crypto.createHash('sha256').update(JSON.stringify(SPECS_GROS)).digest('hex') === F.sha256_liste, 'liste « gros mouvements » conforme au gel'); v(SPECS_GROS.length === 24 && ENTREES.length === 6 && SORTIES.length === 4, '6 entrées × 4 sorties'); v(!SPECS_GROS.some(s => 'temps' in s || 'sortieTemps' in s), 'aucune sortie par le temps dans la liste'); v(LIMITE_BOUGIES === 48, 'limite de sécurité à 48 bougies');
+// série synthétique à forte volatilité (pour passer le filtre de coût) : 300 jours
+const rnd = prng(11), h1 = [], m15 = []; let p = 1500; const t0 = Date.UTC(2016, 0, 4);
+for (let k = 0; k < 300 * 24; k++) { const t = t0 + k * 3600e3, o = p, vol = 6 + 5 * Math.abs(Math.sin(k / 53)); p += (rnd() - 0.48) * vol; const h = Math.max(o, p) + rnd() * 2, l = Math.min(o, p) - rnd() * 2; h1.push({ t, o, h, l, c: p, v: 100 + rnd() * 100, sp: 0.4 }); m15.push({ t, o, h, l, c: p, v: 100 }); }
+const X = construire({ h1, m15 }); const cfg = { chandelier: 3, be: false };
+let n = 0, passe = 0, longs = 0; for (let i = 250; i < X.n - 60; i += 7) { const r = essaiGros(X, i, 1, cfg, 'cfd'); if (!r) continue; n++; if (r.bougies > 6) longs++; if (r.bougies <= LIMITE_BOUGIES) passe++; } v(n > 50 && passe === n, 'toute sortie a lieu en 48 bougies ou moins (' + n + ' essais)'); v(longs > 0, 'des trades durent plus de 6 bougies : pas de sortie par le temps');
+// chandelier jamais relâché : le stop effectif ne recule jamais (on rejoue en ajoutant des bougies calmes et on compare)
+let viol = 0; for (let i = 250; i < X.n - 60; i += 11) { for (const d of [1, -1]) { const r = essaiGros(X, i, d, { chandelier: 2, be: false }, 'cfd'); if (r && r.raison === 'stop') { const stopEff = r.sortie; const initial = r.entree - d * r.dist; if (d * (stopEff - initial) < -1e-9 && !(d > 0 ? X.o[r.jSortie] <= initial : X.o[r.jSortie] >= initial)) viol++; } } } v(viol === 0, 'le stop ne s\'éloigne jamais du stop initial (sauf gap)');
+// filtre de coût : avec un spread énorme plus aucun trade
+const Xc = { ...X, sp: X.sp.map(() => 30) }; let m = 0; for (let i = 250; i < X.n - 60; i += 7) if (essaiGros(Xc, i, 1, cfg, 'cfd')) m++; v(m === 0, 'filtre de coût : ATR < 5 × coût = aucun trade');
+// accord des deux simulateurs
+const B = h1.map(b => ({ ...b })); let tot = 0, acc = 0; for (let k = 0; k < 400; k++) { const i = 250 + Math.floor(rnd() * (X.n - 320)), d = rnd() < 0.5 ? 1 : -1, s = SORTIES[k % 4], sc = k % 2 ? 'krk' : 'cfd'; const a = essaiGros(X, i, d, s, sc), b = rejouerGros(B, i, d, s, sc); if (!a && !b) continue; if (!a || !b) { tot++; continue; } tot++; if (Math.abs(a.Rbrut - b.Rbrut) < 1e-9 && Math.abs(a.R - b.R) < 1e-9 && a.jSortie === b.barSortie) acc++; } v(tot > 40 && acc === tot, `simulateurs en accord ${acc}/${tot}`);
+// un seul trade à la fois
+const sg = []; for (let i = 250; i < X.n - 60; i += 3) sg.push({ i, d: 1 }); const T = enchainerGros(X, sg, SPECS_GROS[1], 'cfd'); let chev = 0; for (let k = 1; k < T.length; k++) if (T[k].i < T[k - 1].jSortie) chev++; v(T.length > 5 && chev === 0, 'aucun chevauchement');
+console.log(`gros mouvements : ${ok} vérifications OK, ${ko} échecs`); process.exit(ko ? 1 : 0);
