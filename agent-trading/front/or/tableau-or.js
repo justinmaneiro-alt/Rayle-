@@ -7,6 +7,7 @@ import { creerCarnet } from '../carnet.js';
 import { creerMoteurOr } from './moteur-or.js';
 import { creerGraphiqueOr, COUCHES, ratio } from './graphique-or.js';
 import { creerMouvementsUI } from './mouvements-ui.js';
+import { creerInstitutionnel } from './institutionnel-or.js';
 import { PERIODES, REGLES, TEXTE_REGLES, KRAKEN } from './config-or.js';
 import { texteType, texteHistorique, NOMS_TYPES } from './zones-or.js';
 import { heureParis } from './temps-or.js';
@@ -95,7 +96,7 @@ export function monterTableauOr(el, { modules = {}, contexte = 'page', fetchFn, 
 
   /* moteur + graphique + carnet (le même carnet que l'agent) */
   const graph = creerGraphiqueOr(q('[data-graph]'), { mobile });
-  let mouvUI = null;
+  let mouvUI = null, instUI = null;
   graph.surPosition = (pos, outil) => majPosition(pos, outil);
   graph.surBordGauche = () => { moteur.plusAncien(); };   // glisser vers la gauche : historique plus ancien
   const carnet = creerCarnet(q('[data-carnet]'), { racine: q('[data-carnet]'), WS });   // racine = élément « .at » qui porte les couleurs du carnet (jetons.css)
@@ -147,6 +148,7 @@ export function monterTableauOr(el, { modules = {}, contexte = 'page', fetchFn, 
     for (const b of R.querySelectorAll('[data-periode]')) b.setAttribute('aria-pressed', String(b.dataset.periode === S.periode));
     graph.bougies(moteur.serie(), S.hist ? S.refP : S.periode === 'M15' ? S.refM15 : S.refP, { cle: S.periode + (S.hist ? ':historique' : ':court'), debutKraken: S.hist && S.k.length ? S.k[0].t : null, ecart: S.ecart });
     graph.dessin({ zonesVol: S.zonesVol, niveaux: S.niveaux, retournement: S.zones, prix: S.prix, a: S.a, ...dessinPeriode(S) });
+    if (instUI) { try { instUI.maj(); } catch (e) { console.warn('outils institutionnels :', e.message); } }
     if (mouvUI) { try { mouvUI.maj(); } catch (e) { console.warn('mouvements :', e.message); } }   // couche « Mouvements H1 » (H1 seulement ; calcul dans un Worker)
     // bandeau unique : marché fermé, retard, données peu fiables, panne
     const msg = [];
@@ -214,7 +216,7 @@ export function monterTableauOr(el, { modules = {}, contexte = 'page', fetchFn, 
   });
   q('[data-demande]').addEventListener('submit', e => { e.preventDefault(); const i = e.target.querySelector('input'); if (i.value.trim()) repondre(i.value.trim()); i.value = ''; });
   for (const c of R.querySelectorAll('[data-vh1]')) c.addEventListener('change', () => { const sel = [...R.querySelectorAll('[data-vh1]')].filter(x => x.checked).map(x => x.dataset.vh1); moteur.versionsH1(sel.length ? sel : ['fleches-h1-v9']); });
-  for (const c of R.querySelectorAll('[data-couche]')) { c.checked = graph.couches()[c.dataset.couche] !== false; c.addEventListener('change', () => graph.couches({ [c.dataset.couche]: c.checked })); }
+  for (const c of R.querySelectorAll('[data-couche]')) { c.checked = graph.couches()[c.dataset.couche] !== false; c.addEventListener('change', () => { graph.couches({ [c.dataset.couche]: c.checked }); if (instUI) { if (c.dataset.couche === 'carteCarnet') instUI.carteThermique(c.checked); instUI.maj(true); } }); }
   // boutons collés au graphique : « Positions de Rayle » (panneau Trades simulés) et « Mouvements H1 » (couche)
   { const bp = R.querySelector('[data-a="positions-rayle"]'), bm = R.querySelector('[data-a="mouv-h1"]'), cm = R.querySelector('[data-couche="mouvements"]');
     const sp = o => { bp.classList.toggle('actif', !!o); bp.setAttribute('aria-pressed', String(!!o)); }, sm = () => { const o = cm && cm.checked; bm.classList.toggle('actif', !!o); bm.setAttribute('aria-pressed', String(!!o)); };
@@ -243,6 +245,7 @@ export function monterTableauOr(el, { modules = {}, contexte = 'page', fetchFn, 
   const ro = typeof ResizeObserver !== 'undefined' ? new ResizeObserver(surTaille) : null; ro ? ro.observe(el) : addEventListener('resize', surTaille); surTaille();
 
   // modules B et C (montés dans leurs blocs) : chargés à la demande, chacun indépendant
+  instUI = creerInstitutionnel({ graph, moteur, carnet }); api.institutionnel = instUI; instUI.maj(true);
   mouvUI = creerMouvementsUI({ racine: R, graph, moteur }); api.mouvements = mouvUI; api.graphe = () => graph;
   api.monterModule = (nom, m) => { modules[nom] = m; }; api.rendre = () => rendre();
   // mes outils (dessin, surveillance, alertes, registre) : dans tous les contextes ; un échec n'empêche pas le reste

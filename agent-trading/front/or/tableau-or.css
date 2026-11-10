@@ -135,3 +135,4 @@
 .tor .tor-gb.actif{background:#8fd0e3;color:#05080c;border-color:#8fd0e3}
 .tor a.tor-gb{display:inline-flex;align-items:center;text-decoration:none;color:#8a9aa5;border-color:rgba(143,208,227,.25);font-weight:500}
 .tor a.tor-gb:hover{color:#d7e3ea}
+.tor-couches>.tor-couches-corps{max-height:72vh;overflow:auto}
