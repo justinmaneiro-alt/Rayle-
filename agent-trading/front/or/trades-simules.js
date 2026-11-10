@@ -9,9 +9,7 @@ import { FILTRES, voisin, couleurR, libelleSortie } from './trades-simules-calcu
 
 const URL_DONNEES = new URL('./donnees-trades/trades.json', import.meta.url).href, URL_WORKER = new URL('./trades-simules-worker.js', import.meta.url);
 const CSS = `
-.ts-bouton{position:fixed;left:14px;bottom:14px;z-index:60;background:#0b1620;color:#8fd0e3;border:1px solid rgba(143,208,227,.45);border-radius:6px;padding:9px 14px;font:600 13px system-ui,sans-serif;cursor:pointer;min-height:40px}
-.ts-bouton:hover{background:#12222f}
-.ts-voile{position:fixed;inset:0;z-index:200;background:#05080c;color:#d7e3ea;font:13px system-ui,sans-serif;display:none;flex-direction:column}
+.ts-voile{position:fixed;top:0;right:0;bottom:0;width:min(1120px,100vw);box-shadow:-8px 0 24px rgba(0,0,0,.55);border-left:1px solid rgba(143,208,227,.3);z-index:200;background:#05080c;color:#d7e3ea;font:13px system-ui,sans-serif;display:none;flex-direction:column}
 .ts-voile.ouvert{display:flex}
 .ts-haut{display:flex;flex-wrap:wrap;gap:8px;align-items:center;padding:8px 12px;border-bottom:1px solid rgba(143,208,227,.18)}
 .ts-haut h2{margin:0 8px 0 0;font-size:14px;font-weight:600;color:#8fd0e3}
@@ -58,8 +56,7 @@ export function monterTradesSimules({ conteneur = document.body } = {}) {
   }
   const etat = { variante: null, filtre: 'tous', mode: 'trade', periode: null, indices: [], courant: null, info: null, erreurWorker: null, dessines: 0, charge: false, trade: null };
   // ── interface ──
-  const bouton = el('button', { class: 'ts-bouton', type: 'button', 'data-ts': 'bouton', title: 'Trades simulés des études « structure »' }, 'Trades simulés');
-  const selVar = el('select', { 'data-ts': 'variante', 'aria-label': 'Variante' }), selFiltre = el('select', { 'data-ts': 'filtre', 'aria-label': 'Filtre' }), selPer = el('select', { 'data-ts': 'periode', 'aria-label': 'Période' });
+    const selVar = el('select', { 'data-ts': 'variante', 'aria-label': 'Variante' }), selFiltre = el('select', { 'data-ts': 'filtre', 'aria-label': 'Filtre' }), selPer = el('select', { 'data-ts': 'periode', 'aria-label': 'Période' });
   for (const [k, nom] of FILTRES) selFiltre.append(el('option', { value: k }, nom));
   const bTrade = el('button', { type: 'button', 'data-ts': 'mode-trade' }, 'Un trade'), bEns = el('button', { type: 'button', 'data-ts': 'mode-periode' }, 'Période');
   const bFerme = el('button', { type: 'button', 'data-ts': 'fermer' }, 'Fermer');
@@ -67,7 +64,7 @@ export function monterTradesSimules({ conteneur = document.body } = {}) {
   const liste = el('div', { class: 'ts-liste', 'data-ts': 'liste' }), resume = el('div', { class: 'ts-resume', 'data-ts': 'resume' }), graph = el('div', { class: 'ts-graph', 'data-ts': 'graphique' }), droite = el('div', { class: 'ts-droite', 'data-ts': 'fiche' });
   const gauche = el('div', { style: 'display:flex;flex-direction:column;min-height:0;border-right:1px solid rgba(143,208,227,.15)' }, resume, liste); liste.style.borderRight = '0'; liste.style.flex = '1';
   const voile = el('div', { class: 'ts-voile', 'data-ts': 'voile', role: 'dialog', 'aria-label': 'Trades simulés' }, haut, el('div', { class: 'ts-corps' }, gauche, el('div', { class: 'ts-centre' }, graph), droite));
-  conteneur.append(bouton, voile);
+  conteneur.append(voile);
   // ── graphique ──
   let LW = null, chart = null, serie = null, marqueurs = null, lignes = [], dernieresBars = [], tradesAffiches = [];
   async function graphique() {
@@ -132,7 +129,7 @@ export function monterTradesSimules({ conteneur = document.body } = {}) {
   function periodes() { const D = etat.info.dates || [], fin = etat.info.fin; return [{ nom: '30 derniers jours', debut: fin - 30 * 86400e3, fin }, ...D.map(d => ({ nom: d.nom, debut: d.t - 4 * 86400e3, fin: d.t + 5 * 86400e3 })), { nom: '2026 (toute l’année)', debut: Date.UTC(2026, 0, 1), fin }]; }
   async function choisirVariante(id) { etat.variante = id; etat.courant = null; await rafraichirListe(); }
   async function ouvrir(idVariante) {
-    voile.classList.add('ouvert'); bouton.style.display = 'none';
+    voile.classList.add('ouvert'); signaler();
     if (!etat.charge) {
       droite.replaceChildren(el('div', { class: 'ts-msg' }, 'Chargement des trades…'));
       try {
@@ -145,8 +142,8 @@ export function monterTradesSimules({ conteneur = document.body } = {}) {
     if (idVariante && etat.info.variantes.some(v => v.id === idVariante)) etat.variante = idVariante;
     selVar.value = etat.variante; selFiltre.value = etat.filtre; await rafraichirListe();
   }
-  function fermer() { voile.classList.remove('ouvert'); bouton.style.display = ''; }
-  bouton.addEventListener('click', () => ouvrir());
+  function fermer() { voile.classList.remove('ouvert'); signaler(); }
+  function signaler() { window.dispatchEvent(new CustomEvent('ts:etat', { detail: { ouvert: voile.classList.contains('ouvert') } })); }
   bFerme.addEventListener('click', fermer);
   selVar.addEventListener('change', () => choisirVariante(selVar.value));
   selFiltre.addEventListener('change', () => { etat.filtre = selFiltre.value; rafraichirListe(); });

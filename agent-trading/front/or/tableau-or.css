@@ -128,3 +128,8 @@
 .tor-mouv-h{display:grid;grid-template-columns:repeat(2,1fr);gap:0 10px;font:11px ui-monospace,Consolas,monospace}
 .tor-mouv-avert{color:#c9b27a}
 .tor-mouv-note{color:#c9b27a}
+
+.tor-graph-barre{display:flex;flex-wrap:wrap;gap:8px;align-items:center;padding:6px 10px;border-bottom:1px solid var(--b);position:relative;z-index:3}
+.tor .tor-gb{background:#0b1620;color:#d7e3ea;border:1px solid rgba(143,208,227,.45);border-radius:6px;padding:8px 14px;font:600 13px system-ui,sans-serif;min-height:38px;cursor:pointer;white-space:nowrap}
+.tor .tor-gb-pos{border-color:#8fd0e3;color:#8fd0e3}
+.tor .tor-gb.actif{background:#8fd0e3;color:#05080c;border-color:#8fd0e3}

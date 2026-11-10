@@ -58,7 +58,7 @@ export function monterTableauOr(el, { modules = {}, contexte = 'page', fetchFn, 
   </header>
   <p class="tor-bandeau" data-bandeau role="status" hidden></p>
   <section class="tor-ecran1">
-    <div class="tor-graph"><div class="tor-graph-lw" data-graph></div><p class="tor-pos" data-pos hidden></p><p class="tor-graph-source" data-source></p><p class="tor-graph-source tor-mouv-note" data-mouv-note hidden></p><p class="tor-graph-source tor-bilan" data-bilan-fleches></p><p class="tor-graph-source" data-versions-h1 hidden>Flèches H1 affichées : <label><input type="checkbox" data-vh1="fleches-h1-v9"> v9</label> <label><input type="checkbox" data-vh1="fleches-h1-v8"> v8</label> <label><input type="checkbox" data-vh1="fleches-h1-v7"> v7</label> <label><input type="checkbox" data-vh1="fleches-h1-v2"> v2</label> <span class="tor-doux">(cocher plusieurs pour comparer ; les flèches portent alors leur version ; v1, v3, v4, v5 et v6 restent calculées en arrière-plan)</span></p></div>
+    <div class="tor-graph"><div class="tor-graph-barre" data-graph-barre><button type="button" class="tor-gb tor-gb-pos" data-a="positions-rayle" aria-pressed="false" title="Positions simulées que Rayle propose">Positions de Rayle</button><button type="button" class="tor-gb" data-a="mouv-h1" aria-pressed="false" title="Afficher ou masquer la couche Mouvements H1">Mouvements H1</button></div><div class="tor-graph-lw" data-graph></div><p class="tor-pos" data-pos hidden></p><p class="tor-graph-source" data-source></p><p class="tor-graph-source tor-mouv-note" data-mouv-note hidden></p><p class="tor-graph-source tor-bilan" data-bilan-fleches></p><p class="tor-graph-source" data-versions-h1 hidden>Flèches H1 affichées : <label><input type="checkbox" data-vh1="fleches-h1-v9"> v9</label> <label><input type="checkbox" data-vh1="fleches-h1-v8"> v8</label> <label><input type="checkbox" data-vh1="fleches-h1-v7"> v7</label> <label><input type="checkbox" data-vh1="fleches-h1-v2"> v2</label> <span class="tor-doux">(cocher plusieurs pour comparer ; les flèches portent alors leur version ; v1, v3, v4, v5 et v6 restent calculées en arrière-plan)</span></p></div>
     <aside class="tor-carnet at" data-carnet aria-label="Carnet d’ordres"></aside>
   </section>
   <section class="tor-bloc tor-lecture" data-lecture>
@@ -215,6 +215,12 @@ export function monterTableauOr(el, { modules = {}, contexte = 'page', fetchFn, 
   q('[data-demande]').addEventListener('submit', e => { e.preventDefault(); const i = e.target.querySelector('input'); if (i.value.trim()) repondre(i.value.trim()); i.value = ''; });
   for (const c of R.querySelectorAll('[data-vh1]')) c.addEventListener('change', () => { const sel = [...R.querySelectorAll('[data-vh1]')].filter(x => x.checked).map(x => x.dataset.vh1); moteur.versionsH1(sel.length ? sel : ['fleches-h1-v9']); });
   for (const c of R.querySelectorAll('[data-couche]')) { c.checked = graph.couches()[c.dataset.couche] !== false; c.addEventListener('change', () => graph.couches({ [c.dataset.couche]: c.checked })); }
+  // boutons collés au graphique : « Positions de Rayle » (panneau Trades simulés) et « Mouvements H1 » (couche)
+  { const bp = R.querySelector('[data-a="positions-rayle"]'), bm = R.querySelector('[data-a="mouv-h1"]'), cm = R.querySelector('[data-couche="mouvements"]');
+    const sp = o => { bp.classList.toggle('actif', !!o); bp.setAttribute('aria-pressed', String(!!o)); }, sm = () => { const o = cm && cm.checked; bm.classList.toggle('actif', !!o); bm.setAttribute('aria-pressed', String(!!o)); };
+    window.addEventListener('ts:etat', e => sp(e.detail && e.detail.ouvert));
+    bp.addEventListener('click', async () => { try { const m = await import('./trades-simules.js'), ts = window.TradesSimules || m.monterTradesSimules(); if (ts.ouvert()) ts.fermer(); else ts.ouvrir(); } catch (e) { console.warn('trades simulés indisponibles :', e.message); } });
+    if (cm) { bm.addEventListener('click', () => { cm.checked = !cm.checked; cm.dispatchEvent(new Event('change', { bubbles: true })); sm(); }); cm.addEventListener('change', sm); sm(); } }
   // réglages des notifications
   const anti = moteur.anti.reglages();
   const champs = { voix: regl.voix, telegram: regl.telegram, couper: anti.coupe, calmeDe: anti.calme.de, calmeA: anti.calme.a, plafond: anti.plafond };

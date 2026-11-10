@@ -12,8 +12,8 @@ async function essai(l, h, mobile) {
   const p = await nav.newPage(); await p.setViewport({ width: l, height: h, isMobile: mobile, hasTouch: mobile });
   p.on('pageerror', e => erreurs.push(e.message)); p.on('console', m => { if (m.type() === 'error' && !/favicon|ERR_|status of 40|net::|Failed to load resource/i.test(m.text())) erreurs.push(m.text()); });
   await p.goto(BASE + '/agent-trading/front/or.html', { waitUntil: 'domcontentloaded' });
-  await p.waitForSelector('[data-ts="bouton"]', { timeout: 20000 }); v(true, `${l}px : le bouton « Trades simulés » est présent`);
-  await p.click('[data-ts="bouton"]'); await p.waitForFunction(() => document.querySelectorAll('[data-ts="liste"] button').length > 0, { timeout: 30000 });
+  await p.waitForSelector('[data-a="positions-rayle"]', { timeout: 20000 }); v(true, `${l}px : le bouton « Positions de Rayle » est présent`);
+  await p.click('[data-a="positions-rayle"]'); await p.waitForFunction(() => document.querySelectorAll('[data-ts="liste"] button').length > 0, { timeout: 30000 });
   const e0 = await p.evaluate(() => ({ ouvert: window.TradesSimules.ouvert(), n: document.querySelectorAll('[data-ts="liste"] button').length, g: window.TradesSimules.graphiqueEtat(), variantes: [...document.querySelectorAll('[data-ts="variante"] option')].map(o => o.value), resume: document.querySelector('[data-ts="resume"]').textContent, fiche: document.querySelector('[data-ts="fiche"]').innerText, worker: !!window.Worker }));
   v(e0.ouvert && e0.n > 0, `${l}px : panneau ouvert, ${e0.n} trades listés`);
   v(e0.variantes.includes('B-J-niveau+S') && e0.variantes.includes('B-H4-fractale+P'), `${l}px : variantes B-J-niveau+S et B-H4-fractale+P proposées (${e0.variantes.length} au total)`);
