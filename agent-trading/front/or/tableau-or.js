@@ -6,6 +6,7 @@
 import { creerCarnet } from '../carnet.js';
 import { creerMoteurOr } from './moteur-or.js';
 import { creerGraphiqueOr, COUCHES, ratio } from './graphique-or.js';
+import { creerMouvementsUI } from './mouvements-ui.js';
 import { PERIODES, REGLES, TEXTE_REGLES, KRAKEN } from './config-or.js';
 import { texteType, texteHistorique, NOMS_TYPES } from './zones-or.js';
 import { heureParis } from './temps-or.js';
@@ -50,14 +51,14 @@ export function monterTableauOr(el, { modules = {}, contexte = 'page', fetchFn, 
     <div class="tor-titre"><b>Or</b> <small>Kraken ${KRAKEN.symbole}</small> <span class="tor-prix" data-or-prix>—</span> <small class="tor-var" data-or-var></small></div>
     <nav class="tor-periodes" aria-label="Période">${Object.keys(PERIODES).map(p => `<button type="button" data-periode="${p}">${p === 'J' ? 'Jour' : p}</button>`).join('')}</nav>
     <div class="tor-outils">
-      <details class="tor-couches"><summary>Couches</summary>${Object.entries(COUCHES).map(([k, v]) => `<label><input type="checkbox" data-couche="${k}"> ${v}</label>`).join('')}</details>
+      <details class="tor-couches"><summary>Couches</summary><div class="tor-couches-corps">${Object.entries(COUCHES).map(([k, v]) => `<label><input type="checkbox" data-couche="${k}"> ${v}</label>`).join('')}<div class="tor-mouv" data-mouv-bloc hidden><label class="tor-mouv-seuil">Seuil des mouvements <input type="range" data-mouv-seuil min="1" max="3" step="0.1" value="1.5" aria-label="Seuil minimal des mouvements en ATR"> <output data-mouv-seuil-val>1,5 ATR</output></label><div class="tor-mouv-btns"><span>Exporter les mouvements</span> <button type="button" data-mouv-export="csv">CSV</button> <button type="button" data-mouv-export="json">JSON</button></div><details class="tor-mouv-stats"><summary>Statistiques</summary><div data-mouv-stats-corps><p>Calcul en cours…</p></div></details></div></div></details>
       <button type="button" data-a="position" title="Poser entrée, stop et objectif sur le graphique">📐 Position</button>
       <button type="button" class="tor-cloche" data-a="notifs" aria-label="Centre de notifications">🔔<i data-notifs-n hidden>0</i></button>
     </div>
   </header>
   <p class="tor-bandeau" data-bandeau role="status" hidden></p>
   <section class="tor-ecran1">
-    <div class="tor-graph"><div class="tor-graph-lw" data-graph></div><p class="tor-pos" data-pos hidden></p><p class="tor-graph-source" data-source></p><p class="tor-graph-source tor-bilan" data-bilan-fleches></p><p class="tor-graph-source" data-versions-h1 hidden>Flèches H1 affichées : <label><input type="checkbox" data-vh1="fleches-h1-v9"> v9</label> <label><input type="checkbox" data-vh1="fleches-h1-v8"> v8</label> <label><input type="checkbox" data-vh1="fleches-h1-v7"> v7</label> <label><input type="checkbox" data-vh1="fleches-h1-v2"> v2</label> <span class="tor-doux">(cocher plusieurs pour comparer ; les flèches portent alors leur version ; v1, v3, v4, v5 et v6 restent calculées en arrière-plan)</span></p></div>
+    <div class="tor-graph"><div class="tor-graph-lw" data-graph></div><p class="tor-pos" data-pos hidden></p><p class="tor-graph-source" data-source></p><p class="tor-graph-source tor-mouv-note" data-mouv-note hidden></p><p class="tor-graph-source tor-bilan" data-bilan-fleches></p><p class="tor-graph-source" data-versions-h1 hidden>Flèches H1 affichées : <label><input type="checkbox" data-vh1="fleches-h1-v9"> v9</label> <label><input type="checkbox" data-vh1="fleches-h1-v8"> v8</label> <label><input type="checkbox" data-vh1="fleches-h1-v7"> v7</label> <label><input type="checkbox" data-vh1="fleches-h1-v2"> v2</label> <span class="tor-doux">(cocher plusieurs pour comparer ; les flèches portent alors leur version ; v1, v3, v4, v5 et v6 restent calculées en arrière-plan)</span></p></div>
     <aside class="tor-carnet at" data-carnet aria-label="Carnet d’ordres"></aside>
   </section>
   <section class="tor-bloc tor-lecture" data-lecture>
@@ -94,6 +95,7 @@ export function monterTableauOr(el, { modules = {}, contexte = 'page', fetchFn, 
 
   /* moteur + graphique + carnet (le même carnet que l'agent) */
   const graph = creerGraphiqueOr(q('[data-graph]'), { mobile });
+  let mouvUI = null;
   graph.surPosition = (pos, outil) => majPosition(pos, outil);
   graph.surBordGauche = () => { moteur.plusAncien(); };   // glisser vers la gauche : historique plus ancien
   const carnet = creerCarnet(q('[data-carnet]'), { racine: q('[data-carnet]'), WS });   // racine = élément « .at » qui porte les couleurs du carnet (jetons.css)
@@ -145,6 +147,7 @@ export function monterTableauOr(el, { modules = {}, contexte = 'page', fetchFn, 
     for (const b of R.querySelectorAll('[data-periode]')) b.setAttribute('aria-pressed', String(b.dataset.periode === S.periode));
     graph.bougies(moteur.serie(), S.hist ? S.refP : S.periode === 'M15' ? S.refM15 : S.refP, { cle: S.periode + (S.hist ? ':historique' : ':court'), debutKraken: S.hist && S.k.length ? S.k[0].t : null, ecart: S.ecart });
     graph.dessin({ zonesVol: S.zonesVol, niveaux: S.niveaux, retournement: S.zones, prix: S.prix, a: S.a, ...dessinPeriode(S) });
+    if (mouvUI) { try { mouvUI.maj(); } catch (e) { console.warn('mouvements :', e.message); } }   // couche « Mouvements H1 » (H1 seulement ; calcul dans un Worker)
     // bandeau unique : marché fermé, retard, données peu fiables, panne
     const msg = [];
     if (S.erreurs.kraken) msg.push('Prix Kraken indisponible : ' + S.erreurs.kraken);
@@ -234,6 +237,7 @@ export function monterTableauOr(el, { modules = {}, contexte = 'page', fetchFn, 
   const ro = typeof ResizeObserver !== 'undefined' ? new ResizeObserver(surTaille) : null; ro ? ro.observe(el) : addEventListener('resize', surTaille); surTaille();
 
   // modules B et C (montés dans leurs blocs) : chargés à la demande, chacun indépendant
+  mouvUI = creerMouvementsUI({ racine: R, graph, moteur }); api.mouvements = mouvUI; api.graphe = () => graph;
   api.monterModule = (nom, m) => { modules[nom] = m; }; api.rendre = () => rendre();
   // mes outils (dessin, surveillance, alertes, registre) : dans tous les contextes ; un échec n'empêche pas le reste
   import('./terminal-outils.js').then(m => { if (!R.isConnected && el.innerHTML === '') return; modules.outils = m.monterOutils(api, { ...(fetchFn ? { fetchFn } : {}), ...(window.__RAYLE_OR_OUTILS_TEST__ || {}) /* crochet de test : horloge et bougies H1 rejouées */ }); api.outils = modules.outils; }).catch(e => notifier('Outils de dessin indisponibles : ' + e.message, { niveau: 'doux', dit: false, raison: 'module' }));

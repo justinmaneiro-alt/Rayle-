@@ -111,3 +111,20 @@
 .tor-mo-alertes time{color:var(--d);font-variant-numeric:tabular-nums}
 .tor-mo-tab{border-collapse:collapse;font-size:12px;margin:6px 0}.tor-mo-tab th,.tor-mo-tab td{padding:3px 8px;border-bottom:1px solid var(--b);text-align:left}
 @media (max-width:820px){.tor-ob-nom{display:none}}
+
+/* menu « Couches » : un panneau unique (les cases, puis le réglage des mouvements H1) */
+.tor-couches>label{display:none}
+.tor-couches[open]>label{display:none}
+.tor-couches>.tor-couches-corps{display:none;position:absolute;right:0;top:36px;z-index:6;background:#0b1117;border:1px solid var(--b);padding:8px 12px;min-width:250px;max-width:min(360px,92vw)}
+.tor-couches[open]>.tor-couches-corps{display:block}
+.tor-couches-corps>label{display:flex;gap:6px;padding:3px 0;white-space:nowrap}
+.tor-mouv{margin-top:8px;padding-top:8px;border-top:1px solid var(--b);font-size:12.5px}
+.tor-mouv-seuil{display:flex;flex-wrap:wrap;gap:6px;align-items:center;padding:2px 0}
+.tor-mouv-seuil input{flex:1;min-width:90px}
+.tor-mouv-btns{display:flex;gap:6px;align-items:center;margin:6px 0}
+.tor-mouv-btns button{min-height:30px}
+.tor-mouv-stats>div{max-height:46vh;overflow:auto;margin-top:6px}
+.tor-mouv-stats p{margin:4px 0}
+.tor-mouv-h{display:grid;grid-template-columns:repeat(2,1fr);gap:0 10px;font:11px ui-monospace,Consolas,monospace}
+.tor-mouv-avert{color:#c9b27a}
+.tor-mouv-note{color:#c9b27a}
