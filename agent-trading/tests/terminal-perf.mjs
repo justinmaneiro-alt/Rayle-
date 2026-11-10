@@ -25,6 +25,7 @@ const t0 = Date.now();
 await p.goto(BASE + '/agent-trading/front/terminal.html', { waitUntil: 'domcontentloaded' });
 await p.waitForFunction(() => window.__terminal && window.__terminal.graph.etat().n > 100, { timeout: 120000 });
 const tCharge = Date.now() - t0;
+if (process.argv.includes('--couches')) await p.evaluate(() => { for (const k of ['motifs', 'evenements', 'carnetBougie', 'cvd', 'profilVolume', 'vwap', 'extremes', 'seances', 'rondes', 'chaleur']) window.__terminal.couche(k, true); });
 await w(4000);   // laisse finir les chargements de démarrage (carnet, sections)
 
 const cdp = await p.createCDPSession();

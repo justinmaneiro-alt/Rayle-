@@ -53,7 +53,7 @@ export function chargerCss() {
   for (const [f, id] of [['../jetons.css', 'at-jetons'], ['../agent.css', 'at-css'], ['./terminal.css', 'tr-css']]) { if (document.getElementById(id)) continue; const l = document.createElement('link'); l.rel = 'stylesheet'; l.href = new URL(f, import.meta.url).href; l.id = id; document.head.appendChild(l); }
 }
 
-export function monterTerminal(el, { contexte = 'vue', fetchFn, WS, modules: mods = ['dessin', 'positions', 'rayle', 'chaleur'] } = {}) {
+export function monterTerminal(el, { contexte = 'vue', fetchFn, WS, modules: mods = ['dessin', 'positions', 'rayle', 'chaleur', 'analyses'] } = {}) {
   chargerCss();
   const S = { actif: lire('rayle_term_actif', ID_DEFAUT), unite: null, couches: null, series: new Map(), serie: null, prix: null, t24: null, outil: 'curseur', cache: null, niveaux: null, liq: null, modules: {}, ecouteurs: {}, gen: 0 };
   if (!PAR_ID_T[S.actif]) S.actif = ID_DEFAUT;
@@ -327,7 +327,7 @@ export function monterTerminal(el, { contexte = 'vue', fetchFn, WS, modules: mod
   choisirRelais({ fetchFn: fetchFn || undefined }).then(() => { if (!S.detruit) charger(); });   // PC : Kraken lu par le serveur local (Nasdaq compris)
   // modules (chacun indépendant)
   (async () => {
-    const LISTE = { dessin: ['./dessin-terminal.js', 'monterDessin'], positions: ['./positions-terminal.js', 'monterPositions'], rayle: ['./rayle-terminal.js', 'monterRayle'], chaleur: ['./chaleur-terminal.js', 'monterChaleur'] };
+    const LISTE = { dessin: ['./dessin-terminal.js', 'monterDessin'], positions: ['./positions-terminal.js', 'monterPositions'], rayle: ['./rayle-terminal.js', 'monterRayle'], chaleur: ['./chaleur-terminal.js', 'monterChaleur'], analyses: ['./analyses-terminal.js', 'monterAnalyses'] };
     for (const n of mods) {
       const d = LISTE[n]; if (!d) continue;
       try { const m = await import(d[0]); S.modules[n] = await m[d[1]](api); emettre('module', n); }

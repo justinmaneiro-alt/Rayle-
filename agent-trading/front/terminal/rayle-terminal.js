@@ -13,6 +13,8 @@ import { IMPORTANTS } from './alertes-calcul.js';
 import { calcul } from './positions-calcul.js';
 import { seuilGros } from '../carnet-kraken.js';
 import { ouvrirStockage } from './stockage-terminal.js';
+import { lignesEtendues } from './rapport-jour.js';
+import { lectureBougieCarnet } from './carnet-bougie-calcul.js';
 import { intentionVoix, decrire, briefing, expliquer, CONSIGNE_BRIEFING, consigneExplication, historique } from './briefing-rayle.js';
 import { QUESTIONS_SECTIONS, lignesSections, texteSection, signaux } from './sections-rayle.js';
 import { rangAtr, variationJour } from './tableau-calcul.js';
@@ -53,7 +55,7 @@ export async function monterRayle(T, { stockage = null, maintenant = () => Date.
       sante: { rangAtr: ra ? ra.rang : null, seances: dd.seances || null, correlations: dd.correlations ? dd.correlations.L : null, lies: dd.lies ? dd.lies.L.map(x => ({ s: x.s, var: variationJour(x) })) : null },
       journal: P ? { ouvertes: Pl.filter(p => p.etat === 'ouverte').length, attente: Pl.filter(p => p.etat === 'attente').length, closes: Pl.filter(p => FINAUX.includes(p.etat)).length, dernier: Lg[0] ? `${(PAR_ID_T[Lg[0].actif] || {}).nom || Lg[0].actif} ${Lg[0].sens} ${ETATS[Lg[0].evenement] || Lg[0].evenement}${Lg[0].R != null ? ' ' + Lg[0].R.toFixed(2).replace('.', ',') + ' R' : ''}` : null } : null };
   }
-  function contexteComplet(e) { const L = texteContexte(e, { fmt: f, heure }).split('\n'), consignes = L.pop(); return L.concat(lignesSections(sections(), { fmt: f, heure, maintenant: maintenant() }), [consignes]).join('\n'); }
+  function contexteComplet(e) { const L = texteContexte(e, { fmt: f, heure }).split('\n'), consignes = L.pop(); const An = T.module('analyses'); let ext = []; try { ext = An ? lignesEtendues(An.etat(e), { fmt: f }).slice(0, -1) : []; } catch (x) { /* analyses non chargées */ } return L.concat(lignesSections(sections(), { fmt: f, heure, maintenant: maintenant() }), ext, [consignes]).join('\n'); }
 
   /* ── question : IA par la route /chat (contexte), chiffres vérifiés ; sinon texte local ── */
   async function repondre(question, sujet, { local: localImpose = null, demande = null } = {}) {
@@ -125,6 +127,7 @@ export async function monterRayle(T, { stockage = null, maintenant = () => Date.
     return { couches: COUCHES.filter(x => c[x.id]).map(x => x.nom),
       outils: { lignes: O.filter(o => o.type === 'horizontale').length, zones: O.filter(o => o.type === 'zone').length, autres: O.filter(o => o.type !== 'horizontale' && o.type !== 'zone').length } };
   }
+  const norm0 = t => String(t || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
   async function commandeVoix(texte, iv) {
     const e = etat(), X = sections(), aide = { fmt: f, heure, maintenant: maintenant() };
     if (iv.type === 'decrire') { const rep = decrire(e, infoAffichage(), { fmt: f }); afficherReponse(texte, rep, 'terminal (sans IA)'); await retenir('description du terminal demandée'); return rep; }
@@ -141,6 +144,10 @@ export async function monterRayle(T, { stockage = null, maintenant = () => Date.
 
   /* ── commande (voix ou texte) : renvoie la phrase dite, ou null si la phrase ne concerne pas le terminal ── */
   async function commande(texte, { force = false } = {}) {
+    const An = T.module('analyses'), niveauRapport = An ? An.estRapport(texte) : null;
+    if (niveauRapport) { const R = await An.rapport(niveauRapport); E.dernierSujet = { sujet: 'rapport', niveau: niveauRapport }; afficherReponse(texte, R.texte, 'rapport du jour (calculs du terminal, sans IA)'); await retenir('rapport du jour demandé'); return R.parle; }
+    if (An && /(bougie|pression) du carnet|delta des echanges|\bcvd\b/.test(norm0(texte))) { const rep = lectureBougieCarnet(An.bougiesCarnet().derniere()); afficherReponse(texte, rep, 'bougie du carnet (sans IA)'); return rep; }
+    if (An && /(quels? (sont )?(les )?motifs|motifs de bougies?|regime|range ou tendance|que se passe[- ]t[- ]il sur mes niveaux)/.test(norm0(texte))) { An.calculer(); const m = An.motifs(), r = An.regime(), ev = An.evenements(); const rep = [r && r.regime !== 'inconnu' ? `Régime : ${r.regime} (${r.raison}).` : 'Régime : pas assez de bougies.', m.length ? m.map(x => x.texte).join(' ') : 'Pas de motif de bougie à la dernière clôture.', ev.length ? ev.map(x => x.texte).join(' ; ') + '.' : 'Rien de particulier sur tes niveaux.', MENTION_LECTURE].join(' '); afficherReponse(texte, rep, 'analyses du terminal (sans IA)'); return rep; }
     const iv = intentionVoix(texte, { derniere: E.dernierEchange, maintenant: maintenant() });
     if (iv) return await commandeVoix(texte, iv);
     const it = intention(texte); if (!it && !force) return null;
@@ -195,7 +202,7 @@ export async function monterRayle(T, { stockage = null, maintenant = () => Date.
   function rendre() {
     const x = E.dernierEchange, e = E.derniere;
     pR.innerHTML = `<div class="tr-rayle"><div>
-      <form data-rq><input type="text" placeholder="Demande à Rayle : « comment tu le sens ? », « qu’est-ce qui se passe sur le carnet ? », « trace les scénarios », « propose-moi une position »" aria-label="Question à Rayle"><button class="tr-btn" type="submit">Envoyer</button><button class="tr-btn" type="button" data-ra="micro" title="Parler à Rayle">🎤</button></form>
+      <form data-rq><input type="text" placeholder="Demande à Rayle : « comment tu le sens ? », « qu’est-ce qui se passe sur le carnet ? », « trace les scénarios », « propose-moi une position »" aria-label="Question à Rayle"><button class="tr-btn" type="submit">Envoyer</button><button class="tr-btn" type="button" data-ra="micro" title="Parler à Rayle">🎤</button></form><div class="tr-rapport-btn"><button class="tr-btn" type="button" data-rapport>Rapport du jour</button> <small class="tr-doux">les alertes marchent tant que Rayle est ouvert</small></div>
       ${E.attente ? `<p class="tr-doux">Rayle lit : « ${esc(E.attente)} »…</p>` : x ? `<p class="tr-reponse"><b>${esc(x.q)}</b>\n${esc(x.rep)}</p><p class="tr-mini">Source : ${esc(x.source)}</p>` : '<p class="tr-doux">Rayle lit tout le terminal (graphique, carnet, positions, tableau multi-unités, santé, annonces, COT, rapports, journal) et explique, résume, oriente ou signale, avec au plus un ou deux scénarios. Elle ne passe jamais d’ordre.</p>'}
       ${E.signaux.length ? `<h4 class="tr-sous">Signaux</h4><ul class="tr-signaux">${E.signaux.map(s => `<li>${esc(heure(s.t))} · ${esc(s.texte)}</li>`).join('')}</ul>` : ''}
       <p class="tr-mini">${esc(MENTION_LECTURE)}</p></div>
@@ -203,6 +210,7 @@ export async function monterRayle(T, { stockage = null, maintenant = () => Date.
       <h4 class="tr-sous">Mémoire du jour</h4>${E.memoire.m.length ? `<ul class="tr-liste">${E.memoire.m.slice(-8).reverse().map(m => `<li>${esc(m.quoi)}</li>`).join('')}</ul>` : '<p class="tr-doux">Rien encore aujourd’hui.</p>'}
       ${e ? `<details><summary>Ce que Rayle voit</summary><pre class="tr-regles">${esc(contexteComplet(e))}</pre></details>` : ''}</div></div>`;
   }
+  pR.addEventListener('click', async ev => { if (!ev.target.closest('[data-rapport]')) return; const r = await commande('fais-moi un rapport sur les marchés aujourd’hui', { force: true }); if (r) parler(r); });
   pR.addEventListener('submit', async ev => { ev.preventDefault(); const i = pR.querySelector('[data-rq] input'), q = i.value.trim(); if (!q) return; i.value = ''; const r = await commande(q, { force: true }); if (r) parler(r); });
   pR.addEventListener('click', ev => { const a = ev.target.dataset.ra; if (a === 'effacer') effacerScenarios(); if (a === 'micro') { try { if (window.RayleBus) RayleBus.emit('raylé:ecouter', {}); const b = document.getElementById('miniReactor') || document.querySelector('.reactor'); if (b) b.click(); } catch (x) { /* */ } } });
   const offAct = T.on('action', a => { if (a === 'rayle' && !T.bulle) T.ongletBas('rayle'); });   // la bulle s'ouvre déjà d'elle-même

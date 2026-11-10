@@ -4,7 +4,7 @@
    Stockage limité et réglable (50 Mo par défaut) : au-delà, les colonnes les plus anciennes sont supprimées.
    Dessin sous les bougies : bleu-cyan = acheteurs dominants, ambre = vendeurs dominants ; intensité = racine de la quantité en $. */
 import { pasPour, colonne, octets, agreger, echelle, intensite, aPurger } from './chaleur-calcul.js';
-import { PAR_ID_T } from './actifs-terminal.js';
+import { PAR_ID_T, fmt } from './actifs-terminal.js';
 
 const lireJ = (k, d) => { try { const v = localStorage.getItem(k); return v == null ? d : { ...d, ...JSON.parse(v) }; } catch (e) { return d; } };
 const ecrireJ = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) { /* */ } };
@@ -18,7 +18,7 @@ async function ouvrir(idb = globalThis.indexedDB) {
 
 export async function monterChaleur(T, { maintenant = () => Date.now() } = {}) {
   const db = await ouvrir();
-  const E = { regl: lireJ('rayle_term_chaleur', { enregistrer: false, limiteMo: 50, active: false }), cols: [], file: [], pas: null, actif: null, taille: 0, depuis: null, detruit: false };
+  const E = { regl: lireJ('rayle_term_chaleur', { enregistrer: false, limiteMo: 50, active: false, intensite: 1, profondeur: 1, murs: true }), cols: [], file: [], pas: null, actif: null, taille: 0, depuis: null, detruit: false };
   if (db) { E.taille = (await prom(db.transaction('meta').objectStore('meta').get('taille'))) || 0; E.depuis = (await prom(db.transaction('meta').objectStore('meta').get('depuis'))) || null; }
   const G = T.graph;
 
@@ -58,8 +58,8 @@ export async function monterChaleur(T, { maintenant = () => Date.now() } = {}) {
     if (!T.couches().chaleur || !E.cols.length || T.actif() !== E.actif) return;
     const ms = G.ms(), B = agreger(E.cols, 0, ms), ref = echelle(B), xa = G.xDe(0) ?? 0, xb = G.xDe(ms) ?? 0, larg = Math.max(1, Math.abs(xb - xa));
     for (const b of B) { const x = G.xDe(b.t); if (x == null || x < -larg || x > D.width) continue;
-      for (const c of b.cases) { const y1 = G.yDe(c.p + c.pas), y2 = G.yDe(c.p); if (y1 == null || y2 == null || y2 < 0 || y1 > D.height) continue; const a = intensite(c.q, ref) * 0.6; if (a < 0.03) continue;
-        ctx.fillStyle = c.cote >= 0 ? `rgba(80,190,230,${a.toFixed(3)})` : `rgba(230,160,70,${a.toFixed(3)})`; ctx.fillRect(x - larg / 2, Math.min(y1, y2), larg, Math.max(1, Math.abs(y2 - y1))); } }
+      for (const c of b.cases) { const y1 = G.yDe(c.p + c.pas), y2 = G.yDe(c.p); if (y1 == null || y2 == null || y2 < 0 || y1 > D.height) continue; if (Math.abs(c.p - T.prix()) > T.prix() * E.regl.profondeur / 100) continue; const a = Math.min(1, intensite(c.q, ref) * 0.6 * E.regl.intensite); if (a < 0.03) continue;
+        ctx.fillStyle = c.cote >= 0 ? `rgba(80,190,230,${a.toFixed(3)})` : `rgba(230,160,70,${a.toFixed(3)})`; ctx.fillRect(x - larg / 2, Math.min(y1, y2), larg, Math.max(1, Math.abs(y2 - y1))); if (E.regl.murs && c.q >= 3 * ref) { ctx.strokeStyle = 'rgba(255,214,102,.8)'; ctx.lineWidth = 1; ctx.strokeRect(x - larg / 2, Math.min(y1, y2), larg, Math.max(1, Math.abs(y2 - y1))); } } }
   }, 'bottom');
 
   /* réglages : une carte dans les dashboards */
@@ -69,15 +69,18 @@ export async function monterChaleur(T, { maintenant = () => Date.now() } = {}) {
     carte.innerHTML = `<h3>Carte de chaleur du carnet <small>type Bookmap</small></h3>
       <label><input type="checkbox" data-ch="enregistrer" ${E.regl.enregistrer ? 'checked' : ''}> enregistrer le carnet de l’actif affiché (1 colonne / s)</label>
       <label style="display:block;margin-top:4px">Limite de stockage <input type="number" min="5" max="2000" step="5" data-ch="limiteMo" value="${E.regl.limiteMo}" style="width:70px"> Mo</label>
+      <label style="display:block;margin-top:4px">Intensité <input type="range" min="0.3" max="3" step="0.1" data-ch="intensite" value="${E.regl.intensite}"> · profondeur ± <input type="number" min="0.1" max="5" step="0.1" data-ch="profondeur" value="${E.regl.profondeur}" style="width:60px"> % du prix</label>
+      <label style="display:block;margin-top:4px"><input type="checkbox" data-ch="murs" ${E.regl.murs ? 'checked' : ''}> entourer les gros paquets persistants (murs ; ceux retirés ou consommés disparaissent de la carte)</label>
       <p class="tr-doux">Utilisé : ${(E.taille / 1e6).toFixed(1).replace('.', ',')} Mo · enregistré depuis : ${d}${db ? '' : ' · stockage local indisponible (mémoire seulement)'}</p>
-      <p class="tr-mini">Pas d’historique ancien : Kraken ne fournit pas le passé du carnet, la carte commence à l’activation. Au-delà de la limite, les plus anciennes secondes sont effacées.</p>
+      <p class="tr-mini">Enregistré depuis l’ouverture du terminal, pas d’historique ancien : Kraken ne fournit pas le passé du carnet, la carte commence à l’activation. Au-delà de la limite, les plus anciennes secondes sont effacées.</p>
       <button class="tr-btn" type="button" data-ch="effacer">Effacer l’enregistrement</button>`;
   }
-  carte.addEventListener('change', e => { const k = e.target.dataset.ch; if (k === 'enregistrer') E.regl.enregistrer = e.target.checked; if (k === 'limiteMo') E.regl.limiteMo = Math.max(5, Math.min(2000, +e.target.value || 50)); ecrireJ('rayle_term_chaleur', E.regl); rendreCarte(); });
+  carte.addEventListener('change', e => { const k = e.target.dataset.ch; if (k === 'enregistrer') E.regl.enregistrer = e.target.checked; if (k === 'limiteMo') E.regl.limiteMo = Math.max(5, Math.min(2000, +e.target.value || 50)); if (k === 'intensite') E.regl.intensite = Math.max(0.3, Math.min(3, +e.target.value || 1)); if (k === 'profondeur') E.regl.profondeur = Math.max(0.1, Math.min(5, +e.target.value || 1)); if (k === 'murs') E.regl.murs = e.target.checked; G.redessiner(); ecrireJ('rayle_term_chaleur', E.regl); rendreCarte(); });
   carte.addEventListener('click', e => { if (e.target.dataset.ch === 'effacer' && confirm('Effacer tout l’enregistrement du carnet ?')) toutEffacer(); });
   const offC = T.on('couches', c => { if (c.chaleur && !E.regl.active) { E.regl.active = true; E.regl.enregistrer = true; ecrireJ('rayle_term_chaleur', E.regl); rendreCarte(); } G.redessiner(); });
   const offA = T.on('actif', () => chargerActif());
   await chargerActif(); rendreCarte();
   return { E, colonnes: () => E.cols, purger, toutEffacer,
+    resume() { if (!E.cols.length) return 'pas encore d’enregistrement (activer la couche)'; const B = agreger(E.cols, 0, G.ms()), ref = echelle(B); let mur = null; for (const b of B.slice(-5)) for (const c of b.cases) if (c.q >= 3 * ref && (!mur || c.q > mur.q)) mur = c; return mur ? `gros paquet persistant ${mur.cote >= 0 ? 'acheteur' : 'vendeur'} vers ${fmt(T.actif(), mur.p)}` : 'pas de gros paquet persistant ; enregistré depuis l’ouverture du terminal, pas d’historique ancien'; },
     detruire() { E.detruit = true; clearInterval(prise); clearInterval(ecriture); offC(); offA(); try { db && db.close(); } catch (e) { /* */ } } };
 }

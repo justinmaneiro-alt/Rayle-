@@ -13,6 +13,16 @@ export const COUCHES = Object.freeze([
   { id: 'fleches', nom: 'Flèches et croix de mes outils', groupe: 'Mes outils', defaut: true },
   { id: 'outils', nom: 'Mes dessins', groupe: 'Mes outils', defaut: true },
   { id: 'positions', nom: 'Mes positions', groupe: 'Mes outils', defaut: true },
+  { id: 'motifs', nom: 'Motifs de bougies (lecture, pas un signal)', groupe: 'Lecture', defaut: false },
+  { id: 'evenements', nom: 'Régime et événements sur mes niveaux', groupe: 'Lecture', defaut: false },
+  { id: 'carnetBougie', nom: 'Bougie du carnet d’ordres et delta', groupe: 'Carnet', defaut: false },
+  { id: 'cvd', nom: 'CVD (delta cumulé)', groupe: 'Institutionnel', defaut: false },
+  { id: 'profilVolume', nom: 'Profil de volume (POC, VAH, VAL)', groupe: 'Institutionnel', defaut: false },
+  { id: 'vwap', nom: 'VWAP de séance', groupe: 'Institutionnel', defaut: false },
+  { id: 'vwapAncre', nom: 'VWAP ancré (clic sur une bougie)', groupe: 'Institutionnel', defaut: false },
+  { id: 'extremes', nom: 'Plus haut / bas de la veille et de la semaine', groupe: 'Institutionnel', defaut: false },
+  { id: 'seances', nom: 'Plages Asie / Londres / New York', groupe: 'Institutionnel', defaut: false },
+  { id: 'rondes', nom: 'Niveaux ronds', groupe: 'Institutionnel', defaut: false },
   { id: 'scenarios', nom: 'Scénarios de Rayle', groupe: 'Rayle', defaut: true }
 ]);
 export const IDS_COUCHES = Object.freeze(COUCHES.map(c => c.id));
