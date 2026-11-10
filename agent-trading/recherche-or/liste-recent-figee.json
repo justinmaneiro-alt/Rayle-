@@ -1,0 +1,60 @@
+{
+ "fige_le": "2026-11-10",
+ "nombre_variantes": 6,
+ "sha256_liste": "64bfdd12bcf3a09a96d1bb70faba844bab6d1a7371faa8db8d654449ffb80c8c",
+ "sha256_criteres": "4f35c4bfe59be4676d03f1985eb78a4e0b16deaa0aa61414585672f7abb4c12b",
+ "sha256_familles": "b7fbfe1691df65acfd40a6f79ee85ad0f1a61cfce53b03e1955296dfe68ac94b",
+ "sha256_simulateur": "cc513cac20be708336c5c9ff3374ea3c77aae283c28c5fde2fc6b2bdb8a85626",
+ "variantes": [
+  {
+   "id": "r1",
+   "libelle": "Démarrage confirmé + au moins 1 précurseur · stop suiveur 3 ATR (sans sortie par le temps)",
+   "base": "gros",
+   "chandelier": 3,
+   "filtre": false,
+   "grille": "stop"
+  },
+  {
+   "id": "r2",
+   "libelle": "Démarrage confirmé + au moins 1 précurseur · stop suiveur 2 ATR",
+   "base": "gros",
+   "chandelier": 2,
+   "filtre": false,
+   "grille": "stop"
+  },
+  {
+   "id": "r3",
+   "libelle": "Famille q « lecture de Justin » · stop suiveur 3 ATR",
+   "base": "q",
+   "chandelier": 3,
+   "filtre": false,
+   "grille": "stop",
+   "indisponible": "règles de la famille q non fournies : non testable"
+  },
+  {
+   "id": "r4",
+   "libelle": "Rejet sur niveau rond de 100 $ · sortie sur le niveau suivant",
+   "base": "rond100",
+   "chandelier": null,
+   "cible": "niveau-suivant",
+   "filtre": false,
+   "grille": "meche"
+  },
+  {
+   "id": "r5",
+   "libelle": "Rebond sur niveau H4 (swing 60 bougies) avec balayage et réintégration · stop suiveur 3 ATR",
+   "base": "swing60",
+   "chandelier": 3,
+   "filtre": false,
+   "grille": "stop"
+  },
+  {
+   "id": "r6",
+   "libelle": "Variante 1 avec filtre de coût (ATR H1 ≥ 5 × coût aller-retour)",
+   "base": "gros",
+   "chandelier": 3,
+   "filtre": true,
+   "grille": "stop"
+  }
+ ]
+}

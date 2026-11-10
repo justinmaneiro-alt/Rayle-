@@ -1,0 +1,9 @@
+{
+  "fige_le": "2026-11-10",
+  "note": "Critères INDICATIFS (petit nombre de trades), figés avant le calcul, jamais assouplis. Frais : Kraken et CFD séparés ; verdict sur le scénario le plus défavorable.",
+  "hors_echantillon": { "R_net_moyen_min": 0.2, "trades_min": 40, "mois_positifs_min": 8, "sur_mois": 12, "hasard": { "tirages": 1000, "p_max_apres_holm": 0.05, "holm_sur": 6 }, "achats_et_ventes_positifs": true },
+  "etiquette_biais_haussier": "positif sur les achats seulement",
+  "walk_forward": "mensuel, novembre 2025 → aujourd'hui, paramètres choisis sur les 6 mois précédents (trades clos avant le 1er du mois), jamais au-delà",
+  "prop": { "objectif_pct": 10, "perte_max_pct": 6, "perte_jour_pct": 3, "risque_par_trade_pct": 0.5 },
+  "forward": "pour chaque variante qui passe : registre forward daté en ajout seul ; 30 trades réels avant toute décision"
+}
