@@ -21,11 +21,12 @@ import { flechesH1v7, listesQuatre, listesV7Seule, indicesV7, segmentsV7 } from 
 import { flechesH1v8, bandesV8Avant, segmentsV8 } from './fleches-h1-v8.js';
 import { flechesH1v9, bandesV9Avant, segmentsV9, bilans9, NOMS_9 } from './fleches-h1-v9.js';
 import { chargerHistorique, chargerPlusAncien, rafraichirVolume, serieAffichee } from './historique-or.js';
+import { analyser as analyserStructure, CLE_REGISTRE_STRUCTURE, lireRegistre as lireRegStructure, ajouter as ajouterStructure, prefixeDe as prefixeStructure, bilan as bilanStructure } from './structure-alerte.js';
 
 const lireJ = (k, d) => { try { const v = globalThis.localStorage && localStorage.getItem(k); return v ? JSON.parse(v) : d; } catch (e) { return d; } };
 const ecrireJ = (k, v) => { try { globalThis.localStorage && localStorage.setItem(k, JSON.stringify(v)); } catch (e) { /* plein ou refusé */ } };
 
-export function creerMoteurOr({ fetchFn = (...a) => fetch(...a), horloge = () => Date.now(), surMaj = () => {}, surEvenement = () => {}, etudeAuto = true } = {}) {
+export function creerMoteurOr({ fetchFn = (...a) => fetch(...a), horloge = () => Date.now(), surMaj = () => {}, surEvenement = () => {}, etudeAuto = true, structureAuto = etudeAuto, chargerH1 = null } = {}) {
   const S = {
     periode: lireJ('rayle_or_periode', 'M15'), k: [], kM15: [], refM15: [], refH1: [], refP: [], atrH1: [], ecart: null, ecartN: 0,
     prix: null, tPrix: null, ticker: null, ref24h: null, erreurs: {}, niveaux: [], zonesVol: [], zones: [], etats: {}, lecture: null, etude: null, etudeEtat: 'à faire',
@@ -207,7 +208,26 @@ export function creerMoteurOr({ fetchFn = (...a) => fetch(...a), horloge = () =>
     } catch (e) { S.etudeEtat = 'échec : ' + e.message; }
     surMaj(S);
   }
-  async function cycleLent() { if (arrete) return; const av = { ...S.etats }; await chargerReference(); calculer(); detecter(av); surMaj(S); }
+  /* alerte « setup possible » (structure-v1) : à chaque nouvelle bougie H1 close, une seule fois ; registre daté en ajout seul ; information de lecture, jamais un signal */
+  let hStruct = null, cleStruct = null, enStruct = false;
+  async function suiviStructure() {
+    if (arrete || enStruct) return; const n = horloge(), cle = Math.floor(n / 3600e3); if (cle === cleStruct) return;
+    enStruct = true;
+    try {
+      if (!hStruct) hStruct = await (chargerH1 ? chargerH1(n) : chargerHistorique('H1', { fetchFn, maintenant: n }));
+      else { const r = await (chargerH1 ? chargerH1(n, true) : chargerHistorique('H1', { fetchFn, maintenant: n, jours: 5 })); hStruct = { ...hStruct, k: fusionner(hStruct.k, r.k) }; }
+      const C = serieAffichee(hStruct, hStruct.k, S.ecart).filter(b => b.t + 3600e3 <= n), res = analyserStructure(C);
+      const stocke = lireJ(CLE_REGISTRE_STRUCTURE, null); let reg = lireRegStructure(stocke, n);
+      const r = ajouterStructure(reg, res.setups, { vu: n }); reg = r.registre;
+      if (r.ajoutes && (!stocke || prefixeStructure(lireRegStructure(stocke, n), reg))) ecrireJ(CLE_REGISTRE_STRUCTURE, reg);
+      S.structure = { t: n, tBougie: res.tBougie, setups: res.setups, registre: reg, bilan: bilanStructure(reg, C), raison: res.raison || null }; cleStruct = cle; err('structure', null);
+      const { h } = heureLocale(n, 'Europe/Paris');
+      for (const e of r.nouveaux) { const s = res.setups.find(x => x.famille === e.famille && x.sens === e.sens), ok = anti.autoriser('structure:' + e.famille + e.sens, n, h, dateParis(n));
+        const ev = { t: n, type: 'structure', zone: 'structure', texte: s ? s.texte : 'Setup possible (' + e.famille + ').', dit: ok.ok, raison: ok.raison }; S.evenements.unshift(ev); S.evenements.length = Math.min(S.evenements.length, 50); surEvenement(ev); }
+      surMaj(S);
+    } catch (e) { err('structure', e); } finally { enStruct = false; }
+  }
+  async function cycleLent() { if (arrete) return; if (structureAuto) suiviStructure(); const av = { ...S.etats }; await chargerReference(); calculer(); detecter(av); surMaj(S); }
   async function cycleRapide() {
     if (arrete) return;
     try { const L = await bougiesKraken(S.periode, { fetchFn, maintenant: horloge(), n: 3 }); S.k = fusionner(S.k, L); if (S.periode === 'M15') S.kM15 = S.k; err('kraken', null); } catch (e) { err('kraken', e); }
@@ -219,6 +239,7 @@ export function creerMoteurOr({ fetchFn = (...a) => fetch(...a), horloge = () =>
       await chargerPeriode(); await chargerReference(); if (S.periode === 'M15' && !S.hist) S.refP = S.refM15; calculer(); S.derniereRefM15 = (S.refM15.filter(b => b.t + 15 * 60e3 <= horloge()).pop() || {}).t ?? null; surMaj(S);
       minuteries.push(setInterval(cycleRapide, 15e3), setInterval(cycleLent, 60e3));
       if (etudeAuto) setTimeout(etude, 3000);
+      if (structureAuto) setTimeout(suiviStructure, 6000);
       return S;
     },
     versionsH1(sel) { if (sel) { const L = VERSIONS.filter(v => sel.includes(v) && AFFICHABLES_H1.includes(v)); versionsH1 = L.length ? L : DEFAUT_H1.slice(); ecrireJ(CLE_CHOIX_H1, versionsH1); composerH1(); surMaj(S); } return versionsH1.slice(); },
@@ -230,7 +251,7 @@ export function creerMoteurOr({ fetchFn = (...a) => fetch(...a), horloge = () =>
       if (maj) { const av = { ...S.etats }; calculer(); detecter(av); }
       return maj;
     },
-    anti, etude, calculer, plusAncien,
+    anti, etude, calculer, plusAncien, suiviStructure,
     /* bougies affichées : référence décalée (avant le perpétuel) + Kraken */
     serie: () => serieAffichee(S.hist, S.k, S.ecart),
     reglerAlertes(o) { anti.regler(o); if ('coupe' in o) anti.couper(o.coupe); ecrireJ('rayle_or_alertes', { ...anti.reglages() }); },
