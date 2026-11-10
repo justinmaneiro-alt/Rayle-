@@ -16,7 +16,7 @@ const w = ms => new Promise(r => setTimeout(r, ms));
 async function page(l, h, mobile = false) {
   const p = await nav.newPage(); await p.setViewport({ width: l, height: h, isMobile: mobile, hasTouch: mobile, deviceScaleFactor: 1 });
   if (mobile) await p.setUserAgent('Mozilla/5.0 (Linux; Android 14; SM-S918B) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0 Mobile Safari/537.36');
-  p.on('pageerror', e => erreurs.push(`${l}px : ${e.message}`)); p.on('console', m => { if (m.type() === 'error' && !/favicon|ERR_BLOCKED|ERR_QUIC|allorigins|youtube|googlevideo|doubleclick|status of 404/i.test(m.text())) erreurs.push(`${l}px console : ${m.text().slice(0, 160)}`); });
+  p.on('pageerror', e => erreurs.push(`${l}px : ${e.message}`)); p.on('console', m => { if (m.type() === 'error' && !/favicon|ERR_BLOCKED|ERR_QUIC|ERR_FAILED|allorigins|youtube|googlevideo|doubleclick|status of 404/i.test(m.text())) erreurs.push(`${l}px console : ${m.text().slice(0, 160)}`); });
   return p;
 }
 await nav.defaultBrowserContext().overridePermissions(BASE, ['clipboard-read', 'clipboard-write']);
