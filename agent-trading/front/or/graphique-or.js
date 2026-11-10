@@ -7,9 +7,10 @@ import { chargerLib } from '../graphique.js';
 import { espacerEtiquettes } from '../etiquettes-calcul.js';
 import { tempsGraphique, tempsMonotones } from './temps-or.js';
 import { libelle, libellePosition, aimanter, NOMS as NOMS_OUTILS } from './outils-calcul.js';
+import { fiche as ficheMouv, etiquette as etiquetteMouv } from './mouvements-calcul.js';
 
-export const COUCHES = Object.freeze({ sr: 'Supports et résistances', liquidite: 'Zones de liquidité', fleches: 'Flèches de rebond', volume: 'Zones de volume' });
-const COUCHES_DEFAUT = Object.freeze({ sr: true, liquidite: true, fleches: true, volume: false });
+export const COUCHES = Object.freeze({ sr: 'Supports et résistances', liquidite: 'Zones de liquidité', fleches: 'Flèches de rebond', volume: 'Zones de volume', mouvements: 'Mouvements H1' });
+const COUCHES_DEFAUT = Object.freeze({ sr: true, liquidite: true, fleches: true, volume: false, mouvements: true });
 const lire = (k, d) => { try { const v = localStorage.getItem(k); return v ? JSON.parse(v) : d; } catch (e) { return d; } };
 const ecrire = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) { /* stockage refusé */ } };
 const nb = (p, d = 2) => Number(p).toLocaleString('fr-FR', { minimumFractionDigits: d, maximumFractionDigits: d }).replace(/ | /g, ' ');
@@ -33,6 +34,13 @@ export function creerGraphiqueOr(el, { surClicPrix, mobile = false } = {}) {
   const etat = { bougies: [], volumes: [], cle: null, debutKraken: null, ecart: null, chargementAncien: false, zonesVol: [], niveaux: [], retournement: [], bandes: [], liquidite: [], balayages: [], fleches: [], segments: [], segCadres: [], a: null, cadres: [], marques: [], tSerie: new Map(), barres: new Map(), couches: { ...COUCHES_DEFAUT, ...lire('rayle_or_couches_v2', {}) }, pos: lire('rayle_or_position', null), outil: null, prix: null,
     outils: { objets: [], proposes: [], croix: [], fleches10: [], selection: null }, modeOutil: null, brouillon: [], aimant: true, outilsCadres: [] };
   let LW = null, chart = null, serie = null, vol = null, pret = null, maSerie = null;
+  /* couche « Mouvements H1 » (mouvements-v1.js, définition figée) : rétrospectif, jamais un signal ; H1 seulement ; données calculées dans un Worker (mouvements-ui.js) */
+  const mouv = { liste: [], h1: false, cadres: [] };
+  const mouvementSous = (x, y) => {   // clic seulement (pas au survol) et jamais pendant un outil de dessin
+    if (etat.outil || etat.modeOutil || !mouv.h1 || etat.couches.mouvements === false) return null;
+    const c = mouv.cadres.find(q => x >= q.x0 && x <= q.x1 && y >= q.y0 && y <= q.y1); if (!c) return null;
+    const L = ficheMouv(c.m); return { p: c.m.depart, texte: L[0] + ' · ' + etiquetteMouv(c.m), detail: L.slice(1), mouvement: true };
+  };
   const C = { liquidite: '#c39be0', flecheHaut: '#4fd18b', flecheBas: '#ef5f5f', refHaut: 'rgba(160,170,150,.55)', refBas: 'rgba(170,140,140,.55)', bande: 'rgba(201,178,122,.07)', sable: '#c9b27a', haut: '#5fb894', bas: '#d86a6a', volZone: '143,136,204', support: '#86c3e8', resistance: '#e2ae62', retour: '#e8e2cf', texte: '#cfd8dc', doux: '#7d8a90', fond: 'rgba(8,12,16,.86)' };
   const yDe = p => serie ? serie.priceToCoordinate(p) : null;
 
@@ -213,7 +221,7 @@ export function creerGraphiqueOr(el, { surClicPrix, mobile = false } = {}) {
     vol = chart.addSeries(LW.HistogramSeries, { priceFormat: { type: 'volume' }, lastValueVisible: false, priceLineVisible: false }, 1);
     try { const P = chart.panes(); P[0].setStretchFactor(mobile ? 4 : 5); P[1].setStretchFactor(1); } catch (e) { /* ancienne version : panneau par défaut */ }
     vol.priceScale().applyOptions({ scaleMargins: { top: 0.12, bottom: 0 }, borderVisible: false });
-    serie.attachPrimitive(primBande); serie.attachPrimitive(primFond); serie.attachPrimitive(primTexte); serie.attachPrimitive(primOutils);
+    serie.attachPrimitive(primBande); serie.attachPrimitive(primFond); serie.attachPrimitive(primTexte); serie.attachPrimitive(primOutils); serie.attachPrimitive(primMouv);
     if (LW.createSeriesMarkers) marqueurs = LW.createSeriesMarkers(serie, []);
     chart.subscribeClick(p => {
       if (!p.point || !serie) return; const prix = serie.coordinateToPrice(p.point.y); if (prix == null) return;
@@ -325,10 +333,28 @@ export function creerGraphiqueOr(el, { surClicPrix, mobile = false } = {}) {
     const pos = e => { const r = el.getBoundingClientRect(); return [e.clientX - r.left, e.clientY - r.top]; };
     el.addEventListener('pointermove', e => { if (epingle) return; const [x, y] = pos(e), g = trouver(x, y); if (g) montrer(g, y); else tip.hidden = true; el.style.cursor = g ? 'help' : ''; });
     el.addEventListener('pointerleave', () => { if (!epingle) tip.hidden = true; });
-    el.addEventListener('click', e => { const [x, y] = pos(e), g = trouver(x, y); if (g) { e.stopPropagation(); epingle = epingle === g.texte ? null : g.texte; if (epingle) montrer(g, y); else tip.hidden = true; } else if (epingle) { epingle = null; tip.hidden = true; } }, true);
+    el.addEventListener('click', e => { const [x, y] = pos(e), g = trouver(x, y) || mouvementSous(x, y); if (g) { e.stopPropagation(); epingle = epingle === g.texte ? null : g.texte; if (epingle) montrer(g, y); else tip.hidden = true; } else if (epingle) { epingle = null; tip.hidden = true; } }, true);
     api.info = (texte) => { const c = etat.cadres.find(c => c.g.texte === texte); if (!c) return null; montrer(c.g, c.y); epingle = texte; return tip.innerText; };
   }
-  const redessiner = () => { primTexte.maj && primTexte.maj(); primFond.maj && primFond.maj(); };
+  /* rectangles des mouvements : de la bougie de départ à la bougie de fin (pointillés si « en cours »), marqueur fin sur l'extrême de la bougie de départ, étiquette discrète */
+  const primMouv = new Primitive((ctx, T) => {
+    mouv.cadres = [];
+    if (!chart || !serie || !mouv.h1 || etat.couches.mouvements === false || !mouv.liste.length || !etat.bougies.length) return;
+    const ts = chart.timeScale(), vis = ts.getVisibleLogicalRange(), demi = Math.max(1, (ts.options().barSpacing || 6) / 2), fs = mobile ? 9 : 10;
+    for (const m of mouv.liste) {
+      const k0 = kDeT(m.t0), k1 = kDeT(m.t1); if (k0 < 0 || k1 < k0) continue; if (vis && (k1 < vis.from - 8 || k0 > vis.to + 8)) continue;
+      const x0 = xDeT(m.t0), x1 = xDeT(m.t1); if (x0 == null || x1 == null) continue;
+      let hi = -Infinity, lo = Infinity; for (let k = k0; k <= k1; k++) { const b = etat.bougies[k]; if (b.h > hi) hi = b.h; if (b.l < lo) lo = b.l; }
+      const yH = yDe(hi), yL = yDe(lo); if (yH == null || yL == null) continue;
+      const xa = x0 - demi, w = x1 - x0 + 2 * demi, col = m.d > 0 ? '95,184,148' : '216,106,106';
+      ctx.fillStyle = 'rgba(' + col + ',' + (m.enCours ? '.08' : '.13') + ')'; ctx.fillRect(xa, yH, w, yL - yH);
+      ctx.strokeStyle = 'rgba(' + col + ',' + (m.enCours ? '.85' : '.5') + ')'; ctx.lineWidth = 1; ctx.setLineDash(m.enCours ? [4, 3] : []); ctx.strokeRect(xa + 0.5, yH + 0.5, w - 1, yL - yH - 1); ctx.setLineDash([]);
+      const yd = yDe(m.depart); if (yd != null) { ctx.strokeStyle = 'rgba(' + col + ',.95)'; ctx.beginPath(); ctx.moveTo(x0 - demi, Math.round(yd) + 0.5); ctx.lineTo(x0 + demi, Math.round(yd) + 0.5); ctx.stroke(); }   // marqueur fin sur le plus bas / plus haut du départ
+      if (demi >= 2.5) { ctx.font = (fs) + "px system-ui, 'Segoe UI', sans-serif"; ctx.fillStyle = 'rgba(' + col + ',.95)'; const t = etiquetteMouv(m), tw = ctx.measureText(t).width, tx = Math.max(2, Math.min(T.width - tw - 2, xa)); ctx.fillText(t, tx, m.d > 0 ? Math.max(fs, yH - 3) : Math.min(T.height - 2, yL + fs + 1)); }
+      mouv.cadres.push({ x0: xa, x1: xa + w, y0: yH, y1: yL, m });
+    }
+  }, 'bottom');
+  const redessiner = () => { primTexte.maj && primTexte.maj(); primFond.maj && primFond.maj(); primMouv.maj && primMouv.maj(); };
 
   const api = {
     pret: () => pret,
@@ -349,6 +375,8 @@ export function creerGraphiqueOr(el, { surClicPrix, mobile = false } = {}) {
       try { serie.update({ time: tempsGraphique(b.t), open: b.o, high: b.h, low: b.l, close: b.c }); } catch (e) { console.warn('bougie en cours :', e.message); }
     },
     couches(c) { if (c) { etat.couches = { ...etat.couches, ...c }; ecrire('rayle_or_couches_v2', etat.couches); redessiner(); if (marqueurs) marqueurs.setMarkers(marquesLW()); } return { ...etat.couches }; },
+    mouvements(liste, { h1 = false } = {}) { mouv.liste = liste || []; mouv.h1 = !!h1; redessiner(); return mouv.liste.length; },
+    mouvementsEtat: () => ({ h1: mouv.h1, actif: mouv.h1 && etat.couches.mouvements !== false, total: mouv.liste.length, dessines: mouv.cadres.length, cadres: mouv.cadres.map(c => ({ x0: c.x0, x1: c.x1, y0: c.y0, y1: c.y1, sens: c.m.sens, bougies: c.m.bougies, enCours: !!c.m.enCours, t0: c.m.t0 })) }),
     fleches: () => etat.fleches.slice(), segments: () => etat.segCadres.map(q => ({ x0: q.x0, x1: q.x1, y: q.y, libelle: q.sg.libelle, sens: q.sg.sens, etiquette: !q.sg.sansEtiquette })), marquesAffichees: () => marquesLW(),
     dessin({ zonesVol, niveaux, retournement, prix, a, bandes, liquidite, balayages, fleches, segments }) { if (segments) etat.segments = segments; if (bandes) etat.bandes = bandes; if (liquidite) etat.liquidite = liquidite; if (balayages) etat.balayages = balayages; if (fleches) { const ch = fleches !== etat.fleches; etat.fleches = fleches; if (ch && marqueurs) marqueurs.setMarkers(marquesLW()); } if (zonesVol) etat.zonesVol = zonesVol.slice().sort((x, y) => (y.force || 0) - (x.force || 0)).slice(0, 3); if (niveaux) etat.niveaux = niveaux; if (retournement) etat.retournement = retournement; if (a != null) etat.a = a; if (prix != null) etat.prix = prix; redessiner(); },
     etiquettes: () => etat.cadres.map(c => ({ texte: c.g.texte, bord: c.g.bord || null, n: c.g.n, detail: c.g.detail, x: c.x, y: c.y, w: c.w, h: c.h })),
