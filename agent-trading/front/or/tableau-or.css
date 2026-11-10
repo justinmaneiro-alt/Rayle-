@@ -136,3 +136,7 @@
 .tor a.tor-gb{display:inline-flex;align-items:center;text-decoration:none;color:#8a9aa5;border-color:rgba(143,208,227,.25);font-weight:500}
 .tor a.tor-gb:hover{color:#d7e3ea}
 .tor-couches>.tor-couches-corps{max-height:72vh;overflow:auto}
+.tor-ctx{width:100%;border-collapse:collapse;font-size:13px}.tor-ctx th,.tor-ctx td{text-align:left;padding:6px 8px;border-bottom:1px solid var(--b);vertical-align:top}.tor-ctx thead th{color:var(--d);font-weight:500;font-size:12px}
+.tor-ctx-val{font-family:ui-monospace,Consolas,monospace;white-space:nowrap}.tor-ctx-favorable{color:#5fb894}.tor-ctx-defavorable{color:#d86a6a}.tor-ctx-neutre,.tor-ctx-inconnu{color:var(--d)}.tor-ctx-nd{color:#e0b25f}.tor-ctx-det summary{cursor:pointer;color:var(--d);font-size:12px}.tor-ctx-pied{color:var(--d);font-size:12px;margin:6px 0 0}
+.tor-ctx-actions{display:flex;gap:8px;flex-wrap:wrap;margin:6px 0 8px}.tor-qm{margin-left:4px;min-width:22px;height:22px;border-radius:50%;border:1px solid var(--b);background:#0b1620;color:#8fd0e3;cursor:pointer;font-size:12px;padding:0}
+@media (max-width:700px){.tor-ctx thead{display:none}.tor-ctx tr{display:block;border-bottom:1px solid var(--b);padding:4px 0}.tor-ctx th,.tor-ctx td{display:block;border:0;padding:2px 8px}}

@@ -19,6 +19,9 @@ function interpreterBrut(texte) {
   // fenêtres indépendantes de Rayle
   if (M(n, /\b(ouvre|affiche|montre)\b.*\b(le lecteur de musique|la musique|la fenetre musique|ma musique)\b/)) return { type: 'fenetre', quoi: 'musique' };
   if (M(n, /\b(ouvre|affiche|montre)\b.*\b(la tele|le mode tele|la telecommande|la fenetre tele)\b/)) return { type: 'fenetre', quoi: 'tele' };
+  // « pourquoi l'or bouge ? » et fiches « comment lire ça »
+  if (M(n, /pourquoi l or (bouge|monte|baisse|chute|recule|grimpe|s envole|decroche|stagne)|qu est ce qui fait (bouger|monter|baisser) l or|explique (moi )?(le mouvement|la hausse|la baisse) de l or/)) return { type: 'pourquoi' };
+  if (M(n, /\b(explique|expliquer|c est quoi|qu est ce que|a quoi sert|comment lire|comment on lit|comment lis)\b/) && M(n, /vwap|profil de volume|\bpoc\b|zone de valeur|\bcvd\b|delta|plus haut.*(veille|semaine)|plus bas.*(veille|semaine)|ouverture du jour|ouverture de la semaine|seance|session|asie|londres|new york|balayage|niveaux? ronds?|prix ronds?|liquidite|carte thermique|heatmap|mouvements? h1|positions? de rayle|trades? simules?|propositions?|ce qui fait bouger|facteurs/)) return { type: 'outil' };
   // lecture du graphique
   if (M(n, /\bon en est ou\b|\bou en est (l or|on)\b|\bque fait l or\b|\blecture du graphique\b|\bfais le point\b|\bpoint sur l or\b/)) return { type: 'lecture' };
   // musique : pause d'abord (« mets en pause la musique » n'est pas « mets la musique »)

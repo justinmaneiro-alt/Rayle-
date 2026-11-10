@@ -8,7 +8,8 @@ const ancienV2 = () => { try { return localStorage.getItem('rayle_terminal_ancie
 function monterOr(h) {
   const f = document.createElement('iframe'); f.className = 'tr-or'; f.title = 'Terminal de l’or'; f.allow = 'clipboard-read; clipboard-write; autoplay; microphone'; f.style.cssText = 'position:absolute;inset:0;width:100%;height:100%;border:0;background:#05080c';
   f.src = new URL('../or.html?vue=1', import.meta.url).href; h.appendChild(f);
-  return { iframe: f, detruire() { f.remove(); }, module(n) { return n === 'rayle' ? { commande: t => { try { const T = f.contentWindow.TableauOr; return !!(T && T.commande && T.commande(t)); } catch (e) { return false; } } } : null; } };
+  const proxy = { commande: t => { try { const T = f.contentWindow.TableauOr; return T && T.commande ? T.commande(t) : null; } catch (e) { return null; } } }; window.TableauOr = proxy;   // la voix de Rayle (phrase.js) interroge window.TableauOr : on le relaie vers la page de l'or
+  return { iframe: f, detruire() { if (window.TableauOr === proxy) delete window.TableauOr; f.remove(); }, module(n) { return n === 'rayle' ? { commande: t => { try { const T = f.contentWindow.TableauOr; return !!(T && T.commande && T.commande(t)); } catch (e) { return false; } } } : null; } };
 }
 
 let T = null, hote = null;

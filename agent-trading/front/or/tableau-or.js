@@ -8,6 +8,8 @@ import { creerMoteurOr } from './moteur-or.js';
 import { creerGraphiqueOr, COUCHES, ratio } from './graphique-or.js';
 import { creerMouvementsUI } from './mouvements-ui.js';
 import { creerInstitutionnel } from './institutionnel-or.js';
+import { creerContexte } from './contexte-or.js';
+import { FICHES } from './contexte-calcul.js';
 import { PERIODES, REGLES, TEXTE_REGLES, KRAKEN } from './config-or.js';
 import { texteType, texteHistorique, NOMS_TYPES } from './zones-or.js';
 import { heureParis } from './temps-or.js';
@@ -40,7 +42,7 @@ export const disposition = (l, h) => (l >= 1000 && l >= h ? 'pc' : 'colonne');
 
 /* voix : celle de Rayle si la page est dans Rayle (window.speak), sinon la synthèse du navigateur */
 export function parler(texte) {
-  try { if (typeof window.speak === 'function') return window.speak(texte); } catch (e) { /* repli */ }
+  try { if (typeof window.speak === 'function') return window.speak(texte); if (window.parent !== window && typeof window.parent.speak === 'function') return window.parent.speak(texte); } catch (e) { /* repli */ }
   try { const u = new SpeechSynthesisUtterance(texte); u.lang = 'fr-FR'; u.rate = 0.95; const v = speechSynthesis.getVoices().find(x => /^fr/i.test(x.lang)); if (v) u.voice = v; speechSynthesis.cancel(); speechSynthesis.speak(u); } catch (e) { /* pas de voix */ }
 }
 
@@ -52,14 +54,14 @@ export function monterTableauOr(el, { modules = {}, contexte = 'page', fetchFn, 
     <div class="tor-titre"><b>Or</b> <small>Kraken ${KRAKEN.symbole}</small> <span class="tor-prix" data-or-prix>—</span> <small class="tor-var" data-or-var></small></div>
     <nav class="tor-periodes" aria-label="Période">${Object.keys(PERIODES).map(p => `<button type="button" data-periode="${p}">${p === 'J' ? 'Jour' : p}</button>`).join('')}</nav>
     <div class="tor-outils">
-      <details class="tor-couches"><summary>Couches</summary><div class="tor-couches-corps">${Object.entries(COUCHES).map(([k, v]) => `<label><input type="checkbox" data-couche="${k}"> ${v}</label>`).join('')}<div class="tor-mouv" data-mouv-bloc hidden><label class="tor-mouv-seuil">Seuil des mouvements <input type="range" data-mouv-seuil min="1" max="3" step="0.1" value="1.5" aria-label="Seuil minimal des mouvements en ATR"> <output data-mouv-seuil-val>1,5 ATR</output></label><div class="tor-mouv-btns"><span>Exporter les mouvements</span> <button type="button" data-mouv-export="csv">CSV</button> <button type="button" data-mouv-export="json">JSON</button></div><details class="tor-mouv-stats"><summary>Statistiques</summary><div data-mouv-stats-corps><p>Calcul en cours…</p></div></details></div></div></details>
+      <details class="tor-couches"><summary>Couches</summary><div class="tor-couches-corps">${Object.entries(COUCHES).map(([k, v]) => `<label><input type="checkbox" data-couche="${k}"> ${v}${FICHES[k] ? ` <button type="button" class="tor-qm" data-fiche-couche="${k}" aria-label="Comment lire ça : ${v}" title="Comment lire ça ? (Rayle répond à voix haute)">?</button>` : ''}</label>`).join('')}<div class="tor-mouv" data-mouv-bloc hidden><label class="tor-mouv-seuil">Seuil des mouvements <input type="range" data-mouv-seuil min="1" max="3" step="0.1" value="1.5" aria-label="Seuil minimal des mouvements en ATR"> <output data-mouv-seuil-val>1,5 ATR</output></label><div class="tor-mouv-btns"><span>Exporter les mouvements</span> <button type="button" data-mouv-export="csv">CSV</button> <button type="button" data-mouv-export="json">JSON</button></div><details class="tor-mouv-stats"><summary>Statistiques</summary><div data-mouv-stats-corps><p>Calcul en cours…</p></div></details></div></div></details>
       <button type="button" data-a="position" title="Poser entrée, stop et objectif sur le graphique">📐 Position</button>
       <button type="button" class="tor-cloche" data-a="notifs" aria-label="Centre de notifications">🔔<i data-notifs-n hidden>0</i></button>
     </div>
   </header>
   <p class="tor-bandeau" data-bandeau role="status" hidden></p>
   <section class="tor-ecran1">
-    <div class="tor-graph"><div class="tor-graph-barre" data-graph-barre><button type="button" class="tor-gb tor-gb-pos" data-a="positions-rayle" aria-pressed="false" title="Positions simulées que Rayle propose">Positions de Rayle</button><button type="button" class="tor-gb" data-a="mouv-h1" aria-pressed="false" title="Afficher ou masquer la couche Mouvements H1">Mouvements H1</button><a class="tor-gb tor-gb-anc" href="terminal-ancien.html" title="Ancien terminal : positions, journal, alertes, dessins, carnet, grosses transactions, indicateurs">Ancien terminal</a></div><div class="tor-graph-lw" data-graph></div><p class="tor-pos" data-pos hidden></p><p class="tor-graph-source" data-source></p><p class="tor-graph-source tor-mouv-note" data-mouv-note hidden></p><p class="tor-graph-source tor-bilan" data-bilan-fleches></p><p class="tor-graph-source" data-versions-h1 hidden>Flèches H1 affichées : <label><input type="checkbox" data-vh1="fleches-h1-v9"> v9</label> <label><input type="checkbox" data-vh1="fleches-h1-v8"> v8</label> <label><input type="checkbox" data-vh1="fleches-h1-v7"> v7</label> <label><input type="checkbox" data-vh1="fleches-h1-v2"> v2</label> <span class="tor-doux">(cocher plusieurs pour comparer ; les flèches portent alors leur version ; v1, v3, v4, v5 et v6 restent calculées en arrière-plan)</span></p></div>
+    <div class="tor-graph"><div class="tor-graph-barre" data-graph-barre><button type="button" class="tor-gb tor-gb-pos" data-a="positions-rayle" aria-pressed="false" title="Positions simulées que Rayle propose">Positions de Rayle</button><button type="button" class="tor-gb" data-a="mouv-h1" aria-pressed="false" title="Afficher ou masquer la couche Mouvements H1">Mouvements H1</button><button type="button" class="tor-gb" data-a="pourquoi" title="Rayle explique en quelques phrases ce qui fait bouger l’or">Pourquoi l’or bouge ?</button><a class="tor-gb tor-gb-anc" href="terminal-ancien.html" title="Ancien terminal : positions, journal, alertes, dessins, carnet, grosses transactions, indicateurs">Ancien terminal</a></div><div class="tor-graph-lw" data-graph></div><p class="tor-pos" data-pos hidden></p><p class="tor-graph-source" data-source></p><p class="tor-graph-source tor-mouv-note" data-mouv-note hidden></p><p class="tor-graph-source tor-bilan" data-bilan-fleches></p><p class="tor-graph-source" data-versions-h1 hidden>Flèches H1 affichées : <label><input type="checkbox" data-vh1="fleches-h1-v9"> v9</label> <label><input type="checkbox" data-vh1="fleches-h1-v8"> v8</label> <label><input type="checkbox" data-vh1="fleches-h1-v7"> v7</label> <label><input type="checkbox" data-vh1="fleches-h1-v2"> v2</label> <span class="tor-doux">(cocher plusieurs pour comparer ; les flèches portent alors leur version ; v1, v3, v4, v5 et v6 restent calculées en arrière-plan)</span></p></div>
     <aside class="tor-carnet at" data-carnet aria-label="Carnet d’ordres"></aside>
   </section>
   <section class="tor-bloc tor-lecture" data-lecture>
@@ -71,6 +73,7 @@ export function monterTableauOr(el, { modules = {}, contexte = 'page', fetchFn, 
     <details><summary>Règles figées ${REGLES.version}</summary><pre class="tor-regles">${esc(TEXTE_REGLES)}</pre></details>
     <details><summary>Règles figées des niveaux et des flèches (${REGLES_NIVEAUX.version}, ${REGLES_FLECHES.version})</summary><pre class="tor-regles">${esc(TEXTE_REGLES_FLECHES)}</pre></details><details><summary>Règles figées des flèches H1, version 2 (${REGLES_H1_V2.version}, affichées seulement en H1)</summary><pre class="tor-regles">${esc(TEXTE_REGLES_H1_V2)}</pre></details><details><summary>Règles figées des flèches H1, version 3 (${REGLES_H1_V3.version})</summary><pre class="tor-regles">${esc(TEXTE_REGLES_H1_V3)}</pre></details><details><summary>Règles figées des flèches H1, version 4 (${REGLES_H1_V4.version})</summary><pre class="tor-regles">${esc(TEXTE_REGLES_H1_V4)}</pre></details><details><summary>Règles figées des flèches H1, version 5, et des niveaux H1 affichés (${REGLES_H1_V5.version}, ${REGLES_H1_V5.niveaux})</summary><pre class="tor-regles">${esc(TEXTE_REGLES_H1_V5)}</pre></details><details><summary>Règles figées des flèches H1, version 6, et des niveaux H1 retournés (${REGLES_H1_V6.version}, ${REGLES_H1_V6.niveaux})</summary><pre class="tor-regles">${esc(TEXTE_REGLES_H1_V6)}</pre></details><details><summary>Règles figées des flèches H1, version 7 (${REGLES_H1_V7.version})</summary><pre class="tor-regles">${esc(TEXTE_REGLES_H1_V7)}</pre></details><details><summary>Règles figées des flèches H1, version 8 (${REGLES_H1_V8.version})</summary><pre class="tor-regles">${esc(TEXTE_REGLES_H1_V8)}</pre></details><details><summary>Règles figées des flèches H1, version 9 (${REGLES_H1_V9.version} ; affichée par défaut en H1)</summary><pre class="tor-regles">${esc(TEXTE_REGLES_H1_V9)}</pre></details></details>
   </section>
+  <section class="tor-bloc tor-contexte" data-contexte><h2>Ce qui fait bouger l’or <small>valeurs mesurées · sens habituel · jamais un ordre</small></h2><div class="tor-ctx-actions"><button type="button" class="tor-gb" data-a="pourquoi-bloc">Pourquoi l’or bouge ?</button><button type="button" class="tor-gb" data-a="fiche-facteurs" title="Rayle explique ce panneau">? Comment lire ça</button></div><p class="tor-reponse" data-pourquoi hidden aria-live="polite"></p><p class="tor-reponse tor-fiche" data-fiche hidden aria-live="polite"></p><div data-contexte-corps><p>Chargement…</p></div></section>
   <section class="tor-bloc" data-journal-bloc></section>
   <section class="tor-bloc" data-gardien-bloc></section>
   <footer class="tor-pied">Simulation et information seulement : Rayle ne passe aucun ordre. Prix : Kraken Futures ${KRAKEN.symbole} (relais public sans clé). Volume, delta et niveaux : Binance XAUUSDT, décalés de l’écart mesuré. Graphique : <a href="https://www.tradingview.com/" target="_blank" rel="noopener">TradingView</a> Lightweight Charts™ (Apache-2.0). Heure de Paris.</footer>
@@ -96,7 +99,7 @@ export function monterTableauOr(el, { modules = {}, contexte = 'page', fetchFn, 
 
   /* moteur + graphique + carnet (le même carnet que l'agent) */
   const graph = creerGraphiqueOr(q('[data-graph]'), { mobile });
-  let mouvUI = null, instUI = null;
+  let mouvUI = null, instUI = null, ctxUI = null;
   graph.surPosition = (pos, outil) => majPosition(pos, outil);
   graph.surBordGauche = () => { moteur.plusAncien(); };   // glisser vers la gauche : historique plus ancien
   const carnet = creerCarnet(q('[data-carnet]'), { racine: q('[data-carnet]'), WS });   // racine = élément « .at » qui porte les couleurs du carnet (jetons.css)
@@ -196,12 +199,13 @@ export function monterTableauOr(el, { modules = {}, contexte = 'page', fetchFn, 
     let dire = null;
     if (c.type === 'lecture') dire = moteur.S.lecture ? moteur.S.lecture.phrase : 'Je charge encore les données de l’or.';
     else if (c.type === 'vue' && modules.surVue) dire = modules.surVue(c.vue);
+    else if ((c.type === 'pourquoi' || c.type === 'outil') && ctxUI) { dire = await ctxUI.commande(texte); if (dire) { rep.textContent = dire; return dire; } }
     else if (c.type === 'musique' || c.type === 'fenetre') { try { dire = await (await import('./media-rayle.js')).commande(texte, { global: false }); } catch (e) { dire = 'La musique n’est pas disponible ici.'; } }
     else dire = 'Je n’ai pas compris. Essaie « on en est où ? ».';
     if (dire) { rep.textContent = dire; parler(dire); }
     return dire;
   }
-  api.repondre = repondre; api.commande = texte => interpreter(texte).type === 'lecture' ? repondre(texte) : null;   // musique et télé : media-rayle.js, depuis n'importe quel écran
+  api.repondre = repondre; api.commande = texte => { const t = interpreter(texte).type; return t === 'lecture' || t === 'pourquoi' || t === 'outil' ? repondre(texte) : null; };   // musique et télé : media-rayle.js, depuis n'importe quel écran
 
   /* événements de l'interface */
   R.addEventListener('click', e => {
@@ -246,6 +250,8 @@ export function monterTableauOr(el, { modules = {}, contexte = 'page', fetchFn, 
 
   // modules B et C (montés dans leurs blocs) : chargés à la demande, chacun indépendant
   instUI = creerInstitutionnel({ graph, moteur, carnet }); api.institutionnel = instUI; instUI.maj(true);
+  ctxUI = creerContexte({ racine: R, moteur, graph, parler, auto: etudeAuto }); api.contexte = ctxUI;
+  R.addEventListener('click', e => { const b = e.target.closest('[data-a="pourquoi"],[data-a="pourquoi-bloc"],[data-a="fiche-facteurs"],[data-fiche-couche]'); if (!b) return; if (b.dataset.a === 'fiche-facteurs') ctxUI.fiche('facteurs'); else if (b.dataset.ficheCouche) { e.preventDefault(); ctxUI.fiche(b.dataset.ficheCouche); } else ctxUI.pourquoi(); });
   mouvUI = creerMouvementsUI({ racine: R, graph, moteur }); api.mouvements = mouvUI; api.graphe = () => graph;
   api.monterModule = (nom, m) => { modules[nom] = m; }; api.rendre = () => rendre();
   // mes outils (dessin, surveillance, alertes, registre) : dans tous les contextes ; un échec n'empêche pas le reste
