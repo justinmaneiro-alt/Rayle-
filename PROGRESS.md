@@ -226,3 +226,10 @@ Tout est désactivé par défaut (panneau « Couches ») ; le graphique reste vi
 - **Décisions seul** : fractales de 20 bougies pour « grands » creux/sommets ; niveau majeur = pivot de 5 bougies avec ≥ 8 touches (365 j, tolérance 0,5 ATR d'unité) ; « ancien support » = clôture d'unité au-dessus dans les 120 dernières bougies ; mèche de rejet ≥ 40 % ; B achats seulement ; entrée « à la clôture » exécutée à l'ouverture suivante ; décision sur les frais « taker ».
 - **3 caractéristiques à affiner** (étude séparée, nouveau budget de variantes) : distance minimale de stop, filtre de régime, cible/sortie partielle.
 - Tests : `moteur/tests/structure-test.mjs` (35), `structure-alerte-test.mjs` (19), `npm test` dans agent-trading : tout passe. Flèches v1 à v10, Worker et secrets non touchés.
+
+# Étude « structure » : variantes supplémentaires (2026-11-10) — faite
+
+- **Règles figées** `agent-trading/front/or/structure-v2.js` (sceau SHA-256 `8bbede70…` des fins de ligne normalisées, commité avant calcul ; structure-v1 inchangée) : (S) stop ≥ 1 ATR H1, (F) filtre de régime Jour (achats sauf hausse > 2 ATR Jour au-dessus de la SMA 50 ; ventes seulement si baissière), (P) moitié à +1 R, break-even, cible de structure ; appliquées seules ou ensemble (SFP) aux 20 variantes : 80 nouvelles, **Holm sur 100**. Étude `moteur/copilote/structure/etude-structure-v2.mjs`, section 5 de `RAPPORT-STRUCTURE.md`.
+- **Résultat : 0 variante sur 100 retenue.** S écarte 43 à 81 % des trades A/B et améliore le R net moyen (−0,32 contre −0,60) sans rien rendre significatif ; F n'aide pas ; P est quasi neutre. L'alerte « setup possible » reste informative (texte : aucune des 100 variantes ne bat le hasard).
+- **Piège** : git (autocrlf) passe les fichiers en CRLF au changement de branche, ce qui change le SHA-256 brut ; les scripts d'étude normalisent les fins de ligne avant de comparer au sceau.
+- Tests : `moteur/tests/structure-v2-test.mjs` (68), `npm test` dans agent-trading.
