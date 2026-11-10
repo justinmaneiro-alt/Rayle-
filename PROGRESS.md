@@ -194,3 +194,16 @@ Reprendre ici : lire ce fichier, puis `RAPPORT-NUIT.md`. Reprendre à la premiè
 
 ## Bloqué
 - (rien)
+
+---
+
+# Correctif voix, fluidité, bugs (2026-11-10) — Partie A faite
+
+- **Diagnostic** : l'ancienne voix passait par la route `/tts` du Worker : Azure Speech (`AZURE_KEY`/`AZURE_REGION`) puis Edge en secours. Azure renvoyait 401 (abonnement coupé) et Edge 403 (Microsoft a changé le jeton `Sec-MS-GEC` en version 2). Azure est laissé en tout dernier recours, secrets intacts. Correctif Edge écrit dans `worker/` (ignoré par git, NON déployé : voir docs/deploiement-worker.md).
+- **Voix locale gratuite** : Kokoro (ff_siwis), Piper (siwis, jessica) via `app-pc/voix-locale.mjs` + `app-pc/voix/serveur-voix.py` ; installation `node app-pc/installer-voix.mjs` ; panneau ⚙ « Voix de Raylé » ; voix du système classée automatiquement en secours ; phrase par phrase, interruption immédiate. Doc : `docs/voix-de-rayle.md`, licences : `NOTICE.md`.
+- **Français parlé** : `core/voice/normalisation-fr.js` (nombres, prix, heures, dates, sigles, dictionnaire modifiable).
+- **Terminal** : `agent-trading/front/terminal/briefing-rayle.js` (décris, fais le point, explique, relances, mémoire de session) branché dans `rayle-terminal.js`.
+- **Fluidité** (CPU ralenti ×6, avant → après) : déplacement du graphique 65 → 97 i/s ; zoom 28 → 114 ; changement d'actif 18 → 85 ; défilement 21 → 115 ; tâches > 100 ms : 3 → 0. Carnet à ~10 images/s, formateurs Intl en cache. Sans ralentissement : 144 i/s, 0 pause. Mesures : `docs/perf-terminal-*.json`.
+- **Balayage** : tous les tests Node passent sauf `liaison-worker-test` (version du Worker en ligne 03.1 ≠ page 03.3 : constat, Worker non touché). Chrome : accueil/terminal/Terre/Mars sans exception ; seules erreurs = repli du calendrier économique sans Worker configuré en local (404 calendar.json, CORS faireconomy) : comportement voulu de la chaîne de secours, non modifié. Tests « carte agent » obsolètes : assertions retirées, copies dans `idees/tests-mobiles-carte-agent/`.
+- **Décisions seul** : Edge d'abord, Azure en dernier recours dans le Worker ; hauteur par lecture accélérée + moteur ralenti ; briefing limité à un seul scénario si > 58 s.
+- Non fait en A : Web Workers pour les calculs (non nécessaires : aucune tâche > 100 ms mesurée en usage normal), virtualisation (pas de liste longue mesurée).

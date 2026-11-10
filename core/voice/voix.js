@@ -1,12 +1,12 @@
 "use strict";
-  /* ═════════════ VOIX : Worker (Azure → Edge) puis voix du navigateur ═════════════ */
+  /* ═════════════ VOIX : moteur choisi (Kokoro / Piper locaux, Edge par le Worker, voix du système) ═════════════ */
   let voices=[], chosenVoice=null, speaking=false, speakToken=0, lastSpoken='', lastSpokenRaw='', speechEndT=0;
   function pickVoice(){
-    const fr=voices.filter(v=>/^fr/i.test(v.lang));
-    const re=persona.feminin
-      ? /denise|julie|amelie|amélie|hortense|audrey|marie|celine|céline|virginie|aurelie|aurélie|female|femme/i
-      : /paul|henri|thomas|claude|antoine|mathieu|nicolas|male|homme/i;
-    return fr.find(v=>re.test(v.name)) || fr.find(v=>/fr-FR/i.test(v.lang)) || fr[0] || null;
+    const choisie=window.VoixMoteurs?VoixMoteurs.voixSystemeChoisie():'';
+    if(choisie){ const v=voices.find(x=>x.voiceURI===choisie||x.name===choisie); if(v) return v; }
+    const rang=window.VoixCalcul?VoixCalcul.classerVoixSysteme(voices,persona.feminin):[];
+    if(rang.length) return rang[0].voix;
+    return voices.find(v=>/^fr/i.test(v.lang))||null;
   }
   function loadVoices(){
     if(!('speechSynthesis' in window)) return;
@@ -51,13 +51,13 @@
         if(token!==speakToken || i>=chunks.length){ resolve(); return; }
         const piece=chunks[i++];
         const u=new SpeechSynthesisUtterance(piece);
-        if(chosenVoice){ u.voice=chosenVoice; u.lang=chosenVoice.lang; } else u.lang='fr-FR';
-        u.pitch=persona.feminin?1:0.78; u.rate=rate; u.volume=1;
+        try{ if(chosenVoice){ u.voice=chosenVoice; u.lang=chosenVoice.lang; } else u.lang='fr-FR'; }catch(e){ u.lang='fr-FR'; }   // une voix refusée ne doit jamais bloquer la lecture
+        u.pitch=Math.max(0,Math.min(2,(persona.feminin?1:0.78)*(1+(window.VoixMoteurs?VoixMoteurs.hauteur():0)/100))); u.rate=rate; u.volume=1;
         let fired=false;
         const go=()=>{ if(fired) return; fired=true; clearTimeout(tm); next(); };
         const tm=setTimeout(go, 4000+piece.length*130);   // garde-fou si « onend » n'arrive pas
         u.onend=go; u.onerror=go;
-        speechSynthesis.speak(u);
+        try{ speechSynthesis.speak(u); }catch(e){ go(); }
       };
       setTimeout(next,60);
     });
@@ -67,14 +67,8 @@
   let curAudio=null, audioStop=null, lastVoiceSrc='', lastVoiceInfo='';
   function voiceLabel(src){
     const [moteur,nom]=String(src||'').split('/');
+    if(moteur==='local'&&window.VoixMoteurs&&VoixMoteurs.NOMS[nom]) return VoixMoteurs.NOMS[nom].nom+' (locale, gratuite)';
     return (nom||persona.voix||'?')+' ('+(moteur==='azure'?'Azure':moteur==='edge'?'Edge':moteur)+')';
-  }
-  async function fetchAudio(t){
-    const body={text:t}; const v=prefs.vitesse();
-    if(v!=null && isFinite(v)) body.vitesse=v;
-    const res=await wfetch('/tts',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)},25000);
-    if(!res.ok) throw await workerError(res);
-    return {src:res.headers.get('X-Rayle-Voix')||'', blob:await res.blob()};
   }
   const audioEl=new Audio(); audioEl.preload='auto'; try{ audioEl.setAttribute('playsinline',''); }catch(e){}
   let audioDebloque=false, silenceUrl='';
@@ -121,48 +115,67 @@
     if(a.src && a.src!==lastVoiceSrc){ lastVoiceSrc=a.src; voiceEl.textContent='voix : '+voiceLabel(a.src); addLine('sys','Voix : '+voiceLabel(a.src)); }
     const url=URL.createObjectURL(a.blob);
     try{
+      if(audioCtx && audioCtx.state!=='running'){ try{ await Promise.race([audioCtx.resume(),new Promise(r=>setTimeout(r,800))]); }catch(e){} }
       await new Promise((resolve,reject)=>{
         const el=audioEl; curAudio=el; audioStop=resolve;
+        let demarre=false, fini=false;
+        const fin=(ok,err)=>{ if(fini) return; fini=true; clearTimeout(gardeDemarrage); clearInterval(gardeBlocage); ok?resolve():reject(err); };
+        const gardeDemarrage=setTimeout(()=>fin(false,new Error('la lecture audio ne démarre pas (son bloqué par le navigateur ?)')),7000);
+        let dernier=-1, figes=0;
+        const gardeBlocage=setInterval(()=>{ if(!demarre) return; if(el.currentTime===dernier && !el.paused) figes++; else figes=0; dernier=el.currentTime; if(figes>=6) fin(false,new Error('lecture audio bloquée')); },500);
+        el.onplaying=()=>{ demarre=true; };
+        el.onended=()=>fin(true);
+        el.onerror=()=>fin(false,new Error('lecture audio impossible'));
         el.src=url;
-        el.onended=resolve;
-        el.onerror=()=>reject(new Error('lecture audio impossible'));
-        const p=el.play(); if(p && p.catch) p.catch(reject);
+        try{ el.preservesPitch=false; el.mozPreservesPitch=false; el.webkitPreservesPitch=false; el.defaultPlaybackRate=a.vitesseLecture||1; el.playbackRate=a.vitesseLecture||1; }catch(e){}   // hauteur : lecture plus rapide, le moteur parle plus lentement d'autant
+        const p=el.play(); if(p && p.catch) p.catch(e=>fin(false,e));
       });
     }finally{ curAudio=null; audioStop=null; URL.revokeObjectURL(url); }
   }
   function stopAudioOnly(){
+    if(synthCtrl){ try{ synthCtrl.abort(); }catch(e){} synthCtrl=null; }
     if('speechSynthesis' in window) speechSynthesis.cancel();
     if(curAudio){ try{ curAudio.pause(); }catch(e){} }
     if(audioStop){ const f=audioStop; audioStop=null; f(); }
   }
 
-  async function speak(text){
+  let synthCtrl=null;   // annule les synthèses en cours dès qu'on coupe ou qu'une nouvelle phrase arrive
+  async function speak(text,opts){
+    opts=opts||{};
     const t=clean(text); if(!t) return;
     const token=++speakToken;
     stopAudioOnly();                       // une nouvelle phrase remplace la précédente
     speaking=true; lastSpoken=norm(t).slice(0,4000); lastSpokenRaw=t.slice(0,4000);
     if(!bargeActive()) muteRec(); else startRec();   // le micro est coupé net pendant qu'elle parle
     setState('speaking');
-    // Premier morceau court pour démarrer vite, la suite est préparée pendant la lecture
-    let parts=regroup(t,900);
-    if(parts[0].length>320) parts=regroup(parts[0],260).concat(parts.slice(1));
-    let online=workerReady();
-    let next=online?fetchAudio(parts[0]):null;
-    if(next) next.catch(()=>{});
+    // Texte parlé : nombres, prix, sigles, heures et dates écrits en toutes lettres ; plus de markdown ni d'émoji (normalisation-fr.js)
+    let parts=window.NormFr?NormFr.phrases(NormFr.normaliser(text)):regroup(t,260);
+    if(!parts.length) parts=regroup(t,260);
+    const choisiId=opts.moteur||VoixMoteurs.choisi();
+    const moteurId=opts.moteur||VoixMoteurs.actif();   // « systeme » tant que le modèle local n'est pas prêt : Raylé n'est jamais muette
+    if(!opts.moteur&&moteurId==='systeme'&&choisiId!=='systeme'){
+      const m='Voix « '+(VoixMoteurs.NOMS[choisiId]||{nom:choisiId}).nom+' » pas encore prête : voix du système en attendant';
+      if(m!==lastVoiceInfo){ addLine('sys',m); lastVoiceInfo=m; }
+    }
+    const vit=Math.max(0.5,Math.min(2,1+vitesseCourante()/100));
+    const ctrl=new AbortController(); synthCtrl=ctrl;
+    const taches=[];
+    const lancer=i=>{ if(i<parts.length&&!taches[i]){ taches[i]=VoixMoteurs.synth(moteurId,parts[i],{vitesse:vit,signal:ctrl.signal}); taches[i].catch(()=>{}); } };
+    let enLigne=moteurId!=='systeme';
+    if(enLigne){ lancer(0); lancer(1); }   // synthèse phrase par phrase : la première part vite, la suite se prépare pendant la lecture
     for(let i=0;i<parts.length;i++){
       if(token!==speakToken) return;
-      if(online){
+      if(enLigne){
         try{
-          const a=await next;
-          next=(i+1<parts.length)?fetchAudio(parts[i+1]):null;
-          if(next) next.catch(()=>{});
+          const a=await taches[i];
+          lancer(i+2);
           if(token!==speakToken) return;
-          await playAudio(a,token);
+          await playAudio(a,token); lastVoiceInfo='';
           continue;
         }catch(e){
           if(token!==speakToken) return;
-          online=false; next=null;
-          const m='Voix en ligne indisponible ('+errMsg(e)+') : voix du navigateur';
+          enLigne=false; try{ ctrl.abort(); }catch(x){}
+          const m='Voix « '+(VoixMoteurs.NOMS[moteurId]||{nom:moteurId}).nom+' » indisponible ('+errMsg(e)+') : voix du système';
           if(m!==lastVoiceInfo){ addLine('sys',m); lastVoiceInfo=m; }
         }
       }
@@ -173,6 +186,26 @@
     restState();
     if(modeToucher()){ if(!processing && !queue.length) apresReponse(); }
     else if(micOn) setTimeout(startRec,700);  // petit délai : la fin de sa voix ne doit pas être captée
+  }
+  // Test de la voix : résultat de chaque voix candidate, puis lecture avec la voix retenue
+  async function testerVoix(signaler){
+    const dire=m=>{ try{ if(signaler) signaler(m); }catch(e){} };
+    dire('Test des voix en cours…');
+    let lignes=[];
+    try{
+      await VoixMoteurs.testerAuto();
+      lignes=VoixMoteurs.candidats().map(c=>'· '+c.nom+' : '+c.etat+(c.test&&c.test.ms?' ('+(c.test.ms/1000).toFixed(1).replace('.',',')+' s)':'')+(c.raison?' — '+c.raison:''));
+    }catch(e){ lignes=['Test impossible : '+errMsg(e)]; }
+    const utilisee=VoixMoteurs.actif();
+    const resume='Voix utilisée : '+(VoixMoteurs.NOMS[utilisee]||{nom:utilisee}).nom;
+    addLine('sys','Test des voix — '+lignes.join(' | ')+' → '+resume); dire(lignes.join('\n')+'\n'+resume+'\nLecture du test…');
+    const v=vitesseCourante();
+    const t='Test de la voix. Raylé à '+fx('votre','ton')+' écoute, Justin. Voici ma vitesse de lecture actuelle : '+(v===0?'normale':(v>0?'plus':'moins')+' '+Math.abs(v)+' pour cent')+'.';
+    addLine('ray',t);
+    lastVoiceInfo='';
+    await speak(t);
+    const fin=lastVoiceInfo?lastVoiceInfo:resume;
+    dire(lignes.join('\n')+'\n'+fin); return fin;
   }
   function cancelSpeech(){
     speakToken++;

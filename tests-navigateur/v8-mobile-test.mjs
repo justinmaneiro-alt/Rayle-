@@ -19,7 +19,7 @@ for (const cle of cles) {
 
   // ── accueil ──
   v('accueil : entité visible', await visible(p, '#reactor'));
-  for (const c of ['heure', 'meteo', 'agent', 'actus', 'marche']) v('accueil : carte « ' + c + ' » présente', await existe(p, '[data-carte="' + c + '"]'));
+  for (const c of ['heure', 'meteo', 'actus', 'marche']) v('accueil : carte « ' + c + ' » présente', await existe(p, '[data-carte="' + c + '"]'));
   v('accueil : la barre du bas a 5 entrées dont la voix', await ev(p, () => document.querySelectorAll('#m-nav button').length === 5 && !!document.getElementById('m-voix')));
   v('plus d’icône dossier flottante', !(await visible(p, '#tfBouton')) && !(await visible(p, '.tf-bouton')));
   const recouverts = [];
@@ -31,7 +31,7 @@ for (const cle of cles) {
   v('accueil : marchés réels (prix et variation, pas de « — »)', await ev(p, () => [...document.querySelectorAll('[data-carte="marche"] .m-m:not(.vide) .m-p')].every(e => /\d/.test(e.textContent)) && document.querySelectorAll('[data-carte="marche"] .m-m:not(.vide)').length >= 3));
   v('accueil : carrousel d’actualités avec images', await ev(p, () => document.querySelectorAll('.m-car-s').length >= 3 && !!document.querySelector('.m-car-img img')));
   v('accueil : bandeau défilant', await visible(p, '[data-bandeau] .m-defile-i'));
-  v('accueil : agent, positions du jour comptées, mise à jour datée', /3\s*\n?\s*position/.test(await texte(p, '[data-carte="agent"]')) && /mise à jour il y a/.test(await texte(p, '[data-carte="agent"]')), await texte(p, '[data-carte="agent"]'));
+  // OBSOLETE (agents retirés, voir idees/tests-mobiles-carte-agent) v('accueil : agent, positions du jour comptées, mise à jour datée', /3\s*\n?\s*position/.test(await texte(p, '[data-carte="agent"]')) && /mise à jour il y a/.test(await texte(p, '[data-carte="agent"]')), await texte(p, '[data-carte="agent"]'));
   v('accueil : aucun « Chargement… » ni squelette resté', await ev(p, () => !document.querySelector('#m-accueil .m-squelette') && !/Chargement…|Lecture de/.test(document.querySelector('#m-accueil').innerText)));
   await p.screenshot({ path: `docs/captures-v8/accueil-${cle}.png` });
 

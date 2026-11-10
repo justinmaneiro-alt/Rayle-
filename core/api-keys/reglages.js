@@ -34,11 +34,12 @@
   kBarge.addEventListener('change',()=>{ store.set(KEY_BARGE,kBarge.checked?'1':''); addLine('sys',kBarge.checked?'Interruption à la voix activée (le micro reste ouvert pendant qu\'elle parle).':'Interruption à la voix désactivée.'); });
   kNoms.addEventListener('change',()=>{ store.set(KEY_NOMS,kNoms.value.trim()); buildFixName(); addLine('sys','Variantes du nom enregistrées.'); });
 
-  function saveCfg(){
+  function saveCfg(garder){   // garder : un champ vide ne doit pas effacer l'adresse ou le code déjà enregistrés (tests)
     let u=kUrl.value.trim();
     if(u && !/^https?:\/\//i.test(u)) u='https://'+u;
     kUrl.value=u;
-    store.set(KEY_WURL,u.replace(/\/+$/,'')); store.set(KEY_WTOK,kTok.value.trim());
+    if(!(garder&&!u)) store.set(KEY_WURL,u.replace(/\/+$/,''));
+    if(!(garder&&!kTok.value.trim())) store.set(KEY_WTOK,kTok.value.trim());
   }
   $('cfgSave').addEventListener('click',async()=>{
     saveCfg(); cfgMsg.textContent='Enregistré. Vérification…';
@@ -68,11 +69,9 @@
     }catch(e){ cfgMsg.textContent='✔ '+p.info+'\n✖ IA : '+errMsg(e); }
   });
   $('cfgTestVoix').addEventListener('click',()=>{
-    saveCfg();
-    const t='Test de la voix. Raylé à '+fx('votre','ton')+' écoute, Justin. Voici ma vitesse de lecture actuelle.';
-    cfgMsg.textContent='Lecture du test…';
-    addLine('ray',t);
-    speak(t).then(()=>{ cfgMsg.textContent='Test terminé. La source de la voix est indiquée dans le journal et en haut à droite.'; });
+    saveCfg(true);
+    cfgMsg.style.whiteSpace='pre-line';
+    testerVoix(m=>{ cfgMsg.textContent=m; });
   });
   $('cfgClean').addEventListener('click',()=>{
     OLD_KEYS.forEach(k=>store.set(k,''));

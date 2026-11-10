@@ -33,8 +33,11 @@ export function fmtCopie(x, n) {
 export const copiePrix = (actif, p) => fmtCopie(p, decimalesPrix(actif));
 export const copieQte = (actif, q) => fmtCopie(q, decimalesLot(actif));
 
-export const heureParis = (t, sec = false) => (t ? new Date(t).toLocaleTimeString('fr-FR', { timeZone: 'Europe/Paris', hour: '2-digit', minute: '2-digit', second: sec ? '2-digit' : undefined, hour12: false }) : '—');
-export const dateHeureParis = t => (t ? new Date(t).toLocaleString('fr-FR', { timeZone: 'Europe/Paris', day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit', hour12: false }) : '—');
+const FMT_H = new Intl.DateTimeFormat('fr-FR', { timeZone: 'Europe/Paris', hour: '2-digit', minute: '2-digit', hour12: false });
+const FMT_HS = new Intl.DateTimeFormat('fr-FR', { timeZone: 'Europe/Paris', hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false });
+const FMT_DH = new Intl.DateTimeFormat('fr-FR', { timeZone: 'Europe/Paris', day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit', hour12: false });
+export const heureParis = (t, sec = false) => (t ? (sec ? FMT_HS : FMT_H).format(new Date(t)) : '—');   // formateurs créés une fois : même texte que toLocaleTimeString, bien plus rapide
+export const dateHeureParis = t => (t ? FMT_DH.format(new Date(t)) : '—');
 export function fmtDuree(ms) {
   if (ms == null || !Number.isFinite(ms) || ms < 0) return '—';
   const s = Math.floor(ms / 1000), j = Math.floor(s / 86400), h = Math.floor((s % 86400) / 3600), m = Math.floor((s % 3600) / 60);

@@ -63,6 +63,7 @@
       else { addLine('ray',"Mise en veille. Je ne bouge plus."); stopListening(); }
       return true;
     }
+    if(/^(?:fais|lance|fait)?\s*(?:un |le )?test (?:de )?(?:la )?voix$|^teste (?:la|ta) voix$/.test(c)){ testerVoix(); return true; }
     if(/^(?:parle[sz]?\s+)?(?:plus lentement|moins vite|plus doucement)(?:\s+(?:stp|svp|s'?il (?:te|vous) plait))?$|^ralenti[sz]?(?: un peu)?$/.test(c)){ changeVitesse(-6); return true; }
     if(/^(?:parle[sz]?\s+)?(?:plus vite|moins lentement)(?:\s+(?:stp|svp|s'?il (?:te|vous) plait))?$|^accelere[sz]?(?: un peu)?$/.test(c)){ changeVitesse(6); return true; }
     if(/^(?:vitesse normale|parle[sz]? normalement|remets? la vitesse normale)$/.test(c)){ store.set(KEY_VIT,''); majVitesseUI(); const r='Vitesse normale rétablie.'; addLine('ray',r); speak(r); return true; }

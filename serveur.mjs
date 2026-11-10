@@ -12,6 +12,7 @@ import { creerMulti } from './app-pc/multi-ecrans.mjs';
 import { creerTelecommande } from './app-pc/telecommande.mjs';
 import { creerPontCamera } from './app-pc/camera-pont.mjs';
 import { gererTerminal } from './app-pc/terminal-sources.mjs';
+import { creerVoixLocale } from './app-pc/voix-locale.mjs';
 
 const RACINE = path.dirname(fileURLToPath(import.meta.url));
 const PORT = Number(process.argv[2]) || Number(process.env.PORT) || 8000;
@@ -27,12 +28,14 @@ export function creerServeur({ portReseau, dossierDonnees = process.env.RAYLE_DO
   const multi = creerMulti();   // mode multi-écrans : écrans et fenêtres (routes /__multi/…, app-pc/multi-ecrans.mjs)
   const tele = creerTelecommande({ racine: RACINE, dossierDonnees, port: portReseau, ip });   // télécommande tactile (K2) : désactivée tant que Justin ne l'active pas dans ⚙ Réglages
   const camera = creerPontCamera({ racine: RACINE, dossierDonnees, ip });   // caméra du téléphone (V2 phase 11) : désactivée tant que Justin ne l'active pas dans ⚙ Gestes
+  const voixLocale = creerVoixLocale({ racine: RACINE });   // voix gratuite et locale (Kokoro, Piper) : routes /__voix/…, réservées à 127.0.0.1
   const serveur = http.createServer((req, res) => {
     let chemin;
     try { chemin = decodeURIComponent(new URL(req.url, 'http://x').pathname); } catch (e) { res.writeHead(400); return res.end('requête invalide'); }
     if (chemin.startsWith('/__multi/')) return multi.gerer(req, res, chemin);
     if (chemin.startsWith('/__tele/')) return tele.gererLocal(req, res, chemin);
     if (chemin.startsWith('/__cam/')) return camera.gererLocal(req, res, chemin);
+    if (chemin.startsWith('/__voix/')) return voixLocale.gerer(req, res, chemin);
     if ((chemin.startsWith('/__relais/') || chemin === '/__rapports' || chemin === '/__yahoo' || chemin === '/__calendrier') && gererTerminal(req, res, chemin)) return;   // sources publiques du terminal lues par le PC (app-pc/terminal-sources.mjs)
     if (chemin === '/clavier/telecommande-calcul.js') chemin = '/core/commun/telecommande-calcul.js';   // même fichier que sur le réseau local
     if (chemin === '/clavier') chemin = '/clavier/';   // clavier en éventail (K1), aussi disponible en local
@@ -55,7 +58,7 @@ export function creerServeur({ portReseau, dossierDonnees = process.env.RAYLE_DO
     });
   });
   serveur.on('upgrade', (req, sock) => { if (String(req.url).startsWith('/__cam/')) camera.upgradeLocal(req, sock); else tele.upgradeLocal(req, sock); });
-  serveur.on('close', () => { tele.fermerTout(); camera.fermerTout(); });
+  serveur.on('close', () => { tele.fermerTout(); camera.fermerTout(); voixLocale.arreter(); });
   serveur.tele = tele; serveur.camera = camera;
   return serveur;
 }

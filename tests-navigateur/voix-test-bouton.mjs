@@ -1,0 +1,14 @@
+import puppeteer from 'puppeteer-core';
+import { BASE, CHROME } from './terre-aide.mjs';
+const nav = await puppeteer.launch({ executablePath: CHROME, headless: 'new', args: ['--autoplay-policy=no-user-gesture-required'] });
+const page = await nav.newPage(); const logs = [];
+page.on('console', m => logs.push(m.type() + ': ' + m.text().slice(0, 200)));
+page.on('pageerror', e => logs.push('pageerror: ' + e.message.slice(0, 300)));
+await page.evaluateOnNewDocument(() => { localStorage.setItem('rayle_worker_url', 'https://rayle.justinmaneiro.workers.dev'); localStorage.setItem('rayle_worker_token', 'faux'); localStorage.setItem('rayle_boot', '0'); });
+await page.goto(BASE + '/index.html', { waitUntil: 'load' });
+await new Promise(r => setTimeout(r, 2500));
+await page.evaluate(() => document.getElementById('cfgTestVoix').click());
+await new Promise(r => setTimeout(r, 6000));
+console.log(JSON.stringify(await page.evaluate(() => ({ msg: document.getElementById('cfgMsg').textContent, tv: typeof testerVoix, lignes: [...document.querySelectorAll('#log .ray, #log .sys, #log div')].slice(-5).map(e => e.textContent.slice(0, 160)) })), null, 1));
+console.log(logs.slice(0, 10).join('\n'));
+await nav.close();

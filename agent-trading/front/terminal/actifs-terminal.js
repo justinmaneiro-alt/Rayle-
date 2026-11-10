@@ -34,11 +34,13 @@ export const UNITES = Object.freeze({
 });
 export const ORDRE_UNITES = Object.freeze(['M5', 'M15', 'H1', 'H4', 'J']);
 
-/* format d'un prix selon l'actif (espaces fines françaises) */
+/* format d'un prix selon l'actif (espaces fines françaises) ; un formateur par nombre de décimales, créé une seule fois (même texte que toLocaleString, bien plus rapide) */
+const FORMATEURS = new Map();
 export function fmt(id, p, d) {
   if (p == null || !Number.isFinite(+p)) return '—';
   const a = PAR_ID_T[id], k = d != null ? d : a ? a.decimales : 2;
-  return Number(p).toLocaleString('fr-FR', { minimumFractionDigits: k, maximumFractionDigits: k }).replace(/ | /g, ' ');
+  let F = FORMATEURS.get(k); if (!F) { F = new Intl.NumberFormat('fr-FR', { minimumFractionDigits: k, maximumFractionDigits: k }); FORMATEURS.set(k, F); }
+  return F.format(Number(p)).replace(/[  ]/g, ' ');
 }
 /* arrondi au pas de prix de l'actif */
 export function auTick(id, p) { const t = (PAR_ID_T[id] || {}).tick || 0.01; return Math.round(p / t) * t; }

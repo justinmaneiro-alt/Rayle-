@@ -22,7 +22,7 @@ export function creerCarnet(el, { racine, WS } = {}) {
     + '<div class="at-cn-defil"><canvas></canvas></div><div class="at-cn-bas"><button type="button" class="at-btn at-cn-centrer">⌖ Centrer</button><span class="at-cn-info"></span></div>'
     + '<div class="at-cn-gros"><h4>Grosses transactions <small data-cn-gros-actif></small></h4><ol></ol></div>';
   const q = s => el.querySelector(s), defil = q('.at-cn-defil'), canvas = q('canvas'), ctx = canvas.getContext('2d'), info = q('.at-cn-info'), gros = q('.at-cn-gros ol'), selPas = q('[data-cn-pas]'), erreur = q('[data-cn-erreur]');
-  let koDepuis = 0, actif = null, symbole = null, prixActif = null, moteur = null, avant = new Map(), flashs = [], centrer = true, anim = null, image = null, pas = null, verifie = null;
+  let dernierGros = null, koDepuis = 0, actif = null, symbole = null, prixActif = null, moteur = null, avant = new Map(), flashs = [], centrer = true, anim = null, image = null, pas = null, verifie = null;
   const etatCx = { connexion: '—', erreur: null, resync: 0 };
   const flux = creerFluxKraken({ WS, surMaj: () => planifier(), surEtat: e => { Object.assign(etatCx, e); planifier(); } });
   q('.at-cn-centrer').onclick = () => { centrer = true; dessiner(); };
@@ -32,7 +32,15 @@ export function creerCarnet(el, { racine, WS } = {}) {
 
   function dureeFlash() { const v = couleur(racine, '--at-d-flash'); return parseFloat(v) || 650; }
   let minCtl = null; function planifierControle() { if (!minCtl) minCtl = setTimeout(() => { minCtl = null; dessiner(); }, 3100); }
-  function planifier() { if (!image) image = requestAnimationFrame(() => { image = null; dessiner(); }); }
+  /* Fluidité : le carnet est redessiné au plus ~10 fois par seconde (l'œil n'y voit pas de différence, le processeur si), jamais quand la page est cachée ou que le carnet est hors de l'écran. */
+  const INTERVALLE_IMAGE = 100; let dernierDessin = 0, visible = true;
+  function planifier() {
+    if (image) return;
+    image = setTimeout(() => { image = null; if (document.hidden || !visible) return; dessiner(); }, Math.max(0, INTERVALLE_IMAGE - (performance.now() - dernierDessin)));
+  }
+  const surVisibilite = () => { if (!document.hidden) planifier(); };
+  document.addEventListener('visibilitychange', surVisibilite);
+  const observeur = typeof IntersectionObserver === 'function' ? new IntersectionObserver(e => { visible = e[e.length - 1].isIntersecting; if (visible) planifier(); }) : null; if (observeur) observeur.observe(el);
 
   /* appelé à chaque état du moteur : actif affiché, prix de l'actif, murs, cases regardées */
   function maj(a, x) {
@@ -66,6 +74,7 @@ export function creerCarnet(el, { racine, WS } = {}) {
   }
 
   function dessiner() {
+    dernierDessin = performance.now();
     const c = flux.carnet(); majTexte();
     if (!c || !c.pret || c.symbole !== symbole) { info.textContent = etatCx.erreur ? 'Carnet : ' + etatCx.erreur : `Carnet ${symbole || ''} en attente…`; return; }
     const m = meilleurs(c); if (!m) return;
@@ -125,8 +134,9 @@ export function creerCarnet(el, { racine, WS } = {}) {
     info.textContent = `${c.bids.size} niveaux acheteurs / ${c.asks.size} vendeurs reçus (carnet complet) · séquences contrôlées (pas de checksum dans l’API Futures)${etatCx.resync ? ` · ${pluriel(etatCx.resync, 'resynchronisation')}` : ''}`;
     // grosses transactions de CET actif (flux du même instrument)
     const tr = flux.transactions(), s = seuilGros(tr.map(x => x.usd)), G2 = tr.filter(x => x.usd >= s).slice(-8).reverse();
-    gros.innerHTML = G2.map(g => `<li class="${g.cote === 'buy' ? 'at-achat' : 'at-vente'}"><time>${heureParis(g.t, true)}</time> ${g.cote === 'buy' ? 'achat' : 'vente'} ${fmtNombre(g.q, 3)} à ${fmtPrix(a, g.p)} <b>${fmtNombre(g.usd / 1000, 1)} k$</b></li>`).join('') || '<li class="at-doux">aucune pour l’instant</li>';
-    if (flashs.some(z => t - z.t < dF)) { if (!anim) anim = requestAnimationFrame(() => { anim = null; dessiner(); }); }
+    const htmlGros = G2.map(g => `<li class="${g.cote === 'buy' ? 'at-achat' : 'at-vente'}"><time>${heureParis(g.t, true)}</time> ${g.cote === 'buy' ? 'achat' : 'vente'} ${fmtNombre(g.q, 3)} à ${fmtPrix(a, g.p)} <b>${fmtNombre(g.usd / 1000, 1)} k$</b></li>`).join('') || '<li class="at-doux">aucune pour l’instant</li>';
+    if (htmlGros !== dernierGros) { dernierGros = htmlGros; gros.innerHTML = htmlGros; }   // pas de reconstruction du DOM si rien n'a changé
+    if (flashs.some(z => t - z.t < dF)) planifier();   // animation des flashs : même cadence (~10 images/s)
   }
-  return { maj, dessiner, controle: () => verifie, _flux: flux, detruire() { if (anim) cancelAnimationFrame(anim); if (image) cancelAnimationFrame(image); clearInterval(tick); flux.fermer(); } };
+  return { maj, dessiner, controle: () => verifie, _flux: flux, detruire() { if (image) clearTimeout(image); document.removeEventListener('visibilitychange', surVisibilite); if (observeur) observeur.disconnect(); clearInterval(tick); flux.fermer(); } };
 }

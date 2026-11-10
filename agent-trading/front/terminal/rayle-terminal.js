@@ -13,6 +13,7 @@ import { IMPORTANTS } from './alertes-calcul.js';
 import { calcul } from './positions-calcul.js';
 import { seuilGros } from '../carnet-kraken.js';
 import { ouvrirStockage } from './stockage-terminal.js';
+import { intentionVoix, decrire, briefing, expliquer, CONSIGNE_BRIEFING, consigneExplication, historique } from './briefing-rayle.js';
 import { QUESTIONS_SECTIONS, lignesSections, texteSection, signaux } from './sections-rayle.js';
 import { rangAtr, variationJour } from './tableau-calcul.js';
 import { FINAUX, ETATS } from './positions-calcul.js';
@@ -24,7 +25,7 @@ const jour = () => new Date().toLocaleDateString('fr-CA', { timeZone: 'Europe/Pa
 
 export async function monterRayle(T, { stockage = null, maintenant = () => Date.now(), parlerFn = null, wfetchFn = null } = {}) {
   const st = stockage || await ouvrirStockage();
-  const E = { signaux: [], signauxDits: new Set(), nonLus: 0, scen: [], surligne: null, memoire: ((await st.lire('contexte', 'jour')) || { id: 'jour', jour: jour(), m: [] }), derniere: null, annoncesDites: new Set(), detruit: false };
+  const E = { signaux: [], signauxDits: new Set(), nonLus: 0, scen: [], surligne: null, memoire: ((await st.lire('contexte', 'jour')) || { id: 'jour', jour: jour(), m: [] }), derniere: null, annoncesDites: new Set(), detruit: false, hist: [], dernierSujet: null };
   if (E.memoire.jour !== jour()) E.memoire = { id: 'jour', jour: jour(), m: [] };
   const G = T.graph, f = p => fmt(T.actif(), p), nom = () => PAR_ID_T[T.actif()].nom;
   const parler = async txt => { if (!txt) return; try { if (parlerFn) return parlerFn(txt); if (typeof window.speak === 'function') return await window.speak(txt); const u = new SpeechSynthesisUtterance(txt); u.lang = 'fr-FR'; speechSynthesis.speak(u); } catch (e) { /* pas de voix */ } };
@@ -55,15 +56,16 @@ export async function monterRayle(T, { stockage = null, maintenant = () => Date.
   function contexteComplet(e) { const L = texteContexte(e, { fmt: f, heure }).split('\n'), consignes = L.pop(); return L.concat(lignesSections(sections(), { fmt: f, heure, maintenant: maintenant() }), [consignes]).join('\n'); }
 
   /* ── question : IA par la route /chat (contexte), chiffres vérifiés ; sinon texte local ── */
-  async function repondre(question, sujet) {
+  async function repondre(question, sujet, { local: localImpose = null, demande = null } = {}) {
     const e = etat(); E.derniere = e; const sec = String(sujet || '').startsWith('section:') ? sujet.slice(8) : null;
-    const local = (sec && texteSection(sec, e, sections(), { fmt: f, heure, maintenant: maintenant() })) || texteLocal(e, sec === 'carnet' ? 'carnet' : sec ? 'etat' : sujet, { fmt: f, heure });
+    const local = localImpose || (sec && texteSection(sec, e, sections(), { fmt: f, heure, maintenant: maintenant() })) || texteLocal(e, sec === 'carnet' ? 'carnet' : sec ? 'etat' : sujet, { fmt: f, heure });
     const wf = wfetchFn || (typeof window.wfetch === 'function' && (typeof window.workerReady !== 'function' || window.workerReady()) ? window.wfetch : null);
-    let txt = local, source = 'lecture locale (sans IA)';
+    const base = localImpose || local;
+    let txt = base, source = 'lecture locale (sans IA)';
     if (wf) {
       const ctx = contexteComplet(e);
       try {
-        const r = await wf('/chat', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ text: question, context: ctx, history: [] }) }, 40000);
+        const r = await wf('/chat', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ text: demande || question, context: ctx, history: historique(E.hist) }) }, 40000);
         if (r.ok) { const d = await r.json(), rep = String(d.reply || '').trim(); const v = chiffresVerifies(rep, ctx);
           if (rep && v.ok) { txt = /pas une promesse/i.test(rep) ? rep : rep + ' ' + MENTION_LECTURE; source = 'Rayle (IA), chiffres vérifiés'; }
           else if (rep) source = `lecture locale : la réponse de l’IA citait des chiffres absents du terminal (${v.inconnus.slice(0, 3).join(', ')})`; }
@@ -117,8 +119,30 @@ export async function monterRayle(T, { stockage = null, maintenant = () => Date.
     }
   };
 
+  /* ── « décris mon terminal », « fais-moi le point », « explique-moi le COT », relances : voir briefing-rayle.js ── */
+  function infoAffichage() {
+    const c = T.couches(), D = T.module('dessin'), O = D ? D.objets() : [];
+    return { couches: COUCHES.filter(x => c[x.id]).map(x => x.nom),
+      outils: { lignes: O.filter(o => o.type === 'horizontale').length, zones: O.filter(o => o.type === 'zone').length, autres: O.filter(o => o.type !== 'horizontale' && o.type !== 'zone').length } };
+  }
+  async function commandeVoix(texte, iv) {
+    const e = etat(), X = sections(), aide = { fmt: f, heure, maintenant: maintenant() };
+    if (iv.type === 'decrire') { const rep = decrire(e, infoAffichage(), { fmt: f }); afficherReponse(texte, rep, 'terminal (sans IA)'); await retenir('description du terminal demandée'); return rep; }
+    if (iv.type === 'point') { E.dernierSujet = { sujet: 'point', niveau: 'normal' }; return await repondre(texte, 'point', { local: briefing(e, X, aide), demande: CONSIGNE_BRIEFING }); }
+    let sujet = iv.sujet, niveau = iv.niveau;
+    if (iv.type === 'relance') {
+      const d = E.dernierSujet;
+      if (d && d.sujet !== 'point') { sujet = d.sujet; niveau = niveau === 'normal' ? 'detail' : niveau; }
+      else return await repondre(texte, 'etat');
+    }
+    E.dernierSujet = { sujet, niveau };
+    return await repondre(texte, 'expl:' + sujet, { local: expliquer(sujet, niveau, e, X, aide), demande: consigneExplication(sujet, niveau) });
+  }
+
   /* ── commande (voix ou texte) : renvoie la phrase dite, ou null si la phrase ne concerne pas le terminal ── */
   async function commande(texte, { force = false } = {}) {
+    const iv = intentionVoix(texte, { derniere: E.dernierEchange, maintenant: maintenant() });
+    if (iv) return await commandeVoix(texte, iv);
     const it = intention(texte); if (!it && !force) return null;
     let rep = null;
     if (!it) rep = await repondre(texte, 'etat');
@@ -167,7 +191,7 @@ export async function monterRayle(T, { stockage = null, maintenant = () => Date.
 
   /* ── panneau « Rayle » ── */
   const pR = T.panneau('rayle');
-  function afficherReponse(q, rep, source) { E.dernierEchange = { q, rep, source, t: maintenant() }; rendre(); if (T.ongletOuvert() !== 'rayle') T.bandeau(rep.length > 140 ? rep.slice(0, 137) + '…' : rep, 9000); }
+  function afficherReponse(q, rep, source) { E.dernierEchange = { q, rep, source, t: maintenant() }; E.hist.push({ q, rep, t: maintenant() }); E.hist = E.hist.slice(-12); rendre(); if (T.ongletOuvert() !== 'rayle') T.bandeau(rep.length > 140 ? rep.slice(0, 137) + '…' : rep, 9000); }
   function rendre() {
     const x = E.dernierEchange, e = E.derniere;
     pR.innerHTML = `<div class="tr-rayle"><div>

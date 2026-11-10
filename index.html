@@ -136,6 +136,18 @@
       <label for="kNoms">Autres façons dont Chrome écrit « Raylé » (séparées par des virgules)</label>
       <input id="kNoms" type="text" placeholder="ex. réalé, rallye, railé" autocomplete="off" spellcheck="false">
 
+      <h3>Voix de Raylé <span class="voix" id="vxEtat">…</span></h3>
+      <div id="vxListe" class="vx-liste"></div>
+      <label for="vxHauteur">Hauteur de la voix : <span id="vxHauteurVal">normale</span></label>
+      <input id="vxHauteur" type="range" min="-20" max="20" step="1">
+      <label for="vxSys">Voix du système (secours pendant le chargement, ou si tu la choisis)</label>
+      <select id="vxSys"></select>
+      <label for="vxDico">Prononciation : un mot par ligne, « mot = comment le dire » (ex. Kraken = Krakène)</label>
+      <textarea id="vxDico" rows="3" spellcheck="false" placeholder="Kraken = Krakène"></textarea>
+      <div class="row"><button type="button" class="ghost" id="vxEssai">Lire la phrase d'essai avec la voix choisie</button><button type="button" class="ghost" id="vxTester">Retester les voix</button></div>
+      <span class="msg" id="vxMsg"></span>
+      <div class="hint">Voix locales : gratuites, hors ligne, aucun cloud (installation une fois : <code>node app-pc/installer-voix.mjs</code>). Licences : NOTICE.md.</div>
+
       <h3>Tests</h3>
       <div class="row">
         <button type="button" class="ghost" id="cfgTest">Tester la connexion</button>
@@ -331,6 +343,9 @@
 <script src="galaxie/commandes.js"></script>
 <script src="core/voice/nettoyage-voix.js"></script>
 <script src="core/api-keys/worker.js"></script>
+<script src="core/voice/normalisation-fr.js"></script>
+<script src="core/voice/voix-moteurs-calcul.js"></script>
+<script src="core/voice/voix-moteurs.js"></script>
 <script src="core/voice/voix.js"></script>
 <script src="core/voice/prenom-calcul.js"></script>
 <script src="core/voice/declencheurs-calcul.js"></script>
@@ -349,6 +364,7 @@
 <script src="core/intelligence/lecture.js"></script>
 <script src="core/voice/reconnaissance.js"></script>
 <script src="core/api-keys/reglages.js"></script>
+<script src="core/voice/voix-panneau.js"></script>
 <script src="core/intelligence/ia-locale-ui.js"></script>
 <script src="core/voice/affichage.js"></script>
 <script src="core/intelligence/evenements.js"></script>

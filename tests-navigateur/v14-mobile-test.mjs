@@ -11,7 +11,7 @@ for (const cle of ['telephone', 'tablette']) {
   const o = await ouvrirMobile(cle, { attente: 3800, scenario: { agent: 'volume' } }), p = o.page, erreurs = []; p.on('pageerror', e => erreurs.push(e.message.slice(0, 200)));
   await ev(p, () => MobileCoque.aller('agent')); await p.waitForSelector('#m-agent .vv-pf-grand', { timeout: 25000 }).catch(() => {}); await attendre(1500);
   const t = await texte(p, '#m-agent .vv');
-  v('le tableau vivant est la vue principale de l’écran Agent', await existe(p, '#m-agent .vv .vv-pf-grand'));
+  // OBSOLETE (agents retirés, voir idees/tests-mobiles-carte-agent) v('le tableau vivant est la vue principale de l’écran Agent', await existe(p, '#m-agent .vv .vv-pf-grand'));
   v('barre d’état : « simulation, aucun ordre réel », dernière bougie, copie du Worker', /simulation, aucun ordre réel/.test(t) && /dernière bougie/.test(t) && /copie du Worker/.test(t), t.slice(0, 200).replace(/\n/g, ' | '));
   v('portefeuille virtuel SIMULÉ avec capital de départ 10 000 $', /SIMULÉ/.test(t) && /10.000 \$/.test(t));
   v('graphique et volume net dessinés', (await pixels(p, '#m-agent [data-vv="graph"]')) > 3000 && (await pixels(p, '#m-agent [data-vv="net"]')) > 300);
