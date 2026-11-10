@@ -1,5 +1,5 @@
 /* ═════════════ ALERTE « SETUP POSSIBLE » (structure-v1) : information de lecture, JAMAIS un signal ni un ordre (pur, testé) ═════════════
-   Les règles viennent de structure-v1.js (figées, sceau SHA-256 dans le rapport). Résultat de l'étude (2026-11-10) : AUCUNE des 20 variantes ne bat le
+   Les règles viennent de structure-v1.js (figées, sceau SHA-256 dans le rapport). Résultat de l'étude (2026-11-10) : AUCUNE des 100 variantes (20 + 80 options) ne bat le
    hasard après frais, hors échantillon, après Holm, avec au moins 100 trades. L'alerte est donc INFORMATIVE et le dit dans son texte. Elle est « importante »
    (niveau fort de l'écran) parce qu'elle décrit une structure que Justin surveille, pas parce qu'elle serait rentable.
    Registre daté en AJOUT SEUL, chaîné (comme registre-fleches.js) : une entrée n'est jamais modifiée ni retirée ; suivi en avant (forward) calculé après coup. */
@@ -8,8 +8,8 @@ import { empreinte } from './registre-fleches.js';
 
 export const CLE_REGISTRE_STRUCTURE = 'rayle_or_registre_structure';
 export const VERDICT = Object.freeze({
-  etude: 'structure-v1', date: '2026-11-10', retenues: 0, variantes: 20,
-  phrase: 'Étude du 10/11/2026 : aucune des 20 variantes ne bat le hasard après frais, hors échantillon, après correction de Holm, avec au moins 100 trades. Ce n’est pas une stratégie rentable ; c’est une structure à lire, pas un signal.'
+  etude: 'structure-v1', date: '2026-11-10', retenues: 0, variantes: 100,
+  phrase: 'Études du 10/11/2026 : aucune des 100 variantes (20 de base et 80 avec stop minimal, filtre de régime Jour ou sortie partielle) ne bat le hasard après frais, hors échantillon, après correction de Holm, avec au moins 100 trades. Ce n’est pas une stratégie rentable ; c’est une structure à lire, pas un signal.'
 });
 const NOM_FAMILLE = { A: 'vente sur retest (tendance baissière)', B: 'achat après balayage d’un creux majeur', C: 'rejet au bord d’un range' };
 const FIN_TENUE = S.P.tenueMaxH * S.H1;
