@@ -1,0 +1,28 @@
+/* Tests purs des propositions H1 (bougies synthétiques) : régime, détection à la clôture seulement, cible sur niveau de structure, résolution, étiquettes. */
+import * as P from '../front/or/propositions-calcul.js';
+let ok = 0, ko = 0; const v = (c, m) => { if (c) ok++; else { ko++; console.log('ÉCHEC', m); } };
+const H = 3600e3, t0 = Date.UTC(2026, 10, 2); const bar = (i, o, h, l, c, vol = 100) => ({ t: t0 + i * H, o, h, l, c, v: vol });
+// tendance haussière régulière de 120 bougies : +0,4 par bougie, étendue 1,2
+const B = []; for (let i = 0; i < 120; i++) { const c = 2000 + i * 0.4 + Math.sin(i / 3) * 0.3; B.push(bar(i, c - 0.2, c + 0.7, c - 0.5, c)); }
+const R = P.regime(B); v(R.sens === 1, 'régime haussier'); const Rv = P.regime(B.map(b => ({ ...b, c: 4000 - b.c, h: 4000 - b.l, l: 4000 - b.h, o: 4000 - b.o }))); v(Rv.sens === -1, 'régime baissier');
+const plat = Array.from({ length: 120 }, (_, i) => bar(i, 2000, 2000.5 + (i % 2) * 0.3, 1999.5 - (i % 3) * 0.2, 2000 + Math.sin(i) * 0.3)); v(P.regime(plat).sens === 0 && /range/.test(P.regime(plat).raison), 'régime de range : aucune proposition'); v(P.detecter(plat, {}).propositions.length === 0, 'range : liste vide'); v(P.regime(B.slice(0, 30)).sens === 0, 'pas assez de bougies');
+// repli : dernière bougie qui touche la SMA20 et repart
+const S = B.slice(0, 100); const sma20 = S.slice(-19).reduce((s, b) => s + b.c, 0) / 19; const dernier = S[S.length - 1].c; 
+const a = P.atr14(S, S.length - 1); v(a > 0.8 && a < 2, 'ATR H1 plausible (' + a.toFixed(2) + ')');
+const rep = S.slice(); const prixSma = rep.slice(-19).reduce((s, b) => s + b.c, 0) / 19 * 19 / 20 + 0; // approximation : on fabrique une bougie dont le bas touche la SMA20 et dont la clôture est au-dessus
+const cl = rep[rep.length - 1].c + 0.3; rep.push(bar(100, cl - 4.6, cl + 0.1, cl - 5, cl)); // grosse bougie haussière dont le bas passe sous la SMA20
+const nivVeille = [{ p: cl + 5 * a, nom: 'plus haut de la veille' }, { p: cl + 3 * a, nom: 'niveau rond de 2050 $' }, { p: cl + 1 * a, nom: 'trop proche' }];
+const res = P.detecter(rep, { niveaux: nivVeille, donnees: { variantes: [{ id: 'f1', libelle: 'Repli SMA20', trades: 500, rBrut: 0.1, rNetCfd: -0.1, rNetKraken: -0.4, rNetPire: -0.4, tauxReussite: 0.4, anneesRentables: 0.2, pHolm: 1, statut: 'Non validé' }], periodes: { validation: '2015–2019' } } });
+const p = res.propositions.find(x => x.type === 'repli' && !x.ignoree); v(!!p, 'repli détecté à la clôture'); if (p) { v(p.sens === 'achat' && p.stop < p.entree && p.cible > p.entree, 'achat : stop sous l\'entrée, cible au-dessus'); v(p.stopAtr >= 1 - 1e-9 && p.stopAtr <= 2.5 + 1e-9, 'stop entre 1 et 2,5 ATR'); v((p.cible - p.entree) >= 2 * p.atr - 1e-9 && p.niveauCible === 'niveau rond de 2050 $', 'cible = premier niveau à ≥ 2 ATR (le niveau trop proche est ignoré)'); v(Math.abs(p.rBrut - (p.cible - p.entree) / (p.entree - p.stop)) < 1e-9, 'R brut cohérent'); v(p.etiquette === 'Lecture' && p.preuve.trades === 500 && p.preuve.periode === '2015–2019', 'étiquette Lecture et preuve reprise de la recherche'); v(p.t === rep[rep.length - 1].t && p.tCloture === p.t + H, 'proposition rattachée à la bougie close'); }
+// pas assez d'espace : la seule cible est trop proche
+const r2 = P.detecter(rep, { niveaux: [{ p: cl + 1 * a, nom: 'trop proche' }] }); v(r2.propositions.every(x => x.ignoree) && r2.propositions.length > 0 && /espace/.test(r2.propositions[0].raison), 'pas assez d\'espace : proposition écartée avec la raison');
+// pas de repaint : retirer la dernière bougie change la décision seulement par cette bougie ; la décision ne dépend que des bougies fournies (closes)
+const sans = P.detecter(rep.slice(0, -1), { niveaux: nivVeille }); v(!sans.propositions.some(x => x.t === rep[rep.length - 1].t), 'aucune proposition pour une bougie non fournie (non close)');
+// résolution : 6 bougies après la clôture
+const base = rep.slice(); const futur = (hautBas) => { const X = base.slice(); for (let k = 0; k < 6; k++) X.push(bar(101 + k, cl, hautBas[k][0], hautBas[k][1], cl)); return X; };
+if (p) { const dist = p.entree - p.stop; let r = P.resoudre(p, futur(Array(6).fill([cl + 0.5, cl - 0.5]))); v(r && r.issue === 'temps' && Math.abs(r.R) < 0.5, 'sortie par temps après 6 bougies'); r = P.resoudre(p, futur([[cl + 0.1, cl - dist - 0.1], ...Array(5).fill([cl, cl])])); v(r.issue === 'stop' && r.R === -1, 'stop touché'); r = P.resoudre(p, futur([[p.cible + 0.1, cl - 0.1], ...Array(5).fill([cl, cl])])); v(r.issue === 'cible' && Math.abs(r.R - p.rBrut) < 1e-9, 'cible touchée : R = R brut de la proposition'); r = P.resoudre(p, futur([[p.cible + 0.1, cl - dist - 0.1], ...Array(5).fill([cl, cl])])); v(r.issue === 'stop', 'stop et cible dans la même bougie : stop d\'abord (hypothèse défavorable)'); v(P.resoudre(p, base) === null, 'non résolue tant que 6 bougies ne sont pas closes'); }
+// étiquettes
+v(P.etiquette(null) === 'Lecture' && P.etiquette({ statut: 'Validé' }) === 'Validé' && P.etiquette({ statut: 'Non validé', rNetCfd: 0.05, trades: 150 }) === 'À l\'étude' && P.etiquette({ statut: 'Non validé', rNetCfd: 0.05, trades: 50 }) === 'Lecture' && P.etiquette({ statut: 'Non validé', rNetCfd: -0.1, trades: 500 }) === 'Lecture', 'étiquettes Validé / À l\'étude / Lecture');
+v(/Aucun type de setup n'est validé/.test(P.texteStatut({ retenues: [] })) && /indisponibles/.test(P.texteStatut(null)) && /validés/.test(P.texteStatut({ retenues: ['x'] })), 'le panneau dit qu\'aucun setup n\'est validé');
+v(Object.keys(P.TYPES).length === 5 && !/(achète|vends)/i.test(Object.values(P.TYPES).map(t => t.texte).join(' ')), 'types de setups sans ordre');
+console.log(`propositions : ${ok} vérifications OK, ${ko} échecs`); process.exit(ko ? 1 : 0);

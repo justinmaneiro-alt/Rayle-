@@ -357,8 +357,8 @@ export function creerGraphiqueOr(el, { surClicPrix, mobile = false } = {}) {
     }
   }, 'bottom');
   /* outils institutionnels (VWAP, profil de volume, CVD, séances…) : modèle calculé par institutionnel-or.js, dessiné par institutionnel-dessin.js */
-  const inst = { m: null };
-  const primInst = new Primitive((ctx, T) => { if (!chart || !serie || !etat.bougies.length) return; dessinerInstitutionnel(ctx, T, inst.m, { xDeT, yDe, mobile }); }, 'top');
+  const inst = { m: null, props: [] };
+  const primInst = new Primitive((ctx, T) => { if (!chart || !serie || !etat.bougies.length) return; dessinerInstitutionnel(ctx, T, inst.m, { xDeT, yDe, mobile, props: inst.props }); }, 'top');
   const redessiner = () => { primTexte.maj && primTexte.maj(); primFond.maj && primFond.maj(); primMouv.maj && primMouv.maj(); primInst.maj && primInst.maj(); };
 
   const api = {
@@ -381,6 +381,7 @@ export function creerGraphiqueOr(el, { surClicPrix, mobile = false } = {}) {
     },
     couches(c) { if (c) { etat.couches = { ...etat.couches, ...c }; ecrire('rayle_or_couches_v2', etat.couches); redessiner(); if (marqueurs) marqueurs.setMarkers(marquesLW()); } return { ...etat.couches }; },
     institutionnel(m) { inst.m = m; redessiner(); },
+    propositions(L) { inst.props = L || []; redessiner(); },
     mouvements(liste, { h1 = false } = {}) { mouv.liste = liste || []; mouv.h1 = !!h1; redessiner(); return mouv.liste.length; },
     mouvementsEtat: () => ({ h1: mouv.h1, actif: mouv.h1 && etat.couches.mouvements !== false, total: mouv.liste.length, dessines: mouv.cadres.length, cadres: mouv.cadres.map(c => ({ x0: c.x0, x1: c.x1, y0: c.y0, y1: c.y1, sens: c.m.sens, bougies: c.m.bougies, enCours: !!c.m.enCours, t0: c.m.t0 })) }),
     fleches: () => etat.fleches.slice(), segments: () => etat.segCadres.map(q => ({ x0: q.x0, x1: q.x1, y: q.y, libelle: q.sg.libelle, sens: q.sg.sens, etiquette: !q.sg.sansEtiquette })), marquesAffichees: () => marquesLW(),
