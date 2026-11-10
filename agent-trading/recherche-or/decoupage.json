@@ -1,0 +1,7 @@
+{
+  "fige_le": "2026-11-10",
+  "note": "Découpage figé AVANT tout calcul. Le test final n'est regardé qu'une fois, à la fin, sur des règles figées (test-final.mjs verrouille son résultat).",
+  "developpement": { "de": 2003, "a": 2014 },
+  "validation": { "de": 2015, "a": 2019 },
+  "test_final": { "de": 2020, "a": 2025 }
+}

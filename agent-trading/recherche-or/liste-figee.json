@@ -1,0 +1,731 @@
+{
+ "fige_le": "2026-11-10",
+ "nombre_variantes": 67,
+ "sha256_liste": "af2639ef067896be372256f16cdd921389aad1a589038181b4be09e815bafd55",
+ "sha256_criteres": "3e94cdb14e1628f4726a988bf9012ee712aeaf609eba10ea5cb11f9a8286cc66",
+ "sha256_decoupage": "c86c2e07858635ae1396d44cfa33b278bcb0b728025af60015bb15190143e050",
+ "sha256_familles_source": "165b9c5f876c9c0996e57853649502ae93376f94be91942c36716d66159d37cc",
+ "sha256_simulateur": "9daebabf3da8c973e01be389f1a6ca7d63b4656196eaf56975bfa158f25faffa",
+ "variantes": [
+  {
+   "id": "a1",
+   "famille": "a",
+   "libelle": "Asie : cassure, 1 bougie",
+   "params": {
+    "fen": 1,
+    "buf": 0
+   },
+   "stopK": 1.5,
+   "mgmt": "fixe"
+  },
+  {
+   "id": "a2",
+   "famille": "a",
+   "libelle": "Asie : cassure, 2 bougies",
+   "params": {
+    "fen": 2,
+    "buf": 0
+   },
+   "stopK": 1.5,
+   "mgmt": "fixe"
+  },
+  {
+   "id": "a3",
+   "famille": "a",
+   "libelle": "Asie : cassure, 3 bougies",
+   "params": {
+    "fen": 3,
+    "buf": 0
+   },
+   "stopK": 1.5,
+   "mgmt": "fixe"
+  },
+  {
+   "id": "a4",
+   "famille": "a",
+   "libelle": "Asie : cassure avec marge 0,1 ATR, 2 bougies",
+   "params": {
+    "fen": 2,
+    "buf": 0.1
+   },
+   "stopK": 1.5,
+   "mgmt": "fixe"
+  },
+  {
+   "id": "b1",
+   "famille": "b",
+   "libelle": "New York 30 min, 1 bougie",
+   "params": {
+    "dur": 30,
+    "fen": 1
+   },
+   "stopK": 1.5,
+   "mgmt": "fixe"
+  },
+  {
+   "id": "b2",
+   "famille": "b",
+   "libelle": "New York 30 min, 2 bougies",
+   "params": {
+    "dur": 30,
+    "fen": 2
+   },
+   "stopK": 1.5,
+   "mgmt": "fixe"
+  },
+  {
+   "id": "b3",
+   "famille": "b",
+   "libelle": "New York 60 min, 1 bougie",
+   "params": {
+    "dur": 60,
+    "fen": 1
+   },
+   "stopK": 1.5,
+   "mgmt": "fixe"
+  },
+  {
+   "id": "b4",
+   "famille": "b",
+   "libelle": "New York 60 min, 2 bougies",
+   "params": {
+    "dur": 60,
+    "fen": 2
+   },
+   "stopK": 1.5,
+   "mgmt": "fixe"
+  },
+  {
+   "id": "c1",
+   "famille": "c",
+   "libelle": "NR7 puis cassure de la bougie",
+   "params": {
+    "type": "nr7"
+   },
+   "stopK": 1.5,
+   "mgmt": "fixe"
+  },
+  {
+   "id": "c2",
+   "famille": "c",
+   "libelle": "Bandes resserrées (10 %) puis cassure de 10 bougies",
+   "params": {
+    "type": "bb",
+    "q": 0.1
+   },
+   "stopK": 1.5,
+   "mgmt": "fixe"
+  },
+  {
+   "id": "c3",
+   "famille": "c",
+   "libelle": "Bandes resserrées (20 %) puis cassure de 10 bougies",
+   "params": {
+    "type": "bb",
+    "q": 0.2
+   },
+   "stopK": 1.5,
+   "mgmt": "fixe"
+  },
+  {
+   "id": "c4",
+   "famille": "c",
+   "libelle": "ATR bas (< 0,7 × moyenne 100) puis cassure de 10 bougies",
+   "params": {
+    "type": "atr"
+   },
+   "stopK": 1.5,
+   "mgmt": "fixe"
+  },
+  {
+   "id": "d1",
+   "famille": "d",
+   "libelle": "Donchian 20",
+   "params": {
+    "N": 20
+   },
+   "stopK": 1.5,
+   "mgmt": "fixe"
+  },
+  {
+   "id": "d2",
+   "famille": "d",
+   "libelle": "Donchian 30",
+   "params": {
+    "N": 30
+   },
+   "stopK": 1.5,
+   "mgmt": "fixe"
+  },
+  {
+   "id": "d3",
+   "famille": "d",
+   "libelle": "Donchian 40",
+   "params": {
+    "N": 40
+   },
+   "stopK": 1.5,
+   "mgmt": "fixe"
+  },
+  {
+   "id": "d4",
+   "famille": "d",
+   "libelle": "Donchian 55",
+   "params": {
+    "N": 55
+   },
+   "stopK": 1.5,
+   "mgmt": "fixe"
+  },
+  {
+   "id": "e1",
+   "famille": "e",
+   "libelle": "Momentum 6 bougies > 1 ATR",
+   "params": {
+    "n": 6,
+    "k": 1
+   },
+   "stopK": 1.5,
+   "mgmt": "fixe"
+  },
+  {
+   "id": "e2",
+   "famille": "e",
+   "libelle": "Momentum 6 bougies > 1,5 ATR",
+   "params": {
+    "n": 6,
+    "k": 1.5
+   },
+   "stopK": 1.5,
+   "mgmt": "fixe"
+  },
+  {
+   "id": "e3",
+   "famille": "e",
+   "libelle": "Momentum 12 bougies > 1,5 ATR",
+   "params": {
+    "n": 12,
+    "k": 1.5
+   },
+   "stopK": 1.5,
+   "mgmt": "fixe"
+  },
+  {
+   "id": "e4",
+   "famille": "e",
+   "libelle": "Momentum 12 bougies > 2 ATR",
+   "params": {
+    "n": 12,
+    "k": 2
+   },
+   "stopK": 1.5,
+   "mgmt": "fixe"
+  },
+  {
+   "id": "f1",
+   "famille": "f",
+   "libelle": "Repli SMA20 (tendance Jour)",
+   "params": {
+    "sma": 20,
+    "h4": false
+   },
+   "stopK": 1.5,
+   "mgmt": "fixe"
+  },
+  {
+   "id": "f2",
+   "famille": "f",
+   "libelle": "Repli SMA50 (tendance Jour)",
+   "params": {
+    "sma": 50,
+    "h4": false
+   },
+   "stopK": 1.5,
+   "mgmt": "fixe"
+  },
+  {
+   "id": "f3",
+   "famille": "f",
+   "libelle": "Repli SMA20 (Jour et H4)",
+   "params": {
+    "sma": 20,
+    "h4": true
+   },
+   "stopK": 1.5,
+   "mgmt": "fixe"
+  },
+  {
+   "id": "f4",
+   "famille": "f",
+   "libelle": "Repli SMA50 (Jour et H4)",
+   "params": {
+    "sma": 50,
+    "h4": true
+   },
+   "stopK": 1.5,
+   "mgmt": "fixe"
+  },
+  {
+   "id": "g1",
+   "famille": "g",
+   "libelle": "Rejet sur plus haut/bas de la veille, mèche 50 %",
+   "params": {
+    "niv": "jour",
+    "w": 0.5
+   },
+   "stopK": 1.5,
+   "mgmt": "fixe"
+  },
+  {
+   "id": "g2",
+   "famille": "g",
+   "libelle": "Rejet sur plus haut/bas de la veille, mèche 60 %",
+   "params": {
+    "niv": "jour",
+    "w": 0.6
+   },
+   "stopK": 1.5,
+   "mgmt": "fixe"
+  },
+  {
+   "id": "g3",
+   "famille": "g",
+   "libelle": "Rejet sur veille et semaine précédente, mèche 50 %",
+   "params": {
+    "niv": "js",
+    "w": 0.5
+   },
+   "stopK": 1.5,
+   "mgmt": "fixe"
+  },
+  {
+   "id": "g4",
+   "famille": "g",
+   "libelle": "Rejet sur extrêmes H4 (24 bougies), mèche 50 %",
+   "params": {
+    "niv": "h4",
+    "w": 0.5
+   },
+   "stopK": 1.5,
+   "mgmt": "fixe"
+  },
+  {
+   "id": "h1",
+   "famille": "h",
+   "libelle": "RSI 14 sous 20 / sur 80",
+   "params": {
+    "type": "rsi",
+    "s": 20
+   },
+   "stopK": 1.5,
+   "mgmt": "fixe"
+  },
+  {
+   "id": "h2",
+   "famille": "h",
+   "libelle": "RSI 14 sous 15 / sur 85",
+   "params": {
+    "type": "rsi",
+    "s": 15
+   },
+   "stopK": 1.5,
+   "mgmt": "fixe"
+  },
+  {
+   "id": "h3",
+   "famille": "h",
+   "libelle": "Écart à la SMA20 > 2,5 ATR",
+   "params": {
+    "type": "dist",
+    "s": 2.5
+   },
+   "stopK": 1.5,
+   "mgmt": "fixe"
+  },
+  {
+   "id": "h4",
+   "famille": "h",
+   "libelle": "Écart à la SMA20 > 3 ATR",
+   "params": {
+    "type": "dist",
+    "s": 3
+   },
+   "stopK": 1.5,
+   "mgmt": "fixe"
+  },
+  {
+   "id": "i1",
+   "famille": "i",
+   "libelle": "VWAP : retour depuis ±1,5 écart-type avec rejet",
+   "params": {
+    "type": "rev",
+    "m": 1.5
+   },
+   "stopK": 1.5,
+   "mgmt": "fixe"
+  },
+  {
+   "id": "i2",
+   "famille": "i",
+   "libelle": "VWAP : retour depuis ±2 écarts-types avec rejet",
+   "params": {
+    "type": "rev",
+    "m": 2
+   },
+   "stopK": 1.5,
+   "mgmt": "fixe"
+  },
+  {
+   "id": "i3",
+   "famille": "i",
+   "libelle": "VWAP : continuation après repli (tendance Jour)",
+   "params": {
+    "type": "cont",
+    "h4": false
+   },
+   "stopK": 1.5,
+   "mgmt": "fixe"
+  },
+  {
+   "id": "i4",
+   "famille": "i",
+   "libelle": "VWAP : continuation après repli (Jour et H4)",
+   "params": {
+    "type": "cont",
+    "h4": true
+   },
+   "stopK": 1.5,
+   "mgmt": "fixe"
+  },
+  {
+   "id": "j1",
+   "famille": "j",
+   "libelle": "VWAP ancré (bas/haut de la veille) : rebond",
+   "params": {
+    "type": "veille",
+    "tend": false
+   },
+   "stopK": 1.5,
+   "mgmt": "fixe"
+  },
+  {
+   "id": "j2",
+   "famille": "j",
+   "libelle": "VWAP ancré (bas/haut de la veille) : rebond dans la tendance Jour",
+   "params": {
+    "type": "veille",
+    "tend": true
+   },
+   "stopK": 1.5,
+   "mgmt": "fixe"
+  },
+  {
+   "id": "j3",
+   "famille": "j",
+   "libelle": "VWAP ancré (ouverture de semaine) : rebond",
+   "params": {
+    "type": "semR"
+   },
+   "stopK": 1.5,
+   "mgmt": "fixe"
+  },
+  {
+   "id": "j4",
+   "famille": "j",
+   "libelle": "VWAP ancré (ouverture de semaine) : cassure",
+   "params": {
+    "type": "semC"
+   },
+   "stopK": 1.5,
+   "mgmt": "fixe"
+  },
+  {
+   "id": "k1",
+   "famille": "k",
+   "libelle": "Balayage puis réintégration (veille)",
+   "params": {
+    "type": "sweep",
+    "niv": "jour"
+   },
+   "stopK": 1.5,
+   "mgmt": "fixe"
+  },
+  {
+   "id": "k2",
+   "famille": "k",
+   "libelle": "Balayage puis réintégration (semaine précédente)",
+   "params": {
+    "type": "sweep",
+    "niv": "sem"
+   },
+   "stopK": 1.5,
+   "mgmt": "fixe"
+  },
+  {
+   "id": "k3",
+   "famille": "k",
+   "libelle": "Cassure puis retest (veille)",
+   "params": {
+    "type": "retest",
+    "niv": "jour"
+   },
+   "stopK": 1.5,
+   "mgmt": "fixe"
+  },
+  {
+   "id": "k4",
+   "famille": "k",
+   "libelle": "Cassure puis retest (semaine précédente)",
+   "params": {
+    "type": "retest",
+    "niv": "sem"
+   },
+   "stopK": 1.5,
+   "mgmt": "fixe"
+  },
+  {
+   "id": "l1",
+   "famille": "l",
+   "libelle": "Balayage de l'Asie à l'ouverture de Londres (1 bougie) puis retournement",
+   "params": {
+    "type": "asieSweep",
+    "fen": 1
+   },
+   "stopK": 1.5,
+   "mgmt": "fixe"
+  },
+  {
+   "id": "l2",
+   "famille": "l",
+   "libelle": "Balayage de l'Asie à Londres (3 bougies) puis retournement",
+   "params": {
+    "type": "asieSweep",
+    "fen": 3
+   },
+   "stopK": 1.5,
+   "mgmt": "fixe"
+  },
+  {
+   "id": "l3",
+   "famille": "l",
+   "libelle": "Cassure de la fourchette de Londres pendant New York (2 bougies)",
+   "params": {
+    "type": "lonBreak",
+    "fen": 2
+   },
+   "stopK": 1.5,
+   "mgmt": "fixe"
+  },
+  {
+   "id": "l4",
+   "famille": "l",
+   "libelle": "Cassure de la fourchette de Londres pendant New York (4 bougies)",
+   "params": {
+    "type": "lonBreak",
+    "fen": 4
+   },
+   "stopK": 1.5,
+   "mgmt": "fixe"
+  },
+  {
+   "id": "m1",
+   "famille": "m",
+   "libelle": "Ouverture hors zone de valeur de la veille, retour dedans (matin)",
+   "params": {
+    "type": "va",
+    "hmax": 12,
+    "corps": 0
+   },
+   "stopK": 1.5,
+   "mgmt": "fixe"
+  },
+  {
+   "id": "m2",
+   "famille": "m",
+   "libelle": "Ouverture hors zone de valeur, retour dedans (journée)",
+   "params": {
+    "type": "va",
+    "hmax": 21,
+    "corps": 0
+   },
+   "stopK": 1.5,
+   "mgmt": "fixe"
+  },
+  {
+   "id": "m3",
+   "famille": "m",
+   "libelle": "Retour dans la zone de valeur avec corps ≥ 0,5 ATR",
+   "params": {
+    "type": "va",
+    "hmax": 21,
+    "corps": 0.5
+   },
+   "stopK": 1.5,
+   "mgmt": "fixe"
+  },
+  {
+   "id": "m4",
+   "famille": "m",
+   "libelle": "Rejet au POC de la veille",
+   "params": {
+    "type": "poc"
+   },
+   "stopK": 1.5,
+   "mgmt": "fixe"
+  },
+  {
+   "id": "n1",
+   "famille": "n",
+   "libelle": "Rejet sur niveau rond de 100 $",
+   "params": {
+    "type": "rej",
+    "pas": 100
+   },
+   "stopK": 1.5,
+   "mgmt": "fixe"
+  },
+  {
+   "id": "n2",
+   "famille": "n",
+   "libelle": "Rejet sur niveau rond de 50 $",
+   "params": {
+    "type": "rej",
+    "pas": 50
+   },
+   "stopK": 1.5,
+   "mgmt": "fixe"
+  },
+  {
+   "id": "n3",
+   "famille": "n",
+   "libelle": "Cassure puis retest du niveau de 100 $",
+   "params": {
+    "type": "ret",
+    "pas": 100
+   },
+   "stopK": 1.5,
+   "mgmt": "fixe"
+  },
+  {
+   "id": "n4",
+   "famille": "n",
+   "libelle": "Cassure puis retest du niveau de 50 $",
+   "params": {
+    "type": "ret",
+    "pas": 50
+   },
+   "stopK": 1.5,
+   "mgmt": "fixe"
+  },
+  {
+   "id": "o1",
+   "famille": "o",
+   "libelle": "Donchian 40 ET tendance Jour + H4 alignées",
+   "params": {
+    "type": "o1"
+   },
+   "stopK": 1.5,
+   "mgmt": "fixe"
+  },
+  {
+   "id": "o2",
+   "famille": "o",
+   "libelle": "Balayage de la veille ET écart au VWAP > 1,5 écart-type dans le sens du rejet",
+   "params": {
+    "type": "o2"
+   },
+   "stopK": 1.5,
+   "mgmt": "fixe"
+  },
+  {
+   "id": "o3",
+   "famille": "o",
+   "libelle": "Cassure asiatique ET compression (plage asiatique < 2,5 ATR)",
+   "params": {
+    "type": "o3"
+   },
+   "stopK": 1.5,
+   "mgmt": "fixe"
+  },
+  {
+   "id": "o4",
+   "famille": "o",
+   "libelle": "Repli SMA20 ET rebond sur le VWAP de séance",
+   "params": {
+    "type": "o4"
+   },
+   "stopK": 1.5,
+   "mgmt": "fixe"
+  },
+  {
+   "id": "o5",
+   "famille": "o",
+   "libelle": "Rejet de niveau rond de 50 $ ET proximité du plus haut/bas de la veille (< 0,5 ATR)",
+   "params": {
+    "type": "o5"
+   },
+   "stopK": 1.5,
+   "mgmt": "fixe"
+  },
+  {
+   "id": "p1",
+   "famille": "p",
+   "libelle": "Démarrage confirmé, stop 1 ATR, sortie par temps",
+   "params": {
+    "type": "start"
+   },
+   "stopK": 1,
+   "mgmt": "fixe"
+  },
+  {
+   "id": "p2",
+   "famille": "p",
+   "libelle": "Démarrage confirmé, stop 1.5 ATR, sortie par temps",
+   "params": {
+    "type": "start"
+   },
+   "stopK": 1.5,
+   "mgmt": "fixe"
+  },
+  {
+   "id": "p3",
+   "famille": "p",
+   "libelle": "Démarrage confirmé, stop 1 ATR, stop suiveur ATR",
+   "params": {
+    "type": "start"
+   },
+   "stopK": 1,
+   "mgmt": "trail"
+  },
+  {
+   "id": "p4",
+   "famille": "p",
+   "libelle": "Démarrage confirmé, stop 1.5 ATR, stop suiveur ATR",
+   "params": {
+    "type": "start"
+   },
+   "stopK": 1.5,
+   "mgmt": "trail"
+  },
+  {
+   "id": "p5",
+   "famille": "p",
+   "libelle": "Démarrage confirmé, stop 1 ATR, break-even après +1 R",
+   "params": {
+    "type": "start"
+   },
+   "stopK": 1,
+   "mgmt": "be"
+  },
+  {
+   "id": "p6",
+   "famille": "p",
+   "libelle": "Démarrage confirmé, stop 1.5 ATR, break-even après +1 R",
+   "params": {
+    "type": "start"
+   },
+   "stopK": 1.5,
+   "mgmt": "be"
+  }
+ ]
+}

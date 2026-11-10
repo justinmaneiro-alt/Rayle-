@@ -105,3 +105,9 @@ agent-trading/RAPPORT-STRUCTURE.md
 agent-trading/RAPPORT-AUDIT-TRADES.md
 agent-trading/RAPPORT-REALITE-TRADES.md
 agent-trading/front/or/donnees-trades/
+agent-trading/recherche-or/donnees/
+agent-trading/recherche-or/node_modules/
+agent-trading/recherche-or/RAPPORT-*.md
+agent-trading/recherche-or/resultats-*.json
+agent-trading/recherche-or/test-final-verrou.json
+agent-trading/recherche-or/forward/

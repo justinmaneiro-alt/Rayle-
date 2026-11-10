@@ -1,0 +1,16 @@
+{
+  "fige_le": "2026-11-10",
+  "note": "Critères figés AVANT les tests. Ne JAMAIS les assouplir pour faire passer une variante. Tous exigés, sur le scénario de frais le plus défavorable (CFD ou Kraken).",
+  "validation": {
+    "R_net_moyen_min": 0.15,
+    "trades_min": 150,
+    "intervalle_confiance_95_au_dessus_de": 0,
+    "hasard": { "tirages": 1000, "p_max_apres_holm": 0.01, "note": "p = part des tirages au hasard (mêmes heures, même régime Jour, même sens, même gestion) qui font aussi bien, lue sur la loi normale ajustée aux 1000 tirages quand elle est plus fine que 1/1000 ; Holm sur TOUTES les variantes" },
+    "annees_rentables_min": 0.7,
+    "voisins": "tous les voisins de paramètres de la même famille ont un R net moyen de même signe (> 0)",
+    "audit_second_simulateur": { "trades": 50, "tolerance_R": 1e-9 },
+    "dev_signe_positif": "R net moyen de développement 2003–2014 > 0 (sinon la variante n'est pas portée plus loin)"
+  },
+  "test_final": "2020–2025 : regardé UNE SEULE fois, sur les variantes qui ont passé la validation, règles figées ; confirmation = R net moyen > 0 et IC 95 % > 0 sur au moins 100 trades, scénario le plus défavorable",
+  "prop": { "objectif_pct": 10, "perte_max_pct": 6, "perte_jour_pct": 3, "risque_par_trade_pct": 0.5 }
+}
