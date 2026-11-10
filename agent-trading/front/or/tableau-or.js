@@ -107,7 +107,7 @@ export function monterTableauOr(el, { modules = {}, contexte = 'page', fetchFn, 
   }, 400);
 
   function evenement(ev) {
-    notifier(ev.texte, { niveau: ev.type === 'cassure' || ev.type === 'rejet' ? 'fort' : 'info', dit: ev.dit, raison: ev.raison, t: ev.t });
+    notifier(ev.texte, { niveau: ev.type === 'cassure' || ev.type === 'rejet' || ev.type === 'structure' ? 'fort' : 'info', dit: ev.dit, raison: ev.raison, t: ev.t });
     if (!ev.dit) return;
     if (regl.voix) parler(ev.texte);
     if (regl.telegram) envoyerTelegram(ev.texte);
