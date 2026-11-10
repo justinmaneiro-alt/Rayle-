@@ -24,5 +24,6 @@ export function demarrerPage(el) {
   const T = monterTableauOr(el, { contexte: 'page' });
   window.TableauOr = T;   // commandes vocales de Rayle : TableauOr.commande(texte)
   monterModules(T);
+  import('./trades-simules.js').then(m => m.monterTradesSimules()).catch(e => console.warn('trades simulés indisponibles :', e.message));   // couche « Trades simulés » (études structure) : bouton flottant, jamais bloquant
   return T;
 }

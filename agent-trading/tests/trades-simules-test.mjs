@@ -1,0 +1,27 @@
+/* Test des calculs de l'écran « Trades simulés » (trades-simules-calcul.js) : node agent-trading/tests/trades-simules-test.mjs */
+import * as C from '../front/or/trades-simules-calcul.js';
+let ok = 0, ko = 0; const t = (n, c, d = '') => { if (c) ok++; else { ko++; console.log('ÉCHEC', n, d); } };
+const H = 3600e3, mk = (o) => ({ t: 0, te: 10 * H, tx: 20 * H, sens: 'achat', entree: 100, stop: 95, cible: 120, niveau: 99, type: 'x', regime: 'haussier', sorties: [{ part: 'tout', prix: 95, t: 20 * H, raison: 'stop' }], sortie: 'stop', R: -1, fraisR: 0.5, fraisPerOnce: 2.5, risque: 5, Rnet: -1.5, bougies: 10, distATR: 1, objR: 4, ...o });
+const T = [mk({}), mk({ te: 30 * H, tx: 40 * H, Rnet: 2, R: 2.5, sortie: 'cible', sorties: [{ part: 'tout', prix: 120, t: 40 * H, raison: 'cible' }] }), mk({ te: 50 * H, tx: 60 * H, R: 0.5, Rnet: 0.01, sortie: 'break-even', sorties: [{ part: 'p1', prix: 105, t: 52 * H, raison: '+1R' }, { part: 'p2', prix: 100, t: 60 * H, raison: 'break-even' }] }), mk({ te: 70 * H, tx: 80 * H, Rnet: -0.4, R: 0.1, sortie: 'tenue', sorties: [{ part: 'tout', prix: 100.5, t: 80 * H, raison: 'tenue' }] })];
+t('filtre tous', C.lister(T, 'tous').length === 4);
+t('filtre gagnants', C.lister(T, 'gagnants').join() === '1,2');
+t('filtre perdants', C.lister(T, 'perdants').join() === '0,3');
+t('filtre break-even', C.lister(T, 'be').join() === '2');
+t('filtre stop', C.lister(T, 'stop').join() === '0');
+t('filtre cible', C.lister(T, 'cible').join() === '1');
+t('filtre tenue', C.lister(T, 'tenue').join() === '3');
+t('période', C.lister(T, 'tous', { debut: 25 * H, fin: 55 * H }).join() === '1,2');
+const s = C.resume(T, [0, 1]); t('résumé', s.n === 2 && s.gagnants === 1 && Math.abs(s.Rnet - 0.25) < 1e-9 && Math.abs(s.Rbrut - 0.75) < 1e-9);
+const idx = [0, 2, 3]; t('voisin suivant/précédent/cycle', C.voisin(idx, 0, 1) === 2 && C.voisin(idx, 2, -1) === 0 && C.voisin(idx, 3, 1) === 0 && C.voisin(idx, 0, -1) === 3 && C.voisin([], 0, 1) === null && C.voisin(idx, 9, 1) === 0);
+t('couleurs', C.couleurR(1) !== C.couleurR(-1) && C.couleurR(0.01) === C.couleurR(-0.01));
+const bars = Array.from({ length: 200 }, (_, k) => [k * H, 1, 2, 0, 1]);
+const w = C.fenetre(bars, T[0]); t('fenêtre : de 40 h avant l’entrée à 40 h après la sortie', w[0][0] === -30 * H + 30 * H ? true : w[0][0] === 0 && w[w.length - 1][0] === 60 * H, `${w[0][0] / H} → ${w[w.length - 1][0] / H}`);
+const d = C.dessin(T[0]); t('dessin : flèche d’entrée au temps d’entrée', d.marques[0].time === Math.floor(T[0].te / 1000) && d.marques[0].shape === 'arrowUp' && d.marques[0].color === C.couleurR(-1.5));
+t('dessin : marqueur de sortie', d.marques.length === 2 && d.marques[1].text === 'stop');
+t('dessin : trois lignes stop / cible / entrée aux bons prix', d.segments.find(x => x.id === 'stop').a === 95 && d.segments.find(x => x.id === 'cible').a === 120 && d.segments.find(x => x.id === 'entree').a === 100);
+t('dessin : vente = flèche vers le bas', C.dessin(mk({ sens: 'vente' })).marques[0].shape === 'arrowDown');
+t('dessin partielle : deux marqueurs de sortie (+1 R, break-even)', C.dessin(T[2]).marques.map(m => m.text).join() === 'Achat 100,00,+1 R,break-even');
+const f = Object.fromEntries(C.fiche(T[0])); t('fiche : champs demandés', ['Date du signal', 'Entrée', 'Stop', 'Cible', 'Sortie', 'R brut', 'Frais', 'R net', 'Bougies H1 tenues'].every(k => k in f), Object.keys(f).join());
+t('fiche : frais en $ et en R (0,5 R × 50 $ = 25 $)', /0,500 R/.test(f.Frais) && /25,00 \$ pour 50 \$/.test(f.Frais), f.Frais);
+t('fiche : R net signé', f['R net'] === '-1,500 R' && Object.fromEntries(C.fiche(T[1]))['R net'] === '+2,000 R');
+console.log(`trades-simules : ${ok} vérifications OK, ${ko} échecs`); process.exit(ko ? 1 : 0);
