@@ -138,3 +138,46 @@ Lectures retenues (mission autonome, aucune question posée) : PROGRESS.md = ce 
 - **Document** : une annexe de précisions et de résultats a été ajoutée à `STRATEGIE-RAYLE.md` après la construction (aucune définition changée) ; nouveau SHA-256 `5adee32e…47a`, SHA-256 de la version initiale conservé dans `STRATEGIE-RAYLE.sceau.json`.
 - **Téléphone** : la feuille de décision est repliée sur son titre (un appui la déplie) pour ne pas couvrir le petit graphique.
 - **À vérifier sur l'écran de Justin** : lisibilité des étiquettes sur le vrai graphique à l'heure de Paris pendant une séance active (les tests de la lecture du carnet injectent un carnet : aucune arrivée réelle sur une boîte n'a été observée pendant la mission), mobile réel (taille du graphique, repli de la feuille), voix réelle de Rayle, et lancement par le raccourci de l'appli PC.
+
+## Étude « tendance daily » (2026-11-11) — non commitée
+Règles figées `recherche-or/tendance-regles.json` (+ `.sceau.json`, SHA-256 `07fef5f5…44c7`), code `tendance-donnees.mjs` / `tendance-etude.mjs` (étapes `etape1` puis `final`, une seule fois) / `tendance-rapport.mjs`, rapport local `recherche-or/RAPPORT-TENDANCE-DAILY.md` (ignoré). **Verdict : ne bat pas le hasard** (aucun actif sous Holm ; portefeuille +0,17 R par trade sur 2024-2026 et +0,19 R sur 2021-2026, p groupé 0,58 et 0,38 : les entrées aléatoires avec les mêmes sorties font aussi bien). SOL sans calibration, BTC 2017-2019 seulement : N = 50 par défaut ; la plupart des lignes < 30 trades.
+
+## EMA200 H1 de l'or, 2026 (2026-11-11) — non commité
+Règles figées `recherche-or/ema200-regles.mjs` + `ema200-sceau.json` (SHA-256 `1009b1c8…0d65`), étude `ema200-etude.mjs` (graphique `graphique-ema200-2026.png`, journal `journal-ema200-2026.csv` à remplir « pris / laissé », rapport `RAPPORT-EMA200-2026.md`), registre en avant `ema200-registre.mjs` → `registre-ema200-avant.jsonl` (ajout seul, ouvert le 2026-11-11, numéros à partir de 410). Résultat : 409 événements en 2026 ; aucune des 27 lignes testables ne bat le hasard après Holm ; ignorer le range ne bat pas le hasard ; 65 % des événements tombent en « range » selon la règle figée.
+
+## EMA200 version LONGUE (2026-11-12) — non commité
+Règles figées `recherche-or/ema200-long-regles.mjs` + `ema200-long-sceau.json` (SHA-256 de ce module et de `ema200-regles.mjs`), étude `ema200-long-etude.mjs`, rapport `RAPPORT-EMA200-LONG-2026.md`, graphiques `graphique-ema200-long-{A,B}-2026.png` (rectangles vert / rouge avec R net). Stop initial 24 bougies borné 1,5-3 ATR ; sortie A stop suiveur 3 ATR, B clôture de l'autre côté de l'EMA200. Résultat : ni A ni B ne battent le hasard après Holm ; le potentiel capturé est faible (A 13 %, B 8 %).
+
+
+## MISSION « Ménage Jarvis, terminal plateforme » (2026-11-12) — journal de reprise
+Tag de sauvegarde : `avant-menage-jarvis`. Reprendre à la première phase non terminée.
+
+### Décisions (prises seul, sans question)
+- **Ordre des phases** : 0, puis 4 (trading actif de l'or), 3 (investissement), 2 (deux espaces), 5, et 1 (ménage) en dernier. Pourquoi : les phases 3 à 5 sont du code neuf, vérifiable et réversible ; la phase 1 (suppression de la galaxie) touche des centaines de fichiers du noyau vocal et les modules Terre / Anatomie / Neptune qui dépendent du moteur de la galaxie : elle ne se fait qu'avec la place nécessaire pour la vérifier.
+- **Golden zone** : zone 61,8 %–78,6 % du dernier élan de la structure H1 (fractales de 5, élan ≥ 2 ATR), invalidée par une clôture au-delà de l'origine ; règle scellée (`golden-v1`).
+- **« Offre et demande récentes »** : on réutilise les order blocks d'`ict-v1` (même définition) plutôt qu'un second calcul.
+- **EMA300 pondérée par le volume** : EMA(volume × clôture) / EMA(volume), alpha = 2/301, volume H1 Kraken.
+- **Setup A+, condition 3 (carnet ou delta)** : non évaluable sur l'historique (aucun historique de carnet) ; le rejeu 2026 évalue 1, 2, 4, 5 et le dit ; en direct les 5 sont évaluées. Condition 5 (annonce majeure) : calendrier public en direct seulement.
+- **Résultat d'une alerte A+** : entrée à l'ouverture suivante, stop = extrême des 24 bougies borné à 1,5–3 ATR (celui de la version longue EMA200), résultat à 6, 12 et 24 bougies en R net CFD.
+- **« Grosses cassures de 2026 »** : cassures EMA200 dont les 24 bougies suivantes bougent d'au moins 5 ATR (seuil fixé avant de voir le rejeu).
+- **Données fondamentales (phase 3)** : aucune clé payante ; sources gratuites seulement, chaque chiffre daté et sourcé, « indisponible » sinon, jamais de valeur inventée.
+
+### Phase 0 — dix meilleurs trades en R : FAITE
+Sources : `resultats-ema200-long.json` (versions A et B, R net CFD, 2026) et `trades-tendance-final.json` (test de tendance daily, R net, 10 actifs 2012-2026), fichiers générés par les scripts de `recherche-or/` (résultats inchangés).
+
+| # | stratégie | date | sens | R net |
+|---|---|---|---|---|
+| 1 | Tendance daily SOL | 2023-10-20 | achat | 16.34 |
+| 2 | EMA200 long B (#102) | 2026-03-12 | vente | 12.13 |
+| 3 | EMA200 long B (#7) | 2026-01-05 | achat | 10.34 |
+| 4 | Tendance daily SOL | 2021-08-11 | achat | 10.03 |
+| 5 | Tendance daily SOL | 2021-01-09 | achat | 7.74 |
+| 6 | EMA200 long B (#313) | 2026-08-19 | achat | 7.07 |
+| 7 | Tendance daily XAU | 2025-09-02 | achat | 7.06 |
+| 8 | EMA200 long A (#11) | 2026-01-16 | achat | 6.78 |
+| 9 | EMA200 long A (#8) | 2026-01-08 | achat | 6.77 |
+| 10 | EMA200 long B (#209) | 2026-06-04 | vente | 6.72 |
+
+Meilleur trade : 16.34 R. Trades à 9 R ou plus : 4 sur 1005.
+
+Lecture : **oui, il existe des trades à 9 R ou plus** : SOL en tendance daily (+16,3 R en octobre 2023, +10,0 R en 2021), l'EMA200 long version B (+12,1 R le 12 mars 2026 à la vente, +10,3 R le 5 janvier 2026 à l'achat). Ils sont rares (4 sur 1 005 trades) et aucun test ne bat le hasard : un trade à 9 R est un événement de queue, pas une règle.

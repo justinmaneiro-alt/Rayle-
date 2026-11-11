@@ -1,0 +1,7 @@
+{
+ "version": "ema200-v1",
+ "scelle_le": "2026-11-11",
+ "fichier": "ema200-regles.mjs",
+ "sha256": "1009b1c867ef6f3d770e0e3164c4b417f878a461eb23a90387e428e7d74e0d65",
+ "note": "SHA-256 de ema200-regles.mjs (fins de ligne normalisées), posé AVANT tout test. Le test de range, le compteur de touches, les coûts et les contrôles sont décrits dans ema200-etude.mjs, qui refuse de tourner si cette empreinte change."
+}

@@ -1,0 +1,9 @@
+{
+ "version": "ema200-long-v1",
+ "scelle_le": "2026-11-12",
+ "fichiers": {
+  "ema200-long-regles.mjs": "b6ce2341665b174ddbf8f25b3e2a0f0a2999b722a860329fa9d3f1046c8a3752",
+  "ema200-regles.mjs": "1009b1c867ef6f3d770e0e3164c4b417f878a461eb23a90387e428e7d74e0d65"
+ },
+ "note": "SHA-256 posés AVANT les résultats de la version longue. Les frais (spread Dukascopy ×1,5 ; Kraken 0,1 % + spread), le contrôle aléatoire et Holm sont décrits dans ema200-long-etude.mjs, qui vérifie ces empreintes."
+}

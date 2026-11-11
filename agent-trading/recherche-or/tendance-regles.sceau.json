@@ -1,0 +1,6 @@
+{
+ "version": "tendance-daily-v1",
+ "scelle_le": "2026-11-11",
+ "sha256": "07fef5f54ee258d9eb6ea3d068480f8afd8d7a5f12542715d841dcfeca0944c7",
+ "note": "SHA-256 de tendance-regles.json (fins de ligne normalisées), posé AVANT tout test."
+}

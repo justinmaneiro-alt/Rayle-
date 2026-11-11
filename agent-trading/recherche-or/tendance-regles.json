@@ -1,0 +1,60 @@
+{
+  "version": "tendance-daily-v1",
+  "fige_le": "2026-11-11",
+  "note": "Règles figées AVANT tout test (SHA-256 dans tendance-regles.sceau.json). Aucun réglage après. Le script tendance-etude.mjs refuse de tourner si l'empreinte ne correspond pas.",
+  "actifs": {
+    "XAU": { "source": "Dukascopy xauusd d1 bid (dukascopy-node)", "base": "XAU", "quote": "USD", "bloc": "or" },
+    "BTC": { "source": "Binance data-api BTCUSDT klines 1d (depuis 2017-08-17)", "base": "BTC", "quote": "USD", "bloc": "actions_crypto" },
+    "SOL": { "source": "Binance data-api SOLUSDT klines 1d (depuis 2020-08-11)", "base": "SOL", "quote": "USD", "bloc": "actions_crypto" },
+    "SPX": { "source": "Dukascopy usa500idxusd d1 bid (indice CFD)", "base": "SPX", "quote": "USD", "bloc": "actions_crypto" },
+    "NDX": { "source": "Dukascopy usatechidxusd d1 bid (indice CFD)", "base": "NDX", "quote": "USD", "bloc": "actions_crypto" },
+    "EURUSD": { "source": "Dukascopy eurusd d1 bid", "base": "EUR", "quote": "USD", "bloc": "usd_majeures" },
+    "USDJPY": { "source": "Dukascopy usdjpy d1 bid", "base": "USD", "quote": "JPY", "bloc": "usd_majeures" },
+    "USDCHF": { "source": "Dukascopy usdchf d1 bid", "base": "USD", "quote": "CHF", "bloc": "usd_majeures" },
+    "AUDUSD": { "source": "Dukascopy audusd d1 bid", "base": "AUD", "quote": "USD", "bloc": "usd_majeures" },
+    "GBPUSD": { "source": "Dukascopy gbpusd d1 bid", "base": "GBP", "quote": "USD", "bloc": "usd_majeures" }
+  },
+  "signaux": {
+    "N_possibles": [20, 50, 100],
+    "N_defaut_si_calibration_insuffisante": 50,
+    "calibration_minimum_trades": 10,
+    "entree_long": "clôture du jour t au-dessus du plus haut des N jours précédents (t-N à t-1) ; entrée à l'OUVERTURE du jour t+1",
+    "entree_court": "symétrique (clôture sous le plus bas des N jours précédents)",
+    "sortie": "stop suiveur à 3 ATR(20) du meilleur cours de clôture depuis l'entrée (stop initial = entrée -/+ 3 ATR(20) du jour du signal, ne recule jamais, touché en cours de séance : sortie au stop, ou à l'ouverture si elle gappe au-delà) OU clôture au-delà du plus bas (haut) des N/2 jours précédents : sortie à l'ouverture suivante",
+    "atr": "ATR(20) = moyenne simple des 20 derniers vrais ranges journaliers",
+    "une_position_par_actif": true,
+    "choix_de_N": "pour chaque actif, la valeur de N (20, 50 ou 100) qui maximise l'espérance en R net de frais sur 2012-2019 (calibration seulement) ; si moins de 10 trades sur la calibration pour toutes les valeurs : N = 50 ; une seule valeur par actif, aucun autre réglage"
+  },
+  "risque": {
+    "risque_par_trade": 0.005,
+    "taille": "risque en monnaie / (3 ATR(20))",
+    "capital_depart": 100000,
+    "plafond_net_par_devise": 0.01,
+    "budget_risque_total": 0.04,
+    "plafond_bloc_correle_part_du_budget": 0.5,
+    "lecture": "Plafond de 1 % de risque NET par devise : un achat compte +risque sur la devise de base et -risque sur la devise de cotation ; une position refusée est perdue. Le budget total (4 %, 8 trades) est la lecture retenue de « risque total » pour le plafond de 50 % par bloc (2 %). Blocs : actions_crypto (SPX, NDX, BTC, SOL), usd_majeures (EURUSD, GBPUSD, AUDUSD, USDJPY, USDCHF), or (XAU)."
+  },
+  "couts": {
+    "lecture": "coût aller-retour en unités de prix (spread, plus frais) retiré de chaque trade, divisé par le risque (3 ATR) pour passer en R ; swaps / financement non comptés ; stress = coûts x2",
+    "XAU": { "fixe": 0.40, "detail": "spread CFD ≈ 0,40 $" },
+    "EURUSD": { "fixe": 0.00008, "detail": "0,8 pip" },
+    "GBPUSD": { "fixe": 0.00012, "detail": "1,2 pip" },
+    "AUDUSD": { "fixe": 0.00010, "detail": "1,0 pip" },
+    "USDJPY": { "fixe": 0.010, "detail": "1,0 pip" },
+    "USDCHF": { "fixe": 0.00012, "detail": "1,2 pip" },
+    "SPX": { "fixe": 0.6, "detail": "spread CFD ≈ 0,6 point" },
+    "NDX": { "fixe": 2.0, "detail": "spread CFD ≈ 2 points" },
+    "BTC": { "pct": 0.0021, "detail": "frais taker Binance 0,1 % par côté + spread ≈ 0,01 %" },
+    "SOL": { "pct": 0.0021, "detail": "frais taker Binance 0,1 % par côté + spread ≈ 0,01 %" },
+    "stress": 2
+  },
+  "decoupage": {
+    "calibration": [2012, 2019], "validation": [2020, 2023], "test_final": [2024, 2026], "rapport_2021_2026": [2021, 2026],
+    "regle": "une période = année du jour d'entrée ; le test final et 2021-2026 ne sont calculés qu'à l'étape « final », une seule fois, après la fin de l'étape « etape1 » (calibration + validation)"
+  },
+  "controle": {
+    "tirages": 1000, "graine": 20261111,
+    "lecture": "par actif et par période : autant d'entrées aléatoires que de trades de la stratégie (mêmes nombres d'achats et de ventes), jours tirés dans la période, MÊMES règles de sortie ; p = part des tirages dont l'espérance en R net est ≥ celle de la stratégie ; correction de Holm sur les actifs d'une même période ; moins de 30 trades = « pas assez de données »"
+  },
+  "donnees": "bougies daily, dernier jour (incomplet) retiré, bougies plates sans volume retirées ; année d'une bougie Dukascopy = année de t + 4 h (le jour de bourse commence à 21 h / 22 h UTC la veille)"
+}
