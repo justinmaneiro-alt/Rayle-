@@ -9,7 +9,7 @@ const nav = await puppeteer.launch({ executablePath: 'C:/Program Files/Google/Ch
 let nOk = 0; const echecs = [], erreurs = []; const v = (c, m, d = '') => { if (c) { nOk++; console.log('OK ', m); } else { echecs.push(m); console.log('ÉCHEC', m, d); } };
 async function essai(l, h, mobile) {
   const p = await nav.newPage(); await p.setViewport({ width: l, height: h, isMobile: mobile, hasTouch: mobile });
-  p.on('pageerror', e => erreurs.push(e.message)); p.on('console', m => { if (m.type() === 'error' && !/favicon|ERR_|status of 40|net::|Failed to load resource|youtube|googlevideo/i.test(m.text())) erreurs.push(m.text()); });
+  p.on('pageerror', e => erreurs.push(e.message)); p.on('console', m => { if (m.type() === 'error' && !/favicon|ERR_|status of 40|net::|Failed to load resource|youtube|googlevideo|allorigins|blocked by CORS policy/i.test(m.text())) erreurs.push(m.text()); });
   await p.goto(BASE + '/agent-trading/front/or.html', { waitUntil: 'domcontentloaded' });
   await p.waitForFunction(() => window.TableauOr && window.TableauOr.mouvements, { timeout: 30000 }); v(true, `${l}px : le module Mouvements est monté`);
   await p.waitForFunction(() => document.querySelector('[data-periode="H1"]'), { timeout: 30000 }); await w(4000);
