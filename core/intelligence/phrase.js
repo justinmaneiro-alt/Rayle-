@@ -9,6 +9,9 @@
     if(my!==epoch) return;
     if(cmdS){ diagAction('commande de sécurité'); addLine('ray',cmdS); await speak(cmdS); return; }
     if(my!==epoch) return;
+    const cmdApp=window.Application?await Application.commande(text):null;    // application : « ouvre le terminal », « suivant », « montre l'actualité », « ferme »
+    if(my!==epoch) return;
+    if(cmdApp){ diagAction('application'); addLine('ray',cmdApp); await speak(cmdApp); return; }
     const cmdD=window.DirectPage?await DirectPage.commande(text):null;    // sources en direct : « montre-moi les séismes », « mets France 24 en direct », « que dit l'OMS ? »
     if(my!==epoch) return;
     if(cmdD){ diagAction('sources en direct'); addLine('ray',cmdD); await speak(cmdD); return; }

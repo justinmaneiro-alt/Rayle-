@@ -38,7 +38,7 @@ async function construire(G) {
 
   // ── interface (DOM) ──
   const ui = document.createElement('div'); ui.id = 'saturne-ui'; ui.hidden = true;
-  ui.innerHTML = '<div class="s-titre"><b>S A T U R N E</b><span>Vaisseau d’anatomie « Vésale »</span></div>'
+  ui.innerHTML = '<div class="s-titre"><b>A N A T O M I E</b><span>Corps humain en 3D</span></div>'
     + '<div class="s-boutons"><div class="s-groupe" role="group" aria-label="Vue"><button type="button" data-vue="exterieur">Extérieur</button><button type="button" data-vue="cockpit">Cockpit</button><button type="button" data-vue="libre">Vue libre</button></div>'
     + '<button type="button" data-a="asseoir" title="S’asseoir / se lever (H)">S’asseoir</button><button type="button" data-a="salle" title="Salle médicale (M)">Salle médicale</button><button type="button" data-a="pilote" title="Pilote automatique : va sur…" hidden>Pilote auto</button><button type="button" data-a="commandes" title="Schéma des commandes (F1)">⌨ Commandes</button><button type="button" data-a="reglages" title="Réglage des manettes et joysticks">🎮 Manette</button><button type="button" data-a="quitter">Quitter ✕</button></div>'
     + '<div class="s-etat" id="s-etat"></div><div class="s-message" id="s-message" hidden></div><div class="s-fondu" id="s-fondu"></div><div class="s-panneau" id="s-panneau" hidden></div>';
@@ -382,7 +382,7 @@ async function construire(G) {
       salle.controle.recentrer(); G.surcharger({ scene: salle.scene, camera: salle.camera, maj });
       majBoutons(); document.body.classList.add('saturne-salle'); window.dispatchEvent(new CustomEvent('saturne:salle', { detail: { dedans: true } }));
       await attendre(120); await fondu(false, 600); transition = false;
-      dire('Salle médicale : glisse pour tourner autour de la table, molette pour zoomer, M ou Échap pour revenir.', 5000);
+      dire('Salle médicale : glisse pour tourner autour de la table, molette pour zoomer, Échap ou la croix pour fermer.', 5000);
       return true;
     },
     async sortirSalle() {

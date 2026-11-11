@@ -1,0 +1,11 @@
+import fs from 'node:fs';
+let s = fs.readFileSync('planetes/saturne/pc/index.js', 'utf8');
+s = s.replace('<b>S A T U R N E</b><span>Vaisseau d’anatomie « Vésale »</span>', '<b>A N A T O M I E</b><span>Corps humain en 3D</span>');
+s = s.replace("glisse pour tourner autour de la table, molette pour zoomer, M ou Échap pour revenir.", "glisse pour tourner autour de la table, molette pour zoomer, Échap ou la croix pour fermer.");
+fs.writeFileSync('planetes/saturne/pc/index.js', s);
+let c = fs.readFileSync('core/commun/application.css', 'utf8');
+c += 'body.app-direct #saturne-ui .s-boutons,body.app-direct #saturne-ui .s-etat{display:none!important}\n';
+fs.writeFileSync('core/commun/application.css', c);
+let t = fs.readFileSync('core/commun/application.js', 'utf8');
+t = t.replace("if(ouvert){ if(e.key==='Escape'){", "if(ouvert){ if(ouvert==='anatomie'&&(e.key==='m'||e.key==='M')){ e.preventDefault(); e.stopImmediatePropagation(); return; } if(e.key==='Escape'){");
+fs.writeFileSync('core/commun/application.js', t);

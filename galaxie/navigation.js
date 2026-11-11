@@ -174,6 +174,8 @@ export function creerNavigation({ camera, canvas, cibles, pickers, ui, surTouche
 
   return {
     maj, allerA, retour, selectionner, fermerSas,
+    /* Entrée directe (application) : place la caméra face à la planète puis passe la main à son module, sans vol. */
+    entrerDirect(id) { if (!parId.has(id)) return false; this.placer(id, { angle: 0.45 }); ouvrirSas(id, true); return true; },
     /* Retour par zoom depuis l'orbite : la caméra de la galaxie se place là où regardait celle du globe (direction dans le repère du monde), à rayons × le rayon de la planète. */
     apresSortieZoom({ yaw: lacet, pitch: tangage, rayons }) {
       const id = etat.focus; if (!id) return;

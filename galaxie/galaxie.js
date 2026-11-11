@@ -159,16 +159,10 @@ export async function demarrer() {
   }
   const ui = creerInterface();
   /* Planètes dont le module prend le relais à l'arrivée (manifeste modules.pc.entree) : un clic suffit pour y aller. Seule la Terre en a un pour l'instant. */
-  const AVEC_MODULE = new Set(PLANETES.filter(p => (p.id === 'terre' || p.id === 'mars' || p.id === 'saturne' || p.id === 'neptune' || p.id === 'jupiter') && p.etat === 'active' && p.modules && p.modules.pc && p.modules.pc.entree).map(p => p.id));
-  /* Module d'une planète : celui du PC, sauf la Terre sur tablette et téléphone (carte plate légère, manifeste modules.tablette / telephone) ; réglage rayle_terre_vue : 'auto' | 'leger' | '3d' | 'v2' (PC : sans réglage = Terre CLASSIQUE ; Terre 2.0 = option expérimentale, PC seulement, bouton « Terre 2.0 (expérimental) »). */
+  const AVEC_MODULE = new Set(PLANETES.filter(p => (p.id === 'terre' || p.id === 'saturne' || p.id === 'neptune') && p.etat === 'active' && p.modules && p.modules.pc && p.modules.pc.entree).map(p => p.id));
+  /* Module d'une planète : le même sur PC, tablette et téléphone. Seule la carte plate de la Terre reste un choix manuel (réglage rayle_terre_vue = 'leger'). */
   const cheminModule = p => {
-    if (p.id === 'terre' && p.modules) {
-      let pref = 'auto'; try { pref = localStorage.getItem('rayle_terre_vue') || 'auto'; } catch (e) { /* stockage refusé : automatique */ }
-      const a = appareil(), leger = pref === 'leger' || (pref !== '3d' && a !== 'pc'), m = leger && (p.modules[a === 'pc' ? 'tablette' : a] || p.modules.tablette);
-      if (m && m.entree) return m.entree;
-      let visite = null; try { visite = sessionStorage.getItem('rayle_terre_visite'); sessionStorage.removeItem('rayle_terre_visite'); } catch (e) { /* */ }   // visite « v2 » demandée par le bouton ou la voix ; « classique » par les outils d'actualités
-      if (a === 'pc' && !leger && visite !== 'classique' && (pref === 'v2' || visite === 'v2')) return 'terre-v2/index.js';   // Terre 2.0 (CesiumJS) : SEULEMENT sur demande, PC seulement
-    } else if (p.modules && appareil() !== 'pc' && p.modules[appareil()] && p.modules[appareil()].entree) return p.modules[appareil()].entree;   // autre planète avec un module tablette / téléphone (Jupiter : terminal 2D)
+    if (p.id === 'terre' && p.modules && p.modules.tablette && p.modules.tablette.entree) { let pref = 'auto'; try { pref = localStorage.getItem('rayle_terre_vue') || 'auto'; } catch (e) { /* stockage refusé */ } if (pref === 'leger') return p.modules.tablette.entree; }
     return p.modules.pc.entree;
   };
   const entreePlanete = (id, rapide = false) => {
@@ -209,7 +203,7 @@ export async function demarrer() {
 
   // ── Boucle (arrêtée quand la vue est fermée ; limitée par fpsMax, par le mode jeu et par la perte de focus)
   const horloge = new THREE.Clock();
-  let t = 0, accFps = 0, actif = false, dernier = 0, surcharge = null;
+  let t = 0, accFps = 0, actif = false, dernier = 0, surcharge = null, direct = false;
   function image(maintenant) {
     if (!actif) return;
     requestAnimationFrame(image);
@@ -309,6 +303,10 @@ export async function demarrer() {
       const d = new THREE.Vector3(...dirLocal).transformDirection(o.sphere.matrixWorld);
       nav.apresSortieZoom({ yaw: Math.atan2(d.z, d.x), pitch: Math.asin(Math.max(-1, Math.min(1, d.y))), rayons });
     },
+    /* Entrée directe dans une planète (sans survol de la galaxie) : le décor de la galaxie reste caché, seul le module dessine. */
+    entrerPlanete(id) { if (!AVEC_MODULE.has(id)) return false; g.modeDirect(true); return nav.entrerDirect(id); },
+    modeDirect(oui) { for (const o of [soleil.groupe, systeme.racine, ceinture.objet]) o.visible = !oui; direct = !!oui; },
+    estDirect: () => direct,
     enMarche: () => actif, jeu: () => jeu, enBanc: () => enBanc,
     info: () => ({ qualite: niveauNom, fps: surveillance.fps, planetes: PLANETES.map(p => p.id), ignores: registre.problemes.map(p => p.id) }),
     qualite: nom => regler({ qualite: nom }),

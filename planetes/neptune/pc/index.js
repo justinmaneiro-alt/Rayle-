@@ -20,7 +20,7 @@ async function construire(G) {
   if (!document.getElementById('neptune-css')) { const l = document.createElement('link'); l.id = 'neptune-css'; l.rel = 'stylesheet'; l.href = new URL('./neptune.css', import.meta.url).href; document.head.appendChild(l); }
   const ui = document.createElement('div'); ui.id = 'neptune-ui'; ui.hidden = true;
   ui.innerHTML = `
-  <div class="n-titre"><b>N E P T U N E</b><span>Atelier 3D · maquettes</span></div>
+  <div class="n-titre"><b>D É V E L O P P E M E N T  3 D</b><span>Atelier de maquettes</span></div>
   <div class="n-barre" role="toolbar" aria-label="Atelier 3D">
     <label class="n-btn">Importer<input type="file" id="n-fichiers" multiple accept=".glb,.gltf,.obj,.mtl,.stl,.fbx,.bin,.png,.jpg,.jpeg,.webp" hidden></label>
     <label class="n-btn">Dossier<input type="file" id="n-dossier" webkitdirectory multiple hidden></label>
