@@ -8,7 +8,7 @@ const ecrire = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); ret
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const nb = (x, d = 0) => (x == null || !Number.isFinite(x) ? '—' : Number(x).toLocaleString('fr-FR', { minimumFractionDigits: d, maximumFractionDigits: d }).replace(/[  ]/g, ' '));
 
-export function creerCarteCarnet({ racine, flux = () => null, zones = () => [], atr = () => null, prix = () => null, barres = () => [], maintenant = () => Date.now(), parler = () => {}, auto = true } = {}) {
+export function creerCarteCarnet({ racine, flux = () => null, zones = () => [], atr = () => null, prix = () => null, barres = () => [], maintenant = () => Date.now(), parler = () => {}, auto = true, surTick = () => {} } = {}) {
   const E = { registre: lire(CLE_FWD, []), suivi: C.creerSuiviMurs(), lecture: null, zone: null, injecte: null, dernierParZone: new Map() };
   const q = s => racine && racine.querySelector(s);
   if (!document.querySelector('link[data-rayle-css]')) { const l = document.createElement('link'); l.rel = 'stylesheet'; l.href = new URL('./rayle.css', import.meta.url).href; l.dataset.rayleCss = ''; document.head.appendChild(l); }
@@ -38,13 +38,13 @@ export function creerCarteCarnet({ racine, flux = () => null, zones = () => [], 
   function compterClasse(pourZone) { return E.registre.filter(r => r.kind === 'arrivee' && r.pourZone === pourZone).length; }
   function tick() {
     const now = maintenant(), a = atr(), p = prix(), s = source();
-    if (!s || !(a > 0) || p == null) { E.lecture = null; E.zone = null; rendre(); return null; }
+    if (!s || !(a > 0) || p == null) { E.lecture = null; E.zone = null; rendre(); surTick(); return null; }
     const mid = C.milieu(s.carnet); const px = mid ? mid.mid : p, z = zoneDArrivee(px, a);
     const suivi = mid ? E.suivi.maj(s.carnet, s.trades, now, mid.mid, a) : null;
-    if (!z) { E.lecture = null; E.zone = null; rendre(); return null; }
+    if (!z) { E.lecture = null; E.zone = null; rendre(); surTick(); return null; }
     const l = C.lire({ carnet: s.carnet, trades: s.trades, now, atr: a, zone: z, suivi }); E.lecture = l.ok ? l : null; E.zone = z;
     if (l.ok) { const id = enregistrer(z, l, now); if (id) { if (E.registre.length > 3000) E.registre.splice(0, E.registre.length - 3000); } resultats(); ecrire(CLE_FWD, E.registre); }
-    rendre(); return E.lecture;
+    rendre(); surTick(); return E.lecture;
   }
   function rendre() {
     if (carte) {

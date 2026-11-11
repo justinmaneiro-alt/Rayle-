@@ -67,9 +67,22 @@ for (const [l, h, mob] of [[1600, 900, false], [390, 844, true]]) {
     v(r3.mention && /Carnet · zone/.test(r3.texteCarte), `${l}px : « lecture en observation, non validée » et titre de la carte`);
     v(r3.n1 === 1 && r3.n2 === 1, `${l}px : enregistreur forward : une arrivée enregistrée, pas de doublon (${r3.n1}, ${r3.n2})`);
     v(/Pas assez de données/.test(r3.rapport), `${l}px : rapport honnête (${r3.rapport.slice(0, 70)})`);
+    const fe = await p.evaluate(() => { const el = document.querySelector('[data-ray-feuille]'), S = window.__or.strategie, f = S.feuille(); return { n: el.querySelectorAll('li').length, vertes: el.querySelectorAll('li.ok').length, texte: el.querySelector('.tor-ray-feuille-n').textContent, cond3: f.conditions[2].ok, cote: f.zone && f.zone.cote, contexte: f.contexte, journal: S.feuilleEtat() }; });
+    v(fe.n === 5 && fe.contexte && /^\d \/ 5 conditions réunies$/.test(fe.texte) && fe.vertes === parseInt(fe.texte), `${l}px : feuille de décision : 5 conditions, « ${fe.texte} »`);
+    v(fe.cond3 === (fe.cote === 'vente'), `${l}px : condition 3 (carnet dans le sens de la boîte) : ${fe.cond3} pour une zone de ${fe.cote} avec pression vendeuse`);
+    v(fe.journal && fe.journal.conditions.length === 5 && fe.journal.version === 'feuille-decision-v1', `${l}px : l'état des 5 conditions est prêt pour le journal`);
     await p.screenshot({ path: `captures-or/rayle-${l}-carnet.png` });
     await p.evaluate(() => { const S = window.__or.strategie, far = S.etat().B[S.etat().B.length - 1].c + 5000; S.injecterPrix(far); S.carte.injecter({ carnet: { bids: new Map([[far - 0.25, 5]]), asks: new Map([[far + 0.25, 5]]), pret: true }, trades: [] }); S.carte.tick(); });
     v(await p.evaluate(() => document.querySelector('[data-ray-carte]').hidden), `${l}px : loin de toute boîte, la carte disparaît`);
+    v(await p.evaluate(() => /Pas de contexte/.test(document.querySelector('[data-ray-feuille] .tor-ray-feuille-n').textContent)), `${l}px : au milieu, la feuille dit « Pas de contexte »`);
+  }
+  // journal : à la pose d'une position, l'état des 5 conditions est enregistré
+  if (!mob) {
+    const j = await p.evaluate(async () => { const f = document.querySelector('[data-journal-bloc] form'); if (!f) return { sansFormulaire: true }; const S = window.__or.strategie; const px = S.etat().B[S.etat().B.length - 1].c;
+      f.entree.value = px.toFixed(2); f.stop.value = (px - 15).toFixed(2); f.taille.value = '0.1'; f.etiquette.value = 'autre'; f.requestSubmit(); await new Promise(r => setTimeout(r, 700));
+      const T = JSON.parse(localStorage.getItem('rayle_or_journal') || '[]'), d = T[T.length - 1]; return { n: T.length, feuille: d && d.feuille, msg: document.querySelector('[data-j-msg]').textContent }; });
+    v(j.sansFormulaire || (j.feuille && j.feuille.conditions.length === 5 && j.feuille.version === 'feuille-decision-v1'), `${l}px : le journal enregistre l'état des 5 conditions à la pose (${j.sansFormulaire ? 'formulaire absent' : JSON.stringify(j.feuille)} ${j.msg || ''})`);
+    const rp = await p.evaluate(() => window.__or.strategie.rapportFeuille().phrase); v(/Pas assez de trades/.test(rp), `${l}px : rapport local honnête (${rp.slice(0, 80)})`);
   }
   // couche décochée : plus de moyenne mobile
   await p.evaluate(() => { document.querySelector('.tor-couches').open = true; const c = document.querySelector('[data-couche="rayMa"]'); c.checked = false; c.dispatchEvent(new Event('change', { bubbles: true })); }); await w(400);

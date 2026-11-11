@@ -62,6 +62,7 @@ export function monterJournal(el, { tableau }) {
     const t = { id: nouvelId(), source: 'saisie', sens, entree: +f.entree.value, stop: +f.stop.value, objectif: f.objectif.value ? +f.objectif.value : null, taille: +f.taille.value, etiquette: f.etiquette.value, ...(f.etiquette.value === 'flèche H1' ? { versionFleche: f.versionFleche.value } : {}), raison: f.raison.value.trim(), tEntree: depuisDtLocal(f.tEntree.value) || Date.now() };
     const err = valider(t); if (err.length) { q('[data-j-msg]').textContent = 'À corriger : ' + err.join(', '); return; }
     const s = S(); t.enrich = enrichir(t, s.refM15, s.refH1, s.atrH1, s.ecart || 0);
+    try { t.feuille = tableau.strategie && tableau.strategie.feuilleEtat ? tableau.strategie.feuilleEtat() : null; } catch (er) { t.feuille = null; }   // état des 5 conditions de la feuille de décision à la pose
     if (f.capture.files[0]) try { t.captureEntree = await enregistrerCapture(t.id + '-entree', f.capture.files[0]); } catch (er) { tableau.notifier('Capture non enregistrée : ' + er.message, { niveau: 'doux' }); }
     trades.push(t); sauver(); f.reset(); q('[data-j-msg]').textContent = 'Entrée enregistrée.'; prefill(true); rendre();
   });

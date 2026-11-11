@@ -8,6 +8,9 @@ import { evenementsAffiches, texteMa, compterObjets, hp } from './rayle-modele-c
 import { boitesAffichees, bandeau } from './rayle-modele-boites.js';
 import { COUCHES_RAYLE } from './rayle-couches.js';
 import { creerCarteCarnet } from './rayle-carnet.js';
+import * as FD from './feuille-decision-v1.js';
+import { rNet } from './journal-calcul.js';
+import { lireJSON } from './stockage-or.js';
 const CLE_REG = 'rayle_or_rayle_reglages', CLE_ARCH = 'rayle_or_boites_registre', H = 3600e3;
 const lire = (k, d) => { try { const v = localStorage.getItem(k); return v ? JSON.parse(v) : d; } catch (e) { return d; } };
 const ecrire = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); return true; } catch (e) { return false; } };
@@ -27,13 +30,14 @@ export function creerStrategie({ racine, moteur, graph, carnet = null, structure
     const b = document.createElement('button'); b.type = 'button'; b.className = 'tor-gb'; b.dataset.a = 'ray-vue'; b.setAttribute('aria-pressed', 'true'); b.title = 'Mode Épuré (2 événements, 2 zones de chaque côté, 2 scénarios) ou Complet (tout ce que Rayle calcule)'; b.textContent = 'Épuré';
     barre.insertBefore(b, barre.firstChild);
   }
+  if (racine && !q('[data-ray-feuille]')) { const a = document.createElement('aside'); a.className = 'tor-ray-feuille'; a.dataset.rayFeuille = ''; a.setAttribute('aria-label', 'Feuille de décision (information seulement)'); const g = q('.tor-graph'); (g || racine).appendChild(a); }
   if (racine && !q('[data-ray-bandeau]')) { const p = document.createElement('p'); p.className = 'tor-struct-bandeau tor-ray-bandeau'; p.dataset.rayBandeau = ''; p.hidden = true; const g = q('.tor-graph-lw'); if (g && g.parentNode) g.parentNode.insertBefore(p, g); }
   if (racine && !q('[data-rayle]')) {
     const sec = document.createElement('section'); sec.className = 'tor-bloc tor-rayle'; sec.dataset.rayle = '';
     sec.innerHTML = `<h2>Stratégie Rayle v1 <small>lecture en observation · aucune règle automatique n’a prouvé un avantage · jamais un ordre</small></h2>
       <p class="tor-ctx-pied" data-ray-etat>Chargement…</p>
       <div class="tor-ctx-actions"><label>Moyenne mobile <select data-ray-ma><option value="h1">SMA 200 H1</option><option value="jour">SMA 200 Jour</option></select></label> <button type="button" class="tor-gb" data-a="ray-vue">Épuré</button></div>
-      <div data-ray-ma-corps></div><div data-ray-boites-corps></div><div data-ray-carnet-corps></div><p class="tor-ctx-pied" data-ray-pied></p>`;
+      <div data-ray-ma-corps></div><div data-ray-boites-corps></div><div data-ray-carnet-corps></div><div data-ray-feuille-corps></div><p class="tor-ctx-pied" data-ray-pied></p>`;
     const ict = q('[data-ict]'); if (ict && ict.parentNode) ict.parentNode.insertBefore(sec, ict); else racine.appendChild(sec);
   }
   /* ── calcul à la clôture de chaque bougie H1 ── */
@@ -75,9 +79,23 @@ export function creerStrategie({ racine, moteur, graph, carnet = null, structure
   function maj(force = false) {
     const change = analyser() || force; if (!change && !force) { return; }
     const m = modele(); E.m = m; try { graph.rayle(m); } catch (e) { console.warn('Rayle :', e.message); }
-    majBoutons(); rendre();
+    majBoutons(); rendre(); rendreFeuille();
   }
   function majBoutons() { for (const b of racine.querySelectorAll('[data-a="ray-vue"]')) { b.textContent = E.reg.vue === 'epure' ? 'Épuré' : 'Complet'; b.classList.toggle('actif', E.reg.vue === 'epure'); b.setAttribute('aria-pressed', String(E.reg.vue === 'epure')); } }
+  /* ── feuille de décision (phase 4) : 5 conditions en direct, information seulement ── */
+  function feuilleEtat() {
+    if (!E.B || !E.res) return FD.evaluer({});
+    const prix = E.prixForce != null ? E.prixForce : (moteur && moteur.S && moteur.S.prix != null ? moteur.S.prix : E.B[E.B.length - 1].c);
+    const qual = Z.selectionner(E.zones, { prix, atr: E.atr, stats: E.stats.boites }).zones.map(z => z.id);
+    return FD.evaluer({ B: E.B, evenements: E.res.events, zones: E.zones, qualifiees: qual, prix, atr: E.atr, h1: E.sm && E.sm.h1, h4: E.sm && E.sm.h4, lecture: E.carte ? E.carte.lecture() : null });
+  }
+  function rendreFeuille() {
+    const el = q('[data-ray-feuille]'); if (!el) return; const f = feuilleEtat(); E.feuille = f;
+    el.dataset.contexte = f.contexte ? 'oui' : 'non';
+    el.innerHTML = `<b>Feuille de décision</b> <span class="tor-ray-feuille-n">${esc(f.texte)}</span><ul>${f.conditions.map(c => `<li class="${c.ok ? 'ok' : 'non'}" title="${esc(c.detail)}"><i aria-hidden="true"></i>${esc(c.libelle)}</li>`).join('')}</ul><small>information seulement, jamais un ordre</small>`;
+    const r = q('[data-ray-feuille-corps]'); if (r) r.innerHTML = `<p class="tor-doux"><b>Feuille de décision</b> : ${esc(f.texte)}${f.contexte ? ' — ' + f.conditions.map(c => (c.ok ? '● ' : '○ ') + esc(c.libelle) + ' (' + esc(c.detail) + ')').join(' ; ') : ' (le prix n’est près d’aucune boîte).'}</p><p class="tor-doux">${esc(rapportFeuille().phrase)}</p>`;
+  }
+  function rapportFeuille() { let T = []; try { T = lireJSON('rayle_or_journal', []) || []; } catch (e) { /* */ } return FD.rapportJournal(Array.isArray(T) ? T : [], rNet); }
   const texteBandeau = () => (E.B && E.sm ? bandeau({ h1: E.sm.h1, h4: E.sm.h4, ligne: E.m && E.m.ligne, sel: E.sel, prix: E.prix ?? E.B[E.B.length - 1].c, atr: E.atr }) : '');
   function rendre() {
     const e = q('[data-ray-etat]'); if (e) e.textContent = E.res ? texteMa(E.res, E.B) : 'Chargement des bougies H1…';
@@ -91,7 +109,8 @@ export function creerStrategie({ racine, moteur, graph, carnet = null, structure
   racine.addEventListener('click', ev => { const b = ev.target.closest('[data-a="ray-vue"]'); if (b) reglage('vue', E.reg.vue === 'epure' ? 'complet' : 'epure'); });
   racine.addEventListener('change', ev => { const t = ev.target; if (t.matches && t.matches('[data-ray-ma]')) reglage('ma', t.value); else if (t.dataset && t.dataset.couche in COUCHES_RAYLE) maj(true); });
   /* ── lecture du carnet à l'arrivée sur une boîte (phase 3) ── */
-  const carte = creerCarteCarnet({ racine, flux: () => (carnet && carnet._flux) || null, zones: () => E.zones, atr: () => E.atr, prix: () => E.prixForce != null ? E.prixForce : (moteur && moteur.S && moteur.S.prix != null ? moteur.S.prix : (E.B ? E.B[E.B.length - 1].c : null)), barres: () => E.B || [], maintenant, parler, auto });
+  const carte = creerCarteCarnet({ racine, flux: () => (carnet && carnet._flux) || null, zones: () => E.zones, atr: () => E.atr, prix: () => E.prixForce != null ? E.prixForce : (moteur && moteur.S && moteur.S.prix != null ? moteur.S.prix : (E.B ? E.B[E.B.length - 1].c : null)), barres: () => E.B || [], maintenant, parler, auto, surTick: () => { try { rendreFeuille(); } catch (e) { /* */ } } });
+  E.carte = carte;
   let minuterie = null; if (auto) { chargerStats().then(() => maj(true)); minuterie = setInterval(() => { try { maj(); } catch (e) { /* */ } }, 30000); }
-  return { maj, chargerStats, modele: () => E.m, etat: () => ({ reg: { ...E.reg }, res: E.res, B: E.B, stats: E.stats, m: E.m, zones: E.zones, sel: E.sel, arch: E.arch.slice(), bandeau: texteBandeau() }), reglage, carte, injecterPrix(p) { E.prixForce = p; maj(true); }, compterObjets: () => compterObjets(E.m), detruire() { clearInterval(minuterie); } };
+  return { maj, chargerStats, modele: () => E.m, etat: () => ({ reg: { ...E.reg }, res: E.res, B: E.B, stats: E.stats, m: E.m, zones: E.zones, sel: E.sel, arch: E.arch.slice(), bandeau: texteBandeau() }), reglage, carte, feuilleEtat: () => { const f = feuilleEtat(); return FD.etatPourJournal(f); }, feuille: () => feuilleEtat(), rapportFeuille, injecterPrix(p) { E.prixForce = p; maj(true); }, compterObjets: () => compterObjets(E.m), detruire() { clearInterval(minuterie); } };
 }
