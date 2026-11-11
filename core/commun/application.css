@@ -1,57 +1,21 @@
 /* Carrousel de fenêtres de l'application Raylé (thème Jarvis : fond noir, accent cyan froid #ffae3d, sable #ffe08a). */
 :root{--ac-a:#ffae3d;--ac-s:#ffe08a;--ac-fond:#04070b}
-html,body{touch-action:pan-y}
-#app-car{position:fixed;inset:0;z-index:4;overflow:hidden;pointer-events:none;-webkit-user-select:none;user-select:none}
-.ac-piste{position:absolute;inset:0;width:500vw;display:flex;will-change:transform}
-.ac-vue{flex:0 0 100vw;width:100vw;height:100%;position:relative;display:flex;align-items:center;justify-content:center;padding:0 16px 150px;box-sizing:border-box}
-.ac-vue:not(.ac-accueil){background:radial-gradient(ellipse at 50% 42%,rgba(255,174,61,.09),rgba(4,7,11,.96) 62%),var(--ac-fond)}
-.ac-accueil{pointer-events:none}
-.ac-carte{pointer-events:auto;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:12px;width:min(440px,100%);padding:34px 28px 28px;color:#dbe9ef;font:inherit;text-align:center;
-  background:linear-gradient(160deg,rgba(255,174,61,.10),rgba(8,14,20,.78));border:1px solid rgba(255,174,61,.45);
-  clip-path:polygon(18px 0,100% 0,100% calc(100% - 18px),calc(100% - 18px) 100%,0 100%,0 18px);transition:transform .25s,border-color .25s,background .25s}
-.ac-carte:hover,.ac-carte:focus-visible{transform:translateY(-4px);border-color:var(--ac-a);background:linear-gradient(160deg,rgba(255,174,61,.18),rgba(8,14,20,.82));outline:none}
-.ac-carte b{font:600 22px/1.2 inherit;letter-spacing:.06em;text-transform:uppercase;color:#fff}
-.ac-carte small{font-size:14px;line-height:1.45;color:#9db6c0;max-width:30ch}
-.ac-carte em{font-style:normal;font-size:12px;letter-spacing:.18em;text-transform:uppercase;color:var(--ac-s);margin-top:6px}
-.ac-icone{display:block;width:96px;height:96px}
-.ac-icone svg{width:100%;height:100%;fill:none;stroke:var(--ac-a);stroke-width:2;stroke-linecap:round;stroke-linejoin:round;overflow:visible;animation:ac-flotte 5s ease-in-out infinite}
-.ac-tr{stroke-dasharray:140;animation:ac-trace 1.8s ease-out both}
-@keyframes ac-trace{from{stroke-dashoffset:140}to{stroke-dashoffset:0}}
-@keyframes ac-flotte{0%,100%{transform:translateY(0) rotate(0)}50%{transform:translateY(-4px) rotate(1.2deg)}}
-.ac-fleche{pointer-events:auto;position:absolute;top:calc(50% - 26px);width:48px;height:64px;display:grid;place-items:center;color:var(--ac-a);background:rgba(4,7,11,.55);border:1px solid rgba(255,174,61,.35);font-size:30px;line-height:1;cursor:pointer;z-index:2;
-  clip-path:polygon(10px 0,100% 0,100% calc(100% - 10px),calc(100% - 10px) 100%,0 100%,0 10px)}
-.ac-fleche:hover{background:rgba(255,174,61,.16)}
-.ac-fleche[hidden]{display:none}
-.ac-g{left:10px}.ac-d{right:10px}
-.ac-points{pointer-events:auto;position:absolute;left:50%;transform:translateX(-50%);bottom:calc(150px + env(safe-area-inset-bottom,0px));display:flex;gap:12px;padding:6px 10px;z-index:2}
-.ac-points button{width:12px;height:12px;padding:0;border:1px solid rgba(255,174,61,.7);background:transparent;border-radius:50%;cursor:pointer;transition:background .2s,transform .2s;min-height:0}
-.ac-points button.on{background:var(--ac-a);transform:scale(1.25)}
-.ac-nom{position:absolute;top:calc(14px + env(safe-area-inset-top,0px));left:0;right:0;text-align:center;font-size:12px;letter-spacing:.34em;text-transform:uppercase;color:#7f98a3;pointer-events:none}
 #app-croix{position:fixed;top:calc(12px + env(safe-area-inset-top,0px));right:calc(12px + env(safe-area-inset-right,0px));z-index:200;width:48px;height:48px;padding:0;display:grid;place-items:center;cursor:pointer;
   color:var(--ac-a);background:rgba(4,7,11,.78);border:1px solid rgba(255,174,61,.6);backdrop-filter:blur(6px);
   clip-path:polygon(10px 0,100% 0,100% calc(100% - 10px),calc(100% - 10px) 100%,0 100%,0 10px)}
 #app-croix:hover,#app-croix:focus-visible{background:rgba(255,174,61,.22);outline:none}
 #app-croix svg{width:22px;height:22px;stroke:currentColor;stroke-width:2.2;fill:none;stroke-linecap:round}
 #app-croix[hidden]{display:none}
-/* L'accueil s'efface pendant le balayage ; une fenêtre ouverte masque le carrousel. */
-body.app #scene,body.app .ar-racine{opacity:calc(1 - var(--app-p,0));transition:opacity .3s}
-body.app:not(.app-accueil) #scene{pointer-events:none}
-body.app-glisse #scene,body.app-glisse .ar-racine{transition:none}
 body.app-ouvert #app-car{display:none}
 /* Entrée directe dans une planète : seul son module est visible (pas l'interface de la galaxie). */
 body.app-direct #vueGalaxie .g-titre,body.app-direct #vueGalaxie #g-retour,body.app-direct #vueGalaxie #fil,body.app-direct #vueGalaxie .g-reglages,body.app-direct #vueGalaxie #g-panneau,
 body.app-direct #vueGalaxie #carte,body.app-direct #vueGalaxie #sas,body.app-direct #vueGalaxie .g-aide,body.app-direct #vueGalaxie #etiquette{display:none!important}
 /* Le terminal garde sa propre sortie, remplacée par la croix commune. */
 body.app-ouvert #vueTerminal #btnRetour{display:none}
-@media (max-width:700px){.ac-carte{padding:26px 18px 22px}.ac-icone{width:76px;height:76px}.ac-carte b{font-size:19px}.ac-fleche{width:40px;height:56px}.ac-points{bottom:calc(168px + env(safe-area-inset-bottom,0px))}.ac-vue{padding-bottom:170px}}
-@media (prefers-reduced-motion:reduce){.ac-icone svg,.ac-tr{animation:none;stroke-dashoffset:0}.ac-piste{transition:none!important}}
 .barre{grid-template-columns:2.6fr 1fr 1fr!important}
 body.app-direct .t-boutons [data-a="terre-v2"],body.app-direct .t-boutons [data-a="quitter"]{display:none!important}
 body.app-direct #saturne-ui .s-boutons,body.app-direct #saturne-ui .s-etat{display:none!important}
 body.app-direct #neptune-ui [data-a="quitter"],body.app-direct .n-barre [data-a="quitter"],body.app-direct [data-a="quitter"]{display:none!important}
-html .ac-points button{min-height:0;min-width:0;width:12px;height:12px}
-html .ac-fleche{min-height:0}
-@media (max-width:700px){.ac-points{bottom:calc(150px + env(safe-area-inset-bottom,0px))}}
 #pwa-maj{position:fixed;left:50%;bottom:calc(16px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);z-index:300;display:flex;gap:10px;align-items:center;padding:10px 14px;color:#dbe9ef;background:rgba(6,11,16,.94);border:1px solid #ffae3d;font-size:14px}
 #pwa-maj button{min-height:0;padding:6px 12px;color:#ffae3d;background:transparent;border:1px solid rgba(255,174,61,.6);cursor:pointer;font:inherit}
 /* Le contenu de l ancien accueil Aurore est remplace par l accueil de l application et le carrousel : on garde le decor (noyau, anneaux, eclats, vague, dock). */

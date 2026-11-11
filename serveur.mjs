@@ -22,12 +22,27 @@ const TYPES = {
 // Jamais servis : secrets, dépôt git, dépendances, sauvegardes
 const INTERDITS = /(^|\/)(\.git|node_modules|worker|\.claude|\.serena)(\/|$)|(^|\/)\.env|\.dev\.vars|\.zip$/i;
 
+/* Backend Raylé embarqué (actualités, météo, calendrier, COT, macro, sources…) : même code que le Worker Cloudflare (worker/portable/coeur.js, hors dépôt public),
+   servi sur la MÊME adresse que l'application : aucun CORS, aucun jeton (l'écoute est locale). Absent : l'application utilise le Worker distant. */
+let gererApi = null;
+try { ({ gerer: gererApi } = await import('./worker/portable/coeur.js')); } catch (e) { console.log('Backend embarqué indisponible (worker/portable absent) : ' + (e && e.message)); }
+const ROUTES_API = /^\/(?:health|ping|sources|actualites|meteo|evenements|calendar|calendrier|cot|macro|sec|wgc|ce-jour-la|chat|tts)(?:\/|$)/;
+async function repondreApi(req, res) {
+  try {
+    const corps = ['GET', 'HEAD'].includes(req.method) ? undefined : await new Promise((ok, ko) => { const p = []; req.on('data', c => p.push(c)); req.on('end', () => ok(Buffer.concat(p))); req.on('error', ko); });
+    const entetes = new Headers(); for (const [k, v] of Object.entries(req.headers)) if (v != null) entetes.set(k, Array.isArray(v) ? v.join(', ') : v);
+    const r = await gererApi(new Request('http://' + (req.headers.host || '127.0.0.1') + req.url, { method: req.method, headers: entetes, body: corps }), process.env, null, 'pc-local');
+    res.writeHead(r.status, Object.fromEntries(r.headers)); res.end(Buffer.from(await r.arrayBuffer()));
+  } catch (e) { res.writeHead(500, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: 'backend local : ' + (e && e.message || e) })); }
+}
+
 export function creerServeur({ portReseau, dossierDonnees = process.env.RAYLE_DONNEES || (process.env.LOCALAPPDATA ? path.join(process.env.LOCALAPPDATA, 'Rayle') : undefined), ip } = {}) {
   const voixLocale = creerVoixLocale({ racine: RACINE });   // voix gratuite et locale (Kokoro, Piper) : routes /__voix/…, réservées à 127.0.0.1
   const serveur = http.createServer((req, res) => {
     let chemin;
     try { chemin = decodeURIComponent(new URL(req.url, 'http://x').pathname); } catch (e) { res.writeHead(400); return res.end('requête invalide'); }
     if (chemin.startsWith('/__voix/')) return voixLocale.gerer(req, res, chemin);
+    if (gererApi && ROUTES_API.test(chemin)) return repondreApi(req, res);
     if (/^\/__(bougies|cot|actus|banques|institutions|sante|gld|calendrier2)$/.test(chemin) && gererDonnees(req, res, chemin)) return;   // données du Terminal (app-pc/terminal-donnees.mjs)
     if ((chemin.startsWith('/__relais/') || chemin === '/__rapports' || chemin === '/__yahoo' || chemin === '/__calendrier') && gererTerminal(req, res, chemin)) return;   // sources publiques du terminal lues par le PC (app-pc/terminal-sources.mjs)
     if (chemin.endsWith('/')) chemin += 'index.html';

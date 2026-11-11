@@ -5,8 +5,8 @@ const o = await ouvrirAppareil(cle, { attente: 2000 }); const p = o.page; const 
 let ok = 0, ko = 0; const v = (n, c, d = '') => { c ? ok++ : ko++; console.log((c ? 'OK  ' : 'KO  ') + n + (d ? ' — ' + d : '')); };
 for (const id of liste) {
   const t0 = Date.now();
-  await p.evaluate(i => { Application.aller(i); }, id); await att(500);
-  const ct = await p.evaluate(i => { const r = document.querySelector('.ac-vue[data-id="' + i + '"] .ac-carte').getBoundingClientRect(); return [r.x + r.width / 2, r.y + r.height / 2]; }, id); if (cle.startsWith('pc')) await p.mouse.click(ct[0], ct[1]); else await p.touchscreen.tap(ct[0], ct[1]);
+  await p.evaluate(i => { Application.aller(i); }, id); await att(1800);
+  const ct = await p.evaluate(i => { const r = document.querySelector('.ac-p[data-id="' + i + '"] .ac-cadre').getBoundingClientRect(); return [r.x + r.width / 2, r.y + r.height / 2]; }, id); if (cle.startsWith('pc')) await p.mouse.click(ct[0], ct[1]); else await p.touchscreen.tap(ct[0], ct[1]);
   let pret = false;
   for (let k = 0; k < 90 && !pret; k++) { await att(500); pret = await p.evaluate(i => { if (i === 'terre') return !!(window.Terre && Terre.etat && Terre.etat().actif); if (i === 'anatomie') return !!(window.Saturne && Saturne.etat && Saturne.etat().salle); if (i === 'dev3d') return !!(window.Neptune && Neptune.etat && Neptune.etat().actif); return false; }, id).catch(() => false); }
   await att(2500);

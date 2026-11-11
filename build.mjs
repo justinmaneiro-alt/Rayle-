@@ -48,7 +48,10 @@ for (const f of fichiers) {
   if (f === 'config.js') {
     const url = arg('meme-origine') ? null : (typeof arg('url') === 'string' ? arg('url') : null);
     const base = fs.readFileSync(f, 'utf8');
-    fs.writeFileSync(cible, arg('meme-origine') ? base.replace(/workerUrl:\s*'[^']*'/, 'workerUrl: location.origin') : url ? base.replace(/workerUrl:\s*'[^']*'/, "workerUrl: '" + url.replace(/\/+$/, '') + "'") : base);
+    // --meme-origine : l'application appelle toujours le backend de sa propre adresse, avec jeton ; --url : adresse distante
+    const memeOrigine = base.replace('workerUrl: local ? location.origin : distant', 'workerUrl: location.origin').replace('sansJeton: local', 'sansJeton: false');
+    const distante = url ? base.replace(/var distant = '[^']*'/, "var distant = '" + url.replace(/\/+$/, '') + "'") : base;
+    fs.writeFileSync(cible, arg('meme-origine') ? memeOrigine : distante);
     octets += fs.statSync(cible).size; continue;
   }
   fs.copyFileSync(f, cible); octets += fs.statSync(f).size;

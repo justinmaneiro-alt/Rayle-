@@ -1,82 +1,119 @@
 "use strict";
-/* ═════════════ APPLICATION RAYLÉ : carrousel de fenêtres ═════════════
-   Cinq fenêtres, dans l'ordre : Rayle (l'accueil) · Terminal · Anatomie · Terre (actualité) · Développement 3D.
-   On passe de l'une à l'autre en balayant (souris, doigt), avec les flèches du clavier, la molette horizontale ou la voix.
-   On n'ENTRE dans une fenêtre qu'en cliquant dessus ; la croix en haut à droite la ferme et ramène au carrousel.
-   Chaque fenêtre est chargée à la demande (rien n'est chargé avant le premier clic).
-   API : window.Application = { aller(i|id), suivant(), precedent(), ouvrir(id), fermer(), etat(), fenetres } ; événements du bus : app:carrousel, app:ouvert, app:ferme. */
+/* ═════════════ APPLICATION RAYLÉ : carrousel 3D de panneaux holographiques ═════════════
+   Cinq panneaux, dans l'ordre : Rayle (accueil) · Terminal · Anatomie · Terre (actualité) · Développement 3D.
+   Le fond animé (noyau doré, anneaux, éclats, vague) reste affiché EN PERMANENCE ; balayer ne change jamais de thème ni de fond.
+   Le panneau du centre est grand, ses voisins sont inclinés et plus petits ; le mouvement a de l'inertie (ressort amorti) et le noyau glisse en parallaxe.
+   Chaque panneau montre une MINIATURE VIVANTE de sa fenêtre (core/commun/miniatures.js), dessinée seulement quand il est visible.
+   On passe de l'un à l'autre en balayant (souris, doigt), avec les flèches, la molette horizontale, le dock ou la voix.
+   Un clic sur le panneau du centre l'agrandit jusqu'à devenir la fenêtre ; la croix ou Échap fait l'inverse. Chaque fenêtre est chargée à la demande.
+   API : window.Application = { aller(i|id), suivant(), precedent(), ouvrir(id), fermer(), commande(texte), etat(), fenetres } ; événements du bus : app:carrousel, app:ouvert, app:ferme. */
 (function(){
   const FENETRES=[
-    {id:'rayle',nom:'Rayle',alias:['rayle','accueil','maison','l accueil'],sous:'Accueil',desc:'Ton assistante, la météo et l’actualité du jour.',icone:''},
-    {id:'terminal',nom:'Terminal',alias:['terminal','trading','le terminal','marche','marches','bourse'],sous:'Terminal de trading',desc:'Graphiques, niveaux, alertes et carnet d’ordres.',icone:'<svg viewBox="0 0 64 64"><path class="ac-tr" d="M6 52h52M8 44l14-16 12 9 22-24"/><path class="ac-tr" d="M44 13h12v12" /></svg>'},
-    {id:'anatomie',nom:'Anatomie',alias:['anatomie','squelette','le corps','corps humain','muscles'],sous:'Anatomie 3D',desc:'Squelette, muscles, ligaments, mouvements.',icone:'<svg viewBox="0 0 64 64"><circle class="ac-tr" cx="32" cy="12" r="7"/><path class="ac-tr" d="M32 19v26M20 26h24M24 26l-4 18M40 26l4 18M32 45l-8 14M32 45l8 14"/></svg>'},
-    {id:'terre',nom:'Terre',alias:['terre','actualite','actualites','la terre','globe','planete','monde','news'],sous:'Terre · actualité',desc:'Globe 3D, événements en direct, recherche.',icone:'<svg viewBox="0 0 64 64"><circle class="ac-tr" cx="32" cy="32" r="24"/><ellipse class="ac-tr" cx="32" cy="32" rx="10" ry="24"/><path class="ac-tr" d="M8 32h48M12 20h40M12 44h40"/></svg>'},
-    {id:'dev3d',nom:'Développement 3D',alias:['developpement','developpement 3d','atelier','maquette','maquettes','neptune','3d','bim'],sous:'Développement 3D',desc:'Atelier de maquettes et de mondes 3D.',icone:'<svg viewBox="0 0 64 64"><path class="ac-tr" d="M32 6l22 12v28L32 58 10 46V18z"/><path class="ac-tr" d="M10 18l22 12 22-12M32 30v28"/></svg>'}
+    {id:'rayle',nom:'Rayle',alias:['rayle','accueil','maison','l accueil'],sous:'Accueil'},
+    {id:'terminal',nom:'Terminal',alias:['terminal','trading','le terminal','marche','marches','bourse'],sous:'Terminal de trading'},
+    {id:'anatomie',nom:'Anatomie',alias:['anatomie','squelette','le corps','corps humain','muscles'],sous:'Anatomie 3D'},
+    {id:'terre',nom:'Terre',alias:['terre','actualite','actualites','la terre','globe','planete','monde','news'],sous:'Terre · actualité'},
+    {id:'dev3d',nom:'Développement 3D',alias:['developpement','developpement 3d','atelier','maquette','maquettes','neptune','3d','bim'],sous:'Développement 3D'}
   ];
   const PLANETE={anatomie:'saturne',terre:'terre',dev3d:'neptune'};
-  const corps=document.body, bus=()=>window.RayleBus;
-  let index=0, ouvert=null, dx=0, x0=null, y0=null, glisse=false, bloqueClic=false, racine=null, piste=null, croix=null;
+  const N=FENETRES.length, corps=document.body, bus=()=>window.RayleBus;
+  let cible=0, pos=0, vel=0, ouvert=null, racine=null, scene=null, croix=null, panneaux=[], boucleActive=false, dernierT=0;
+  let x0=null, y0=null, glisse=false, bloqueClic=false, posDebut=0, xPrec=0, tPrec=0, vPointeur=0;
   const attendre=ms=>new Promise(r=>setTimeout(r,ms));
   const largeur=()=>window.innerWidth||document.documentElement.clientWidth||1;
+  const reduit=()=>!!(window.matchMedia&&matchMedia('(prefers-reduced-motion: reduce)').matches);
 
   /* ───── construction ───── */
   function construire(){
     racine=document.createElement('div'); racine.id='app-car'; racine.setAttribute('role','region'); racine.setAttribute('aria-label','Fenêtres de Raylé');
-    racine.innerHTML='<div class="ac-piste">'+FENETRES.map((f,i)=>i===0
-      ?'<section class="ac-vue ac-accueil" data-id="rayle" aria-label="Accueil"></section>'
-      :'<section class="ac-vue" data-id="'+f.id+'" aria-label="'+f.nom+'"><button type="button" class="ac-carte" data-ouvrir="'+f.id+'" aria-label="Ouvrir '+f.nom+'"><span class="ac-icone">'+f.icone+'</span><b>'+f.sous+'</b><small>'+f.desc+'</small><em>Toucher pour entrer</em></button></section>').join('')+'</div>'
+    racine.innerHTML='<div class="ac-scene">'+FENETRES.map(f=>'<div class="ac-p" data-id="'+f.id+'" role="button" tabindex="0" aria-label="'+f.nom+'"><div class="ac-cadre"><header><b>'+f.nom+'</b><small>'+f.sous+'</small></header><div class="ac-mini"><canvas aria-hidden="true"></canvas></div><footer><span></span><em>Cliquer pour entrer</em></footer></div></div>').join('')+'</div>'
       +'<button type="button" class="ac-fleche ac-g" aria-label="Fenêtre précédente">‹</button><button type="button" class="ac-fleche ac-d" aria-label="Fenêtre suivante">›</button>'
-      +'<nav class="ac-points" aria-label="Choisir une fenêtre">'+FENETRES.map((f,i)=>'<button type="button" data-i="'+i+'" aria-label="'+f.nom+'" title="'+f.nom+'"></button>').join('')+'</nav>'
-      +'<div class="ac-nom" aria-live="polite"></div>';
-    document.body.appendChild(racine); piste=racine.querySelector('.ac-piste');
+      +'<nav class="ac-points" aria-label="Choisir une fenêtre">'+FENETRES.map((f,i)=>'<button type="button" data-i="'+i+'" aria-label="'+f.nom+'" title="'+f.nom+'"></button>').join('')+'</nav><div class="ac-nom" aria-live="polite"></div>';
+    document.body.appendChild(racine); scene=racine.querySelector('.ac-scene'); panneaux=[...racine.querySelectorAll('.ac-p')];
     croix=document.createElement('button'); croix.type='button'; croix.id='app-croix'; croix.hidden=true; croix.setAttribute('aria-label','Fermer la fenêtre et revenir au carrousel'); croix.title='Fermer (Échap)'; croix.innerHTML='<svg viewBox="0 0 24 24"><path d="M5 5l14 14M19 5L5 19"/></svg>';
     document.body.appendChild(croix);
     racine.addEventListener('click',e=>{
       if(bloqueClic){ e.preventDefault(); return; }
-      const o=e.target.closest('[data-ouvrir]'); if(o){ ouvrir(o.dataset.ouvrir); return; }
-      if(e.target.closest('.ac-g')) precedent(); else if(e.target.closest('.ac-d')) suivant();
-      const p=e.target.closest('.ac-points [data-i]'); if(p) aller(+p.dataset.i);
+      if(e.target.closest('.ac-g')){ precedent(); return; } if(e.target.closest('.ac-d')){ suivant(); return; }
+      const pt=e.target.closest('.ac-points [data-i]'); if(pt){ aller(+pt.dataset.i); return; }
+      const p=e.target.closest('.ac-p'); if(!p||p.classList.contains('ac-cache')) return;
+      const i=FENETRES.findIndex(f=>f.id===p.dataset.id);
+      if(i===cible&&i>0) ouvrir(p.dataset.id); else aller(i);
     });
+    racine.addEventListener('keydown',e=>{ if((e.key==='Enter'||e.key===' ')&&e.target.classList&&e.target.classList.contains('ac-p')){ e.preventDefault(); e.target.click(); } });
     croix.addEventListener('click',()=>fermer());
   }
 
-  /* ───── position ───── */
-  function appliquer(anime){
-    const pos=Math.max(0,Math.min(FENETRES.length-1,index-dx/largeur()));
-    piste.style.transition=anime?'transform .42s cubic-bezier(.2,.8,.2,1)':'none';
-    piste.style.transform='translate3d('+(-pos*100)+'vw,0,0)';
-    corps.style.setProperty('--app-p',Math.min(1,pos).toFixed(3));
-    corps.dataset.appI=String(index);
-    corps.classList.toggle('app-accueil',index===0);
-    racine.querySelectorAll('.ac-points button').forEach((b,i)=>{ b.classList.toggle('on',i===index); b.setAttribute('aria-current',i===index?'true':'false'); });
-    racine.querySelector('.ac-g').hidden=index===0; racine.querySelector('.ac-d').hidden=index===FENETRES.length-1;
-    racine.querySelector('.ac-nom').textContent=index===0?'':FENETRES[index].nom;
-    racine.querySelectorAll('.ac-vue').forEach((s,i)=>{ s.setAttribute('aria-hidden',i===index?'false':'true'); const b=s.querySelector('button'); if(b) b.tabIndex=i===index?0:-1; });
+  /* ───── mise en page 3D : le panneau du centre est grand, les voisins inclinés et plus petits ───── */
+  function placer(){
+    const L=largeur(), etroit=L<=820, decal=(etroit?0.62:0.5)*L;
+    const ids=[];
+    panneaux.forEach((p,i)=>{
+      const d=i-pos, a=Math.abs(d), s=Math.sign(d)||1;
+      const x=s*(a<=1?a*decal:decal+(a-1)*decal*0.55), rot=-s*Math.min(a,1.6)*(etroit?34:40), ech=Math.max(0.35,1-Math.min(a,1.6)*0.36), z=-Math.min(a,2)*170;
+      let op=a<=1?1-a*0.18:Math.max(0,0.82-(a-1)*0.9);
+      if(i===0) op*=Math.min(1,a*1.6);        // Rayle : au centre, le panneau s'efface, c'est l'accueil lui-même qui est là
+      if(i===0&&a<0.3) op=0;
+      // à l'accueil, les voisins restent discrets pour ne pas gêner les blocs de l'accueil
+      if(i!==0&&pos<0.6&&Math.abs(i-pos)>0.5) op*=0.55+0.45*Math.min(1,pos/0.6);
+      const y=(i>0&&pos<0.8)?(1-pos/0.8)*(1-Math.min(1,Math.abs(i-1)))*110:0;
+      p.style.transform='translate3d('+x.toFixed(1)+'px,'+y.toFixed(0)+'px,'+z.toFixed(0)+'px) rotateY('+rot.toFixed(1)+'deg) scale('+ech.toFixed(3)+')';
+      p.style.opacity=op.toFixed(3); p.style.zIndex=String(100-Math.round(a*10)); p.classList.toggle('ac-centre',a<0.5); p.classList.toggle('ac-cache',op<0.05||(i===0&&a<0.3));
+      p.setAttribute('aria-hidden',op<0.05?'true':'false'); p.tabIndex=(a<0.5&&op>0.05)?0:-1;
+      if(a<1.7&&op>0.04) ids.push(FENETRES[i].id);
+    });
+    corps.style.setProperty('--app-home',String(Math.max(0,Math.min(1,1-pos*1.7)).toFixed(3)));
+    corps.style.setProperty('--app-dx',(-pos*30).toFixed(1)+'px');
+    corps.dataset.appI=String(cible); corps.classList.toggle('app-accueil',cible===0&&pos<0.35);
+    racine.querySelectorAll('.ac-points button').forEach((b,i)=>{ b.classList.toggle('on',i===cible); b.setAttribute('aria-current',i===cible?'true':'false'); });
+    racine.querySelector('.ac-g').hidden=cible===0; racine.querySelector('.ac-d').hidden=cible===N-1;
+    if(!ouvert){
+      for(const id of ids){ const p=panneaux[FENETRES.findIndex(f=>f.id===id)], c=p&&p.querySelector('canvas'); if(c&&!c.dataset.m&&window.Miniatures){ c.dataset.m='1'; window.Miniatures.creer(id,c); } }
+      if(window.Miniatures) window.Miniatures.visibles(ids);
+    } else if(window.Miniatures) window.Miniatures.visibles([]);
   }
-  function aller(cible,opts){
+
+  /* ───── mouvement : ressort amorti (inertie) ───── */
+  function boucle(t){
+    const dt=Math.min(0.05,(t-dernierT)/1000||0.016); dernierT=t;
+    if(glisse){ placer(); boucleActive=false; return; }
+    const k=reduit()?400:95, c=2*Math.sqrt(k);
+    const acc=k*(cible-pos)-c*vel; vel+=acc*dt; pos+=vel*dt;
+    if(Math.abs(cible-pos)<0.0006&&Math.abs(vel)<0.004){ pos=cible; vel=0; placer(); boucleActive=false; return; }
+    placer(); requestAnimationFrame(boucle);
+  }
+  function lancer(){ if(boucleActive) return; boucleActive=true; dernierT=performance.now(); requestAnimationFrame(boucle); }
+  function aller(c,opts){
     if(ouvert&&!(opts&&opts.force)) return false;
-    let i=typeof cible==='number'?cible:FENETRES.findIndex(f=>f.id===cible); if(i<0) return false;
-    index=Math.max(0,Math.min(FENETRES.length-1,i)); dx=0; appliquer(true);
-    try{ bus().emit('app:carrousel',{index,id:FENETRES[index].id}); bus().fusion('app',{vue:FENETRES[index].id,ouvert:null}); }catch(e){}
+    const i=typeof c==='number'?c:FENETRES.findIndex(f=>f.id===c); if(i<0) return false;
+    cible=Math.max(0,Math.min(N-1,i)); lancer();
+    try{ bus().emit('app:carrousel',{index:cible,id:FENETRES[cible].id}); bus().fusion('app',{vue:FENETRES[cible].id,ouvert:null}); }catch(e){}
     return true;
   }
-  const suivant=()=>aller(index+1), precedent=()=>aller(index-1);
+  const suivant=()=>aller(cible+1), precedent=()=>aller(cible-1);
 
-  /* ───── balayage (souris et doigt) ───── */
-  const IGNORE='input,textarea,select,[contenteditable="true"],.cfg,#cfg,.pn,#panneaux,#tb-reglages,.ar-fen,#vueTerminal,#vueGalaxie';
+  /* ───── balayage (souris et doigt) : le panneau suit le doigt, puis l'élan décide ───── */
+  const IGNORE='input,textarea,select,[contenteditable="true"],.cfg,#cfg,.pn,#panneaux,#tb-reglages,.ar-fen,#vueTerminal,#vueGalaxie,.g1-dock,.ac-fleche,.ac-points';
   function bas(e){
     if(ouvert||(e.pointerType==='mouse'&&e.button!==0)||e.target.closest(IGNORE)) return;
-    x0=e.clientX; y0=e.clientY; dx=0; glisse=false;
+    x0=e.clientX; y0=e.clientY; glisse=false; posDebut=pos; xPrec=x0; tPrec=performance.now(); vPointeur=0;
   }
   function deplace(e){
     if(x0==null) return; const mx=e.clientX-x0, my=e.clientY-y0;
-    if(!glisse){ if(Math.abs(my)>14&&Math.abs(my)>Math.abs(mx)){ x0=null; return; } if(Math.abs(mx)>10&&Math.abs(mx)>Math.abs(my)*1.2){ glisse=true; corps.classList.add('app-glisse'); } }
-    if(glisse){ dx=mx; if((index===0&&dx>0)||(index===FENETRES.length-1&&dx<0)) dx*=0.3; appliquer(false); }
+    if(!glisse){ if(Math.abs(my)>14&&Math.abs(my)>Math.abs(mx)){ x0=null; return; } if(Math.abs(mx)>9&&Math.abs(mx)>Math.abs(my)*1.15){ glisse=true; vel=0; corps.classList.add('app-glisse'); } }
+    if(glisse){
+      const unite=(largeur()<=820?0.62:0.5)*largeur(); let p=posDebut-mx/unite; if(p<0) p*=0.35; if(p>N-1) p=N-1+(p-(N-1))*0.35; pos=p;
+      const n=performance.now(), dtp=Math.max(1,n-tPrec); vPointeur=0.8*vPointeur+0.2*(-(e.clientX-xPrec)/unite/(dtp/1000)); xPrec=e.clientX; tPrec=n; placer();
+    }
   }
   function haut(){
-    if(x0==null) return; const seuil=Math.min(90,largeur()*0.16), d=dx, etaitGlisse=glisse;
-    x0=null; glisse=false; corps.classList.remove('app-glisse'); dx=0;
-    if(etaitGlisse){ bloqueClic=true; setTimeout(()=>{ bloqueClic=false; },60); if(d<-seuil) suivant(); else if(d>seuil) precedent(); else appliquer(true); }
+    if(x0==null) return; const etait=glisse; x0=null; glisse=false; corps.classList.remove('app-glisse');
+    if(etait){
+      bloqueClic=true; setTimeout(()=>{ bloqueClic=false; },70);
+      const v=(performance.now()-tPrec>90)?0:Math.max(-4,Math.min(4,vPointeur)); vel=v*0.6; cible=Math.max(0,Math.min(N-1,Math.round(pos+v*0.14)));
+      try{ bus().emit('app:carrousel',{index:cible,id:FENETRES[cible].id}); bus().fusion('app',{vue:FENETRES[cible].id,ouvert:null}); }catch(e){}
+      lancer();
+    }
   }
   let rouleau=0;
   function molette(e){
@@ -86,10 +123,26 @@
   function touche(e){
     if(e.defaultPrevented||e.ctrlKey||e.metaKey||e.altKey||/INPUT|TEXTAREA|SELECT/.test((e.target&&e.target.tagName)||'')||(e.target&&e.target.isContentEditable)) return;
     if(ouvert){ if(ouvert==='anatomie'&&(e.key==='m'||e.key==='M')){ e.preventDefault(); e.stopImmediatePropagation(); return; } if(e.key==='Escape'){ e.preventDefault(); e.stopImmediatePropagation(); fermer(); } return; }
-    if(corps.classList.contains('cfg-ouvert')||document.getElementById('cfg')&&document.getElementById('cfg').classList.contains('open')) return;
+    if(corps.classList.contains('cfg-ouvert')||(document.getElementById('cfg')&&document.getElementById('cfg').classList.contains('open'))) return;
     if(e.key==='ArrowRight'){ e.preventDefault(); suivant(); } else if(e.key==='ArrowLeft'){ e.preventDefault(); precedent(); }
-    else if(e.key==='Enter'&&index>0&&document.activeElement===document.body){ ouvrir(FENETRES[index].id); }
+    else if(e.key==='Enter'&&cible>0&&(document.activeElement===document.body)){ ouvrir(FENETRES[cible].id); }
     else if(e.key==='Home'){ aller(0); }
+  }
+
+  /* ───── agrandissement : le panneau grandit jusqu'à devenir la fenêtre (et inversement) ───── */
+  function rectPanneau(id){ const p=panneaux[FENETRES.findIndex(f=>f.id===id)]; return p?p.querySelector('.ac-cadre').getBoundingClientRect():null; }
+  function grandir(id){
+    const r=rectPanneau(id); if(!r||reduit()) return null;
+    const g=document.createElement('div'); g.className='ac-grow'; let img=null; try{ img=window.Miniatures&&window.Miniatures.instantane(id); }catch(e){}
+    if(img) g.style.backgroundImage='url('+img+')';
+    g.style.left=r.left+'px'; g.style.top=r.top+'px'; g.style.width=r.width+'px'; g.style.height=r.height+'px'; document.body.appendChild(g);
+    void g.offsetWidth; g.style.left='0px'; g.style.top='0px'; g.style.width='100vw'; g.style.height='100vh'; return g;
+  }
+  async function rentrer(id){
+    if(reduit()) return;
+    const r=rectPanneau(id); if(!r) return;
+    const g=document.createElement('div'); g.className='ac-grow'; g.style.left='0px'; g.style.top='0px'; g.style.width='100vw'; g.style.height='100vh'; document.body.appendChild(g);
+    void g.offsetWidth; g.style.left=r.left+'px'; g.style.top=r.top+'px'; g.style.width=r.width+'px'; g.style.height=r.height+'px'; await attendre(470); g.classList.add('ac-fond'); await attendre(420); g.remove();
   }
 
   /* ───── ouvrir et fermer ───── */
@@ -105,15 +158,17 @@
   }
   async function ouvrir(id,opts){
     const f=FENETRES.find(x=>x.id===id); if(!f||id==='rayle') return aller(0,{force:true});
-    if(ouvert===id) return true; if(ouvert) await fermer({silencieux:true});
-    ouvert=id; const i=FENETRES.indexOf(f); index=i; appliquer(false);
-    corps.classList.add('app-ouvert'); croix.hidden=false; corps.dataset.appOuvert=id;
+    if(ouvert===id) return true; if(ouvert) await fermer({silencieux:true,sansAnim:true});
+    const i=FENETRES.indexOf(f); if(Math.abs(pos-i)>0.5){ cible=i; pos=i; vel=0; placer(); }
+    const g=grandir(id);
+    ouvert=id; corps.classList.add('app-ouvert'); croix.hidden=false; corps.dataset.appOuvert=id; placer();
     try{
       if(id==='terminal') await bus().demander('vue:ouvrir','terminal'); else await ouvrirPlanete(id,opts);
     }catch(e){
       console.error('[app] ouverture de '+id+' :',e); try{ bus().emit('vue:erreur',{message:f.nom+' n’a pas pu s’ouvrir : '+(e&&e.message||e)}); }catch(x){}
-      await fermer({silencieux:true}); return false;
+      if(g) g.remove(); await fermer({silencieux:true,sansAnim:true}); return false;
     }
+    if(g){ await attendre(220); g.classList.add('ac-fond'); setTimeout(()=>g.remove(),450); }
     try{ bus().emit('app:ouvert',{id}); bus().fusion('app',{vue:id,ouvert:id}); }catch(e){}
     return true;
   }
@@ -130,12 +185,13 @@
       }
     }catch(e){ console.warn('[app] fermeture :',e); }
     corps.classList.remove('app-ouvert','app-direct'); delete corps.dataset.appOuvert; delete corps.dataset.appDirect; croix.hidden=true;
-    appliquer(true);
-    try{ bus().emit('app:ferme',{id}); bus().fusion('app',{vue:FENETRES[index].id,ouvert:null}); }catch(e){}
+    placer(); lancer();
+    if(!(opts&&opts.sansAnim)) rentrer(id);
+    try{ bus().emit('app:ferme',{id}); bus().fusion('app',{vue:FENETRES[cible].id,ouvert:null}); }catch(e){}
     return true;
   }
   /* une fenêtre qui se ferme toute seule (Échap dans le module, bouton retour du terminal) : le carrousel reprend la main */
-  function surVue(d){ if(d&&d.vue==='rayle'&&ouvert==='terminal'){ ouvert=null; corps.classList.remove('app-ouvert','app-direct'); croix.hidden=true; appliquer(true); try{ bus().emit('app:ferme',{id:'terminal'}); }catch(e){} } }
+  function surVue(d){ if(d&&d.vue==='rayle'&&ouvert==='terminal'){ const id=ouvert; ouvert=null; corps.classList.remove('app-ouvert','app-direct'); croix.hidden=true; placer(); lancer(); rentrer(id); try{ bus().emit('app:ferme',{id}); }catch(e){} } }
   function surSortiePlanete(e){ if(ouvert&&ouvert!=='terminal'&&!(e.detail&&e.detail.app)){ fermer(); } }
 
   /* ───── voix et texte : « ouvre le terminal », « suivant », « ferme » ───── */
@@ -147,9 +203,9 @@
   function commande(texte){
     const n=norm(texte).replace(/^(hey |dis moi |dis )?rayle /,'');
     if(/^(ferme|fermer|quitte|quitter|reviens|retour|retourne)( (la |cette )?(fenetre|ecran|page))?( au carrousel| a l accueil| au menu)?$/.test(n)||/^(ferme (tout|la fenetre|cette fenetre|l ecran)|retour au carrousel|retour a l accueil|va a l accueil|accueil)$/.test(n)){
-      if(ouvert) return fermer().then(()=> 'Fermé.'); if(index>0){ aller(0); return 'Retour à l’accueil.'; } return null; }
-    if(/^(suivant|suivante|a droite|va a droite|fenetre suivante|ecran suivant|glisse a droite|balaie a droite)$/.test(n)){ if(ouvert) return null; if(index>=FENETRES.length-1) return 'C’est la dernière fenêtre.'; suivant(); return FENETRES[index].nom+'.'; }
-    if(/^(precedent|precedente|a gauche|va a gauche|fenetre precedente|ecran precedent|glisse a gauche|balaie a gauche)$/.test(n)){ if(ouvert) return null; if(index<=0) return 'Tu es déjà à l’accueil.'; precedent(); return FENETRES[index].nom+'.'; }
+      if(ouvert) return fermer().then(()=> 'Fermé.'); if(cible>0){ aller(0); return 'Retour à l’accueil.'; } return null; }
+    if(/^(suivant|suivante|a droite|va a droite|fenetre suivante|ecran suivant|glisse a droite|balaie a droite)$/.test(n)){ if(ouvert) return null; if(cible>=N-1) return 'C’est la dernière fenêtre.'; suivant(); return FENETRES[cible].nom+'.'; }
+    if(/^(precedent|precedente|a gauche|va a gauche|fenetre precedente|ecran precedent|glisse a gauche|balaie a gauche)$/.test(n)){ if(ouvert) return null; if(cible<=0) return 'Tu es déjà à l’accueil.'; precedent(); return FENETRES[cible].nom+'.'; }
     const m=/^(ouvre|ouvrir|affiche|montre|va|vas|aller|lance|emmene moi|amene moi|passe|passe sur|mets|met)( moi)?( (a|au|aux|sur|dans|vers|le|la|les|l|un|une))*( |$)(.*)$/.exec(n);
     if(m){ const f=trouver(m[6]||''); if(f&&f.id!=='rayle'){ ouvrir(f.id); return f.id==='terre'?'J’ouvre la Terre.':'J’ouvre '+(f.id==='terminal'?'le terminal':f.id==='anatomie'?'l’anatomie':'le développement 3D')+'.'; } if(f&&f.id==='rayle'){ aller(0,{force:true}); return 'Retour à l’accueil.'; } }
     if(/^(montre|affiche|donne)( moi)? (l |les )?(actualite|actualites|infos|news)( du jour)?$/.test(n)||/^(quoi de neuf|que se passe t il dans le monde)$/.test(n)){ ouvrir('terre'); return 'Je monte sur la Terre pour l’actualité.'; }
@@ -157,14 +213,15 @@
   }
 
   function demarrer(){
-    construire(); appliquer(false);
+    construire(); placer();
     window.addEventListener('pointerdown',bas,{passive:true}); window.addEventListener('pointermove',deplace,{passive:true}); window.addEventListener('pointerup',haut,{passive:true}); window.addEventListener('pointercancel',haut,{passive:true});
     window.addEventListener('wheel',molette,{passive:true}); window.addEventListener('keydown',touche,true);
     window.addEventListener('galaxie:sortie',surSortiePlanete);
-    window.addEventListener('resize',()=>appliquer(false));
+    window.addEventListener('resize',()=>placer());
+    document.addEventListener('visibilitychange',()=>{ if(document.hidden&&window.Miniatures) window.Miniatures.visibles([]); else placer(); });
     try{ bus().on('vue:changee',surVue); }catch(e){}
     corps.classList.add('app');
   }
-  window.Application={fenetres:FENETRES.map(f=>({id:f.id,nom:f.nom,sous:f.sous})),aller,suivant,precedent,ouvrir,fermer,commande,etat:()=>({index,id:FENETRES[index].id,ouvert}),_norm:norm,_trouver:id=>trouver(norm(id))};
+  window.Application={fenetres:FENETRES.map(f=>({id:f.id,nom:f.nom,sous:f.sous})),aller,suivant,precedent,ouvrir,fermer,commande,etat:()=>({index:cible,id:FENETRES[cible].id,ouvert,position:+pos.toFixed(3)}),_norm:norm,_trouver:id=>trouver(norm(id))};
   if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',demarrer); else demarrer();
 })();

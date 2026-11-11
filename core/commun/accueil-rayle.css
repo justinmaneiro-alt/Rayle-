@@ -61,3 +61,5 @@ html .ar-lien,html .ar-btn{min-height:0}
   .ar-jour .ar-liste span{display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden;font-size:12px}
   .ar-jour .ar-src{display:none}
 }
+.ar-jour .ar-liste li:nth-child(n+3){display:none}
+.ar-racine{z-index:6!important}

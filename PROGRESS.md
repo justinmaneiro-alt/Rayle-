@@ -1,3 +1,30 @@
+# Design doré + carrousel 3D + actualité en local (2026-11-11, branche `restructuration-rayle`) — avancement
+
+**Fait, rien poussé ni déployé.** Captures : `outils-restructuration/captures-design/` (avant : `avant-ambre.png` = tag, thème Aurore « Doré » ; après : `car-*.png` PC 1600, `apres-tab1024-*.png`, `apres-tel390-*.png`, `grow-mi-transition.png`).
+
+## Décisions
+1. **L'ancien design = le thème Aurore, palette « ambre / Doré »** (défaut du tag `avant-restructuration-rayle`). Récupéré tel quel depuis le tag : `core/commun/g1-accueil.{js,css}`, `g1-contenu.js`, `g1-fenetres-calcul.js`, `graphique-bougies-calcul.js` (anneaux orbitaux, éclats orange flottants, ligne ondulante, dock orange). Je n'ai pas pu lire l'enregistrement du 25/10 (350 Mo, ne s'ouvre pas dans Chrome) ; l'extraction d'images des autres enregistrements marche (`tests-navigateur/_frames.mjs`) mais ils montrent Mars, pas l'accueil : la référence est donc le code du tag.
+2. **Le contenu de l'ancien accueil Aurore est masqué** (fil, graphes, grande fenêtre, menu Espaces : CSS) ; on garde le DÉCOR + le dock. Le dock devient : Accueil · Terminal · Anatomie · Terre · 3D · Réglages (il fait défiler le carrousel).
+3. **Sphère dorée et brillante** : teinte CSS sur le seul canvas de l'entité (`body.g1 #reactor canvas{filter:sepia…}`), car la palette ambre du tag ne la rendait pas visiblement dorée (blanc-bleu + bloom). Le moteur de l'entité n'est pas modifié.
+4. **Bleu-blanc supprimé** : toutes les couleurs cyan (`#8fd0e3`, `143,208,227`…) des feuilles de style de l'application remplacées par l'or `#ffae3d` / `#ffe08a` (core/commun, skins/neurone, galaxie, terre, anatomie, neptune). Terminal (contenu intérieur) NON touché.
+5. **Carrousel 3D** (`core/commun/application.js` réécrit, `carrousel3d.css`) : cinq panneaux holographiques à cadre doré lumineux, centre grand, voisins inclinés et plus petits, ressort amorti (inertie), le noyau et les anneaux glissent en parallaxe (`--app-dx`), le fond ne change jamais. Un clic sur le panneau du centre l'agrandit jusqu'à la fenêtre (`.ac-grow`, 0,46 s) ; croix, Échap ou « ferme » font l'inverse. Plus de carte « icône et titre ». À l'accueil, le panneau Rayle s'efface (l'accueil EST ce panneau) et les voisins restent discrets.
+6. **Miniatures vivantes** (`core/commun/miniatures.js`) : Terminal = vrai graphique H1 (bougies Kraken par `bougiesKraken`, MA200, flèches MA200 de `fleches-terminal-v1.js` en lecture seule, prix, rafraîchi toutes les 8 s) ; Anatomie = squelette `os-1.glb` qui tourne ; Terre = globe (texture 8k réduite à 1024 px) avec points d'actualité aux lieux réels des sujets du Worker (aucun point sans données) ; Développement 3D = engrenage ; Rayle = anneaux. Un seul moteur WebGL partagé (260 px de haut), ≈ 20 i/s, dessinées SEULEMENT si leur panneau est visible ; image fixe si l'appareil est lent (> 24 ms par image après 60 mesures) ou si « réduire les animations ».
+7. **Actualité en local** : (a) `worker/portable/coeur.js` autorise toute origine locale (localhost, 127.x, ::1, 10.x, 192.168.x, 172.16-31.x, *.local, tout port) ; (b) le serveur du PC (`serveur.mjs`) EMBARQUE le backend sur sa propre adresse (même code que le Worker, aucun CORS) ; (c) `config.js` choisit tout seul : application ouverte en local → `location.origin` et AUCUN jeton demandé (`RAYLE_CONFIG.sansJeton`, lu par `workerReady`) ; ailleurs → `workers.dev` avec le jeton. Cause du « INDISPONIBLE : Worker verrouillé ou non configuré » : pas de jeton saisi, et origine non autorisée. `build.mjs` adapté (`--meme-origine`, `--url`).
+8. Le geste de balayage garde l'élan mais plafonné (au plus un panneau de plus) ; relâcher après une pause ne donne aucun élan.
+
+## Vérifications
+`npm test` : passe. `node outils-restructuration/test-carrousel.mjs pc1600|tab1024|tel390` : 11/11 chacun (balayage souris et TACTILE, flèches, voix, clic d'agrandissement du panneau, croix, pas de défilement horizontal). `node outils-restructuration/test-planetes.mjs pc1600` : 6/6 (clic sur le panneau → fenêtre → croix). Actualité de France sur l'accueil en local : 3 sujets avec images (Le Monde, Le Figaro, Sud Ouest), vue sur `car-0.png`. CORS : origine LAN autorisée (204 et `allow-origin`), origine étrangère refusée.
+**Fluidité** (`outils-restructuration/fluidite-car.mjs`, profil téléphone 390 px, processeur ralenti ×4) : 144 i/s au repos sur les cinq panneaux, **minimum 86 i/s (images de 21 ms au pire) pendant un balayage** ; PC : 144 i/s partout. Les miniatures coûtent ≈ 3 ms par image (téléphone ×4).
+
+## Non vérifié
+- **60 i/s sur le vrai Galaxy S23 Ultra** : seulement l'émulation sur le GPU du PC (le ralentissement ×4 ne ralentit que le processeur). Le repli « image fixe » est testé par la logique, pas sur un appareil lent.
+- Le point-clé du design (« doré et lumineux ») est jugé sur captures ; je n'ai pas pu comparer à l'enregistrement d'écran du 25/10 (illisible). La teinte de la sphère par filtre CSS est un choix de ma part : à valider à l'œil.
+- Points d'actualité du globe : visibles seulement si le Worker répond avec des lieux (non vu sur capture, le globe montrait « points d'actualité » en légende).
+- Le panneau « Réponse » (accueil de Raylé) recouvre un peu le coin haut-gauche du carrousel (inchangé, hérité).
+- La télécommande tablette n'existe plus : balayage au doigt seulement.
+
+---
+
 # Restructuration de Rayle (2026-11-11) — branche `restructuration-rayle`, tag de départ `avant-restructuration-rayle`
 
 Reprendre ici. Un commit par phase. **Rien n'est poussé ni déployé.** Tout ce qui a été retiré est copié dans `idees/retire-restructuration/` (hors git) ET récupérable avec le tag. Ancien Worker : `idees/worker-avant-restructuration/`.

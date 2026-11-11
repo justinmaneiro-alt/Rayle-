@@ -4,7 +4,7 @@ import fs from 'node:fs';
 const absorbant = () => { const f = function () {}; return new Proxy(f, { get: (t, k) => (k === 'then' ? undefined : k === Symbol.toPrimitive ? () => '' : k === 'length' ? 0 : proxy), apply: () => proxy, construct: () => proxy, set: () => true, has: () => true }); };
 const proxy = absorbant();
 const appels = []; const fen = { document: proxy, RayleBus: proxy, addEventListener() {}, innerWidth: 1000, Application: null, setTimeout, console };
-const sandbox = { window: fen, document: fen.document, navigator: {}, performance: { now: () => 0 }, setTimeout, clearTimeout, CustomEvent: function () {}, console, location: { search: '' } };
+const sandbox = { requestAnimationFrame: () => 0, window: fen, document: fen.document, navigator: {}, performance: { now: () => 0 }, setTimeout, clearTimeout, CustomEvent: function () {}, console, location: { search: '' } };
 new Function(...Object.keys(sandbox), fs.readFileSync('core/commun/application.js', 'utf8'))(...Object.values(sandbox));
 const A = fen.Application;
 let ok = 0, ko = 0; const v = (n, c, d = '') => { c ? ok++ : ko++; if (!c) console.log('KO  ' + n + (d ? ' — ' + d : '')); };
