@@ -1,0 +1,12 @@
+import { detecterRetests, autoriser } from '../front/or/zones-alertes.js'; import { creer, modifier } from '../front/or/outils-calcul.js';
+let ko = 0; const v = (c, m) => { console.log(c ? 'OK ' : 'ÉCHEC', m); if (!c) ko++; };
+const H = 3600e3, b = (i, o, h, l, c) => ({ t: i * H, o, h, l, c, v: 1 });
+const C = [b(0, 10, 11, 9, 10), b(1, 10, 11, 9, 10), b(2, 10, 14, 10, 13), b(3, 13, 14, 12.5, 13.5), b(4, 13.5, 13.6, 11.8, 12.9)];
+const A = C.map(() => 1), ev = [{ id: 'z|cassure|' + 2 * H, objet: 'z', outil: 'zone', type: 'cassure', t: 2 * H, niveau: 12, cote: 'resistance', atr: 1 }];
+const r = detecterRetests(C, ev, A); v(r.length === 1 && r[0].t === 4 * H && r[0].sens === 'hausse', 'retest : mèche qui revient toucher le niveau cassé');
+v(detecterRetests(C.slice(0, 4), ev, A).length === 0, 'pas de retest tant que la bougie n\'existe pas (causal)');
+const C2 = [...C.slice(0, 3), b(3, 13, 13, 11, 11.2), b(4, 11.2, 12.5, 11, 12)]; v(detecterRetests(C2, ev, A).length === 0 || detecterRetests(C2, ev, A)[0].t === 3 * H, 'le premier contact fait foi');
+const o = creer('horizontale', { p: 10 }); v(o.muet === false && o.repete === true, 'défauts : annonce répétée, non muet');
+v(autoriser({ ...o, muet: true }, { objet: 'a', type: 'touche' }, new Set()) === false, 'muet : jamais annoncé');
+const u = modifier(o, { repete: false }); v(u.repete === false && autoriser(u, { objet: u.id, type: 'touche' }, new Set([u.id + '|touche'])) === false && autoriser(u, { objet: u.id, type: 'touche' }, new Set()) === true, 'une seule fois par type');
+process.exit(ko ? 1 : 0);

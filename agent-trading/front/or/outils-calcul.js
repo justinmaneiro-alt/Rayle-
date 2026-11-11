@@ -14,7 +14,7 @@ export const nouvelId = (t = Date.now()) => `o${t.toString(36)}${(compteur++).to
 /* création d'un objet (validation stricte ; null si invalide) */
 export function creer(type, d, { t = Date.now(), id = nouvelId(t) } = {}) {
   if (!TYPES.includes(type)) return null;
-  const base = { id, type, cree: d.cree ?? t, couleur: d.couleur || COULEURS[type], epaisseur: d.epaisseur || 1, etiquette: d.etiquette || '', alerte: !!d.alerte, origine: d.origine || 'dessin' };
+  const base = { id, type, cree: d.cree ?? t, couleur: d.couleur || COULEURS[type], epaisseur: d.epaisseur || 1, etiquette: d.etiquette || '', alerte: !!d.alerte, muet: !!d.muet, repete: d.repete !== false, origine: d.origine || 'dessin' };
   if (type === 'horizontale') { if (!(d.p > 0)) return null; return { ...base, p: r2(d.p) }; }
   if (type === 'zone') { if (!(d.bas > 0) || !(d.haut > 0)) return null; const bas = Math.min(d.bas, d.haut), haut = Math.max(d.bas, d.haut); return { ...base, bas: r2(bas), haut: r2(haut) }; }
   if (type === 'tendance' || type === 'rayon') { if (!(d.p1 > 0) || !(d.p2 > 0) || !Number.isFinite(d.t1) || !Number.isFinite(d.t2) || d.t1 === d.t2) return null;
@@ -26,7 +26,7 @@ export function creer(type, d, { t = Date.now(), id = nouvelId(t) } = {}) {
 /* modification : seuls les champs connus du type, puis revalidation (renvoie le nouvel objet ou null) */
 export function modifier(o, champs) {
   const permis = { horizontale: ['p'], zone: ['bas', 'haut'], tendance: ['t1', 'p1', 't2', 'p2'], rayon: ['t1', 'p1', 't2', 'p2'], position: ['entree', 'stop', 'objectif', 'risquePct', 'capital', 't0'] }[o.type] || [];
-  const d = { ...o }; for (const k of [...permis, 'couleur', 'epaisseur', 'etiquette', 'alerte']) if (k in champs) d[k] = champs[k];
+  const d = { ...o }; for (const k of [...permis, 'couleur', 'epaisseur', 'etiquette', 'alerte', 'muet', 'repete']) if (k in champs) d[k] = champs[k];
   const n = creer(o.type, d, { t: o.cree, id: o.id }); return n ? { ...n, cree: o.cree, origine: o.origine } : null;
 }
 /* valeur de l'objet à l'instant t : prix (ligne, tendance, rayon), {bas, haut} (zone) ; null avant la première ancre d'une droite */

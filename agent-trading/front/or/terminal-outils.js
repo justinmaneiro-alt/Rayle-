@@ -4,6 +4,8 @@
    alertes (historique, son, notification, Telegram facultatif), registre daté en AJOUT SEUL avec excursions sur 48 bougies.
    Information de lecture seulement : jamais un ordre, jamais un signal ni une promesse. Tout reste sur l'appareil (IndexedDB). */
 import { creer, modifier, libelle, calculPosition, NOMS, COULEURS, DEFAUTS_POSITION, exporter, importer } from './outils-calcul.js';
+import { atrLocal } from './niveaux-periode.js';
+import { detecterRetests, autoriser } from './zones-alertes.js';
 import { surveiller, fractalesMajeures, niveauxProposes, excursionEvenement, bilanRegistre, bilanV10, REGLES_V10, TEXTE_REGLES_V10, DEPUIS_V10 } from './fleches-v10.js';
 import { ouvrirStockage } from './stockage-outils.js';
 import { bougiesKraken } from './sources-or.js';
@@ -18,7 +20,7 @@ const ecrireJ = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } 
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const nb = (x, d = 2) => x == null || !Number.isFinite(+x) ? '—' : Number(x).toLocaleString('fr-FR', { minimumFractionDigits: d, maximumFractionDigits: d });
 const pause = () => new Promise(r => setTimeout(r, 0));
-export const TEXTES_EV = Object.freeze({ approche: 'approche', touche: 'touche', rebond: 'rebond confirmé', cassure: 'cassure confirmée', entree: 'prix d’entrée touché', stop: 'stop touché', objectif: 'objectif touché', plus1R: '+1 R atteint : tu peux envisager de remonter le stop au prix d’entrée (break-even)', alerte: 'prix d’alerte touché' });
+export const TEXTES_EV = Object.freeze({ approche: 'approche', retest: 'retest du niveau cassé', touche: 'touche', rebond: 'rebond confirmé', cassure: 'cassure confirmée', entree: 'prix d’entrée touché', stop: 'stop touché', objectif: 'objectif touché', plus1R: '+1 R atteint : tu peux envisager de remonter le stop au prix d’entrée (break-even)', alerte: 'prix d’alerte touché' });
 const AVERT = 'Information de lecture, pas un signal ni une promesse.';
 const OUTILS_BARRE = [['horizontale', '─', 'Support / résistance : un clic sur le prix'], ['zone', '▭', 'Zone : deux clics (bord haut et bord bas)'], ['tendance', '╱', 'Ligne de tendance : deux clics'], ['rayon', '↗', 'Rayon : deux clics'], ['position', '📐', 'Position : trois clics (entrée, stop, objectif)']];
 
@@ -30,7 +32,7 @@ export function smaSurBougies(B, M) { const out = []; let k = -1; for (const b o
 export function monterOutils(T, { stockage = null, fetchFn = fetch, maintenant = () => Date.now(), intervalle = 60e3, chargerH1 = null, chargerHist = null } = {}) {
   const R = T.R, q = s => R.querySelector(s), graph = T.graph, moteur = T.moteur;
   const regl = { ...REGLAGES_DEFAUT, ...lireJ(CLE_REGL, {}) };
-  const E = { objets: [], decisions: [], alertes: [], registre: [], suivis: [], C: [], res: { ev: [], fleches: [], croix: [], etats: {} }, proposes: [], fractales: [], selection: null, pret: false, derAnalyse: 0, pireTache: 0, erreur: null, derAlerte: new Map(), etapeTexte: '' };
+  const E = { objets: [], decisions: [], alertes: [], registre: [], suivis: [], C: [], res: { ev: [], fleches: [], croix: [], etats: {} }, proposes: [], fractales: [], selection: null, pret: false, derAnalyse: 0, pireTache: 0, erreur: null, derAlerte: new Map(), dejaDit: new Set(), etapeTexte: '' };
   let st = null, minuteur = null, enCours = false, detruit = false;
 
   /* ─── barre compacte (dans l'en-tête, à la place de l'ancien bouton Position) ─── */
@@ -132,6 +134,8 @@ export function monterOutils(T, { stockage = null, fetchFn = fetch, maintenant =
       <label>Couleur <input type="color" data-c="couleur" value="${esc(/^#[0-9a-f]{6}$/i.test(o.couleur) ? o.couleur : COULEURS[o.type])}"></label>
       <label>Épaisseur <select data-c="epaisseur">${[1, 2, 3].map(e => `<option${e === o.epaisseur ? ' selected' : ''}>${e}</option>`).join('')}</select></label>
       <label><input type="checkbox" data-c="alerte"${o.alerte ? ' checked' : ''}> M’alerter</label>
+      <label><input type="checkbox" data-c="muet"${o.muet ? ' checked' : ''}> Muet (journal seulement)</label>
+      <label><input type="checkbox" data-c="repete"${o.repete !== false ? ' checked' : ''}> Annoncer à chaque fois (sinon une seule fois)</label>
       ${c ? `<p class="tor-doux">${c.sens === 'achat' ? 'Achat' : 'Vente'} (déduit du stop) · risque ${nb(c.risque, 0)} $ · taille ${nb(c.taille, 3)} contrats (1 oz) · risque réel ${nb(c.risqueReel, 0)} $</p><button type="button" data-mo="journal">Enregistrer dans mon journal</button>` : ''}
       <button type="button" data-mo="supprimer">Supprimer</button> <button type="button" data-mo="fermer">Fermer</button></div>`;
   }
@@ -189,6 +193,7 @@ export function monterOutils(T, { stockage = null, fetchFn = fetch, maintenant =
       const n = maintenant(), C = E.C.filter(x => x.t + H <= n); const out = { ev: [], fleches: [], croix: [], etats: {} };
       // par morceaux : un objet à la fois, la main est rendue entre deux (jamais de longue pause de l'interface)
       for (const o of effectifs()) { const t0 = performance.now(), r = surveiller(C, [o]); out.ev.push(...r.ev); out.fleches.push(...r.fleches); out.croix.push(...r.croix); Object.assign(out.etats, r.etats); E.pireTache = Math.max(E.pireTache, performance.now() - t0); await pause(); if (detruit) return; }
+      { const A2 = atrLocal(C, REGLES_V10.atrN); const rt = detecterRetests(C, out.ev, A2); out.ev.push(...rt); for (const r of rt) out.fleches.push({ t: r.t, objet: r.objet, sens: r.sens, niveau: r.niveau, type: 'retest' }); }
       out.ev.sort((x, y) => x.t - y.t); E.res = out; E.derAnalyse = n;
       await enregistrerEvenements(C, out.ev, n); await suivre(C);
       envoyerAuGraphique(); rendreListe(); rendreBilan(C); majMA(); rendreEtat();
@@ -214,11 +219,11 @@ export function monterOutils(T, { stockage = null, fetchFn = fetch, maintenant =
   let audio = null;
   function bip() { try { audio = audio || new (window.AudioContext || window.webkitAudioContext)(); const o = audio.createOscillator(), g = audio.createGain(); o.frequency.value = 660; g.gain.value = 0.04; o.connect(g); g.connect(audio.destination); o.start(); g.gain.exponentialRampToValueAtTime(0.0001, audio.currentTime + 0.25); o.stop(audio.currentTime + 0.26); } catch (e) { /* audio refusé */ } }
   async function alerter(e, o) {
-    const cle = `${e.objet}|${e.type}`, der = E.derAlerte.get(cle) || 0, n = maintenant(), leger = e.type === 'approche';
+    const cle = `${e.objet}|${e.type}`, annonce = autoriser(o, e, E.dejaDit), der = E.derAlerte.get(cle) || 0, n = maintenant(), leger = e.type === 'approche';
     const texte = `${o ? libelle(o) : 'Objet supprimé'} : ${TEXTES_EV[e.type] || e.type} à ${nb(e.prix)} (bougie H1 de ${heureParis(e.t)}). ${AVERT}`;
-    const dit = n - der >= REGLES_V10.delaiAlerteMin * 60e3;   // anti-doublon : même objet et même type, délai minimum
+    const dit = annonce && n - der >= REGLES_V10.delaiAlerteMin * 60e3;   // anti-doublon : même objet et même type, délai minimum
     const a = { id: e.id, objet: e.objet, type: e.type, prix: e.prix, t: e.t, heure: n, texte, dit }; E.alertes.unshift(a); E.alertes.length = Math.min(E.alertes.length, 300); if (st) await st.mettre('alertes', a);
-    rendreAlertes(); if (!dit) return; E.derAlerte.set(cle, n);
+    rendreAlertes(); if (!dit) return; E.derAlerte.set(cle, n); E.dejaDit.add(cle);
     T.notifier(texte, { niveau: leger ? 'doux' : e.type === 'cassure' || e.type === 'stop' ? 'fort' : 'info', dit: true, t: n });
     if (regl.son && !leger) bip();
     if (regl.notif && typeof Notification !== 'undefined' && Notification.permission === 'granted') { try { new Notification('Rayle · or', { body: texte, tag: cle, silent: !regl.son }); } catch (x) { /* refusé */ } }
@@ -232,7 +237,7 @@ export function monterOutils(T, { stockage = null, fetchFn = fetch, maintenant =
   function marques() {
     const F = new Map(), X = new Map();
     for (const e of E.registre) { if (e.type === 'rebond') F.set(e.id, { t: e.t, sens: e.sens, niveau: e.niveau, objet: e.objet }); if (e.type === 'cassure') X.set(e.id, { t: e.t, niveau: e.niveau, objet: e.objet }); }
-    for (const f of E.res.fleches) F.set(`${f.objet}|rebond|${f.t}`, f); for (const c of E.res.croix) X.set(`${c.objet}|cassure|${c.t}`, c);
+    for (const f of E.res.fleches) F.set(`${f.objet}|${f.type === 'retest' ? 'retest' : 'rebond'}|${f.t}`, f); for (const c of E.res.croix) X.set(`${c.objet}|cassure|${c.t}`, c);
     return { fleches: [...F.values()], croix: [...X.values()] };
   }
   function envoyerAuGraphique() {
