@@ -1,4 +1,5 @@
 /* ═════════════ COMMANDES EN FRANÇAIS (texte ou voix) DU TABLEAU DE BORD, DU LECTEUR DE MUSIQUE ET DU MODE TÉLÉ (pur, testé) ═════════════ */
+import { interpreterStrategie } from './rayle-voix-interp.js';
 export function normaliser(t) {
   return String(t || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[’'`]/g, ' ').replace(/[^a-z0-9 ?]/g, ' ')
     .replace(/\s+/g, ' ').trim().replace(/^(hey |dis moi |dis |ok )?(rayle|raylee|raille|rael|ray le|ray)\b ?/, '').trim();
@@ -24,6 +25,7 @@ function interpreterBrut(texte) {
   if (M(n, /\b(explique|expliquer|c est quoi|qu est ce que|a quoi sert|comment lire|comment on lit|comment lis)\b/) && M(n, /vwap|profil de volume|\bpoc\b|zone de valeur|\bcvd\b|delta|plus haut.*(veille|semaine)|plus bas.*(veille|semaine)|ouverture du jour|ouverture de la semaine|seance|session|asie|londres|new york|balayage|niveaux? ronds?|prix ronds?|liquidite|carte thermique|heatmap|mouvements? h1|positions? de rayle|trades? simules?|propositions?|ce qui fait bouger|facteurs|structure|rebond ou retournement|changement de caractere|impulsion|retournements?|divergences?|\brsi\b|schemas? de retournement|double sommet|double creux|tete et epaules|\bict\b|killzones?|silver bullet|order blocks?|breakers?|\bfvg\b|premium|discount|\bote\b|judas|\bamd\b/)) return { type: 'outil' };
   if (M(n, /\bpropositions?( h1| de rayle)?\b|\bqu est ce que (tu )?propose\b|\bles setups\b/) && !M(n, /\b(explique|c est quoi|qu est ce que c est)\b/)) return { type: 'propositions' };
   if (M(n, /\banalyse ict\b|\bict de la semaine\b|\brapport ict\b|\b(efface|masque|ferme) l analyse ict\b/)) return { type: 'ict' };
+  if (interpreterStrategie(texte)) return { type: 'strategie' };   // moyenne mobile, carnet à l'arrivée sur une boîte, feuille de décision, scénarios (stratégie Rayle v1)
   if (M(n, /\b(y a t il|il y a|vois tu|detecte|as tu vu)\b.*\b(divergence|double sommet|double creux|tete et epaules|balayage)|\b(divergences? rsi|schemas? de retournement)\b/)) return { type: 'schemas' };
   if (M(n, /\bou en est la (tendance|structure)\b|\bquelle est la tendance\b|\betat de la tendance\b|\brebond ou retournement\b/)) return { type: 'tendance' };
   // lecture du graphique

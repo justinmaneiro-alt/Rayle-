@@ -106,6 +106,16 @@ for (const [l, h, mob] of [[1600, 900, false], [390, 844, true]]) {
   await p.evaluate(() => document.querySelector('[data-graph-barre] [data-a="ray-vue"]').click()); await w(300);
   await p.evaluate(() => { const s = document.querySelector('[data-ray-hor]'); s.value = '1j'; s.dispatchEvent(new Event('change', { bubbles: true })); document.querySelector('[data-graph-barre] [data-a="ray-scen"]').click(); }); await w(400);
   v((await p.evaluate(() => window.__or.graph.rayleEtat())).types.scenario === undefined, `${l}px : un second clic efface les scénarios`);
+  // ── phase 6 : Rayle (voix et texte) ──
+  const vx = await p.evaluate(async () => { window.speak = () => {}; const o = {}; for (const [k, t] of [['ma', 'Où en est la moyenne mobile ?'], ['carnet', 'Que lit le carnet ici ?'], ['feuille', 'Où en est la feuille de décision ?'], ['scen', 'Montre-moi les scénarios'], ['expl', 'Explique le scénario A'], ['autre', 'on en est où ?']]) o[k] = await window.TableauOr.commande(t); o.couche = document.querySelector('[data-couche="rayScenarios"]').checked; return o; });
+  v(/moyenne mobile 200 H1/.test(vx.ma) && /ATR/.test(vx.ma), `${l}px : « Où en est la moyenne mobile ? » : ${String(vx.ma).slice(0, 100)}…`);
+  v(typeof vx.carnet === 'string' && /(carnet|boîte|Résistance|Support)/.test(vx.carnet), `${l}px : « Que lit le carnet ici ? » : ${String(vx.carnet).slice(0, 100)}…`);
+  v(/(\d \/ 5 conditions réunies|Pas de contexte)/.test(vx.feuille) && /jamais un ordre/.test(vx.feuille), `${l}px : « Où en est la feuille de décision ? » : ${String(vx.feuille).slice(0, 100)}…`);
+  v(vx.couche && /Scénario A · /.test(vx.scen) && /Scénario B · /.test(vx.scen) && /Scénarios, pas prévisions\./.test(vx.scen), `${l}px : « Montre-moi les scénarios » affiche la couche et lit A et B (${String(vx.scen).slice(0, 90)}…)`);
+  v(/cible/.test(vx.expl) && /invalidation/.test(vx.expl) && /hasard/.test(vx.expl), `${l}px : « Explique le scénario A » : cible, invalidation, hasard`);
+  v(!/(achète|achetez|vends|vendez|prends position)/i.test(JSON.stringify(vx)), `${l}px : aucune réponse ne dit d'acheter ou de vendre`);
+  v(typeof vx.autre === 'string' && !/Scénario/.test(vx.autre), `${l}px : les autres commandes (« on en est où ? ») restent inchangées`);
+  await p.evaluate(() => { if (document.querySelector('[data-couche="rayScenarios"]').checked) document.querySelector('[data-graph-barre] [data-a="ray-scen"]').click(); }); await w(300);
   // couche décochée : plus de moyenne mobile
   await p.evaluate(() => { document.querySelector('.tor-couches').open = true; const c = document.querySelector('[data-couche="rayMa"]'); c.checked = false; c.dispatchEvent(new Event('change', { bubbles: true })); }); await w(400);
   v((await p.evaluate(() => window.__or.graph.rayleEtat())).types.ma === undefined, `${l}px : décocher la couche retire la moyenne mobile`);

@@ -10,6 +10,7 @@ import { COUCHES_RAYLE } from './rayle-couches.js';
 import { creerCarteCarnet } from './rayle-carnet.js';
 import * as FD from './feuille-decision-v1.js';
 import * as SC from './scenarios-v1.js';
+import * as VX from './rayle-voix-calcul.js';
 import { rNet } from './journal-calcul.js';
 import { lireJSON } from './stockage-or.js';
 const CLE_REG = 'rayle_or_rayle_reglages', CLE_ARCH = 'rayle_or_boites_registre', CLE_SCEN = 'rayle_or_scenarios_forward', H = 3600e3;
@@ -151,6 +152,16 @@ export function creerStrategie({ racine, moteur, graph, carnet = null, structure
     }
     const p = q('[data-ray-pied]'); if (p) { const o = compterObjets(E.m); p.textContent = `Mode ${E.reg.vue === 'epure' ? 'Épuré' : 'Complet'} · ${o} objet${o > 1 ? 's' : ''} affiché${o > 1 ? 's' : ''} sur le graphique${E.stats.ma ? ` · mesures Dukascopy du ${E.stats.ma.calcule}` : ' · mesures en chargement'}`; }
   }
+  /* ── voix et texte (phase 6) : uniquement à partir des valeurs réelles, jamais un ordre ── */
+  function commande(texte) {
+    const c = VX.interpreterStrategie(texte); if (!c) return null;
+    if (c.sujet === 'ma') return VX.repondreMa({ res: E.res, B: E.B, stats: E.stats.ma, texteMa: E.res && E.B ? texteMa(E.res, E.B) : '' });
+    if (c.sujet === 'carnet') { const l = E.carte && E.carte.lecture(); const n = l && E.carte ? E.carte.registre().filter(r => r.kind === 'arrivee' && r.pourZone === l.pourZone).length : 0; return VX.repondreCarnet({ lecture: l, zone: E.carte && E.carte.zone(), compte: n }); }
+    if (c.sujet === 'feuille') { const f = feuilleEtat(); return VX.repondreFeuille({ feuille: f, rapport: f.contexte ? rapportFeuille().phrase : '' }); }
+    if (c.sujet === 'scenarios') { if (!couches().rayScenarios) { graph.couches({ rayScenarios: true }); for (const k of racine.querySelectorAll('[data-couche="rayScenarios"]')) k.checked = true; maj(true); } return VX.repondreScenarios({ sv: scenarios(), fiabilite: SC.fiabilite(E.regScen) }); }
+    if (c.sujet === 'explique') { const sv = scenarios(); return VX.expliqueScenario({ sv, lettre: c.lettre }); }
+    return null;
+  }
   function reglage(k, v) { E.reg[k] = v; ecrire(CLE_REG, E.reg); maj(true); }
   racine.addEventListener('click', ev => {
     const b = ev.target.closest('[data-a="ray-vue"]'); if (b) reglage('vue', E.reg.vue === 'epure' ? 'complet' : 'epure');
@@ -161,5 +172,5 @@ export function creerStrategie({ racine, moteur, graph, carnet = null, structure
   const carte = creerCarteCarnet({ racine, flux: () => (carnet && carnet._flux) || null, zones: () => E.zones, atr: () => E.atr, prix: () => E.prixForce != null ? E.prixForce : (moteur && moteur.S && moteur.S.prix != null ? moteur.S.prix : (E.B ? E.B[E.B.length - 1].c : null)), barres: () => E.B || [], maintenant, parler, auto, surTick: () => { try { rendreFeuille(); } catch (e) { /* */ } } });
   E.carte = carte;
   let minuterie = null; if (auto) { chargerStats().then(() => maj(true)); minuterie = setInterval(() => { try { maj(); } catch (e) { /* */ } }, 30000); }
-  return { maj, chargerStats, modele: () => E.m, etat: () => ({ reg: { ...E.reg }, res: E.res, B: E.B, stats: E.stats, m: E.m, zones: E.zones, sel: E.sel, arch: E.arch.slice(), bandeau: texteBandeau() }), reglage, carte, scenarios: () => (couches().rayScenarios ? scenarios() : null), registreScenarios: () => E.regScen.slice(), fiabiliteScenarios: () => SC.fiabilite(E.regScen), feuilleEtat: () => { const f = feuilleEtat(); return FD.etatPourJournal(f); }, feuille: () => feuilleEtat(), rapportFeuille, injecterPrix(p) { E.prixForce = p; maj(true); }, compterObjets: () => compterObjets(E.m), detruire() { clearInterval(minuterie); } };
+  return { maj, chargerStats, modele: () => E.m, etat: () => ({ reg: { ...E.reg }, res: E.res, B: E.B, stats: E.stats, m: E.m, zones: E.zones, sel: E.sel, arch: E.arch.slice(), bandeau: texteBandeau() }), reglage, commande, carte, scenarios: () => (couches().rayScenarios ? scenarios() : null), registreScenarios: () => E.regScen.slice(), fiabiliteScenarios: () => SC.fiabilite(E.regScen), feuilleEtat: () => { const f = feuilleEtat(); return FD.etatPourJournal(f); }, feuille: () => feuilleEtat(), rapportFeuille, injecterPrix(p) { E.prixForce = p; maj(true); }, compterObjets: () => compterObjets(E.m), detruire() { clearInterval(minuterie); } };
 }
