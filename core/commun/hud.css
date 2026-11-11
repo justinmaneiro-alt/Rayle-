@@ -1,5 +1,5 @@
 /* ═════════════ HUD : cadres holographiques réutilisables (panneaux de Raylé, fenêtres du terminal) ═════════════ */
-:root{ --hud-bord:rgba(110,190,215,.38); --hud-fond:rgba(6,10,16,.78); --hud-encre:#e6eef2; --hud-doux:#8ea3af; --hud-accent:#8fd0e3; --hud-cyan:#6fd3ee;
+:root{ --hud-bord:rgba(110,190,215,.38); --hud-fond:rgba(6,10,16,.78); --hud-encre:#e6eef2; --hud-doux:#8ea3af; --hud-accent:#ffae3d; --hud-cyan:#ffc266;
   --v1-sec:#c9b27a; --v1-haut:#2fd18b; --v1-bas:#ff5d6e; --v1-mono:"JetBrains Mono","Cascadia Mono",Consolas,"Courier New",monospace; --v1-sans:"Segoe UI Variable","Segoe UI",system-ui,sans-serif; }
 
 /* Verre sombre : fond uni très légèrement dégradé, bord fin de 1 px, coins coupés légers, aucune trame ni ombre épaisse. */
@@ -108,10 +108,10 @@ i.hausse,i.baisse{font-style:normal}
 .pn-carte{height:min(40vh,340px);margin-top:8px;border:1px solid rgba(110,190,215,.4);background:#070b10}
 .pn-carte .leaflet-tile-pane{filter:invert(1) hue-rotate(185deg) saturate(.75) brightness(.86) contrast(.95)}
 .pn-carte .leaflet-control-attribution{background:rgba(4,7,11,.85);color:#a995b8;font-size:10px}
-.pn-carte .leaflet-control-attribution a{color:#4de3ff}
-.pn-carte .leaflet-bar a{background:#0c141c;color:#4de3ff;border-color:rgba(110,190,215,.4)}
-.pn-carte .leaflet-tooltip{background:#0c141c;color:#fff;border:1px solid #8fd0e3;box-shadow:none}
-.pn-carte .leaflet-tooltip-top:before{border-top-color:#8fd0e3}
+.pn-carte .leaflet-control-attribution a{color:#ffc266}
+.pn-carte .leaflet-bar a{background:#0c141c;color:#ffc266;border-color:rgba(110,190,215,.4)}
+.pn-carte .leaflet-tooltip{background:#0c141c;color:#fff;border:1px solid #ffae3d;box-shadow:none}
+.pn-carte .leaflet-tooltip-top:before{border-top-color:#ffae3d}
 
 /* ───── Sécurité : pastille d'accès, pavé PIN, phrase secrète ───── */
 #badgeAcces{position:fixed;top:max(8px,env(safe-area-inset-top));left:50%;transform:translateX(-50%);z-index:60;font:700 11px "Courier New",Courier,monospace;letter-spacing:.14em;

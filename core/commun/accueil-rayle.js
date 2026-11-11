@@ -150,7 +150,7 @@
       for(const p of P){
         p.x+=p.vx*dt*60; p.y+=p.vy*dt*60; if(p.y<-.02){ p.y=1.02; p.x=Math.random(); } if(p.x<-.02)p.x=1.02; else if(p.x>1.02)p.x=-.02;
         const a=(.25+.55*(.5+.5*Math.sin(t/900+p.ph)))*(.35+p.z*.65);
-        cx.fillStyle='rgba(143,208,227,'+a.toFixed(3)+')'; cx.beginPath(); cx.arc(p.x*w+px*p.z*38,p.y*h+py*p.z*26,p.r,0,6.283); cx.fill();
+        cx.fillStyle='rgba(255,174,61,'+a.toFixed(3)+')'; cx.beginPath(); cx.arc(p.x*w+px*p.z*38,p.y*h+py*p.z*26,p.r,0,6.283); cx.fill();
       }
       if(scene){ scene.style.setProperty('--ar-px',(px*-10).toFixed(1)+'px'); scene.style.setProperty('--ar-py',(py*-7).toFixed(1)+'px'); }
     }

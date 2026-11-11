@@ -19,8 +19,8 @@ Note '--- lancement ---'
 function ServeurRayle {   # vrai si le serveur local repond ET sert bien Rayle
     try { $r = Invoke-WebRequest -Uri "$url/index.html" -UseBasicParsing -TimeoutSec 2; return ($r.StatusCode -eq 200 -and $r.Content -match 'RAYL') } catch { return $false }
 }
-function ServeurAJour {   # vrai si le serveur en marche connait le mode multi-ecrans (un serveur lance avant la mise a jour de Rayle repond 404 : il faut le redemarrer)
-    try { $r = Invoke-WebRequest -Uri "$url/__multi/etat" -UseBasicParsing -TimeoutSec 3; return ($r.StatusCode -eq 200 -and $r.Content -match '"version"') } catch { return $false }
+function ServeurAJour {   # vrai si le serveur en marche est celui de la version actuelle (un serveur lance avant la mise a jour de Rayle repond 404 : il faut le redemarrer)
+    try { $r = Invoke-WebRequest -Uri "$url/offline.html" -UseBasicParsing -TimeoutSec 3; return ($r.StatusCode -eq 200 -and $r.Content -match 'Rayl') } catch { return $false }
 }
 function ArreterServeurLocal {   # arrete le serveur Rayle (node serveur.mjs) qui ecoute sur le port, et rien d'autre
     try {
@@ -68,7 +68,7 @@ if (-not $mutex.WaitOne(0)) {
 $serveur = $null
 $enMarche = ServeurRayle
 if ($enMarche -and -not (ServeurAJour)) {
-    Note 'serveur deja en marche mais ANCIEN (il ne connait pas le mode multi-ecrans) : redemarrage'
+    Note 'serveur deja en marche mais ANCIEN (il ne sert pas offline.html) : redemarrage'
     if (ArreterServeurLocal) { $enMarche = $false; Note 'ancien serveur arrete' } else { Note 'ancien serveur impossible a arreter (ce n est pas serveur.mjs ?) : on continue avec lui' }
 }
 if ($enMarche) { Note 'serveur deja en marche (non arrete a la fermeture)' }

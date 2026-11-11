@@ -1,6 +1,6 @@
 /* Images des actualités (phase T3) : zone d'image, légende de crédit, repère de la vue cartographique */
 .ia-zone{position:relative}
-.ia-zone.ia-attente{background:linear-gradient(110deg,rgba(143,208,227,.05) 30%,rgba(143,208,227,.16) 50%,rgba(143,208,227,.05) 70%);background-size:200% 100%;animation:ia-brille 1.4s linear infinite}
+.ia-zone.ia-attente{background:linear-gradient(110deg,rgba(255,174,61,.05) 30%,rgba(255,174,61,.16) 50%,rgba(255,174,61,.05) 70%);background-size:200% 100%;animation:ia-brille 1.4s linear infinite}
 @keyframes ia-brille{to{background-position:-200% 0}}
 @media (prefers-reduced-motion:reduce){.ia-zone.ia-attente{animation:none}}
 .ia-zone.ia-vide{display:none!important}
@@ -13,9 +13,9 @@
 .ia-credit{position:absolute;left:0;right:0;bottom:0;padding:1px 3px;font-size:7.5px;line-height:1.25;letter-spacing:.02em;color:#e8f4ff;background:rgba(2,6,12,.74);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;pointer-events:none;z-index:2}
 body[data-hud=leger] .ia-zone{display:none}
 /* dans les fenetres de liste : meme gabarit que les vignettes des flux */
-.ac-vignette.ia-zone{width:74px;height:50px;border:1px solid color-mix(in srgb,var(--c,#4de3ff) 55%,transparent);background-color:#050208}
+.ac-vignette.ia-zone{width:74px;height:50px;border:1px solid color-mix(in srgb,var(--c,#ffc266) 55%,transparent);background-color:#050208}
 /* cartes holographiques de la Terre */
-#vueGalaxie #terre-ui .t-carte .t-c-img.ia-zone{position:absolute;right:9px;top:30px;width:84px;height:62px;border:1px solid color-mix(in srgb,var(--c,#4de3ff) 55%,transparent);background-color:#050208;pointer-events:auto}
+#vueGalaxie #terre-ui .t-carte .t-c-img.ia-zone{position:absolute;right:9px;top:30px;width:84px;height:62px;border:1px solid color-mix(in srgb,var(--c,#ffc266) 55%,transparent);background-color:#050208;pointer-events:auto}
 #vueGalaxie #terre-ui .t-carte.t-avec-image .t-c-titre{margin-right:96px}
 #vueGalaxie #terre-ui .t-carte.t-avec-image .t-c-img.ia-vide~.t-c-titre{margin-right:0}
 #vueGalaxie #terre-ui .t-carte.t-avec-image footer{margin-right:96px}

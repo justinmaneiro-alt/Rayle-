@@ -8,12 +8,9 @@ $ici     = $PSScriptRoot
 $donnees = Join-Path $env:LOCALAPPDATA 'Rayle'
 $bureau  = [Environment]::GetFolderPath('Desktop')
 $menu    = Join-Path ([Environment]::GetFolderPath('Programs')) ''
-$nomMulti = 'Rayle Multi-' + [char]0x00E9 + 'crans'
 $liens   = @(
-    @{ chemin = (Join-Path $bureau 'Rayle.lnk');            vbs = 'Rayle.vbs';      desc = 'Rayle' },
-    @{ chemin = (Join-Path $menu 'Rayle.lnk');              vbs = 'Rayle.vbs';      desc = 'Rayle' },
-    @{ chemin = (Join-Path $bureau "$nomMulti.lnk");        vbs = 'RayleMulti.vbs'; desc = 'Rayle : mode multi-ecrans' },
-    @{ chemin = (Join-Path $menu "$nomMulti.lnk");          vbs = 'RayleMulti.vbs'; desc = 'Rayle : mode multi-ecrans' }
+    @{ chemin = (Join-Path $bureau 'Rayle.lnk');            vbs = 'Rayle.vbs';      desc = 'Rayle' }
+    @{ chemin = (Join-Path $menu 'Rayle.lnk');              vbs = 'Rayle.vbs';      desc = 'Rayle' }
 )
 if ($Retirer) { foreach ($x in $liens) { if (Test-Path $x.chemin) { Remove-Item $x.chemin -Force; "supprime : $($x.chemin)" } }; exit 0 }
 New-Item -ItemType Directory -Force -Path $donnees | Out-Null
