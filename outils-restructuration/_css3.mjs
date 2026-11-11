@@ -1,0 +1,15 @@
+import fs from 'node:fs';
+let c = fs.readFileSync('core/commun/accueil-rayle.css', 'utf8');
+c = c.replace('.ar-g{left:24px;top:84px;width:min(300px,26vw)}', '.ar-g{left:24px;top:370px;width:min(300px,26vw)}   /* sous la fenêtre de réponse de Raylé */');
+c = c.replace('.ar-g{top:calc(40px + env(safe-area-inset-top,0px));flex-direction:row;gap:8px;align-items:stretch}', '.ar-g{top:calc(44px + env(safe-area-inset-top,0px));flex-direction:row;gap:8px;align-items:flex-start}');
+c = c.replace('.ar-d{top:auto;bottom:calc(196px + env(safe-area-inset-bottom,0px))}', '.ar-d{top:auto;bottom:calc(214px + env(safe-area-inset-bottom,0px))}');
+c = c.replace('.ar-btn{', 'html .ar-btn{min-height:0;min-width:0}\n.ar-btn{');
+c += 'html .ar-lien,html .ar-btn{min-height:0}\n';
+fs.writeFileSync('core/commun/accueil-rayle.css', c);
+let a = fs.readFileSync('core/commun/application.css', 'utf8');
+a += 'html .ac-points button{min-height:0;min-width:0;width:12px;height:12px}\nhtml .ac-fleche{min-height:0}\n@media (max-width:700px){.ac-points{bottom:calc(150px + env(safe-area-inset-bottom,0px))}}\n';
+fs.writeFileSync('core/commun/application.css', a);
+let j = fs.readFileSync('core/commun/accueil-rayle.js', 'utf8');
+j = j.replace("texte:String(e.text).replace(/\s+/g,' ').slice(0,130)", "texte:coupe(String(e.text).replace(/\s+/g,' '),130)");
+j = j.replace("  async function chargerJour(){", "  const coupe=(t,n)=>t.length<=n?t:t.slice(0,n).replace(/\s+\S*$/,'')+'…';\n  async function chargerJour(){");
+fs.writeFileSync('core/commun/accueil-rayle.js', j);

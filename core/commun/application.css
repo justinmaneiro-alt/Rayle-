@@ -49,3 +49,6 @@ body.app-ouvert #vueTerminal #btnRetour{display:none}
 body.app-direct .t-boutons [data-a="terre-v2"],body.app-direct .t-boutons [data-a="quitter"]{display:none!important}
 body.app-direct #saturne-ui .s-boutons,body.app-direct #saturne-ui .s-etat{display:none!important}
 body.app-direct #neptune-ui [data-a="quitter"],body.app-direct .n-barre [data-a="quitter"],body.app-direct [data-a="quitter"]{display:none!important}
+html .ac-points button{min-height:0;min-width:0;width:12px;height:12px}
+html .ac-fleche{min-height:0}
+@media (max-width:700px){.ac-points{bottom:calc(150px + env(safe-area-inset-bottom,0px))}}
