@@ -6,8 +6,10 @@
    Séparément sur les 18 derniers mois et sur 2015–2025. n < 30 = « pas assez de données ». Écrit front/or/ma-stats.json et RAPPORT-MA-OR.md (local). */
 import fs from 'node:fs'; import crypto from 'node:crypto';
 import { charger } from './donnees.mjs'; import * as M from '../front/or/ma-evenements-v1.js'; import { prng } from './stats.mjs';
+const D_ = () => charger({ debut: 2014, fin: 2026 });
 const H = 3600e3, FEN = { recent: [Date.UTC(2025, 4, 1), Infinity], long: [Date.UTC(2015, 0, 1), Date.UTC(2026, 0, 1)] };
-const D = charger({ debut: 2014, fin: 2026 }), B = D.h1.map(b => ({ t: b.t, o: b.o, h: b.h, l: b.l, c: b.c, v: b.v })), SP = D.h1.map(b => b.sp), n = B.length;
+const ouvert = b => !(b.h === b.l && !b.v);   // 29 % des bougies Dukascopy sont des bougies plates de week-end (volume nul) : retirées, elles dilueraient l'ATR
+const H1 = D_().h1.filter(ouvert), B = H1.map(b => ({ t: b.t, o: b.o, h: b.h, l: b.l, c: b.c, v: b.v })), SP = H1.map(b => b.sp), n = B.length;
 const R = M.analyser(B), A = R.atr, ev = R.events;
 const sha = crypto.createHash('sha256').update(fs.readFileSync(new URL('../front/or/ma-evenements-v1.js', import.meta.url), 'utf8').replace(/\r\n/g, '\n')).digest('hex');
 const dans = (t, f) => t >= FEN[f][0] && t < FEN[f][1];
@@ -18,7 +20,7 @@ const base = {}; for (const f of Object.keys(FEN)) { base[f] = {}; for (const d 
 function cellule(liste, f) {
   const L = liste.filter(e => dans(e.t, f) && valide[e.i]); const m = L.length; let k = 0, adv = 0, bT = 0, bP = 0;
   for (const e of L) { const s = iss[e.sens][e.i]; if (s === 1) k++; else if (s === -1) adv++; bT += base[f][e.sens].taux; bP += base[f][e.sens].part; }
-  const dec = k + adv, c = { n: m, assez: m >= 30 }; if (!m) return c;
+  const dec = k + adv, c = { n: m, assez: m >= 30 }; if (!m) { c.verdict = 'pas assez de données'; return c; }
   c.k = k; c.taux = k / m; c.ic = M.wilson(k, m); c.base = bT / m; c.tranchees = dec; c.part = dec ? k / dec : null; c.icPart = dec ? M.wilson(k, dec) : null; c.basePart = bP / m;
   c.verdict = !c.assez ? 'pas assez de données' : c.icPart && c.icPart[0] > c.basePart + 0.05 ? 'au-dessus de la base' : c.icPart && c.icPart[1] < c.basePart - 0.05 ? 'en dessous de la base' : 'pas nettement différent de la base';
   return c;

@@ -3,7 +3,7 @@
 import * as MA from './ma-evenements-v1.js';
 export const MAX_EPURE = 12, H = 3600e3;
 const pc = x => (x == null ? '—' : Math.round(x * 100) + ' %');
-const nb = (x, d = 0) => (x == null || !Number.isFinite(x) ? '—' : Number(x).toLocaleString('fr-FR', { minimumFractionDigits: d, maximumFractionDigits: d }).replace(/[  ]/g, ' '));
+const nb = (x, d = 0) => (x == null || !Number.isFinite(x) ? '—' : Number(x).toLocaleString('fr-FR', { minimumFractionDigits: d, maximumFractionDigits: d }).replace(/[  ]/g, ' '));
 export const hp = t => new Date(t).toLocaleString('fr-FR', { timeZone: 'Europe/Paris', day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
 const CLE_STATS = { cassure: 'cassure', confirmee: 'cassure_confirmee', fausse: 'cassure_fausse', rebond: 'rebond' };
 const NOM_CAR = { corps: 'corps de la bougie', volume: 'volume de ticks', extension: 'extension avant la cassure', pente: 'pente de la MA', h4: 'tendance H4', session: 'session' };

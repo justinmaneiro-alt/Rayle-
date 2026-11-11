@@ -2,7 +2,7 @@
    Fonction de dessin pure ; renvoie les cadres cliquables pour l'infobulle. Aucune étiquette ne chevauche une autre : celle qui gênerait est omise (le détail reste au survol).
    Jamais de rectangle pleine largeur : une boîte va de son début à 40 bougies à droite au plus, ou jusqu'à son invalidation. */
 const COUL = { haut: '95,184,148', bas: '216,106,106', gris: '125,135,140', sable: '201,178,122', cyan: '143,208,227', violet: '195,155,224', bleu: '110,160,255', orange: '230,160,90' };
-const nb = (p, d = 0) => Number(p).toLocaleString('fr-FR', { minimumFractionDigits: d, maximumFractionDigits: d }).replace(/[  ]/g, ' ');
+const nb = (p, d = 0) => Number(p).toLocaleString('fr-FR', { minimumFractionDigits: d, maximumFractionDigits: d }).replace(/[  ]/g, ' ');
 export function dessinerRayle(ctx, T, m, { xDeT, yDe, mobile }) {
   const cadres = []; if (!m) return cadres; const fs = mobile ? 9 : 10; ctx.font = `${fs}px system-ui, 'Segoe UI', sans-serif`; ctx.textBaseline = 'alphabetic'; ctx.lineWidth = 1;
   const ok = (...v) => v.every(q => q != null && Number.isFinite(q));
@@ -36,6 +36,13 @@ export function dessinerRayle(ctx, T, m, { xDeT, yDe, mobile }) {
       const col = L.dir < 0 ? COUL.bas : COUL.haut; ctx.strokeStyle = `rgba(${col},.75)`; ctx.setLineDash([6, 3]); ctx.beginPath(); ctx.moveTo(Math.max(0, x0), Math.round(y) + 0.5); ctx.lineTo(T.width, Math.round(y) + 0.5); ctx.stroke(); ctx.setLineDash([]);
       place(L.texte, Math.max(4, x0) + 4, y + (L.dir < 0 ? fs + 2 : -4), col, 0.95); cadres.push({ kind: 'ligne', x0: Math.max(0, x0), x1: T.width, y0: y - 3, y1: y + 3, g: { p: L.p, texte: L.texte, detail: L.detail || [] } });
     }
+  }
+  // ── 3 dernières cassures de structure (MSS / BOS), étiquettes courtes ──
+  for (const c of m.structure || []) {
+    const x0 = xDeT(c.tNiveau), x1 = xDeT(c.t), y = yDe(c.niveau); if (!ok(x0, x1, y) || x1 < 0 || x0 > T.width) continue; const col = c.type === 'MSS' ? COUL.violet : c.dir > 0 ? COUL.haut : COUL.bas;
+    ctx.strokeStyle = `rgba(${col},.7)`; ctx.setLineDash(c.type === 'MSS' ? [] : [3, 3]); ctx.beginPath(); ctx.moveTo(Math.max(0, x0), Math.round(y) + 0.5); ctx.lineTo(x1, Math.round(y) + 0.5); ctx.stroke(); ctx.setLineDash([]);
+    place(`${c.type} ${c.dir > 0 ? '↑' : '↓'}`, Math.max(2, x1 - 38), y - 3, col, 0.9, {});
+    cadres.push({ kind: 'struct', x0: Math.max(0, x0), x1, y0: y - 3, y1: y + 3, g: { p: c.niveau, texte: `${c.type === 'MSS' ? 'Changement de caractère (MSS)' : 'Cassure de structure (BOS)'} ${c.dir > 0 ? 'haussier' : 'baissier'}`, detail: ['clôture H1 au-delà d’un creux ou d’un sommet de la structure H1 (structure-marche-v1)', 'description, jamais un ordre'] } });
   }
   // ── événements de la moyenne mobile ──
   for (const e of m.evenements || []) {

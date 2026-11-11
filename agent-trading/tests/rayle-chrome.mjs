@@ -37,6 +37,20 @@ for (const [l, h, mob] of [[1600, 900, false], [390, 844, true]]) {
   await p.screenshot({ path: `captures-or/rayle-${l}-complet.png` });
   await p.evaluate(() => document.querySelector('[data-graph-barre] [data-a="ray-vue"]').click()); await w(400);
   await p.screenshot({ path: `captures-or/rayle-${l}.png` });
+  // ── phase 2 : boîtes, ligne de retournement, bandeau ──
+  await p.evaluate(() => { const E = window.__or.strategie.etat(), z = E.zones.find(q => !q.invalide); window.__or.strategie.injecterPrix(z ? (z.cote === 'vente' ? z.bas - 1.2 * z.atr : z.haut + 1.2 * z.atr) : E.B[E.B.length - 1].c); }); await w(500);   // le prix est placé à 1,2 ATR d'une zone valide
+  const z2 = await p.evaluate(() => { const E = window.__or.strategie.etat(); return { zones: E.zones.length, bandeau: E.bandeau, ligne: E.m.ligne && E.m.ligne.texte, structure: E.m.structure.length, boites: E.m.boites.length, vue: E.reg.vue, objets: window.__or.strategie.compterObjets() }; });
+  v(/Tendance H4 .* · H1 .*mouvement en cours/.test(z2.bandeau), `${l}px : bandeau d'état (tendance H1/H4, ligne, prochaine zone, mouvement) : ${z2.bandeau.slice(0, 120)}`);
+  v(z2.structure <= 3 && (z2.ligne == null || /^Retournement (baissier|haussier)/.test(z2.ligne)), `${l}px : ligne de retournement unique et au plus 3 cassures étiquetées (${z2.ligne})`);
+  v(z2.objets <= 12, `${l}px : Épuré : ${z2.objets} objets (12 au plus)`);
+  v(z2.boites <= 4, `${l}px : Épuré : au plus 2 boîtes de chaque côté (${z2.boites})`);
+  await p.evaluate(() => document.querySelector('[data-graph-barre] [data-a="ray-vue"]').click()); await w(500);
+  const z3 = await p.evaluate(() => { const E = window.__or.strategie.etat(), g = window.__or.graph.rayleEtat(); return { zones: E.zones.length, boites: E.m.boites.length, types: g.types, vue: E.reg.vue, bandeauCache: document.querySelector('[data-ray-bandeau]').hidden, etiq: g.etiquettes, boitesTxt: E.m.boites.map(b => b.etiquette) }; });
+  v(z3.vue === 'complet' && z3.zones > 0 && z3.boites > 0 && (z3.types.boite || 0) > 0, `${l}px : Complet : les boîtes sont dessinées (zones ${z3.zones}, boîtes ${z3.boites} ; ${JSON.stringify(z3.boitesTxt.slice(0, 3))} ; ${JSON.stringify(z3.types)})`);
+  v(z3.boitesTxt.every(t => /^Zone de (vente|achat) · (\d+ % · n = \d+|pas de mesure)/.test(t)), `${l}px : une seule étiquette « Zone de vente · 60 % · n = 20 » par boîte`);
+  let rien3 = true; for (let i = 0; i < z3.etiq.length; i++) for (let j = i + 1; j < z3.etiq.length; j++) if (chevauche(z3.etiq[i], z3.etiq[j])) rien3 = false; v(rien3, `${l}px : Complet avec boîtes : aucune étiquette ne chevauche une autre (${z3.etiq.length})`);
+  await p.screenshot({ path: `captures-or/rayle-${l}-boites.png` });
+  await p.evaluate(() => document.querySelector('[data-graph-barre] [data-a="ray-vue"]').click()); await w(300);
   // couche décochée : plus de moyenne mobile
   await p.evaluate(() => { document.querySelector('.tor-couches').open = true; const c = document.querySelector('[data-couche="rayMa"]'); c.checked = false; c.dispatchEvent(new Event('change', { bubbles: true })); }); await w(400);
   v((await p.evaluate(() => window.__or.graph.rayleEtat())).types.ma === undefined, `${l}px : décocher la couche retire la moyenne mobile`);

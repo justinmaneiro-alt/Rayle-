@@ -35,7 +35,7 @@ verifier(v.carnet && Math.abs(v.carnet.milieu - v.prix) / v.prix < 0.001, `carne
 verifier(v.zones.length >= 3 && v.zones.length <= 5, `3 à 5 zones de retournement (${v.zones.length})`);
 verifier(/Biais H1/.test(v.lecture) && !/achète|vends|achat conseillé/i.test(v.lecture), 'lecture en français, sans ordre');
 const couches = await pc.evaluate(() => [...document.querySelectorAll('[data-couche]')].map(c => c.dataset.couche));
-verifier(couches.join().startsWith('sr,liquidite,fleches,volume,mouvements,') && couches.length === 27, 'couches : supports et résistances, liquidité, flèches de rebond, zones de volume, mouvements H1 + 9 outils institutionnels + carte thermique + structure + retournements + RSI, divergences cachées, schémas et sept couches ICT (tous décochés par défaut)');
+verifier(couches.join().startsWith('sr,liquidite,fleches,volume,mouvements,') && couches.length === 30, 'couches : supports et résistances, liquidité, flèches de rebond, zones de volume, mouvements H1 + 9 outils institutionnels + carte thermique + structure + retournements + RSI, divergences cachées, schémas , sept couches ICT (décochés par défaut) et 3 couches Rayle');
 const sans = await pc.evaluate(() => document.body.innerText); verifier(!/\b(BTC|ETH|HYPE|Nasdaq|S&P)\b/.test(sans), 'aucun autre actif que l’or à l’écran');
 verifier(await pc.evaluate(() => !!document.querySelector('.tv-lw-attribution, a[href*="tradingview"]')), 'attribution TradingView visible');
 // réponse « on en est où »
