@@ -11,11 +11,12 @@ import { fiche as ficheMouv, etiquette as etiquetteMouv } from './mouvements-cal
 import { LIBELLES } from './institutionnel-calcul.js';
 import { dessinerInstitutionnel } from './institutionnel-dessin.js';
 import { dessinerStructure } from './structure-dessin.js';
+import { dessinerSchemas } from './schemas-dessin.js';
 import { zonesAffichage, liquiditeAffichage, dedoublonnerLiquidite, atrH1, detailZone } from './zones-affichage-v1.js';
 import { dessinerZone, dessinerLiquidite } from './zones-affichage-dessin.js';
 
-export const COUCHES = Object.freeze({ sr: 'Supports et résistances', liquidite: 'Zones de liquidité', fleches: 'Flèches de rebond', volume: 'Zones de volume', mouvements: 'Mouvements H1', ...LIBELLES, structure: 'Structure de marché H1 / H4 (cassures, impulsions, retournements)', retournements: 'Retournements : toutes les zones (probabilité mesurée)' });
-const COUCHES_DEFAUT = Object.freeze({ sr: true, liquidite: true, fleches: true, volume: false, mouvements: true, structure: false, retournements: false, ...Object.fromEntries(Object.keys(LIBELLES).map(k => [k, false])) });
+export const COUCHES = Object.freeze({ sr: 'Supports et résistances', liquidite: 'Zones de liquidité', fleches: 'Flèches de rebond', volume: 'Zones de volume', mouvements: 'Mouvements H1', ...LIBELLES, structure: 'Structure de marché H1 / H4 (cassures, impulsions, retournements)', retournements: 'Retournements : toutes les zones (probabilité mesurée)', rsi: 'RSI H1 + divergences (panneau sous le graphique)', divCachees: 'Divergences cachées', schemas: 'Schémas de retournement (double sommet, tête et épaules, balayage, bougies)' });
+const COUCHES_DEFAUT = Object.freeze({ sr: true, liquidite: true, fleches: true, volume: false, mouvements: true, structure: false, retournements: false, rsi: false, divCachees: false, schemas: false, ...Object.fromEntries(Object.keys(LIBELLES).map(k => [k, false])) });
 const lire = (k, d) => { try { const v = localStorage.getItem(k); return v ? JSON.parse(v) : d; } catch (e) { return d; } };
 const ecrire = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) { /* stockage refusé */ } };
 const nb = (p, d = 2) => Number(p).toLocaleString('fr-FR', { minimumFractionDigits: d, maximumFractionDigits: d }).replace(/ | /g, ' ');
@@ -38,7 +39,7 @@ export function ratio(pos) {
 export function creerGraphiqueOr(el, { surClicPrix, mobile = false } = {}) {
   const etat = { bougies: [], volumes: [], cle: null, debutKraken: null, ecart: null, chargementAncien: false, zonesVol: [], h1: [], aff: null, cadresZ: [], niveaux: [], retournement: [], bandes: [], liquidite: [], balayages: [], fleches: [], segments: [], segCadres: [], a: null, cadres: [], marques: [], tSerie: new Map(), barres: new Map(), couches: { ...COUCHES_DEFAUT, ...lire('rayle_or_couches_v2', {}) }, pos: lire('rayle_or_position', null), outil: null, prix: null,
     outils: { objets: [], proposes: [], croix: [], fleches10: [], selection: null }, modeOutil: null, brouillon: [], aimant: true, outilsCadres: [] };
-  let LW = null, chart = null, serie = null, vol = null, pret = null, maSerie = null;
+  let LW = null, chart = null, serie = null, vol = null, pret = null, maSerie = null, rsiSerie = null, rsiDiv = [];
   /* couche « Mouvements H1 » (mouvements-v1.js, définition figée) : rétrospectif, jamais un signal ; H1 seulement ; données calculées dans un Worker (mouvements-ui.js) */
   const mouv = { liste: [], h1: false, cadres: [] };
   const mouvementSous = (x, y) => {   // clic seulement (pas au survol) et jamais pendant un outil de dessin
@@ -336,7 +337,8 @@ export function creerGraphiqueOr(el, { surClicPrix, mobile = false } = {}) {
       const o = h.o; return { p: o.p ?? o.entree ?? o.p1 ?? o.bas, texte: libelle(o), detail: [NOMS_OUTILS[o.type] + (o.retourne ? ' · retourné' : ''), o.alerte ? 'alerte de prix active' : 'clic : sélectionner, glisser : déplacer', 'surveillé à la clôture des bougies H1 tant que Rayle est ouvert'] }; };
     const structSous = (x, y) => { const L = inst.cadresS || []; const c = L.find(q => q.kind === 'evt' && x >= q.x0 && x <= q.x1 && y >= q.y0 && y <= q.y1) || L.find(q => q.kind === 'bos' && x >= q.x0 && x <= q.x1 && y >= q.y0 && y <= q.y1) || L.find(q => q.kind === 'zone' && x >= q.x0 && x <= q.x1 && y >= q.y0 && y <= q.y1); return c ? c.g : null; };
     const zoneSous = (x, y) => { const c = (etat.cadresZ || []).find(q => x >= q.x0 - 2 && x <= q.x1 + 2 && y >= q.y0 - 3 && y <= q.y1 + 3); return c ? c.g : null; };
-    const trouver = (x, y) => { const c = etat.cadres.find(c => x >= c.x - 2 && x <= c.x + c.w + 2 && y >= c.y - 2 && y <= c.y + c.h + 2); return c ? c.g : (marqueSous(x, y) || infoOutil(x, y) || structSous(x, y) || zoneSous(x, y)); };
+    const schSous = (x, y) => { const L = inst.cadresSch || []; const c = L.find(q => q.kind === 'div' && x >= q.x0 && x <= q.x1 && y >= q.y0 && y <= q.y1) || L.find(q => x >= q.x0 && x <= q.x1 && y >= q.y0 && y <= q.y1); return c ? c.g : null; };
+    const trouver = (x, y) => { const c = etat.cadres.find(c => x >= c.x - 2 && x <= c.x + c.w + 2 && y >= c.y - 2 && y <= c.y + c.h + 2); return c ? c.g : (marqueSous(x, y) || infoOutil(x, y) || structSous(x, y) || schSous(x, y) || zoneSous(x, y)); };
     /* flèche ou marque de balayage sous le pointeur (au-dessus de la mèche haute, ou sous la mèche basse, de la bougie) */
     const NOMS = { 'résistance': 'sous une résistance', support: 'sur un support', 'liquidité haute': 'sous une zone de liquidité haute', 'liquidité basse': 'sur une zone de liquidité basse' };
     function marqueSous(x, y) {
@@ -382,8 +384,8 @@ export function creerGraphiqueOr(el, { surClicPrix, mobile = false } = {}) {
     }
   }, 'bottom');
   /* outils institutionnels (VWAP, profil de volume, CVD, séances…) : modèle calculé par institutionnel-or.js, dessiné par institutionnel-dessin.js */
-  const inst = { m: null, props: [], struct: null, cadresS: [] };
-  const primInst = new Primitive((ctx, T) => { if (!chart || !serie || !etat.bougies.length) return; dessinerInstitutionnel(ctx, T, inst.m, { xDeT, yDe, mobile, props: inst.props }); inst.cadresS = (etat.couches.structure || etat.couches.retournements) ? dessinerStructure(ctx, T, inst.struct, { xDeT, yDe, mobile }) : []; }, 'top');
+  const inst = { m: null, props: [], struct: null, cadresS: [], sch: null, cadresSch: [] };
+  const primInst = new Primitive((ctx, T) => { if (!chart || !serie || !etat.bougies.length) return; dessinerInstitutionnel(ctx, T, inst.m, { xDeT, yDe, mobile, props: inst.props }); inst.cadresS = (etat.couches.structure || etat.couches.retournements) ? dessinerStructure(ctx, T, inst.struct, { xDeT, yDe, mobile }) : []; inst.cadresSch = (etat.couches.rsi || etat.couches.divCachees || etat.couches.schemas) && inst.sch ? dessinerSchemas(ctx, T, inst.sch, { xDeT, yDe, mobile }) : []; }, 'top');
   const redessiner = () => { primTexte.maj && primTexte.maj(); primFond.maj && primFond.maj(); primMouv.maj && primMouv.maj(); primInst.maj && primInst.maj(); };
 
   const api = {
@@ -408,6 +410,23 @@ export function creerGraphiqueOr(el, { surClicPrix, mobile = false } = {}) {
     institutionnel(m) { inst.m = m; redessiner(); },
     propositions(L) { inst.props = L || []; redessiner(); },
     structure(m) { inst.struct = m; redessiner(); },
+    schemas(m) { inst.sch = m; redessiner(); },
+    schemasEtat: () => ({ cadres: (inst.cadresSch || []).length, types: (inst.cadresSch || []).reduce((o, c) => (o[c.kind] = (o[c.kind] || 0) + 1, o), {}) }),
+    /* panneau RSI sous le graphique (3e panneau) : points [{ t, v }] ou null pour le retirer ; divs : segments de divergence sur le RSI */
+    async rsi(points, divs = []) {
+      await pret; if (!chart || !LW) return;
+      const retirer = () => { for (const q of rsiDiv) { try { chart.removeSeries(q); } catch (e) { /* */ } } rsiDiv = []; if (rsiSerie) { try { chart.removeSeries(rsiSerie); } catch (e) { /* */ } rsiSerie = null; } };
+      if (!points || !points.length) { retirer(); return false; }
+      if (!rsiSerie) {
+        rsiSerie = chart.addSeries(LW.LineSeries, { color: '#c9b27a', lineWidth: 1, priceLineVisible: false, lastValueVisible: true, crosshairMarkerVisible: false, priceFormat: { type: 'custom', formatter: v => Number(v).toFixed(0), minMove: 1 }, autoscaleInfoProvider: () => ({ priceRange: { minValue: 10, maxValue: 90 } }) }, 2);
+        rsiSerie.createPriceLine({ price: 70, color: 'rgba(216,106,106,.55)', lineWidth: 1, lineStyle: 2, axisLabelVisible: true, title: '70' }); rsiSerie.createPriceLine({ price: 30, color: 'rgba(95,184,148,.55)', lineWidth: 1, lineStyle: 2, axisLabelVisible: true, title: '30' });
+        try { const P = chart.panes(); P[0].setStretchFactor(mobile ? 4 : 5); P[1].setStretchFactor(1); if (P[2]) P[2].setStretchFactor(mobile ? 1.4 : 1.6); } catch (e) { /* */ }
+      }
+      const m = new Map(); for (const q of points) { const tt = tDe(q.t); if (tt != null && Number.isFinite(q.v)) m.set(tt, q.v); } rsiSerie.setData([...m.entries()].sort((a, b) => a[0] - b[0]).map(([time, value]) => ({ time, value })));
+      for (const q of rsiDiv) { try { chart.removeSeries(q); } catch (e) { /* */ } } rsiDiv = [];
+      for (const d of divs.slice(-8)) { const t1 = tDe(d.t1), t2 = tDe(d.t2); if (t1 == null || t2 == null || t1 >= t2) continue; const q = chart.addSeries(LW.LineSeries, { color: d.dir > 0 ? '#5fb894' : '#d86a6a', lineWidth: 1, lineStyle: d.cachee ? 2 : 0, priceLineVisible: false, lastValueVisible: false, crosshairMarkerVisible: false, autoscaleInfoProvider: () => null }, 2); q.setData([{ time: t1, value: d.r1 }, { time: t2, value: d.r2 }]); rsiDiv.push(q); }
+      return true;
+    },
     structureEtat: () => ({ cadres: (inst.cadresS || []).length, types: (inst.cadresS || []).reduce((o, c) => (o[c.kind] = (o[c.kind] || 0) + 1, o), {}) }),
     mouvements(liste, { h1 = false } = {}) { mouv.liste = liste || []; mouv.h1 = !!h1; redessiner(); return mouv.liste.length; },
     mouvementsEtat: () => ({ h1: mouv.h1, actif: mouv.h1 && etat.couches.mouvements !== false, total: mouv.liste.length, dessines: mouv.cadres.length, cadres: mouv.cadres.map(c => ({ x0: c.x0, x1: c.x1, y0: c.y0, y1: c.y1, sens: c.m.sens, bougies: c.m.bougies, enCours: !!c.m.enCours, t0: c.m.t0 })) }),

@@ -11,6 +11,7 @@ import { creerInstitutionnel } from './institutionnel-or.js';
 import { creerContexte } from './contexte-or.js';
 import { creerPropositions } from './propositions-or.js';
 import { creerStructure } from './structure-or.js';
+import { creerSchemas } from './schemas-or.js';
 import { FICHES } from './contexte-calcul.js';
 import { PERIODES, REGLES, TEXTE_REGLES, KRAKEN } from './config-or.js';
 import { texteType, texteHistorique, NOMS_TYPES } from './zones-or.js';
@@ -76,6 +77,7 @@ export function monterTableauOr(el, { modules = {}, contexte = 'page', fetchFn, 
     <details><summary>Règles figées des niveaux et des flèches (${REGLES_NIVEAUX.version}, ${REGLES_FLECHES.version})</summary><pre class="tor-regles">${esc(TEXTE_REGLES_FLECHES)}</pre></details><details><summary>Règles figées des flèches H1, version 2 (${REGLES_H1_V2.version}, affichées seulement en H1)</summary><pre class="tor-regles">${esc(TEXTE_REGLES_H1_V2)}</pre></details><details><summary>Règles figées des flèches H1, version 3 (${REGLES_H1_V3.version})</summary><pre class="tor-regles">${esc(TEXTE_REGLES_H1_V3)}</pre></details><details><summary>Règles figées des flèches H1, version 4 (${REGLES_H1_V4.version})</summary><pre class="tor-regles">${esc(TEXTE_REGLES_H1_V4)}</pre></details><details><summary>Règles figées des flèches H1, version 5, et des niveaux H1 affichés (${REGLES_H1_V5.version}, ${REGLES_H1_V5.niveaux})</summary><pre class="tor-regles">${esc(TEXTE_REGLES_H1_V5)}</pre></details><details><summary>Règles figées des flèches H1, version 6, et des niveaux H1 retournés (${REGLES_H1_V6.version}, ${REGLES_H1_V6.niveaux})</summary><pre class="tor-regles">${esc(TEXTE_REGLES_H1_V6)}</pre></details><details><summary>Règles figées des flèches H1, version 7 (${REGLES_H1_V7.version})</summary><pre class="tor-regles">${esc(TEXTE_REGLES_H1_V7)}</pre></details><details><summary>Règles figées des flèches H1, version 8 (${REGLES_H1_V8.version})</summary><pre class="tor-regles">${esc(TEXTE_REGLES_H1_V8)}</pre></details><details><summary>Règles figées des flèches H1, version 9 (${REGLES_H1_V9.version} ; affichée par défaut en H1)</summary><pre class="tor-regles">${esc(TEXTE_REGLES_H1_V9)}</pre></details></details>
   </section>
   <section class="tor-bloc tor-structure" data-structure><h2>Structure de marché H1 / H4 <small>lecture, jamais un ordre</small></h2><p class="tor-struct-bandeau" data-struct-bandeau>Chargement…</p><p class="tor-reponse tor-struct-avert" data-struct-avert hidden role="alert"></p><div class="tor-ctx-actions"><button type="button" class="tor-gb" data-a="struct-resume">Où en est la tendance ?</button><button type="button" class="tor-gb" data-a="struct-fiche">Rebond ou retournement ?</button></div><p class="tor-reponse" data-struct-texte hidden aria-live="polite"></p><ol class="tor-struct-liste" data-struct-liste></ol><p class="tor-ctx-pied" data-struct-reg></p><p class="tor-ctx-pied">Avertissement quand un changement de caractère H1 va contre ta position en cours : <label><input type="checkbox" data-struct-reg-c="voix"> voix</label> <label><input type="checkbox" data-struct-reg-c="notif"> notification</label></p><details data-retourn><summary>Retournements : toutes les zones, triées par probabilité mesurée</summary><div class="tor-rz-ctl"><label>Probabilité minimale <input type="range" data-rz-min min="0" max="90" step="5" value="0"> <output data-rz-min-val>0 %</output></label> <button type="button" class="tor-gb" data-a="rz-mode" title="Basculer entre les 6 zones les plus proches et toutes les zones">Toutes</button></div><table class="tor-ctx"><thead><tr><th>Zone</th><th><button type="button" data-a="rz-tri" data-tri="prob">Probabilité</button></th><th><button type="button" data-a="rz-tri" data-tri="dist">Distance</button></th><th><button type="button" data-a="rz-tri" data-tri="type">Type</button></th><th><button type="button" data-a="rz-tri" data-tri="n">n</button></th></tr></thead><tbody data-rz-corps></tbody></table><p class="tor-ctx-pied">Active la couche « Retournements » dans « Couches » pour afficher les zones sur le graphique.</p></details></section>
+  <section class="tor-bloc tor-schemas" data-schemas><h2>RSI, divergences et schémas de retournement <small>lecture, jamais un ordre</small></h2><p class="tor-reponse tor-struct-avert" data-schemas-avert hidden role="alert"></p><p class="tor-ctx-pied" data-schemas-stats>Mesures : chargement…</p><div class="tor-ctx-actions"><button type="button" class="tor-gb" data-a="schemas-resume">Divergences et schémas du moment</button></div><p class="tor-reponse" data-schemas-texte hidden aria-live="polite"></p><div class="tor-rz-ctl"><label><input type="checkbox" data-schemas-c="seulementZone"> seulement en zone</label> <label><input type="checkbox" data-schemas-c="h4"> H4 (au lieu de H1)</label> <label><input type="checkbox" data-schemas-c="doubles"> doubles sommets / creux</label> <label><input type="checkbox" data-schemas-c="tetes"> tête et épaules</label> <label><input type="checkbox" data-schemas-c="balayages"> balayages</label> <label><input type="checkbox" data-schemas-c="bougies"> bougies en zone</label></div><p class="tor-ctx-pied">Messages « Attention » : <label><input type="checkbox" data-schemas-c="messages"> bandeau</label> <label><input type="checkbox" data-schemas-c="voix"> voix</label> <label><input type="checkbox" data-schemas-c="notif"> notification</label></p><ol class="tor-struct-liste" data-schemas-liste></ol><p class="tor-ctx-pied" data-schemas-reg></p></section>
   <section class="tor-bloc tor-contexte" data-contexte><h2>Ce qui fait bouger l’or <small>valeurs mesurées · sens habituel · jamais un ordre</small></h2><div class="tor-ctx-actions"><button type="button" class="tor-gb" data-a="pourquoi-bloc">Pourquoi l’or bouge ?</button><button type="button" class="tor-gb" data-a="fiche-facteurs" title="Rayle explique ce panneau">? Comment lire ça</button></div><p class="tor-reponse" data-pourquoi hidden aria-live="polite"></p><p class="tor-reponse tor-fiche" data-fiche hidden aria-live="polite"></p><div data-contexte-corps><p>Chargement…</p></div></section>
   <section class="tor-bloc" data-journal-bloc></section>
   <section class="tor-bloc" data-gardien-bloc></section>
@@ -103,7 +105,7 @@ export function monterTableauOr(el, { modules = {}, contexte = 'page', fetchFn, 
 
   /* moteur + graphique + carnet (le même carnet que l'agent) */
   const graph = creerGraphiqueOr(q('[data-graph]'), { mobile });
-  let mouvUI = null, instUI = null, ctxUI = null, propUI = null, structUI = null;
+  let mouvUI = null, instUI = null, ctxUI = null, propUI = null, structUI = null, schUI = null;
   graph.surPosition = (pos, outil) => majPosition(pos, outil);
   graph.surBordGauche = () => { moteur.plusAncien(); };   // glisser vers la gauche : historique plus ancien
   const carnet = creerCarnet(q('[data-carnet]'), { racine: q('[data-carnet]'), WS });   // racine = élément « .at » qui porte les couleurs du carnet (jetons.css)
@@ -165,6 +167,7 @@ export function monterTableauOr(el, { modules = {}, contexte = 'page', fetchFn, 
     graph.bougies(moteur.serie(), S.hist ? S.refP : S.periode === 'M15' ? S.refM15 : S.refP, { cle: S.periode + (S.hist ? ':historique' : ':court'), debutKraken: S.hist && S.k.length ? S.k[0].t : null, ecart: S.ecart });
     graph.dessin({ zonesVol: S.zonesVol, niveaux: S.niveaux, retournement: S.zones, prix: S.prix, a: S.a, h1: h1Zones(S), ...dessinPeriode(S) });
     if (structUI) { try { structUI.maj(); } catch (e) { console.warn('structure :', e.message); } }
+    if (schUI) { try { schUI.maj(); } catch (e) { console.warn('schémas :', e.message); } }
     if (propUI) { try { propUI.maj(); } catch (e) { console.warn('propositions :', e.message); } }
     if (instUI) { try { instUI.maj(); } catch (e) { console.warn('outils institutionnels :', e.message); } }
     if (mouvUI) { try { mouvUI.maj(); } catch (e) { console.warn('mouvements :', e.message); } }   // couche « Mouvements H1 » (H1 seulement ; calcul dans un Worker)
@@ -216,13 +219,14 @@ export function monterTableauOr(el, { modules = {}, contexte = 'page', fetchFn, 
     else if (c.type === 'vue' && modules.surVue) dire = modules.surVue(c.vue);
     else if (c.type === 'propositions' && propUI) { dire = propUI.resume(); }
     else if (c.type === 'tendance' && structUI) { dire = structUI.commande(texte); }
+    else if (c.type === 'schemas' && schUI) { dire = schUI.commande(texte); }
     else if ((c.type === 'pourquoi' || c.type === 'outil') && ctxUI) { dire = await ctxUI.commande(texte); if (dire) { rep.textContent = dire; return dire; } }
     else if (c.type === 'musique' || c.type === 'fenetre') { try { dire = await (await import('./media-rayle.js')).commande(texte, { global: false }); } catch (e) { dire = 'La musique n’est pas disponible ici.'; } }
     else dire = 'Je n’ai pas compris. Essaie « on en est où ? ».';
     if (dire) { rep.textContent = dire; parler(dire); }
     return dire;
   }
-  api.repondre = repondre; api.commande = texte => { const t = interpreter(texte).type; return t === 'lecture' || t === 'pourquoi' || t === 'outil' || t === 'propositions' || t === 'tendance' ? repondre(texte) : null; };   // musique et télé : media-rayle.js, depuis n'importe quel écran
+  api.repondre = repondre; api.commande = texte => { const t = interpreter(texte).type; return t === 'lecture' || t === 'pourquoi' || t === 'outil' || t === 'propositions' || t === 'tendance' || t === 'schemas' ? repondre(texte) : null; };   // musique et télé : media-rayle.js, depuis n'importe quel écran
 
   /* événements de l'interface */
   R.addEventListener('click', e => {
@@ -237,7 +241,7 @@ export function monterTableauOr(el, { modules = {}, contexte = 'page', fetchFn, 
   });
   q('[data-demande]').addEventListener('submit', e => { e.preventDefault(); const i = e.target.querySelector('input'); if (i.value.trim()) repondre(i.value.trim()); i.value = ''; });
   for (const c of R.querySelectorAll('[data-vh1]')) c.addEventListener('change', () => { const sel = [...R.querySelectorAll('[data-vh1]')].filter(x => x.checked).map(x => x.dataset.vh1); moteur.versionsH1(sel.length ? sel : ['fleches-h1-v9']); });
-  for (const c of R.querySelectorAll('[data-couche]')) { c.checked = graph.couches()[c.dataset.couche] !== false; c.addEventListener('change', () => { graph.couches({ [c.dataset.couche]: c.checked }); if (instUI) { if (c.dataset.couche === 'carteCarnet') instUI.carteThermique(c.checked); instUI.maj(true); } if (structUI && (c.dataset.couche === 'structure' || c.dataset.couche === 'retournements')) structUI.maj(true); }); }
+  for (const c of R.querySelectorAll('[data-couche]')) { c.checked = graph.couches()[c.dataset.couche] !== false; c.addEventListener('change', () => { graph.couches({ [c.dataset.couche]: c.checked }); if (instUI) { if (c.dataset.couche === 'carteCarnet') instUI.carteThermique(c.checked); instUI.maj(true); } if (structUI && (c.dataset.couche === 'structure' || c.dataset.couche === 'retournements')) structUI.maj(true); if (schUI && ['rsi', 'divCachees', 'schemas'].includes(c.dataset.couche)) schUI.maj(true); }); }
   // boutons collés au graphique : « Positions de Rayle » (panneau Trades simulés) et « Mouvements H1 » (couche)
   { const bp = R.querySelector('[data-a="positions-rayle"]'), bm = R.querySelector('[data-a="mouv-h1"]'), cm = R.querySelector('[data-couche="mouvements"]');
     const sp = o => { bp.classList.toggle('actif', !!o); bp.setAttribute('aria-pressed', String(!!o)); }, sm = () => { const o = cm && cm.checked; bm.classList.toggle('actif', !!o); bm.setAttribute('aria-pressed', String(!!o)); };
@@ -268,6 +272,7 @@ export function monterTableauOr(el, { modules = {}, contexte = 'page', fetchFn, 
   // modules B et C (montés dans leurs blocs) : chargés à la demande, chacun indépendant
   instUI = creerInstitutionnel({ graph, moteur, carnet }); api.institutionnel = instUI; instUI.maj(true);
   structUI = creerStructure({ racine: R, moteur, graph, parler, auto: etudeAuto }); api.structure = structUI;
+  schUI = creerSchemas({ racine: R, moteur, graph, structure: structUI, parler, auto: etudeAuto }); api.schemas = schUI;
   propUI = creerPropositions({ racine: R, moteur, graph, instUI, parler, auto: etudeAuto }); api.propositions = propUI;
   ctxUI = creerContexte({ racine: R, moteur, graph, parler, auto: etudeAuto }); api.contexte = ctxUI;
   R.addEventListener('click', e => { const bp2 = e.target.closest('[data-a="propositions-h1"],[data-a="fermer-props"]'); if (bp2) { propUI.ouvrir(bp2.dataset.a === 'fermer-props' ? false : null); return; } const b = e.target.closest('[data-a="pourquoi"],[data-a="pourquoi-bloc"],[data-a="fiche-facteurs"],[data-fiche-couche]'); if (!b) return; if (b.dataset.a === 'fiche-facteurs') ctxUI.fiche('facteurs'); else if (b.dataset.ficheCouche) { e.preventDefault(); ctxUI.fiche(b.dataset.ficheCouche); } else ctxUI.pourquoi(); });
