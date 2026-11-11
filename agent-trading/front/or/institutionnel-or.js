@@ -38,6 +38,6 @@ export function creerInstitutionnel({ graph, moteur, carnet = null, notifier = (
     derniere = m; graph.institutionnel(m); notifier(m && m.notes ? m.notes : []);
   }
   const minuterie = setInterval(() => { try { if (lireFlux()) maj(); } catch (e) { /* */ } }, 1500);
-  async function carteThermique(on) { if (!on) return; try { const m = await import('../../../planetes/mars/pc/liquidite/fenetre-liquidite.js'); await m.ouvrirCarte({}); } catch (e) { notifier(['Carte thermique du carnet : indisponible (' + e.message + ').']); } }
+  async function carteThermique(on) { if (!on) return; try { const m = await import('../../../marches/liquidite/fenetre-liquidite.js'); await m.ouvrirCarte({}); } catch (e) { notifier(['Carte thermique du carnet : indisponible (' + e.message + ').']); } }
   return { maj, modele: () => derniere, cumul: () => carte, carteThermique, detruire() { clearInterval(minuterie); sauver(); } };
 }

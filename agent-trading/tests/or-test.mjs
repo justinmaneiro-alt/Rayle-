@@ -98,7 +98,6 @@ ok(/Biais H1 haussier/.test(Lc.phrase) && !/achet|vend/i.test(Lc.phrase), 'lectu
 
 /* ── commandes ── */
 eq(interpreter('Rayle, on en est où ?').type, 'lecture'); eq(normaliser('Hey Raylé, lance ma playlist'), 'lance ma playlist');
-for (const [t, c] of [['lance ma playlist', 'playlist'], ['mets ma musique', 'playlist'], ['joue le mix', 'mix'], ['garde ce morceau', 'garder'], ['retire ce morceau', 'retirer'], ['combien de morceaux dans ma playlist ?', 'combien'], ['quel est ce morceau ?', 'quoi'], ['pause', 'pause'], ['suivant', 'suivant'], ['morceau précédent', 'precedent'], ['monte le son', 'volume_plus'], ['baisse le volume', 'volume_moins'], ['coupe le son', 'muet'], ['mélange', 'melange'], ['arrête la musique', 'stop'], ['reprends', 'reprendre']]) eq(interpreter(t).cmd, c, t);
 eq(interpreter('affiche l’or').vue, 'or'); eq(interpreter('montre la Terre').vue, 'terre'); eq(interpreter('bonjour').type, null);
 
 /* ── outil position, actifs, relais ── */

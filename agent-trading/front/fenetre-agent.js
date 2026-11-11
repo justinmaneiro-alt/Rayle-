@@ -18,13 +18,10 @@ let instance = null, fenetre = null;
 export const estOuvert = () => !!fenetre;
 export function fermer() { if (fenetre) { fenetre.fermer(); return true; } return false; }
 
-/* barre de la fenêtre « ◈ » : accès direct aux tuiles indépendantes Musique et Télé (elles ne sont plus dans la page de l'or) */
-const BOUTONS_MEDIA = '<button type="button" data-a="musique" title="Musique (fenêtre indépendante)" aria-label="Musique">♪</button><button type="button" data-a="tele" title="Télé (fenêtre indépendante)" aria-label="Télé">📺</button>';
-const ouvrirMedia = quoi => import('./or/media-rayle.js').then(m => m.ouvrir(quoi)).catch(e => console.error('média :', e));
 
 export function ouvrirFenetre() {
   if (fenetre) { fenetre.boite.focus(); return instance; }
-  fenetre = ouvrirCadre({ titre: '◈ OR · TABLEAU DE BORD · SIMULATION', ariaLabel: 'Agent de trading', modal: true, defile: false, monter, boutons: BOUTONS_MEDIA, surBouton: ouvrirMedia });
+  fenetre = ouvrirCadre({ titre: '◈ OR · TABLEAU DE BORD · SIMULATION', ariaLabel: 'Agent de trading', modal: true, defile: false, monter });
   instance = fenetre.instance;
   fenetre.surFermer = () => { instance = null; fenetre = null; };
   return instance;

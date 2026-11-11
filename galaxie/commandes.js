@@ -73,7 +73,7 @@
   if(!mobile()) setTimeout(()=>{ galPreparer().catch(()=>{}); },5000);      // sur téléphone / tablette : rien de la galaxie n'est préparé
 
   /* Terminal de Mars : « montre-moi l'or en H1 », « passe en H4 », « mets le nasdaq ». Pris avant les commandes du terminal 2D, mais SEULEMENT quand Mars est ouverte
-     (ou que la phrase dit « sur Mars » / « dans la base ») : sinon le terminal 2D garde ses commandes. L'analyse de la phrase est pure : planetes/mars/pc/trading/instruments.js. */
+     (ou que la phrase dit « sur Mars » / « dans la base ») : sinon le terminal 2D garde ses commandes. L'analyse de la phrase est pure : marches/trading/instruments.js. */
   async function commandeMars(texte){
     const actif=!!(window.Mars&&window.Mars.etat&&window.Mars.etat().actif);
     const n0=cmdNorm(norm(texte)).replace(/['’\-\/]/g,' ').replace(/\s+/g,' ').trim();
@@ -94,12 +94,12 @@
     // Réponses construites à partir des données réelles (CFTC, Trésor, BLS, flux publics…), sans IA ; l'espace de travail s'ouvre sur le bon onglet. Hors de Mars, COT et calendrier restent à l'ancien terminal.
     if(/\b(?:cot|cftc|calendrier|agenda|annonces?|evenements?|fed|bce|ecb|boe|boj|bns|banques? centrales?|publications?|actualites?|news|bouger|bougent|impactent|courbe|taux|rendements?|inflation|chomage|heatmap|carte|nasdaq|resultats?|depots?|edgar)\b/.test(n0)){
       try{
-        const VF=await import(new URL('planetes/mars/pc/finance/voix-finance.js',document.baseURI).href), dem=VF.analyserDemandeFinance(texte);
+        const VF=await import(new URL('marches/finance/voix-finance.js',document.baseURI).href), dem=VF.analyserDemandeFinance(texte);
         if(dem && (actif || explicite || !['cot','calendrier'].includes(dem.type))){
-          const FD=await import(new URL('planetes/mars/pc/finance/donnees.js',document.baseURI).href), rep=await VF.repondre(dem,FD.obtenirFinance());
+          const FD=await import(new URL('marches/finance/donnees.js',document.baseURI).href), rep=await VF.repondre(dem,FD.obtenirFinance());
           if(rep){
             try{
-              const PF=await import(new URL('planetes/mars/pc/trading/panneaux-finance.js',document.baseURI).href), EF=await import(new URL('planetes/mars/pc/trading/fenetre.js',document.baseURI).href);
+              const PF=await import(new URL('marches/trading/panneaux-finance.js',document.baseURI).href), EF=await import(new URL('marches/trading/fenetre.js',document.baseURI).href);
               if(rep.reglage) PF.reglerFinance(rep.panneau,rep.reglage);
               await EF.ouvrirEspace({dock:rep.panneau,focus:rep.panneau});
               if(rep.reglage) PF.reglerFinance(rep.panneau,rep.reglage);
@@ -124,7 +124,7 @@
       return galOrdre('mars','choisir_source',{source:/rayle|maison/.test(src[1])?'rayle':'tv'});
     }
     if(!/\b(?:or|gold|xau|nasdaq|nas100|us ?100|ndx|dollar|dxy|taux|rendement|vix|bitcoin|btc|solana|sol|euro|volatilite|m15|h1|h4|d1|daily|journalier|quinze|une heure|1 heure|4 heures|quatre heures|15 minutes|quart d heure|jour|journee)\b/.test(n0)) return null;
-    let I; try{ I=await import(new URL('planetes/mars/pc/trading/instruments.js',document.baseURI).href); }catch(e){ return null; }
+    let I; try{ I=await import(new URL('marches/trading/instruments.js',document.baseURI).href); }catch(e){ return null; }
     const d=I.analyserDemande(n0.replace(/\b(?:sur mars|dans la base|a la base|base martienne|sur la table)\b/g,' ').replace(/\s+/g,' ').trim());
     if(!d) return null;
     try{ await galPreparer(); }catch(e){ return null; }

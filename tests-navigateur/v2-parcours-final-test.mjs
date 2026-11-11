@@ -35,7 +35,7 @@ await noter('Mars : salon');
 await attendre(1500);
 await ev(() => window.Mars.terminal().ouvrirPanneau('graphique-or')); await attendre(2500);
 verifier('   une fenêtre du terminal s’ouvre comme fenêtre vivante (pas de grande fenêtre par-dessus)', await ev(() => !!document.querySelector('.gf[data-id="p-graphique-or"]')));
-await ev(async () => { await import(new URL('planetes/mars/pc/trading/fenetre-agent.js', document.baseURI).href); await window.PosteAgent.ouvrir({}); }); await attendre(2500);
+await ev(async () => { await import(new URL('marches/trading/fenetre-agent.js', document.baseURI).href); await window.PosteAgent.ouvrir({}); }); await attendre(2500);
 verifier('5. la fenêtre « Agent BTC » s’ouvre (poste de pilotage) sans erreur', await ev(() => !!window.PosteAgent && !!window.PosteAgent.poste && !!document.querySelector('.pa-onglets, #poste-agent, [data-onglet]')));
 await noter('Mars : Agent BTC'); await page.screenshot({ path: 'captures-accueil/v2-parcours-mars-agent.png' });
 await ev(() => { try { window.PosteAgent.fermer && window.PosteAgent.fermer(); } catch (e) { /* déjà fermée */ } document.querySelectorAll('.gf [data-b="fermer"]').forEach(b => { try { b.click(); } catch (e) { /* ignoré */ } }); });

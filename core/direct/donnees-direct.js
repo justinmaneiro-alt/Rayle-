@@ -1,7 +1,7 @@
-import { reseauNavigateur } from '../../planetes/mars/pc/finance/donnees.js';
+import { reseauNavigateur } from '../../marches/finance/donnees.js';
 import { URL_EONET, URL_USGS, analyserEonet, analyserGdacs, analyserUsgs, fusionnerEvenements } from './evenements-calcul.js';
 import { COMMUNIQUES, COMPTES_BLUESKY, COMPTES_MASTODON, PODCASTS, URL_BLUESKY, URL_WIKINEWS, URL_WIKIPEDIA, analyserActualiteWikipedia, analyserBluesky, analyserEphemeride, analyserMastodon, analyserPodcast, analyserWikinews, estVerifieBluesky, estVerifieMastodon, urlMastodon } from './sources-calcul.js';
-import { analyserRss } from '../../planetes/mars/pc/finance/flux-calcul.js';
+import { analyserRss } from '../../marches/finance/flux-calcul.js';
 
 /* ═════════════ CLIENT DES SOURCES EN DIRECT (étape N ; tests : direct-test.mjs avec réseau factice, direct-reel.mjs avec le vrai réseau) ═════════════
    Même philosophie que le hub Finance : chaque méthode rend { etat: 'ok' | 'indisponible', etiquette: 'RÉEL' | 'DIFFÉRÉ' | 'PÉRIMÉ' | 'INDISPONIBLE', source, recuLe, voie, … } ; panne = dernière bonne copie PÉRIMÉE ou INDISPONIBLE avec la raison.

@@ -1,12 +1,12 @@
 /* Commandes vocales de la carte de liquidité (V4, phase 4) — script classique chargé après veilleur-page.js ; branché dans phrase.js (après les sources en direct).
    « ouvre la carte de liquidité », « montre-moi la liquidité sur Solana », « carte de liquidité Kraken », « où va le marché ? », « rejoue la dernière heure », « ferme la carte de liquidité ».
-   Aucune IA : la réponse parlée vient des chiffres du moteur (planetes/mars/pc/liquidite/moteur), toujours avec « hypothèse, pas une promesse ». Rien n'est inventé : sans données, elle le dit. */
+   Aucune IA : la réponse parlée vient des chiffres du moteur (marches/liquidite/moteur), toujours avec « hypothèse, pas une promesse ». Rien n'est inventé : sans données, elle le dit. */
 (function(){
   const nz=t=>String(t||'').normalize('NFD').replace(/[̀-ͯ]/g,'').toLowerCase().replace(/[^a-z0-9 ]+/g,' ').replace(/\s+/g,' ').trim();
   const ACTIFS={btc:'BTC',bitcoin:'BTC',sol:'SOL',solana:'SOL',doge:'DOGE',dogecoin:'DOGE'};
   const actifDe=n=>{ for(const k of Object.keys(ACTIFS)) if(new RegExp('\\b'+k+'\\b').test(n)) return ACTIFS[k]; return null; };
   const fluxDe=n=>/\bkraken\b/.test(n)?'kraken':/\b(futures?|perp|perpetuels?)\b/.test(n)?'binance-fut':/\bbinance\b/.test(n)?'binance-spot':null;
-  const charger=()=>import(new URL('planetes/mars/pc/liquidite/fenetre-liquidite.js',document.baseURI).href);
+  const charger=()=>import(new URL('marches/liquidite/fenetre-liquidite.js',document.baseURI).href);
   const dire=a=>{ const A=a&&a.aimants; if(!A||!A.objectif) return 'Je ne vois pas de zone attractive assez nette autour du prix pour le moment.'; const o=A.objectif,d=A.defense,fmt=p=>p.toLocaleString('fr-FR',{maximumFractionDigits:p>=1000?0:p>=10?2:4});
     return 'Prochain aimant probable : '+fmt(o.prix)+', '+(o.cote==='haut'?'au-dessus':'en dessous')+', à '+Math.abs(o.distancePct).toFixed(2).replace('.',',')+' pour cent. '+(d?'Niveau de défense : '+fmt(d.prix)+'. ':'')+'Invalidation sous ou au-dessus de '+fmt(A.invalidation.prix)+'. Confiance '+A.confiance+'. C’est une hypothèse, pas une promesse.'; };
   async function analyseRapide(actif,flux){

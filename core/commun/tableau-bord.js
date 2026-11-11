@@ -128,7 +128,7 @@
   /* ───── marché ───── */
   const IDS_MARCHE=['BTC','SOL','DOGE','XAU','US100'];
   let modMarche=null;
-  const chargerModMarche=()=>modMarche||(modMarche=Promise.all([import(new URL('planetes/mars/pc/trading/session.js',document.baseURI).href),import(new URL('planetes/mars/pc/trading/cotations.js',document.baseURI).href)]).then(([s,c])=>({s,c})).catch(e=>{ modMarche=null; throw e; }));
+  const chargerModMarche=()=>modMarche||(modMarche=Promise.all([import(new URL('marches/trading/session.js',document.baseURI).href),import(new URL('marches/trading/cotations.js',document.baseURI).href)]).then(([s,c])=>({s,c})).catch(e=>{ modMarche=null; throw e; }));
   function dessinerMarche(){
     const e=fen.marche; if(!e) return; const z=e.querySelector('[data-z=marche]'), cot=donnees.marche;
     if(!cot) return;

@@ -37,7 +37,7 @@ const donnees = page => page.evaluate(() => {
 }
 { // poste de l'agent : six groupes (état vide : sans historique) + terminal 2D
   const { b, page } = await ouvrir({ largeur: 1700, hauteur: 950 });
-  await page.evaluate(async () => { await import('/planetes/mars/pc/trading/fenetre-agent.js'); await window.PosteAgent.ouvrir({}); }); await attendre(1800);
+  await page.evaluate(async () => { await import('/marches/trading/fenetre-agent.js'); await window.PosteAgent.ouvrir({}); }); await attendre(1800);
   for (const g of ['apercu', 'marche', 'strategies', 'risque', 'journal', 'systeme']) { await page.evaluate(x => document.querySelector('.pa-onglets [data-groupe="' + x + '"]').click(), g); await attendre(1300); await page.screenshot({ path: `captures-v1/apres/10-agent-${g}.png` }); }
   await page.evaluate(() => document.querySelector('.pa-mode [data-mode="expert"]').click()); await attendre(500);
   for (const o of ['sante', 'journal', 'regime']) { await page.evaluate(x => document.querySelector('.pa-onglets [data-onglet="' + x + '"]').click(), o); await attendre(1500); await page.screenshot({ path: `captures-v1/apres/11-agent-expert-${o}.png` }); }

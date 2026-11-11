@@ -239,7 +239,6 @@ export function monterTableauOr(el, { modules = {}, contexte = 'page', fetchFn, 
     else if (c.type === 'strategie' && strategieUI) { dire = strategieUI.commande(texte); }
     else if (c.type === 'espace') { dire = window.__espaces ? await window.__espaces.commande(texte) : 'Les espaces ne sont pas disponibles ici.'; }
     else if ((c.type === 'pourquoi' || c.type === 'outil') && ctxUI) { dire = await ctxUI.commande(texte); if (dire) { rep.textContent = dire; return dire; } }
-    else if (c.type === 'musique' || c.type === 'fenetre') { try { dire = await (await import('./media-rayle.js')).commande(texte, { global: false }); } catch (e) { dire = 'La musique n’est pas disponible ici.'; } }
     else dire = 'Je n’ai pas compris. Essaie « on en est où ? ».';
     if (dire) { rep.textContent = dire; parler(dire); }
     return dire;

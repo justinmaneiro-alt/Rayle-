@@ -20,7 +20,7 @@ await page.goto(BASE + '/index.html', { waitUntil: 'load' }); await new Promise(
 await page.evaluate(() => { try { window.Entite.verrou(false); window.Entite.verrou = () => {}; window.Entite.etat('speaking'); } catch (x) {} }); await new Promise(r => setTimeout(r, 2000));
 
 await page.evaluate(() => { window.Entite.etat('idle'); });
-await page.evaluate(async () => { await import('/planetes/mars/pc/trading/fenetre-agent.js'); await window.PosteAgent.ouvrir({}); }); await new Promise(r => setTimeout(r, 2000));
+await page.evaluate(async () => { await import('/marches/trading/fenetre-agent.js'); await window.PosteAgent.ouvrir({}); }); await new Promise(r => setTimeout(r, 2000));
 await page.screenshot({ path: 'captures-v1/avant/agent-apercu.png' });
 await page.evaluate(() => document.querySelector('.pa-onglets [data-onglet="sante"]').click()); await new Promise(r => setTimeout(r, 2500));
 await page.screenshot({ path: 'captures-v1/avant/agent-sante.png' });

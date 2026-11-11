@@ -1,10 +1,10 @@
 import { demarrerWorkerReel } from './worker-local-reel.mjs';
-import { creerClient } from '../planetes/mars/pc/trading/client.js';
-import { INSTRUMENTS, ORDRE_UNITES, UNITES, WATCHLIST } from '../planetes/mars/pc/trading/instruments.js';
-import * as I from '../planetes/mars/pc/trading/indicateurs.js';
-import { resume, correlations } from '../planetes/mars/pc/trading/analyse.js';
-import { lireCotations } from '../planetes/mars/pc/trading/cotations.js';
-import { descriptionSource } from '../planetes/mars/pc/trading/espace.js';
+import { creerClient } from '../marches/trading/client.js';
+import { INSTRUMENTS, ORDRE_UNITES, UNITES, WATCHLIST } from '../marches/trading/instruments.js';
+import * as I from '../marches/trading/indicateurs.js';
+import { resume, correlations } from '../marches/trading/analyse.js';
+import { lireCotations } from '../marches/trading/cotations.js';
+import { descriptionSource } from '../marches/trading/espace.js';
 
 /* VRAIS APPELS depuis ce poste : le mini-Worker local exécute la VRAIE route /marche du dossier worker/ (Yahoo Finance ; Twelve Data seulement si TWELVEDATA_KEY existe ici,
    ce qui n'est pas le cas en local : l'or passe alors par son secours Yahoo, GC=F) ; le client et les indicateurs du navigateur tournent par-dessus.

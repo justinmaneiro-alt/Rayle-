@@ -1,5 +1,5 @@
 // Fausses réponses des sources du hub Finance pour les tests Chrome (aucun réseau réel). Formats identiques aux vraies sources (sondées le 2026-10-22).
-import { SYMBOLES_NDX } from '../planetes/mars/pc/finance/heatmap-calcul.js';
+import { SYMBOLES_NDX } from '../marches/finance/heatmap-calcul.js';
 const NOW = Date.UTC(2026, 9, 22, 9, 0);
 const iso = t => new Date(t).toISOString();
 const rfc = t => new Date(t).toUTCString();

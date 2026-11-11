@@ -20,7 +20,6 @@ export async function monterModules(T) {
 }
 
 export function demarrerPage(el) {
-  if (estTele()) return import('./tele.js').then(m => m.monterTele(el));
   const T = monterTableauOr(el, { contexte: 'page' });
   window.TableauOr = T;   // commandes vocales de Rayle : TableauOr.commande(texte)
   monterModules(T);

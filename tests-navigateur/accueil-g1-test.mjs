@@ -47,7 +47,7 @@ const injecter = p => p.evaluate(async () => {
   TB.injecter('marche', { lignes: [{ id: 'BTC', nom: 'BTC', prix: 67890.4, decimales: 1, pct: 1.23, courbe: serie(66000, 67900), t: now }, { id: 'SOL', nom: 'SOL', prix: 152.31, decimales: 2, pct: -0.84, courbe: serie(158, 152), t: now }, { id: 'XAU', nom: 'Or', prix: 2650.3, decimales: 2, pct: 0.1, courbe: [2650.1, 2650.4, 2650.2, 2650.5, 2650.3, 2650.6, 2650.2, 2650.4, 2650.3, 2650.35], t: now }, { id: 'US100', nom: 'US100', prix: 20123.4, decimales: 1, pct: 0.4, courbe: serie(20000, 20123), t: now }] });
   TB.injecter('terre', { lignes: [{ id: 'a', type: 'seisme', titre: 'M 5.6 · Chili', severite: 3, age: 'il y a 1 h' }], etiquette: 'reel' });
   // faux client de marché (le même module que la table de Mars) : DOGE est en panne, l'or est très calme
-  const m = await import(new URL('planetes/mars/pc/trading/session.js', document.baseURI).href);
+  const m = await import(new URL('marches/trading/session.js', document.baseURI).href);
   const MS = { M15: 900e3, H1: 3600e3, H4: 14400e3, D1: 86400e3 };
   window.__demandes = [];
   m.obtenirClient({ serie: async (inst, un) => {

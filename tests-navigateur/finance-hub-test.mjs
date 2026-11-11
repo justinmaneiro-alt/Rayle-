@@ -28,7 +28,7 @@ async function ouvrir({ brutAbsent = false } = {}) {
   return page;
 }
 const monter = (page, nom) => page.evaluate(async nom => {
-  const m = await import(new URL('planetes/mars/pc/trading/panneaux-finance.js', document.baseURI).href); const p = m[nom]();
+  const m = await import(new URL('marches/trading/panneaux-finance.js', document.baseURI).href); const p = m[nom]();
   const banc = document.getElementById('banc'); banc.innerHTML = ''; banc.appendChild(p.racine); window.__p = p; await p.maj(); return true;
 }, nom);
 const texte = page => page.evaluate(() => document.getElementById('banc').innerText);

@@ -1,8 +1,8 @@
-import { couleurChaleur, miseEnPage, convertisseurs, plagePrix, graduations, couleurMur, COULEURS } from '../../planetes/mars/pc/liquidite/rendu-carte.js';
-import { creerStockageMemoire } from '../../planetes/mars/pc/liquidite/moteur/stockage-memoire.js';
-import { encoderEnregistrement, decoderSegments, encoderEntete, encoderSegments, decoderEnregistrement } from '../../planetes/mars/pc/liquidite/moteur/format-profondeur.js';
-import { analyserLiquidite, barresDepuisBougies, histoProfil } from '../../planetes/mars/pc/liquidite/moteur/analyse.js';
-import { profilVolume, trancheDe } from '../../planetes/mars/pc/liquidite/moteur/barres-flux.js';
+import { couleurChaleur, miseEnPage, convertisseurs, plagePrix, graduations, couleurMur, COULEURS } from '../../marches/liquidite/rendu-carte.js';
+import { creerStockageMemoire } from '../../marches/liquidite/moteur/stockage-memoire.js';
+import { encoderEnregistrement, decoderSegments, encoderEntete, encoderSegments, decoderEnregistrement } from '../../marches/liquidite/moteur/format-profondeur.js';
+import { analyserLiquidite, barresDepuisBougies, histoProfil } from '../../marches/liquidite/moteur/analyse.js';
+import { profilVolume, trancheDe } from '../../marches/liquidite/moteur/barres-flux.js';
 
 let ok = 0, ko = 0;
 const v = (nom, cond, detail = '') => { if (cond) ok++; else { ko++; console.log('KO  ' + nom + (detail !== '' ? ' — ' + detail : '')); } };
@@ -60,7 +60,7 @@ v('couleur des murs selon la fiabilité', couleurMur('fiable') === COULEURS.fiab
 }
 /* ── surimpression sur le graphique du terminal ── */
 {
-  const { niveauxDepuisAnalyse, creerSurimpression } = await import('../../planetes/mars/pc/liquidite/surimpression.js');
+  const { niveauxDepuisAnalyse, creerSurimpression } = await import('../../marches/liquidite/surimpression.js');
   const a = { prix: 100, murs: [{ prix: 100.5, cote: 'ask', usdMax: 4e6, actif: true, distancePct: 0.5, fiabilite: { niveau: 'fiable' } }, { prix: 99.4, cote: 'bid', usdMax: 9e5, actif: true, distancePct: 0.6, fiabilite: { niveau: 'leurre probable' } }, { prix: 99, cote: 'bid', usdMax: 2e6, actif: false, distancePct: 1, fiabilite: { niveau: 'fiable' } }, { prix: 90, cote: 'bid', usdMax: 2e6, actif: true, distancePct: 10, fiabilite: { niveau: 'fiable' } }],
     aimants: { objectif: { prix: 100.5 }, defense: { prix: 99.5 }, invalidation: { prix: 99.3 } } };
   const n = niveauxDepuisAnalyse(a);

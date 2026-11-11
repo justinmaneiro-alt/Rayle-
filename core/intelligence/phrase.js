@@ -8,33 +8,17 @@
     const cmdS=await commandeSecurite(text);    // « déverrouille », « verrouille », « journal de sécurité »…
     if(my!==epoch) return;
     if(cmdS){ diagAction('commande de sécurité'); addLine('ray',cmdS); await speak(cmdS); return; }
-    const cmdMo=window.MobileVoix?await MobileVoix.commande(text):null;    // V8 : téléphone et tablette (coque mobile) : « l'actualité en France », « affiche le terminal », « ouvre l'agent », « mode galaxie » → équivalent Jarvis
     if(my!==epoch) return;
-    if(cmdMo){ diagAction('commande mobile'); addLine('ray',cmdMo); await speak(cmdMo); return; }
-    if(my!==epoch) return;
-    // Terre 2.0 (PC) : « va à Paris », « zoome sur la tour Eiffel », « montre les avions de Londres », « mode thermique », « masque les couches », « retour à la Terre classique »
-    let cmdT2=null;
-    if(!(window.RayleAppareil&&RayleAppareil.mobile&&RayleAppareil.mobile())&&!document.documentElement.classList.contains('appareil-mobile')){
-      try{ const V2=await import(new URL('terre-v2/voix.js',document.baseURI).href); cmdT2=await V2.traiter(text); }catch(e){ console.warn('[terre-v2] voix :',e&&e.message); }
-    }
-    if(my!==epoch) return;
-    if(cmdT2){ diagAction('Terre 2.0'); addLine('ray',cmdT2); await speak(cmdT2); return; }
     const cmdD=window.DirectPage?await DirectPage.commande(text):null;    // sources en direct : « montre-moi les séismes », « mets France 24 en direct », « que dit l'OMS ? »
     if(my!==epoch) return;
     if(cmdD){ diagAction('sources en direct'); addLine('ray',cmdD); await speak(cmdD); return; }
     const cmdL=window.LiquiditeVoix?await LiquiditeVoix.commande(text):null;    // « ouvre la carte de liquidité », « où va le marché ? » : carnet d'ordres en direct
     if(my!==epoch) return;
     if(cmdL){ diagAction('carte de liquidité'); addLine('ray',cmdL); await speak(cmdL); return; }
-    const cmdMu=window.RayleMedia?await RayleMedia.commande(text):null;    // musique et télé, depuis n'importe quel écran : « lance ma playlist », « pause », « suivant », « ouvre la télé »
-    if(my!==epoch) return;
-    if(cmdMu){ diagAction('musique et télé'); addLine('ray',cmdMu); await speak(cmdMu); return; }
     // terminal de trading de Rayle ouvert : « comment tu le sens ? », « qu'est-ce qui se passe sur le carnet ? », « passe en H4 », « trace les scénarios » (agent-trading/front/terminal/rayle-terminal.js)
     const TR=window.TerminalRayle, cmdTR=(TR&&TR.R&&TR.R.isConnected&&TR.module&&TR.module('rayle'))?await TR.module('rayle').commande(text):null;
     if(my!==epoch) return;
     if(cmdTR){ diagAction('terminal de trading'); addLine('ray',cmdTR); await speak(cmdTR); return; }
-    const cmdM=await commandeMars(text);    // terminal de la base Mars (seulement quand Mars est ouverte) : « montre-moi l'or en H1 »
-    if(my!==epoch) return;
-    if(cmdM){ diagAction('terminal de Mars'); addLine('ray',cmdM); await speak(cmdM); return; }
     const cmdT=await commandeTerminal(text);
     if(my!==epoch) return;
     if(cmdT){ diagAction('commande du terminal'); addLine('ray',cmdT); await speak(cmdT); return; }
@@ -44,9 +28,6 @@
     const cmdA=window.ActusAccueil?await ActusAccueil.commande(text):null;    // « les actualités », « actus sport », « ferme les actualités » : fenêtres de l'accueil
     if(my!==epoch) return;
     if(cmdA){ diagAction('actualités (accueil)'); addLine('ray',cmdA); await speak(cmdA); return; }
-    const cmdF=window.G1&&G1.commande?await G1.commande(text):null;    // « ouvre la fenêtre météo », « mes tâches », « ferme la fenêtre » : grande fenêtre de l'accueil Aurore
-    if(my!==epoch) return;
-    if(cmdF){ diagAction('fenêtre de l accueil'); addLine('ray',cmdF); await speak(cmdF); return; }
     const cmdOr=window.TableauOr&&TableauOr.commande?await TableauOr.commande(text):null;    // tableau de bord de l'or ouvert : « on en est où ? » (il parle lui-même)
     if(my!==epoch) return;
     if(cmdOr){ diagAction('tableau de bord de l or'); addLine('ray',cmdOr); return; }

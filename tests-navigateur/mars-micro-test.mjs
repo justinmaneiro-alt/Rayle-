@@ -47,9 +47,9 @@ await page.evaluateOnNewDocument(() => {
 await page.goto(BASE + '/index.html', { waitUntil: 'load' });
 await attendre(1500);
 const ev = (f, ...a) => page.evaluate(f, ...a);
-await ev(async () => { const A = await import(new URL('planetes/mars/pc/trading/session-agent.js', document.baseURI).href); const a = await A.obtenirAgent({ demarrer: false }); await a.demarrer({ synchro: true, boucle: false }); window.__A = A; });
+await ev(async () => { const A = await import(new URL('marches/trading/session-agent.js', document.baseURI).href); const a = await A.obtenirAgent({ demarrer: false }); await a.demarrer({ synchro: true, boucle: false }); window.__A = A; });
 await ev(() => { const el = document.createElement('div'); el.id = 'banc'; el.style.cssText = 'position:fixed;inset:0;z-index:9999;background:#05080c;overflow:auto'; document.body.appendChild(el); });
-await ev(async () => { const m = await import(new URL('planetes/mars/pc/trading/panneau-agent.js', document.baseURI).href); window.__P = m.creerPanneauAgent({}); document.getElementById('banc').appendChild(window.__P.racine); });
+await ev(async () => { const m = await import(new URL('marches/trading/panneau-agent.js', document.baseURI).href); window.__P = m.creerPanneauAgent({}); document.getElementById('banc').appendChild(window.__P.racine); });
 await page.waitForFunction(() => /Microstructure/.test(document.querySelector('.ag-micro')?.textContent || '') && /Session en cours/.test(document.querySelector('.ag-micro').textContent), { timeout: 30000 });
 const txt = () => ev(() => document.querySelector('.ag-micro').textContent);
 let t = await txt();

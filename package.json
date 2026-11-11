@@ -3,7 +3,7 @@
   "private": true,
   "description": "Raylé : IA personnelle de Justin. Ce fichier ne sert qu'à lancer les tests locaux (npm run test:lppr) ; aucune dépendance à installer à la racine. Pas de champ « type » : certains scripts classiques du dépôt se chargent aussi sous Node.",
   "scripts": {
-    "test": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON galaxie/tests/terre2-test.mjs && node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON galaxie/tests/grammaire-test.mjs && cd agent-trading && npm test",
+    "test": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON galaxie/tests/grammaire-test.mjs && cd agent-trading && npm test",
     "test:lppr": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON galaxie/tests/lppr-graphe-test.mjs && node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON core/lppr/noter-lppr.mjs",
     "test:gestes": "node galaxie/tests/gestes-test.mjs && node galaxie/tests/gestes-v5-test.mjs && node galaxie/tests/paquet-binaire-test.mjs && node galaxie/tests/telecommande-test.mjs && node galaxie/tests/fluidite-test.mjs && node galaxie/tests/adaptation-camera-test.mjs && node galaxie/tests/gestes-evaluation-test.mjs",
     "test:v10": "node galaxie/tests/fluidite-test.mjs && node galaxie/tests/adaptation-camera-test.mjs && node galaxie/tests/gestes-evaluation-test.mjs && node galaxie/tests/gestes-v5-test.mjs && node galaxie/tests/fluidite-banc.mjs",

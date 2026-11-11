@@ -40,7 +40,7 @@ async function ouvrir({ largeur, hauteur, tactile = false, avecCarnet = true }) 
   });
   await page.evaluateOnNewDocument(() => { localStorage.setItem('rayle_entite_version', '2'); localStorage.setItem('rayle_boot', '0'); localStorage.removeItem('rayle_agent_vue'); localStorage.setItem('rayle_vv_actif', 'SOL'); });
   await page.goto(BASE + '/index.html', { waitUntil: 'load' }); await attendre(1200);
-  await page.evaluate(async () => { await import('/planetes/mars/pc/trading/fenetre-agent.js'); await window.PosteAgent.ouvrir({}); }); await page.waitForSelector('.vv-pf-grand', { timeout: 25000 }); await attendre(1500);
+  await page.evaluate(async () => { await import('/marches/trading/fenetre-agent.js'); await window.PosteAgent.ouvrir({}); }); await page.waitForSelector('.vv-pf-grand', { timeout: 25000 }); await attendre(1500);
   return { nav, page, erreurs };
 }
 const pixelsNonVides = (page, sel) => page.evaluate(s => { const c = document.querySelector(s); if (!c) return -1; const d = c.getContext('2d').getImageData(0, 0, c.width, c.height).data; let n = 0; for (let i = 3; i < d.length; i += 4) if (d[i] > 0) n++; return n; }, sel);

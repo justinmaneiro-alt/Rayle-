@@ -33,7 +33,7 @@ await page.evaluate(() => window.Panneaux.ouvrir({ id: 'rep', type: 'holo-repons
 rapport('réponse', await mesurer([['titre', '#panneaux .pn-tete h2', 3], ['texte', '#panneaux .pn-corps p', 7], ['étiquette de ligne', '#panneaux .pn-l span', 4.5], ['valeur', '#panneaux .pn-l b', 7], ['pastille d’état', '#panneaux .pn-etat', 3]]));
 await page.evaluate(() => window.Panneaux.fermerTout());
 // poste de l'agent
-await page.evaluate(async () => { await import('/planetes/mars/pc/trading/fenetre-agent.js'); await window.PosteAgent.ouvrir({}); }); await attendre(1800);
+await page.evaluate(async () => { await import('/marches/trading/fenetre-agent.js'); await window.PosteAgent.ouvrir({}); }); await attendre(1800);
 rapport('poste', await mesurer([['paire active', '.pa-paires button.actif', 4.5], ['groupe actif', '.pa-nav-g button.actif', 7], ['bandeau de statut', '.pa-puce', 4.5],
   ['titre de carte', '.pa-c h4', 3], ['phrase', '.pa-phrase', 7], ['ligne : libellé', '.pa-l span', 4.5], ['ligne : valeur', '.pa-l b', 7], ['bouton', '.pa-btn', 4.5], ['texte discret', '.pa-avert', 3]]));
 await page.evaluate(() => document.querySelector('.pa-onglets [data-groupe="strategies"]').click()); await attendre(1200);
