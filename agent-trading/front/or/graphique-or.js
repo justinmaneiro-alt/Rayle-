@@ -12,11 +12,13 @@ import { LIBELLES } from './institutionnel-calcul.js';
 import { dessinerInstitutionnel } from './institutionnel-dessin.js';
 import { dessinerStructure } from './structure-dessin.js';
 import { dessinerSchemas } from './schemas-dessin.js';
+import { dessinerIct } from './ict-dessin.js';
+import { COUCHES_ICT } from './ict-or.js';
 import { zonesAffichage, liquiditeAffichage, dedoublonnerLiquidite, atrH1, detailZone } from './zones-affichage-v1.js';
 import { dessinerZone, dessinerLiquidite } from './zones-affichage-dessin.js';
 
-export const COUCHES = Object.freeze({ sr: 'Supports et résistances', liquidite: 'Zones de liquidité', fleches: 'Flèches de rebond', volume: 'Zones de volume', mouvements: 'Mouvements H1', ...LIBELLES, structure: 'Structure de marché H1 / H4 (cassures, impulsions, retournements)', retournements: 'Retournements : toutes les zones (probabilité mesurée)', rsi: 'RSI H1 + divergences (panneau sous le graphique)', divCachees: 'Divergences cachées', schemas: 'Schémas de retournement (double sommet, tête et épaules, balayage, bougies)' });
-const COUCHES_DEFAUT = Object.freeze({ sr: true, liquidite: true, fleches: true, volume: false, mouvements: true, structure: false, retournements: false, rsi: false, divCachees: false, schemas: false, ...Object.fromEntries(Object.keys(LIBELLES).map(k => [k, false])) });
+export const COUCHES = Object.freeze({ sr: 'Supports et résistances', liquidite: 'Zones de liquidité', fleches: 'Flèches de rebond', volume: 'Zones de volume', mouvements: 'Mouvements H1', ...LIBELLES, structure: 'Structure de marché H1 / H4 (cassures, impulsions, retournements)', retournements: 'Retournements : toutes les zones (probabilité mesurée)', rsi: 'RSI H1 + divergences (panneau sous le graphique)', divCachees: 'Divergences cachées', schemas: 'Schémas de retournement (double sommet, tête et épaules, balayage, bougies)', ...COUCHES_ICT });
+const COUCHES_DEFAUT = Object.freeze({ sr: true, liquidite: true, fleches: true, volume: false, mouvements: true, structure: false, retournements: false, rsi: false, divCachees: false, schemas: false, ...Object.fromEntries(Object.keys(COUCHES_ICT).map(k => [k, false])), ...Object.fromEntries(Object.keys(LIBELLES).map(k => [k, false])) });
 const lire = (k, d) => { try { const v = localStorage.getItem(k); return v ? JSON.parse(v) : d; } catch (e) { return d; } };
 const ecrire = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) { /* stockage refusé */ } };
 const nb = (p, d = 2) => Number(p).toLocaleString('fr-FR', { minimumFractionDigits: d, maximumFractionDigits: d }).replace(/ | /g, ' ');
@@ -338,7 +340,8 @@ export function creerGraphiqueOr(el, { surClicPrix, mobile = false } = {}) {
     const structSous = (x, y) => { const L = inst.cadresS || []; const c = L.find(q => q.kind === 'evt' && x >= q.x0 && x <= q.x1 && y >= q.y0 && y <= q.y1) || L.find(q => q.kind === 'bos' && x >= q.x0 && x <= q.x1 && y >= q.y0 && y <= q.y1) || L.find(q => q.kind === 'zone' && x >= q.x0 && x <= q.x1 && y >= q.y0 && y <= q.y1); return c ? c.g : null; };
     const zoneSous = (x, y) => { const c = (etat.cadresZ || []).find(q => x >= q.x0 - 2 && x <= q.x1 + 2 && y >= q.y0 - 3 && y <= q.y1 + 3); return c ? c.g : null; };
     const schSous = (x, y) => { const L = inst.cadresSch || []; const c = L.find(q => q.kind === 'div' && x >= q.x0 && x <= q.x1 && y >= q.y0 && y <= q.y1) || L.find(q => x >= q.x0 && x <= q.x1 && y >= q.y0 && y <= q.y1); return c ? c.g : null; };
-    const trouver = (x, y) => { const c = etat.cadres.find(c => x >= c.x - 2 && x <= c.x + c.w + 2 && y >= c.y - 2 && y <= c.y + c.h + 2); return c ? c.g : (marqueSous(x, y) || infoOutil(x, y) || structSous(x, y) || schSous(x, y) || zoneSous(x, y)); };
+    const ictSous = (x, y) => { const L = inst.cadresIct || []; const c = L.find(q => q.kind !== 'kz' && x >= q.x0 && x <= q.x1 && y >= q.y0 && y <= q.y1) || L.find(q => x >= q.x0 && x <= q.x1 && y >= q.y0 && y <= q.y1); return c ? c.g : null; };
+    const trouver = (x, y) => { const c = etat.cadres.find(c => x >= c.x - 2 && x <= c.x + c.w + 2 && y >= c.y - 2 && y <= c.y + c.h + 2); return c ? c.g : (marqueSous(x, y) || infoOutil(x, y) || structSous(x, y) || schSous(x, y) || ictSous(x, y) || zoneSous(x, y)); };
     /* flèche ou marque de balayage sous le pointeur (au-dessus de la mèche haute, ou sous la mèche basse, de la bougie) */
     const NOMS = { 'résistance': 'sous une résistance', support: 'sur un support', 'liquidité haute': 'sous une zone de liquidité haute', 'liquidité basse': 'sur une zone de liquidité basse' };
     function marqueSous(x, y) {
@@ -384,8 +387,8 @@ export function creerGraphiqueOr(el, { surClicPrix, mobile = false } = {}) {
     }
   }, 'bottom');
   /* outils institutionnels (VWAP, profil de volume, CVD, séances…) : modèle calculé par institutionnel-or.js, dessiné par institutionnel-dessin.js */
-  const inst = { m: null, props: [], struct: null, cadresS: [], sch: null, cadresSch: [] };
-  const primInst = new Primitive((ctx, T) => { if (!chart || !serie || !etat.bougies.length) return; dessinerInstitutionnel(ctx, T, inst.m, { xDeT, yDe, mobile, props: inst.props }); inst.cadresS = (etat.couches.structure || etat.couches.retournements) ? dessinerStructure(ctx, T, inst.struct, { xDeT, yDe, mobile }) : []; inst.cadresSch = (etat.couches.rsi || etat.couches.divCachees || etat.couches.schemas) && inst.sch ? dessinerSchemas(ctx, T, inst.sch, { xDeT, yDe, mobile }) : []; }, 'top');
+  const inst = { m: null, props: [], struct: null, cadresS: [], sch: null, cadresSch: [], ict: null, cadresIct: [] };
+  const primInst = new Primitive((ctx, T) => { if (!chart || !serie || !etat.bougies.length) return; dessinerInstitutionnel(ctx, T, inst.m, { xDeT, yDe, mobile, props: inst.props }); inst.cadresS = (etat.couches.structure || etat.couches.retournements) ? dessinerStructure(ctx, T, inst.struct, { xDeT, yDe, mobile }) : []; inst.cadresSch = (etat.couches.rsi || etat.couches.divCachees || etat.couches.schemas) && inst.sch ? dessinerSchemas(ctx, T, inst.sch, { xDeT, yDe, mobile }) : []; inst.cadresIct = inst.ict ? dessinerIct(ctx, T, inst.ict, { xDeT, yDe, mobile }) : []; }, 'top');
   const redessiner = () => { primTexte.maj && primTexte.maj(); primFond.maj && primFond.maj(); primMouv.maj && primMouv.maj(); primInst.maj && primInst.maj(); };
 
   const api = {
@@ -411,6 +414,8 @@ export function creerGraphiqueOr(el, { surClicPrix, mobile = false } = {}) {
     propositions(L) { inst.props = L || []; redessiner(); },
     structure(m) { inst.struct = m; redessiner(); },
     schemas(m) { inst.sch = m; redessiner(); },
+    ict(m) { inst.ict = m; redessiner(); },
+    ictEtat: () => ({ cadres: (inst.cadresIct || []).length, types: (inst.cadresIct || []).reduce((o, c) => (o[c.kind] = (o[c.kind] || 0) + 1, o), {}) }),
     schemasEtat: () => ({ cadres: (inst.cadresSch || []).length, types: (inst.cadresSch || []).reduce((o, c) => (o[c.kind] = (o[c.kind] || 0) + 1, o), {}) }),
     /* panneau RSI sous le graphique (3e panneau) : points [{ t, v }] ou null pour le retirer ; divs : segments de divergence sur le RSI */
     async rsi(points, divs = []) {
