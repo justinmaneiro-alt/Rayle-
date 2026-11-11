@@ -281,7 +281,6 @@ export function monterTableauOr(el, { modules = {}, contexte = 'page', fetchFn, 
   structUI = creerStructure({ racine: R, moteur, graph, parler, auto: etudeAuto }); api.structure = structUI;
   schUI = creerSchemas({ racine: R, moteur, graph, structure: structUI, parler, auto: etudeAuto }); api.schemas = schUI;
   ictUI = creerIct({ racine: R, moteur, graph, structure: structUI, parler, auto: etudeAuto }); api.ict = ictUI;
-  strategieUI = creerStrategie({ racine: R, moteur, graph, structure: structUI, parler, auto: etudeAuto }); api.strategie = strategieUI;
   strategieUI = creerStrategie({ racine: R, moteur, graph, carnet, structure: structUI, parler, auto: etudeAuto }); api.strategie = strategieUI;
   propUI = creerPropositions({ racine: R, moteur, graph, instUI, parler, auto: etudeAuto }); api.propositions = propUI;
   ctxUI = creerContexte({ racine: R, moteur, graph, parler, auto: etudeAuto }); api.contexte = ctxUI;

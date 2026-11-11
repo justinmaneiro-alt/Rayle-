@@ -84,6 +84,28 @@ for (const [l, h, mob] of [[1600, 900, false], [390, 844, true]]) {
     v(j.sansFormulaire || (j.feuille && j.feuille.conditions.length === 5 && j.feuille.version === 'feuille-decision-v1'), `${l}px : le journal enregistre l'état des 5 conditions à la pose (${j.sansFormulaire ? 'formulaire absent' : JSON.stringify(j.feuille)} ${j.msg || ''})`);
     const rp = await p.evaluate(() => window.__or.strategie.rapportFeuille().phrase); v(/Pas assez de trades/.test(rp), `${l}px : rapport local honnête (${rp.slice(0, 80)})`);
   }
+  // ── phase 5 : scénarios dessinés ──
+  await p.evaluate(() => window.__or.strategie.injecterPrix(null)); await w(300);
+  v(await p.evaluate(() => !document.querySelector('[data-couche="rayScenarios"]').checked && !!document.querySelector('[data-a="ray-scen"]') && !!document.querySelector('[data-ray-hor]')), `${l}px : bouton « Scénarios » et sélecteur 1 j / 3 j / 1 sem collés au graphique, couche décochée par défaut`);
+  await p.evaluate(() => document.querySelector('[data-graph-barre] [data-a="ray-scen"]').click()); await p.waitForFunction(() => (window.__or.graph.rayleEtat().types.scenario || 0) > 0, { timeout: 8000 }).catch(() => {}); await w(300);
+  const s5 = await p.evaluate(() => { const S = window.__or.strategie, sv = S.scenarios(), g = window.__or.graph.rayleEtat(), reg = S.registreScenarios(); return { couche: document.querySelector('[data-couche="rayScenarios"]').checked, n: sv && sv.actifs.length, ids: sv && sv.actifs.map(a => a.id), etiq: sv && sv.actifs.map(a => a.etiquette), bougies: sv && sv.bougies, cone: sv && sv.cone && sv.cone.length, types: g.types, etiquettes: g.etiquettes, objets: S.compterObjets(), poses: reg.filter(r => r.kind === 'pose').length, horizons: [...new Set(reg.filter(r => r.kind === 'pose').map(r => r.horizon))].sort(), json: JSON.stringify(sv && sv.actifs), fiab: S.fiabiliteScenarios().horizons['1j'].phrase, panneau: document.querySelector('[data-ray-scen-corps]').innerText }; });
+  v(s5.couche && s5.n === 2 && s5.ids.join() === 'A,B' && s5.bougies === 24 && s5.cone === 24, `${l}px : le bouton dessine A et B sur 1 jour avec le cône (${s5.cone} bougies)`);
+  v((s5.types.scenario || 0) === 2, `${l}px : deux trajets dessinés (${JSON.stringify(s5.types)})`);
+  v(s5.etiq.every(e => /^Scénario [AB] · (\d+ % \(hasard \d+ %, n = \d+\)|pas assez de données \(hasard \d+ %\))$/.test(e)), `${l}px : étiquettes avec le hasard à côté (${s5.etiq.join(' | ')})`);
+  v(s5.objets <= 12, `${l}px : Épuré avec scénarios : ${s5.objets} objets (12 au plus)`);
+  let rien5 = true; for (let i = 0; i < s5.etiquettes.length; i++) for (let j = i + 1; j < s5.etiquettes.length; j++) if (chevauche(s5.etiquettes[i], s5.etiquettes[j])) rien5 = false; v(rien5, `${l}px : scénarios : aucune étiquette ne chevauche une autre (${s5.etiquettes.length})`);
+  v(/Scénarios, pas prévisions|scénarios, pas prévisions/.test(s5.panneau) && /Fiabilité des scénarios/.test(s5.panneau) && /pas assez de données/.test(s5.fiab), `${l}px : panneau : « scénarios, pas prévisions » et fiabilité honnête (${s5.fiab.slice(0, 70)})`);
+  v(s5.poses === 6 && s5.horizons.join() === '1j,1sem,3j', `${l}px : archive forward : une pose par horizon et par scénario (${s5.poses})`);
+  await p.evaluate(() => window.__or.strategie.maj(true)); await w(200);
+  const s5b = await p.evaluate(() => { const S = window.__or.strategie; return { json: JSON.stringify(S.scenarios().actifs), poses: S.registreScenarios().filter(r => r.kind === 'pose').length }; });
+  v(s5b.json === s5.json && s5b.poses === s5.poses, `${l}px : figés jusqu'à la bougie suivante : même tracé après un nouveau calcul, pas de nouvelle pose`);
+  await p.evaluate(() => { const s = document.querySelector('[data-ray-hor]'); s.value = '3j'; s.dispatchEvent(new Event('change', { bubbles: true })); }); await w(500);
+  v(await p.evaluate(() => window.__or.strategie.scenarios().bougies === 72 && window.__or.graph.rayleEtat().types.scenario === 2), `${l}px : horizon 3 jours = 72 bougies`);
+  await p.evaluate(() => document.querySelector('[data-graph-barre] [data-a="ray-vue"]').click()); await w(400);
+  await p.screenshot({ path: `captures-or/rayle-${l}-scenarios.png` });
+  await p.evaluate(() => document.querySelector('[data-graph-barre] [data-a="ray-vue"]').click()); await w(300);
+  await p.evaluate(() => { const s = document.querySelector('[data-ray-hor]'); s.value = '1j'; s.dispatchEvent(new Event('change', { bubbles: true })); document.querySelector('[data-graph-barre] [data-a="ray-scen"]').click(); }); await w(400);
+  v((await p.evaluate(() => window.__or.graph.rayleEtat())).types.scenario === undefined, `${l}px : un second clic efface les scénarios`);
   // couche décochée : plus de moyenne mobile
   await p.evaluate(() => { document.querySelector('.tor-couches').open = true; const c = document.querySelector('[data-couche="rayMa"]'); c.checked = false; c.dispatchEvent(new Event('change', { bubbles: true })); }); await w(400);
   v((await p.evaluate(() => window.__or.graph.rayleEtat())).types.ma === undefined, `${l}px : décocher la couche retire la moyenne mobile`);
