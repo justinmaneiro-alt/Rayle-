@@ -1,0 +1,1 @@
+This folder contains the built output assets for the worker "rayle" generated at 2026-11-11T21:26:42.381Z.

@@ -1,6 +1,6 @@
 "use strict";
   /* ═════════════ CONNEXION AU WORKER ═════════════ */
-  const W={ url:()=>store.get(KEY_WURL).replace(/\/+$/,''), token:()=>store.get(KEY_WDEV)||store.get(KEY_WTOK) };   // jeton d'appareil (appairé) si présent, sinon code d'accès
+  const W={ url:()=>(store.get(KEY_WURL)||(window.RAYLE_CONFIG&&window.RAYLE_CONFIG.workerUrl)||'').replace(/\/+$/,''), token:()=>store.get(KEY_WDEV)||store.get(KEY_WTOK) };   // jeton d'appareil (appairé) si présent, sinon code d'accès
   const workerReady=()=>!!(W.url() && W.token());
   // Le terminal (même page) réutilise ces réglages, par le bus
   RayleBus.fournir('worker',()=>({url:W.url(),token:W.token()}));
@@ -19,12 +19,36 @@
     const o=Object.assign({},opts||{});
     const jeton=W.token();
     o.headers=Object.assign({},o.headers||{},{'X-Rayle-Token':jeton});
-    const res=await fetchT(W.url()+path,o,ms||15000);
+    let res; try{ res=await fetchT(W.url()+path,o,ms||15000); }catch(e){ if(e&&e.name==='AbortError') throw e; throw new Error((await diagnostiquerWorker()).message); }
     if(res.status===401 && jeton && jeton===store.get(KEY_WDEV)){   // appareil révoqué : on l'oublie, le code d'accès reprend la main
       store.set(KEY_WDEV,''); store.set(KEY_WDEVNOM,'');
       try{ addLine('sys',"Cet appareil n'est plus appairé (révoqué). Appairez-le de nouveau dans ⚙ Réglages."); }catch(e){}
     }
     return res;
+  }
+  /* Diagnostic précis d'une panne du Worker : on sonde /health (ouvert à toutes les origines) et on dit LAQUELLE des causes est la bonne. Résultat gardé 20 s. */
+  let diagCache=null;
+  async function diagnostiquerWorker(force){
+    if(!force&&diagCache&&Date.now()-diagCache.t<20000) return diagCache.v;
+    const base=W.url(), origine=location.origin; let v;
+    if(!base) v={cause:'adresse',message:'Aucune adresse de Worker configurée (config.js ou ⚙ Réglages).'};
+    else{
+      try{
+        const c=new AbortController(), tm=setTimeout(()=>c.abort(),8000);
+        const r=await fetch(base+'/health',{cache:'no-store',signal:c.signal}); clearTimeout(tm);
+        const texte=await r.text(); let j=null; try{ j=JSON.parse(texte); }catch(e){}
+        if(r.ok&&j&&j.service==='rayle') v={cause:'cors',message:'Le Worker '+base+' répond (version '+(j.version||'?')+') mais refuse l’origine '+origine+' pour les données : ajoutez-la à la variable ORIGINE du Worker.',health:j};
+        else if(r.status===404||/<html/i.test(texte)) v={cause:'pas-le-backend',message:'L’adresse '+base+' répond '+r.status+' mais ce n’est pas le backend Raylé (/health absent : un site statique ou un ancien Worker est déployé à cette adresse). Il faut redéployer le Worker (DEPLOIEMENT.md).'};
+        else v={cause:'http',message:'Le Worker '+base+' répond HTTP '+r.status+' sur /health.'};
+      }catch(e){
+        if(e&&e.name==='AbortError') v={cause:'delai',message:'Le Worker '+base+' ne répond pas (délai de 8 s dépassé).'};
+        else{
+          let atteint=false; try{ await fetch(base+'/health',{mode:'no-cors',cache:'no-store'}); atteint=true; }catch(x){}   // une réponse « opaque » prouve que le serveur est joignable
+          v=atteint?{cause:'sans-cors',message:'Le serveur '+base+' répond, mais sans autorisation CORS pour '+origine+' : soit ce n’est pas le backend Raylé (site statique ou ancien Worker à cette adresse), soit cette origine n’est pas dans la variable ORIGINE. Voir DEPLOIEMENT.md.'}:{cause:'reseau',message:'Impossible de joindre '+base+' : pas de réseau, nom de domaine introuvable, ou Worker supprimé.'};
+        }
+      }
+    }
+    diagCache={t:Date.now(),v}; return v;
   }
   async function workerError(res){
     let d='';
@@ -39,6 +63,7 @@
   function errMsg(e){
     if(e && e.name==='AbortError') return 'délai dépassé ou coupé';
     const m=String((e && e.message) || e);
+    if(/Source «/.test(m)) return m.replace(/^HTTP \d+ · /,'');
     if(/HTTP 401/.test(m)) return "code d'accès refusé par le Worker (vérifiez ⚙ Réglages et le secret RAYLE_TOKEN)";
     if(/^HTTP 429/.test(m)) return 'limite atteinte, patientez un instant';
     if(/^HTTP 503 · aucune IA disponible/.test(m)) return 'aucune IA ne répond pour le moment'+(/429/.test(m)?' (limites atteintes)':'')+' — détail : '+m.replace(/^HTTP 503 · aucune IA disponible\s*/,'').slice(0,300);

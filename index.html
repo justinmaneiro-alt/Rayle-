@@ -25,6 +25,7 @@
 <link rel="stylesheet" href="core/commun/images-actus.css">
 <link rel="stylesheet" href="core/commun/application.css">
 <link rel="stylesheet" href="core/commun/accueil-rayle.css">
+<link rel="stylesheet" href="core/commun/etat-sources.css">
 </head>
 <body>
   <main class="scene" id="scene">
@@ -86,6 +87,11 @@
       <div class="row"><label class="chk"><input type="checkbox" id="telInterrupteur"> Pilotage depuis la tablette/téléphone</label> <button type="button" class="ghost" id="telOuvrir">QR code et appareils</button></div>
       <div class="hint" id="telInfo"></div>
 
+
+      <h3>État des sources</h3>
+      <p class="es-info">Chaque source du backend : verte ou rouge, dernière réussite, erreur précise.</p>
+      <div class="row"><button type="button" id="btnEtatSources">Voir l’état</button><button type="button" class="ghost" id="btnEtatSourcesTester">Tester toutes les sources maintenant</button></div>
+      <div id="etatSources"></div>
 
       <h3>Connexion</h3>
       <label for="kUrl">Adresse du Worker</label>
@@ -290,6 +296,7 @@
 </div>
 
 <script>window.RAYLE_VERSION='2026.11.03.3';</script>
+<script src="config.js"></script>
 <script src="core/commun/maj-pc.js"></script>
 <script src="core/commun/bascule-worker.js"></script>
 <script src="core/commun/bus.js"></script>
@@ -351,6 +358,7 @@
 <script src="core/commun/liquidite-voix.js"></script>
 <script src="core/direct/direct-page.js"></script>
 <script src="core/voice/activation.js"></script>
+<script src="core/commun/etat-sources.js"></script>
 <script src="core/commun/application.js"></script>
 <script src="core/commun/accueil-rayle.js"></script>
 <script src="core/commun/demarrage.js"></script>
