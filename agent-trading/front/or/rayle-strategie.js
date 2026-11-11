@@ -7,12 +7,13 @@ import * as Z from './boites-v1.js';
 import { evenementsAffiches, texteMa, compterObjets, hp } from './rayle-modele-calcul.js';
 import { boitesAffichees, bandeau } from './rayle-modele-boites.js';
 import { COUCHES_RAYLE } from './rayle-couches.js';
+import { creerCarteCarnet } from './rayle-carnet.js';
 const CLE_REG = 'rayle_or_rayle_reglages', CLE_ARCH = 'rayle_or_boites_registre', H = 3600e3;
 const lire = (k, d) => { try { const v = localStorage.getItem(k); return v ? JSON.parse(v) : d; } catch (e) { return d; } };
 const ecrire = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); return true; } catch (e) { return false; } };
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 
-export function creerStrategie({ racine, moteur, graph, structure, parler = () => {}, maintenant = () => Date.now(), fetchFn = (...a) => fetch(...a), auto = true, stats = null } = {}) {
+export function creerStrategie({ racine, moteur, graph, carnet = null, structure, parler = () => {}, maintenant = () => Date.now(), fetchFn = (...a) => fetch(...a), auto = true, stats = null } = {}) {
   const E = { reg: { vue: 'epure', ma: 'h1', horizon: '1j', ...lire(CLE_REG, {}) }, stats: { ma: stats && stats.ma || null, boites: stats && stats.boites || null }, B: null, cle: '', res: null, prep: null, zones: [], sel: { zones: [], message: null }, m: null,
     arch: lire(CLE_ARCH, []), sm: null, prix: null, atr: null };
   const q = s => racine && racine.querySelector(s);
@@ -32,7 +33,7 @@ export function creerStrategie({ racine, moteur, graph, structure, parler = () =
     sec.innerHTML = `<h2>Stratégie Rayle v1 <small>lecture en observation · aucune règle automatique n’a prouvé un avantage · jamais un ordre</small></h2>
       <p class="tor-ctx-pied" data-ray-etat>Chargement…</p>
       <div class="tor-ctx-actions"><label>Moyenne mobile <select data-ray-ma><option value="h1">SMA 200 H1</option><option value="jour">SMA 200 Jour</option></select></label> <button type="button" class="tor-gb" data-a="ray-vue">Épuré</button></div>
-      <div data-ray-ma-corps></div><div data-ray-boites-corps></div><p class="tor-ctx-pied" data-ray-pied></p>`;
+      <div data-ray-ma-corps></div><div data-ray-boites-corps></div><div data-ray-carnet-corps></div><p class="tor-ctx-pied" data-ray-pied></p>`;
     const ict = q('[data-ict]'); if (ict && ict.parentNode) ict.parentNode.insertBefore(sec, ict); else racine.appendChild(sec);
   }
   /* ── calcul à la clôture de chaque bougie H1 ── */
@@ -89,6 +90,8 @@ export function creerStrategie({ racine, moteur, graph, structure, parler = () =
   function reglage(k, v) { E.reg[k] = v; ecrire(CLE_REG, E.reg); maj(true); }
   racine.addEventListener('click', ev => { const b = ev.target.closest('[data-a="ray-vue"]'); if (b) reglage('vue', E.reg.vue === 'epure' ? 'complet' : 'epure'); });
   racine.addEventListener('change', ev => { const t = ev.target; if (t.matches && t.matches('[data-ray-ma]')) reglage('ma', t.value); else if (t.dataset && t.dataset.couche in COUCHES_RAYLE) maj(true); });
+  /* ── lecture du carnet à l'arrivée sur une boîte (phase 3) ── */
+  const carte = creerCarteCarnet({ racine, flux: () => (carnet && carnet._flux) || null, zones: () => E.zones, atr: () => E.atr, prix: () => E.prixForce != null ? E.prixForce : (moteur && moteur.S && moteur.S.prix != null ? moteur.S.prix : (E.B ? E.B[E.B.length - 1].c : null)), barres: () => E.B || [], maintenant, parler, auto });
   let minuterie = null; if (auto) { chargerStats().then(() => maj(true)); minuterie = setInterval(() => { try { maj(); } catch (e) { /* */ } }, 30000); }
-  return { maj, chargerStats, modele: () => E.m, etat: () => ({ reg: { ...E.reg }, res: E.res, B: E.B, stats: E.stats, m: E.m, zones: E.zones, sel: E.sel, arch: E.arch.slice(), bandeau: texteBandeau() }), reglage, injecterPrix(p) { E.prixForce = p; maj(true); }, compterObjets: () => compterObjets(E.m), detruire() { clearInterval(minuterie); } };
+  return { maj, chargerStats, modele: () => E.m, etat: () => ({ reg: { ...E.reg }, res: E.res, B: E.B, stats: E.stats, m: E.m, zones: E.zones, sel: E.sel, arch: E.arch.slice(), bandeau: texteBandeau() }), reglage, carte, injecterPrix(p) { E.prixForce = p; maj(true); }, compterObjets: () => compterObjets(E.m), detruire() { clearInterval(minuterie); } };
 }

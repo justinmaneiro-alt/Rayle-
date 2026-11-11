@@ -51,6 +51,26 @@ for (const [l, h, mob] of [[1600, 900, false], [390, 844, true]]) {
   let rien3 = true; for (let i = 0; i < z3.etiq.length; i++) for (let j = i + 1; j < z3.etiq.length; j++) if (chevauche(z3.etiq[i], z3.etiq[j])) rien3 = false; v(rien3, `${l}px : Complet avec boîtes : aucune étiquette ne chevauche une autre (${z3.etiq.length})`);
   await p.screenshot({ path: `captures-or/rayle-${l}-boites.png` });
   await p.evaluate(() => document.querySelector('[data-graph-barre] [data-a="ray-vue"]').click()); await w(300);
+  // ── phase 3 : lecture du carnet à l'arrivée sur une boîte (carnet et transactions injectés) ──
+  const r3 = await p.evaluate(() => {
+    const S = window.__or.strategie, E = S.etat(), z = E.zones.find(q => !q.invalide); if (!z) return { sansZone: true };
+    const mid = z.cote === 'vente' ? z.bas - 0.1 * z.atr : z.haut + 0.1 * z.atr, bids = [], asks = [];
+    for (let k = 0; k < 60; k++) { bids.push([mid - 0.05 - k * 0.25, 5 + (k % 3)]); asks.push([mid + 0.05 + k * 0.25, 5 + (k % 3)]); } asks.push([mid + 0.3, 500]);
+    const now = Date.now(), trades = []; for (let k = 0; k < 30; k++) trades.push({ t: now - 280e3 + k * 9e3, p: mid - k * 0.2, q: 14, cote: 'sell' });
+    S.injecterPrix(mid); S.carte.injecter({ carnet: { bids: new Map(bids), asks: new Map(asks), pret: true }, trades });
+    const l1 = S.carte.tick(), n1 = S.carte.registre().filter(r => r.kind === 'arrivee').length; S.carte.tick(); const n2 = S.carte.registre().filter(r => r.kind === 'arrivee').length;
+    const c = document.querySelector('[data-ray-carte]'); return { l: l1 && l1.texte, pression: l1 && l1.pression, visible: c && !c.hidden, bougie: c && c.querySelector('.tor-ray-bougie') && c.querySelector('.tor-ray-bougie').className, texteCarte: c && c.innerText, n1, n2, rapport: S.carte.rapport().phrases[0], mention: c && /non validée/.test(c.innerText) };
+  });
+  if (r3.sansZone) v(true, `${l}px : (aucune zone valide dans la série de test, lecture du carnet non exercée)`);
+  else {
+    v(r3.visible && /pression vendeuse/.test(r3.l) && /rouge/.test(r3.bougie), `${l}px : arrivée sur une boîte : carte visible, mini-bougie rouge, verdict (${(r3.l || '').slice(0, 130)})`);
+    v(r3.mention && /Carnet · zone/.test(r3.texteCarte), `${l}px : « lecture en observation, non validée » et titre de la carte`);
+    v(r3.n1 === 1 && r3.n2 === 1, `${l}px : enregistreur forward : une arrivée enregistrée, pas de doublon (${r3.n1}, ${r3.n2})`);
+    v(/Pas assez de données/.test(r3.rapport), `${l}px : rapport honnête (${r3.rapport.slice(0, 70)})`);
+    await p.screenshot({ path: `captures-or/rayle-${l}-carnet.png` });
+    await p.evaluate(() => { const S = window.__or.strategie, far = S.etat().B[S.etat().B.length - 1].c + 5000; S.injecterPrix(far); S.carte.injecter({ carnet: { bids: new Map([[far - 0.25, 5]]), asks: new Map([[far + 0.25, 5]]), pret: true }, trades: [] }); S.carte.tick(); });
+    v(await p.evaluate(() => document.querySelector('[data-ray-carte]').hidden), `${l}px : loin de toute boîte, la carte disparaît`);
+  }
   // couche décochée : plus de moyenne mobile
   await p.evaluate(() => { document.querySelector('.tor-couches').open = true; const c = document.querySelector('[data-couche="rayMa"]'); c.checked = false; c.dispatchEvent(new Event('change', { bubbles: true })); }); await w(400);
   v((await p.evaluate(() => window.__or.graph.rayleEtat())).types.ma === undefined, `${l}px : décocher la couche retire la moyenne mobile`);

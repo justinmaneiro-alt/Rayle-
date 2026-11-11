@@ -281,7 +281,7 @@ export function monterTableauOr(el, { modules = {}, contexte = 'page', fetchFn, 
   structUI = creerStructure({ racine: R, moteur, graph, parler, auto: etudeAuto }); api.structure = structUI;
   schUI = creerSchemas({ racine: R, moteur, graph, structure: structUI, parler, auto: etudeAuto }); api.schemas = schUI;
   ictUI = creerIct({ racine: R, moteur, graph, structure: structUI, parler, auto: etudeAuto }); api.ict = ictUI;
-  strategieUI = creerStrategie({ racine: R, moteur, graph, structure: structUI, parler, auto: etudeAuto }); api.strategie = strategieUI;
+  strategieUI = creerStrategie({ racine: R, moteur, graph, carnet, structure: structUI, parler, auto: etudeAuto }); api.strategie = strategieUI;
   propUI = creerPropositions({ racine: R, moteur, graph, instUI, parler, auto: etudeAuto }); api.propositions = propUI;
   ctxUI = creerContexte({ racine: R, moteur, graph, parler, auto: etudeAuto }); api.contexte = ctxUI;
   R.addEventListener('click', e => { const bp2 = e.target.closest('[data-a="propositions-h1"],[data-a="fermer-props"]'); if (bp2) { propUI.ouvrir(bp2.dataset.a === 'fermer-props' ? false : null); return; } const b = e.target.closest('[data-a="pourquoi"],[data-a="pourquoi-bloc"],[data-a="fiche-facteurs"],[data-fiche-couche]'); if (!b) return; if (b.dataset.a === 'fiche-facteurs') ctxUI.fiche('facteurs'); else if (b.dataset.ficheCouche) { e.preventDefault(); ctxUI.fiche(b.dataset.ficheCouche); } else ctxUI.pourquoi(); });
