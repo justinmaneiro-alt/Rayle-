@@ -60,7 +60,7 @@ export async function rapports() {
 
 /* ── Yahoo : clôtures journalières (cotation du jour + série pour les corrélations) ── */
 export async function yahoo(syms, range = '5d') {
-  const R = ['5d', '1mo', '3mo', '6mo'].includes(range) ? range : '5d';
+  const R = ['5d', '1mo', '3mo', '6mo', '1y', '2y'].includes(range) ? range : '5d';
   const L = String(syms || '').split(',').map(s => s.trim()).filter(s => SYMBOLES_YAHOO.test(s)).slice(0, 12);
   const out = {};
   await Promise.all(L.map(async s => {

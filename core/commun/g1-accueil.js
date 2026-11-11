@@ -289,7 +289,7 @@
   };
   const ICONES=[['accueil','Accueil'],['vie','Vie'],['comm','Communications'],['espaces','Espaces'],['reglages','Réglages']];
   $('g1Icones').innerHTML=ICONES.map(i=>'<button type="button" class="g1-ic" data-i="'+i[0]+'" aria-label="'+i[1]+'" title="'+i[1]+'"><span class="g1-ic-r">'+IC[i[0]]+'</span><small>'+i[1]+'</small></button>').join('');
-  const PLANETES=[['terre','Terre'],['mars','Mars'],['saturne','Saturne'],['terminal','Terminal'],['terminal-or','Terminal or'],['galaxie','Galaxie'],['pays','Pays'],['sources','Sources'],['musique','Musique'],['tele','Télé'],['couper','Couper']];
+  const PLANETES=[['terre','Terre'],['mars','Mars'],['saturne','Saturne'],['terminal','Terminal'],['galaxie','Galaxie'],['pays','Pays'],['sources','Sources'],['musique','Musique'],['tele','Télé'],['couper','Couper']];
   $('g1Menu').innerHTML=PLANETES.map(p=>'<button type="button" data-p="'+p[0]+'">'+p[1]+'</button>').join('');
   // « Agent » : fenêtre de l'agent de trading (module isolé agent-trading/ ; s'il est supprimé, l'entrée disparaît)
   const URL_AGENT=new URL('agent-trading/front/fenetre-agent.js',document.baseURI).href;

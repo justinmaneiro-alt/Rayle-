@@ -9,15 +9,14 @@ for (const theme of ['aurore', 'jarvis']) {
   await p.evaluateOnNewDocument(t => { try { localStorage.setItem('rayle_boot', '0'); localStorage.setItem('rayle_boot_jarvis', '0'); localStorage.setItem('rayle_entite_version', '2'); if (t === 'jarvis') localStorage.setItem('rayle_theme', 'jarvis'); } catch (e) {} }, theme);
   await p.goto(BASE + '/index.html', { waitUntil: 'load' }); await w(3000);
   if (theme === 'aurore') { await p.evaluate(() => document.querySelector('.g1-ic[data-i="espaces"]').click()); await w(300);
-    v(await p.evaluate(() => [...document.querySelectorAll('#g1Menu button')].some(b => b.textContent === 'Terminal or')), 'Aurore : entrée « Terminal or » dans Espaces');
-    await p.evaluate(() => [...document.querySelectorAll('#g1Menu button')].find(b => b.textContent === 'Terminal or').click()); }
+    v(await p.evaluate(() => [...document.querySelectorAll('#g1Menu button')].some(b => b.textContent === 'Terminal')), 'Aurore : entrée « Terminal or » dans Espaces');
+    await p.evaluate(() => [...document.querySelectorAll('#g1Menu button')].find(b => b.textContent === 'Terminal').click()); }
   else await p.evaluate(() => document.getElementById('btnOuvrirTerminal').click());
   await p.waitForSelector('#vueTerminal iframe.tr-or', { timeout: 30000 });
   const f = await (await p.$('#vueTerminal iframe.tr-or')).contentFrame(); await f.waitForSelector('[data-a="positions-rayle"]', { timeout: 30000 });
   v(/or\.html/.test(f.url()), `${theme} : la vue Terminal charge or.html`);
   const r = await f.evaluate(() => ['positions-rayle', 'mouv-h1'].map(a => { const b = document.querySelector(`[data-a="${a}"]`), q = b.getBoundingClientRect(), c = document.elementFromPoint(q.left + q.width / 2, q.top + q.height / 2); return q.width > 90 && q.bottom <= innerHeight && c === b; }));
   v(r.every(Boolean), `${theme} : « Positions de Rayle » et « Mouvements H1 » visibles et cliquables`);
-  v(await f.evaluate(() => !!document.querySelector('a[href="terminal-ancien.html"]')), `${theme} : lien « Ancien terminal »`);
   await f.click('[data-a="positions-rayle"]'); await f.waitForFunction(() => window.TradesSimules && window.TradesSimules.ouvert(), { timeout: 15000 });
   v(true, `${theme} : le panneau Trades simulés s'ouvre`);
   await p.close();

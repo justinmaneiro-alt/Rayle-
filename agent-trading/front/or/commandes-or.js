@@ -13,6 +13,7 @@ const TRANSPORT = new Set(['pause', 'reprendre', 'suivant', 'precedent', 'volume
 export function interpreter(texte, { global = false, musiqueActive = false } = {}) {
   const c = interpreterBrut(texte);
   if (global && c.type === 'musique' && TRANSPORT.has(c.cmd) && !musiqueActive && !/\b(musique|playlist|morceau|chanson|titre|son|volume)\b/.test(normaliser(texte))) return { type: null };
+  if (global && c.type === 'espace') return { type: null };   // onglets et instruments du Terminal : seulement sur la page du Terminal
   if (global && c.type === 'vue') return { type: null };   // « affiche l'or / la Terre » : seulement pour le mode télé ou la page de l'or
   return c;
 }

@@ -118,6 +118,6 @@ export function creerStructure({ racine, moteur, graph, parler = () => {}, maint
     el0.addEventListener('input', ev => { const s = ev.target.closest('[data-rz-min]'); if (s) { E.zr.minProb = +s.value; ecrire(CLE_Z, E.zr); maj(true); } });
   }
   let minuterie = null; if (auto) { chargerStats().then(() => { chargerH1().then(() => maj(true)); }); minuterie = setInterval(async () => { try { await chargerH1(); maj(); } catch (e) { /* */ } }, 30000); }
-  return { maj, resume, ficheRebond, commande, bandeau, chargerH1, chargerStats, etat: () => ({ A: E.A, evenements: E.evenements, registre: E.registre.slice(), zones: E.zones.slice(), stats: E.stats, reg: E.reg, zr: E.zr }), injecterH1(L, { seul = true } = {}) { E.h1Brut = L; E.seul = seul; E.charge = maintenant() + 1e9; E.derniereT = null; E.A = null; E.vus = new Set(); E.pret = false; },
+  return { zonesCalculees() { if (!E.zones.length) { try { E.zones = calculerZones(); } catch (e) { /* sans zones */ } } return E.zones; }, maj, resume, ficheRebond, commande, bandeau, chargerH1, chargerStats, etat: () => ({ A: E.A, evenements: E.evenements, registre: E.registre.slice(), zones: E.zones.slice(), stats: E.stats, reg: E.reg, zr: E.zr }), injecterH1(L, { seul = true } = {}) { E.h1Brut = L; E.seul = seul; E.charge = maintenant() + 1e9; E.derniereT = null; E.A = null; E.vus = new Set(); E.pret = false; },
     modele: () => ({ ...E.evenements, zones: modelZones() }), avertir, positionOuverte, detruire() { clearInterval(minuterie); } };
 }

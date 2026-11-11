@@ -14,8 +14,11 @@ import { creerStructure } from './structure-or.js';
 import { creerSchemas } from './schemas-or.js';
 import { creerIct } from './ict-or.js';
 import { creerStrategie } from './rayle-strategie.js';
+import { creerRisqueProp } from './risque-prop-ui.js';
 import { FICHES } from './contexte-calcul.js';
 import { PERIODES, REGLES, TEXTE_REGLES, KRAKEN } from './config-or.js';
+import { instrument as instrumentDe, actifCourant } from './instruments.js';
+const INSTR = instrumentDe(actifCourant());
 import { texteType, texteHistorique, NOMS_TYPES } from './zones-or.js';
 import { heureParis } from './temps-or.js';
 import { nomClair } from './reperes-or.js';
@@ -56,7 +59,7 @@ export function monterTableauOr(el, { modules = {}, contexte = 'page', fetchFn, 
   const mobile = Math.min(innerWidth, innerHeight) < 600;
   el.innerHTML = `<div class="tor" data-contexte="${esc(contexte)}">
   <header class="tor-tete">
-    <div class="tor-titre"><b>Or</b> <small>Kraken ${KRAKEN.symbole}</small> <span class="tor-prix" data-or-prix>—</span> <small class="tor-var" data-or-var></small></div>
+    <div class="tor-titre"><b>${esc(INSTR.nom)}</b> <small>${INSTR.id === 'OR' ? 'Kraken ' + KRAKEN.symbole : esc(INSTR.court + ' · ' + INSTR.retard)}</small> <span class="tor-prix" data-or-prix>—</span> <small class="tor-var" data-or-var></small></div>
     <nav class="tor-periodes" aria-label="Période">${Object.keys(PERIODES).map(p => `<button type="button" data-periode="${p}">${p === 'J' ? 'Jour' : p}</button>`).join('')}</nav>
     <div class="tor-outils">
       <details class="tor-couches"><summary>Couches</summary><div class="tor-couches-corps">${Object.entries(COUCHES).map(([k, v]) => `<label><input type="checkbox" data-couche="${k}"> ${v}${FICHES[k] ? ` <button type="button" class="tor-qm" data-fiche-couche="${k}" aria-label="Comment lire ça : ${v}" title="Comment lire ça ? (Rayle répond à voix haute)">?</button>` : ''}</label>`).join('')}<div class="tor-mouv" data-mouv-bloc hidden><label class="tor-mouv-seuil">Seuil des mouvements <input type="range" data-mouv-seuil min="1" max="3" step="0.1" value="1.5" aria-label="Seuil minimal des mouvements en ATR"> <output data-mouv-seuil-val>1,5 ATR</output></label><div class="tor-mouv-btns"><span>Exporter les mouvements</span> <button type="button" data-mouv-export="csv">CSV</button> <button type="button" data-mouv-export="json">JSON</button></div><details class="tor-mouv-stats"><summary>Statistiques</summary><div data-mouv-stats-corps><p>Calcul en cours…</p></div></details></div></div></details>
@@ -66,7 +69,7 @@ export function monterTableauOr(el, { modules = {}, contexte = 'page', fetchFn, 
   </header>
   <p class="tor-bandeau" data-bandeau role="status" hidden></p>
   <section class="tor-ecran1">
-    <div class="tor-graph"><div class="tor-graph-barre" data-graph-barre><button type="button" class="tor-gb tor-gb-pos" data-a="positions-rayle" aria-pressed="false" title="Positions simulées que Rayle propose">Positions de Rayle</button><button type="button" class="tor-gb tor-gb-prop" data-a="propositions-h1" aria-pressed="false" title="Propositions H1 de Rayle : lectures de structure à la clôture des bougies H1">Propositions H1</button><button type="button" class="tor-gb" data-a="mouv-h1" aria-pressed="false" title="Afficher ou masquer la couche Mouvements H1">Mouvements H1</button><button type="button" class="tor-gb" data-a="ict-un-clic" aria-pressed="false" title="Analyse ICT de la semaine en un clic : liquidité, structure, FVG, order blocks, premium / discount, killzones, AMD. Un second clic efface. Interprétation de l’ICT, définitions variables selon les sources.">Analyse ICT</button><button type="button" class="tor-gb" data-a="pourquoi" title="Rayle explique en quelques phrases ce qui fait bouger l’or">Pourquoi l’or bouge ?</button><a class="tor-gb tor-gb-anc" href="terminal-ancien.html" title="Ancien terminal : positions, journal, alertes, dessins, carnet, grosses transactions, indicateurs">Ancien terminal</a></div><div class="tor-graph-lw" data-graph></div><p class="tor-pos" data-pos hidden></p><p class="tor-graph-source" data-source></p><p class="tor-struct-bandeau tor-struct-haut" data-struct-bandeau hidden></p><p class="tor-graph-source tor-mouv-note" data-mouv-note hidden></p><p class="tor-graph-source tor-bilan" data-bilan-fleches></p><p class="tor-graph-source" data-versions-h1 hidden>Flèches H1 affichées : <label><input type="checkbox" data-vh1="fleches-h1-v9"> v9</label> <label><input type="checkbox" data-vh1="fleches-h1-v8"> v8</label> <label><input type="checkbox" data-vh1="fleches-h1-v7"> v7</label> <label><input type="checkbox" data-vh1="fleches-h1-v2"> v2</label> <span class="tor-doux">(cocher plusieurs pour comparer ; les flèches portent alors leur version ; v1, v3, v4, v5 et v6 restent calculées en arrière-plan)</span></p></div>
+    <div class="tor-graph"><div class="tor-graph-barre" data-graph-barre><button type="button" class="tor-gb tor-gb-pos" data-a="positions-rayle" aria-pressed="false" title="Positions simulées que Rayle propose">Positions de Rayle</button><button type="button" class="tor-gb tor-gb-prop" data-a="propositions-h1" aria-pressed="false" title="Propositions H1 de Rayle : lectures de structure à la clôture des bougies H1">Propositions H1</button><button type="button" class="tor-gb" data-a="mouv-h1" aria-pressed="false" title="Afficher ou masquer la couche Mouvements H1">Mouvements H1</button><button type="button" class="tor-gb" data-a="ict-un-clic" aria-pressed="false" title="Analyse ICT de la semaine en un clic : liquidité, structure, FVG, order blocks, premium / discount, killzones, AMD. Un second clic efface. Interprétation de l’ICT, définitions variables selon les sources.">Analyse ICT</button><button type="button" class="tor-gb" data-a="pourquoi" title="Rayle explique en quelques phrases ce qui fait bouger l’or">Pourquoi l’or bouge ?</button></div><div class="tor-graph-lw" data-graph></div><p class="tor-pos" data-pos hidden></p><p class="tor-graph-source" data-source></p><p class="tor-struct-bandeau tor-struct-haut" data-struct-bandeau hidden></p><p class="tor-graph-source tor-mouv-note" data-mouv-note hidden></p><p class="tor-graph-source tor-bilan" data-bilan-fleches></p><p class="tor-graph-source" data-versions-h1 hidden>Flèches H1 affichées : <label><input type="checkbox" data-vh1="fleches-h1-v9"> v9</label> <label><input type="checkbox" data-vh1="fleches-h1-v8"> v8</label> <label><input type="checkbox" data-vh1="fleches-h1-v7"> v7</label> <label><input type="checkbox" data-vh1="fleches-h1-v2"> v2</label> <span class="tor-doux">(cocher plusieurs pour comparer ; les flèches portent alors leur version ; v1, v3, v4, v5 et v6 restent calculées en arrière-plan)</span></p></div>
     <aside class="tor-carnet at" data-carnet aria-label="Carnet d’ordres"></aside>
   </section>
   <section class="tor-bloc tor-lecture" data-lecture>
@@ -84,8 +87,9 @@ export function monterTableauOr(el, { modules = {}, contexte = 'page', fetchFn, 
   <section class="tor-bloc tor-contexte" data-contexte><h2>Ce qui fait bouger l’or <small>valeurs mesurées · sens habituel · jamais un ordre</small></h2><div class="tor-ctx-actions"><button type="button" class="tor-gb" data-a="pourquoi-bloc">Pourquoi l’or bouge ?</button><button type="button" class="tor-gb" data-a="fiche-facteurs" title="Rayle explique ce panneau">? Comment lire ça</button></div><p class="tor-reponse" data-pourquoi hidden aria-live="polite"></p><p class="tor-reponse tor-fiche" data-fiche hidden aria-live="polite"></p><div data-contexte-corps><p>Chargement…</p></div></section>
   <section class="tor-bloc" data-journal-bloc></section>
   <section class="tor-bloc" data-gardien-bloc></section>
+  <section class="tor-bloc tor-risque" data-risque-prop><details open><summary><b>Risque prop</b> <small data-rp-resume class="tor-doux"></small></summary><div data-rp-corps></div></details></section>
   <aside class="tor-props" data-props hidden aria-label="Propositions H1"><header><b>Propositions H1</b><small>lectures à la clôture, jamais un ordre</small><button type="button" data-a="fermer-props" aria-label="Fermer">✕</button></header><label class="tor-props-al"><input type="checkbox" data-props-alertes> Alerte à chaque nouvelle proposition (voix et notification)</label><div data-props-corps><p>Chargement…</p></div></aside>
-  <footer class="tor-pied">Simulation et information seulement : Rayle ne passe aucun ordre. Prix : Kraken Futures ${KRAKEN.symbole} (relais public sans clé). Volume, delta et niveaux : Binance XAUUSDT, décalés de l’écart mesuré. Graphique : <a href="https://www.tradingview.com/" target="_blank" rel="noopener">TradingView</a> Lightweight Charts™ (Apache-2.0). Heure de Paris.</footer>
+  <footer class="tor-pied">Simulation et information seulement : Rayle ne passe aucun ordre. ${INSTR.id === 'OR' ? `Prix : Kraken Futures ${KRAKEN.symbole} (relais public sans clé). Volume, delta et niveaux : Binance XAUUSDT, décalés de l’écart mesuré.` : `Prix : ${esc(INSTR.source)} (${esc(INSTR.retard)}).`} Graphique : <a href="https://www.tradingview.com/" target="_blank" rel="noopener">TradingView</a> Lightweight Charts™ (Apache-2.0). Heure de Paris.</footer>
   <div class="tor-notifs" data-notifs hidden><header><b>Notifications</b><button type="button" data-a="fermer-notifs" aria-label="Fermer">✕</button></header>
     <div class="tor-notifs-regl">
       <label><input type="checkbox" data-r="voix"> Voix automatique</label>
@@ -108,17 +112,19 @@ export function monterTableauOr(el, { modules = {}, contexte = 'page', fetchFn, 
 
   /* moteur + graphique + carnet (le même carnet que l'agent) */
   const graph = creerGraphiqueOr(q('[data-graph]'), { mobile });
-  let mouvUI = null, instUI = null, ctxUI = null, propUI = null, structUI = null, schUI = null, ictUI = null;
+  let mouvUI = null, instUI = null, ctxUI = null, propUI = null, structUI = null, schUI = null, ictUI = null, risqueUI = null;
   let strategieUI = null;
   graph.surPosition = (pos, outil) => majPosition(pos, outil);
   graph.surBordGauche = () => { moteur.plusAncien(); };   // glisser vers la gauche : historique plus ancien
-  const carnet = creerCarnet(q('[data-carnet]'), { racine: q('[data-carnet]'), WS });   // racine = élément « .at » qui porte les couleurs du carnet (jetons.css)
+  const WS_VIDE = class { constructor() { this.readyState = 0; } send() {} close() {} addEventListener() {} };   // autre instrument que l'or : jamais le flux de l'or (aucun carnet, aucune transaction)
+  const carnet = creerCarnet(q('[data-carnet]'), { racine: q('[data-carnet]'), WS: INSTR.id === 'OR' ? WS : WS_VIDE });   // racine = élément « .at » qui porte les couleurs du carnet (jetons.css)
   carnet.maj('OR', null);
   const moteur = creerMoteurOr({ ...(fetchFn ? { fetchFn } : {}), etudeAuto, surMaj: () => rendre(), surEvenement: ev => evenement(ev) });
+  api.h1 = () => h1Zones(moteur.S);   // bougies H1 closes (pour les flèches du Terminal)
   api.moteur = moteur; api.graph = graph; api.carnet = carnet; api.envoyerTelegram = t => envoyerTelegram(t);
   let derTr = 0;
   const pompe = setInterval(() => {
-    const L = carnet._flux.transactions().filter(x => x.t > derTr); if (!L.length) return; derTr = L[L.length - 1].t;
+    if (INSTR.id !== 'OR') return; const L = carnet._flux.transactions().filter(x => x.t > derTr); if (!L.length) return; derTr = L[L.length - 1].t;
     if (moteur.transactions(L)) { const b = moteur.S.k[moteur.S.k.length - 1]; graph.majDerniere(b); rendreTete(); }
   }, 400);
 
@@ -174,13 +180,14 @@ export function monterTableauOr(el, { modules = {}, contexte = 'page', fetchFn, 
     if (schUI) { try { schUI.maj(); } catch (e) { console.warn('schémas :', e.message); } }
     if (ictUI) { try { ictUI.maj(); } catch (e) { console.warn('ICT :', e.message); } }
     if (strategieUI) { try { strategieUI.maj(); } catch (e) { console.warn('stratégie Rayle :', e.message); } }
+    if (risqueUI) { try { risqueUI.maj(); } catch (e) { console.warn('risque prop :', e.message); } }
     if (propUI) { try { propUI.maj(); } catch (e) { console.warn('propositions :', e.message); } }
     if (instUI) { try { instUI.maj(); } catch (e) { console.warn('outils institutionnels :', e.message); } }
     if (mouvUI) { try { mouvUI.maj(); } catch (e) { console.warn('mouvements :', e.message); } }   // couche « Mouvements H1 » (H1 seulement ; calcul dans un Worker)
     // bandeau unique : marché fermé, retard, données peu fiables, panne
     const msg = [];
-    if (S.erreurs.kraken) msg.push('Prix Kraken indisponible : ' + S.erreurs.kraken);
-    if (S.erreurs.binance) msg.push('Référence Binance indisponible : ' + S.erreurs.binance);
+    if (S.erreurs.kraken) msg.push((INSTR.id === 'OR' ? 'Prix Kraken indisponible : ' : 'Prix ' + INSTR.nom + ' indisponible : ') + S.erreurs.kraken);
+    if (S.erreurs.binance && INSTR.id === 'OR') msg.push('Référence Binance indisponible : ' + S.erreurs.binance);
     if (S.marche && !S.marche.ouvert) msg.push(S.marche.texte);
     else if (S.retard && S.retard.enRetard) msg.push(S.retard.texte);
     if (S.fiable === false) msg.push(`Données peu fiables : seulement ${nb(S.volume24h / 1e6, 0)} M$ échangés sur 24 h sur la référence.`);
@@ -189,7 +196,7 @@ export function monterTableauOr(el, { modules = {}, contexte = 'page', fetchFn, 
     const ro = regOutils(), anc = !ro || ro.anciennesFleches; bf.hidden = !anc;
     const vh = q('[data-versions-h1]'); vh.hidden = S.periode !== 'H1' || !anc; if (!vh.hidden) { const sel = moteur.versionsH1(); for (const c of vh.querySelectorAll('[data-vh1]')) c.checked = sel.includes(c.dataset.vh1); }
     bf.textContent = BF ? `${BF.titre || `Flèches de rebond (${S.periode})`} : ${BF.texte} Informations de lecture, jamais un ordre.` : 'Flèches de rebond : calcul en cours…';
-    q('[data-source]').textContent = `Prix Kraken · volume Binance · écart Kraken − Binance ${S.ecart == null ? 'non mesuré' : (S.ecart >= 0 ? '+' : '') + nb(S.ecart)} $${S.ecartN ? ` (médiane de ${S.ecartN} bougies)` : ''} · ATR H1 ${nb(S.a)} $${texteHistoriqueCharge(S)}`;
+    q('[data-source]').textContent = INSTR.id !== 'OR' ? `Source : ${INSTR.source} · ${INSTR.retard} · ATR H1 ${nb(S.a)}` : `Prix Kraken · volume Binance · écart Kraken − Binance ${S.ecart == null ? 'non mesuré' : (S.ecart >= 0 ? '+' : '') + nb(S.ecart)} $${S.ecartN ? ` (médiane de ${S.ecartN} bougies)` : ''} · ATR H1 ${nb(S.a)} $${texteHistoriqueCharge(S)}`;
     // lecture
     const L = S.lecture; if (L) {
       q('[data-l-biais]').textContent = S.biais ? `${L.biais} (${S.biais.texte})` : '—';
@@ -207,6 +214,7 @@ export function monterTableauOr(el, { modules = {}, contexte = 'page', fetchFn, 
     modules.journal && modules.journal.majMarche && modules.journal.majMarche(S);
     modules.gardien && modules.gardien.majMarche && modules.gardien.majMarche(S);
     modules.outils && modules.outils.majMarche && modules.outils.majMarche(S);
+    if (api.flechesT) api.flechesT.maj();   // flèches du Terminal (MA200, niveaux majeurs, zones tracées) : à la clôture des bougies H1
     api.surRendu && api.surRendu(S);
   }
   function majPosition(pos, outil) {
@@ -215,6 +223,7 @@ export function monterTableauOr(el, { modules = {}, contexte = 'page', fetchFn, 
     p.textContent = outil ? `Clique sur le graphique pour poser ${outil === 'entree' ? 'l’entrée' : outil === 'stop' ? 'le stop' : 'l’objectif'}.` : r ? `${r.sens === 'achat' ? 'Achat' : 'Vente'} · entrée ${nb(pos.entree)} · stop ${nb(pos.stop)} · objectif ${nb(pos.objectif)} · gain/risque ${nb(r.rr, 1)}${r.coherent ? '' : ' · objectif du mauvais côté'} · glisse un trait pour l’ajuster` : '';
     if (r) p.insertAdjacentHTML('beforeend', ' <button type="button" data-a="effacer-pos">Effacer</button>');
     modules.gardien && modules.gardien.majPosition && modules.gardien.majPosition(pos);
+    if (risqueUI) { try { risqueUI.majPosition(pos); } catch (e) { console.warn('risque prop :', e.message); } }
   }
 
   /* commandes (texte et voix) */
@@ -284,12 +293,14 @@ export function monterTableauOr(el, { modules = {}, contexte = 'page', fetchFn, 
   schUI = creerSchemas({ racine: R, moteur, graph, structure: structUI, parler, auto: etudeAuto }); api.schemas = schUI;
   ictUI = creerIct({ racine: R, moteur, graph, structure: structUI, parler, auto: etudeAuto }); api.ict = ictUI;
   strategieUI = creerStrategie({ racine: R, moteur, graph, carnet, structure: structUI, parler, auto: etudeAuto }); api.strategie = strategieUI;
+  risqueUI = creerRisqueProp({ racine: R, graph, structure: structUI, schemas: schUI, modules: () => modules, notifier, parler }); api.risque = risqueUI;
   propUI = creerPropositions({ racine: R, moteur, graph, instUI, parler, auto: etudeAuto }); api.propositions = propUI;
   ctxUI = creerContexte({ racine: R, moteur, graph, parler, auto: etudeAuto }); api.contexte = ctxUI;
   R.addEventListener('click', e => { const bp2 = e.target.closest('[data-a="propositions-h1"],[data-a="fermer-props"]'); if (bp2) { propUI.ouvrir(bp2.dataset.a === 'fermer-props' ? false : null); return; } const b = e.target.closest('[data-a="pourquoi"],[data-a="pourquoi-bloc"],[data-a="fiche-facteurs"],[data-fiche-couche]'); if (!b) return; if (b.dataset.a === 'fiche-facteurs') ctxUI.fiche('facteurs'); else if (b.dataset.ficheCouche) { e.preventDefault(); ctxUI.fiche(b.dataset.ficheCouche); } else ctxUI.pourquoi(); });
   mouvUI = creerMouvementsUI({ racine: R, graph, moteur }); api.mouvements = mouvUI; api.graphe = () => graph;
   api.monterModule = (nom, m) => { modules[nom] = m; }; api.rendre = () => rendre();
   // mes outils (dessin, surveillance, alertes, registre) : dans tous les contextes ; un échec n'empêche pas le reste
+  import('./fleches-terminal-ui.js').then(m => { api.flechesT = m.monterFlechesTerminal(api, {}); }).catch(e => notifier('Flèches du Terminal indisponibles : ' + e.message, { niveau: 'doux', dit: false, raison: 'module' }));
   import('./terminal-outils.js').then(m => { if (!R.isConnected && el.innerHTML === '') return; modules.outils = m.monterOutils(api, { ...(fetchFn ? { fetchFn } : {}), ...(window.__RAYLE_OR_OUTILS_TEST__ || {}) /* crochet de test : horloge et bougies H1 rejouées */ }); api.outils = modules.outils; }).catch(e => notifier('Outils de dessin indisponibles : ' + e.message, { niveau: 'doux', dit: false, raison: 'module' }));
   moteur.demarrer().then(() => { notifier('Données de l’or chargées.', { niveau: 'doux', dit: false, raison: 'information interne' }); }).catch(e => notifier('Chargement impossible : ' + e.message, { niveau: 'fort' }));
   api.detruire = () => { if (window.TableauOr === api) window.TableauOr = null; clearInterval(pompe); moteur.arreter(); carnet.detruire(); graph.detruire(); ro && ro.disconnect(); for (const m of Object.values(modules)) m && m.detruire && m.detruire(); el.innerHTML = ''; };

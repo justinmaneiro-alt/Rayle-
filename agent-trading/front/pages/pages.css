@@ -1,0 +1,28 @@
+/* Pages du Terminal (Actualités, COT, Santé, Institutions, Calendrier) : même palette que le reste (fond sombre, accent cyan, sable discret). */
+.esp-zone.pg { --pg-c: #8fd0e3; color: #d7e3ea; font-family: system-ui, sans-serif; padding: 12px; max-width: 1400px; margin: 0 auto; font-size: 14px; line-height: 1.45; }
+.pg h2 { margin: 4px 0 8px; font-weight: 500; color: #8fd0e3; font-size: 18px; } .pg h2 small, .pg h3 small { color: #8497a1; font-weight: 400; font-size: 12px; margin-left: 6px; }
+.pg h3 { margin: 4px 0 6px; font-weight: 500; font-size: 14px; }
+.pg-barre { display: flex; flex-wrap: wrap; gap: 6px; margin: 6px 0 10px; } .pg-barre button { background: transparent; color: #cfdde4; border: 1px solid #2a3a44; border-radius: 6px; padding: 6px 12px; cursor: pointer; min-height: 36px; } .pg-barre button.actif { background: #16303a; border-color: #8fd0e3; color: #fff; }
+.pg-grille { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(340px, 100%), 1fr)); gap: 12px; }
+.pg-carte { border: 1px solid #22323c; border-radius: 8px; padding: 8px 12px; background: #0b1319; min-width: 0; } .pg-large { grid-column: 1 / -1; margin: 10px 0; }
+.pg-val { margin: 0 0 4px; font-family: ui-monospace, Consolas, monospace; } .pg-val b { font-size: 20px; color: #fff; } .pg-val span { color: #8497a1; font-size: 12px; margin-left: 6px; }
+.pg-svg { width: 100%; height: 96px; display: block; } .pg-ref { stroke: #c9b27a; stroke-width: 1; stroke-dasharray: 3 3; vector-effect: non-scaling-stroke; } .pg-ref2 { stroke: #5b6b75; stroke-width: 1; vector-effect: non-scaling-stroke; }
+.pg-axe { display: flex; justify-content: space-between; color: #6e8089; font: 11px ui-monospace, Consolas, monospace; } .pg-vide { display: grid; place-items: center; color: #6e8089; font-size: 12px; }
+.pg-sens { margin: 6px 0 2px; color: #b8c8d0; font-size: 13px; } .pg-src, .pg-doux { color: #8497a1; font-size: 12px; } .pg-avert { color: #c9b27a; margin: 2px 0 8px; font-size: 13px; }
+.pg-panne { color: #e8a85a; margin: 6px 0; } .pg-ko { opacity: .85; }
+.pg-resume { border-left: 3px solid #8fd0e3; padding: 4px 10px; margin: 6px 0 10px; background: #0b1319; } .pg-resume p { margin: 4px 0; }
+.pg-liste { list-style: none; padding: 0; margin: 4px 0; } .pg-liste li { padding: 6px 0; border-bottom: 1px solid #1c2a33; display: grid; gap: 2px; } .pg-liste a { color: #e6f1f6; text-decoration: none; } .pg-liste a:hover { color: #8fd0e3; text-decoration: underline; } .pg-liste small { color: #8497a1; } .pg-liste span { color: #9fb0b8; font-size: 12.5px; }
+.pg-tab { border-collapse: collapse; width: 100%; font-size: 12.5px; } .pg-tab th, .pg-tab td { padding: 4px 8px; border-bottom: 1px solid #1c2a33; text-align: left; } .pg-tab th { color: #8497a1; font-weight: 500; } .pg-nb { font-family: ui-monospace, Consolas, monospace; }
+.pg-tab-defile { overflow-x: auto; max-width: 100%; } .pg-passe { opacity: .55; } .pg-fort td:first-child { border-left: 2px solid #e8a85a; }
+@media (max-width: 700px) { .esp-zone.pg { padding: 8px; } .pg-tab { font-size: 12px; } }
+
+/* ───── barre du Terminal : onglets + sélecteur d'instruments ───── */
+.esp-barre { flex-wrap: wrap; } .esp-instr-l { margin-left: auto; color: #8497a1; font-size: 12px; display: flex; align-items: center; gap: 6px; }
+.esp-instr { background: #0b1319; color: #e6f1f6; border: 1px solid #2a3a44; border-radius: 6px; padding: 6px 8px; min-height: 36px; font: inherit; } .esp-src { color: #8497a1; font-size: 11.5px; flex-basis: 100%; }
+.esp-avert { margin: 0; padding: 6px 12px; background: #1a1708; color: #c9b27a; font: 12.5px system-ui, sans-serif; border-bottom: 1px solid #3a3416; }
+/* vues du même graphique : Journal ne montre que le journal, le gardien et le risque ; Graphique ne les montre pas */
+#vue[data-vue="journal"] .tor > :not([data-journal-bloc]):not([data-gardien-bloc]):not([data-risque-prop]) { display: none !important; }
+#vue[data-vue="graphique"] [data-journal-bloc], #vue[data-vue="graphique"] [data-gardien-bloc], #vue[data-vue="graphique"] [data-risque-prop] { display: none; }
+/* instruments autres que l'or : pas de blocs propres à l'or */
+body:not([data-actif="OR"]) section[data-contexte], body:not([data-actif="OR"]) .tor-carnet { display: none !important; }
+@media (max-width: 700px) { .esp-instr-l { margin-left: 0; } .esp-src { white-space: normal; } }

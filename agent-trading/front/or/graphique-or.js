@@ -42,7 +42,7 @@ export function ratio(pos) {
 
 export function creerGraphiqueOr(el, { surClicPrix, mobile = false } = {}) {
   const etat = { bougies: [], volumes: [], cle: null, debutKraken: null, ecart: null, chargementAncien: false, zonesVol: [], h1: [], aff: null, cadresZ: [], niveaux: [], retournement: [], bandes: [], liquidite: [], balayages: [], fleches: [], segments: [], segCadres: [], a: null, cadres: [], marques: [], tSerie: new Map(), barres: new Map(), couches: { ...COUCHES_DEFAUT, ...lire('rayle_or_couches_v2', {}) }, pos: lire('rayle_or_position', null), outil: null, prix: null,
-    outils: { objets: [], proposes: [], croix: [], fleches10: [], selection: null }, modeOutil: null, brouillon: [], aimant: true, outilsCadres: [] };
+    flechesT: [], outils: { objets: [], proposes: [], croix: [], fleches10: [], selection: null }, modeOutil: null, brouillon: [], aimant: true, outilsCadres: [] };
   let LW = null, chart = null, serie = null, vol = null, pret = null, maSerie = null, rsiSerie = null, rsiDiv = [];
   /* couche « Mouvements H1 » (mouvements-v1.js, définition figée) : rétrospectif, jamais un signal ; H1 seulement ; données calculées dans un Worker (mouvements-ui.js) */
   const mouv = { liste: [], h1: false, cadres: [] };
@@ -233,7 +233,11 @@ export function creerGraphiqueOr(el, { surClicPrix, mobile = false } = {}) {
     ...(etat.couches.fleches !== false ? etat.fleches.map(f => ({ id: 'f' + f.t + (plusieursVersions() ? '-' + court(f.version) : ''), time: tDe(f.t), position: f.sens === 'baisse' ? 'aboveBar' : 'belowBar', color: f.sens === 'baisse' ? C.flecheBas : C.flecheHaut, shape: f.sens === 'baisse' ? 'arrowDown' : 'arrowUp', size: f.version === 'fleches-h1-v9' ? 1 : 0.6, ...(plusieursVersions() ? { text: court(f.version) } : {}) })) : []),
     ...(etat.couches.liquidite !== false ? etat.balayages.map(b => ({ id: 'b' + b.t + b.sorte, time: tDe(b.t), position: b.sorte === 'haute' ? 'aboveBar' : 'belowBar', color: 'rgba(195,155,224,.75)', shape: 'circle', size: 0.35 })) : []),
     ...(etat.outils.fleches10 || []).map(f => { const tb = tBougie(f.t); return tb == null ? null : { id: 'w' + f.t + f.objet, time: tDe(tb), position: f.sens === 'baisse' ? 'aboveBar' : 'belowBar', color: f.sens === 'baisse' ? C.flecheBas : C.flecheHaut, shape: f.sens === 'baisse' ? 'arrowDown' : 'arrowUp', size: 0.9 }; }).filter(Boolean),
+    ...marquesTerminal(),
     ...marquesJournal()].filter(m => m.time != null).sort((a, b) => a.time - b.time);
+  /* flèches du Terminal (fleches-terminal-v1) : posées à la clôture de leur bougie, sur la bougie affichée qui contient cet instant ; jamais déplacées */
+  const COULEURS_T = { ma_cassure: '#e8c15a', ma_retour: '#8fd0e3', ma_rebond: '#4fd18b', ma_fausse: '#e08a5a', niveau_rebond: '#c39be0', zone_rebond: '#5bc0eb' };
+  const marquesTerminal = () => etat.flechesT.map(f => { const tb = tBougie(f.tCloture - 1); return tb == null ? null : { id: 'ft' + f.id, time: tDe(tb), position: f.dir > 0 ? 'belowBar' : 'aboveBar', color: COULEURS_T[f.type] || '#cfd8dc', shape: f.dir > 0 ? 'arrowUp' : 'arrowDown', size: 1 }; }).filter(Boolean);
   const marquesJournal = () => etat.marques.filter(m => m.t).map(m => ({ time: tDe(m.t), position: m.sens === 'achat' ? 'belowBar' : 'aboveBar', color: m.r == null ? '#cfd8dc' : m.r >= 0 ? C.haut : C.bas, shape: m.sens === 'achat' ? 'arrowUp' : 'arrowDown', text: m.texte || '' })).sort((a, b) => a.time - b.time);
 
   async function monter() {
@@ -444,6 +448,9 @@ export function creerGraphiqueOr(el, { surClicPrix, mobile = false } = {}) {
     fleches: () => etat.fleches.slice(), segments: () => etat.segCadres.map(q => ({ x0: q.x0, x1: q.x1, y: q.y, libelle: q.sg.libelle, sens: q.sg.sens, etiquette: !q.sg.sansEtiquette })), marquesAffichees: () => marquesLW(),
     dessin({ zonesVol, niveaux, retournement, prix, a, bandes, liquidite, balayages, fleches, segments, h1 }) { if (h1) etat.h1 = h1; if (segments) etat.segments = segments; if (bandes) etat.bandes = bandes; if (liquidite) etat.liquidite = liquidite; if (balayages) etat.balayages = balayages; if (fleches) { const ch = fleches !== etat.fleches; etat.fleches = fleches; if (ch && marqueurs) marqueurs.setMarkers(marquesLW()); } if (zonesVol) etat.zonesVol = zonesVol.slice().sort((x, y) => (y.force || 0) - (x.force || 0)).slice(0, 3); if (niveaux) etat.niveaux = niveaux; if (retournement) etat.retournement = retournement; if (a != null) etat.a = a; if (prix != null) etat.prix = prix; calculerAff(); redessiner(); },
     etiquettes: () => etat.cadres.map(c => ({ texte: c.g.texte, bord: c.g.bord || null, n: c.g.n, detail: c.g.detail, x: c.x, y: c.y, w: c.w, h: c.h })),
+    flechesTerminal(L) { etat.flechesT = L || []; if (marqueurs) marqueurs.setMarkers(marquesLW()); return etat.flechesT.length; },
+    flechesTerminalEtat: () => ({ n: etat.flechesT.length, posees: marquesTerminal().length }),
+    tempsDeBougie: t => { const tb = tBougie(t); return tb == null ? null : tDe(tb); },
     marques(L) { etat.marques = L || []; if (marqueurs) marqueurs.setMarkers(marquesLW()); },
     outil(v) { etat.outil = v; if (v === 'entree') etat.pos = null; redessiner(); return etat.outil; },
     /* outils dessinés (terminal-outils.js) */

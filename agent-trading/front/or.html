@@ -3,17 +3,21 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Or · Rayle</title>
+<title>Terminal · Rayle</title>
 <link rel="icon" href="data:,">
 <meta name="theme-color" content="#05080c">
 <link rel="stylesheet" href="./invest/invest.css">
+<link rel="stylesheet" href="./pages/pages.css" data-pages-css>
 <style>html,body{margin:0;background:#05080c;color:#d7e3ea}#vue{min-height:100vh}</style>
 </head>
 <body>
 <div id="vue"></div>
 <script type="module">
-  // Tableau de bord de l'or (page autonome). ?tele=1 (ou un grand écran sans souris fine) = mode télé.
+  // Terminal de Rayle : une seule page, des onglets (Graphique, Actualités, COT, Santé du marché, Institutions, Calendrier, Journal, Capital)
+  // et un sélecteur d'instruments (l'or par défaut). ?tele=1 (ou un grand écran sans souris fine) = mode télé.
+  import './or/adaptateur-instrument.js';   // EN PREMIER : branche l'instrument choisi (clés de stockage, sources) avant les modules du moteur
   import { demarrerPage } from './or/page-or.js';
+  document.body.dataset.actif = (await import('./or/instruments.js')).actifCourant();
   window.__or = demarrerPage(document.getElementById('vue'));
   if (!new URLSearchParams(location.search).has('tele')) { const { parler } = await import('./or/tableau-or.js'); const m = await import('./espaces.js'); window.__espaces = m.monterEspaces({ trading: document.getElementById('vue'), parler }); }
 </script>

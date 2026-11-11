@@ -233,3 +233,16 @@ Capture avant : `captures-or/terminal-avant-1600.png`. Défauts relevés à 1600
 
 ### Phase D — zones tracées et alertes : FAITE
 `front/or/zones-alertes.js` (règle `zones-alertes-v1`, écrite avant le code) : retest après cassure (première mèche qui touche le niveau cassé dans les 48 bougies H1 closes suivantes, arrêt si cassure ratée de 0,5 ATR) ajouté APRÈS les règles v10, qui restent intactes ; réglages par zone `muet` et `repete` (une seule annonce par type) dans l'éditeur ; flèche du retest sur la bougie ; journal = liste des alertes existante (muettes marquées « non annoncée »). Armement : toute zone avec « M'alerter » est surveillée dès le chargement. Test : `tests/zones-alertes-test.mjs`. Décision : couleur par zone déjà existante, pas dupliquée.
+
+
+## MISSION « Un seul Terminal » (2026-11-11) — ARRÊTÉE PAR LA LIMITE D'USAGE, à reprendre
+### Fait (décisions prises seul)
+- Terminal unique : or.html = « Terminal », onglets Graphique · Actualités · COT · Santé du marché · Institutions · Calendrier · Journal · Capital (espaces.js), sélecteur d'instruments (Or par défaut, Nasdaq 100, S&P 500, Bitcoin, Solana, Dollar, EUR/USD, USD/CHF), source et retard affichés. Libellés « ancien terminal » / « Terminal or » retirés (bouton, terminal.html, accueil). Investissement reste accessible depuis Capital.
+- Autres instruments : le moteur de l'or tourne tel quel grâce à un adaptateur (front/or/adaptateur-instrument.js : mêmes requêtes Kraken/Binance servies par /__bougies, Yahoo, via le serveur du PC) ; clés de stockage suffixées par instrument ; devises ×10 000 et dollar ×100 (affichage en pipettes, dit dans la barre) ; statistiques de réaction mesurées sur l'or, non transposables (avertissement affiché).
+- Flèches : front/or/fleches-terminal-v1.js (scellé) + fleches-terminal-ui.js : MA200 (cassure haut/bas, retour, rebond, fausse cassure), rebonds sur niveaux majeurs et zones tracées (réaction ≥ 0,5 ATR), posées à la clôture, registre en ajout seul, historique 30 j avec interrupteur, infobulle (6/12/24 bougies), visibles en Pro épuré. Test : node tests/fleches-terminal-test.mjs (26 OK).
+- Serveur local : app-pc/terminal-donnees.mjs (/__bougies /__cot /__actus /__banques /__institutions /__sante /__gld /__calendrier2, toujours du JSON) ; pages dans front/pages/ (COT CFTC avec graphiques et phrases, Santé avec GLD en tonnes réelles SPDR, Institutions avec 13F SEC et retard de 45 jours, banques via la presse, calendrier réparé). Rayle : instantanés + voix (« explique le COT », etc.), garde-fou sans conseil d'achat/vente.
+- Test Chrome tests/terminal-v2-chrome.mjs (BASE=http://127.0.0.1:8123, serveur : node serveur.mjs 8123) : tout passait sauf le libellé « ancien terminal », corrigé ensuite (non relancé).
+### Reste à faire / non vérifié
+- npm test complet et relance de terminal-v2-chrome (1600/1024/390) APRÈS les derniers retraits de libellés ; invest-chrome.mjs attend 3 onglets (obsolète) ; tests/tout.mjs n'inclut pas encore fleches-terminal-test.mjs ; pas de test Node pour pages-calcul.js ni instruments.js.
+- Non rétablis de l'ancien terminal : carte de chaleur du carnet, rapport du jour, briefing (dépendent du carnet Kraken multi-actifs). Le carnet est absent hors or.
+- Gold-only restant sur les autres instruments (zones d'étude, volume absent pour indices/devises). Rien commité ni déployé.
