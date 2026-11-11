@@ -147,7 +147,7 @@ export function creerStrategie({ racine, moteur, graph, carnet = null, structure
   function rendreFeuille() {
     const el = q('[data-ray-feuille]'); if (!el) return; const f = feuilleEtat(); E.feuille = f;
     el.dataset.contexte = f.contexte ? 'oui' : 'non';
-    el.innerHTML = `<b>Feuille de décision</b> <span class="tor-ray-feuille-n">${esc(f.texte)}</span><ul>${f.conditions.map(c => `<li class="${c.ok ? 'ok' : 'non'}" title="${esc(c.detail)}"><i aria-hidden="true"></i>${esc(c.libelle)}</li>`).join('')}</ul><small>information seulement, jamais un ordre</small>`;
+    const html = `<b>Feuille de décision</b> <span class="tor-ray-feuille-n">${esc(f.texte)}</span><ul>${f.conditions.map(c => `<li class="${c.ok ? 'ok' : 'non'}" title="${esc(c.detail)}"><i aria-hidden="true"></i>${esc(c.libelle)}</li>`).join('')}</ul><small>information seulement, jamais un ordre</small>`; if (el.dataset.h !== html) { el.dataset.h = html; el.innerHTML = html; }   // pas de réécriture du DOM si rien n'a changé
     const r = q('[data-ray-feuille-corps]'); if (r) r.innerHTML = `<p class="tor-doux"><b>Feuille de décision</b> : ${esc(f.texte)}${f.contexte ? ' — ' + f.conditions.map(c => (c.ok ? '● ' : '○ ') + esc(c.libelle) + ' (' + esc(c.detail) + ')').join(' ; ') : ' (le prix n’est près d’aucune boîte).'}</p><p class="tor-doux">${esc(rapportFeuille().phrase)}</p>`;
   }
   function rapportFeuille() { let T = []; try { T = lireJSON('rayle_or_journal', []) || []; } catch (e) { /* */ } return FD.rapportJournal(Array.isArray(T) ? T : [], rNet); }

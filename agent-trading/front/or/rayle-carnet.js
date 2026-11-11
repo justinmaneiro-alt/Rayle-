@@ -52,14 +52,14 @@ export function creerCarteCarnet({ racine, flux = () => null, zones = () => [], 
       if (l && z) {
         const cl = l.bougie.couleur, n = compterClasse(l.pourZone), h = Math.round(28 + 44 * l.bougie.corps);
         carte.dataset.pression = l.pression;
-        carte.innerHTML = `<div class="tor-ray-carte-t"><span class="tor-ray-bougie ${esc(cl)}" aria-hidden="true"><i style="height:${h}%"></i></span><b>Carnet · ${esc(z.cote === 'vente' ? 'zone de vente' : 'zone d’achat')} ${esc(nb(z.prix, 0))}</b></div>
+        const html = `<div class="tor-ray-carte-t"><span class="tor-ray-bougie ${esc(cl)}" aria-hidden="true"><i style="height:${h}%"></i></span><b>Carnet · ${esc(z.cote === 'vente' ? 'zone de vente' : 'zone d’achat')} ${esc(nb(z.prix, 0))}</b></div>
           <p>${esc(l.texte)}</p>
           <ul><li>ordres dans ±${esc(nb(l.mesures.largeur, 0))} $ : ${l.mesures.partAcheteurs != null ? Math.round(l.mesures.partAcheteurs * 100) + ' % achat / ' + Math.round(l.mesures.partVendeurs * 100) + ' % vente' : '—'}</li>
           <li>flux exécuté : ${l.mesures.delta1 >= 0 ? '+' : '−'}${esc(nb(Math.abs(l.mesures.delta1), 0))} (1 min), ${l.mesures.delta5 >= 0 ? '+' : '−'}${esc(nb(Math.abs(l.mesures.delta5), 0))} (5 min)</li>
           <li>${l.mesures.mur ? `plus gros mur : ${esc(nb(l.mesures.mur.q, 0))} lots à ${esc(nb(l.mesures.mur.p, 2))}, ${esc(nb(l.mesures.mur.x, 1))} fois la médiane` : 'aucun mur marqué'}</li>
           ${l.mesures.murRetire ? `<li>mur retiré : ${esc(nb(l.mesures.murRetire.q, 0))} lots à ${esc(nb(l.mesures.murRetire.p, 2))} (${esc(l.mesures.murRetire.raison)})</li>` : ''}</ul>
-          <small>${esc(C.mentionValidation(n))}</small> <button type="button" data-a="ray-lire-carnet">Lire à voix haute</button>`;
-      } else carte.innerHTML = '';
+          <small>${esc(C.mentionValidation(n))}</small> <button type="button" data-a="ray-lire-carnet">Lire à voix haute</button>`; if (carte.dataset.h !== html) { carte.dataset.h = html; carte.innerHTML = html; }
+      } else if (carte.dataset.h !== '') { carte.dataset.h = ''; carte.innerHTML = ''; }
     }
     const r = q('[data-ray-carnet-corps]'); if (r) { const R = rapport(); r.innerHTML = `<p class="tor-doux"><b>Lecture du carnet</b> (enregistreur forward, ${R.arrivees} arrivée${R.arrivees > 1 ? 's' : ''} sur une boîte) : ${esc(R.phrases[0])}</p>`; }
   }

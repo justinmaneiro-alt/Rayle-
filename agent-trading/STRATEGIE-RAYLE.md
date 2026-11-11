@@ -99,3 +99,7 @@ Les définitions des §3 à §7 ci-dessus n'ont pas changé. Cette annexe préci
 - Scénarios : le premier passage suit la valeur du hasard b / (a + b) ; un scénario décrit les niveaux, il ne donne pas d'avantage mesurable.
 
 Aucune règle automatique n'a prouvé un avantage ; cette stratégie est en observation.
+
+## Rayle Capital et espaces (ajouté le 2026-11-12)
+
+La plateforme a trois espaces dans `or.html` : **Investissement** (long terme : étude de marché sourcée, plan DCA, intérêts composés, portefeuille ; « ceci n'est pas un conseil financier »), **Trading actif** (l'or : MA200, golden zone `golden-v1`, niveaux de la veille, concepts ICT, carnet, alertes vocales, setup A+ `aplus-v1`) et **Capital** (tableau de bord des deux poches : valeur et plafonds de l'investissement, risque ouvert du journal, risque par poche). Toute règle de trading y est marquée **non prouvée** tant que son p corrigé (Holm) dépasse 0,05 ; aucune ne l'a franchi. Aucun ordre n'est envoyé : Rayle lit, alerte et propose. Mesures du rejeu 2026 de l'A+ : 10 alertes sur 409 événements EMA200, aucune des 32 grosses cassures de 2026 ni la cassure à la baisse du 11 novembre (le détecteur est très sélectif). Le backtest « DCA + supports » contre « DCA simple de même total » montre un écart de quelques pour cent, non prouvé.

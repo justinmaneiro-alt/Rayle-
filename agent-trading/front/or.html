@@ -6,6 +6,7 @@
 <title>Or · Rayle</title>
 <link rel="icon" href="data:,">
 <meta name="theme-color" content="#05080c">
+<link rel="stylesheet" href="./invest/invest.css">
 <style>html,body{margin:0;background:#05080c;color:#d7e3ea}#vue{min-height:100vh}</style>
 </head>
 <body>
@@ -14,6 +15,7 @@
   // Tableau de bord de l'or (page autonome). ?tele=1 (ou un grand écran sans souris fine) = mode télé.
   import { demarrerPage } from './or/page-or.js';
   window.__or = demarrerPage(document.getElementById('vue'));
+  if (!new URLSearchParams(location.search).has('tele')) { const { parler } = await import('./or/tableau-or.js'); const m = await import('./espaces.js'); window.__espaces = m.monterEspaces({ trading: document.getElementById('vue'), parler }); }
 </script>
 </body>
 </html>
