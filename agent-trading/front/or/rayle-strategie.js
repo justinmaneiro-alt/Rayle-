@@ -20,7 +20,7 @@ const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': 
 
 export function creerStrategie({ racine, moteur, graph, carnet = null, structure, parler = () => {}, maintenant = () => Date.now(), fetchFn = (...a) => fetch(...a), auto = true, stats = null } = {}) {
   const E = { reg: { vue: 'epure', ma: 'h1', horizon: '1j', ...lire(CLE_REG, {}) }, stats: { ma: stats && stats.ma || null, boites: stats && stats.boites || null, scen: stats && stats.scen || null }, B: null, cle: '', res: null, prep: null, zones: [], sel: { zones: [], message: null }, m: null,
-    arch: lire(CLE_ARCH, []), scen: null, scenPrec: {}, regScen: lire(CLE_SCEN, []), sm: null, prix: null, atr: null };
+    marge: 5, arch: lire(CLE_ARCH, []), scen: null, scenPrec: {}, regScen: lire(CLE_SCEN, []), sm: null, prix: null, atr: null };
   const q = s => racine && racine.querySelector(s);
   const couches = () => graph.couches();
   async function chargerStats() {
@@ -38,7 +38,7 @@ export function creerStrategie({ racine, moteur, graph, carnet = null, structure
     const ref = barre.querySelector('[data-a="ray-vue"]'); barre.insertBefore(b, ref ? ref.nextSibling : barre.firstChild); barre.insertBefore(sel, b.nextSibling);
   }
   if (racine && !q('[data-ray-feuille]')) { const a = document.createElement('aside'); a.className = 'tor-ray-feuille'; a.dataset.rayFeuille = ''; a.setAttribute('aria-label', 'Feuille de décision (information seulement)'); const g = q('.tor-graph'); (g || racine).appendChild(a); }
-  if (racine && !q('[data-ray-bandeau]')) { const p = document.createElement('p'); p.className = 'tor-struct-bandeau tor-ray-bandeau'; p.dataset.rayBandeau = ''; p.hidden = true; const g = q('.tor-graph-lw'); if (g && g.parentNode) g.parentNode.insertBefore(p, g); }
+  if (racine && !q('[data-ray-bandeau]')) { const p = document.createElement('p'); p.className = 'tor-struct-bandeau tor-ray-bandeau'; p.dataset.rayBandeau = ''; p.textContent = 'Stratégie Rayle : calcul en cours…'; /* visible dès la création et de hauteur fixe : aucun décalage de mise en page quand le texte arrive */ const g = q('.tor-graph-lw'); if (g && g.parentNode) g.parentNode.insertBefore(p, g.nextSibling); }   // sous le graphique : n'en déplace pas le haut
   if (racine && !q('[data-rayle]')) {
     const sec = document.createElement('section'); sec.className = 'tor-bloc tor-rayle'; sec.dataset.rayle = '';
     sec.innerHTML = `<h2>Stratégie Rayle v1 <small>lecture en observation · aucune règle automatique n’a prouvé un avantage · jamais un ordre</small></h2>
@@ -92,6 +92,8 @@ export function creerStrategie({ racine, moteur, graph, carnet = null, structure
     for (const x of E.regScen.filter(r => r.kind === 'pose')) if (!E.regScen.some(r => r.kind === 'resultat' && r.id === x.id)) { const r = SC.resoudre(x, B); if (r) E.regScen.push({ kind: 'resultat', id: x.id, statut: r.statut, t: r.t }); }
     if (E.regScen.length > 1500) E.regScen.splice(0, E.regScen.length - 1500); ecrire(CLE_SCEN, E.regScen);
   }
+  /* marge droite du graphique : appliquée SEULEMENT quand elle change (applyOptions replace la vue à droite) */
+  function marge(n) { if (E.marge === n || !graph.margeDroite) return; E.marge = n; try { graph.margeDroite(n); } catch (e) { /* */ } }
   function modele() {
     const c = couches(), B = E.B, res = E.res; if (!B || !res) return null;
     const m = { ma: null, evenements: [], boites: [], ligne: null, scenarios: null, structure: [] };
@@ -111,9 +113,9 @@ export function creerStrategie({ racine, moteur, graph, carnet = null, structure
       if (sv) {
         const prec = E.scenPrec[sv.horizon];
         m.scenarios = { cone: sv.cone, actifs: sv.actifs.map(a => ({ couleur: a.id, points: a.points, etiquette: a.etiquette, condition: a.condition, detail: a.detail })), archives: E.reg.vue === 'complet' && prec ? prec.actifs.map(a => ({ couleur: a.id, points: a.points, detail: [`ancien tracé du ${hp(prec.tPose - H)} (heure de Paris), archivé`] })) : [] };
-        try { graph.margeDroite && graph.margeDroite(Math.min(sv.bougies, 60)); } catch (e) { /* */ }
+        marge(Math.min(sv.bougies, 60));
       }
-    } else { try { graph.margeDroite && graph.margeDroite(5); } catch (e) { /* */ } }
+    } else marge(5);
     m.vue = E.reg.vue; return m;
   }
   function maj(force = false) {
@@ -141,7 +143,7 @@ export function creerStrategie({ racine, moteur, graph, carnet = null, structure
   const texteBandeau = () => (E.B && E.sm ? bandeau({ h1: E.sm.h1, h4: E.sm.h4, ligne: E.m && E.m.ligne, sel: E.sel, prix: E.prix ?? E.B[E.B.length - 1].c, atr: E.atr }) : '');
   function rendre() {
     const e = q('[data-ray-etat]'); if (e) e.textContent = E.res ? texteMa(E.res, E.B) : 'Chargement des bougies H1…';
-    const bd = q('[data-ray-bandeau]'); if (bd) { const t = texteBandeau(); bd.hidden = !t || couches().rayBoites === false && couches().rayMa === false; bd.textContent = t; }
+    const bd = q('[data-ray-bandeau]'); if (bd) { const t = texteBandeau(); bd.textContent = t || 'Stratégie Rayle : calcul en cours…'; bd.title = t; }
     const sel = q('[data-ray-ma]'); if (sel) sel.value = E.reg.ma;
     const c = q('[data-ray-ma-corps]'); if (c) { const L = (E.m && E.m.evenements || []).slice().reverse(); c.innerHTML = L.length ? `<ul class="tor-ray-evts">${L.map(x => `<li><b>${esc(x.etiquette)}</b> <small>${esc(hp(x.t))}</small></li>`).join('')}</ul>` : '<p class="tor-doux">Aucun événement récent sur la moyenne mobile.</p>'; }
     const bz = q('[data-ray-boites-corps]'); if (bz) { const L = (E.m && E.m.boites || []).filter(b => !b.grise); bz.innerHTML = L.length ? `<ul class="tor-ray-evts">${L.map(x => `<li><b>${esc(x.etiquette)}</b> <small>${esc(x.detail[0] || '')}</small></li>`).join('')}</ul>` : `<p class="tor-doux">${esc(E.sel.message || 'Pas de zone forte à proximité')}</p>`; }
@@ -167,6 +169,7 @@ export function creerStrategie({ racine, moteur, graph, carnet = null, structure
     const b = ev.target.closest('[data-a="ray-vue"]'); if (b) reglage('vue', E.reg.vue === 'epure' ? 'complet' : 'epure');
     const sb = ev.target.closest('[data-a="ray-scen"]'); if (sb) { const on = !couches().rayScenarios; graph.couches({ rayScenarios: on }); for (const c of racine.querySelectorAll('[data-couche="rayScenarios"]')) c.checked = on; maj(true); }
   });
+  racine.addEventListener('click', ev => { const f = ev.target.closest('[data-ray-feuille]'); if (f && window.matchMedia && window.matchMedia('(max-width: 700px)').matches) f.classList.toggle('ouvert'); });   // téléphone : la feuille est repliée sur son titre, un appui la déplie
   racine.addEventListener('change', ev => { const t = ev.target; if (t.matches && t.matches('[data-ray-hor]')) reglage('horizon', t.value); else if (t.matches && t.matches('[data-ray-ma]')) reglage('ma', t.value); else if (t.dataset && t.dataset.couche in COUCHES_RAYLE) maj(true); });
   /* ── lecture du carnet à l'arrivée sur une boîte (phase 3) ── */
   const carte = creerCarteCarnet({ racine, flux: () => (carnet && carnet._flux) || null, zones: () => E.zones, atr: () => E.atr, prix: () => E.prixForce != null ? E.prixForce : (moteur && moteur.S && moteur.S.prix != null ? moteur.S.prix : (E.B ? E.B[E.B.length - 1].c : null)), barres: () => E.B || [], maintenant, parler, auto, surTick: () => { try { rendreFeuille(); } catch (e) { /* */ } } });

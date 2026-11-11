@@ -79,3 +79,23 @@ Recalculés **uniquement à la clôture de chaque H1**, figés jusqu'à la suiva
 ## 10. Mention finale
 
 Aucune règle automatique n'a prouvé un avantage ; cette stratégie est **en observation**. Les chiffres affichés décrivent le passé, avec leur incertitude. Rayle est un outil de lecture : la décision et le risque restent à Justin.
+
+## Annexe — précisions d'implémentation et résultats mesurés (ajoutée le 2026-11-11, après la construction)
+
+Les définitions des §3 à §7 ci-dessus n'ont pas changé. Cette annexe précise des points que le texte laissait ouverts et reporte les mesures ; la version initiale du document (avant l'annexe) avait pour SHA-256 `e87a7a27c3c84a2e6b6658183f7d782415bd3ecf36e69ce68e551a6ee3cb33de` ; chaque module de calcul est scellé séparément (`*.sceau.json`) AVANT son affichage et ses statistiques.
+
+**Précisions.**
+- Données historiques : les bougies plates de week-end de Dukascopy (29 % des bougies, volume nul) sont retirées avant toute mesure de cette stratégie ; elles diluaient l'ATR et créaient un faux avantage.
+- Moyenne mobile « Jour » : codée (SMA 200 des clôtures journalières, appliquée au jour suivant seulement) mais, en direct, il n'y a que 1 500 bougies H1 (≈ 62 jours) : elle n'est disponible que si 200 jours d'historique sont chargés.
+- Boîtes : le retournement est mesuré depuis la CLÔTURE de la bougie d'arrivée pour les deux barrières (+1 ATR loin de la zone, 1 ATR dans l'autre sens) ; prendre le centre de la zone comme référence gonflait le taux (la cible de retournement était plus proche que celle de cassure). Le taux est la part des issues tranchées.
+- Carnet : toutes les zones valides à ≤ 0,25 ATR du prix déclenchent la lecture et l'enregistreur forward (pas seulement les boîtes affichées en Épuré), pour réunir assez de cas.
+- Feuille de décision (4) : « tendance alignée » = H1 ET H4 dans le sens du retournement attendu (baissières pour une résistance) ; un changement de caractère ou un retournement confirmé dans le même sens, dans les 24 bougies, suffit aussi.
+- Scénarios : la probabilité est la fréquence historique de premier passage (touche de la cible avant celle de l'invalidation, les deux dans la même bougie = non tranché dans la mesure, invalidé dans le suivi) selon la distance en ATR de chaque niveau, l'état de tendance H1/H4 et la position vs SMA 200 ; hors de la grille de distances (0,35 à 4,5 ATR) ou sous 30 cas : « pas assez de données », jamais un pourcentage inventé.
+
+**Résultats mesurés (Dukascopy XAU/USD H1, 18 derniers mois ET 2015–2025).**
+- Événements de la moyenne mobile : aucun ne se distingue de la base (continuation +2 ATR avant −1 ATR en 12 bougies) ; test de gestion « rebond sur MA » et « fausse cassure » contre 1 000 entrées au hasard : aucun avantage démontré (les frais Kraken ≈ 0,3 R par trade dépassent tout écart brut).
+- Boîtes : aucune classe de confluence ne se distingue de la base ; en Épuré, « Pas de zone forte à proximité » est le résultat normal.
+- Carnet : aucune mesure historique ; enregistreur forward en direct seulement.
+- Scénarios : le premier passage suit la valeur du hasard b / (a + b) ; un scénario décrit les niveaux, il ne donne pas d'avantage mesurable.
+
+Aucune règle automatique n'a prouvé un avantage ; cette stratégie est en observation.

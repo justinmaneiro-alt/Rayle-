@@ -1,6 +1,6 @@
 /* Stratégie Rayle v1 : carte « lecture du carnet », bandeau, listes. Sombre, discret, sans effet. */
 .tor-graph { position: relative; }
-.tor-ray-bandeau { margin: 0; }
+.tor-ray-bandeau { margin: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; height: 1.9em; box-sizing: border-box; }
 .tor-ray-carte { position: absolute; top: 82px; left: 10px; z-index: 6; width: min(300px, calc(100% - 90px)); padding: 8px 10px; font-size: 12px; line-height: 1.35; color: #dfe9ee; background: rgba(12, 18, 23, .93); border: 1px solid #2c3d47; border-radius: 8px; box-shadow: 0 2px 10px rgba(0, 0, 0, .45); }
 .tor-ray-carte[hidden] { display: none; }
 .tor-ray-carte[data-pression="vendeuse"] { border-color: rgba(216, 106, 106, .7); }
@@ -24,3 +24,4 @@
 .tor-ray-feuille li.ok { color: #dff1e8; } .tor-ray-feuille li.ok i { background: #5fb894; box-shadow: 0 0 4px rgba(95, 184, 148, .6); }
 .tor-ray-feuille small { color: #7d8a90; } .tor-ray-feuille-n { margin-left: 4px; color: #a9d6e5; }
 @media (max-width: 700px) { .tor-ray-feuille { top: auto; bottom: 36px; right: 70px; width: 190px; font-size: 10.5px; } }
+@media (max-width: 700px) { .tor-ray-feuille { cursor: pointer; } .tor-ray-feuille ul, .tor-ray-feuille small { display: none; } .tor-ray-feuille.ouvert ul, .tor-ray-feuille.ouvert small { display: block; } .tor-ray-feuille.ouvert { width: 230px; } .tor-ray-feuille:not(.ouvert) { width: auto; max-width: 190px; padding: 4px 8px; } }

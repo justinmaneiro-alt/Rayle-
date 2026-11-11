@@ -1,6 +1,7 @@
 {
  "version": "strategie-rayle-v1",
  "scelle_le": "2026-11-11",
- "sha256": "e87a7a27c3c84a2e6b6658183f7d782415bd3ecf36e69ce68e551a6ee3cb33de",
- "note": "Empreinte SHA-256 de STRATEGIE-RAYLE.md (fins de ligne normalisées), posée AVANT affichage et statistiques."
+ "sha256": "5adee32e5396becbcab172c92e1b3a439b019a9704068ea018fc573043fef47a",
+ "sha256_version_initiale": "e87a7a27c3c84a2e6b6658183f7d782415bd3ecf36e69ce68e551a6ee3cb33de",
+ "note": "Empreinte SHA-256 de STRATEGIE-RAYLE.md (fins de ligne normalisées). La version initiale (sans l'annexe de précisions et de résultats) a été scellée AVANT l'affichage et les statistiques ; l'annexe a été ajoutée après la construction et ne change aucune définition."
 }

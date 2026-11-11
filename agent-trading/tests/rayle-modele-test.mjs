@@ -29,4 +29,10 @@ v(bc[0].tFin === B[1499].t + 40 * H && bc[0].tDebut === zq.tFormation, 'boîte :
 const sm = { etat: { tendance: 1, impulsionActive: null, chochEnCours: null, dernierBos: { dir: 1 } } }, b = M2.bandeau({ h1: sm, h4: { etat: { tendance: -1 } }, ligne: { texte: 'Retournement baissier si clôture H1 sous 4 040' }, sel: { zones: [zq] }, prix: 4000, atr: 5 });
 v(/Tendance H4 baissière · H1 haussière/.test(b) && /sous 4 040/.test(b) && /prochaine zone : vente 4 010/.test(b) && /mouvement en cours/.test(b), 'bandeau : tendance H1/H4, ligne, prochaine zone, mouvement (' + b + ')');
 v(/aucune zone forte/.test(M2.bandeau({ h1: sm, h4: null, ligne: null, sel: { zones: [] }, prix: 4000, atr: 5 })), 'bandeau : aucune zone forte à proximité');
+// document de stratégie : sceau SHA-256 et mentions obligatoires
+{ const fs = await import('node:fs'), crypto = await import('node:crypto');
+  const doc = fs.readFileSync(new URL('../STRATEGIE-RAYLE.md', import.meta.url), 'utf8').replace(/\r\n/g, '\n'), sc = JSON.parse(fs.readFileSync(new URL('../STRATEGIE-RAYLE.sceau.json', import.meta.url), 'utf8'));
+  v(sc.sha256 === crypto.createHash('sha256').update(doc).digest('hex'), 'document de stratégie : sceau SHA-256 à jour');
+  v(/aucune règle automatique n.a prouvé un avantage/i.test(doc) && /en observation/.test(doc) && /Scénarios, pas prévisions/.test(doc) && /10 000 \$/.test(doc) && /3 %/.test(doc) && /6 %/.test(doc) && /break-even|équilibre après \+1 R/.test(doc) && /moyenne à la baisse/.test(doc), 'document : mention d\'honnêteté, compte prop (10 000 $, 3 %, 6 %), gestion (équilibre après +1 R, jamais de moyenne à la baisse)');
+  for (const m of ['ma-evenements-v1', 'boites-v1', 'carnet-lecture-v1', 'feuille-decision-v1', 'scenarios-v1']) { const x = JSON.parse(fs.readFileSync(new URL(`../front/or/${m}.sceau.json`, import.meta.url), 'utf8')), src = fs.readFileSync(new URL(`../front/or/${m}.js`, import.meta.url), 'utf8').replace(/\r\n/g, '\n'); v(x.version === m && x.sha256 === crypto.createHash('sha256').update(src).digest('hex'), `sceau SHA-256 de ${m}.js à jour`); } }
 console.log(`rayle-modele : ${ok} ok, ${ko} échec`); process.exit(ko ? 1 : 0);
