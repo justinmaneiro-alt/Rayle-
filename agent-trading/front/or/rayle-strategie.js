@@ -11,15 +11,19 @@ import { creerCarteCarnet } from './rayle-carnet.js';
 import * as FD from './feuille-decision-v1.js';
 import * as SC from './scenarios-v1.js';
 import * as VX from './rayle-voix-calcul.js';
+import * as GD from './golden-v1.js';
+import { creerTradingActif } from './rayle-trading.js';
+import { vemaSerie } from './vema-v1.js';
 import { rNet } from './journal-calcul.js';
 import { lireJSON } from './stockage-or.js';
 const CLE_REG = 'rayle_or_rayle_reglages', CLE_ARCH = 'rayle_or_boites_registre', CLE_SCEN = 'rayle_or_scenarios_forward', H = 3600e3;
 const lire = (k, d) => { try { const v = localStorage.getItem(k); return v ? JSON.parse(v) : d; } catch (e) { return d; } };
 const ecrire = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); return true; } catch (e) { return false; } };
+const nbf = x => Number(x).toLocaleString('fr-FR', { maximumFractionDigits: 0 }).replace(/[\u00a0\u202f]/g, ' ');
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 
 export function creerStrategie({ racine, moteur, graph, carnet = null, structure, parler = () => {}, maintenant = () => Date.now(), fetchFn = (...a) => fetch(...a), auto = true, stats = null } = {}) {
-  const E = { reg: { vue: 'epure', ma: 'h1', horizon: '1j', ...lire(CLE_REG, {}) }, stats: { ma: stats && stats.ma || null, boites: stats && stats.boites || null, scen: stats && stats.scen || null }, B: null, cle: '', res: null, prep: null, zones: [], sel: { zones: [], message: null }, m: null,
+  const E = { reg: { vue: 'epure', ma: 'h1', moyenne: 'ma200', horizon: '1j', ...lire(CLE_REG, {}) }, stats: { ma: stats && stats.ma || null, boites: stats && stats.boites || null, scen: stats && stats.scen || null }, B: null, cle: '', res: null, prep: null, zones: [], sel: { zones: [], message: null }, m: null,
     marge: 5, arch: lire(CLE_ARCH, []), scen: null, scenPrec: {}, regScen: lire(CLE_SCEN, []), sm: null, prix: null, atr: null };
   const q = s => racine && racine.querySelector(s);
   const couches = () => graph.couches();
@@ -99,7 +103,8 @@ export function creerStrategie({ racine, moteur, graph, carnet = null, structure
     const m = { ma: null, evenements: [], boites: [], ligne: null, scenarios: null, structure: [] };
     if (c.rayMa !== false) {
       const debut = Math.max(0, B.length - 1500), pts = []; for (let i = debut; i < B.length; i++) if (res.ma[i] != null) pts.push({ t: B[i].t, v: res.ma[i] });
-      m.ma = pts; m.maNom = E.reg.ma === 'jour' ? 'MA 200 jours' : 'MA 200 H1'; m.maDetail = [texteMa(res, B), 'moyenne simple des 200 dernières clôtures', 'repère de lecture, pas un signal'];
+      m.ma = pts; m.maNom = E.reg.ma === 'jour' ? 'MA 200 jours' : 'MA 200 H1';
+      if (E.reg.moyenne === 'vema300') { const V = vemaSerie(B), p2 = []; for (let i = debut; i < B.length; i++) if (V[i] != null) p2.push({ t: B[i].t, v: V[i] }); m.ma = p2; m.maNom = 'EMA 300 pondérée volume'; } m.maDetail = [texteMa(res, B), 'moyenne simple des 200 dernières clôtures', 'repère de lecture, pas un signal'];
       m.evenements = evenementsAffiches(res, B, { vue: E.reg.vue, stats: E.stats.ma });
     }
     E.sel = selection(); archiver(E.sel);
@@ -108,6 +113,10 @@ export function creerStrategie({ racine, moteur, graph, carnet = null, structure
       m.boites = boitesAffichees(E.sel, { stats: E.stats.boites, tDerniere: tNow, vue: E.reg.vue, archives });
       const h1 = E.sm && E.sm.h1; m.ligne = Z.ligneRetournement(h1, B); m.structure = Z.dernieresCassures(h1, B, 3);
     }
+    if (c.rayGolden !== false && E.sm && E.sm.h1 && E.prep) {
+      const gz = GD.golden(B, E.sm.h1.swings, E.prep.A); E.golden = gz;
+      if (gz) { const tNow = B[B.length - 1].t; m.boites.push({ id: gz.id, cote: gz.cote, prix: (gz.bas + gz.haut) / 2, bas: gz.bas, haut: gz.haut, tDebut: gz.tPose, tFin: gz.tInval != null ? gz.tInval : tNow + GD.P.prolongement * H, grise: gz.invalide, etiquette: GD.etiquette(gz), detail: [`zone de ${Math.round(GD.P.bas * 1000) / 10} % à ${Math.round(GD.P.haut * 1000) / 10} % du dernier élan ${gz.cote === 'achat' ? 'haussier' : 'baissier'} (${nbf(gz.elan.de)} → ${nbf(gz.elan.a)}), élan de ${gz.elan.atr.toFixed(1).replace('.', ',')} ATR`, `posée le ${hp(gz.tPose - H)} (heure de Paris), invalidée par une clôture H1 au-delà de ${nbf(gz.elan.de)}`, 'règle golden-v1 figée ; description, jamais un ordre'] }); }
+    } else E.golden = null;
     if (c.rayScenarios) {
       const sv = scenarios();
       if (sv) {
@@ -116,12 +125,14 @@ export function creerStrategie({ racine, moteur, graph, carnet = null, structure
         marge(Math.min(sv.bougies, 60));
       }
     } else marge(5);
+    m.aplus = E.trading ? E.trading.fleches() : [];
     m.vue = E.reg.vue; return m;
   }
   function maj(force = false) {
     const change = analyser() || force; if (!change && !force) { return; }
     const m = modele(); E.m = m; try { graph.rayle(m); } catch (e) { console.warn('Rayle :', e.message); }
     majBoutons(); rendre(); rendreFeuille();
+    for (const f of E.abonnes || []) { try { f(change); } catch (e) { console.warn('abonné :', e.message); } }
   }
   function majBoutons() {
     for (const b of racine.querySelectorAll('[data-a="ray-scen"]')) { const on = !!couches().rayScenarios; b.classList.toggle('actif', on); b.setAttribute('aria-pressed', String(on)); }
@@ -157,6 +168,7 @@ export function creerStrategie({ racine, moteur, graph, carnet = null, structure
   /* ── voix et texte (phase 6) : uniquement à partir des valeurs réelles, jamais un ordre ── */
   function commande(texte) {
     const c = VX.interpreterStrategie(texte); if (!c) return null;
+    if (c.sujet === 'trading') return (E.trading && E.trading.commande(texte)) || null;
     if (c.sujet === 'ma') return VX.repondreMa({ res: E.res, B: E.B, stats: E.stats.ma, texteMa: E.res && E.B ? texteMa(E.res, E.B) : '' });
     if (c.sujet === 'carnet') { const l = E.carte && E.carte.lecture(); const n = l && E.carte ? E.carte.registre().filter(r => r.kind === 'arrivee' && r.pourZone === l.pourZone).length : 0; return VX.repondreCarnet({ lecture: l, zone: E.carte && E.carte.zone(), compte: n }); }
     if (c.sujet === 'feuille') { const f = feuilleEtat(); return VX.repondreFeuille({ feuille: f, rapport: f.contexte ? rapportFeuille().phrase : '' }); }
@@ -175,5 +187,7 @@ export function creerStrategie({ racine, moteur, graph, carnet = null, structure
   const carte = creerCarteCarnet({ racine, flux: () => (carnet && carnet._flux) || null, zones: () => E.zones, atr: () => E.atr, prix: () => E.prixForce != null ? E.prixForce : (moteur && moteur.S && moteur.S.prix != null ? moteur.S.prix : (E.B ? E.B[E.B.length - 1].c : null)), barres: () => E.B || [], maintenant, parler, auto, surTick: () => { try { rendreFeuille(); } catch (e) { /* */ } } });
   E.carte = carte;
   let minuterie = null; if (auto) { chargerStats().then(() => maj(true)); minuterie = setInterval(() => { try { maj(); } catch (e) { /* */ } }, 30000); }
-  return { maj, chargerStats, modele: () => E.m, etat: () => ({ reg: { ...E.reg }, res: E.res, B: E.B, stats: E.stats, m: E.m, zones: E.zones, sel: E.sel, arch: E.arch.slice(), bandeau: texteBandeau() }), reglage, commande, carte, scenarios: () => (couches().rayScenarios ? scenarios() : null), registreScenarios: () => E.regScen.slice(), fiabiliteScenarios: () => SC.fiabilite(E.regScen), feuilleEtat: () => { const f = feuilleEtat(); return FD.etatPourJournal(f); }, feuille: () => feuilleEtat(), rapportFeuille, injecterPrix(p) { E.prixForce = p; maj(true); }, compterObjets: () => compterObjets(E.m), detruire() { clearInterval(minuterie); } };
+  const api = { maj, chargerStats, modele: () => E.m, etat: () => ({ reg: { ...E.reg }, res: E.res, B: E.B, stats: E.stats, m: E.m, zones: E.zones, sel: E.sel, arch: E.arch.slice(), bandeau: texteBandeau() }), reglage, commande, carte, golden: () => E.golden, interne: () => ({ B: E.B, res: E.res, prep: E.prep, sm: E.sm, atr: E.atr, zones: E.zones, stats: E.stats }), surMaj(f) { E.abonnes = E.abonnes || []; E.abonnes.push(f); }, scenarios: () => (couches().rayScenarios ? scenarios() : null), registreScenarios: () => E.regScen.slice(), fiabiliteScenarios: () => SC.fiabilite(E.regScen), feuilleEtat: () => { const f = feuilleEtat(); return FD.etatPourJournal(f); }, feuille: () => feuilleEtat(), rapportFeuille, injecterPrix(p) { E.prixForce = p; maj(true); }, compterObjets: () => compterObjets(E.m), detruire() { clearInterval(minuterie); } };
+  E.trading = creerTradingActif({ racine, graph, strategie: api, parler, maintenant, auto }); api.trading = E.trading;
+  return api;
 }

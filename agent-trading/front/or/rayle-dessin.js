@@ -55,6 +55,8 @@ export function dessinerRayle(ctx, T, m, { xDeT, yDe, mobile }) {
     if (e.etiquette) place(e.etiquette, x + 7, y + (e.dir > 0 ? fs + 6 : -6), col, 0.95 * a);
     cadres.push({ kind: 'evt', x0: x - 8, x1: x + 8, y0: y - 10, y1: y + 10, g: { p: e.p, texte: e.etiquette || e.nom, detail: e.detail || [] } });
   }
+  // ── flèches du setup A+ (petite flèche, jamais un ordre) ──
+  for (const f of m.aplus || []) { const x = xDeT(f.t), y = yDe(f.p); if (!ok(x, y) || x < 0 || x > T.width) continue; const col = f.dir > 0 ? COUL.haut : COUL.bas, s = 6, yy = y + (f.dir > 0 ? 10 : -10); ctx.fillStyle = `rgba(${col},.95)`; ctx.beginPath(); ctx.moveTo(x, yy + (f.dir > 0 ? -s : s)); ctx.lineTo(x - s * 0.8, yy + (f.dir > 0 ? s * 0.6 : -s * 0.6)); ctx.lineTo(x + s * 0.8, yy + (f.dir > 0 ? s * 0.6 : -s * 0.6)); ctx.closePath(); ctx.fill(); place('A+', x + 6, yy + (f.dir > 0 ? 14 : -6), col, 0.95); cadres.push({ kind: 'aplus', x0: x - 9, x1: x + 20, y0: yy - 10, y1: yy + 14, g: { p: f.p, texte: 'Setup A+ (règle non prouvée)', detail: ['cinq conditions réunies à la clôture de cette bougie H1 (aplus-v1)', 'proposition de lecture, jamais un ordre'] } }); }
   // ── scénarios (phase 5) ──
   if (m.scenarios) dessinerScenarios(ctx, T, m.scenarios, { xDeT, yDe, mobile, place, cadres, ok, fs });
   cadres.etiquettes = occ.slice();   // rectangles des étiquettes posées (test de non-chevauchement)

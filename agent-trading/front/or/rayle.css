@@ -25,3 +25,11 @@
 .tor-ray-feuille small { color: #7d8a90; } .tor-ray-feuille-n { margin-left: 4px; color: #a9d6e5; }
 @media (max-width: 700px) { .tor-ray-feuille { top: auto; bottom: 36px; right: 70px; width: 190px; font-size: 10.5px; } }
 @media (max-width: 700px) { .tor-ray-feuille { cursor: pointer; } .tor-ray-feuille ul, .tor-ray-feuille small { display: none; } .tor-ray-feuille.ouvert ul, .tor-ray-feuille.ouvert small { display: block; } .tor-ray-feuille.ouvert { width: 230px; } .tor-ray-feuille:not(.ouvert) { width: auto; max-width: 190px; padding: 4px 8px; } }
+
+.tor-ray-outils { min-width: 0; box-sizing: border-box; max-width: 100%; margin: 6px 0; padding: 4px 8px; border: 1px solid #2a3a44; border-radius: 8px; } .tor-ray-outils summary { cursor: pointer; } .tor-ray-outils summary small { color: #8497a1; font-weight: 400; margin-left: 6px; }
+.tor-ray-outils-corps { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(260px, 100%), 1fr)); gap: 4px 12px; padding: 6px 0; font-size: 13px; } .tor-ray-outils-corps label { display: flex; gap: 6px; align-items: center; } .tor-ray-outils-corps .tor-ctx-actions, .tor-ray-outils-corps small { grid-column: 1 / -1; }
+.tor-ray-aplus { position: absolute; bottom: 36px; left: 10px; z-index: 7; width: min(330px, calc(100% - 90px)); padding: 8px 10px; font-size: 12px; line-height: 1.35; color: #e3f3ea; background: rgba(12, 22, 18, .95); border: 1px solid rgba(95, 184, 148, .7); border-radius: 8px; }
+.tor-ray-aplus[hidden] { display: none; } .tor-ray-aplus header { display: flex; gap: 6px; align-items: baseline; } .tor-ray-aplus header button { margin-left: auto; background: none; border: 0; color: #9db; cursor: pointer; } .tor-ray-aplus p { margin: 4px 0; } .tor-ray-aplus > button { font-size: 11px; padding: 2px 8px; background: transparent; color: #a9d6e5; border: 1px solid #36505e; border-radius: 5px; cursor: pointer; }
+@media (max-width: 700px) { .tor-mo-tab { display: block; max-width: 100%; overflow-x: auto; } .tor-mo-tab ~ small, .tor-bloc small { overflow-wrap: anywhere; } }
+.tor-ray-outils-corps label { min-width: 0; flex-wrap: wrap; } .tor-ray-outils-corps select { max-width: 100%; }
+.tor-ray-outils .tor-gb { white-space: normal; max-width: 100%; text-align: left; }

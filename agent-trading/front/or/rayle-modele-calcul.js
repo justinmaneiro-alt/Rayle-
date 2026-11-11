@@ -56,7 +56,7 @@ export function evenementsAffiches(res, B, { vue = 'epure', stats = null, max = 
 export function compterObjets(m) {
   if (!m) return 0; let c = 0;
   c += (m.evenements || []).length; c += (m.boites || []).length; if (m.ligne) c++;
-  c += (m.structure || []).length;
+  c += (m.structure || []).length; c += (m.aplus || []).length;
   if (m.scenarios) c += (m.scenarios.actifs || []).length;
   return c;
 }
