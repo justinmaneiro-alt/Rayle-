@@ -149,12 +149,21 @@ export function monterTableauOr(el, { modules = {}, contexte = 'page', fetchFn, 
     const r = H.ref.length ? ` · référence Binance depuis le ${d(H.ref[0].t)}${H.refEpuise ? ' (début de la série)' : ''}` : '';
     return ` · ${k}${r}${H.krakenEpuise && H.refEpuise ? ' · tout l’historique disponible est chargé' : ' · glisse vers la gauche pour remonter'}`;
   }
+  /* bougies H1 closes pour zones-affichage-v1 (naissance et invalidation des zones) : repère Kraken (référence Binance décalée de l'écart mesuré) */
+  let memoH1 = { cle: '', L: [] };
+  function h1Zones(S) {
+    const n = Date.now(), H = 3600e3, src = S.periode === 'H1' && S.k && S.k.length ? moteur.serie() : null, e = S.ecart ?? 0;
+    const L = src || (S.refH1 || []).map(x => ({ ...x, o: x.o + e, h: x.h + e, l: x.l + e, c: x.c + e }));
+    const cle = S.periode + '|' + L.length + '|' + (L.length ? L[L.length - 1].t : 0) + '|' + e;
+    if (cle !== memoH1.cle) memoH1 = { cle, L: L.filter(x => x.t + H <= n && x.c > 0) };
+    return memoH1.L;
+  }
   function rendre() {
     const S = moteur.S;
     rendreTete();
     for (const b of R.querySelectorAll('[data-periode]')) b.setAttribute('aria-pressed', String(b.dataset.periode === S.periode));
     graph.bougies(moteur.serie(), S.hist ? S.refP : S.periode === 'M15' ? S.refM15 : S.refP, { cle: S.periode + (S.hist ? ':historique' : ':court'), debutKraken: S.hist && S.k.length ? S.k[0].t : null, ecart: S.ecart });
-    graph.dessin({ zonesVol: S.zonesVol, niveaux: S.niveaux, retournement: S.zones, prix: S.prix, a: S.a, ...dessinPeriode(S) });
+    graph.dessin({ zonesVol: S.zonesVol, niveaux: S.niveaux, retournement: S.zones, prix: S.prix, a: S.a, h1: h1Zones(S), ...dessinPeriode(S) });
     if (structUI) { try { structUI.maj(); } catch (e) { console.warn('structure :', e.message); } }
     if (propUI) { try { propUI.maj(); } catch (e) { console.warn('propositions :', e.message); } }
     if (instUI) { try { instUI.maj(); } catch (e) { console.warn('outils institutionnels :', e.message); } }
