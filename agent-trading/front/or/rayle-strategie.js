@@ -12,6 +12,8 @@ import * as FD from './feuille-decision-v1.js';
 import * as SC from './scenarios-v1.js';
 import * as VX from './rayle-voix-calcul.js';
 import * as GD from './golden-v1.js';
+import { creerTerminalPro } from './terminal-pro.js';
+import * as NM from './niveaux-majeurs-v1.js';
 import { creerTradingActif } from './rayle-trading.js';
 import { vemaSerie } from './vema-v1.js';
 import { rNet } from './journal-calcul.js';
@@ -23,12 +25,12 @@ const nbf = x => Number(x).toLocaleString('fr-FR', { maximumFractionDigits: 0 })
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 
 export function creerStrategie({ racine, moteur, graph, carnet = null, structure, parler = () => {}, maintenant = () => Date.now(), fetchFn = (...a) => fetch(...a), auto = true, stats = null } = {}) {
-  const E = { reg: { vue: 'epure', ma: 'h1', moyenne: 'ma200', horizon: '1j', ...lire(CLE_REG, {}) }, stats: { ma: stats && stats.ma || null, boites: stats && stats.boites || null, scen: stats && stats.scen || null }, B: null, cle: '', res: null, prep: null, zones: [], sel: { zones: [], message: null }, m: null,
+  const E = { reg: { vue: 'epure', ma: 'h1', moyenne: 'ma200', horizon: '1j', ...lire(CLE_REG, {}) }, stats: { ma: stats && stats.ma || null, boites: stats && stats.boites || null, scen: stats && stats.scen || null, nm: stats && stats.nm || null }, B: null, cle: '', res: null, prep: null, zones: [], sel: { zones: [], message: null }, m: null,
     marge: 5, arch: lire(CLE_ARCH, []), scen: null, scenPrec: {}, regScen: lire(CLE_SCEN, []), sm: null, prix: null, atr: null };
   const q = s => racine && racine.querySelector(s);
   const couches = () => graph.couches();
   async function chargerStats() {
-    for (const [cle, fichier] of [['ma', './ma-stats.json'], ['boites', './boites-stats.json'], ['scen', './scenarios-stats.json']]) if (!E.stats[cle]) { try { const r = await fetchFn(new URL(fichier, import.meta.url).href, { cache: 'no-store' }); if (r.ok) E.stats[cle] = await r.json(); } catch (e) { /* mesures « indisponibles » */ } }
+    for (const [cle, fichier] of [['ma', './ma-stats.json'], ['boites', './boites-stats.json'], ['scen', './scenarios-stats.json'], ['nm', './niveaux-majeurs-stats.json']]) if (!E.stats[cle]) { try { const r = await fetchFn(new URL(fichier, import.meta.url).href, { cache: 'no-store' }); if (r.ok) E.stats[cle] = await r.json(); } catch (e) { /* mesures « indisponibles » */ } }
   }
   /* ── DOM : boutons collés au graphique, bandeau d'état et panneau (insérés ici pour ne pas alourdir tableau-or.js) ── */
   const barre = q('[data-graph-barre]');
@@ -117,6 +119,14 @@ export function creerStrategie({ racine, moteur, graph, carnet = null, structure
       const gz = GD.golden(B, E.sm.h1.swings, E.prep.A); E.golden = gz;
       if (gz) { const tNow = B[B.length - 1].t; m.boites.push({ id: gz.id, cote: gz.cote, prix: (gz.bas + gz.haut) / 2, bas: gz.bas, haut: gz.haut, tDebut: gz.tPose, tFin: gz.tInval != null ? gz.tInval : tNow + GD.P.prolongement * H, grise: gz.invalide, etiquette: GD.etiquette(gz), detail: [`zone de ${Math.round(GD.P.bas * 1000) / 10} % à ${Math.round(GD.P.haut * 1000) / 10} % du dernier élan ${gz.cote === 'achat' ? 'haussier' : 'baissier'} (${nbf(gz.elan.de)} → ${nbf(gz.elan.a)}), élan de ${gz.elan.atr.toFixed(1).replace('.', ',')} ATR`, `posée le ${hp(gz.tPose - H)} (heure de Paris), invalidée par une clôture H1 au-delà de ${nbf(gz.elan.de)}`, 'règle golden-v1 figée ; description, jamais un ordre'] }); }
     } else E.golden = null;
+    if (c.rayNiveaux) {
+      try {
+        const k = `${B[B.length - 1].t}|${B.length}`; if (!E.nm || E.nm.k !== k) { if (!E.nmCtx || E.nmCtx.n !== B.length - 1) E.nmCtx = { n: B.length, ctx: NM.preparer(B) }; else E.nmCtx = { n: B.length, ctx: NM.preparer(B) }; E.nm = { k, r: NM.niveauxMajeurs(E.nmCtx.ctx, B.length - 1) }; }
+        const R2 = E.nm.r, st = E.stats.nm, tx = x => { const q = st && st.types && st.types[x]; return q && q.long ? q.long : null; };
+        m.niveaux = [...R2.haut.map(z => ({ z, cote: 'haut' })), ...R2.bas.map(z => ({ z, cote: 'bas' }))].map(({ z, cote }) => ({ p: z.centre, bas: z.bas, haut: z.haut, cote, etiquette: NM.etiquette(z), score: z.score,
+          detail: [`zone ${nbf(z.bas)} – ${nbf(z.haut)} · score ${z.score.toFixed(1).replace('.', ',')} (poids ${z.poids.toFixed(1).replace('.', ',')}, ${z.touches} touche${z.touches > 1 ? 's' : ''}, ancienneté ${z.anciennete.toFixed(1).replace('.', ',')}, volume ${z.volume.toFixed(1).replace('.', ',')})`, `niveaux fusionnés : ${z.membres.map(q => q.nom).join(', ')}`, ...[...new Set(z.membres.map(q => q.type))].map(t => { const q = tx(t); return q ? `${NM.NOMS[t]} : réaction ${q.taux == null ? '—' : Math.round(q.taux * 100) + ' %'} (n = ${q.nT}${q.nT < 30 ? ', pas assez de données' : ''}) contre ${q.base == null ? '—' : Math.round(q.base * 100) + ' %'} pour des niveaux aléatoires → ${q.verdict}` : `${NM.NOMS[t]} : mesure indisponible`; }), 'un niveau est une zone de réaction possible, jamais une promesse : le prix peut la traverser'] }));
+      } catch (e) { console.warn('niveaux majeurs :', e.message); m.niveaux = []; }
+    }
     if (c.rayScenarios) {
       const sv = scenarios();
       if (sv) {
@@ -125,7 +135,7 @@ export function creerStrategie({ racine, moteur, graph, carnet = null, structure
         marge(Math.min(sv.bougies, 60));
       }
     } else marge(5);
-    m.aplus = E.trading ? E.trading.fleches() : [];
+    m.aplus = E.trading ? E.trading.fleches() : []; m.annotations = E.annotations || [];
     m.vue = E.reg.vue; return m;
   }
   function maj(force = false) {
@@ -168,7 +178,7 @@ export function creerStrategie({ racine, moteur, graph, carnet = null, structure
   /* ── voix et texte (phase 6) : uniquement à partir des valeurs réelles, jamais un ordre ── */
   function commande(texte) {
     const c = VX.interpreterStrategie(texte); if (!c) return null;
-    if (c.sujet === 'trading') return (E.trading && E.trading.commande(texte)) || null;
+    if (c.sujet === 'trading') return (E.trading && E.trading.commande(texte)) || (E.pro && E.pro.commande(texte)) || (E.copilote && E.copilote.commande && E.copilote.commande(texte)) || null;
     if (c.sujet === 'ma') return VX.repondreMa({ res: E.res, B: E.B, stats: E.stats.ma, texteMa: E.res && E.B ? texteMa(E.res, E.B) : '' });
     if (c.sujet === 'carnet') { const l = E.carte && E.carte.lecture(); const n = l && E.carte ? E.carte.registre().filter(r => r.kind === 'arrivee' && r.pourZone === l.pourZone).length : 0; return VX.repondreCarnet({ lecture: l, zone: E.carte && E.carte.zone(), compte: n }); }
     if (c.sujet === 'feuille') { const f = feuilleEtat(); return VX.repondreFeuille({ feuille: f, rapport: f.contexte ? rapportFeuille().phrase : '' }); }
@@ -187,7 +197,8 @@ export function creerStrategie({ racine, moteur, graph, carnet = null, structure
   const carte = creerCarteCarnet({ racine, flux: () => (carnet && carnet._flux) || null, zones: () => E.zones, atr: () => E.atr, prix: () => E.prixForce != null ? E.prixForce : (moteur && moteur.S && moteur.S.prix != null ? moteur.S.prix : (E.B ? E.B[E.B.length - 1].c : null)), barres: () => E.B || [], maintenant, parler, auto, surTick: () => { try { rendreFeuille(); } catch (e) { /* */ } } });
   E.carte = carte;
   let minuterie = null; if (auto) { chargerStats().then(() => maj(true)); minuterie = setInterval(() => { try { maj(); } catch (e) { /* */ } }, 30000); }
-  const api = { maj, chargerStats, modele: () => E.m, etat: () => ({ reg: { ...E.reg }, res: E.res, B: E.B, stats: E.stats, m: E.m, zones: E.zones, sel: E.sel, arch: E.arch.slice(), bandeau: texteBandeau() }), reglage, commande, carte, golden: () => E.golden, interne: () => ({ B: E.B, res: E.res, prep: E.prep, sm: E.sm, atr: E.atr, zones: E.zones, stats: E.stats }), surMaj(f) { E.abonnes = E.abonnes || []; E.abonnes.push(f); }, scenarios: () => (couches().rayScenarios ? scenarios() : null), registreScenarios: () => E.regScen.slice(), fiabiliteScenarios: () => SC.fiabilite(E.regScen), feuilleEtat: () => { const f = feuilleEtat(); return FD.etatPourJournal(f); }, feuille: () => feuilleEtat(), rapportFeuille, injecterPrix(p) { E.prixForce = p; maj(true); }, compterObjets: () => compterObjets(E.m), detruire() { clearInterval(minuterie); } };
+  const api = { maj, chargerStats, modele: () => E.m, etat: () => ({ reg: { ...E.reg }, res: E.res, B: E.B, stats: E.stats, m: E.m, zones: E.zones, sel: E.sel, arch: E.arch.slice(), bandeau: texteBandeau() }), reglage, commande, carte, annotations(L) { E.annotations = L; maj(true); }, golden: () => E.golden, interne: () => ({ B: E.B, res: E.res, prep: E.prep, sm: E.sm, atr: E.atr, zones: E.zones, stats: E.stats }), surMaj(f) { E.abonnes = E.abonnes || []; E.abonnes.push(f); }, scenarios: () => (couches().rayScenarios ? scenarios() : null), registreScenarios: () => E.regScen.slice(), fiabiliteScenarios: () => SC.fiabilite(E.regScen), feuilleEtat: () => { const f = feuilleEtat(); return FD.etatPourJournal(f); }, feuille: () => feuilleEtat(), rapportFeuille, injecterPrix(p) { E.prixForce = p; maj(true); }, compterObjets: () => compterObjets(E.m), detruire() { clearInterval(minuterie); } };
   E.trading = creerTradingActif({ racine, graph, strategie: api, parler, maintenant, auto }); api.trading = E.trading;
+  try { E.pro = creerTerminalPro({ racine, graph, strategie: api, parler, maintenant }); api.pro = E.pro; } catch (e) { console.warn('terminal pro :', e.message); }
   return api;
 }

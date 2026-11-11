@@ -37,6 +37,25 @@ export function dessinerRayle(ctx, T, m, { xDeT, yDe, mobile }) {
       place(L.texte, Math.max(4, x0) + 4, y + (L.dir < 0 ? fs + 2 : -4), col, 0.95); cadres.push({ kind: 'ligne', x0: Math.max(0, x0), x1: T.width, y0: y - 3, y1: y + 3, g: { p: L.p, texte: L.texte, detail: L.detail || [] } });
     }
   }
+  // ── niveaux majeurs : fines bandes sur toute la largeur, UNE courte étiquette collée à droite (zone de l'axe, hors des bougies) ──
+  const axe = [];
+  for (const n of m.niveaux || []) {
+    const yh = yDe(n.haut), yb = yDe(n.bas), ym = yDe(n.p); if (!ok(yh, yb, ym) || ym < 0 || ym > T.height) continue; const col = n.cote === 'haut' ? COUL.bas : COUL.haut, top = Math.min(yh, yb), h = Math.max(2, Math.abs(yb - yh));
+    ctx.fillStyle = `rgba(${col},.10)`; ctx.fillRect(0, top, T.width, h); ctx.strokeStyle = `rgba(${col},.55)`; ctx.beginPath(); ctx.moveTo(0, Math.round(ym) + 0.5); ctx.lineTo(T.width, Math.round(ym) + 0.5); ctx.stroke();
+    const w = ctx.measureText(n.etiquette).width + 6, r = { x0: T.width - w - 2, y0: ym - fs / 2 - 1, w, h: fs + 3 }; if (axe.some(q => r.x0 < q.x0 + q.w && r.x0 + r.w > q.x0 && r.y0 < q.y0 + q.h && r.y0 + r.h > q.y0)) continue; axe.push(r); occ.push(r);
+    ctx.fillStyle = 'rgba(12,18,23,.85)'; ctx.fillRect(r.x0, r.y0, r.w, r.h); ctx.fillStyle = `rgba(${col},1)`; ctx.fillText(n.etiquette, r.x0 + 3, r.y0 + fs);
+    cadres.push({ kind: 'niveau', x0: 0, x1: T.width, y0: top - 2, y1: top + h + 2, g: { p: n.p, texte: n.etiquette, detail: n.detail || [] } });
+  }
+  cadres.etiquettesAxe = axe;
+  // ── annotations de Justin : Fibonacci, texte, mesure (locales, jamais envoyées) ──
+  for (const a of m.annotations || []) {
+    if (a.type === 'fib') {
+      const x1 = xDeT(a.t1), x2 = xDeT(a.t2), xa = Math.min(x1, x2); if (!ok(x1, x2)) continue; const hi = Math.max(a.p1, a.p2), lo = Math.min(a.p1, a.p2); let dessine = false;
+      for (const [f, op] of [[0, .5], [0.236, .35], [0.382, .45], [0.5, .5], [0.618, .9], [0.786, .9], [1, .5]]) { const p = a.p2 > a.p1 ? hi - (hi - lo) * f : lo + (hi - lo) * f, y = yDe(p); if (!ok(y) || y < 0 || y > T.height) continue; dessine = true; ctx.strokeStyle = `rgba(${COUL.sable},${op})`; ctx.setLineDash(f === 0.618 || f === 0.786 ? [] : [3, 3]); ctx.beginPath(); ctx.moveTo(Math.max(0, xa), Math.round(y) + 0.5); ctx.lineTo(T.width - 66, Math.round(y) + 0.5); ctx.stroke(); ctx.setLineDash([]); if (f === 0 || f === 0.618 || f === 0.786 || f === 1) place(`${(f * 100).toFixed(1).replace('.', ',')}`, Math.max(2, xa) + 2, y - 2, COUL.sable, 0.85); }
+      if (dessine) cadres.push({ kind: 'annotation', x0: Math.max(0, xa), x1: T.width, y0: yDe(hi) - 3, y1: yDe(lo) + 3, g: { p: (hi + lo) / 2, texte: 'Fibonacci', detail: [`retracement de ${nb(a.p1, 2)} à ${nb(a.p2, 2)} : 23,6 · 38,2 · 50 · 61,8 · 78,6 %`, 'tracé de Justin, local à cet appareil'], id: a.id } });
+    } else if (a.type === 'texte') { const x = xDeT(a.t), y = yDe(a.p); if (!ok(x, y) || x < 0 || x > T.width) continue; ctx.fillStyle = `rgba(${COUL.sable},.9)`; ctx.beginPath(); ctx.arc(x, y, 2.5, 0, 6.3); ctx.fill(); place(a.texte, x + 5, y - 4, COUL.sable, 0.95); cadres.push({ kind: 'annotation', x0: x - 4, x1: x + 80, y0: y - 14, y1: y + 6, g: { p: a.p, texte: a.texte, detail: ['note de Justin'], id: a.id } }); }
+    else if (a.type === 'mesure') { const x1 = xDeT(a.t1), x2 = xDeT(a.t2), y1 = yDe(a.p1), y2 = yDe(a.p2); if (!ok(x1, x2, y1, y2)) continue; ctx.strokeStyle = `rgba(${COUL.cyan},.9)`; ctx.setLineDash([4, 3]); ctx.beginPath(); ctx.moveTo(x1, y1); ctx.lineTo(x2, y2); ctx.stroke(); ctx.setLineDash([]); place(a.libelle || '', Math.min(x1, x2) + 4, Math.min(y1, y2) - 4, COUL.cyan, 0.95); }
+  }
   // ── 3 dernières cassures de structure (MSS / BOS), étiquettes courtes ──
   for (const c of m.structure || []) {
     const x0 = xDeT(c.tNiveau), x1 = xDeT(c.t), y = yDe(c.niveau); if (!ok(x0, x1, y) || x1 < 0 || x0 > T.width) continue; const col = c.type === 'MSS' ? COUL.violet : c.dir > 0 ? COUL.haut : COUL.bas;

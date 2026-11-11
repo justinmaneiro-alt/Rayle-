@@ -33,3 +33,14 @@
 @media (max-width: 700px) { .tor-mo-tab { display: block; max-width: 100%; overflow-x: auto; } .tor-mo-tab ~ small, .tor-bloc small { overflow-wrap: anywhere; } }
 .tor-ray-outils-corps label { min-width: 0; flex-wrap: wrap; } .tor-ray-outils-corps select { max-width: 100%; }
 .tor-ray-outils .tor-gb { white-space: normal; max-width: 100%; text-align: left; }
+
+/* ── terminal pro ── */
+.tor[data-pro] .tor-graph-barre, .tor[data-pro] .tor-ob, .tor[data-pro] .tor-outils > [data-a="position"], .tor[data-pro] .tor-outils > .tor-couches { display: none; }
+.tor[data-pro]:not(.tp-droite) .tor-ecran1 { grid-template-columns: minmax(0, 1fr); } .tor[data-pro]:not(.tp-droite) .tor-carnet, .tor[data-pro]:not(.tp-droite) .tor-ray-feuille { display: none; }
+.tor[data-pro] .tor-graph-source, .tor[data-pro] [data-struct-bandeau], .tor[data-pro] .tor-mouv-note, .tor[data-pro] [data-bilan-fleches], .tor[data-pro] [data-versions-h1] { display: none; }
+.tp-haut { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; padding: 4px 10px; border-bottom: 1px solid var(--b, #22323c); font-size: 13px; position: relative; z-index: 8; } .tp-haut select, .tp-haut button, .tp-menu summary { background: #0b1319; color: #cfdde4; border: 1px solid #2a3a44; border-radius: 6px; padding: 4px 10px; min-height: 32px; cursor: pointer; } .tp-haut button[aria-pressed="true"] { background: #16303a; border-color: #8fd0e3; }
+.tp-menu { position: relative; } .tp-menu summary { list-style: none; } .tp-menu-corps { position: absolute; top: 36px; left: 0; z-index: 20; min-width: 240px; max-height: 70vh; overflow: auto; background: #0c1318; border: 1px solid #2a3a44; border-radius: 8px; padding: 8px; display: flex; flex-direction: column; gap: 4px; } .tp-menu-corps label { display: flex; gap: 6px; font-size: 12.5px; } .tp-menu-corps .tor-couches-corps { display: flex; flex-direction: column; gap: 3px; }
+.tp-doux { color: #7d8a90; margin-left: auto; font-size: 11px; }
+.tp-outils { position: absolute; left: 0; top: 42px; bottom: 6px; width: 38px; display: flex; flex-direction: column; gap: 3px; padding: 4px; z-index: 6; background: rgba(10, 16, 20, .92); border-right: 1px solid #22323c; overflow-y: auto; } .tp-outils button { width: 30px; height: 30px; padding: 0; background: transparent; color: #cfdde4; border: 1px solid transparent; border-radius: 6px; cursor: pointer; font-size: 15px; } .tp-outils button[aria-pressed="true"] { background: #16303a; border-color: #8fd0e3; }
+.tor[data-pro] .tor-graph-lw { margin-left: 40px; } .tor[data-pro] .tor-ray-carte { left: 50px; } .tor[data-pro] .tor-ray-aplus { left: 50px; }
+@media (max-width: 700px) { .tp-doux { display: none; } .tp-outils { top: 80px; } }
