@@ -41,7 +41,10 @@
   }
 
   // Voix du navigateur (dernier filet : Raylé n'est jamais muette)
-  function browserSpeak(t,token){
+  /* Silence entre deux phrases : coupé net si une nouvelle réponse arrive ou si on coupe Raylé. */
+  function pauseParole(ms,token){ return new Promise(res=>{ if(!ms||ms<=0){ res(); return; } const t0=Date.now(), v=()=>{ if(token!==speakToken||Date.now()-t0>=ms) res(); else setTimeout(v,40); }; v(); }); }
+  function browserSpeak(t,token,seg){
+    seg=seg||{vitesse:1,hauteur:0};
     return new Promise(resolve=>{
       if(!('speechSynthesis' in window)){ resolve(); return; }
       speechSynthesis.cancel();
@@ -52,7 +55,7 @@
         const piece=chunks[i++];
         const u=new SpeechSynthesisUtterance(piece);
         try{ if(chosenVoice){ u.voice=chosenVoice; u.lang=chosenVoice.lang; } else u.lang='fr-FR'; }catch(e){ u.lang='fr-FR'; }   // une voix refusée ne doit jamais bloquer la lecture
-        u.pitch=Math.max(0,Math.min(2,(persona.feminin?1:0.78)*(1+(window.VoixMoteurs?VoixMoteurs.hauteur():0)/100))); u.rate=rate; u.volume=1;
+        u.pitch=Math.max(0,Math.min(2,(persona.feminin?1:0.78)*(1+(window.VoixMoteurs?VoixMoteurs.hauteur():0)/100))); u.rate=Math.max(0.5,Math.min(1.5,rate*(seg.vitesse||1))); u.pitch=Math.max(0,Math.min(2,u.pitch*(1+(seg.hauteur||0)/100))); u.volume=1;
         let fired=false;
         const go=()=>{ if(fired) return; fired=true; clearTimeout(tm); next(); };
         const tm=setTimeout(go, 4000+piece.length*130);   // garde-fou si « onend » n'arrive pas
@@ -149,8 +152,11 @@
     if(!bargeActive()) muteRec(); else startRec();   // le micro est coupé net pendant qu'elle parle
     setState('speaking');
     // Texte parlé : nombres, prix, sigles, heures et dates écrits en toutes lettres ; plus de markdown ni d'émoji (normalisation-fr.js)
-    let parts=window.NormFr?NormFr.phrases(NormFr.normaliser(text)):regroup(t,260);
-    if(!parts.length) parts=regroup(t,260);
+    let segs=null; try{ if(window.Prosodie&&window.NormFr&&localStorage.getItem('rayle_prosodie')!=='0') segs=Prosodie.depuisTexte(text,NormFr.normaliser); }catch(e){ segs=null; }
+    let parts=segs&&segs.length?segs.map(s=>s.texte):(window.NormFr?NormFr.phrases(NormFr.normaliser(text)):regroup(t,260));
+    if(!parts.length){ parts=regroup(t,260); segs=null; }
+    const reglage=i=>segs&&segs[i]?segs[i]:{vitesse:1,hauteur:0,pause:0};
+    const baseHauteur=window.VoixMoteurs?VoixMoteurs.hauteur():0;
     const choisiId=opts.moteur||VoixMoteurs.choisi();
     const moteurId=opts.moteur||VoixMoteurs.actif();   // « systeme » tant que le modèle local n'est pas prêt : Raylé n'est jamais muette
     if(!opts.moteur&&moteurId==='systeme'&&choisiId!=='systeme'){
@@ -160,7 +166,7 @@
     const vit=Math.max(0.5,Math.min(2,1+vitesseCourante()/100));
     const ctrl=new AbortController(); synthCtrl=ctrl;
     const taches=[];
-    const lancer=i=>{ if(i<parts.length&&!taches[i]){ taches[i]=VoixMoteurs.synth(moteurId,parts[i],{vitesse:vit,signal:ctrl.signal}); taches[i].catch(()=>{}); } };
+    const lancer=i=>{ if(i<parts.length&&!taches[i]){ taches[i]=VoixMoteurs.synth(moteurId,parts[i],{vitesse:Math.max(0.5,Math.min(2,vit*reglage(i).vitesse)),hauteur:baseHauteur+reglage(i).hauteur,signal:ctrl.signal}); taches[i].catch(()=>{}); } };
     let enLigne=moteurId!=='systeme';
     if(enLigne){ lancer(0); lancer(1); }   // synthèse phrase par phrase : la première part vite, la suite se prépare pendant la lecture
     for(let i=0;i<parts.length;i++){
@@ -171,6 +177,7 @@
           lancer(i+2);
           if(token!==speakToken) return;
           await playAudio(a,token); lastVoiceInfo='';
+          if(i<parts.length-1) await pauseParole(reglage(i).pause,token);
           continue;
         }catch(e){
           if(token!==speakToken) return;
@@ -179,7 +186,8 @@
           if(m!==lastVoiceInfo){ addLine('sys',m); lastVoiceInfo=m; }
         }
       }
-      await browserSpeak(parts[i],token);
+      await browserSpeak(parts[i],token,reglage(i));
+      if(i<parts.length-1) await pauseParole(reglage(i).pause,token);
     }
     if(token!==speakToken) return;
     speaking=false; speechEndT=Date.now(); lastAct=Date.now();

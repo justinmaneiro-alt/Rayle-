@@ -11,7 +11,7 @@ v('suivant -> terminal', (await etat()).id === 'terminal');
 // balayage tactile / souris
 const W = await p.evaluate(() => innerWidth), H = await p.evaluate(() => innerHeight);
 async function balayer(dx) {
-  if (cle === 'pc') { await p.mouse.move(W / 2, H * 0.3); await p.mouse.down(); for (let i = 1; i <= 8; i++) { await p.mouse.move(W / 2 + dx * i / 8, H * 0.3); await att(16); } await p.mouse.up(); }
+  if (cle.startsWith('pc')) { await p.mouse.move(W / 2, H * 0.3); await p.mouse.down(); for (let i = 1; i <= 8; i++) { await p.mouse.move(W / 2 + dx * i / 8, H * 0.3); await att(16); } await p.mouse.up(); }
   else { const c = await p.createCDPSession(); const pt = x => [{ x, y: H * 0.3 }]; await c.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: pt(W / 2) }); for (let i = 1; i <= 8; i++) { await c.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: pt(W / 2 + dx * i / 8) }); await att(16); } await c.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] }); }
   await att(700);
 }
@@ -20,7 +20,7 @@ await balayer(W * 0.5); v('balayage vers la droite -> terminal', (await etat()).
 await p.keyboard.press('ArrowRight'); await att(600); v('flèche droite -> anatomie', (await etat()).id === 'anatomie');
 await p.keyboard.press('ArrowLeft'); await att(600); v('flèche gauche -> terminal', (await etat()).id === 'terminal');
 const dit = await p.evaluate(() => Application.commande('Rayle, va à droite')); await att(600); v('voix « va à droite »', (await etat()).id === 'anatomie', String(dit));
-await p.screenshot({ path: `outils-restructuration/car-${cle}-anatomie.png` });
+await p.screenshot({ path: `outils-restructuration/car-${cle}-anatomie.png` }); const deborde = await p.evaluate(() => document.documentElement.scrollWidth > innerWidth + 1); v('aucun défilement horizontal de la page', !deborde);
 // ouverture : clic sur la carte du terminal
 await p.evaluate(() => Application.aller('terminal')); await att(600);
 await p.click('.ac-vue[data-id="terminal"] .ac-carte'); await att(2500);

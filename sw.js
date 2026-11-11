@@ -1,20 +1,27 @@
-/* ═════════════ SERVICE WORKER DE RAYLÉ (V8 : téléphone et tablette seulement ; jamais enregistré sur PC) ═════════════
-   But : une application qui s'ouvre vite, marche en lecture hors ligne (dernières données gardées par la page) et SE MET À JOUR TOUTE SEULE sans vider le cache à la main.
+/* ═════════════ SERVICE WORKER DE RAYLÉ (application installable, PC, tablette et téléphone) ═════════════
+   But : une application qui s'ouvre vite, marche hors ligne (coque + dernières pages vues) et SE MET À JOUR TOUTE SEULE.
    • Fichiers du site (même origine) : RÉSEAU D'ABORD, copie en secours : un déploiement est vu tout de suite quand on a du réseau, la dernière version marche sans réseau.
-   • Images des médias, tuiles : copie d'abord, 80 entrées au plus.
-   • Jamais interceptés : le Worker de Raylé et toutes les API (la page gère son propre cache), la page caméra du téléphone (/camera/), les routes locales du PC (/__…), les requêtes non GET.
-   • Mise à jour : changer VERSION (= window.RAYLE_VERSION de index.html) installe une nouvelle version qui ATTEND ; la page affiche « Nouvelle version disponible — Actualiser » ; au toucher, la page lui dit de prendre la main (SKIP_WAITING) puis se recharge.
-   • Chaque version a ses caches : les anciens sont supprimés à l'activation. */
-const VERSION = '2026.11.03.3';
+     Seuls les petits fichiers de l'application sont gardés (code, styles, données, petites images) : jamais les modèles 3D, textures, voix ni vidéos (trop lourds).
+   • Hors ligne et page demandée absente : « offline.html » (explique ce qui manque, jamais une page blanche).
+   • Images des médias : copie d'abord, 80 entrées au plus.
+   • Jamais interceptés : le backend et toutes les API (la page gère son propre cache), les routes locales du PC (/__…), les requêtes non GET ou partielles (range).
+   • Mise à jour : changer VERSION (= window.RAYLE_VERSION de index.html, vérifié par build.mjs) installe une nouvelle version qui ATTEND ; la page affiche « Nouvelle version disponible » ;
+     au toucher, la page envoie SKIP_WAITING puis se recharge. Chaque version a ses caches : les anciens sont supprimés à l'activation.
+   COEUR est remplacé à la construction (build.mjs) par la liste exacte des fichiers chargés au démarrage. */
+const VERSION = '2026.11.11.1';
 const SHELL = 'rayle-shell-' + VERSION, IMAGES = 'rayle-images-1';
-const COEUR = ['./', 'index.html', 'manifest.webmanifest', 'favicon.svg', 'icones/rayle-192.png', 'core/commun/appareil.js', 'core/mobile/mobile.css', 'core/mobile/mobile-contenus.css',
-  'core/mobile/mobile-calcul.js', 'core/mobile/mobile-donnees.js', 'core/mobile/mobile-coque.js', 'core/mobile/mobile-accueil.js'];
+const COEUR = ['./', 'index.html', 'offline.html', 'manifest.webmanifest', 'favicon.svg', 'icones/rayle-192.png', 'config.js'];   // /*COEUR*/
+const TAILLE_MAX = 600 * 1024;
+const GARDER = /\.(?:js|mjs|css|html|json|webmanifest|svg|png|woff2?)$/i;
+const JAMAIS = /\/(?:assets-lourds|captures[^/]*|docs|idees)\//i;
 
 self.addEventListener('install', e => {
   e.waitUntil((async () => {
     const c = await caches.open(SHELL);
-    await Promise.all(COEUR.map(u => c.add(new Request(u, { cache: 'reload' })).catch(() => { /* un fichier absent n'empêche pas l'installation */ })));
-    // pas de skipWaiting automatique : la page propose l'actualisation (jamais de rechargement surprise pendant que Justin lit)
+    // par lots de 8 (un serveur ne doit pas recevoir 90 demandes d'un coup), un nouvel essai par fichier ; un fichier absent n'empêche pas l'installation
+    const un = async u => { for (let k = 0; k < 2; k++) { try { await c.add(new Request(u, { cache: 'reload' })); return; } catch (err) { /* nouvel essai */ } } };
+    for (let i = 0; i < COEUR.length; i += 8) await Promise.all(COEUR.slice(i, i + 8).map(un));
+    // pas de skipWaiting automatique : la page propose l'actualisation (jamais de rechargement surprise)
   })());
 });
 self.addEventListener('activate', e => {
@@ -23,17 +30,23 @@ self.addEventListener('activate', e => {
     await self.clients.claim();
   })());
 });
-self.addEventListener('message', e => { if (e.data && e.data.type === 'SKIP_WAITING') self.skipWaiting(); else if (e.data && e.data.type === 'VERSION' && e.source) e.source.postMessage({ type: 'VERSION', version: VERSION }); });
+self.addEventListener('message', e => {
+  if (e.data && e.data.type === 'SKIP_WAITING') self.skipWaiting();
+  else if (e.data && e.data.type === 'VERSION' && e.source) e.source.postMessage({ type: 'VERSION', version: VERSION });
+});
 
 async function reseauDAbord(req) {
-  const c = await caches.open(SHELL);
+  const c = await caches.open(SHELL), u = new URL(req.url);
   try {
     const r = await fetch(req, { cache: 'no-cache' });
-    if (r && r.ok && r.type === 'basic') c.put(req, r.clone()).catch(() => {});
+    const taille = +(r && r.headers.get('content-length') || 0);
+    if (r && r.ok && r.type === 'basic' && GARDER.test(u.pathname) && !JAMAIS.test(u.pathname) && taille < TAILLE_MAX) c.put(req, r.clone()).catch(() => {});
     return r;
   } catch (err) {
-    const copie = await c.match(req, { ignoreSearch: true }) || (req.mode === 'navigate' ? await c.match('index.html') || await c.match('./') : null);
+    const copie = await c.match(req, { ignoreSearch: true });
     if (copie) return copie;
+    if (req.mode === 'navigate') return (await c.match('index.html')) || (await c.match('./')) || (await c.match('offline.html')) || Response.error();
+    if (/\.html?$/i.test(u.pathname)) { const o = await c.match('offline.html'); if (o) return o; }
     throw err;
   }
 }
@@ -50,8 +63,8 @@ self.addEventListener('fetch', e => {
   const req = e.request; if (req.method !== 'GET') return;
   const u = new URL(req.url);
   if (u.origin === self.location.origin) {
-    if (u.pathname.includes('/camera/') || u.pathname.includes('/__') || req.headers.has('range')) return;       // caméra du téléphone, routes du PC, médias en flux : on ne touche à rien
+    if (u.pathname.includes('/__') || req.headers.has('range') || /^\/(?:health|sources|actualites|meteo|evenements|calendar|cot|macro|sec|wgc|ce-jour-la|chat|tts)(?:\/|$)/.test(u.pathname)) return;   // routes du PC ou du backend servi sur la même origine : le réseau, sans interception
     e.respondWith(reseauDAbord(req));
   } else if (req.destination === 'image') e.respondWith(copieDAbord(req));
-  // tout le reste (Worker, API de marché, météo…) : le réseau, sans interception
+  // tout le reste (backend, API de marché, météo…) : le réseau, sans interception
 });

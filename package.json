@@ -1,17 +1,14 @@
 {
   "name": "rayle",
   "private": true,
-  "description": "Raylé : IA personnelle de Justin. Ce fichier ne sert qu'à lancer les tests locaux (npm run test:lppr) ; aucune dépendance à installer à la racine. Pas de champ « type » : certains scripts classiques du dépôt se chargent aussi sous Node.",
+  "description": "Raylé : application PC, tablette et téléphone. npm test = tests purs ; npm run build = dossier dist/ déployable (voir DEPLOIEMENT.md).",
   "scripts": {
-    "test": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON galaxie/tests/grammaire-test.mjs && cd agent-trading && npm test",
-    "test:lppr": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON galaxie/tests/lppr-graphe-test.mjs && node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON core/lppr/noter-lppr.mjs",
-    "test:gestes": "node galaxie/tests/gestes-test.mjs && node galaxie/tests/gestes-v5-test.mjs && node galaxie/tests/paquet-binaire-test.mjs && node galaxie/tests/telecommande-test.mjs && node galaxie/tests/fluidite-test.mjs && node galaxie/tests/adaptation-camera-test.mjs && node galaxie/tests/gestes-evaluation-test.mjs",
-    "test:v10": "node galaxie/tests/fluidite-test.mjs && node galaxie/tests/adaptation-camera-test.mjs && node galaxie/tests/gestes-evaluation-test.mjs && node galaxie/tests/gestes-v5-test.mjs && node galaxie/tests/fluidite-banc.mjs",
-    "test:v7b": "node galaxie/tests/appareil-test.mjs",
-    "test:v11": "node galaxie/tests/gestes-v11-test.mjs && node galaxie/tests/gestes-v11-calcul-test.mjs && node galaxie/tests/liaison-calcul-test.mjs && node galaxie/tests/liaison-worker-test.mjs && node galaxie/tests/liaison-banc.mjs && node galaxie/tests/camera-worker-test.mjs && node galaxie/tests/gestes-v5-test.mjs && node galaxie/tests/gestes-evaluation-test.mjs && node galaxie/tests/fluidite-test.mjs",
-    "deploy": "wrangler deploy",
-    "preview": "wrangler dev",
-    "test:liquidite": "node galaxie/tests/liquidite-rendu-test.mjs"
+    "test": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON galaxie/tests/manifestes-test.mjs && node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON galaxie/tests/application-test.mjs && node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON galaxie/tests/prosodie-test.mjs && node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON galaxie/tests/normalisation-fr-test.mjs && node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON marches/tests/finance-test.mjs && cd agent-trading && npm test",
+    "test:chrome": "node outils-restructuration/test-carrousel.mjs pc1600 && node outils-restructuration/test-carrousel.mjs tab1024 && node outils-restructuration/test-carrousel.mjs tel390",
+    "test:planetes": "node outils-restructuration/test-planetes.mjs pc",
+    "test:sources": "cd worker/portable && node tests/sources-reelles.mjs",
+    "build": "node build.mjs --meme-origine",
+    "start": "node dist/demarrer.mjs"
   },
   "devDependencies": {
     "wrangler": "^4.156.1"

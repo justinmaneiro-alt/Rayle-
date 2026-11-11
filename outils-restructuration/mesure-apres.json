@@ -1,0 +1,29 @@
+{
+ "pc": {
+  "fichiers": 219,
+  "octets": 1205248,
+  "chargeMs": 425,
+  "dcl": 105,
+  "load": 116,
+  "js": 87,
+  "erreurs": 1
+ },
+ "tablette": {
+  "fichiers": 220,
+  "octets": 1263736,
+  "chargeMs": 354,
+  "dcl": 92,
+  "load": 98,
+  "js": 87,
+  "erreurs": 0
+ },
+ "telephone": {
+  "fichiers": 220,
+  "octets": 1260163,
+  "chargeMs": 373,
+  "dcl": 114,
+  "load": 121,
+  "js": 87,
+  "erreurs": 0
+ }
+}

@@ -15,6 +15,9 @@ export const APPAREILS = {
     ua: 'Mozilla/5.0 (Linux; Android 13; SM-X710) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Safari/537.36',
     meta: { platform: 'Android', platformVersion: '13.0.0', architecture: '', model: 'SM-X710', mobile: false, brands: marques, fullVersionList: marques.map(b => ({ ...b, version: b.version + '.0.0.0' })) }
   },
+  pc1600: { nom: 'PC 1600×900', viewport: { width: 1600, height: 900, deviceScaleFactor: 1, isMobile: false, hasTouch: false }, ua: null, meta: null },
+  tab1024: { nom: 'Tablette 1024×768', viewport: { width: 1024, height: 768, deviceScaleFactor: 2, isMobile: true, hasTouch: true }, ua: 'Mozilla/5.0 (Linux; Android 13; SM-X710) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Safari/537.36', meta: { platform: 'Android', platformVersion: '13.0.0', architecture: '', model: 'SM-X710', mobile: false, brands: marques, fullVersionList: marques.map(b => ({ ...b, version: b.version + '.0.0.0' })) } },
+  tel390: { nom: 'Téléphone 390×844', viewport: { width: 390, height: 844, deviceScaleFactor: 3, isMobile: true, hasTouch: true }, ua: 'Mozilla/5.0 (Linux; Android 14; SM-S918B) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Mobile Safari/537.36', meta: { platform: 'Android', platformVersion: '14.0.0', architecture: '', model: 'SM-S918B', mobile: true, brands: marques, fullVersionList: marques.map(b => ({ ...b, version: b.version + '.0.0.0' })) } },
   pc: { nom: 'PC 1920×1080', viewport: { width: 1920, height: 1080, deviceScaleFactor: 1, isMobile: false, hasTouch: false }, ua: null, meta: null }
 };
 

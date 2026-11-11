@@ -35,7 +35,7 @@ v('le paramètre de développement prime sur le réglage', A.detecter({ ua: UA.w
 v('la source est dite : auto, réglage, url', A.detecter({ ua: UA.windows }).source === 'auto' && A.detecter({ ua: UA.windows, preference: 'tablette' }).source === 'reglage');
 v('une raison lisible accompagne le résultat', A.detecter({ ua: UA.s23, mobileUA: true, ecranMin: 412 }).raison.length > 5);
 
-v('Galaxie autorisée sur PC seulement', A.galaxieAutorisee('pc') === true && A.galaxieAutorisee('tablette') === false && A.galaxieAutorisee('telephone') === false);
+v('Galaxie (hôte 3D) autorisée sur tous les appareils : même application partout', A.galaxieAutorisee('pc') === true && A.galaxieAutorisee('tablette') === true && A.galaxieAutorisee('telephone') === true);
 v('thème imposé : Jarvis sur téléphone et tablette, libre sur PC', A.themeImpose('telephone') === 'jarvis' && A.themeImpose('tablette') === 'jarvis' && A.themeImpose('pc') === null);
 v('message poli quand on demande Galaxie hors PC', /réservé au PC/.test(A.MESSAGE_GALAXIE) && /Jarvis/.test(A.MESSAGE_GALAXIE));
 v('seuil téléphone / tablette : 600 px CSS', A.SEUIL_TELEPHONE === 600);

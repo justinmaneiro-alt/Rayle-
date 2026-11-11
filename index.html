@@ -6,6 +6,11 @@
 <meta name="theme-color" content="#030103">
 <title>RAYLÉ // Market &amp; Neural Core</title>
 <link rel="icon" type="image/svg+xml" href="favicon.svg">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icones/rayle-192.png">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <script src="core/commun/appareil.js"></script>
 <script type="importmap">
 { "imports": { "three": "./galaxie/vendor/three.module.min.js", "three/addons/": "./galaxie/vendor/addons/" } }
@@ -16,7 +21,7 @@
 <link rel="stylesheet" href="core/commun/actus-accueil.css">
 <link rel="stylesheet" href="terminal/css/terminal.css">
 <link rel="stylesheet" href="terminal/css/terminal-pro.css">
-<script>if(!window.RayleAppareil||RayleAppareil.estPC())document.write('<link rel="stylesheet" href="galaxie/galaxie.css">');</script>
+<link rel="stylesheet" href="galaxie/galaxie.css">
 <link rel="stylesheet" href="core/direct/direct.css">
 <link rel="stylesheet" href="core/commun/medias.css">
 <link rel="stylesheet" href="core/commun/v1-theme.css">
@@ -63,30 +68,16 @@
       </select>
       <div class="hint" id="infoEntite"></div>
       <label class="chk"><input type="checkbox" id="kSons"> Sons d'interface (petits bips discrets : démarrage, fenêtres, alertes) — désactivés par défaut ; le navigateur ne les joue qu'après un premier clic</label>
-      <label class="chk"><input type="checkbox" id="kAncienFenetres"> Utiliser l'ancien système de fenêtres (Mars : le mur de 21 petites fenêtres qui s'ouvrent en grand ; Jarvis : l'ancien accueil). Rechargez la page après le changement. Pour revenir en arrière en un clic.</label>
       <label class="chk"><input type="checkbox" id="kMedias"> Images dans les réponses : pour les questions de recherche et d'actualité seulement (jamais pour les commandes), en complément du texte, avec source et licence — modes : léger = presque rien, normal = 3 images, complet = 4 images</label>
       <label class="chk"><input type="checkbox" id="kVideos"> Vidéos dans les réponses : lecteurs officiels (chaînes d'information sur YouTube, Wikimedia, Internet Archive), lancées seulement par un clic, jamais toutes seules</label>
       <div class="hint" id="infoMedias"></div>
       <label class="chk"><input type="checkbox" id="kBoot"> Séquence de démarrage au chargement de l'accueil (un clic l'abrège ; absente avec « réduire les animations »)</label>
 
-      <h3>Tableau de bord <span class="voix">accueil</span></h3>
-      <div id="tbReglages"></div>
 
-      <h3>Mode multi-écrans <span class="voix" id="mxEtat">désactivé</span></h3>
-      <div class="row">
-        <button type="button" id="mxBascule">Activer le mode multi-écrans</button>
-        <button type="button" class="ghost" id="mxIdentifier">Identifier les écrans</button>
-        <button type="button" class="ghost" id="mxDetecter">Détecter mes écrans</button>
-      </div>
-      <div class="hint" id="mxInfo"></div>
-      <h3>Mes écrans</h3>
-      <div class="mx-ed" id="mxEditeur"></div>
 
-      <h3>Pilotage depuis la tablette / le téléphone <span class="voix">réseau local</span></h3>
-      <div class="hint">Transforme une tablette ou un téléphone en télécommande de Raylé (pavé tactile, clavier, voix, pilotage). Désactivé par défaut. Quand il est actif, seule la page /clavier est joignable depuis ton réseau local, avec un QR code, un code à 6 chiffres affiché ici et un jeton par appareil. Rien n’agit sur Windows : seule la page Raylé obéit.</div>
-      <div class="row"><label class="chk"><input type="checkbox" id="telInterrupteur"> Pilotage depuis la tablette/téléphone</label> <button type="button" class="ghost" id="telOuvrir">QR code et appareils</button></div>
-      <div class="hint" id="telInfo"></div>
-
+      <h3>Application</h3>
+      <div class="row"><button type="button" id="btnInstaller" hidden>Installer l’application</button></div>
+      <p class="es-info">Installable sur PC, tablette et téléphone (menu du navigateur : « Installer » ou « Ajouter à l’écran d’accueil »). Elle se met à jour toute seule et s’ouvre hors ligne.</p>
 
       <h3>État des sources</h3>
       <p class="es-info">Chaque source du backend : verte ou rouge, dernière réussite, erreur précise.</p>
@@ -295,7 +286,7 @@
   <div id="chargement"><div id="chargement-texte">Chargement des mondes…</div><div class="g-barre"><div id="chargement-barre"></div></div></div>
 </div>
 
-<script>window.RAYLE_VERSION='2026.11.03.3';</script>
+<script>window.RAYLE_VERSION='2026.11.11.1';</script>
 <script src="config.js"></script>
 <script src="core/commun/maj-pc.js"></script>
 <script src="core/commun/bascule-worker.js"></script>
@@ -331,6 +322,7 @@
 <script src="core/voice/nettoyage-voix.js"></script>
 <script src="core/api-keys/worker.js"></script>
 <script src="core/voice/normalisation-fr.js"></script>
+<script src="core/voice/prosodie.js"></script>
 <script src="core/voice/voix-moteurs-calcul.js"></script>
 <script src="core/voice/voix-moteurs.js"></script>
 <script src="core/voice/voix.js"></script>
@@ -359,6 +351,7 @@
 <script src="core/direct/direct-page.js"></script>
 <script src="core/voice/activation.js"></script>
 <script src="core/commun/etat-sources.js"></script>
+<script src="core/commun/pwa.js"></script>
 <script src="core/commun/application.js"></script>
 <script src="core/commun/accueil-rayle.js"></script>
 <script src="core/commun/demarrage.js"></script>

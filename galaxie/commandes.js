@@ -40,7 +40,7 @@
   let terrePret=null;
   const terreModule=()=>terrePret||(terrePret=import(new URL('planetes/terre/pc/ordres-terre.js',document.baseURI).href).catch(e=>{ terrePret=null; throw e; }));
   /* V7b : sur téléphone et tablette, jamais de galaxie : les ordres « Terre » de l'agent s'exécutent dans Jarvis (fenêtres d'actualités, météo) ; le reste dit honnêtement « réservé au PC ». */
-  const mobile=()=>!!(window.RayleAppareil&&RayleAppareil.estMobile());
+  const mobile=()=>false;   // restructuration : la même application sur PC, tablette et téléphone
   const MSG_GALAXIE=()=>(window.RayleAppareil&&RayleAppareil.MESSAGE_GALAXIE)||'Le mode Galaxie est réservé au PC ; ici je reste sur Jarvis.';
   async function terreMobile(a){
     switch(a.op){

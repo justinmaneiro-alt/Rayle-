@@ -1,0 +1,12 @@
+import fs from 'node:fs';
+let t = fs.readFileSync('index.html', 'utf8');
+const rep = (a, b) => { if (!t.includes(a)) throw new Error('ancre : ' + a.slice(0, 50)); t = t.replace(a, b); };
+rep('<link rel="icon" type="image/svg+xml" href="favicon.svg">', '<link rel="icon" type="image/svg+xml" href="favicon.svg">\n<link rel="manifest" href="manifest.webmanifest">\n<link rel="apple-touch-icon" href="icones/rayle-192.png">\n<meta name="mobile-web-app-capable" content="yes">\n<meta name="apple-mobile-web-app-capable" content="yes">\n<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">');
+rep("window.RAYLE_VERSION='2026.11.03.3'", "window.RAYLE_VERSION='2026.11.11.1'");
+rep('<script src="core/commun/etat-sources.js"></script>', '<script src="core/commun/etat-sources.js"></script>\n<script src="core/commun/pwa.js"></script>');
+rep('      <h3>État des sources</h3>', '      <h3>Application</h3>\n      <div class="row"><button type="button" id="btnInstaller" hidden>Installer l’application</button></div>\n      <p class="es-info">Installable sur PC, tablette et téléphone (menu du navigateur : « Installer » ou « Ajouter à l’écran d’accueil »). Elle se met à jour toute seule et s’ouvre hors ligne.</p>\n\n      <h3>État des sources</h3>');
+fs.writeFileSync('index.html', t);
+let c = fs.readFileSync('core/commun/application.css', 'utf8');
+c += '#pwa-maj{position:fixed;left:50%;bottom:calc(16px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);z-index:300;display:flex;gap:10px;align-items:center;padding:10px 14px;color:#dbe9ef;background:rgba(6,11,16,.94);border:1px solid #8fd0e3;font-size:14px}\n#pwa-maj button{min-height:0;padding:6px 12px;color:#8fd0e3;background:transparent;border:1px solid rgba(143,208,227,.6);cursor:pointer;font:inherit}\n';
+fs.writeFileSync('core/commun/application.css', c);
+console.log('ok');

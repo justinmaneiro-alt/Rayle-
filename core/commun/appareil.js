@@ -33,7 +33,7 @@
     if(android) return {mode:ecran>0 && ecran<SEUIL_TELEPHONE?'telephone':'tablette',source:'auto',raison:'Android sans « Mobile » : '+(ecran>0 && ecran<SEUIL_TELEPHONE?'petit écran':'tablette')};
     return {mode:ecran>0 && ecran<SEUIL_TELEPHONE?'telephone':'tablette',source:'auto',raison:'appareil tactile ('+ecran+' px)'};
   }
-  const galaxieAutorisee=m=>m==='pc';
+  const galaxieAutorisee=m=>true;   // restructuration : la même application sur PC, tablette et téléphone
   const themeImpose=m=>m==='pc'?null:'jarvis';
 
   /* Lecture de l'environnement réel (page). Chaque lecture est protégée : un navigateur qui refuse l'accès donne simplement « inconnu ». */

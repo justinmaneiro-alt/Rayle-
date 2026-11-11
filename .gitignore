@@ -111,3 +111,5 @@ agent-trading/recherche-or/RAPPORT-*.md
 agent-trading/recherche-or/resultats-*.json
 agent-trading/recherche-or/test-final-verrou.json
 agent-trading/recherche-or/forward/
+captures-voix/
+dist/

@@ -1,3 +1,63 @@
+# Restructuration de Rayle (2026-11-11) — branche `restructuration-rayle`, tag de départ `avant-restructuration-rayle`
+
+Reprendre ici. Un commit par phase. **Rien n'est poussé ni déployé.** Tout ce qui a été retiré est copié dans `idees/retire-restructuration/` (hors git) ET récupérable avec le tag. Ancien Worker : `idees/worker-avant-restructuration/`.
+Outils : `outils-restructuration/` (mesures, tests Chrome, captures). Inventaire : `INVENTAIRE.md`. Déploiement : `DEPLOIEMENT.md`.
+
+| Phase | État |
+|---|---|
+| 1. Inventaire et ménage | **faite** (réserve : la galaxie 3D est gardée comme HÔTE 3D, voir Décisions) |
+| 2. Accueil et navigation | **faite** : carrousel de 5 fenêtres (`core/commun/application.{js,css}`), accueil (`accueil-rayle.{js,css}`) |
+| 3. Backend (actualité et données) | **fait en local, NON déployé** : `worker/portable/` (non suivi par git) ; page « État des sources » ; test des sources |
+| 4. Rayle (IA et voix) | **faite** côté page : commandes vocales de l'application, prosodie (`core/voice/prosodie.js`), échantillons `captures-voix/` |
+| 5. Prêt pour le serveur | **faite** : PWA (sw.js, pwa.js, offline.html), `build.mjs` → `dist/`, DEPLOIEMENT.md |
+
+## Décisions (prises sans poser de question)
+1. **« BIM »** : le texte n'existe nulle part dans le code. Interprété comme **Neptune = atelier de maquettes 3D** (« Développement 3D »). Si c'était autre chose, le dire.
+2. **Galaxie gardée comme hôte 3D, pas supprimée** : Terre, Anatomie et Neptune dessinent DANS le moteur de la galaxie (`G.surcharger`, navigation déléguée, ciel étoilé). La scène de la galaxie (soleil, planètes, ceinture) est **cachée** en entrée directe (`Galaxie.entrerPlanete`, `modeDirect`) ; elle n'est plus accessible par l'interface. Il reste à extraire un hôte minimal (voir « Reste à faire »).
+3. **Anatomie = module Saturne** (salle médicale) : on y entre directement (`Application.ouvrir('anatomie')` puis `Saturne.salleMedicale()`). Le vaisseau est encore construit en arrière-plan (inutile, à retirer).
+4. **Mars** : sa scène 3D est supprimée ; ses bibliothèques de données de marché, utilisées par le terminal, sont déplacées dans **`marches/`** (`trading`, `finance`, `liquidite`). Les panneaux de l'ancien « terminal de Mars » (espace de travail, dashboard, TradingView…) sont retirés.
+5. **Retirés** (copies dans `idees/retire-restructuration/`) : Mars (scène), Jupiter, Mercure, Vénus, Uranus, Terre 2.0 (Cesium), thème Aurore (g1-*), coque mobile (`core/mobile`), gestes + caméra du téléphone + QR (`core/gestes`, `camera/`), VR, multi-écrans, LPPR, télécommande et clavier tablette, bureau et piles de fenêtres Jarvis, tableau de bord Jarvis, musique et mode télé du terminal (`musique*`, `media-rayle`, `tele*`, `tv/`, `tc/`), cinq textures de planètes (14 Mo), tests des fonctions retirées. Le **thème Jarvis** (mêmes couleurs, mêmes styles) est le seul thème.
+6. **Même application sur PC, tablette et téléphone** : `galaxieAutorisee()` vrai partout ; plus de coque mobile. Qualité 3D automatique par appareil (niveau « basse » choisi sur un téléphone émulé).
+7. **Balayage** : souris (glisser), tactile, flèches du clavier, molette horizontale, voix (« suivant », « à gauche », « ouvre le terminal », « montre l'actualité », « ferme »). Un clic sur la carte ouvre ; la croix en haut à droite (ou Échap) ferme et revient au même endroit du carrousel.
+8. **Accueil** : la sphère de neurones est INCHANGÉE (look validé par Justin) ; la profondeur vient d'un fond de particules en trois plans + parallaxe (souris, inclinaison) et d'un décalage de l'entité (propriété `translate`, sans toucher à ses animations). Météo : géolocalisation → BigDataCloud (géocodage inverse, gratuit, CORS ouvert) → Open-Meteo ; repli sur la dernière ville (`rayle_ville_derniere`). « Ce jour-là » : Wikipédia (flux « on this day »). Actualités : 3 sujets de France parmi les plus importants, avec images (flux du média, sinon photo libre, sinon carte ; `ImagesActus`).
+9. **Backend** : même logique pour Cloudflare et Node (`worker/portable/coeur.js` : Request/Response standard), configuré par `config.js` (page) et variables d'environnement (serveur). Reprend les listes de flux et le regroupement par sujets de l'ancien Worker. Non repris (annoncé dans DEPLOIEMENT.md §5) : `/tts`, appairage et PIN, mémoire D1, Telegram, `/marche`, liaison caméra.
+10. **Pas de déploiement Cloudflare** : wrangler est connecté, MAIS le Worker en ligne est déjà cassé par un incident de déploiement (voir plus bas), la mémoire du projet interdit de redéployer sans vérification dans le tableau de bord Cloudflare (liaison Git), et un déploiement est une action publique. Commandes exactes prêtes dans DEPLOIEMENT.md ; `wrangler deploy --dry-run` passe (123 Ko).
+11. **Pas de push GitHub** : règle du projet (infos personnelles à relire avant publication).
+12. Les antislashs sont perdus dans les scripts shell (piège connu) : les fichiers sensibles ont été écrits avec l'outil Write.
+
+## Phase 3 — diagnostic « Worker injoignable » (causes, par ordre de probabilité)
+1. **CONFIRMÉE : le Worker `rayle` n'est plus le Worker.** `GET https://rayle.justinmaneiro.workers.dev/` renvoie `index.html` (le site statique) ; `/health`, `/actualites/fil`, `/meteo`, `/chat`… renvoient 404 **sans aucun en-tête CORS** → le navigateur lève « Failed to fetch » → « Worker injoignable ». Cause : le `wrangler.jsonc` de la RACINE (`assets: "."`, nom « rayle ») a remplacé le Worker (incident du 2026-11-02, déjà noté dans la mémoire du projet ; probable liaison Git / Workers Builds).
+2. Même sans cela, l'ancien Worker dépendait d'une base D1, d'un Durable Object et de secrets (`RAYLE_TOKEN`) : un déploiement qui perd les secrets répond 500.
+3. CORS : seule l'origine `https://justinmaneiro-alt.github.io` était autorisée (config du Worker) ; `http://127.0.0.1:8000` exigeait la variable `ORIGINE`.
+4. Quota et limites du plan gratuit (50 appels sortants et 10 ms de CPU par exécution) : l'ancien fil d'actualités passait par un cycle de cron en lots pour les respecter.
+5. Routes : l'ancien Worker n'avait pas toutes les routes (« route inconnue ») après un retour arrière.
+
+**Correctifs côté page** : `diagnostiquerWorker()` (`core/api-keys/worker.js`) dit laquelle des causes est la bonne (`pas-le-backend`, `sans-cors`, `cors`, `reseau`, `delai`, `adresse`) ; les erreurs du backend nomment la source (« Source « gdelt » : trop lent… ») ; ⚙ Réglages → **État des sources**.
+**Mesure réelle des sources (`npm run test:sources`, 2026-11-11)** : 69 sur 70 répondent. Corrigées : Les Échos (403 « Access Denied » sur tous ses flux : repli Google Actualités `site:lesechos.fr`), Reuters (plus de flux officiel : repli Google Actualités `site:reuters.com`). **GDELT** : lent (≈ 15 s) et renvoie `{}` (vide) ou 429 ; il est écarté du fil quand il dépasse 3,5 s (étiqueté). Euronews a répondu 406 une fois sur trois essais (instable).
+
+## Mesures (outils-restructuration/mesure-*.json ; Chrome local, serveur local)
+| Appareil | Avant | Après |
+|---|---|---|
+| PC : octets / fichiers JS / chargement | 2,08 Mo / 140 / 632 ms | 1,21 Mo / 87 / 425 ms |
+| Tablette | 1,63 Mo / 117 / 277 ms | 1,26 Mo / 87 / 354 ms |
+| Téléphone | 1,64 Mo / 117 / 252 ms | 1,26 Mo / 87 / 373 ms |
+
+(Sur tablette et téléphone le temps AUGMENTE : c'est maintenant l'application complète, plus l'ancienne coque légère, plus 91 fichiers préchargés par le service worker.) Dépôt suivi : 1 300 puis 1 164 fichiers.
+
+## Tests
+`npm test` : tous passent. `npm run test:chrome` (1600, 1024, 390 px, balayage souris et TACTILE simulé) : 11/11 pour chaque largeur. `node outils-restructuration/test-planetes.mjs <pc1600|tel390>` : Terre, Anatomie et Développement 3D s'ouvrent, la croix revient (6/6). `node tests-navigateur/pwa-test.mjs` : installation et VRAI hors ligne (serveur arrêté), 9/9. `node outils-restructuration/test-backend-page.mjs` : la page contre le backend local, 4/4. Backend : `cd worker/portable && node tests/sources-reelles.mjs`.
+
+## Reste à faire / non vérifié
+- **60 images/s sur un Galaxy S23 Ultra : NON vérifié.** Mesuré seulement en émulation sur le PC de Justin : 144 i/s (plafond de l'écran) sur l'accueil, le carrousel, la Terre et l'Anatomie, même avec un ralentissement du processeur ×4 ; mais le GPU reste celui du PC : ce n'est PAS une preuve pour le téléphone. À mesurer en vrai (`outils-restructuration/fluidite.mjs`, `fluidite-planete.mjs`, ou le compteur ⚙).
+- **Voix : le naturel n'a pas été jugé à l'oreille.** Échantillons avant et après dans `captures-voix/` (Piper « Siwis » local) ; durées et pauses vérifiées par test, pas la qualité perçue. La voix Azure « Vivienne » passait par `/tts` du Worker : non reprise (DEPLOIEMENT.md §5).
+- Backend **non déployé** ; sur Cloudflare gratuit, `/actualites/fil?portee=france` (34 flux) peut dépasser la limite de CPU.
+- Extraire un **hôte 3D minimal** (ciel étoilé, renderer, navigation déléguée) et supprimer la scène de galaxie, le vaisseau Vésale et ses fichiers de Saturne.
+- Le terminal garde ses sources actuelles (Kraken par le serveur du PC ou le relais `rayle-or-relais`) : sur un serveur Node distant, le serveur du PC n'existe pas.
+- Anatomie sur un vrai téléphone : le chargement des modèles (25 Mo) n'est pas mesuré en 4G.
+- `git push` non fait ; relire avant publication (infos personnelles).
+
+---
+
 # Terminal de trading de Rayle, phases A à E (2026-11-08) — avancement
 
 Reprendre ici. Branches `terminal-rayle-a` … `-e`, fusionnées dans `main` à la fin de chaque phase. Code : `agent-trading/front/terminal/` (page seule `agent-trading/front/terminal.html` ; dans Rayle = la vue « Terminal », `core/commun/vues.js` ; ancien terminal 2D : localStorage `rayle_terminal_ancien` = `1`). Simulation et lecture seulement, aucun ordre ; Worker `rayle` et ses secrets jamais touchés ; règles et registres des flèches v1 à v10 inchangés. Ce qui est retiré va dans `idees/` (ignoré par git).

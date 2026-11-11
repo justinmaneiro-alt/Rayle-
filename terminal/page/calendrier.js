@@ -19,8 +19,6 @@
     const raw=repoRawUrl();
     if(raw) tries.push(['relais GitHub',raw+bust]);
     tries.push(['fichier du site','calendar.json'+bust]);
-    tries.push(['flux direct',CAL_URL]);
-    tries.push(['passerelle publique','https://api.allorigins.win/raw?url='+encodeURIComponent(CAL_URL)]);
     const fails=[];
     for(const [how,u] of tries){
       try{

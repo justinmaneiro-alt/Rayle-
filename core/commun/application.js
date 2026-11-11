@@ -100,6 +100,7 @@
     let n=0; while(!window.Galaxie&&n++<80) await attendre(50);
     if(!window.Galaxie) throw new Error('le moteur 3D n’a pas démarré');
     window.Galaxie.entrerPlanete(PLANETE[id]);
+    if(id==='terre'&&!(opts&&opts.sansActu)){ n=0; while(!(window.Terre&&window.Terre.etat&&window.Terre.etat().actif&&window.Terre.etat().entree)&&n++<150) await attendre(100); try{ if(window.Terre&&window.Terre.afficherFil) window.Terre.afficherFil({portee:'france'}).catch(e=>console.warn('[app] actualité :',e&&e.message)); }catch(e){ console.warn('[app] actualité :',e); } }
     if(id==='anatomie'){ n=0; const pret=()=>{ const s=window.Saturne&&window.Saturne.etat&&window.Saturne.etat(); return !!(s&&s.actif&&s.entree&&!s.transition); }; while(!pret()&&n++<200) await attendre(80); try{ await window.Saturne.salleMedicale(); }catch(e){ console.warn('[app] salle médicale :',e); } }
   }
   async function ouvrir(id,opts){
