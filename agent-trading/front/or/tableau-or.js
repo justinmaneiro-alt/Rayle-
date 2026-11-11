@@ -13,6 +13,7 @@ import { creerPropositions } from './propositions-or.js';
 import { creerStructure } from './structure-or.js';
 import { creerSchemas } from './schemas-or.js';
 import { creerIct } from './ict-or.js';
+import { creerStrategie } from './rayle-strategie.js';
 import { FICHES } from './contexte-calcul.js';
 import { PERIODES, REGLES, TEXTE_REGLES, KRAKEN } from './config-or.js';
 import { texteType, texteHistorique, NOMS_TYPES } from './zones-or.js';
@@ -108,6 +109,7 @@ export function monterTableauOr(el, { modules = {}, contexte = 'page', fetchFn, 
   /* moteur + graphique + carnet (le même carnet que l'agent) */
   const graph = creerGraphiqueOr(q('[data-graph]'), { mobile });
   let mouvUI = null, instUI = null, ctxUI = null, propUI = null, structUI = null, schUI = null, ictUI = null;
+  let strategieUI = null;
   graph.surPosition = (pos, outil) => majPosition(pos, outil);
   graph.surBordGauche = () => { moteur.plusAncien(); };   // glisser vers la gauche : historique plus ancien
   const carnet = creerCarnet(q('[data-carnet]'), { racine: q('[data-carnet]'), WS });   // racine = élément « .at » qui porte les couleurs du carnet (jetons.css)
@@ -171,6 +173,7 @@ export function monterTableauOr(el, { modules = {}, contexte = 'page', fetchFn, 
     if (structUI) { try { structUI.maj(); } catch (e) { console.warn('structure :', e.message); } }
     if (schUI) { try { schUI.maj(); } catch (e) { console.warn('schémas :', e.message); } }
     if (ictUI) { try { ictUI.maj(); } catch (e) { console.warn('ICT :', e.message); } }
+    if (strategieUI) { try { strategieUI.maj(); } catch (e) { console.warn('stratégie Rayle :', e.message); } }
     if (propUI) { try { propUI.maj(); } catch (e) { console.warn('propositions :', e.message); } }
     if (instUI) { try { instUI.maj(); } catch (e) { console.warn('outils institutionnels :', e.message); } }
     if (mouvUI) { try { mouvUI.maj(); } catch (e) { console.warn('mouvements :', e.message); } }   // couche « Mouvements H1 » (H1 seulement ; calcul dans un Worker)
@@ -278,6 +281,7 @@ export function monterTableauOr(el, { modules = {}, contexte = 'page', fetchFn, 
   structUI = creerStructure({ racine: R, moteur, graph, parler, auto: etudeAuto }); api.structure = structUI;
   schUI = creerSchemas({ racine: R, moteur, graph, structure: structUI, parler, auto: etudeAuto }); api.schemas = schUI;
   ictUI = creerIct({ racine: R, moteur, graph, structure: structUI, parler, auto: etudeAuto }); api.ict = ictUI;
+  strategieUI = creerStrategie({ racine: R, moteur, graph, structure: structUI, parler, auto: etudeAuto }); api.strategie = strategieUI;
   propUI = creerPropositions({ racine: R, moteur, graph, instUI, parler, auto: etudeAuto }); api.propositions = propUI;
   ctxUI = creerContexte({ racine: R, moteur, graph, parler, auto: etudeAuto }); api.contexte = ctxUI;
   R.addEventListener('click', e => { const bp2 = e.target.closest('[data-a="propositions-h1"],[data-a="fermer-props"]'); if (bp2) { propUI.ouvrir(bp2.dataset.a === 'fermer-props' ? false : null); return; } const b = e.target.closest('[data-a="pourquoi"],[data-a="pourquoi-bloc"],[data-a="fiche-facteurs"],[data-fiche-couche]'); if (!b) return; if (b.dataset.a === 'fiche-facteurs') ctxUI.fiche('facteurs'); else if (b.dataset.ficheCouche) { e.preventDefault(); ctxUI.fiche(b.dataset.ficheCouche); } else ctxUI.pourquoi(); });
