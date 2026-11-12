@@ -92,3 +92,8 @@ Limites du plan gratuit : 50 appels sortants et 10 ms de CPU par exécution. La 
 ## 5. Ce qui n'est PAS repris par le nouveau backend (le front le dit en clair)
 
 `/tts` (voix du serveur : la voix du navigateur ou la voix locale du PC est utilisée), appairage d'appareils et verrou à PIN, mémoire et souvenirs (D1), alertes de marché et Telegram, route `/marche` (graphiques : le terminal lit Kraken directement ou par le serveur du PC), liaison caméra. L'ancien code reste dans `worker/src/` (non déployé).
+
+## Worker Cloudflare : se déploie UNIQUEMENT depuis `worker/` (2026-11-12)
+- `wrangler.jsonc` à la racine (site statique, `assets` sans `main`, nom « rayle ») a remplacé le Worker de production par un site statique (tout en 404). Il est renommé `wrangler.site-statique.jsonc.disabled` : ne pas le réactiver.
+- Déployer seulement avec la config du dossier worker/ : `cd worker && npx.cmd wrangler deploy --config wrangler.toml`, puis contrôler `/camera/version` (200) et un 401 sur `/health` sans jeton. Retour arrière : `npx.cmd wrangler rollback <version saine> --config wrangler.toml` (version saine connue : 99331c28-1102-4ba9-bebd-51381c68cb8a, restaurée le 2026-11-12).
+- Ne jamais lancer wrangler à la racine du dépôt ; vérifier dans le tableau Cloudflare que la liaison Git / Workers Builds n'est pas branchée sur ce dépôt.
