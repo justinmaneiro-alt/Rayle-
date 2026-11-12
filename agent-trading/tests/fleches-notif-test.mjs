@@ -56,6 +56,6 @@ v('déduplication persistante : après redémarrage, aucune flèche n’est renv
 const logs2 = []; const sans = canalTelegram({}, fetch, m => logs2.push(m)); v('sans jeton : canal absent, message clair, pas d’exception', sans === null && /manquent/.test(logs2.join()));
 let plante = false; try { await pas(debut, { notif: {}, dernierT: 0, initialise: false }, []); } catch (e) { plante = true; } v('sans jeton : le passage se termine sans erreur', !plante);
 v('lireEnv : lit KEY=VALUE, ignore un fichier absent', (() => { const f = path.join(tmp, '.env'); fs.writeFileSync(f, 'TELEGRAM_BOT_TOKEN="abc"\nTELEGRAM_CHAT_ID=7\n# c\n'); const o = lireEnv([f, path.join(tmp, 'absent')]); return o.TELEGRAM_BOT_TOKEN === 'abc' && o.TELEGRAM_CHAT_ID === '7'; })());
-const gi = fs.readFileSync(path.resolve('.gitignore'), 'utf8'); v('.env et l’état sont ignorés par git', /^\.env$/m.test(gi) && /alertes-etat/.test(gi));
+const gi = fs.readFileSync(new URL('../../.gitignore', import.meta.url), 'utf8'); v('.env et l’état sont ignorés par git', /^\.env$/m.test(gi) && /alertes-etat/.test(gi));
 v('aucun secret dans les fichiers livrés', !/\d{8,}:[A-Za-z0-9_-]{30,}/.test(fs.readFileSync(new URL('../alertes-serveur.mjs', import.meta.url), 'utf8')));
 srv.close(); console.log(`${ok} OK, ${ko} échec(s)`); process.exit(ko ? 1 : 0);
