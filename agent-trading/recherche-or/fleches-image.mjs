@@ -1,0 +1,15 @@
+/* Image annotée 16 oct → 12 nov (flèches v2 en direct) : V2=1 node agent-trading/recherche-or/fleches-simples-rejeu.mjs */
+import fs from 'node:fs'; import path from 'node:path'; import { fileURLToPath } from 'node:url'; import { createRequire } from 'node:module';
+import * as FS from '../front/or/fleches-simples.js'; import { sma } from '../front/or/fleches-lecture-v1.js';
+const ici = path.dirname(fileURLToPath(import.meta.url)); const { K, rk } = globalThis.__IMG;
+  /* image 16 oct → 12 nov (série Kraken) */
+  const deb = K.findIndex(b => b.t >= Date.UTC(2026, 9, 16)), S = K.slice(deb), N = S.length, MK = sma(K).slice(deb), lo = Math.min(...S.map(b => b.l)) - 8, hi = Math.max(...S.map(b => b.h)) + 8, W = 1800, Hh = 800, mg = 50;
+  const xr = i => mg + (i - deb) / (N - 1) * (W - 2 * mg), yr = p => Hh - mg - (p - lo) / (hi - lo) * (Hh - 2 * mg), maj = new Set(FS.zonesMajeures(rk.Z).map(FS.idNiveau));
+  let svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${Hh}" style="background:#0b0f14;font-family:sans-serif">`;
+  for (const z of rk.Z) { const i0 = Math.max(deb, K.findIndex(b => b.t >= z.tDebut)), i1 = z.tFin ? K.findIndex(b => b.t >= z.tFin) : K.length - 1; if (i1 < deb || z.haut < lo || z.bas > hi) continue; const col = z.cote === 'support' ? '79,209,139' : '224,90,90', m = maj.has(FS.idNiveau(z)); svg += `<rect x="${xr(i0)}" y="${yr(z.haut)}" width="${Math.max(2, xr(i1) - xr(i0))}" height="${Math.max(2, yr(z.bas) - yr(z.haut))}" fill="rgba(${col},${m ? .22 : .06})"/>`; }
+  for (let k = 0; k < N; k++) { const b = S[k], x = xr(deb + k), up = b.c >= b.o; svg += `<line x1="${x}" x2="${x}" y1="${yr(b.h)}" y2="${yr(b.l)}" stroke="${up ? '#4fd18b' : '#e05a5a'}"/><rect x="${x - 1.5}" y="${yr(Math.max(b.o, b.c))}" width="3" height="${Math.max(1, Math.abs(yr(b.o) - yr(b.c)))}" fill="${up ? '#4fd18b' : '#e05a5a'}"/>`; }
+  svg += `<polyline fill="none" stroke="#c9b27a" stroke-width="1.5" points="${MK.map((m, k) => m == null ? '' : `${xr(deb + k)},${yr(m)}`).filter(Boolean).join(' ')}"/>`;
+  for (const f of rk.F.filter(f => f.i >= deb)) { const x = xr(f.i), up = f.dir > 0, y = up ? yr(K[f.i].l) + 14 : yr(K[f.i].h) - 14, col = f.type === 'ma_cassure' ? '#8fd0e3' : up ? '#2ecc71' : '#ff4d4d'; svg += `<path d="M${x},${up ? y - 13 : y + 13} l-7,${up ? 13 : -13} h14 z" fill="${col}"/>`; }
+  svg += `<text x="60" y="26" fill="#ccc" font-size="14">Flèches v2 EN DIRECT, posées sur la bougie de confirmation (Kraken H1, 16 oct. → 12 nov.) : vert achat, rouge vente, cyan MA200</text></svg>`;
+  fs.writeFileSync(path.join(ici, 'fleches-live-simule.svg'), svg);
+  try { const req = createRequire(path.resolve(ici, '..', '..', 'tests-navigateur', 'package.json')), pup = req('puppeteer-core'), nav = await pup.launch({ executablePath: 'C:/Program Files/Google/Chrome/Application/chrome.exe', headless: 'new', args: ['--no-sandbox'] }), pg = await nav.newPage(); await pg.setViewport({ width: W, height: Hh }); await pg.setContent('<body style="margin:0">' + svg); await pg.screenshot({ path: path.join(ici, 'fleches-live-simule.png') }); await nav.close(); } catch (e) { console.log('capture impossible', e.message); }

@@ -1,13 +1,15 @@
 /* Rejeu « flèches simples » : or H1 2026 (Dukascopy) + série Kraken (28 sept. → 12 nov.). node agent-trading/recherche-or/fleches-simples-rejeu.mjs → RAPPORT-FLECHES-SIMPLES.md + fleches-simples.png */
 import fs from 'node:fs'; import path from 'node:path'; import { fileURLToPath } from 'node:url'; import { createRequire } from 'node:module';
-import { charger } from './donnees.mjs'; import { zonesDessinees } from './zones-h1-rejeu.mjs'; import * as FS from '../front/or/fleches-simples.js'; import { sma } from '../front/or/fleches-lecture-v1.js';
+import { charger } from './donnees.mjs'; import { zonesDessinees } from './zones-h1-rejeu.mjs'; import * as FS from '../front/or/fleches-simples.js'; import * as V2 from '../front/or/fleches-simples-v2.js'; import { zonesDirect } from '../front/or/zones-direct.js'; import { sma } from '../front/or/fleches-lecture-v1.js';
 const ici = path.dirname(fileURLToPath(import.meta.url)), H = 3600e3, dt = t => new Date(t).toISOString().slice(5, 16).replace('T', ' ');
 export const serieDuka = () => charger({ debut: 2026, fin: 2026 }).h1.filter(b => !(b.h === b.l && !b.v)).map(b => ({ t: b.t, o: b.o, h: b.h, l: b.l, c: b.c, v: b.v }));
 export const serieKraken = () => JSON.parse(fs.readFileSync(path.join(ici, 'donnees/kraken-xau-h1-chute-12-nov.json'), 'utf8')).map(b => ({ t: b[0], o: b[1], h: b[2], l: b[3], c: b[4], v: b[5] }));
 export const analyse = B => { const now = B[B.length - 1].t + H, Z = zonesDessinees(B, now); return { Z, F: FS.calculer(B, Z, { maintenant: now }).fleches, now }; };
 export const max600 = (L, n) => { let m = 0; for (let d = 0; d + 600 <= n; d += 6) m = Math.max(m, L.filter(f => f.i >= d && f.i < d + 600).length); return m; };
 const parType = L => L.reduce((o, f) => { const k = f.type + (f.dir > 0 ? '↑' : '↓'); o[k] = (o[k] || 0) + 1; return o; }, {});
-if (process.argv[1] === fileURLToPath(import.meta.url)) {
+if (process.argv[1] === fileURLToPath(import.meta.url) && process.env.V2) {   // image de la v2 (flux en direct) : V2=1 node ...
+  const K = serieKraken(), rk = analyse(K), F2 = V2.calculer(K, zonesDirect, { maintenant: K[K.length - 1].t + H, bougies: 1e5 }).fleches; rk.F = F2; globalThis.__IMG = { K, rk }; await import('./fleches-image.mjs');
+} else if (process.argv[1] === fileURLToPath(import.meta.url)) {
   const D = serieDuka(), rd = analyse(D), K = serieKraken(), rk = analyse(K);
   const jour = f => new Date(f.tCloture).toISOString().slice(0, 10);
   const lignes = F => F.map(f => `| ${dt(f.tCloture)} | ${f.type === 'ma_cassure' ? 'MA200' : 'zone ' + Math.round(f.zoneBas) + '–' + Math.round(f.zoneHaut) + ' (' + f.touches + ' touches)'} | ${f.dir > 0 ? 'achat / haussier' : 'vente / baissier'} | ${Math.round(f.prix)} |`).join('\n');

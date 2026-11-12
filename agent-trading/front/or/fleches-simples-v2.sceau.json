@@ -1,0 +1,9 @@
+{
+ "version": "fleches-simples-v2",
+ "scelle_le": "2026-11-12",
+ "sha256": {
+  "fleches-simples-v2.js": "b4a9562926c094c1135c4b687c745861fb0b71ac01e8ad4fee20807ee14d582d",
+  "zones-direct.js": "099bd6e7b907f5e2dac3bb156e2f61e4ea8484d318012b4552c15aecc2f006d7"
+ },
+ "note": "Empreintes SHA-256 posées APRÈS les tests ; règles de la v1 rejouées en direct (causales). Aucune preuve de performance."
+}
