@@ -2,9 +2,9 @@
    Calcul : fleches-terminal-v1.js (scellé). Ici : bougies H1 closes du moteur → flèches → graphique ; registre local en ajout seul (une flèche posée n'est
    jamais déplacée ni retirée) ; interrupteur « historique 30 jours » ; infobulle au survol (date, type, résultat mesuré à 6, 12 et 24 bougies).
    Les flèches restent visibles en mode Pro épuré. Information de lecture, jamais un ordre. */
-import * as F from './fleches-lecture-v1.js';   // 2026-11-12 : flèches de lecture (MA200 et gros niveaux seulement, sans grappes) ; l'ancienne règle fleches-terminal-v1 (scellée) reste disponible en mode debug
+import * as F from './fleches-lecture-v2.js';   // v2 (2026-11-12) : flèches lues sur les zones H1 DESSINÉES ; v1 et terminal-v1 (scellées) restent disponibles. Ancienne ligne :    // 2026-11-12 : flèches de lecture (MA200 et gros niveaux seulement, sans grappes) ; l'ancienne règle fleches-terminal-v1 (scellée) reste disponible en mode debug
 
-const CLE_REG = 'rayle_or_fleches_t2', CLE_HIST = 'rayle_or_fleches_t1_hist';
+const CLE_REG = 'rayle_or_fleches_t3', CLE_HIST = 'rayle_or_fleches_t1_hist';
 const lireJ = (k, d) => { try { const v = localStorage.getItem(k); return v ? JSON.parse(v) : d; } catch (e) { return d; } };
 const ecrireJ = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) { /* plein ou refusé */ } };
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -23,7 +23,7 @@ export function monterFlechesTerminal(T, { maintenant = () => Date.now(), pret =
   const zone = R.querySelector('[data-graph]'); if (zone) { zone.style.position = zone.style.position || 'relative'; zone.appendChild(bulle); }
 
   /* arrows visibles : tout l'historique des 30 jours, ou seulement les dernières 24 heures quand l'interrupteur est coupé */
-  const visibles = () => { const n = maintenant(), de = n - (E.hist ? 30 : 1) * 86400e3; return E.liste.filter(f => !f.masquee && f.tCloture >= de); };
+  const visibles = () => { const n = maintenant(), de = n - (E.hist ? 30 : 1) * 86400e3; return E.liste.filter(f => !f.masquee && f.tCloture >= de && (f.levelId === 'MA200' || !E.ids || E.ids.has(f.levelId))); };   // jamais de flèche sans niveau dessiné
   function afficher() {
     const V = visibles(); try { T.graph.flechesTerminal(V); } catch (e) { /* graphique pas prêt */ }
     const b = R.querySelector('[data-ft-n]'); if (b) b.textContent = `(${V.length})`;
@@ -31,9 +31,12 @@ export function monterFlechesTerminal(T, { maintenant = () => Date.now(), pret =
   }
   function calculer() {
     const H1 = T.h1 ? T.h1() : [], objets = (T.modules && T.modules.outils && T.modules.outils.E && T.modules.outils.E.objets) || [];
-    const sig = (H1.length ? H1[H1.length - 1].t : 0) + '|' + H1.length + '|' + objets.map(o => o.id + (o.modifie || o.cree)).join(',');
+    const zones = T.graph.zonesH1 ? T.graph.zonesH1() : [];
+    E.ids = new Set(zones.map(F.idNiveau));
+    if (!zones.length) { E.raison = 'zones H1 pas encore dessinées'; return false; }
+    const sig = (H1.length ? H1[H1.length - 1].t : 0) + '|' + H1.length + '|' + zones.map(z => z.id + z.tDebut + (z.tFin || '')).join(',');
     if (sig === E.cle) return false; E.cle = sig;
-    const r = F.calculer(H1, { maintenant: maintenant(), jours: null });   // tout l'historique chargé : le registre garde ce qui a été posé
+    const r = F.calculer(H1, zones, { maintenant: maintenant(), jours: null });   // tout l'historique chargé : le registre garde ce qui a été posé
     E.raison = r.raison; E.n = r.n;
     const avant = new Set(E.registre.map(f => f.id));
     E.registre = F.fusionnerRegistre(E.registre, r.fleches);

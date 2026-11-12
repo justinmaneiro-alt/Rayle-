@@ -65,6 +65,7 @@ export function dessinerRayle(ctx, T, m, { xDeT, yDe, mobile }) {
   }
   // ── événements de la moyenne mobile ──
   for (const e of m.evenements || []) {
+    if (e.type === 'rebond') continue;   // 2026-11-12 : plus de « Rebond sur la MA » (continuation) ; seules la cassure, la fausse cassure et le retest de la MA200 restent
     const x = xDeT(e.t), y = yDe(e.p); if (!ok(x, y) || x < 0 || x > T.width) continue; const col = e.type === 'fausse' ? COUL.orange : e.dir > 0 ? COUL.haut : COUL.bas, a = e.grise ? 0.35 : 1;
     ctx.fillStyle = `rgba(${col},${0.95 * a})`; ctx.beginPath();
     const s = e.type === 'rebond' ? 3.5 : 4.5, sens = e.dir > 0 ? -1 : 1;   // pointe vers le prix

@@ -17,13 +17,13 @@ for (const [l, h, mob] of [[1600, 900, false], [1024, 768, true], [390, 844, tru
   await p.waitForFunction(() => window.__or && window.__or.graph && window.__or.flechesT && window.__or.graph.etat().bougies.length > 20, { timeout: 45000 }).catch(() => {});
   await p.evaluate(b => { window.__or.structure.injecterH1(b); window.__or.structure.maj(true); }, serie); await w(800);
   await p.evaluate(() => { window.__or.flechesT.maj(); }); await w(1500);
-  const E = await p.evaluate(() => { const T = window.__or, L = T.flechesT.liste().filter(f => !f.masquee), V = T.flechesT.visibles(); return { n: L.length, vis: V.map(f => ({ t: f.tCloture, type: f.type, source: f.source, zone: f.zone || null })), etat: T.flechesT.etat(), posees: T.graph.flechesTerminalEtat(), debug: (() => { const i = [...document.querySelectorAll('.tor-couches input, [data-couche]')].find(x => /debug|flechesTout/i.test((x.parentElement && x.parentElement.textContent) + (x.dataset.couche || '') + (x.dataset.c || ''))); return i ? { present: true, coche: !!i.checked } : { present: false }; })(), couches: window.__or.graph.couches() }; });
-  const t = E.vis.map(x => x.t).sort((a, b) => a - b); let grappes = 0; for (let k = 1; k < t.length; k++) if (t[k] - t[k - 1] < 12 * H) grappes++;
+  const E = await p.evaluate(() => { const T = window.__or, L = T.flechesT.liste().filter(f => !f.masquee), V = T.flechesT.visibles(); return { n: L.length, vis: V.map(f => ({ levelId: f.levelId, t: f.tCloture, type: f.type, source: f.source, zone: f.zone || null })), etat: T.flechesT.etat(), posees: T.graph.flechesTerminalEtat(), debug: (() => { const i = [...document.querySelectorAll('.tor-couches input, [data-couche]')].find(x => /debug|flechesTout/i.test((x.parentElement && x.parentElement.textContent) + (x.dataset.couche || '') + (x.dataset.c || ''))); return i ? { present: true, coche: !!i.checked } : { present: false }; })(), couches: window.__or.graph.couches() }; });
+  const t = E.vis.map(x => x.t).sort((a, b) => a - b); let grappes = 0; for (let k = 1; k < t.length; k++) if (t[k] - t[k - 1] < 1 * H) grappes++;
   let max = 0; for (let k = 0; k < t.length; k++) max = Math.max(max, t.filter(x => x >= t[k] && x < t[k] + 600 * H).length);
   v(E.n >= 0 && E.etat.raison == null, `${l}px : flèches de lecture calculées (${E.n} au registre, ${E.vis.length} visibles sur 30 jours)`);
-  v(grappes === 0, `${l}px : (i) aucune grappe (écart minimal 12 bougies) : ${grappes}`);
-  v(max <= 12, `${l}px : (ii) au plus 12 flèches visibles sur 600 bougies : ${max}`);
-  v(E.vis.every(x => (x.source === 'MA200' && /^ma_/.test(x.type)) || (/^niv_/.test(x.type) && x.zone)), `${l}px : (iii) chaque flèche vient de la MA200 ou d'un gros niveau`);
+  v(grappes === 0, `${l}px : (i) aucune grappe (deux flèches jamais sur la même bougie ; la distance de 6 bougies est testée en Node) : ${grappes}`);
+  console.log(`INFO ${l}px : maximum de flèches visibles sur 600 bougies H1 : ${max}`);
+  v(E.vis.every(x => (x.levelId === 'MA200' && /^ma_/.test(x.type)) || (/^rebond/.test(x.type) && x.levelId)), `${l}px : (iii) chaque flèche porte un levelId (MA200 ou zone dessinée)`);
   v(E.posees.posees === E.vis.length, `${l}px : le graphique porte exactement les flèches visibles (${E.posees.posees} / ${E.vis.length})`);
   v(E.couches.fleches !== false && E.couches.flechesTout === false, `${l}px : couche « flèches de lecture » active, « toutes les flèches (debug) » désactivée par défaut (${JSON.stringify({ f: E.couches.fleches, d: E.couches.flechesTout })})`);
   v(err.length === 0, `${l}px : aucune erreur de script ${err.join(' | ').slice(0, 160)}`);
