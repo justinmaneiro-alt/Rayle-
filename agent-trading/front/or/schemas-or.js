@@ -96,8 +96,7 @@ export function creerSchemas({ racine, moteur, graph, structure, parler = () => 
   /* ── panneau RSI sous le graphique ── */
   async function majRsi() {
     const c = couches(); if (!E.R) return;
-    if (c.rsi) { const B = E.B, pts = []; E.R.rsi.forEach((v, i) => { if (v != null) pts.push({ t: B[i].t, v }); }); const divs = E.R.divergences.filter(d => d.i >= B.length - 400 && (d.sous === 'reguliere' || c.divCachees) && (!E.reg.seulementZone || d.enZone)).map(d => ({ t1: d.t1, t2: d.t2, r1: d.r1, r2: d.r2, dir: d.dir, cachee: d.sous === 'cachee' })); await graph.rsi(pts.slice(-1200), divs); }
-    else await graph.rsi(null);
+    /* RSI : désormais un seul, sur la timeframe affichée, géré par rsi-ui.js (rsi-lecture-v1) */
   }
   function maj(force = false) {
     const change = analyser() || force; if (!E.R) { rendre(); return; }

@@ -19,8 +19,8 @@ import { COUCHES_RAYLE, COUCHES_RAYLE_DEFAUT } from './rayle-couches.js';
 import { zonesAffichage, liquiditeAffichage, dedoublonnerLiquidite, atrH1, detailZone } from './zones-affichage-v1.js';
 import { dessinerZone, dessinerLiquidite } from './zones-affichage-dessin.js';
 
-export const COUCHES = Object.freeze({ sr: 'Supports et résistances', liquidite: 'Zones de liquidité', fleches: 'Flèches de lecture (MA200 et gros niveaux)', flechesTout: 'Toutes les flèches (debug : anciennes versions, niveaux mineurs, zones tracées)', volume: 'Zones de volume', mouvements: 'Mouvements H1', ...LIBELLES, structure: 'Structure de marché H1 / H4 (cassures, impulsions, retournements)', retournements: 'Retournements : toutes les zones (probabilité mesurée)', rsi: 'RSI H1 + divergences (panneau sous le graphique)', divCachees: 'Divergences cachées', schemas: 'Schémas de retournement (double sommet, tête et épaules, balayage, bougies)', ...COUCHES_ICT, ...COUCHES_RAYLE });
-const COUCHES_DEFAUT = Object.freeze({ sr: true, liquidite: true, fleches: true, flechesTout: false, volume: false, mouvements: true, structure: false, retournements: false, rsi: false, divCachees: false, schemas: false, ...Object.fromEntries(Object.keys(COUCHES_ICT).map(k => [k, false])), ...COUCHES_RAYLE_DEFAUT, ...Object.fromEntries(Object.keys(LIBELLES).map(k => [k, false])) });
+export const COUCHES = Object.freeze({ sr: 'Supports et résistances', liquidite: 'Zones de liquidité', fleches: 'Flèches de lecture (MA200 et gros niveaux)', flechesTout: 'Toutes les flèches (debug : anciennes versions, niveaux mineurs, zones tracées)', volume: 'Zones de volume', mouvements: 'Mouvements H1', ...LIBELLES, structure: 'Structure de marché H1 / H4 (cassures, impulsions, retournements)', retournements: 'Retournements : toutes les zones (probabilité mesurée)', rsi: 'RSI 14 (sous-fenêtre) + divergences', divCachees: 'Divergences cachées', schemas: 'Schémas de retournement (double sommet, tête et épaules, balayage, bougies)', ...COUCHES_ICT, ...COUCHES_RAYLE });
+const COUCHES_DEFAUT = Object.freeze({ sr: true, liquidite: true, fleches: true, flechesTout: false, volume: false, mouvements: true, structure: false, retournements: false, rsi: true, divCachees: false, schemas: false, ...Object.fromEntries(Object.keys(COUCHES_ICT).map(k => [k, false])), ...COUCHES_RAYLE_DEFAUT, ...Object.fromEntries(Object.keys(LIBELLES).map(k => [k, false])) });
 const lire = (k, d) => { try { const v = localStorage.getItem(k); return v ? JSON.parse(v) : d; } catch (e) { return d; } };
 const ecrire = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) { /* stockage refusé */ } };
 const nb = (p, d = 2) => Number(p).toLocaleString('fr-FR', { minimumFractionDigits: d, maximumFractionDigits: d }).replace(/ | /g, ' ');
@@ -41,9 +41,9 @@ export function ratio(pos) {
 }
 
 export function creerGraphiqueOr(el, { surClicPrix, mobile = false } = {}) {
-  const etat = { bougies: [], volumes: [], cle: null, debutKraken: null, ecart: null, chargementAncien: false, zonesVol: [], h1: [], aff: null, cadresZ: [], niveaux: [], retournement: [], bandes: [], liquidite: [], balayages: [], fleches: [], segments: [], segCadres: [], a: null, cadres: [], marques: [], tSerie: new Map(), barres: new Map(), couches: { ...COUCHES_DEFAUT, ...lire('rayle_or_couches_v2', {}) }, pos: lire('rayle_or_position', null), outil: null, prix: null,
+  const etat = { bougies: [], volumes: [], cle: null, debutKraken: null, ecart: null, chargementAncien: false, zonesVol: [], h1: [], aff: null, cadresZ: [], niveaux: [], retournement: [], bandes: [], liquidite: [], balayages: [], fleches: [], segments: [], segCadres: [], a: null, cadres: [], marques: [], tSerie: new Map(), barres: new Map(), couches: (() => { const c = { ...COUCHES_DEFAUT, ...lire('rayle_or_couches_v2', {}) }; if (!lire('rayle_or_rsi_defaut_v1', false)) { c.rsi = true; c.fleches = true; ecrire('rayle_or_rsi_defaut_v1', true); } return c; })(),   // une seule fois : RSI et flèches de lecture allumés par défaut, puis le choix est mémorisé pos: lire('rayle_or_position', null), outil: null, prix: null,
     flechesT: [], outils: { objets: [], proposes: [], croix: [], fleches10: [], selection: null }, modeOutil: null, brouillon: [], aimant: true, outilsCadres: [] };
-  let LW = null, chart = null, serie = null, vol = null, pret = null, maSerie = null, rsiSerie = null, rsiDiv = [];
+  let LW = null, chart = null, serie = null, vol = null, pret = null, maSerie = null, rsiSerie = null, rsiHaut = null, rsiBas = null, rsiDiv = [];
   /* couche « Mouvements H1 » (mouvements-v1.js, définition figée) : rétrospectif, jamais un signal ; H1 seulement ; données calculées dans un Worker (mouvements-ui.js) */
   const mouv = { liste: [], h1: false, cadres: [] };
   const mouvementSous = (x, y) => {   // clic seulement (pas au survol) et jamais pendant un outil de dessin
@@ -428,20 +428,38 @@ export function creerGraphiqueOr(el, { surClicPrix, mobile = false } = {}) {
     ictEtat: () => ({ cadres: (inst.cadresIct || []).length, types: (inst.cadresIct || []).reduce((o, c) => (o[c.kind] = (o[c.kind] || 0) + 1, o), {}) }),
     schemasEtat: () => ({ cadres: (inst.cadresSch || []).length, types: (inst.cadresSch || []).reduce((o, c) => (o[c.kind] = (o[c.kind] || 0) + 1, o), {}) }),
     /* panneau RSI sous le graphique (3e panneau) : points [{ t, v }] ou null pour le retirer ; divs : segments de divergence sur le RSI */
+    /* RSI 14 (Wilder) : UNE seule sous-fenêtre sous le prix (volet 2), jamais deux. Ligne dorée, 70 / 30 discrets, 50 en pointillé très léger, remplissage léger au-dessus de 70 et sous 30.
+       divs : [{ t1, t2, r1, r2, dir, label, confirmeT }] → petit trait entre les deux pivots + étiquette « div » (posée seulement une fois le second pivot confirmé : jamais de repaint). */
     async rsi(points, divs = []) {
       await pret; if (!chart || !LW) return;
-      const retirer = () => { for (const q of rsiDiv) { try { chart.removeSeries(q); } catch (e) { /* */ } } rsiDiv = []; if (rsiSerie) { try { chart.removeSeries(rsiSerie); } catch (e) { /* */ } rsiSerie = null; } };
+      const retirer = () => { for (const q of rsiDiv) { try { chart.removeSeries(q); } catch (e) { /* */ } } rsiDiv = []; for (const q of [rsiSerie, rsiHaut, rsiBas]) if (q) { try { chart.removeSeries(q); } catch (e) { /* */ } } rsiSerie = rsiHaut = rsiBas = null; };
       if (!points || !points.length) { retirer(); return false; }
       if (!rsiSerie) {
-        rsiSerie = chart.addSeries(LW.LineSeries, { color: '#c9b27a', lineWidth: 1, priceLineVisible: false, lastValueVisible: true, crosshairMarkerVisible: false, priceFormat: { type: 'custom', formatter: v => Number(v).toFixed(0), minMove: 1 }, autoscaleInfoProvider: () => ({ priceRange: { minValue: 10, maxValue: 90 } }) }, 2);
-        rsiSerie.createPriceLine({ price: 70, color: 'rgba(216,106,106,.55)', lineWidth: 1, lineStyle: 2, axisLabelVisible: true, title: '70' }); rsiSerie.createPriceLine({ price: 30, color: 'rgba(95,184,148,.55)', lineWidth: 1, lineStyle: 2, axisLabelVisible: true, title: '30' });
+        const commun = { priceLineVisible: false, lastValueVisible: false, crosshairMarkerVisible: false, autoscaleInfoProvider: () => ({ priceRange: { minValue: 5, maxValue: 95 } }) };
+        const transp = 'rgba(0,0,0,0)';
+        rsiHaut = chart.addSeries(LW.BaselineSeries, { ...commun, baseValue: { type: 'price', price: 70 }, topFillColor1: 'rgba(216,106,106,.22)', topFillColor2: 'rgba(216,106,106,.05)', bottomFillColor1: transp, bottomFillColor2: transp, topLineColor: transp, bottomLineColor: transp, lineWidth: 1 }, 2);
+        rsiBas = chart.addSeries(LW.BaselineSeries, { ...commun, baseValue: { type: 'price', price: 30 }, bottomFillColor1: 'rgba(95,184,148,.22)', bottomFillColor2: 'rgba(95,184,148,.05)', topFillColor1: transp, topFillColor2: transp, topLineColor: transp, bottomLineColor: transp, lineWidth: 1 }, 2);
+        rsiSerie = chart.addSeries(LW.LineSeries, { ...commun, color: '#ffc266', lineWidth: 1, lastValueVisible: true, priceFormat: { type: 'custom', formatter: v => Number(v).toFixed(0), minMove: 1 } }, 2);
+        rsiSerie.createPriceLine({ price: 70, color: 'rgba(216,106,106,.45)', lineWidth: 1, lineStyle: 0, axisLabelVisible: true, title: '70' });
+        rsiSerie.createPriceLine({ price: 30, color: 'rgba(95,184,148,.45)', lineWidth: 1, lineStyle: 0, axisLabelVisible: true, title: '30' });
+        rsiSerie.createPriceLine({ price: 50, color: 'rgba(255,224,138,.16)', lineWidth: 1, lineStyle: 1, axisLabelVisible: false, title: '' });
         try { const P = chart.panes(); P[0].setStretchFactor(mobile ? 4 : 5); P[1].setStretchFactor(1); if (P[2]) P[2].setStretchFactor(mobile ? 1.4 : 1.6); } catch (e) { /* */ }
       }
-      const m = new Map(); for (const q of points) { const tt = tDe(q.t); if (tt != null && Number.isFinite(q.v)) m.set(tt, q.v); } rsiSerie.setData([...m.entries()].sort((a, b) => a[0] - b[0]).map(([time, value]) => ({ time, value })));
+      const m = new Map(); for (const q of points) { const tt = tDe(q.t); if (tt != null && Number.isFinite(q.v)) m.set(tt, q.v); }
+      const data = [...m.entries()].sort((a, b) => a[0] - b[0]).map(([time, value]) => ({ time, value }));
+      rsiSerie.setData(data); rsiHaut.setData(data); rsiBas.setData(data);
       for (const q of rsiDiv) { try { chart.removeSeries(q); } catch (e) { /* */ } } rsiDiv = [];
-      for (const d of divs.slice(-8)) { const t1 = tDe(d.t1), t2 = tDe(d.t2); if (t1 == null || t2 == null || t1 >= t2) continue; const q = chart.addSeries(LW.LineSeries, { color: d.dir > 0 ? '#5fb894' : '#d86a6a', lineWidth: 1, lineStyle: d.cachee ? 2 : 0, priceLineVisible: false, lastValueVisible: false, crosshairMarkerVisible: false, autoscaleInfoProvider: () => null }, 2); q.setData([{ time: t1, value: d.r1 }, { time: t2, value: d.r2 }]); rsiDiv.push(q); }
+      for (const d of divs.slice(-8)) {
+        const t1 = tDe(d.t1), t2 = tDe(d.t2); if (t1 == null || t2 == null || t1 >= t2) continue;
+        const couleur = d.dir > 0 ? '#5fb894' : '#d86a6a';
+        const q = chart.addSeries(LW.LineSeries, { color: couleur, lineWidth: 2, lineStyle: d.cachee ? 2 : 0, priceLineVisible: false, lastValueVisible: false, crosshairMarkerVisible: false, autoscaleInfoProvider: () => null }, 2);
+        q.setData([{ time: t1, value: d.r1 }, { time: t2, value: d.r2 }]);
+        if (LW.createSeriesMarkers) { try { LW.createSeriesMarkers(q, [{ time: t2, position: d.dir > 0 ? 'belowBar' : 'aboveBar', color: couleur, shape: 'circle', size: 0.2, text: d.label || 'div' }]); } catch (e) { /* marques indisponibles */ } }
+        rsiDiv.push(q);
+      }
       return true;
     },
+    rsiEtat: () => { let panneaux = 0, lignes = 0; try { panneaux = chart ? chart.panes().length : 0; } catch (e) { /* */ } lignes = rsiSerie ? 1 : 0; return { actif: !!rsiSerie, lignes, panneaux, divergences: rsiDiv.length, remplissages: (rsiHaut ? 1 : 0) + (rsiBas ? 1 : 0) }; },
     structureEtat: () => ({ cadres: (inst.cadresS || []).length, types: (inst.cadresS || []).reduce((o, c) => (o[c.kind] = (o[c.kind] || 0) + 1, o), {}) }),
     mouvements(liste, { h1 = false } = {}) { mouv.liste = liste || []; mouv.h1 = !!h1; redessiner(); return mouv.liste.length; },
     mouvementsEtat: () => ({ h1: mouv.h1, actif: mouv.h1 && etat.couches.mouvements !== false, total: mouv.liste.length, dessines: mouv.cadres.length, cadres: mouv.cadres.map(c => ({ x0: c.x0, x1: c.x1, y0: c.y0, y1: c.y1, sens: c.m.sens, bougies: c.m.bougies, enCours: !!c.m.enCours, t0: c.m.t0 })) }),
