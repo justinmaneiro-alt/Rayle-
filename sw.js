@@ -9,7 +9,7 @@
    • Mise à jour : changer VERSION (= window.RAYLE_VERSION de index.html, vérifié par build.mjs) installe une nouvelle version qui ATTEND ; la page affiche « Nouvelle version disponible » ;
      au toucher, la page envoie SKIP_WAITING puis se recharge. Chaque version a ses caches : les anciens sont supprimés à l'activation.
    COEUR est remplacé à la construction (build.mjs) par la liste exacte des fichiers chargés au démarrage. */
-const VERSION = '2026.11.12.1';
+const VERSION = '2026.11.13.1';
 const SHELL = 'rayle-shell-' + VERSION, IMAGES = 'rayle-images-1';
 const COEUR = ['./', 'index.html', 'offline.html', 'manifest.webmanifest', 'favicon.svg', 'icones/rayle-192.png', 'config.js'];   // /*COEUR*/
 const TAILLE_MAX = 600 * 1024;

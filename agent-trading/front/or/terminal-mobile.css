@@ -1,0 +1,28 @@
+/* Terminal sur TÉLÉPHONE (≤ 600 px) : plein écran, UNIQUEMENT le graphique (prix, MA200, niveaux, flèches, RSI, volume discret).
+   Les panneaux de données (COT, santé du marché, institutions, actualités, calendrier, journal, capital, statistiques…) restent dans le code et alimentent Rayle ; ils ne sont plus affichés
+   sauf si « Panneaux avancés » est coché (menu Notifications du terminal, réglage rayle_tm_avance, désactivé par défaut). Le terminal PC n'est pas touché (media query). */
+@media (max-width: 600px) {
+  html, body { overscroll-behavior: none; }
+  .esp-barre { padding: 6px 64px 6px 10px; gap: 6px; min-height: 0; }
+  body:not(.tm-avance) .esp-barre button, body:not(.tm-avance) .esp-src, body:not(.tm-avance) .esp-marque { display: none !important; }
+  .esp-barre .esp-instr { min-height: 44px; font-size: 15px; }
+  .tor-tete .tor-titre { display: none; }
+  .tor-tete { padding: 4px 8px; }
+  .tor-periodes { display: flex; gap: 6px; }
+  .tor .tor-tete .tor-periodes button, .tor .tor-tete .tor-mo-bouton { min-height: 44px !important; min-width: 52px; font-size: 15px; padding: 6px 12px; }
+  body:not(.tm-avance) .tor-bandeau, body:not(.tm-avance) .tor > .tor-bloc, body:not(.tm-avance) .tor-carnet, body:not(.tm-avance) .tor-ray-feuille { display: none !important; }
+  body:not(.tm-avance) .tor .tor-ecran1 { display: grid !important; grid-template-columns: minmax(0, 1fr) !important; height: calc(100dvh - 244px) !important; min-height: 360px; }
+  body:not(.tm-avance) .tor .tor-ecran1 > .tor-graph { height: 100% !important; max-height: none !important; }
+  .tor-ft-ligne { display: flex; gap: 8px; align-items: center; padding: 4px 8px; border-bottom: 1px solid #1c2a33; }
+  body:not(.tm-avance) .tor-graph .tor-struct-bandeau, body:not(.tm-avance) .tor-graph .tor-graph-source { display: none !important; }
+  body:not(.tm-avance) #vue .foot, body:not(.tm-avance) .tor-pied { display: none; }
+  body:not(.tm-avance) .tp-haut > *:not(.tor-ft-m):not([data-ft-notif]) { display: none !important; }
+  body:not(.tm-avance) [data-graph-barre] > *:not(.tor-ft-m):not([data-ft-notif]) { display: none !important; }
+  [data-graph-barre] { gap: 6px; padding: 2px 8px; flex-wrap: wrap; }
+  .tp-haut { gap: 6px; padding: 4px 8px; }
+  .tor-ft-m select, .tp-menu summary { min-height: 44px; font-size: 15px; }
+  .tp-menu-corps { max-width: calc(100vw - 24px); }
+  .tp-menu-corps label { display: flex; gap: 8px; align-items: center; min-height: 40px; }
+  /* l'infobulle d'une flèche ne cache pas le prix (axe à droite) ni les bougies récentes */
+  .tor-ft-bulle { max-width: 62%; font-size: 11.5px; line-height: 1.3; }
+}

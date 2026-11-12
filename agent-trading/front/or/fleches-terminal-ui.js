@@ -25,19 +25,27 @@ export function monterFlechesTerminal(T, { maintenant = () => Date.now(), pret =
     const l = document.createElement('label'); l.className = 'tor-gb tor-ft'; l.dataset.ft = ''; l.title = 'Repères de lecture posés à la clôture de la bougie H1 : MA200 (cassure confirmée, retest, rebond) et gros supports / résistances (2 bougies sur le niveau, rebond confirmé). Jamais redessinés, jamais un ordre ni une promesse de gain.';
     l.innerHTML = '<input type="checkbox" data-ft-hist> Flèches : historique 30 j <b data-ft-n></b>'; barre.appendChild(l);
   }
+  const CLE_AV = 'rayle_tm_avance';
+  const appliquerAvance = () => { try { document.body.classList.toggle('tm-avance', localStorage.getItem(CLE_AV) === '1'); } catch (e) { /* */ } }; appliquerAvance();
   function placerNotif() {
-    const h = R.querySelector('.tp-haut') || barre; if (!h || h.querySelector('[data-ft-notif]')) return;
+    const h = hoteReglages(); if (!h || R.querySelector('[data-ft-notif]')) return;
     const d = document.createElement('details'); d.className = 'tp-menu'; d.dataset.ftNotif = '';
-    d.innerHTML = `<summary>Notifications ▾</summary><div class="tp-menu-corps"><label><input type="checkbox" data-nt="vocal"> Vocal (voix fr-FR)</label><label><input type="checkbox" data-nt="navigateur"> Notification navigateur / appli <small data-nt-etat></small></label><small>Telegram : script serveur <code>alertes-serveur.mjs</code> (voir PROGRESS.md). Mode Direct seulement, jamais l’Historique. Maximum 6 par heure, repos de 5 min par niveau.</small></div>`;
+    d.innerHTML = `<summary>Notifications ▾</summary><div class="tp-menu-corps"><label><input type="checkbox" data-nt="vocal"> Vocal (voix fr-FR)</label><label><input type="checkbox" data-nt="navigateur"> Notification navigateur / appli <small data-nt-etat></small></label><label><input type="checkbox" data-nt="avance"> Afficher les panneaux avancés (téléphone)</label><small>Telegram : script serveur <code>alertes-serveur.mjs</code> (voir PROGRESS.md). Mode Direct seulement, jamais l’Historique. Maximum 6 par heure, repos de 5 min par niveau.</small></div>`;
     const doux = h.querySelector('.tp-doux'); if (doux && h.contains(doux)) h.insertBefore(d, doux); else h.appendChild(d);
-    const maj = () => { for (const c of d.querySelectorAll('[data-nt]')) c.checked = !!E.notif[c.dataset.nt]; const st = d.querySelector('[data-nt-etat]'); if (st) st.textContent = '(permission : ' + permissionNavigateur() + ')'; };
-    d.addEventListener('change', async e => { const c = e.target.closest('[data-nt]'); if (!c) return; E.notif[c.dataset.nt] = c.checked; if (c.dataset.nt === 'navigateur' && c.checked) { const r = await demanderPermission(); if (r !== 'granted') { E.notif.navigateur = false; } } ecrireJ(CLE_NOTIF, E.notif); maj(); });
+    const maj = () => { for (const c of d.querySelectorAll('[data-nt]')) c.checked = c.dataset.nt === 'avance' ? (() => { try { return localStorage.getItem(CLE_AV) === '1'; } catch (e) { return false; } })() : !!E.notif[c.dataset.nt]; const st = d.querySelector('[data-nt-etat]'); if (st) st.textContent = '(permission : ' + permissionNavigateur() + ')'; };
+    d.addEventListener('change', async e => { const c = e.target.closest('[data-nt]'); if (!c) return; if (c.dataset.nt === 'avance') { try { localStorage.setItem(CLE_AV, c.checked ? '1' : '0'); } catch (er) { /* */ } appliquerAvance(); return; } E.notif[c.dataset.nt] = c.checked; if (c.dataset.nt === 'navigateur' && c.checked) { const r = await demanderPermission(); if (r !== 'granted') { E.notif.navigateur = false; } } ecrireJ(CLE_NOTIF, E.notif); maj(); });
     maj();
   }
-  function placerMode() { const l = R.querySelector('.tor-ft-m'), h = R.querySelector('.tp-haut'); if (l && h && l.parentNode !== h) h.insertBefore(l, h.querySelector('.tp-doux')); }   // dans la ligne du haut du Terminal (visible en mode Pro épuré)
-  if ((barre || R.querySelector('.tp-haut')) && !R.querySelector('[data-ft-mode]')) {
+  /* ligne des réglages de flèches : ligne du haut du Terminal (mode Pro) ; sinon, sur téléphone, une ligne sous l'en-tête (la barre du graphique y est masquée) ; sinon la barre du graphique */
+  function hoteReglages() {
+    const h = R.querySelector('.tp-haut'); if (h) return h;
+    if (window.matchMedia && matchMedia('(max-width:600px)').matches) { let l = R.querySelector('.tor-ft-ligne'); if (!l) { const t = R.querySelector('.tor-tete'); if (t) { l = document.createElement('div'); l.className = 'tor-ft-ligne'; t.insertAdjacentElement('afterend', l); } } if (l) return l; }
+    return barre;
+  }
+  function placerMode() { const h = hoteReglages(); if (!h) return; for (const n of [R.querySelector('.tor-ft-m'), R.querySelector('[data-ft-notif]')]) { if (n && n.parentNode !== h) { const d = h.querySelector('.tp-doux'); if (d && d.parentNode === h) h.insertBefore(n, d); else h.appendChild(n); } } }   // dans la ligne du haut du Terminal (visible en mode Pro épuré)
+  if ((barre || R.querySelector('.tp-haut') || R.querySelector('.tor-tete')) && !R.querySelector('[data-ft-mode]')) {
     const l = document.createElement('label'); l.className = 'tor-gb tor-ft-m'; l.title = 'Direct : flèches causales (v4), posées à la bougie de confirmation, comme en temps réel (alertes vocales). Historique : flèches rétrospectives (v1), placées avec des informations postérieures : à regarder, jamais pour entrer.';
-    l.innerHTML = 'Flèches <select data-ft-mode><option value="direct">Direct</option><option value="historique">Historique</option></select>'; (barre || R.querySelector('.tp-haut')).appendChild(l); placerMode();
+    l.innerHTML = 'Flèches <select data-ft-mode><option value="direct">Direct</option><option value="historique">Historique</option></select>'; (barre || R.querySelector('.tp-haut') || R.querySelector('.tor-tete')).appendChild(l); placerMode();
   }
   const choix = R.querySelector('[data-ft-mode]'); if (choix) { choix.value = E.mode; choix.addEventListener('change', () => api.fixerMode(choix.value)); }
   const caseHist = R.querySelector('[data-ft-hist]'); if (caseHist) { caseHist.checked = !!E.hist; caseHist.addEventListener('change', () => { E.hist = caseHist.checked; ecrireJ(CLE_HIST, E.hist); afficher(); }); }

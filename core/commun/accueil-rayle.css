@@ -63,3 +63,9 @@ html .ar-lien,html .ar-btn{min-height:0}
 }
 .ar-jour .ar-liste li:nth-child(n+3){display:none}
 .ar-racine{z-index:6!important}
+
+/* images des actualités : visuel de remplacement (jamais un cadre vide) et tampon de chargement invisible */
+.ar-ph{display:grid;place-items:center;width:100%;height:100%;background:radial-gradient(circle at 30% 25%,rgba(255,174,61,.28),rgba(201,178,122,.08) 60%,rgba(8,5,3,.6))}
+.ar-ph b{font:600 24px/1 system-ui,sans-serif;color:rgba(255,200,120,.85);letter-spacing:.02em}
+.ar-tampon{position:absolute;left:0;top:0;width:96px;height:68px;opacity:0;pointer-events:none;z-index:-1;overflow:hidden}
+.ar-tampon img{width:100%;height:100%;object-fit:cover}

@@ -83,10 +83,25 @@
     placer(); requestAnimationFrame(boucle);
   }
   function lancer(){ if(boucleActive) return; boucleActive=true; dernierT=performance.now(); requestAnimationFrame(boucle); }
+  /* préchauffage : dès qu'une fenêtre lourde est la voisine de la fenêtre au centre, ses fichiers sont préchargés (sans rien exécuter) */
+  const prechauffes=new Set();
+  function precharger(url,as){ if(prechauffes.has(url)) return; prechauffes.add(url); try{ const l=document.createElement('link'); l.rel=as==='module'?'modulepreload':'prefetch'; if(as&&as!=='module') l.as=as; l.href=new URL(url,document.baseURI).href; document.head.appendChild(l); }catch(e){} }
+  function prechauffer(i){
+    const f=FENETRES[i]; if(!f) return;
+    if(Math.abs(i-FENETRES.findIndex(x=>x.id==='terre'))<=1){ precharger('planetes/terre/apercu/terre-apercu.jpg','image'); precharger('planetes/terre/pc/index.js','module'); }
+    if(Math.abs(i-FENETRES.findIndex(x=>x.id==='anatomie'))<=1){ precharger('planetes/saturne/atlas/atlas.js','module'); precharger('planetes/saturne/atlas/atlas-donnees.js','module'); precharger('planetes/saturne/atlas/atlas.css','style'); }
+  }
+  /* Terre : une image de la Terre (30 Ko, locale) apparaît tout de suite ; la 3D la remplace sans clignotement dès qu'elle est prête */
+  let apercu=null;
+  function montrerApercuTerre(){
+    if(apercu) return; apercu=document.createElement('div'); apercu.id='terre-apercu'; apercu.setAttribute('role','status');
+    apercu.innerHTML='<div class="ta-globe" aria-hidden="true"></div><p>Chargement de la Terre…</p>'; document.body.appendChild(apercu);
+  }
+  async function cacherApercuTerre(){ const a=apercu; if(!a) return; apercu=null; await attendre(600); a.classList.add('ta-sort'); setTimeout(()=>a.remove(),500); }
   function aller(c,opts){
     if(ouvert&&!(opts&&opts.force)) return false;
     const i=typeof c==='number'?c:FENETRES.findIndex(f=>f.id===c); if(i<0) return false;
-    cible=Math.max(0,Math.min(N-1,i)); lancer();
+    cible=Math.max(0,Math.min(N-1,i)); lancer(); try{ prechauffer(cible); }catch(e){}
     try{ bus().emit('app:carrousel',{index:cible,id:FENETRES[cible].id}); bus().fusion('app',{vue:FENETRES[cible].id,ouvert:null}); }catch(e){}
     return true;
   }
@@ -156,6 +171,18 @@
     if(id==='terre'&&!(opts&&opts.sansActu)){ n=0; while(!(window.Terre&&window.Terre.etat&&window.Terre.etat().actif&&window.Terre.etat().entree)&&n++<150) await attendre(100); try{ if(window.Terre&&window.Terre.afficherFil) window.Terre.afficherFil({portee:'france',vol:false}).catch(e=>console.warn('[app] actualité :',e&&e.message)); }catch(e){ console.warn('[app] actualité :',e); } }
     if(id==='anatomie'){ n=0; const pret=()=>{ const s=window.Saturne&&window.Saturne.etat&&window.Saturne.etat(); return !!(s&&s.actif&&s.entree&&!s.transition); }; while(!pret()&&n++<200) await attendre(80); try{ await window.Saturne.salleMedicale(); }catch(e){ console.warn('[app] salle médicale :',e); } }
   }
+  /* Atlas d'anatomie 2D : téléphone et tablette, ou quand le modèle 3D (assets-lourds/, jamais publié) est absent : jamais une fenêtre vide */
+  let atlasOuvert=false;
+  async function utiliserAtlas(){
+    try{ const q=new URLSearchParams(location.search).get('atlas'); if(q==='1') return true; if(q==='0') return false; }catch(e){}
+    try{ if(window.RayleAppareil&&window.RayleAppareil.mode()!=='pc') return true; }catch(e){}
+    try{ const r=await fetch(new URL('assets-lourds/anatomie/index.json',document.baseURI).href,{method:'HEAD',cache:'no-store'}); return !r.ok; }catch(e){ return true; }
+  }
+  async function ouvrirAtlas(){
+    if(!document.querySelector('link[data-atlas]')){ const l=document.createElement('link'); l.rel='stylesheet'; l.dataset.atlas=''; l.href=new URL('planetes/saturne/atlas/atlas.css',document.baseURI).href; document.head.appendChild(l); }
+    const m=await import(new URL('planetes/saturne/atlas/atlas.js',document.baseURI).href); m.ouvrir(); atlasOuvert=true;
+  }
+  async function fermerAtlas(){ try{ const m=await import(new URL('planetes/saturne/atlas/atlas.js',document.baseURI).href); m.fermer(); }catch(e){} atlasOuvert=false; }
   async function ouvrir(id,opts){
     const f=FENETRES.find(x=>x.id===id); if(!f||id==='rayle') return aller(0,{force:true});
     if(ouvert===id) return true; if(ouvert) await fermer({silencieux:true,sansAnim:true});
@@ -164,11 +191,14 @@
     const g=grandir(id);
     ouvert=id; corps.classList.add('app-ouvert'); croix.hidden=false; corps.dataset.appOuvert=id; placer();
     try{
-      if(id==='terminal') await bus().demander('vue:ouvrir','terminal'); else await ouvrirPlanete(id,opts);
+      if(id==='terre') montrerApercuTerre();
+      if(id==='terminal') await bus().demander('vue:ouvrir','terminal'); else if(id==='anatomie'&&await utiliserAtlas()) await ouvrirAtlas(); else await ouvrirPlanete(id,opts);
     }catch(e){
+      if(apercu){ const a0=apercu; apercu=null; a0.remove(); }
       console.error('[app] ouverture de '+id+' :',e); try{ bus().emit('vue:erreur',{message:f.nom+' n’a pas pu s’ouvrir : '+(e&&e.message||e)}); }catch(x){}
       if(g) g.remove(); await fermer({silencieux:true,sansAnim:true}); return false;
     }
+    if(id==='terre') cacherApercuTerre();
     if(g){ await attendre(220); g.classList.add('ac-fond'); setTimeout(()=>g.remove(),450); }
     try{ bus().emit('app:ouvert',{id}); bus().fusion('app',{vue:id,ouvert:id}); }catch(e){}
     return true;
@@ -176,7 +206,8 @@
   async function fermer(opts){
     if(!ouvert) return false; const id=ouvert; ouvert=null;
     try{
-      if(id==='terminal'){ if(vueOuverte()==='terminal') await bus().demander('vue:fermer'); }
+      if(atlasOuvert){ await fermerAtlas(); }
+      else if(id==='terminal'){ if(vueOuverte()==='terminal') await bus().demander('vue:fermer'); }
       else{
         window.dispatchEvent(new CustomEvent('galaxie:sortie',{detail:{app:true}}));
         try{ if(window.Galaxie&&window.Galaxie.nav) window.Galaxie.nav.fermerSas(); }catch(e){}
