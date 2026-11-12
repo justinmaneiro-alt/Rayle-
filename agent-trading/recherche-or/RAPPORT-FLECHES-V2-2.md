@@ -22,3 +22,10 @@ Règle `fleches-lecture-v22` (par-dessus la v2.1, inchangée pour la MA200) : zo
 - Rebonds échoués (zone cassée dans les 12 bougies suivantes), phases **impulsives** (déplacement ≥ 4 ATR sur 24 bougies) : v2.1 = 1/7 décidées échouées (14 %), 8 flèches ; v2.2 = 1/6 décidées échouées (17 %), 7 flèches.
 - Phases de **range** : v2.1 = 4/16 décidées échouées (25 %), 16 flèches ; v2.2 = 5/18 décidées échouées (28 %), 18 flèches.
 - Limite : les zones dessinées ne couvrent que le dernier mois, donc la comparaison porte sur peu de flèches ; l'écart ne doit pas être lu comme une preuve.
+
+## Conclusion honnête (à lire avant de juger la v2.2)
+- **Le but principal n'est PAS atteint** : pendant la chute du 12 novembre, 2 flèches d'achat subsistent (3 946 à 10 h et 3 883 à 17 h UTC, étiquetées « après relance »). Elles passent par la condition c (clôture ≥ 0,5 ATR au-dessus du dernier plus bas, au moins une bougie après le contact), qui est, par construction, remplie par n'importe quel rebond en V ; la zone du premier est cassée 3 bougies plus tard. Resserrer la condition c supprimerait aussi le cas de contrôle « rebond baissier du 10 nov. », que la demande interdit de perdre.
+- La condition c a dû être ABAISSÉE de 1 ATR à 0,5 ATR pour que le cas de contrôle (c) revienne à 6 rebonds ; à 1 ATR le résultat de la chute est identique (les deux flèches passent aussi).
+- Les totaux ne baissent pas : 93 → 94 flèches, maximum sur 600 bougies 34 → 35 (objectif 25 jamais atteint) : la v2.2 retire quelques rebonds contre-tendance après cassure mais en ajoute d'autres (la première flèche d'une zone retournée devient un « retest de zone cassée » ; la version « une seule flèche par zone retournée » supprimait 5 des 6 rebonds du cas (c) et a été relâchée).
+- Rebonds échoués (zone cassée dans les 12 bougies) : phases impulsives 1/7 (v2.1) → 1/6 (v2.2) ; phases de range 4/16 → 5/18. Aucune amélioration mesurable, sur très peu de cas.
+- Décision : **non fusionnée dans main** ; branche `fleches-v2-2` poussée pour relecture de Justin.
