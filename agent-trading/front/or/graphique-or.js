@@ -20,7 +20,7 @@ import { zonesAffichage, liquiditeAffichage, dedoublonnerLiquidite, atrH1, detai
 import { normaliserZones } from './zones-fines-v1.js';
 import { dessinerZone, dessinerLiquidite } from './zones-affichage-dessin.js';
 
-export const COUCHES = Object.freeze({ sr: 'Supports et résistances', liquidite: 'Zones de liquidité', fleches: 'Flèches de lecture (MA200 et gros niveaux)', flechesTout: 'Toutes les flèches (debug : anciennes versions, niveaux mineurs, zones tracées)', volume: 'Zones de volume', mouvements: 'Mouvements H1', ...LIBELLES, structure: 'Structure de marché H1 / H4 (cassures, impulsions, retournements)', retournements: 'Retournements : toutes les zones (probabilité mesurée)', rsi: 'RSI 14 (sous-fenêtre) + divergences', divCachees: 'Divergences cachées', schemas: 'Schémas de retournement (double sommet, tête et épaules, balayage, bougies)', ...COUCHES_ICT, ...COUCHES_RAYLE });
+export const COUCHES = Object.freeze({ sr: 'Supports et résistances', liquidite: 'Zones de liquidité', fleches: 'Flèches simples (cassure MA200 et retournement sur niveau majeur)', flechesTout: 'Anciennes flèches (debug : v1 à v10, niveaux mineurs, zones tracées)', volume: 'Zones de volume', mouvements: 'Mouvements H1', ...LIBELLES, structure: 'Structure de marché H1 / H4 (cassures, impulsions, retournements)', retournements: 'Retournements : toutes les zones (probabilité mesurée)', rsi: 'RSI 14 (sous-fenêtre) + divergences', divCachees: 'Divergences cachées', schemas: 'Schémas de retournement (double sommet, tête et épaules, balayage, bougies)', ...COUCHES_ICT, ...COUCHES_RAYLE });
 const COUCHES_DEFAUT = Object.freeze({ sr: true, liquidite: true, fleches: true, flechesTout: false, volume: false, mouvements: true, structure: false, retournements: false, rsi: true, divCachees: false, schemas: false, ...Object.fromEntries(Object.keys(COUCHES_ICT).map(k => [k, false])), ...COUCHES_RAYLE_DEFAUT, ...Object.fromEntries(Object.keys(LIBELLES).map(k => [k, false])) });
 const lire = (k, d) => { try { const v = localStorage.getItem(k); return v ? JSON.parse(v) : d; } catch (e) { return d; } };
 const ecrire = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) { /* stockage refusé */ } };
@@ -83,7 +83,7 @@ export function creerGraphiqueOr(el, { surClicPrix, mobile = false } = {}) {
   function calculerAff() {
     const h1 = etat.h1 || []; if (h1.length < 30) { etat.aff = null; return; }
     const A = atrH1(h1), ref = etat.prix ?? h1[h1.length - 1].c; if (!A) { etat.aff = null; return; }
-    const sr = etat.bandes.map(b => ({ id: 'sr' + Math.round(b.p * 100), kind: 'sr', bas: b.bas, haut: b.haut, p: b.p, nom: b.texte, detail: b.detail, fort: !!b.fort, tDebut: b.tDerniere }));
+    const sr = etat.bandes.map(b => ({ id: 'sr' + Math.round(b.p * 100), kind: 'sr', bas: b.bas, haut: b.haut, p: b.p, nom: b.texte, detail: b.detail, fort: !!b.fort, tDebut: b.tDerniere, touches: b.touches }));
     const vol = etat.zonesVol.map(z => ({ id: 'v' + Math.round(((z.bas + z.haut) / 2) * 100), kind: 'volume', bas: z.bas, haut: z.haut, nom: 'Zone de volume', force: z.force || 0, tDebut: z.tFormation }));
     const liqItems = [...etat.liquidite.map(z => ({ p: z.p, sorte: z.sorte, raisons: z.raisons, depuis: z.depuis, texte: z.texte })), ...etat.balayages.map(b => ({ p: b.p, sorte: b.sorte, raisons: [b.raison], balayeeT: b.t }))];
     const L = liquiditeAffichage(h1, liqItems, { a: A });
@@ -240,9 +240,9 @@ export function creerGraphiqueOr(el, { surClicPrix, mobile = false } = {}) {
     ...marquesJournal()].filter(m => m.time != null).sort((a, b) => a.time - b.time);
   /* flèches du Terminal (fleches-terminal-v1) : posées à la clôture de leur bougie, sur la bougie affichée qui contient cet instant ; jamais déplacées */
   const COULEURS_T = { ma_retest: '#ffd27a', niv_precoce: '#ffb84d', niv_confirme: '#ffe08a', ma_cassure: '#e8c15a', ma_retour: '#8fd0e3', ma_rebond: '#4fd18b', ma_fausse: '#e08a5a', niveau_rebond: '#c39be0', zone_rebond: '#5bc0eb' };
-  const marquesTerminal = () => etat.flechesT.map(f => { const tb = tBougie(f.tCloture - 1); if (tb == null) return null; const v2 = /^fleches-lecture-v2/.test(f.version || ''), ma = f.type && f.type.startsWith('ma_'), ct = !!f.contreTendance;
-    const color = v2 ? (ma ? '#8fd0e3' : f.dir > 0 ? (ct ? 'rgba(46,204,113,.5)' : '#2ecc71') : (ct ? 'rgba(255,77,77,.5)' : '#ff4d4d')) : (COULEURS_T[f.type] || '#cfd8dc');   // haussier vert, baissier rouge, cassure MA200 cyan
-    return { id: 'ft' + f.id, time: tDe(tb), position: f.dir > 0 ? 'belowBar' : 'aboveBar', color, shape: f.dir > 0 ? 'arrowUp' : 'arrowDown', size: v2 ? (ct ? 0.6 : 1.2) : 1, ...(v2 && ma ? { text: f.type === 'ma_retest' ? 'MA retest' : f.fausse ? 'MA fausse' : 'MA200' } : {}), ...(v2 && f.type === 'retest_zone' ? { text: 'retest' } : {}), ...(v2 && ct ? { text: 'ct' } : {}) }; }).filter(Boolean);
+  const marquesTerminal = () => etat.flechesT.map(f => { const tb = tBougie(f.tCloture - 1); if (tb == null) return null; const ma = f.type === 'ma_cassure';
+    /* flèches simples : AUCUN texte sur le graphique (le détail est dans l'infobulle) ; vert = achat, rouge = vente, cyan = cassure de la MA200 */
+    return { id: 'ft' + f.id, time: tDe(tb), position: f.dir > 0 ? 'belowBar' : 'aboveBar', color: ma ? '#8fd0e3' : f.dir > 0 ? '#2ecc71' : '#ff4d4d', shape: f.dir > 0 ? 'arrowUp' : 'arrowDown', size: 1.4 }; }).filter(Boolean);
   const marquesJournal = () => etat.marques.filter(m => m.t).map(m => ({ time: tDe(m.t), position: m.sens === 'achat' ? 'belowBar' : 'aboveBar', color: m.r == null ? '#cfd8dc' : m.r >= 0 ? C.haut : C.bas, shape: m.sens === 'achat' ? 'arrowUp' : 'arrowDown', text: m.texte || '' })).sort((a, b) => a.time - b.time);
 
   async function monter() {

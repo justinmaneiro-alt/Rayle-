@@ -22,11 +22,12 @@ for (const [l, h, mob] of [[1600, 900, false], [1024, 768, true], [390, 844, tru
   const t = E.vis.map(x => x.t).sort((a, b) => a - b); let max = 0; for (let k = 0; k < t.length; k++) max = Math.max(max, t.filter(x => x >= t[k] && x < t[k] + 600 * H).length);
   v(E.n >= 0 && E.etat.raison == null, `${l}px : flèches de lecture calculées (${E.n} au registre, ${E.vis.length} visibles sur 30 jours)`);
   v(grappes === 0, `${l}px : (i) aucune grappe (deux flèches jamais sur la même bougie ; la distance de 6 bougies est testée en Node) : ${grappes}`);
+  { const ts = E.vis.map(x => x.t).sort((a, b) => a - b); let tp = 0; for (let k = 1; k < ts.length; k++) if (ts[k] - ts[k - 1] < 6 * H) tp++; v(tp === 0, `${l}px : aucune superposition de flèches (au moins 6 bougies d'écart) : ${tp}`); }
   console.log(`INFO ${l}px : maximum de flèches visibles sur 600 bougies H1 : ${max}`);
-  v(E.vis.every(x => (x.levelId === 'MA200' && /^ma_/.test(x.type)) || (/^(rebond|retest_zone)/.test(x.type) && x.levelId)), `${l}px : (iii) chaque flèche porte un levelId (MA200 ou zone dessinée)`);
+  v(E.vis.every(x => (x.levelId === 'MA200' && x.type === 'ma_cassure') || (x.type === 'retournement' && x.levelId)), `${l}px : (iii) chaque flèche porte un levelId (MA200 ou zone dessinée)`);
   v(E.posees.posees === E.vis.length, `${l}px : le graphique porte exactement les flèches visibles (${E.posees.posees} / ${E.vis.length})`);
-  const COUL = await p.evaluate(() => (window.__or.graph.marquesAffichees ? window.__or.graph.marquesAffichees() : []).filter(m => /^ft/.test(m.id)).map(m => ({ c: m.color, s: m.shape })));
-  v(COUL.length > 0 && COUL.every(m => /^(#2ecc71|#ff4d4d|#8fd0e3|rgba\(46,204,113,\.5\)|rgba\(255,77,77,\.5\))$/.test(m.c)), `${l}px : flèches vertes (haussier), rouges (baissier) ou cyan (MA200), jamais blanches ou grises : ${[...new Set(COUL.map(m => m.c))].join(' ')}`);
+  const COUL = await p.evaluate(() => (window.__or.graph.marquesAffichees ? window.__or.graph.marquesAffichees() : []).filter(m => /^ft/.test(m.id)).map(m => ({ c: m.color, s: m.shape, t: m.text })));
+  v(COUL.length > 0 && COUL.every(m => /^(#2ecc71|#ff4d4d|#8fd0e3)$/.test(m.c) && m.t === undefined), `${l}px : flèches vertes (achat), rouges (vente) ou cyan (MA200), AUCUN texte sur le graphique : ${[...new Set(COUL.map(m => m.c))].join(' ')}`);
   v(E.couches.fleches !== false && E.couches.flechesTout === false, `${l}px : couche « flèches de lecture » active, « toutes les flèches (debug) » désactivée par défaut (${JSON.stringify({ f: E.couches.fleches, d: E.couches.flechesTout })})`);
   v(err.length === 0, `${l}px : aucune erreur de script ${err.join(' | ').slice(0, 160)}`);
   await p.screenshot({ path: `outils-restructuration/captures/fleches-lecture-${l}.png` }); await p.close();
