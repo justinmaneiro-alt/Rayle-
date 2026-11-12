@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#080503">
+<title>Connecter le téléphone · Raylé</title>
+<style>
+  body{margin:0;background:#080503;color:#f1e3c8;font:16px/1.5 system-ui,'Segoe UI',sans-serif;padding:24px 16px;max-width:560px;margin-inline:auto}
+  h1{font-size:20px;color:#ffae3d;margin:0 0 12px}
+  .carte{border:1px solid rgba(255,174,61,.35);background:rgba(20,12,4,.8);padding:14px;margin:14px 0;clip-path:polygon(14px 0,100% 0,100% calc(100% - 14px),calc(100% - 14px) 100%,0 100%,0 14px)}
+  code{color:#ffd27a;word-break:break-all}
+  canvas{background:#fff;display:block;margin:10px auto;image-rendering:pixelated;max-width:100%}
+  .ko{color:#ff8a5a}.ok{color:#7fe3a1}
+  button{background:#1a1006;color:#ffd27a;border:1px solid #ffae3d;padding:10px 14px;font-size:15px}
+  ol{padding-left:20px}
+</style>
+</head>
+<body>
+<h1>Connecter le téléphone à Raylé</h1>
+<div id="etat" class="carte">Recherche de l'adresse du PC…</div>
+<div id="adresses"></div>
+<div class="carte">
+  <b>Sur le téléphone</b>
+  <ol>
+    <li>Le téléphone et le PC doivent être sur le même Wi-Fi.</li>
+    <li>Scanne le QR code (ou tape l'adresse) dans Chrome.</li>
+    <li>Menu ⋮ → « Ajouter à l'écran d'accueil ».</li>
+  </ol>
+  <small>Si une ancienne version de Raylé était installée : désinstalle-la d'abord, ou vide les données du site (Chrome → ⋮ → Paramètres → Paramètres des sites → Raylé).</small>
+</div>
+<script src="core/commun/qr-matrice.js"></script>
+<script>
+(async function () {
+  const etat = document.getElementById('etat'), liste = document.getElementById('adresses');
+  function dessiner(texte) {
+    const m = window.QrMatrice.matriceQR(texte), n = m.length, k = 6, q = 3, c = document.createElement('canvas');
+    c.width = c.height = (n + 2 * q) * k; const x = c.getContext('2d'); x.fillStyle = '#fff'; x.fillRect(0, 0, c.width, c.height); x.fillStyle = '#000';
+    for (let y = 0; y < n; y++) for (let i = 0; i < n; i++) if (m[y][i]) x.fillRect((i + q) * k, (y + q) * k, k, k);
+    return c;
+  }
+  try {
+    const r = await fetch('/__reseau', { cache: 'no-store' }), j = await r.json();
+    if (!j.reseau) { etat.innerHTML = '<span class="ko">Le réseau local n\'est pas ouvert.</span> Relance Raylé avec <code>node serveur.mjs --reseau</code> (ou double-clique <code>Rayle-reseau.cmd</code>).'; return; }
+    if (!j.adresses.length) { etat.innerHTML = '<span class="ko">Aucune adresse de réseau privé trouvée sur ce PC (Wi-Fi ou câble branché ?).</span>'; return; }
+    etat.innerHTML = '<span class="ok">Réseau local ouvert</span> (réservé aux appareils de ton réseau privé).';
+    for (const a of j.adresses) { const d = document.createElement('div'); d.className = 'carte'; d.innerHTML = '<b>Adresse du PC</b><br><code>' + a + '</code>'; try { d.appendChild(dessiner(a)); } catch (e) { d.insertAdjacentHTML('beforeend', '<br><small class="ko">QR indisponible : ' + e.message + '</small>'); } liste.appendChild(d); }
+  } catch (e) { etat.innerHTML = '<span class="ko">Serveur injoignable.</span> Ouvre cette page depuis le PC : <code>http://127.0.0.1:8000/connecter-telephone.html</code> (serveur lancé avec <code>--reseau</code>).'; }
+})();
+</script>
+</body>
+</html>

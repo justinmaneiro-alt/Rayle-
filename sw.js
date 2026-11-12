@@ -5,10 +5,11 @@
    • Hors ligne et page demandée absente : « offline.html » (explique ce qui manque, jamais une page blanche).
    • Images des médias : copie d'abord, 80 entrées au plus.
    • Jamais interceptés : le backend et toutes les API (la page gère son propre cache), les routes locales du PC (/__…), les requêtes non GET ou partielles (range).
+   • 2026-11-12 : skipWaiting à l'installation + clients.claim + suppression de tous les anciens caches à l'activation ; la page se recharge toute seule au changement de version.
    • Mise à jour : changer VERSION (= window.RAYLE_VERSION de index.html, vérifié par build.mjs) installe une nouvelle version qui ATTEND ; la page affiche « Nouvelle version disponible » ;
      au toucher, la page envoie SKIP_WAITING puis se recharge. Chaque version a ses caches : les anciens sont supprimés à l'activation.
    COEUR est remplacé à la construction (build.mjs) par la liste exacte des fichiers chargés au démarrage. */
-const VERSION = '2026.11.11.1';
+const VERSION = '2026.11.12.1';
 const SHELL = 'rayle-shell-' + VERSION, IMAGES = 'rayle-images-1';
 const COEUR = ['./', 'index.html', 'offline.html', 'manifest.webmanifest', 'favicon.svg', 'icones/rayle-192.png', 'config.js'];   // /*COEUR*/
 const TAILLE_MAX = 600 * 1024;
@@ -21,12 +22,12 @@ self.addEventListener('install', e => {
     // par lots de 8 (un serveur ne doit pas recevoir 90 demandes d'un coup), un nouvel essai par fichier ; un fichier absent n'empêche pas l'installation
     const un = async u => { for (let k = 0; k < 2; k++) { try { await c.add(new Request(u, { cache: 'reload' })); return; } catch (err) { /* nouvel essai */ } } };
     for (let i = 0; i < COEUR.length; i += 8) await Promise.all(COEUR.slice(i, i + 8).map(un));
-    // pas de skipWaiting automatique : la page propose l'actualisation (jamais de rechargement surprise)
+    self.skipWaiting();   // 2026-11-12 : la nouvelle version prend la main tout de suite (l'ancienne interface mobile ne doit plus jamais rester affichée)
   })());
 });
 self.addEventListener('activate', e => {
   e.waitUntil((async () => {
-    for (const k of await caches.keys()) if (k.startsWith('rayle-shell-') && k !== SHELL) await caches.delete(k);
+    for (const k of await caches.keys()) if (k !== SHELL && k !== IMAGES) await caches.delete(k);   // TOUS les anciens caches (coque mobile comprise)
     await self.clients.claim();
   })());
 });

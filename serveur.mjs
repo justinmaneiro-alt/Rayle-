@@ -2,25 +2,31 @@
 // Remplace « python -m http.server » : il dit au navigateur de TOUJOURS revalider les fichiers (Cache-Control: no-cache).
 // Avec python, Chrome garde en cache des versions périmées des modules JavaScript pendant plusieurs minutes après une modification :
 // la page peut alors mélanger d'anciens et de nouveaux fichiers, et les commandes vocales de la galaxie cessent de marcher.
-// Sans dépendance. N'écoute que sur la machine locale (127.0.0.1).
+// Sans dépendance. N'écoute que sur la machine locale (127.0.0.1), SAUF avec --reseau (ou RAYLE_RESEAU=1) : écoute alors aussi le réseau local (téléphone, tablette), refuse tout client
+// qui n'est pas sur un réseau privé, et publie /__reseau (adresses du PC) pour la page « Connecter le téléphone » (connecter-telephone.html).
 import http from 'node:http';
 import fs from 'node:fs';
 import path from 'node:path';
 import crypto from 'node:crypto';
+import os from 'node:os';
 import { fileURLToPath } from 'node:url';
 import { gererTerminal } from './app-pc/terminal-sources.mjs';
 import { gererDonnees } from './app-pc/terminal-donnees.mjs';
 import { creerVoixLocale } from './app-pc/voix-locale.mjs';
 
 const RACINE = path.dirname(fileURLToPath(import.meta.url));
-const PORT = Number(process.argv[2]) || Number(process.env.PORT) || 8000;
+const PORT = Number(process.argv.slice(2).find(a => /^\d+$/.test(a))) || Number(process.env.PORT) || 8000;
+const RESEAU = process.argv.includes('--reseau') || process.env.RAYLE_RESEAU === '1';
+const IP_PRIVEE = /^(?:::ffff:)?(?:127\.\d+\.\d+\.\d+|10\.\d+\.\d+\.\d+|192\.168\.\d+\.\d+|172\.(?:1[6-9]|2\d|3[01])\.\d+\.\d+|169\.254\.\d+\.\d+|::1|f[cd][0-9a-f]{2}:.*|fe80:.*)$/i;
+const ORIGINE_PRIVEE = /^https?:\/\/(?:localhost|127\.\d+\.\d+\.\d+|10\.\d+\.\d+\.\d+|192\.168\.\d+\.\d+|172\.(?:1[6-9]|2\d|3[01])\.\d+\.\d+|\[::1\]|[^./:]+\.local)(?::\d+)?$/i;
+export function adressesReseau(port = PORT) { const L = []; for (const l of Object.values(os.networkInterfaces())) for (const a of l || []) if (a.family === 'IPv4' && !a.internal && IP_PRIVEE.test(a.address)) L.push('http://' + a.address + ':' + port); return L; }
 const TYPES = {
   '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.mjs': 'text/javascript; charset=utf-8', '.css': 'text/css; charset=utf-8',
   '.json': 'application/json; charset=utf-8', '.wasm': 'application/wasm', '.task': 'application/octet-stream', '.svg': 'image/svg+xml', '.png': 'image/png', '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.ico': 'image/x-icon',
   '.webmanifest': 'application/manifest+json', '.txt': 'text/plain; charset=utf-8', '.md': 'text/plain; charset=utf-8', '.woff2': 'font/woff2'
 };
 // Jamais servis : secrets, dépôt git, dépendances, sauvegardes
-const INTERDITS = /(^|\/)(\.git|node_modules|worker|\.claude|\.serena)(\/|$)|(^|\/)\.env|\.dev\.vars|\.zip$/i;
+const INTERDITS = /(^|\/)(\.git|node_modules|worker|\.claude|\.serena)(\/|$)|(^|\/)(backups|captures[^/]*)(\/|$)|(^|\/)\.env|\.dev\.vars|\.zip$/i;
 
 /* Backend Raylé embarqué (actualités, météo, calendrier, COT, macro, sources…) : même code que le Worker Cloudflare (worker/portable/coeur.js, hors dépôt public),
    servi sur la MÊME adresse que l'application : aucun CORS, aucun jeton (l'écoute est locale). Absent : l'application utilise le Worker distant. */
@@ -41,6 +47,10 @@ export function creerServeur({ portReseau, dossierDonnees = process.env.RAYLE_DO
   const serveur = http.createServer((req, res) => {
     let chemin;
     try { chemin = decodeURIComponent(new URL(req.url, 'http://x').pathname); } catch (e) { res.writeHead(400); return res.end('requête invalide'); }
+    // réseau local : jamais un client hors réseau privé ; CORS seulement pour les origines privées (jamais « * »)
+    if (!IP_PRIVEE.test(req.socket.remoteAddress || '')) { res.writeHead(403); return res.end('réseau privé seulement'); }
+    const origine = req.headers.origin; if (origine && ORIGINE_PRIVEE.test(origine)) { res.setHeader('Access-Control-Allow-Origin', origine); res.setHeader('Vary', 'Origin'); res.setHeader('Access-Control-Allow-Headers', 'content-type, x-rayle-token'); res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS'); if (req.method === 'OPTIONS') { res.writeHead(204); return res.end(); } }
+    if (chemin === '/__reseau') { res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store' }); return res.end(JSON.stringify({ reseau: RESEAU, port: PORT, adresses: RESEAU ? adressesReseau() : [], local: 'http://127.0.0.1:' + PORT })); }
     if (chemin.startsWith('/__voix/')) return voixLocale.gerer(req, res, chemin);
     if (gererApi && ROUTES_API.test(chemin)) return repondreApi(req, res);
     if (/^\/__(bougies|cot|actus|banques|institutions|sante|gld|calendrier2)$/.test(chemin) && gererDonnees(req, res, chemin)) return;   // données du Terminal (app-pc/terminal-donnees.mjs)
@@ -69,7 +79,7 @@ export function creerServeur({ portReseau, dossierDonnees = process.env.RAYLE_DO
 
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
   const principal = creerServeur({ portReseau: Number(process.env.RAYLE_PORT_RESEAU) || PORT + 1 });
-  principal.listen(PORT, '127.0.0.1', () => console.log('Raylé : http://127.0.0.1:' + PORT + '   (Ctrl+C pour arrêter ; fichiers toujours revalidés)'));
+  principal.listen(PORT, RESEAU ? '0.0.0.0' : '127.0.0.1', () => { console.log('Raylé : http://127.0.0.1:' + PORT + '   (Ctrl+C pour arrêter ; fichiers toujours revalidés)'); if (RESEAU) { console.log('Réseau local OUVERT (clients privés seulement). Téléphone : ' + (adressesReseau().join('  ou  ') || 'aucune adresse trouvée') + '   ·   page « Connecter le téléphone » : http://127.0.0.1:' + PORT + '/connecter-telephone.html'); } });
   principal.on('error', e => { console.log(e.code === 'EADDRINUSE' ? 'Le port ' + PORT + ' est déjà utilisé : Raylé tourne peut-être déjà (http://127.0.0.1:' + PORT + '). Ferme-le ou choisis un autre port : node serveur.mjs <port>.' : 'Serveur impossible : ' + e.message); process.exit(1); });
   for (const sig of ['SIGINT', 'SIGTERM']) process.on(sig, () => { process.exit(0); });
 }

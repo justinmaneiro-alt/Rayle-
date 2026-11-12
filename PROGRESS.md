@@ -1,3 +1,16 @@
+# Flèches v2.1 et téléphone (2026-11-12, branche restructuration-rayle)
+
+## Partie 1 — flèches v2.1 : FAITE (commit 4e71f4f)
+- `fleches-lecture-v21.js` (scellée) à côté de la v2 (scellée, intacte) + `zones-fines-v1.js` (zones d'au moins 0,3 ATR, fusion à 0,3 ATR, appliquée AVANT dessin dans `graphique-or.js` : dessin = surveillance). Hystérésis MA200 (≥ 1 ATR ou 24 bougies avec ≥ 0,3 ATR), un retest par cassure, aucun retest après fausse cassure, fausse cassure = étiquette. Ajout non demandé : 12 bougies entre deux flèches d'un même niveau qui a changé de rôle. Registre `rayle_or_fleches_t4` (les anciens ne sont pas touchés).
+- Rejeu or H1 2026 : v1 = 82 flèches (max 12 sur 600 bougies) ; v2 = 100 (max 38) ; **v2.1 = 93 (58 → 55 cassures, 15 → 14 retests, 27 → 24 rebonds), max 34 sur 600 bougies : l'objectif de 25 n'est PAS atteint**. Cas de contrôle conservés : (a) 2 nov. 00:00, (b) 4 nov. 07:00, (c) 6 rebonds baissiers sur 4 131–4 156. Le reste du maximum vient du bruit de la MA200 d'octobre (cassures espacées de plus de 24 bougies ou à ≥ 1 ATR) ; le réduire davantage exigerait de durcir des règles au risque de perdre les cas de contrôle.
+- Règles ajustées APRÈS avoir vu le rejeu de la v2 : aucune preuve de performance. Tests : `fleches-lecture-v21-test.mjs` (31), v2 (23), suite `agent-trading/tests/tout.mjs`, Chrome 1600/1024/390.
+
+## Partie 2 — téléphone = même Raylé que le PC : FAITE côté code
+- Diagnostic : `outils-restructuration/DIAGNOSTIC-MOBILE.md`. **Cause : le téléphone charge `main` (GitHub Pages), qui contient encore l'ancienne coque mobile.** Tant que la branche n'est pas fusionnée dans `main`, rien ne change sur le téléphone.
+- Fait : service worker 2026.11.12.1 (skipWaiting, claim, purge de tous les anciens caches), manifest et icônes or, serveur `--reseau` + `connecter-telephone.html` (QR), bandeau « Serveur injoignable », terminal repliable à ≤ 820 px, tests (`galaxie/tests/mobile-unifie-test.mjs` 18, Chrome `tests-navigateur/mobile-s23-test.mjs` 16 avec captures `outils-restructuration/captures-mobile/`, `mobile-fluidite-test.mjs` : 145 i/s accueil et anatomie, 104 i/s en balayage, processeur ralenti ×4, rendu logiciel).
+- **Pour Justin (téléphone), 5 lignes** : 1) fusionner la branche dans `main` (commande donnée en fin de session) et attendre la publication GitHub Pages ; 2) sur le téléphone : désinstaller l'ancienne application Raylé (ou Chrome ⋮ → Paramètres → Paramètres des sites → Raylé → Effacer) ; 3) rouvrir l'adresse du site, puis ⋮ → « Ajouter à l'écran d'accueil » ; 4) pour les données en direct du PC : lancer `Rayle-reseau.cmd`, scanner le QR de `connecter-telephone.html` (même Wi-Fi), et ajouter à l'écran d'accueil depuis cette adresse ; 5) vérifier que le bandeau « Serveur injoignable » n'apparaît pas.
+- Non vérifié : vrai téléphone, vrai Wi-Fi, géolocalisation réelle (la météo affiche « position refusée » en test), Worker Cloudflare distant (non déployé, jamais touché).
+
 # Mission en trois étapes (2026-11-12) — avancement
 
 Règle : les flèches marquent des ÉVÉNEMENTS de lecture, pas des trades rentables ; aucun type n'est supprimé parce qu'il ne bat pas le hasard, seuls le bruit et les grappes le sont. Aucun ordre, rien de déployé, fichiers scellés intacts.

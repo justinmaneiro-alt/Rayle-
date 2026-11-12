@@ -1,14 +1,14 @@
 {
   "name": "Raylé",
   "short_name": "Raylé",
-  "description": "Raylé, l'IA personnelle : actualités, marchés, météo, voix.",
+  "description": "Raylé : carrousel de fenêtres vivantes (Terminal, Anatomie 3D, Terre, Développement 3D), thème Jarvis or.",
   "lang": "fr",
   "start_url": "./index.html",
   "scope": "./",
   "display": "standalone",
   "orientation": "any",
-  "background_color": "#05080c",
-  "theme_color": "#05080c",
+  "background_color": "#080503",
+  "theme_color": "#080503",
   "categories": [
     "productivity",
     "finance",

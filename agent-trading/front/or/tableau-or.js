@@ -299,6 +299,7 @@ export function monterTableauOr(el, { modules = {}, contexte = 'page', fetchFn, 
   mouvUI = creerMouvementsUI({ racine: R, graph, moteur }); api.mouvements = mouvUI; api.graphe = () => graph;
   api.monterModule = (nom, m) => { modules[nom] = m; }; api.rendre = () => rendre();
   // mes outils (dessin, surveillance, alertes, registre) : dans tous les contextes ; un échec n'empêche pas le reste
+  import('./mobile-outils.js').then(m => { api.outilsMobiles = m.monterOutilsMobiles(R); }).catch(() => { /* facultatif */ });
   import('./rsi-ui.js').then(m => { api.rsiUI = m.monterRsi(api); }).catch(e => notifier('RSI indisponible : ' + e.message, { niveau: 'doux', dit: false, raison: 'module' }));
   import('./fleches-terminal-ui.js').then(m => { api.flechesT = m.monterFlechesTerminal(api, {}); }).catch(e => notifier('Flèches du Terminal indisponibles : ' + e.message, { niveau: 'doux', dit: false, raison: 'module' }));
   import('./terminal-outils.js').then(m => { if (!R.isConnected && el.innerHTML === '') return; modules.outils = m.monterOutils(api, { ...(fetchFn ? { fetchFn } : {}), ...(window.__RAYLE_OR_OUTILS_TEST__ || {}) /* crochet de test : horloge et bougies H1 rejouées */ }); api.outils = modules.outils; }).catch(e => notifier('Outils de dessin indisponibles : ' + e.message, { niveau: 'doux', dit: false, raison: 'module' }));

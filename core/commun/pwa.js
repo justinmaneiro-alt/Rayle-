@@ -18,6 +18,7 @@
     document.getElementById('pwa-maj-ok').addEventListener('click',()=>{ const w=reg&&reg.waiting; if(w) w.postMessage({type:'SKIP_WAITING'}); else location.reload(); });
     document.getElementById('pwa-maj-non').addEventListener('click',()=>b.remove());
   }
+  function avertir(t){ try{ const b=document.createElement('div'); b.id='pwa-maj'; b.setAttribute('role','status'); b.innerHTML='<span>'+t+'</span>'; document.body.appendChild(b); }catch(e){} }
   function surveiller(r){
     const verifier=()=>{ if(r.waiting&&navigator.serviceWorker.controller){ etat.miseAJour=true; bandeau(); } };
     verifier();
@@ -26,8 +27,9 @@
   async function demarrer(){
     if(!('serviceWorker' in navigator)||!sur()||desactive()) return;
     try{
+      const avait=!!navigator.serviceWorker.controller;
       reg=await navigator.serviceWorker.register('sw.js',{scope:'./'}); etat.actif=true; surveiller(reg);
-      let rechargee=false; navigator.serviceWorker.addEventListener('controllerchange',()=>{ if(rechargee) return; rechargee=true; location.reload(); });
+      let rechargee=false; navigator.serviceWorker.addEventListener('controllerchange',()=>{ if(rechargee||!avait) return; rechargee=true; avertir('Nouvelle version installée, rechargement…'); setTimeout(()=>location.reload(),700); });   // 2026-11-12 : skipWaiting automatique ; pas de rechargement à la toute première installation
       navigator.serviceWorker.addEventListener('message',e=>{ if(e.data&&e.data.type==='VERSION') etat.version=e.data.version; });
       navigator.serviceWorker.ready.then(r=>{ if(r.active) r.active.postMessage({type:'VERSION'}); });
       setInterval(()=>{ try{ reg.update(); }catch(e){} },30*60*1000);   // une vérification toutes les 30 minutes
