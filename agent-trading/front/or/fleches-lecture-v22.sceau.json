@@ -1,0 +1,6 @@
+{
+ "version": "fleches-lecture-v22",
+ "scelle_le": "2026-11-12",
+ "sha256": "9b46bac6ce9a1cbbbad277e9d30b7ec2791b22d59ef147884f9780f38af679ad",
+ "note": "Empreinte SHA-256 de fleches-lecture-v22.js (fins de ligne normalisées), posée APRÈS les tests ; règles ajustées après avoir vu des exemples (aucune preuve de performance)."
+}
