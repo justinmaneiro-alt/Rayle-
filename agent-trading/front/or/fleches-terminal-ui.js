@@ -2,9 +2,9 @@
    Calcul : fleches-terminal-v1.js (scellé). Ici : bougies H1 closes du moteur → flèches → graphique ; registre local en ajout seul (une flèche posée n'est
    jamais déplacée ni retirée) ; interrupteur « historique 30 jours » ; infobulle au survol (date, type, résultat mesuré à 6, 12 et 24 bougies).
    Les flèches restent visibles en mode Pro épuré. Information de lecture, jamais un ordre. */
-import * as F from './fleches-simples-v3.js'; import { zonesDirect } from './zones-direct.js';   // v3 : zones majeures causales (3 touches déjà vues). Ancienne ligne : import * as F from './fleches-simples-v2.js'; import { zonesDirect } from './zones-direct.js';   // v2 (2026-11-12) : flèches simples rejouées EN DIRECT (causales). Ancienne ligne : import * as F from './fleches-simples.js';   // v2 (2026-11-12) : flèches lues sur les zones H1 DESSINÉES ; v1 et terminal-v1 (scellées) restent disponibles. Ancienne ligne :    // 2026-11-12 : flèches de lecture (MA200 et gros niveaux seulement, sans grappes) ; l'ancienne règle fleches-terminal-v1 (scellée) reste disponible en mode debug
+import * as F from './fleches-simples-v4.js'; import { zonesDirect } from './zones-direct.js';   // v4 (2026-11-12) : seulement les niveaux en trait plein (structure niveaux-majeurs-v1 + zones de swing actives, ≥ 3 touches vues). Ancienne ligne : import * as F from './fleches-simples-v3.js'; import { zonesDirect } from './zones-direct.js';   // v3 : zones majeures causales (3 touches déjà vues). Ancienne ligne : import * as F from './fleches-simples-v2.js'; import { zonesDirect } from './zones-direct.js';   // v2 (2026-11-12) : flèches simples rejouées EN DIRECT (causales). Ancienne ligne : import * as F from './fleches-simples.js';   // v2 (2026-11-12) : flèches lues sur les zones H1 DESSINÉES ; v1 et terminal-v1 (scellées) restent disponibles. Ancienne ligne :    // 2026-11-12 : flèches de lecture (MA200 et gros niveaux seulement, sans grappes) ; l'ancienne règle fleches-terminal-v1 (scellée) reste disponible en mode debug
 
-const CLE_REG = 'rayle_or_fleches_t8', CLE_VU = 'rayle_or_fleches_t8_vu', CLE_HIST = 'rayle_or_fleches_t1_hist';
+const CLE_REG = 'rayle_or_fleches_t9', CLE_VU = 'rayle_or_fleches_t9_vu', CLE_HIST = 'rayle_or_fleches_t1_hist';
 const lireJ = (k, d) => { try { const v = localStorage.getItem(k); return v ? JSON.parse(v) : d; } catch (e) { return d; } };
 const ecrireJ = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) { /* plein ou refusé */ } };
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -23,7 +23,7 @@ export function monterFlechesTerminal(T, { maintenant = () => Date.now(), pret =
   const zone = R.querySelector('[data-graph]'); if (zone) { zone.style.position = zone.style.position || 'relative'; zone.appendChild(bulle); }
 
   /* arrows visibles : tout l'historique des 30 jours, ou seulement les dernières 24 heures quand l'interrupteur est coupé */
-  const visibles = () => { const n = maintenant(), de = n - (E.hist ? 30 : 1) * 86400e3; return E.liste.filter(f => !f.masquee && f.tCloture >= de && (f.levelId === 'MA200' || !E.ids || E.ids.some(z => z.bas <= f.zoneHaut + 2 && z.haut >= f.zoneBas - 2))); };   // jamais de flèche sans niveau dessiné
+  const visibles = () => { const n = maintenant(), de = n - (E.hist ? 30 : 1) * 86400e3; return E.liste.filter(f => !f.masquee && f.tCloture >= de && (f.levelId === 'MA200' || f.niveauType === 'structure' || !E.ids || E.ids.some(z => z.bas <= f.zoneHaut + 2 && z.haut >= f.zoneBas - 2))); };   // jamais de flèche sans niveau dessiné
   function afficher() {
     const V = visibles(); try { T.graph.flechesTerminal(V); } catch (e) { /* graphique pas prêt */ }
     const b = R.querySelector('[data-ft-n]'); if (b) b.textContent = `(${V.length})`;
