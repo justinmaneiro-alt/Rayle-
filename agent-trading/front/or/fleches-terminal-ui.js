@@ -2,30 +2,40 @@
    Calcul : fleches-terminal-v1.js (scellé). Ici : bougies H1 closes du moteur → flèches → graphique ; registre local en ajout seul (une flèche posée n'est
    jamais déplacée ni retirée) ; interrupteur « historique 30 jours » ; infobulle au survol (date, type, résultat mesuré à 6, 12 et 24 bougies).
    Les flèches restent visibles en mode Pro épuré. Information de lecture, jamais un ordre. */
-import * as F from './fleches-simples-v4.js'; import { zonesDirect } from './zones-direct.js';   // v4 (2026-11-12) : seulement les niveaux en trait plein (structure niveaux-majeurs-v1 + zones de swing actives, ≥ 3 touches vues). Ancienne ligne : import * as F from './fleches-simples-v3.js'; import { zonesDirect } from './zones-direct.js';   // v3 : zones majeures causales (3 touches déjà vues). Ancienne ligne : import * as F from './fleches-simples-v2.js'; import { zonesDirect } from './zones-direct.js';   // v2 (2026-11-12) : flèches simples rejouées EN DIRECT (causales). Ancienne ligne : import * as F from './fleches-simples.js';   // v2 (2026-11-12) : flèches lues sur les zones H1 DESSINÉES ; v1 et terminal-v1 (scellées) restent disponibles. Ancienne ligne :    // 2026-11-12 : flèches de lecture (MA200 et gros niveaux seulement, sans grappes) ; l'ancienne règle fleches-terminal-v1 (scellée) reste disponible en mode debug
+import * as V1 from './fleches-simples.js'; import * as F from './fleches-simples-v4.js'; import { zonesDirect } from './zones-direct.js';   // v4 (2026-11-12) : seulement les niveaux en trait plein (structure niveaux-majeurs-v1 + zones de swing actives, ≥ 3 touches vues). Ancienne ligne : import * as F from './fleches-simples-v3.js'; import { zonesDirect } from './zones-direct.js';   // v3 : zones majeures causales (3 touches déjà vues). Ancienne ligne : import * as F from './fleches-simples-v2.js'; import { zonesDirect } from './zones-direct.js';   // v2 (2026-11-12) : flèches simples rejouées EN DIRECT (causales). Ancienne ligne : import * as F from './fleches-simples.js';   // v2 (2026-11-12) : flèches lues sur les zones H1 DESSINÉES ; v1 et terminal-v1 (scellées) restent disponibles. Ancienne ligne :    // 2026-11-12 : flèches de lecture (MA200 et gros niveaux seulement, sans grappes) ; l'ancienne règle fleches-terminal-v1 (scellée) reste disponible en mode debug
 
-const CLE_REG = 'rayle_or_fleches_t9', CLE_VU = 'rayle_or_fleches_t9_vu', CLE_HIST = 'rayle_or_fleches_t1_hist';
+const CLE_REG = 'rayle_or_fleches_t9', CLE_VU = 'rayle_or_fleches_t9_vu', CLE_HIST = 'rayle_or_fleches_t1_hist', CLE_MODE = 'rayle_or_fleches_mode';   // mode : 'direct' (v4, causale, par défaut) ou 'historique' (v1 scellée : rétrospective, jamais pour entrer)
+export const BANDEAU = 'Flèches rétrospectives : placées avec des informations postérieures, ne pas utiliser pour entrer.';
 const lireJ = (k, d) => { try { const v = localStorage.getItem(k); return v ? JSON.parse(v) : d; } catch (e) { return d; } };
 const ecrireJ = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) { /* plein ou refusé */ } };
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const dateLongue = t => new Date(t).toLocaleString('fr-FR', { timeZone: 'Europe/Paris', weekday: 'short', day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
 
 export function monterFlechesTerminal(T, { maintenant = () => Date.now(), pret = Promise.resolve() } = {}) {
-  const R = T.R, E = { registre: lireJ(CLE_REG, null), hist: lireJ(CLE_HIST, true), cle: '', liste: [], dernier: null, nouvelles: 0 };
+  const R = T.R, E = { registre: lireJ(CLE_REG, null), hist: lireJ(CLE_HIST, true), mode: lireJ(CLE_MODE, 'direct') === 'historique' ? 'historique' : 'direct', retro: [], cle: '', liste: [], dernier: null, nouvelles: 0 };
   const premier = E.registre === null; if (premier) E.registre = [];
   const barre = R.querySelector('[data-graph-barre]');
   if (barre && !barre.querySelector('[data-ft]')) {
     const l = document.createElement('label'); l.className = 'tor-gb tor-ft'; l.dataset.ft = ''; l.title = 'Repères de lecture posés à la clôture de la bougie H1 : MA200 (cassure confirmée, retest, rebond) et gros supports / résistances (2 bougies sur le niveau, rebond confirmé). Jamais redessinés, jamais un ordre ni une promesse de gain.';
     l.innerHTML = '<input type="checkbox" data-ft-hist> Flèches : historique 30 j <b data-ft-n></b>'; barre.appendChild(l);
   }
+  function placerMode() { const l = R.querySelector('.tor-ft-m'), h = R.querySelector('.tp-haut'); if (l && h && l.parentNode !== h) h.insertBefore(l, h.querySelector('.tp-doux')); }   // dans la ligne du haut du Terminal (visible en mode Pro épuré)
+  if ((barre || R.querySelector('.tp-haut')) && !R.querySelector('[data-ft-mode]')) {
+    const l = document.createElement('label'); l.className = 'tor-gb tor-ft-m'; l.title = 'Direct : flèches causales (v4), posées à la bougie de confirmation, comme en temps réel (alertes vocales). Historique : flèches rétrospectives (v1), placées avec des informations postérieures : à regarder, jamais pour entrer.';
+    l.innerHTML = 'Flèches <select data-ft-mode><option value="direct">Direct</option><option value="historique">Historique</option></select>'; (barre || R.querySelector('.tp-haut')).appendChild(l); placerMode();
+  }
+  const choix = R.querySelector('[data-ft-mode]'); if (choix) { choix.value = E.mode; choix.addEventListener('change', () => api.fixerMode(choix.value)); }
   const caseHist = R.querySelector('[data-ft-hist]'); if (caseHist) { caseHist.checked = !!E.hist; caseHist.addEventListener('change', () => { E.hist = caseHist.checked; ecrireJ(CLE_HIST, E.hist); afficher(); }); }
   const bulle = document.createElement('div'); bulle.className = 'tor-ft-bulle'; bulle.hidden = true; bulle.setAttribute('role', 'tooltip');
   const zone = R.querySelector('[data-graph]'); if (zone) { zone.style.position = zone.style.position || 'relative'; zone.appendChild(bulle); }
+  const bandeau = document.createElement('div'); bandeau.className = 'tor-ft-bandeau'; bandeau.dataset.ftBandeau = ''; bandeau.setAttribute('role', 'status'); bandeau.textContent = BANDEAU;
+  bandeau.style.cssText = 'position:absolute;top:0;left:0;right:0;z-index:6;padding:4px 8px;font:600 12px system-ui,sans-serif;text-align:center;background:rgba(201,178,122,.92);color:#10161b;pointer-events:none';
+  bandeau.hidden = E.mode !== 'historique'; if (zone) zone.appendChild(bandeau);
 
   /* arrows visibles : tout l'historique des 30 jours, ou seulement les dernières 24 heures quand l'interrupteur est coupé */
-  const visibles = () => { const n = maintenant(), de = n - (E.hist ? 30 : 1) * 86400e3; return E.liste.filter(f => !f.masquee && f.tCloture >= de && (f.levelId === 'MA200' || f.niveauType === 'structure' || !E.ids || E.ids.some(z => z.bas <= f.zoneHaut + 2 && z.haut >= f.zoneBas - 2))); };   // jamais de flèche sans niveau dessiné
+  const visibles = () => { const n = maintenant(), de = n - (E.hist ? 30 : 1) * 86400e3; if (E.mode === 'historique') return E.retro.filter(f => !f.masquee && f.tCloture >= de); return E.liste.filter(f => !f.masquee && f.tCloture >= de && (f.levelId === 'MA200' || f.niveauType === 'structure' || !E.ids || E.ids.some(z => z.bas <= f.zoneHaut + 2 && z.haut >= f.zoneBas - 2))); };   // jamais de flèche sans niveau dessiné
   function afficher() {
-    const V = visibles(); try { T.graph.flechesTerminal(V); } catch (e) { /* graphique pas prêt */ }
+    bandeau.hidden = E.mode !== 'historique'; const V = visibles(); try { T.graph.flechesTerminal(V); } catch (e) { /* graphique pas prêt */ }
     const b = R.querySelector('[data-ft-n]'); if (b) b.textContent = `(${V.length})`;
     ancrerBulle(V);
   }
@@ -46,9 +56,11 @@ export function monterFlechesTerminal(T, { maintenant = () => Date.now(), pret =
     E.registre = F.fusionnerRegistre(E.registre, r.fleches);
     for (const f of E.registre) if (!avant.has(f.id) && !f.masquee && !premier && f.tCloture > maintenant() - 2 * 3600e3) { E.nouvelles++; try { T.notifier(`Flèche ${f.dir > 0 ? 'haussière' : 'baissière'} : ${f.nom} (à la clôture de la bougie H1).`, { niveau: 'fort', dit: true }); } catch (e) { /* */ } }
     ecrireJ(CLE_REG, E.registre.slice(-600));
-    E.liste = E.registre;
+    E.liste = E.registre; retro(H1, zones);
     return true;
   }
+  /* mode Historique : règle v1 scellée appliquée aux zones FINALES (informations postérieures) ; calculé à part, ne touche ni au registre ni aux alertes */
+  function retro(H1, zones) { try { const r = V1.calculer(H1, zones, { maintenant: maintenant(), jours: 30 }); E.retro = r.fleches || []; } catch (e) { E.retro = []; } }
   /* infobulle : survol d'une flèche (bougie du graphique qui porte la marque) */
   let abonne = false, parTemps = new Map();
   function ancrerBulle(V) {
@@ -57,13 +69,16 @@ export function monterFlechesTerminal(T, { maintenant = () => Date.now(), pret =
     ch.subscribeCrosshairMove(p => {
       if (!p || !p.point || p.time == null) { bulle.hidden = true; return; }
       const L = parTemps.get(p.time); if (!L || !L.length) { bulle.hidden = true; return; }
+      if (E.mode === 'historique') { bulle.innerHTML = '<div class="tor-ft-f"><b>Flèche rétrospective</b><span>' + esc(dateLongue(L[0].tCloture)) + '</span><span>' + esc(BANDEAU) + '</span></div>'; bulle.hidden = false; const w0 = bulle.offsetWidth || 260; bulle.style.left = Math.max(4, Math.min(p.point.x + 12, (zone ? zone.clientWidth : 600) - w0 - 4)) + 'px'; bulle.style.top = Math.max(4, p.point.y - 20) + 'px'; return; }
       bulle.innerHTML = L.map(f => `<div class="tor-ft-f"><b>${esc(f.nom)}</b><span>${esc(dateLongue(f.tCloture))} (clôture de la bougie H1)</span>${F.detail(f).concat(F.textesRes(f.resultat)).map(x => `<span>${esc(x)}</span>`).join('')}</div>`).join('') + '<small>Description de ce qui s’est passé, jamais un ordre.</small>';
       bulle.hidden = false; const w = bulle.offsetWidth || 260; bulle.style.left = Math.max(4, Math.min(p.point.x + 12, (zone ? zone.clientWidth : 600) - w - 4)) + 'px'; bulle.style.top = Math.max(4, p.point.y - 20) + 'px';
     });
   }
   const api = {
-    maj() { try { if (calculer()) afficher(); else if (!E.liste.length) afficher(); } catch (e) { console.warn('flèches du Terminal :', e.message); } },
-    etat: () => ({ n: E.liste.length, visibles: visibles().length, hist: E.hist, raison: E.raison || null, nouvelles: E.nouvelles, barres: E.n || 0 }),
+    maj() { try { placerMode(); if (calculer()) afficher(); else if (!E.liste.length) afficher(); } catch (e) { console.warn('flèches du Terminal :', e.message); } },
+    fixerMode(m) { E.mode = m === 'historique' ? 'historique' : 'direct'; ecrireJ(CLE_MODE, E.mode); if (choix) choix.value = E.mode; if (E.mode === 'historique' && !E.retro.length) { try { retro(T.h1 ? T.h1() : [], T.graph.zonesH1 ? T.graph.zonesH1() : []); } catch (e) { /* */ } } afficher(); },
+    mode: () => E.mode, direct: () => E.liste.slice(), retro: () => E.retro.slice(),
+    etat: () => ({ mode: E.mode, bandeau: !bandeau.hidden, n: E.liste.length, visibles: visibles().length, hist: E.hist, raison: E.raison || null, nouvelles: E.nouvelles, barres: E.n || 0 }),
     liste: () => E.liste.slice(), visibles, bilan: () => F.bilan(T.h1 ? T.h1() : [], E.liste.filter(f => !f.masquee)), fixerHistorique(v) { E.hist = !!v; ecrireJ(CLE_HIST, E.hist); if (caseHist) caseHist.checked = E.hist; afficher(); }
   };
   pret.then(() => api.maj());
