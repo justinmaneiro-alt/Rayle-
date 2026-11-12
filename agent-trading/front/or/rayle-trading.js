@@ -32,7 +32,7 @@ export function creerTradingActif({ racine, graph, strategie, parler = () => {},
   }
   const couches = () => graph.couches();
   function poser(cle, on) { const c = racine.querySelector(`[data-couche="${cle}"]`); if (c) { c.checked = on; c.dispatchEvent(new Event('change', { bubbles: true })); } else graph.couches({ [cle]: on }); }
-  function epure() { const tout = new Set([...OUTILS.map(o => o.cle), 'sr', 'liquidite', 'fleches', 'mouvements', 'volume', 'structure', 'retournements']); for (const k of tout) poser(k, PRESET_EPURE.includes(k)); majOutils(); }
+  function epure() { const tout = new Set([...OUTILS.map(o => o.cle), 'sr', 'liquidite', 'fleches', 'mouvements', 'volume', 'structure', 'retournements']); for (const k of tout) poser(k, PRESET_EPURE.includes(k) || k === 'fleches'); majOutils(); }
   function majOutils() { for (const c of racine.querySelectorAll('[data-ray-outil]')) c.checked = !!couches()[c.dataset.rayOutil]; const s = q('[data-ray-moyenne]'); if (s) s.value = strategie.etat().reg.moyenne || 'ma200'; const v = q('[data-ray-voix="actif"]'); if (v) v.checked = !!E.voix.actif; }
   racine.addEventListener('change', ev => { const t = ev.target; if (t.dataset && t.dataset.rayOutil) { poser(t.dataset.rayOutil, t.checked); majOutils(); } else if (t.matches && t.matches('[data-ray-moyenne]')) strategie.reglage('moyenne', t.value); else if (t.dataset && t.dataset.rayVoix) { E.voix[t.dataset.rayVoix] = t.checked; ecrire(CLE_V, E.voix); } });
   racine.addEventListener('click', ev => { const b = ev.target.closest('[data-a="ray-epure-defaut"],[data-a="ray-tout-outils"]'); if (!b) return; if (b.dataset.a === 'ray-epure-defaut') epure(); else { for (const o of OUTILS) poser(o.cle, true); majOutils(); } });

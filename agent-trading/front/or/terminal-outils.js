@@ -66,7 +66,7 @@ export function monterOutils(T, { stockage = null, fetchFn = fetch, maintenant =
 
   /* ─── réglages d'affichage ─── */
   function appliquerAffichage() {
-    graph.couches({ sr: regl.niveauxAuto, liquidite: regl.niveauxAuto, fleches: regl.anciennesFleches });
+    graph.couches({ sr: regl.niveauxAuto, liquidite: regl.niveauxAuto, flechesTout: regl.anciennesFleches });
     for (const c of R.querySelectorAll('[data-couche]')) c.checked = graph.couches()[c.dataset.couche] !== false;
     for (const s of ['[data-bilan-fleches]']) { const x = q(s); if (x) x.hidden = !regl.anciennesFleches; }
     const vh = q('[data-versions-h1]'); if (vh && !regl.anciennesFleches) vh.hidden = true;
