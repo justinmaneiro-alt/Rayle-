@@ -1,0 +1,33 @@
+/* Atlas d'anatomie 2D : thème Jarvis or, lisible sur téléphone (cibles ≥ 44 px, texte ≥ 14 px). */
+#atlas-anatomie{position:fixed;inset:0;z-index:60;display:flex;flex-direction:column;background:radial-gradient(120% 80% at 50% 0%,#14100a 0%,#080503 70%);color:#e9dfc8;font:15px/1.45 system-ui,'Segoe UI',sans-serif;padding-top:env(safe-area-inset-top)}
+#atlas-anatomie .at-haut{display:flex;align-items:center;padding:12px 64px 6px 16px}
+#atlas-anatomie .at-haut b{display:block;font-size:18px;color:#ffc66b;letter-spacing:.02em}#atlas-anatomie .at-haut small{color:#9b8a68;font-size:12px}
+#atlas-anatomie .at-onglets{display:flex;gap:6px;padding:6px 14px;border-bottom:1px solid rgba(255,174,61,.18)}
+#atlas-anatomie button{font:inherit;color:inherit;background:rgba(255,174,61,.07);border:1px solid rgba(255,174,61,.28);border-radius:0;min-height:44px;padding:8px 12px;cursor:pointer;text-align:left}
+#atlas-anatomie .at-onglets button{flex:1;text-align:center}
+#atlas-anatomie button[aria-selected="true"]{background:rgba(255,174,61,.22);border-color:#ffae3d;color:#fff}
+#atlas-anatomie .at-corps-vue{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;padding:12px 14px calc(24px + env(safe-area-inset-bottom))}
+#atlas-anatomie .at-charge,#atlas-anatomie .at-aide,#atlas-anatomie .at-vide{color:#9b8a68;font-size:14px;margin:8px 0}
+#atlas-anatomie .at-corps{display:grid;grid-template-columns:minmax(150px,46%) 1fr;gap:12px;align-items:start}
+#atlas-anatomie .at-svg{width:100%;height:auto;max-height:68vh;touch-action:manipulation}
+#atlas-anatomie .at-z{cursor:pointer;outline:none}
+#atlas-anatomie .at-z path,#atlas-anatomie .at-z ellipse,#atlas-anatomie .at-z rect,#atlas-anatomie .at-z circle{fill:rgba(255,200,120,.16);stroke:#c9a35a;stroke-width:1.6;stroke-linejoin:round}
+#atlas-anatomie .at-z .at-f{fill:none;stroke-width:1}
+#atlas-anatomie .at-z:hover path,#atlas-anatomie .at-z:hover ellipse,#atlas-anatomie .at-z:hover rect,#atlas-anatomie .at-z:hover circle,#atlas-anatomie .at-z:focus-visible path,#atlas-anatomie .at-z:focus-visible ellipse,#atlas-anatomie .at-z:focus-visible rect,#atlas-anatomie .at-z:active path,#atlas-anatomie .at-z:active ellipse,#atlas-anatomie .at-z:active rect,#atlas-anatomie .at-z:active circle{fill:rgba(255,174,61,.45);stroke:#fff}
+#atlas-anatomie ul{list-style:none;margin:0;padding:0;display:grid;gap:6px}
+#atlas-anatomie li button{width:100%;display:flex;flex-direction:column;gap:2px}
+#atlas-anatomie li small,#atlas-anatomie .at-genres small{color:#9b8a68;font-size:12px}
+#atlas-anatomie .at-ret{display:flex;align-items:center;gap:10px;margin-bottom:8px}#atlas-anatomie .at-ret b{color:#ffc66b}
+#atlas-anatomie .at-genres{display:flex;gap:6px;margin:6px 0 10px}#atlas-anatomie .at-genres button{flex:1;text-align:center}
+#atlas-anatomie .at-fiche header small{color:#9b8a68}#atlas-anatomie .at-fiche h3{margin:2px 0;font-size:20px;color:#ffc66b}#atlas-anatomie .at-fiche i{color:#a79b82}
+#atlas-anatomie dl{margin:10px 0}#atlas-anatomie dt{color:#ffae3d;font-size:13px;margin-top:8px;text-transform:uppercase;letter-spacing:.05em}#atlas-anatomie dd{margin:2px 0 0}
+#atlas-anatomie .at-fiche footer{margin-top:14px;font-size:12px;color:#9b8a68;border-top:1px solid rgba(255,174,61,.18);padding-top:8px}
+#atlas-anatomie .at-rech input{width:100%;box-sizing:border-box;min-height:46px;font:inherit;color:#fff;background:rgba(255,255,255,.05);border:1px solid rgba(255,174,61,.4);padding:10px 12px;margin-bottom:10px}
+#atlas-anatomie .at-q{font-size:17px;color:#fff;margin:10px 0}#atlas-anatomie .at-choix{display:grid;gap:8px}
+#atlas-anatomie .at-ok{background:rgba(79,209,139,.25)!important;border-color:#4fd18b!important}#atlas-anatomie .at-ko{background:rgba(224,90,90,.25)!important;border-color:#e05a5a!important}
+#atlas-anatomie .at-expl{margin:12px 0;color:#dcd2bb}#atlas-anatomie .at-score{color:#9b8a68;margin:4px 0}
+#atlas-anatomie .at-actions{display:flex;gap:8px;margin-top:10px}#atlas-anatomie .at-actions button{flex:1;text-align:center}
+#atlas-anatomie .at-carte{width:100%;min-height:220px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;text-align:center;font-size:18px;margin:10px 0}
+#atlas-anatomie .at-carte b{font-size:24px;color:#ffc66b}#atlas-anatomie .at-carte p{font-size:16px;margin:0}
+@media (max-width:480px){#atlas-anatomie .at-corps{grid-template-columns:1fr 1fr}}
+body.atlas-ouvert #app-croix{z-index:70}

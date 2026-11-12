@@ -112,11 +112,37 @@
   /* ───── actualités de France ───── */
   let modActus=null;
   const chargerMods=()=>modActus||(modActus=Promise.all([import(new URL('planetes/terre/pc/fil-actus.js',document.baseURI).href),import(new URL('planetes/terre/pc/actus-sujets.js',document.baseURI).href)]).then(([fil,suj])=>({fil,suj})).catch(e=>{ modActus=null; throw e; }));
+  /* Images des actualités (téléphone et PC) — jamais de carte vide :
+     cause des disparitions : chaque rafraîchissement (toutes les 10 min) refaisait tout le HTML avec des cadres vides, puis relançait la recherche d'image (lazy, Commons limité, erreur → cadre vidé).
+     Maintenant : (1) le DOM n'est refait que si les sujets changent ; (2) la dernière image valide de chaque sujet est gardée (mémoire + sessionStorage) et réaffichée tout de suite ;
+     (3) l'image est chargée dans un tampon et ne remplace le contenu QUE quand elle est vraiment chargée ; (4) sans image : un visuel de remplacement élégant (initiale du média), pas un trou ;
+     (5) la carte suivante est préchargée. */
+  const imgOk=new Map(); let sigActus='';
+  const cleSujet=s=>String(s.id||s.titre||'').slice(0,90);
+  const initiale=s=>(String(s.source||s.titre||'R').trim().charAt(0)||'R').toUpperCase();
+  const phHtml=s=>'<span class="ar-ph" aria-hidden="true"><b>'+esc(initiale(s))+'</b></span>';
+  try{ const m=JSON.parse(sessionStorage.getItem('rayle_ar_img')||'{}'); Object.keys(m).forEach(k=>imgOk.set(k,m[k])); }catch(e){}
+  const sauverImg=()=>{ try{ const o={}; [...imgOk.entries()].slice(-12).forEach(([k,v])=>o[k]=v); sessionStorage.setItem('rayle_ar_img',JSON.stringify(o)); }catch(e){} };
+  function precharger(src){ if(!src) return; try{ const i=new Image(); i.referrerPolicy='no-referrer'; i.decoding='async'; i.src=src; }catch(e){} }
+  function remplirImage(c,s,i,suivant){
+    const cle=cleSujet(s), memo=imgOk.get(cle);
+    c.innerHTML=memo||phHtml(s);                                 // tout de suite : la dernière image valide, sinon le visuel de remplacement
+    if(!window.ImagesActus) return;
+    const tampon=document.createElement('span'); tampon.className='ar-tampon'; tampon.setAttribute('aria-hidden','true'); c.appendChild(tampon);
+    let fini=false; const garder=()=>{ if(fini) return; const im=tampon.querySelector('img'); if(!im||!im.complete||!im.naturalWidth) return; fini=true; const h=tampon.innerHTML.replace(/loading="lazy"/g,'loading="eager"'); imgOk.set(cle,h); sauverImg(); c.innerHTML=h; };
+    const obs=new MutationObserver(()=>{ tampon.querySelectorAll('img').forEach(im=>{ if(!im.__ar){ im.__ar=1; im.addEventListener('load',garder); if(im.complete) garder(); } }); });
+    obs.observe(tampon,{childList:true,subtree:true});
+    try{ ImagesActus.attacher(tampon,s,{largeur:120,hauteur:80}); }catch(e){ obs.disconnect(); }
+    setTimeout(()=>{ obs.disconnect(); if(!fini&&tampon.parentNode===c) tampon.remove(); },20000);   // échec : le visuel de remplacement ou la dernière image reste
+    if(suivant){ const f=window.ImagesActus.imageFlux&&window.ImagesActus.imageFlux(suivant); precharger(f&&f.src); }
+  }
   function dessinerActus(){
     const a=etat.actus; if(!a) return;
-    if(a.erreur){ nActus.innerHTML='<p class="ar-vide ar-ko">INDISPONIBLE : '+esc(a.erreur)+'</p>'; return; }
+    if(a.erreur){ if(!nActus.querySelector('.ar-actu')) nActus.innerHTML='<p class="ar-vide ar-ko">INDISPONIBLE : '+esc(a.erreur)+'</p>'; return; }   // une erreur de rafraîchissement ne vide JAMAIS le contenu déjà affiché
+    const sig=a.sujets.map(cleSujet).join('|'); if(sig===sigActus&&nActus.querySelector('.ar-actu')) return;   // mêmes sujets : on garde le DOM et ses images
+    sigActus=sig;
     nActus.innerHTML=a.sujets.map((s,i)=>'<a class="ar-actu" href="'+esc(s.url||'#')+'" target="_blank" rel="noopener noreferrer" data-i="'+i+'"><span class="ar-img" data-img="'+i+'"></span><div><b>'+esc(s.titre)+'</b><small>'+esc(s.source)+(s.quand?' · '+esc(s.quand):'')+'</small></div></a>').join('');
-    if(window.ImagesActus) a.sujets.forEach((s,i)=>{ const c=nActus.querySelector('[data-img="'+i+'"]'); if(c) try{ ImagesActus.attacher(c,s,{largeur:120,hauteur:80}); }catch(e){} });
+    a.sujets.forEach((s,i)=>{ const c=nActus.querySelector('[data-img="'+i+'"]'); if(c) remplirImage(c,s,i,a.sujets[i+1]); });
   }
   async function chargerActus(){
     try{

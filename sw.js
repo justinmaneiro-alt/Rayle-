@@ -9,13 +9,18 @@
    • Mise à jour : changer VERSION (= window.RAYLE_VERSION de index.html, vérifié par build.mjs) installe une nouvelle version qui ATTEND ; la page affiche « Nouvelle version disponible » ;
      au toucher, la page envoie SKIP_WAITING puis se recharge. Chaque version a ses caches : les anciens sont supprimés à l'activation.
    COEUR est remplacé à la construction (build.mjs) par la liste exacte des fichiers chargés au démarrage. */
-const VERSION = '2026.11.12.1';
+const VERSION = '2026.11.13.1';
 const SHELL = 'rayle-shell-' + VERSION, IMAGES = 'rayle-images-1';
 const COEUR = ['./', 'index.html', 'offline.html', 'manifest.webmanifest', 'favicon.svg', 'icones/rayle-192.png', 'config.js'];   // /*COEUR*/
 const TAILLE_MAX = 600 * 1024;
 const GARDER = /\.(?:js|mjs|css|html|json|webmanifest|svg|png|woff2?)$/i;
 const JAMAIS = /\/(?:assets-lourds|captures[^/]*|docs|idees)\//i;
 
+/* Notifications des flèches (mode Direct) : un clic ramène sur le terminal. */
+self.addEventListener('notificationclick', e => {
+  e.notification.close();
+  e.waitUntil((async () => { const L = await self.clients.matchAll({ type: 'window', includeUncontrolled: true }); if (L.length) { try { await L[0].focus(); } catch (err) { /* */ } } else { await self.clients.openWindow((e.notification.data && e.notification.data.url) || './'); } })());
+});
 self.addEventListener('install', e => {
   e.waitUntil((async () => {
     const c = await caches.open(SHELL);

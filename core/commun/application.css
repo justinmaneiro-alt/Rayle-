@@ -22,3 +22,11 @@ body.app-direct #neptune-ui [data-a="quitter"],body.app-direct .n-barre [data-a=
 .g1-fil,.g1-graphs,.g1-fen,.g1-fond-clic,#g1Menu{display:none!important}
 /* Sphere de neurones doree et brillante (theme Rayle) : teinte chaude + halo, sur le seul canvas de l entite. */
 body.g1 #reactor canvas{filter:sepia(1) saturate(3.4) hue-rotate(-14deg) brightness(1.55) contrast(1.08) drop-shadow(0 0 28px rgba(255,150,40,.6))}
+
+/* aperçu de la Terre pendant le chargement de la 3D (jamais une fenêtre vide) */
+#terre-apercu{position:fixed;inset:0;z-index:150;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:18px;background:radial-gradient(120% 80% at 50% 40%,#0b1118 0%,#030508 75%);transition:opacity .45s ease;pointer-events:none}
+#terre-apercu.ta-sort{opacity:0}
+#terre-apercu .ta-globe{--s:min(74vw,46vh);width:var(--s);height:var(--s);border-radius:50%;background-image:radial-gradient(circle at 32% 30%,rgba(255,255,255,.22),rgba(255,255,255,0) 42%),radial-gradient(circle at 70% 75%,rgba(0,0,0,.62),rgba(0,0,0,0) 62%),url(../../planetes/terre/apercu/terre-apercu.jpg);background-size:100% 100%,100% 100%,calc(var(--s) * 2) var(--s);background-repeat:no-repeat,no-repeat,repeat-x;background-position:0 0,0 0,0 0;box-shadow:0 0 40px rgba(110,170,255,.35),inset 0 0 28px rgba(0,0,0,.55);animation:ta-tourne 60s linear infinite}
+#terre-apercu p{margin:0;color:#9b8a68;font:14px system-ui,sans-serif;letter-spacing:.04em}
+@keyframes ta-tourne{to{background-position:0 0,0 0,calc(var(--s) * -2) 0}}
+@media (prefers-reduced-motion:reduce){#terre-apercu .ta-globe{animation:none}}

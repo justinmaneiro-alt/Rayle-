@@ -242,6 +242,8 @@ export function creerGraphiqueOr(el, { surClicPrix, mobile = false } = {}) {
   const COULEURS_T = { ma_retest: '#ffd27a', niv_precoce: '#ffb84d', niv_confirme: '#ffe08a', ma_cassure: '#e8c15a', ma_retour: '#8fd0e3', ma_rebond: '#4fd18b', ma_fausse: '#e08a5a', niveau_rebond: '#c39be0', zone_rebond: '#5bc0eb' };
   const marquesTerminal = () => etat.flechesT.map(f => { const tb = tBougie(f.tCloture - 1); if (tb == null) return null; const ma = f.type === 'ma_cassure';
     /* flèches simples : AUCUN texte sur le graphique (le détail est dans l'infobulle) ; vert = achat, rouge = vente, cyan = cassure de la MA200 */
+    if (f.contre) return { id: 'ft' + f.id, time: tDe(tb), position: f.dir > 0 ? 'belowBar' : 'aboveBar', color: '#7d8791', shape: 'circle', size: 0.5 };   // v5 : rebond contre-tendance = petit point gris discret
+    if (f.invalidee) return { id: 'ft' + f.id, time: tDe(tb), position: f.dir > 0 ? 'belowBar' : 'aboveBar', color: '#7d8791', shape: 'circle', size: 1, text: '×' };   // v5 : invalidée = grise, petite croix (la flèche n'est jamais supprimée)
     return { id: 'ft' + f.id, time: tDe(tb), position: f.dir > 0 ? 'belowBar' : 'aboveBar', color: ma ? '#8fd0e3' : f.dir > 0 ? '#2ecc71' : '#ff4d4d', shape: f.dir > 0 ? 'arrowUp' : 'arrowDown', size: 1.4 }; }).filter(Boolean);
   const marquesJournal = () => etat.marques.filter(m => m.t).map(m => ({ time: tDe(m.t), position: m.sens === 'achat' ? 'belowBar' : 'aboveBar', color: m.r == null ? '#cfd8dc' : m.r >= 0 ? C.haut : C.bas, shape: m.sens === 'achat' ? 'arrowUp' : 'arrowDown', text: m.texte || '' })).sort((a, b) => a.time - b.time);
 

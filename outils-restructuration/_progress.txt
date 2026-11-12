@@ -29,3 +29,7 @@ Règle : les flèches marquent des ÉVÉNEMENTS de lecture, pas des trades renta
 - Signal précoce « 2 bougies sur un niveau » : 0 occurrence affichée sur 2026 (la réaction ≥ 0,5 ATR arrive en général avant) ; la logique est testée sur scénario fabriqué.
 - Lanceur et backend local : voir la réponse finale (lecture de lancement.log).
 
+
+
+=== NUIT 2026-11-13 (branche fleches-v5-nuit) ===
+A flèches v5 (contre-tendance, invalidation, niveaux proposés rétablis) · B notifications (vocal, navigateur, Telegram serveur) · C téléphone (actus stables, Atlas d'anatomie 2D, aperçu Terre, terminal graphique seul, manifeste or, SW 2026.11.13.1). Détail : PROGRESS.md (haut). Worker non déployé, restauration Cloudflare toujours en attente.

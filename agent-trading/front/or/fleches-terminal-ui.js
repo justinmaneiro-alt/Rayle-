@@ -2,9 +2,11 @@
    Calcul : fleches-terminal-v1.js (scellé). Ici : bougies H1 closes du moteur → flèches → graphique ; registre local en ajout seul (une flèche posée n'est
    jamais déplacée ni retirée) ; interrupteur « historique 30 jours » ; infobulle au survol (date, type, résultat mesuré à 6, 12 et 24 bougies).
    Les flèches restent visibles en mode Pro épuré. Information de lecture, jamais un ordre. */
-import * as V1 from './fleches-simples.js'; import * as F from './fleches-simples-v4.js'; import { zonesDirect } from './zones-direct.js';   // v4 (2026-11-12) : seulement les niveaux en trait plein (structure niveaux-majeurs-v1 + zones de swing actives, ≥ 3 touches vues). Ancienne ligne : import * as F from './fleches-simples-v3.js'; import { zonesDirect } from './zones-direct.js';   // v3 : zones majeures causales (3 touches déjà vues). Ancienne ligne : import * as F from './fleches-simples-v2.js'; import { zonesDirect } from './zones-direct.js';   // v2 (2026-11-12) : flèches simples rejouées EN DIRECT (causales). Ancienne ligne : import * as F from './fleches-simples.js';   // v2 (2026-11-12) : flèches lues sur les zones H1 DESSINÉES ; v1 et terminal-v1 (scellées) restent disponibles. Ancienne ligne :    // 2026-11-12 : flèches de lecture (MA200 et gros niveaux seulement, sans grappes) ; l'ancienne règle fleches-terminal-v1 (scellée) reste disponible en mode debug
+import { creerNotifieur } from './fleches-notif.js'; import { notifierNavigateur, permissionNavigateur, demanderPermission } from './canal-navigateur.js';
+import * as V1 from './fleches-simples.js'; import { zonesDirect } from './zones-direct.js';
+import * as F from './fleches-simples-v5.js';   // v5 (2026-11-13) : v4 + contre-tendance (point gris) + invalidation. Ancienne ligne : import * as F from './fleches-simples-v4.js'; import { zonesDirect } from './zones-direct.js';   // v4 (2026-11-12) : seulement les niveaux en trait plein (structure niveaux-majeurs-v1 + zones de swing actives, ≥ 3 touches vues). Ancienne ligne : import * as F from './fleches-simples-v3.js'; import { zonesDirect } from './zones-direct.js';   // v3 : zones majeures causales (3 touches déjà vues). Ancienne ligne : import * as F from './fleches-simples-v2.js'; import { zonesDirect } from './zones-direct.js';   // v2 (2026-11-12) : flèches simples rejouées EN DIRECT (causales). Ancienne ligne : import * as F from './fleches-simples.js';   // v2 (2026-11-12) : flèches lues sur les zones H1 DESSINÉES ; v1 et terminal-v1 (scellées) restent disponibles. Ancienne ligne :    // 2026-11-12 : flèches de lecture (MA200 et gros niveaux seulement, sans grappes) ; l'ancienne règle fleches-terminal-v1 (scellée) reste disponible en mode debug
 
-const CLE_REG = 'rayle_or_fleches_t9', CLE_VU = 'rayle_or_fleches_t9_vu', CLE_HIST = 'rayle_or_fleches_t1_hist', CLE_MODE = 'rayle_or_fleches_mode';   // mode : 'direct' (v4, causale, par défaut) ou 'historique' (v1 scellée : rétrospective, jamais pour entrer)
+const CLE_REG = 'rayle_or_fleches_t10', CLE_VU = 'rayle_or_fleches_t10_vu', CLE_HIST = 'rayle_or_fleches_t1_hist', CLE_MODE = 'rayle_or_fleches_mode', CLE_NOTIF = 'rayle_or_notif', CLE_NOTIF_ETAT = 'rayle_or_notif_etat';   // mode : 'direct' (v4, causale, par défaut) ou 'historique' (v1 scellée : rétrospective, jamais pour entrer)
 export const BANDEAU = 'Flèches rétrospectives : placées avec des informations postérieures, ne pas utiliser pour entrer.';
 const lireJ = (k, d) => { try { const v = localStorage.getItem(k); return v ? JSON.parse(v) : d; } catch (e) { return d; } };
 const ecrireJ = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) { /* plein ou refusé */ } };
@@ -12,17 +14,38 @@ const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': 
 const dateLongue = t => new Date(t).toLocaleString('fr-FR', { timeZone: 'Europe/Paris', weekday: 'short', day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
 
 export function monterFlechesTerminal(T, { maintenant = () => Date.now(), pret = Promise.resolve() } = {}) {
-  const R = T.R, E = { registre: lireJ(CLE_REG, null), hist: lireJ(CLE_HIST, true), mode: lireJ(CLE_MODE, 'direct') === 'historique' ? 'historique' : 'direct', retro: [], cle: '', liste: [], dernier: null, nouvelles: 0 };
+  const R = T.R, E = { registre: lireJ(CLE_REG, null), hist: lireJ(CLE_HIST, true), notif: { vocal: true, navigateur: false, ...lireJ(CLE_NOTIF, {}) }, mode: lireJ(CLE_MODE, 'direct') === 'historique' ? 'historique' : 'direct', retro: [], cle: '', liste: [], dernier: null, nouvelles: 0 };
   const premier = E.registre === null; if (premier) E.registre = [];
+  /* notifications du mode Direct : un seul module (fleches-notif.js) ; canaux vocal et navigateur/PWA activables ; Telegram = script serveur (alertes-serveur.mjs) */
+  const notifieur = creerNotifieur({ etat: lireJ(CLE_NOTIF_ETAT, {}), maintenant, actif: 'OR', unite: 'H1', canaux: [
+    async m => { if (E.notif.vocal) T.notifier(m.titre.replace(/^OR H1 · /, ''), { niveau: 'fort', dit: true }); },
+    async m => { if (E.notif.navigateur) await notifierNavigateur(m); } ] });
   const barre = R.querySelector('[data-graph-barre]');
   if (barre && !barre.querySelector('[data-ft]')) {
     const l = document.createElement('label'); l.className = 'tor-gb tor-ft'; l.dataset.ft = ''; l.title = 'Repères de lecture posés à la clôture de la bougie H1 : MA200 (cassure confirmée, retest, rebond) et gros supports / résistances (2 bougies sur le niveau, rebond confirmé). Jamais redessinés, jamais un ordre ni une promesse de gain.';
     l.innerHTML = '<input type="checkbox" data-ft-hist> Flèches : historique 30 j <b data-ft-n></b>'; barre.appendChild(l);
   }
-  function placerMode() { const l = R.querySelector('.tor-ft-m'), h = R.querySelector('.tp-haut'); if (l && h && l.parentNode !== h) h.insertBefore(l, h.querySelector('.tp-doux')); }   // dans la ligne du haut du Terminal (visible en mode Pro épuré)
-  if ((barre || R.querySelector('.tp-haut')) && !R.querySelector('[data-ft-mode]')) {
+  const CLE_AV = 'rayle_tm_avance';
+  const appliquerAvance = () => { try { document.body.classList.toggle('tm-avance', localStorage.getItem(CLE_AV) === '1'); } catch (e) { /* */ } }; appliquerAvance();
+  function placerNotif() {
+    const h = hoteReglages(); if (!h || R.querySelector('[data-ft-notif]')) return;
+    const d = document.createElement('details'); d.className = 'tp-menu'; d.dataset.ftNotif = '';
+    d.innerHTML = `<summary>Notifications ▾</summary><div class="tp-menu-corps"><label><input type="checkbox" data-nt="vocal"> Vocal (voix fr-FR)</label><label><input type="checkbox" data-nt="navigateur"> Notification navigateur / appli <small data-nt-etat></small></label><label><input type="checkbox" data-nt="avance"> Afficher les panneaux avancés (téléphone)</label><small>Telegram : script serveur <code>alertes-serveur.mjs</code> (voir PROGRESS.md). Mode Direct seulement, jamais l’Historique. Maximum 6 par heure, repos de 5 min par niveau.</small></div>`;
+    const doux = h.querySelector('.tp-doux'); if (doux && h.contains(doux)) h.insertBefore(d, doux); else h.appendChild(d);
+    const maj = () => { for (const c of d.querySelectorAll('[data-nt]')) c.checked = c.dataset.nt === 'avance' ? (() => { try { return localStorage.getItem(CLE_AV) === '1'; } catch (e) { return false; } })() : !!E.notif[c.dataset.nt]; const st = d.querySelector('[data-nt-etat]'); if (st) st.textContent = '(permission : ' + permissionNavigateur() + ')'; };
+    d.addEventListener('change', async e => { const c = e.target.closest('[data-nt]'); if (!c) return; if (c.dataset.nt === 'avance') { try { localStorage.setItem(CLE_AV, c.checked ? '1' : '0'); } catch (er) { /* */ } appliquerAvance(); return; } E.notif[c.dataset.nt] = c.checked; if (c.dataset.nt === 'navigateur' && c.checked) { const r = await demanderPermission(); if (r !== 'granted') { E.notif.navigateur = false; } } ecrireJ(CLE_NOTIF, E.notif); maj(); });
+    maj();
+  }
+  /* ligne des réglages de flèches : ligne du haut du Terminal (mode Pro) ; sinon, sur téléphone, une ligne sous l'en-tête (la barre du graphique y est masquée) ; sinon la barre du graphique */
+  function hoteReglages() {
+    const h = R.querySelector('.tp-haut'); if (h) return h;
+    if (window.matchMedia && matchMedia('(max-width:600px)').matches) { let l = R.querySelector('.tor-ft-ligne'); if (!l) { const t = R.querySelector('.tor-tete'); if (t) { l = document.createElement('div'); l.className = 'tor-ft-ligne'; t.insertAdjacentElement('afterend', l); } } if (l) return l; }
+    return barre;
+  }
+  function placerMode() { const h = hoteReglages(); if (!h) return; for (const n of [R.querySelector('.tor-ft-m'), R.querySelector('[data-ft-notif]')]) { if (n && n.parentNode !== h) { const d = h.querySelector('.tp-doux'); if (d && d.parentNode === h) h.insertBefore(n, d); else h.appendChild(n); } } }   // dans la ligne du haut du Terminal (visible en mode Pro épuré)
+  if ((barre || R.querySelector('.tp-haut') || R.querySelector('.tor-tete')) && !R.querySelector('[data-ft-mode]')) {
     const l = document.createElement('label'); l.className = 'tor-gb tor-ft-m'; l.title = 'Direct : flèches causales (v4), posées à la bougie de confirmation, comme en temps réel (alertes vocales). Historique : flèches rétrospectives (v1), placées avec des informations postérieures : à regarder, jamais pour entrer.';
-    l.innerHTML = 'Flèches <select data-ft-mode><option value="direct">Direct</option><option value="historique">Historique</option></select>'; (barre || R.querySelector('.tp-haut')).appendChild(l); placerMode();
+    l.innerHTML = 'Flèches <select data-ft-mode><option value="direct">Direct</option><option value="historique">Historique</option></select>'; (barre || R.querySelector('.tp-haut') || R.querySelector('.tor-tete')).appendChild(l); placerMode();
   }
   const choix = R.querySelector('[data-ft-mode]'); if (choix) { choix.value = E.mode; choix.addEventListener('change', () => api.fixerMode(choix.value)); }
   const caseHist = R.querySelector('[data-ft-hist]'); if (caseHist) { caseHist.checked = !!E.hist; caseHist.addEventListener('change', () => { E.hist = caseHist.checked; ecrireJ(CLE_HIST, E.hist); afficher(); }); }
@@ -53,8 +76,9 @@ export function monterFlechesTerminal(T, { maintenant = () => Date.now(), pret =
     if (closes.length) ecrireJ(CLE_VU, { t: dernierT });
     E.raison = r.raison; E.n = r.n;
     const avant = new Set(E.registre.map(f => f.id));
-    E.registre = F.fusionnerRegistre(E.registre, r.fleches);
-    for (const f of E.registre) if (!avant.has(f.id) && !f.masquee && !premier && f.tCloture > maintenant() - 2 * 3600e3) { E.nouvelles++; try { T.notifier(`Flèche ${f.dir > 0 ? 'haussière' : 'baissière'} : ${f.nom} (à la clôture de la bougie H1).`, { niveau: 'fort', dit: true }); } catch (e) { /* */ } }
+    E.registre = F.fusionnerRegistre(E.registre, r.fleches, r.invalidees || []);
+    const envoyes = notifieur.traiter(E.registre, { silencieux: premier && !E.notifPremiere }); E.notifPremiere = true;   // 1er chargement d'un appareil neuf : on marque sans annoncer tout l'historique
+    envoyes.then(L => { E.nouvelles += L.length; ecrireJ(CLE_NOTIF_ETAT, notifieur.etat); }).catch(() => {});
     ecrireJ(CLE_REG, E.registre.slice(-600));
     E.liste = E.registre; retro(H1, zones);
     return true;
@@ -75,9 +99,9 @@ export function monterFlechesTerminal(T, { maintenant = () => Date.now(), pret =
     });
   }
   const api = {
-    maj() { try { placerMode(); if (calculer()) afficher(); else if (!E.liste.length) afficher(); } catch (e) { console.warn('flèches du Terminal :', e.message); } },
+    maj() { try { placerMode(); placerNotif(); if (calculer()) afficher(); else if (!E.liste.length) afficher(); } catch (e) { console.warn('flèches du Terminal :', e.message); } },
     fixerMode(m) { E.mode = m === 'historique' ? 'historique' : 'direct'; ecrireJ(CLE_MODE, E.mode); if (choix) choix.value = E.mode; if (E.mode === 'historique' && !E.retro.length) { try { retro(T.h1 ? T.h1() : [], T.graph.zonesH1 ? T.graph.zonesH1() : []); } catch (e) { /* */ } } afficher(); },
-    mode: () => E.mode, direct: () => E.liste.slice(), retro: () => E.retro.slice(),
+    mode: () => E.mode, notifieur: () => notifieur, reglagesNotif: () => ({ ...E.notif }), direct: () => E.liste.slice(), retro: () => E.retro.slice(),
     etat: () => ({ mode: E.mode, bandeau: !bandeau.hidden, n: E.liste.length, visibles: visibles().length, hist: E.hist, raison: E.raison || null, nouvelles: E.nouvelles, barres: E.n || 0 }),
     liste: () => E.liste.slice(), visibles, bilan: () => F.bilan(T.h1 ? T.h1() : [], E.liste.filter(f => !f.masquee)), fixerHistorique(v) { E.hist = !!v; ecrireJ(CLE_HIST, E.hist); if (caseHist) caseHist.checked = E.hist; afficher(); }
   };

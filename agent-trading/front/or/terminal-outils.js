@@ -175,6 +175,17 @@ export function monterOutils(T, { stockage = null, fetchFn = fetch, maintenant =
     b('[data-mo-proposes]').innerHTML = E.proposes.map(p => `<li data-cle="${esc(p.cle)}"><span>${p.sorte === 'sommet' ? 'Sommet' : 'Creux'} ${p.unite === 'J' ? 'Jour' : p.unite} <b>${nb(p.p)}</b> <small>${new Date(p.t).toLocaleDateString('fr-FR')}</small></span> <button type="button" data-mo="confirmer" data-cle="${esc(p.cle)}">Mon niveau</button><button type="button" data-mo="rejeter" data-cle="${esc(p.cle)}">Supprimer</button></li>`).join('') || `<li class="tor-doux">${E.fractales.length ? 'Tous les niveaux proposés sont traités.' : 'Calcul des grands creux et sommets…'}</li>`;
     envoyerAuGraphique();
   }
+  /* Rétablir les niveaux proposés masqués (décisions « supprime ») : les niveaux « proposé H4 » reviennent en pointillé orange ; ils ne portent aucune flèche. Les « confirmés » restent. */
+  async function retablirMasques() {
+    const sup = E.decisions.filter(d => d.etat === 'supprime'); E.decisions = E.decisions.filter(d => d.etat !== 'supprime');
+    if (st) for (const d of sup) { try { await st.supprimer('decisions', d.cle); } catch (e) { /* base indisponible : le retrait en mémoire suffit pour cette session */ } }
+    majProposes(); analyser(); return sup.length;
+  }
+  function boutonRetablir() {
+    const zone = R.querySelector('[data-tp-couches]') || R.querySelector('.tor-couches-corps'); if (!zone || zone.querySelector('[data-mo-retablir]')) return;
+    const bt = document.createElement('button'); bt.type = 'button'; bt.dataset.moRetablir = ''; bt.textContent = 'Rétablir les niveaux masqués'; bt.title = 'Les niveaux « proposé H4 / Jour » que tu avais supprimés reviennent (pointillé orange, sans flèche).';
+    bt.addEventListener('click', async () => { const n = await retablirMasques(); bt.textContent = n ? `Rétablis (${n}) ✓` : 'Aucun niveau masqué'; setTimeout(() => { bt.textContent = 'Rétablir les niveaux masqués'; }, 2500); }); zone.appendChild(bt);
+  }
   async function chargerFractales() {
     const c = lireJ(CLE_PROP, null); if (c && c.t > maintenant() - 6 * H && Array.isArray(c.f)) { E.fractales = c.f; majProposes(); return; }
     try {
@@ -300,12 +311,14 @@ export function monterOutils(T, { stockage = null, fetchFn = fetch, maintenant =
     st = stockage || await ouvrirStockage();
     [E.objets, E.decisions, E.alertes, E.registre, E.suivis] = await Promise.all(['objets', 'decisions', 'alertes', 'registre', 'suivis'].map(s => st.tous(s)));
     E.objets.sort((a, b2) => a.cree - b2.cree); E.alertes.sort((a, b2) => b2.heure - a.heure);
+    if (!lireJ('rayle_or_masques_reset_v5', false)) { await retablirMasques(); ecrireJ('rayle_or_masques_reset_v5', true); }   // réinitialisation unique (2026-11-13) : tous les niveaux proposés reviennent
+    boutonRetablir();
     appliquerAffichage(); rendreListe(); rendreAlertes(); envoyerAuGraphique(); majProposes(); rendreEtat();
     await tour(); minuteur = setInterval(tour, intervalle); setTimeout(chargerFractales, 1500); E.pret = true;
   })();
 
   const api = {
-    E, regl, pret, analyser, tour, choisirOutil, changer, supprimer, selectionner, importerTexte, decider, chargerFractales,
+    E, regl, pret, retablirMasques, boutonRetablir, analyser, tour, choisirOutil, changer, supprimer, selectionner, importerTexte, decider, chargerFractales,
     creer: async (type, d) => { const o = creer(type, { ...d, ...(type === 'position' ? { risquePct: d.risquePct ?? regl.risquePct, capital: d.capital ?? regl.capital } : {}) }, { t: d.cree ?? maintenant() }); if (o) { await enregistrer(o); await analyser(); } return o; },
     ajouterBougies: async L => { E.C = fusionner(E.C, L); await analyser(); },
     regler: k => { Object.assign(regl, k); ecrireJ(CLE_REGL, regl); for (const c of R.querySelectorAll('[data-or]')) c.checked = !!regl[c.dataset.or]; appliquerAffichage(); },
