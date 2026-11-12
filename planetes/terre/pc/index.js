@@ -308,6 +308,8 @@ async function construire(G) {
         const h = v.haut, hd = unit(sub(h, mul(v.dir, dot(h, v.dir))));    // haut de l'écran projeté sur le plan tangent
         cam = C.etatInitial({ lon: ll.lon, lat: ll.lat, dist: Math.max(1000, (v.distance / v.rayon - 1) * R), cap: Math.atan2(dot(hd, b.est), dot(hd, b.nord)), incl: 0 });
       }
+      const dep = window.__RAYLE_TERRE_DEPART__;   // ouverture depuis le carrousel : même point de départ que la miniature (transition continue)
+      if (dep && Number.isFinite(dep.lon) && Number.isFinite(dep.lat)) { cam = C.etatInitial({ lon: dep.lon, lat: dep.lat, dist: ORBITE.dist, cap: 0, incl: 0 }); window.__RAYLE_TERRE_DEPART__ = null; }
       G.nav.selectionner(null);
       noms.vider(); globe.tuiles.forcer(); calculer(); chargerPays(); radarMaj();
       globe.scene.add(G.ciel.groupe);

@@ -1,0 +1,14 @@
+import fs from 'node:fs';
+const nl = s => s.split(String.fromCharCode(13)).join('');
+let t = nl(fs.readFileSync('core/commun/miniatures.js', 'utf8'));
+const rep = (a, b) => { if (!t.includes(a)) throw new Error('ancre : ' + a.slice(0, 60)); t = t.replace(a, b); };
+rep("const minis=new Map(), visibles=new Set();", "const minis=new Map(), visibles=new Set(); let centreId=null;");
+rep("      if(m.fige) continue;\n", "      if(m.fige) continue;\n      if(id!==centreId&&m.dernier>0&&(m.ctrl.statique||id==='terminal')) continue;   // panneau voisin : une image suffit, le rendu vivant n'est fait que pour le panneau du centre\n");
+rep("function definirVisibles(ids){ visibles.clear();", "function definirVisibles(ids,centre){ centreId=centre||null; visibles.clear();");
+fs.writeFileSync('core/commun/miniatures.js', t);
+let a = nl(fs.readFileSync('core/commun/application.js', 'utf8'));
+const x = "if(window.Miniatures) window.Miniatures.visibles(ids);";
+if (!a.includes(x)) throw new Error('application');
+a = a.replace(x, "if(window.Miniatures){ let c=null,dm=0.5; panneaux.forEach((p,i)=>{ const d=Math.abs(i-pos); if(d<dm){ dm=d; c=FENETRES[i].id; } }); window.Miniatures.visibles(ids,c); }");
+fs.writeFileSync('core/commun/application.js', a);
+console.log('ok');

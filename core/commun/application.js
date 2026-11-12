@@ -69,7 +69,7 @@
     racine.querySelector('.ac-g').hidden=cible===0; racine.querySelector('.ac-d').hidden=cible===N-1;
     if(!ouvert){
       for(const id of ids){ const p=panneaux[FENETRES.findIndex(f=>f.id===id)], c=p&&p.querySelector('canvas'); if(c&&!c.dataset.m&&window.Miniatures){ c.dataset.m='1'; window.Miniatures.creer(id,c); } }
-      if(window.Miniatures) window.Miniatures.visibles(ids);
+      if(window.Miniatures){ let c=null,dm=0.5; panneaux.forEach((p,i)=>{ const d=Math.abs(i-pos); if(d<dm){ dm=d; c=FENETRES[i].id; } }); window.Miniatures.visibles(ids,c); }
     } else if(window.Miniatures) window.Miniatures.visibles([]);
   }
 
@@ -153,13 +153,14 @@
     let n=0; while(!window.Galaxie&&n++<80) await attendre(50);
     if(!window.Galaxie) throw new Error('le moteur 3D n’a pas démarré');
     window.Galaxie.entrerPlanete(PLANETE[id]);
-    if(id==='terre'&&!(opts&&opts.sansActu)){ n=0; while(!(window.Terre&&window.Terre.etat&&window.Terre.etat().actif&&window.Terre.etat().entree)&&n++<150) await attendre(100); try{ if(window.Terre&&window.Terre.afficherFil) window.Terre.afficherFil({portee:'france'}).catch(e=>console.warn('[app] actualité :',e&&e.message)); }catch(e){ console.warn('[app] actualité :',e); } }
+    if(id==='terre'&&!(opts&&opts.sansActu)){ n=0; while(!(window.Terre&&window.Terre.etat&&window.Terre.etat().actif&&window.Terre.etat().entree)&&n++<150) await attendre(100); try{ if(window.Terre&&window.Terre.afficherFil) window.Terre.afficherFil({portee:'france',vol:false}).catch(e=>console.warn('[app] actualité :',e&&e.message)); }catch(e){ console.warn('[app] actualité :',e); } }
     if(id==='anatomie'){ n=0; const pret=()=>{ const s=window.Saturne&&window.Saturne.etat&&window.Saturne.etat(); return !!(s&&s.actif&&s.entree&&!s.transition); }; while(!pret()&&n++<200) await attendre(80); try{ await window.Saturne.salleMedicale(); }catch(e){ console.warn('[app] salle médicale :',e); } }
   }
   async function ouvrir(id,opts){
     const f=FENETRES.find(x=>x.id===id); if(!f||id==='rayle') return aller(0,{force:true});
     if(ouvert===id) return true; if(ouvert) await fermer({silencieux:true,sansAnim:true});
     const i=FENETRES.indexOf(f); if(Math.abs(pos-i)>0.5){ cible=i; pos=i; vel=0; placer(); }
+    if(id==='terre'){ try{ window.__RAYLE_TERRE_DEPART__=window.Miniatures&&window.Miniatures.terreEtat?window.Miniatures.terreEtat():null; }catch(e){} }   // la grande Terre démarre là où tournait la miniature
     const g=grandir(id);
     ouvert=id; corps.classList.add('app-ouvert'); croix.hidden=false; corps.dataset.appOuvert=id; placer();
     try{

@@ -35,3 +35,9 @@ Le texte « BIM » n'existe nulle part dans le code suivi. Décision : le menu �
 ## Thèmes : Jarvis (`core/commun/jarvis*.css`, `hud.css`, `v1-theme.css`) gardé ; Aurore (`g1-*`) retiré ; « ancien système de fenêtres » (legacy/) retiré.
 ## Dépendances : aucune au runtime (three.js r170 et Lightweight Charts copiés dans le dépôt) ; outil : wrangler (dev), puppeteer-core (tests).
 ## index.html : 130 scripts classiques dans un ordre fixe + 28 feuilles de style.
+
+## Squelette 3D du carrousel et de la fenêtre Anatomie (2026-11-12)
+Un seul modèle pour la miniature et la grande fenêtre : `assets-lourds/anatomie/os-1.glb` + `os-2.glb` (système « os » : 202 os), matériau or chaud commun (`planetes/saturne/pc/anatomie-or.js`).
+- **Source et licence** : BodyParts3D 4.0 (© DBCLS, **CC BY 4.0**), via human-atlas (MIT) ; noms TA2 (CC BY-SA 4.0, partage à l'identique). Crédits dans `CREDITS.md` et dans le panneau de l'anatomie.
+- **Contenu vérifié dans l'index (202 os)** : mandibule, 22 vertèbres, sternum, 2 clavicules, 2 omoplates, sacrum, bassin, 56 phalanges, 10 métacarpiens, 10 métatarsiens, 2 calcanéums, fémurs, côtes.
+- **Manques connus du modèle** : coccyx, os lacrymaux, cornets inférieurs, osselets de l'oreille. Aucun modèle libre compatible n'a été trouvé qui les comble sans tout remplacer (licence à vérifier) : le modèle est donc CONSERVÉ, pas remplacé.

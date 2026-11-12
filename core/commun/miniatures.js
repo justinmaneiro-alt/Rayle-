@@ -13,7 +13,7 @@
   let W=480, H=300;                         // résolution interne des miniatures (basse : 260 px de haut, largeur au format du panneau)
   const reduit=()=>!!(window.matchMedia&&matchMedia('(prefers-reduced-motion: reduce)').matches);
   const OR='#ffae3d', OR2='#ffe08a';
-  const minis=new Map(), visibles=new Set();
+  const minis=new Map(), visibles=new Set(); let centreId=null;
   let THREE=null, rendu=null, tempsMoyen=0, nMesures=0, lent=false, rafId=0, dernierTour=0;
 
   /* ───── moteur 3D partagé ───── */
@@ -75,48 +75,63 @@
     return { dessiner, tic(now){ if(!barres&&!charge) charger(); else if(now-dernierChargement>8000&&!charge) charger(); }, intervalle:1000, statique:false };
   }
 
-  /* ───── anatomie : squelette ───── */
+  /* ───── anatomie : le squelette COMPLET de la grande fenêtre (os-1 + os-2), même matériau or chaud (anatomie-or.js), éclairage à trois points, contours ───── */
   async function creerAnatomie(m){
-    await moteur(); const T=THREE;
-    m.scene=new T.Scene(); m.camera=new T.PerspectiveCamera(32,W/H,0.1,100); m.camera.position.set(0,0.1,4.6);
-    m.scene.add(new T.AmbientLight(0xffe6c0,0.9)); const l=new T.DirectionalLight(0xffc27a,2.2); l.position.set(2,3,4); m.scene.add(l); const l2=new T.DirectionalLight(0x7a9bff,0.6); l2.position.set(-3,1,-2); m.scene.add(l2);
+    await moteur(); const T=THREE, base=u=>new URL(u,document.baseURI).href;
+    const OR=await import(base('planetes/saturne/pc/anatomie-or.js'));
+    m.scene=new T.Scene(); m.camera=new T.PerspectiveCamera(30,W/H,0.1,100); m.camera.position.set(0,0.05,7.0);
+    OR.eclairageTroisPoints(m.scene,T);
     const pivot=new T.Group(); m.scene.add(pivot); m.pivot=pivot;
     try{
       const [{GLTFLoader},{MeshoptDecoder}]=await Promise.all([import('three/addons/loaders/GLTFLoader.js'),import('three/addons/libs/meshopt_decoder.module.js')]);
-      const g=await new GLTFLoader().setMeshoptDecoder(MeshoptDecoder).loadAsync(new URL('assets-lourds/anatomie/os-1.glb',document.baseURI).href);
-      const o=g.scene, boite=new T.Box3().setFromObject(o), taille=boite.getSize(new T.Vector3()), centre=boite.getCenter(new T.Vector3());
-      const s=3.3/Math.max(taille.y,0.001); o.scale.setScalar(s); o.position.sub(centre.multiplyScalar(s)); pivot.add(o);
-      o.traverse(x=>{ if(x.isMesh&&x.material){ x.material=x.material.clone(); if(x.material.color) x.material.color.lerp(new T.Color(0xffd9a0),0.35); } });
+      const L=new GLTFLoader().setMeshoptDecoder(MeshoptDecoder), parties=await Promise.all(['os-1','os-2'].map(f=>L.loadAsync(base('assets-lourds/anatomie/'+f+'.glb'))));
+      const corps=new T.Group(); for(const g of parties) corps.add(g.scene);
+      OR.teinterOr(corps,T);
+      const boite=new T.Box3().setFromObject(corps), taille=boite.getSize(new T.Vector3()), centre=boite.getCenter(new T.Vector3());
+      const s=3.6/Math.max(taille.y,0.001); corps.scale.setScalar(s); corps.position.sub(centre.multiplyScalar(s)); pivot.add(corps);
+      m.nbOs=OR.contours(corps,T);
     }catch(e){ m.erreur='squelette indisponible : '+String((e&&e.message)||e).slice(0,50); }
-    return { tic(now,dt){ pivot.rotation.y+=dt*0.45; if(!m.erreur||true) peindre3D(m); if(m.erreur){ m.ctx.fillStyle='#9db0bb'; m.ctx.font='13px "Segoe UI",system-ui,sans-serif'; m.ctx.fillText(m.erreur,12,H-18); } }, intervalle:50, statique:true };
+    return { tic(now,dt){ pivot.rotation.y+=dt*0.45; peindre3D(m); }, intervalle:50, statique:true };
   }
 
-  /* ───── terre : globe et actualité ───── */
+  /* ───── terre : LE composant de la grande fenêtre (globe.js : sphère de base jour / nuit, atmosphère, nuages, ciel étoilé, éclairage du soleil réel),
+     seulement en basse résolution : textures réduites, pas de tuiles (chargeur muet), pas de bâtiments ni de relief. Globe entier, centré, rotation lente. ───── */
   async function creerTerre(m){
-    await moteur(); const T=THREE;
-    m.scene=new T.Scene(); m.camera=new T.PerspectiveCamera(30,W/H,0.1,100); m.camera.position.set(0,0,5.2);
-    m.scene.add(new T.AmbientLight(0xffffff,0.55)); const s=new T.DirectionalLight(0xffe2b0,2.6); s.position.set(3,1.5,4); m.scene.add(s);
-    const globe=new T.Group(); m.scene.add(globe);
-    const mat=new T.MeshStandardMaterial({color:0x2a3a55,roughness:0.9,metalness:0}); const sph=new T.Mesh(new T.SphereGeometry(1.5,48,32),mat); globe.add(sph);
-    const halo=new T.Mesh(new T.SphereGeometry(1.62,32,24),new T.MeshBasicMaterial({color:0xffa83c,transparent:true,opacity:0.14,side:T.BackSide,blending:T.AdditiveBlending,depthWrite:false})); m.scene.add(halo);
-    // grille de méridiens dorés (toujours là, même sans texture)
-    const lignes=new T.Group(); const mg=new T.LineBasicMaterial({color:0xffae3d,transparent:true,opacity:0.22});
-    for(let la=-60;la<=60;la+=30){ const pts=[]; for(let lo=0;lo<=360;lo+=10){ pts.push(pos(la,lo-180,1.505,T)); } lignes.add(new T.Line(new T.BufferGeometry().setFromPoints(pts),mg)); }
-    for(let lo=-180;lo<180;lo+=30){ const pts=[]; for(let la=-90;la<=90;la+=10){ pts.push(pos(la,lo,1.505,T)); } lignes.add(new T.Line(new T.BufferGeometry().setFromPoints(pts),mg)); }
-    globe.add(lignes);
-    // texture réduite (décodage hors du fil principal) ; sans elle, le globe reste sombre avec sa grille
-    fetch(new URL('galaxie/textures/8k_earth_daymap.jpg',document.baseURI).href).then(r=>r.blob()).then(b=>createImageBitmap(b,{resizeWidth:1024,resizeHeight:512,resizeQuality:'low'})).then(bm=>{ const tx=new T.CanvasTexture(bm); tx.colorSpace=T.SRGBColorSpace; mat.map=tx; mat.color.set(0xffffff); mat.needsUpdate=true; }).catch(()=>{});
+    await moteur(); const T=THREE, base=u=>new URL(u,document.baseURI).href;
+    const [{creerGlobe},CO,REG,GEO,{creerCiel}]=await Promise.all([import(base('planetes/terre/pc/globe.js')),import(base('planetes/terre/pc/camera-orbite.js')),import(base('planetes/terre/pc/reglages-terre.js')),import(base('planetes/terre/pc/geo.js')),import(base('galaxie/ciel.js'))]);
+    const charger=async(fichier,w,h,couleur)=>{ const r=await fetch(base(fichier)); if(!r.ok) throw new Error('texture introuvable : '+fichier); const bm=await createImageBitmap(await r.blob(),{resizeWidth:w,resizeHeight:h,resizeQuality:'medium'}); const t=new T.CanvasTexture(bm); t.colorSpace=couleur; t.anisotropy=1; t.generateMipmaps=true; t.minFilter=T.LinearMipmapLinearFilter; t.needsUpdate=true; return t; };
+    // les mêmes images que la grande Terre (8k jour, nuit, nuages, Voie lactée), réduites
+    const [jour,nuit,nuages,voie]=await Promise.all([charger('galaxie/textures/8k_earth_daymap.jpg',1024,512,T.SRGBColorSpace),charger('galaxie/textures/2k_earth_nightmap.jpg',1024,512,T.SRGBColorSpace),charger('galaxie/textures/2k_earth_clouds.jpg',1024,512,T.NoColorSpace),charger('galaxie/textures/8k_stars_milky_way.jpg',1024,512,T.SRGBColorSpace)]);
+    const ciel=creerCiel({textureCiel:voie,anisotropie:()=>1}); ciel.nombreEtoiles(1500); ciel.riche(false); ciel.echelle(1);
+    const cfg={...REG.normaliser(null),profil:'basse',jeu:true,noms:false,batiments:false,radar:false,meteoAnim:false,ombres:false,nuages:true,nuagesReels:false,jourImagerie:null};
+    const chargeurMuet={demander:()=>{ const p=new Promise(()=>{}); p.annuler=()=>{}; return p; },etat:()=>({enFile:0,actives:0})};   // aucune tuile : le globe de base suffit à cette distance
+    const globe=creerGlobe({renderer:rendu,textures:{jour,nuit,nuages},ciel,chargeur:chargeurMuet,lire:()=>cfg,modeleVecteur:()=>null});
+    globe.scene.add(ciel.groupe);
+    const [{EffectComposer},{RenderPass},{OutputPass}]=await Promise.all([import('three/addons/postprocessing/EffectComposer.js'),import('three/addons/postprocessing/RenderPass.js'),import('three/addons/postprocessing/OutputPass.js')]);
+    const cible=new T.WebGLRenderTarget(W,H,{type:T.HalfFloatType}); const composer=new EffectComposer(rendu,cible); composer.setPixelRatio(1); composer.setSize(W,H); composer.addPass(new RenderPass(globe.scene,globe.camera)); composer.addPass(new OutputPass());
     // points d'actualité : lieux réels des sujets de France (Worker) ; aucun point sans données
-    const pts=new T.Group(); globe.add(pts); let n=0;
+    const pts=new T.Group(); globe.scene.add(pts); const lieux=[];
+    const etiquette=t=>{ try{ const s=m.canvas.closest('.ac-p').querySelector('footer span'); if(s) s.textContent=t; }catch(e){} };
     (async()=>{ try{
-      const [fil,suj]=await Promise.all([import(new URL('planetes/terre/pc/fil-actus.js',document.baseURI).href),import(new URL('planetes/terre/pc/actus-sujets.js',document.baseURI).href)]);
+      const [fil,suj]=await Promise.all([import(base('planetes/terre/pc/fil-actus.js')),import(base('planetes/terre/pc/actus-sujets.js'))]);
       const brut=await fil.chargerFil('france','',{}), mod=suj.modelesFil(brut,{max:40});
-      for(const x of mod.sujets){ const l=x.lieu; if(!l||!Number.isFinite(l.lat)||!Number.isFinite(l.lon)) continue; const p=new T.Mesh(new T.SphereGeometry(0.05,10,8),new T.MeshBasicMaterial({color:0xffd27a})); p.position.copy(pos(l.lat,l.lon,1.53,T)); pts.add(p); const h=new T.Mesh(new T.SphereGeometry(0.11,10,8),new T.MeshBasicMaterial({color:0xffa83c,transparent:true,opacity:0.3,blending:T.AdditiveBlending,depthWrite:false})); h.position.copy(p.position); pts.add(h); n++; }
-      m.info=n?n+' points d’actualité':'aucun lieu d’actualité'; }catch(e){ m.info='actualité indisponible'; } })();
-    globe.rotation.x=0.35; globe.rotation.y=-0.4;
-    return { tic(now,dt){ globe.rotation.y+=dt*0.28; peindre3D(m); if(m.info){ m.ctx.fillStyle='rgba(255,224,138,.9)'; m.ctx.font='12px "Segoe UI",system-ui,sans-serif'; m.ctx.fillText(m.info,12,H-18); } }, intervalle:50, statique:true };
+      for(const x of mod.sujets){ const l=x.lieu; if(!l||!Number.isFinite(l.lat)||!Number.isFinite(l.lon)) continue; const p=new T.Mesh(new T.SphereGeometry(1,10,8),new T.MeshBasicMaterial({color:0xffd27a,depthTest:true})); const h=new T.Mesh(new T.SphereGeometry(1,10,8),new T.MeshBasicMaterial({color:0xffa83c,transparent:true,opacity:0.3,blending:T.AdditiveBlending,depthWrite:false})); pts.add(p,h); lieux.push({p,h,v:GEO.vers(l.lon,l.lat,25)}); }
+      etiquette(lieux.length?lieux.length+' lieux d’actualité de France':'actualité chargée, aucun lieu repéré');
+    }catch(e){ etiquette('actualité non chargée'); } })();
+    const E=CO.etatInitial({lon:0,lat:18,dist:GEO.R*2.7,cap:0,incl:0}); E.lon=(Date.now()/240000)%360-180;   // même altitude d'orbite que la grande Terre ; longitude de départ qui bouge avec l'heure
+    m.terreEtat=()=>({lon:E.lon,lat:E.lat});
+    let aff=null;
+    return { tic(now,dt){
+      E.lon+=dt*4; if(E.lon>180) E.lon-=360;   // rotation lente (≈ 4° par seconde)
+      const pose=CO.pose(E,0); globe.maj(dt,pose,{largeur:W,hauteur:H},{date:new Date()});
+      for(const q of lieux){ q.p.position.set(q.v[0]-pose.cam[0],q.v[1]-pose.cam[1],q.v[2]-pose.cam[2]); q.p.scale.setScalar(55); q.h.position.copy(q.p.position); q.h.scale.setScalar(130); }
+      ciel.maj(dt);
+      const tm=rendu.toneMapping, ex=rendu.toneMappingExposure; rendu.toneMapping=T.ACESFilmicToneMapping; rendu.toneMappingExposure=1.05;
+      const t0=performance.now(); composer.render(dt); rendu.toneMapping=tm; rendu.toneMappingExposure=ex;
+      m.ctx.clearRect(0,0,W,H); m.ctx.drawImage(rendu.domElement,0,0,W,H);
+      const d=performance.now()-t0; nMesures++; if(nMesures>12) tempsMoyen=tempsMoyen?tempsMoyen*0.92+d*0.08:d;
+    }, intervalle:50, statique:true };
   }
-  function pos(lat,lon,r,T){ const la=lat*Math.PI/180, phi=(lon+180)*Math.PI/180; return new T.Vector3(-r*Math.cos(la)*Math.cos(phi),r*Math.sin(la),r*Math.cos(la)*Math.sin(phi)); }
 
   /* ───── développement 3D : engrenage ───── */
   async function creerDev3d(m){
@@ -130,7 +145,7 @@
     const g=new T.Mesh(geo,new T.MeshStandardMaterial({color:0xd9a441,metalness:0.85,roughness:0.32}));
     const fil=new T.LineSegments(new T.EdgesGeometry(geo,35),new T.LineBasicMaterial({color:0xffe08a,transparent:true,opacity:0.55}));
     const pivot=new T.Group(); pivot.add(g,fil); m.scene.add(pivot); pivot.rotation.x=0.5;
-    return { tic(now,dt){ pivot.rotation.y+=dt*0.7; pivot.rotation.z+=dt*0.2; peindre3D(m); m.ctx.fillStyle='rgba(255,224,138,.9)'; m.ctx.font='12px "Segoe UI",system-ui,sans-serif'; m.ctx.fillText('Atelier de maquettes 3D',12,H-18); }, intervalle:50, statique:true };
+    return { tic(now,dt){ pivot.rotation.y+=dt*0.7; pivot.rotation.z+=dt*0.2; peindre3D(m); }, intervalle:50, statique:true };
   }
 
   /* ───── accueil : anneaux discrets ───── */
@@ -142,6 +157,7 @@
   }
 
   /* ───── cycle de vie ───── */
+  const LIBELLES={terminal:'Or · H1 · Kraken · lecture seule',anatomie:'Squelette 3D complet',terre:'',dev3d:'Atelier de maquettes 3D',rayle:''};
   const FABRIQUES={terminal:creerTerminal,anatomie:creerAnatomie,terre:creerTerre,dev3d:creerDev3d,rayle:creerRayle};
   async function creer(id,canvas){
     if(minis.has(id)) return minis.get(id);
@@ -149,7 +165,7 @@
     canvas.width=W; canvas.height=H;
     const m={id,canvas,ctx:canvas.getContext('2d'),pret:false,dernier:0,fige:false,ctrl:null};
     minis.set(id,m);
-    try{ m.ctrl=await FABRIQUES[id](m); m.pret=true; }catch(e){ m.ctx.fillStyle='#9db0bb'; m.ctx.font='13px "Segoe UI",system-ui,sans-serif'; m.ctx.fillText('Aperçu indisponible : '+String((e&&e.message)||e).slice(0,60),12,24); m.erreurFatale=true; }
+    try{ m.ctrl=await FABRIQUES[id](m); m.pret=true; const s=canvas.closest('.ac-p'), pied=s&&s.querySelector('footer span'); if(pied&&!pied.textContent) pied.textContent=LIBELLES[id]||''; }catch(e){ m.ctx.fillStyle='#9db0bb'; m.ctx.font='13px "Segoe UI",system-ui,sans-serif'; m.ctx.fillText('Aperçu indisponible : '+String((e&&e.message)||e).slice(0,60),12,24); m.erreurFatale=true; }
     demarrerBoucle(); return m;
   }
   function boucle(now){
@@ -159,6 +175,7 @@
     for(const id of visibles){
       const m=minis.get(id); if(!m||!m.pret||!m.ctrl) continue;
       if(m.fige) continue;
+      if(id!==centreId&&m.dernier>0&&(m.ctrl.statique||id==='terminal')) continue;   // panneau voisin : une image suffit, le rendu vivant n'est fait que pour le panneau du centre
       if(now-m.dernier<m.ctrl.intervalle) continue; m.dernier=now;
       try{ m.ctrl.tic(now,(m.ctrl.intervalle?Math.max(dt,m.ctrl.intervalle/1000):dt)); }catch(e){ m.fige=true; }
     }
@@ -166,7 +183,7 @@
     if(nMesures>60&&tempsMoyen>24&&!lent){ lent=true; for(const m of minis.values()) if(m.ctrl&&m.ctrl.statique) m.fige=true; }
   }
   function demarrerBoucle(){ if(!rafId) rafId=requestAnimationFrame(boucle); }
-  function definirVisibles(ids){ visibles.clear(); for(const i of ids) visibles.add(i); if(reduit()) for(const m of minis.values()) if(m.ctrl&&m.ctrl.statique&&m.dernier) m.fige=true; }
-  window.Miniatures={creer,visibles:definirVisibles,etat:()=>({lent,tempsMoyenMs:+tempsMoyen.toFixed(1),minis:[...minis.values()].map(m=>({id:m.id,pret:m.pret,fige:m.fige,erreur:m.erreur||null}))}),
+  function definirVisibles(ids,centre){ centreId=centre||null; visibles.clear(); for(const i of ids) visibles.add(i); if(reduit()) for(const m of minis.values()) if(m.ctrl&&m.ctrl.statique&&m.dernier) m.fige=true; }
+  window.Miniatures={terreEtat:()=>{ const m=minis.get('terre'); try{ return m&&m.terreEtat?m.terreEtat():null; }catch(e){ return null; } },creer,visibles:definirVisibles,etat:()=>({lent,tempsMoyenMs:+tempsMoyen.toFixed(1),minis:[...minis.values()].map(m=>({id:m.id,pret:m.pret,fige:m.fige,erreur:m.erreur||null}))}),
     instantane:id=>{ const m=minis.get(id); try{ return m?m.canvas.toDataURL('image/jpeg',0.7):null; }catch(e){ return null; } }};
 })();

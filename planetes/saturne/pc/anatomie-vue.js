@@ -13,7 +13,7 @@ import { TEXTE_ECHELLE, ECHELLE_MUSCULAIRE } from './anatomie-muscles.js';
    Les mesures sont celles des modèles BodyParts3D (un homme adulte de référence) : indicatives, jamais cliniques. */
 const ECHELLE = 0.8, CENTRE_Y = 0.9;            // corps de 1,75 m → 1,4 m dans le volume ; centre approximatif du corps à 0,9 m
 const AXES = { x: new THREE.Vector3(1, 0, 0), y: new THREE.Vector3(0, 1, 0), z: new THREE.Vector3(0, 0, 1) };
-const COULEUR_SEL = new THREE.Color(0x6fe6ff), COULEUR_B = new THREE.Color(0xc9b27a);
+const COULEUR_SEL = new THREE.Color(0xff7a1a), COULEUR_B = new THREE.Color(0xc9b27a);
 
 function decouper(texte, n) { const mots = String(texte || '').split(/\s+/), l = []; let c = ''; for (const m of mots) { if ((c + ' ' + m).trim().length > n) { l.push(c); c = m; } else c = (c + ' ' + m).trim(); } if (c) l.push(c); return l; }
 
@@ -111,7 +111,7 @@ export async function creerAnatomie({ api, salle, renderer, ui }) {
       if (!index.systemes().includes(sys) && !schemas.has(sys)) return { ok: false, erreur: 'système inconnu : ' + sys };
       if (etat.charges.has(sys)) { if (etat.chargements && etat.chargements.has(sys)) await etat.chargements.get(sys); return { ok: true, deja: true }; }
       etat.charges.add(sys); (etat.chargements = etat.chargements || new Map());
-      const p = (async () => { const g = schemas.has(sys) ? await schemas.get(sys)() : await api.modeles.charger('anatomie-' + sys, { surProgres }); racine.add(g); ajouterMeshs(g); appliquerEtat(); })();
+      const p = (async () => { const g = schemas.has(sys) ? await schemas.get(sys)() : await api.modeles.charger('anatomie-' + sys, { surProgres }); if (sys === 'os') { try { const OR = await import('./anatomie-or.js'); OR.teinterOr(g, THREE); } catch (e) { /* teinte facultative */ } } racine.add(g); ajouterMeshs(g); appliquerEtat(); })();
       etat.chargements.set(sys, p); try { await p; } catch (e) { etat.charges.delete(sys); throw e; } finally { etat.chargements.delete(sys); }
       return { ok: true };
     },

@@ -10,7 +10,7 @@ export const HAUTEUR_TABLE = 0.92, HAUTEUR_HOLO = 1.12;           // m : plateau
 export const RAYON_SALLE = 6.5;
 
 export function creerSalleMedicale({ renderer, detail = 2 } = {}) {
-  const scene = new THREE.Scene(); scene.background = new THREE.Color(0x03070c); scene.fog = new THREE.FogExp2(0x03070c, 0.035);
+  const scene = new THREE.Scene(); scene.background = new THREE.Color(0x070502); scene.fog = new THREE.FogExp2(0x070502, 0.035);
   const camera = new THREE.PerspectiveCamera(58, 1, 0.03, 80);
   const R = alea(77);
   // environnement PBR : petite pièce neutre (reflets doux sur les métaux)
@@ -22,19 +22,19 @@ export function creerSalleMedicale({ renderer, detail = 2 } = {}) {
   // ── salle : parois en panneaux, sol, plafond
   const tex = peindreCoque({ taille: detail >= 2 ? 1024 : 512, graine: 63, teinte: [70, 80, 92], accents: true, hublots: false });
   for (const t of [tex.map, tex.roughnessMap, tex.normalMap, tex.emissiveMap]) t.repeat.set(5, 1.2);
-  const matParoi = new THREE.MeshStandardMaterial({ map: tex.map, roughnessMap: tex.roughnessMap, normalMap: tex.normalMap, emissiveMap: tex.emissiveMap, emissive: 0xffffff, emissiveIntensity: 0.9, metalness: 0.35, roughness: 1, side: THREE.BackSide });
+  const matParoi = new THREE.MeshStandardMaterial({ color: 0xe8c796, map: tex.map, roughnessMap: tex.roughnessMap, normalMap: tex.normalMap, emissiveMap: tex.emissiveMap, emissive: 0xf2d6ad, emissiveIntensity: 0.9, metalness: 0.35, roughness: 1, side: THREE.BackSide });
   const murs = new THREE.Mesh(new THREE.CylinderGeometry(RAYON_SALLE, RAYON_SALLE, 3.6, 48, 1, true), matParoi); murs.position.y = 1.8; murs.receiveShadow = true; scene.add(murs);
-  const cvSol = document.createElement('canvas'); cvSol.width = cvSol.height = 512; { const c = cvSol.getContext('2d'); c.fillStyle = '#0c131b'; c.fillRect(0, 0, 512, 512); c.strokeStyle = 'rgba(143,208,227,0.18)'; c.lineWidth = 2; for (let r = 40; r < 256; r += 44) { c.beginPath(); c.arc(256, 256, r, 0, 6.2832); c.stroke(); } for (let a = 0; a < 24; a++) { c.beginPath(); c.moveTo(256, 256); c.lineTo(256 + Math.cos(a / 24 * 6.2832) * 256, 256 + Math.sin(a / 24 * 6.2832) * 256); c.stroke(); } }
+  const cvSol = document.createElement('canvas'); cvSol.width = cvSol.height = 512; { const c = cvSol.getContext('2d'); c.fillStyle = '#14100a'; c.fillRect(0, 0, 512, 512); c.strokeStyle = 'rgba(143,208,227,0.18)'; c.lineWidth = 2; for (let r = 40; r < 256; r += 44) { c.beginPath(); c.arc(256, 256, r, 0, 6.2832); c.stroke(); } for (let a = 0; a < 24; a++) { c.beginPath(); c.moveTo(256, 256); c.lineTo(256 + Math.cos(a / 24 * 6.2832) * 256, 256 + Math.sin(a / 24 * 6.2832) * 256); c.stroke(); } }
   const texSol = new THREE.CanvasTexture(cvSol); texSol.colorSpace = THREE.SRGBColorSpace; texSol.anisotropy = 8;
   const sol = new THREE.Mesh(new THREE.CircleGeometry(RAYON_SALLE, 64), new THREE.MeshStandardMaterial({ map: texSol, roughness: 0.4, metalness: 0.6, envMapIntensity: 0.6 })); sol.rotation.x = -Math.PI / 2; sol.receiveShadow = true; scene.add(sol);
-  const plafond = new THREE.Mesh(new THREE.CircleGeometry(RAYON_SALLE, 48), new THREE.MeshStandardMaterial({ color: 0x151d27, roughness: 0.7, metalness: 0.5 })); plafond.rotation.x = Math.PI / 2; plafond.position.y = 3.6; scene.add(plafond);
-  const anneauPlafond = new THREE.Mesh(new THREE.TorusGeometry(2.6, 0.06, 8, 96), new THREE.MeshBasicMaterial({ color: 0xcfeaff })); anneauPlafond.rotation.x = Math.PI / 2; anneauPlafond.position.y = 3.55; scene.add(anneauPlafond);
+  const plafond = new THREE.Mesh(new THREE.CircleGeometry(RAYON_SALLE, 48), new THREE.MeshStandardMaterial({ color: 0x1c1812, roughness: 0.7, metalness: 0.5 })); plafond.rotation.x = Math.PI / 2; plafond.position.y = 3.6; scene.add(plafond);
+  const anneauPlafond = new THREE.Mesh(new THREE.TorusGeometry(2.6, 0.06, 8, 96), new THREE.MeshBasicMaterial({ color: 0xffd8a0 })); anneauPlafond.rotation.x = Math.PI / 2; anneauPlafond.position.y = 3.55; scene.add(anneauPlafond);
 
   // ── table holographique
   const table = new THREE.Group(); scene.add(table);
-  const mMetal = new THREE.MeshStandardMaterial({ color: 0x8993a1, roughness: 0.28, metalness: 0.95 }), mLed = new THREE.MeshBasicMaterial({ color: 0x8fd0e3 });
+  const mMetal = new THREE.MeshStandardMaterial({ color: 0x9a8b74, roughness: 0.28, metalness: 0.95 }), mLed = new THREE.MeshBasicMaterial({ color: 0xffae3d });
   const pied = new THREE.Mesh(new THREE.CylinderGeometry(0.42, 0.7, HAUTEUR_TABLE - 0.05, 40), mMetal); pied.position.y = (HAUTEUR_TABLE - 0.05) / 2; pied.castShadow = pied.receiveShadow = true; table.add(pied);
-  const plateau = new THREE.Mesh(new THREE.CylinderGeometry(1.15, 1.05, 0.09, 64), new THREE.MeshPhysicalMaterial({ color: 0x0b1620, roughness: 0.55, metalness: 0.1, clearcoat: 0.15, clearcoatRoughness: 0.6, transparent: true, opacity: 0.94 })); plateau.position.y = HAUTEUR_TABLE - 0.02; plateau.castShadow = plateau.receiveShadow = true; table.add(plateau);
+  const plateau = new THREE.Mesh(new THREE.CylinderGeometry(1.15, 1.05, 0.09, 64), new THREE.MeshPhysicalMaterial({ color: 0x1a1208, roughness: 0.55, metalness: 0.1, clearcoat: 0.15, clearcoatRoughness: 0.6, transparent: true, opacity: 0.94 })); plateau.position.y = HAUTEUR_TABLE - 0.02; plateau.castShadow = plateau.receiveShadow = true; table.add(plateau);
   const rim = new THREE.Mesh(new THREE.TorusGeometry(1.14, 0.014, 8, 128), mLed); rim.rotation.x = Math.PI / 2; rim.position.y = HAUTEUR_TABLE + 0.03; table.add(rim);
   const socle = new THREE.Mesh(new THREE.TorusGeometry(0.72, 0.014, 8, 64), mLed); socle.rotation.x = Math.PI / 2; socle.position.y = 0.03; table.add(socle);
   const cvLueur = document.createElement('canvas'); cvLueur.width = cvLueur.height = 256; { const c = cvLueur.getContext('2d'), g = c.createRadialGradient(128, 128, 4, 128, 128, 128); g.addColorStop(0, 'rgba(143,208,227,0.75)'); g.addColorStop(0.6, 'rgba(143,208,227,0.14)'); g.addColorStop(1, 'rgba(143,208,227,0)'); c.fillStyle = g; c.fillRect(0, 0, 256, 256); }
@@ -63,8 +63,8 @@ export function creerSalleMedicale({ renderer, detail = 2 } = {}) {
   const etiquette = new THREE.Mesh(new THREE.PlaneGeometry(1.4, 0.26), new THREE.MeshBasicMaterial({ map: tC, transparent: true, depthWrite: false, toneMapped: false })); etiquette.position.set(0, 1.24, 0); holo.add(etiquette);
   function ecrireEtiquette(titre, sous = '', progres = null) {
     cxC.clearRect(0, 0, 512, 96); cxC.fillStyle = 'rgba(4,9,15,0.82)'; cxC.fillRect(0, 0, 512, 96); cxC.strokeStyle = 'rgba(143,208,227,0.45)'; cxC.lineWidth = 2; cxC.strokeRect(2, 2, 508, 92);
-    cxC.font = '600 24px "Cascadia Mono", Consolas, monospace'; cxC.fillStyle = '#8fd0e3'; cxC.textAlign = 'center'; cxC.fillText(titre, 256, 36); cxC.font = '15px "Cascadia Mono", Consolas, monospace'; cxC.fillStyle = '#c9b27a'; cxC.fillText(sous, 256, 60);
-    if (progres !== null) { cxC.fillStyle = 'rgba(143,208,227,0.18)'; cxC.fillRect(40, 72, 432, 8); cxC.fillStyle = '#8fd0e3'; cxC.fillRect(40, 72, 432 * Math.max(0, Math.min(1, progres)), 8); }
+    cxC.font = '600 24px "Cascadia Mono", Consolas, monospace'; cxC.fillStyle = '#ffae3d'; cxC.textAlign = 'center'; cxC.fillText(titre, 256, 36); cxC.font = '15px "Cascadia Mono", Consolas, monospace'; cxC.fillStyle = '#c9b27a'; cxC.fillText(sous, 256, 60);
+    if (progres !== null) { cxC.fillStyle = 'rgba(143,208,227,0.18)'; cxC.fillRect(40, 72, 432, 8); cxC.fillStyle = '#ffae3d'; cxC.fillRect(40, 72, 432 * Math.max(0, Math.min(1, progres)), 8); }
     tC.needsUpdate = true;
   }
   ecrireEtiquette('SQUELETTE HUMAIN', 'modèle anatomique non chargé');
@@ -75,7 +75,7 @@ export function creerSalleMedicale({ renderer, detail = 2 } = {}) {
   // ── éclairage neutre et doux (A4 : plus de lueur colorée autour du squelette) : ambiante hémisphérique, clé blanche chaude, contre-jour froid très faible
   scene.add(new THREE.HemisphereLight(0xe9eef4, 0x2a313a, 0.6));
   const haut = new THREE.DirectionalLight(0xf3f1ec, 0.85); haut.position.set(1.5, 5, 2); haut.castShadow = detail >= 1; haut.shadow.mapSize.set(detail >= 2 ? 2048 : 1024, detail >= 2 ? 2048 : 1024); const sc = haut.shadow.camera; sc.left = -5; sc.right = 5; sc.top = 5; sc.bottom = -5; sc.near = 0.5; sc.far = 14; haut.shadow.bias = -0.0006; scene.add(haut);
-  const contreJour = new THREE.DirectionalLight(0xcfe0f0, 0.35); contreJour.position.set(-2, 3, -3); scene.add(contreJour);
+  const contreJour = new THREE.DirectionalLight(0xffe6c4, 0.35); contreJour.position.set(-2, 3, -3); scene.add(contreJour);
   const lumiereTable = new THREE.PointLight(0xffffff, 0, 6, 1.6); lumiereTable.position.set(0, HAUTEUR_TABLE + 0.7, 0); scene.add(lumiereTable);        // gardée (éteinte) : l'anatomie la réglait
   const lumiereChaude = new THREE.PointLight(0xffe2b8, 0.0, 12, 1.2); lumiereChaude.position.set(-3, 3.0, 2); scene.add(lumiereChaude);
 
