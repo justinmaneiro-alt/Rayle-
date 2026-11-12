@@ -113,3 +113,7 @@ agent-trading/recherche-or/test-final-verrou.json
 agent-trading/recherche-or/forward/
 captures-voix/
 dist/
+
+# Alertes Telegram : etat local
+agent-trading/.alertes-etat.json
+agent-trading/.alertes-etat.json.tmp

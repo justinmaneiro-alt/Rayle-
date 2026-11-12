@@ -1,0 +1,8 @@
+{
+ "version": "fleches-simples-v5",
+ "scelle_le": "2026-11-12",
+ "sha256": {
+  "fleches-simples-v5.js": "0dbf87d679c5d6c226cd1b5318ee72128bbb5eda14b42dd555765a8eb3bd6cfe"
+ },
+ "note": "Empreintes SHA-256 posées APRÈS les tests ; règles de la v1 rejouées en direct (causales). Aucune preuve de performance."
+}

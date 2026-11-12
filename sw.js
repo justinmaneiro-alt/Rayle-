@@ -16,6 +16,11 @@ const TAILLE_MAX = 600 * 1024;
 const GARDER = /\.(?:js|mjs|css|html|json|webmanifest|svg|png|woff2?)$/i;
 const JAMAIS = /\/(?:assets-lourds|captures[^/]*|docs|idees)\//i;
 
+/* Notifications des flèches (mode Direct) : un clic ramène sur le terminal. */
+self.addEventListener('notificationclick', e => {
+  e.notification.close();
+  e.waitUntil((async () => { const L = await self.clients.matchAll({ type: 'window', includeUncontrolled: true }); if (L.length) { try { await L[0].focus(); } catch (err) { /* */ } } else { await self.clients.openWindow((e.notification.data && e.notification.data.url) || './'); } })());
+});
 self.addEventListener('install', e => {
   e.waitUntil((async () => {
     const c = await caches.open(SHELL);
