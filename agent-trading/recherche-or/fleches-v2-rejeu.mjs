@@ -5,17 +5,19 @@ import { charger } from './donnees.mjs';
 import { zonesDessinees } from './zones-h1-rejeu.mjs';
 import * as V1 from '../front/or/fleches-lecture-v1.js';
 import * as V2 from '../front/or/fleches-lecture-v2.js';
+import * as V21 from '../front/or/fleches-lecture-v21.js';
 const ici = path.dirname(fileURLToPath(import.meta.url)), H = 3600e3;
 const D = charger({ debut: 2026, fin: 2026 }), B = D.h1.filter(b => !(b.h === b.l && !b.v)).map(b => ({ t: b.t, o: b.o, h: b.h, l: b.l, c: b.c, v: b.v }));
 const now = B[B.length - 1].t + H, cs = B;
 
 const Z = zonesDessinees(B, now);
-const R = V2.calculer(B, Z, { maintenant: now }), F = R.fleches;
+const Z0 = zonesDessinees(B, now, { fines: false }), F2 = V2.calculer(B, Z0, { maintenant: now }).fleches;
+const R = V21.calculer(B, Z, { maintenant: now }), F = R.fleches;
 const R1 = V1.calculer(B, { maintenant: now }), F1 = R1.fleches;
 const parType = L => L.reduce((o, f) => (o[f.type] = (o[f.type] || 0) + 1, o), {});
 const max600 = L => { let m = 0; for (let d = 0; d + 600 <= B.length; d += 6) m = Math.max(m, L.filter(f => f.i >= d && f.i < d + 600).length); return m; };
 const dernieres600 = L => L.filter(f => f.i >= B.length - 600).length;
-const ids = new Set(Z.map(V2.idNiveau));
+const ids = new Set(Z.map(V21.idNiveau));
 const sansNiveau = F.filter(f => f.levelId !== 'MA200' && !ids.has(f.levelId));
 const dt = t => new Date(t).toISOString().slice(5, 16).replace('T', ' ');
 const fmt = x => x == null ? '' : x.toFixed(1);
@@ -45,9 +47,10 @@ console.log('(a) rebond haussier ~3 870 :', a.map(f => dt(f.tCloture) + ' ' + f.
 console.log('(b) cassures MA200 :', b.map(f => dt(f.tCloture) + (f.dir > 0 ? ' ↑' : ' ↓') + (f.fausse ? ' fausse' : '')).join(' ; ') || 'AUCUN');
 console.log('(c) rebond baissier 4 131–4 146 :', c.map(f => dt(f.tCloture) + ' ' + f.prix.toFixed(0)).join(' ; ') || 'AUCUN');
 console.log('avant (v1) par type :', JSON.stringify(parType(F1)), 'total', F1.length, '| max/600 :', max600(F1));
-console.log('après (v2) par type :', JSON.stringify(parType(F)), 'total', F.length, '| max/600 :', max600(F), '| sur les 600 dernières :', dernieres600(F));
+console.log('v2 (sans zones fines, sans hystérésis) :', JSON.stringify(parType(F2)), 'total', F2.length, '| max/600 :', max600(F2));
+console.log('après (v2.1) par type :', JSON.stringify(parType(F)), 'total', F.length, '| max/600 :', max600(F), '| sur les 600 dernières :', dernieres600(F));
 const tbl = liste.map(l => `| ${l.date} | ${l.type} | ${l.sens} | ${l.prix} | ${l.zone} | ${l.issue} | ${l.fav6 ?? ''} / ${l.adv6 ?? ''} |`).join('\n');
-const md = `# Flèches v2 : rapport de rejeu (or H1, 2026-01-01 → ${dt(now)} UTC)
+const md = `# Flèches v2 puis v2.1 : rapport de rejeu (or H1, 2026-01-01 → ${dt(now)} UTC)
 
 Règle \`fleches-lecture-v2\` (écrite avant le rejeu) : les flèches viennent de la MÊME liste de zones H1 que celle dessinée par le graphique (\`zonesAffichage\` : actives + traces), plus la MA200. Chaque flèche porte le \`levelId\` de la zone dessinée. Les « Rebond sur la MA » (continuation) sont supprimés de l'affichage.
 
@@ -60,7 +63,8 @@ Règle \`fleches-lecture-v2\` (écrite avant le rejeu) : les flèches viennent d
 
 ## Compte avant / après (historique 2026)
 - Avant (fleches-lecture-v1) : ${JSON.stringify(parType(F1))}, total ${F1.length}, maximum sur 600 bougies ${max600(F1)}.
-- Après (v2) : ${JSON.stringify(parType(F))}, total ${F.length}, maximum sur 600 bougies H1 : **${max600(F)}** ; sur les 600 dernières : ${dernieres600(F)}${max600(F) > 25 ? ' — **dépasse 25** (non masqué).' : ' (≤ 25).'}
+- v2 (zones brutes, MA200 sans hystérésis) : ${JSON.stringify(parType(F2))}, total ${F2.length}, maximum sur 600 bougies ${max600(F2)}.
+- **Après (v2.1 : hystérésis MA200 + zones d'au moins 0,3 ATR fusionnées)** : ${JSON.stringify(parType(F))}, total ${F.length}, maximum sur 600 bougies H1 : **${max600(F)}** ; sur les 600 dernières : ${dernieres600(F)}${max600(F) > 25 ? ' — **dépasse 25** (non masqué).' : ' (≤ 25).'}
 - Cohérence : ${Z.length} zones dessinées ; flèches sans niveau dessiné : ${sansNiveau.length}.
 
 ## Liste des flèches (heure UTC de clôture)

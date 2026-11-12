@@ -17,6 +17,7 @@ import { COUCHES_ICT } from './ict-or.js';
 import { dessinerRayle } from './rayle-dessin.js';
 import { COUCHES_RAYLE, COUCHES_RAYLE_DEFAUT } from './rayle-couches.js';
 import { zonesAffichage, liquiditeAffichage, dedoublonnerLiquidite, atrH1, detailZone } from './zones-affichage-v1.js';
+import { normaliserZones } from './zones-fines-v1.js';
 import { dessinerZone, dessinerLiquidite } from './zones-affichage-dessin.js';
 
 export const COUCHES = Object.freeze({ sr: 'Supports et résistances', liquidite: 'Zones de liquidité', fleches: 'Flèches de lecture (MA200 et gros niveaux)', flechesTout: 'Toutes les flèches (debug : anciennes versions, niveaux mineurs, zones tracées)', volume: 'Zones de volume', mouvements: 'Mouvements H1', ...LIBELLES, structure: 'Structure de marché H1 / H4 (cassures, impulsions, retournements)', retournements: 'Retournements : toutes les zones (probabilité mesurée)', rsi: 'RSI 14 (sous-fenêtre) + divergences', divCachees: 'Divergences cachées', schemas: 'Schémas de retournement (double sommet, tête et épaules, balayage, bougies)', ...COUCHES_ICT, ...COUCHES_RAYLE });
@@ -86,7 +87,9 @@ export function creerGraphiqueOr(el, { surClicPrix, mobile = false } = {}) {
     const vol = etat.zonesVol.map(z => ({ id: 'v' + Math.round(((z.bas + z.haut) / 2) * 100), kind: 'volume', bas: z.bas, haut: z.haut, nom: 'Zone de volume', force: z.force || 0, tDebut: z.tFormation }));
     const liqItems = [...etat.liquidite.map(z => ({ p: z.p, sorte: z.sorte, raisons: z.raisons, depuis: z.depuis, texte: z.texte })), ...etat.balayages.map(b => ({ p: b.p, sorte: b.sorte, raisons: [b.raison], balayeeT: b.t }))];
     const L = liquiditeAffichage(h1, liqItems, { a: A });
-    etat.aff = { sr: zonesAffichage(h1, sr, { prix: ref, a: A }), vol: zonesAffichage(h1, vol, { prix: ref, a: A }), liq: { actives: dedoublonnerLiquidite(L.actives, A), balayees: dedoublonnerLiquidite(L.balayees, A) }, a: A };
+    const srA = zonesAffichage(h1, sr, { prix: ref, a: A }), regr = L => normaliserZones(L, A).map(z => ({ ...z, dist: Math.abs(z.p - ref), distAtr: Math.abs(z.p - ref) / A })).sort((x, y) => x.dist - y.dist).map((z, k) => ({ ...z, proche: k < 6 }));   // zones fines : 0,3 ATR minimum, fusion (dessin = surveillance)
+    srA.actives = regr(srA.actives); srA.traces = srA.traces.length ? normaliserZones(srA.traces, A) : srA.traces;
+    etat.aff = { sr: srA, vol: zonesAffichage(h1, vol, { prix: ref, a: A }), liq: { actives: dedoublonnerLiquidite(L.actives, A), balayees: dedoublonnerLiquidite(L.balayees, A) }, a: A };
   }
   /* sans bougies H1 (tests isolés) : zones nées à leur dernier pivot, actives, jamais plus épaisses que 0,3 ATR */
   function secoursAff() {
