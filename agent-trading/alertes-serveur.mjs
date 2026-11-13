@@ -6,7 +6,8 @@
    Lancement : node agent-trading/alertes-serveur.mjs   (ou alertes-serveur.cmd) ;  --une-fois : un seul passage.  Aucun ordre n'est jamais passé : repères de lecture. */
 import fs from 'node:fs'; import path from 'node:path'; import { fileURLToPath } from 'node:url';
 import * as F8 from './front/or/fleches-simples-v8.js'; import * as F7 from './front/or/fleches-simples-v7.js'; import * as F6 from './front/or/fleches-simples-v6.js';   // v8 (gros mouvements) ; anciennes lignes : fleches-simples-v7 (Direct v7 validée), fleches-simples-v6 (Direct stable)
-import { zonesDirect } from './front/or/zones-direct.js';
+import { zonesDirect } from './front/or/zones-direct.js'; import { mettreAJour as mettreAJourRegistre } from './registre-direct.mjs';
+const sceauRegles = async () => { try { return (await (await import('./recherche-or/historique-sceller.mjs')).sceau()).sha256Global; } catch (e) { return null; } };
 import { telechargerHistorique } from './moteur/bougies.js';
 import { creerNotifieur, formater } from './front/or/fleches-notif.js'; import { pngSignal, legendeSignal } from './signal-image.mjs';
 const ici = path.dirname(fileURLToPath(import.meta.url)), H = 3600e3;
@@ -55,12 +56,13 @@ export async function testerTelegram(env = process.env, fetchFn = fetch, log = c
   return true;
 }
 /* un passage : bougies → flèches (si une nouvelle bougie H1 est close) → notifications. `donnees()` renvoie les bougies H1 ; `etat` est modifié et doit être enregistré par l'appelant. */
-export async function cycle({ donnees, etat, canaux = [], maintenant = () => Date.now(), log = console.log }) {
+export async function cycle({ donnees, etat, canaux = [], maintenant = () => Date.now(), log = console.log, registre = null }) {
   const B = (await donnees()).filter(b => b.t + H <= maintenant() && b.c > 0), dernier = B.length ? B[B.length - 1].t : 0;
   if (B.length < 300) { log(`bougies insuffisantes (${B.length})`); return { envoyes: [], raison: 'bougies insuffisantes' }; }
   if (dernier === etat.dernierT && etat.initialise) return { envoyes: [], raison: 'pas de nouvelle bougie' };
   const F = ({ v6: F6, v7: F7 })[process.env.FLECHES_MOTEUR] || F8;   // v8 par défaut ; FLECHES_MOTEUR=v7|v6 pour les anciens moteurs (tests)
   const r = F.calculer(B, zonesDirect, { maintenant: dernier + H, bougies: 720 });
+  if (registre) { try { const aj = registre(B, r.fleches); if (aj && aj.length) log(`registre en direct : ${aj.length} ligne(s) ajoutée(s)`); } catch (e) { log('registre en direct non mis à jour :', e.message); } }   // ajout seul (registre-direct.mjs), jamais pendant les tests
   const n = creerNotifieur({ etat: etat.notif = etat.notif || {}, canaux: [m => { log('ALERTE', m.titre); return Promise.resolve(); }, ...canaux], maintenant });
   const envoyes = await n.traiter(r.fleches.filter(f => f.type !== 'ma_cassure' || process.env.FLECHES_MA === '1'), { silencieux: !etat.initialise, alertes: process.env.ALERTE_CONTACT === '0' ? [] : (r.alertes || []) });   // flèches MA200 coupées par défaut (FLECHES_MA=1 pour les envoyer) ; alerte de contact en texte seul (ALERTE_CONTACT=0 pour la couper)   // premier passage : on mémorise l'existant sans rien envoyer
   etat.initialise = true; etat.dernierT = dernier; etat.notif = n.etat;
@@ -72,9 +74,10 @@ async function principal() {
   const donnees = async () => { derniere = await telechargerHistorique('PF_XAUUSD', 'H1', Date.now() - 45 * 86400e3); return derniere; };
   if (process.argv.includes('--test-telegram')) { try { await testerTelegram(env, fetch, console.log, (await donnees()).filter(b => b.t + H <= Date.now())); } catch (e) { console.log('test Telegram échoué :', String(e.message).replace(env.TELEGRAM_BOT_TOKEN || ' ', '***')); } return; }
   const canal = canalTelegram(env, fetch, console.log, { bougies: () => derniere });
+  const sceauG = await sceauRegles(), registre = (B, fl) => mettreAJourRegistre(B, fl, { maintenant: Date.now(), sceauGlobal: sceauG });
   const une = process.argv.includes('--une-fois'); console.log('Alertes des flèches (Direct, or H1) démarrées' + (canal ? ' : Telegram actif.' : ' : sans Telegram.'));
   for (;;) {
-    try { await cycle({ donnees, etat, canaux: canal ? [canal] : [] }); ecrireEtat(etat); } catch (e) { console.log('passage échoué :', e.message); }
+    try { await cycle({ donnees, etat, canaux: canal ? [canal] : [], registre: env.REGISTRE_DIRECT === '0' ? null : registre }); ecrireEtat(etat); } catch (e) { console.log('passage échoué :', e.message); }
     if (une) break; await new Promise(r => setTimeout(r, 60000));
   }
 }

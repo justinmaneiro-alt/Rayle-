@@ -1,0 +1,370 @@
+{
+ "sceau": "f4d95f60d2668d7aeba938570edf1048d7e705084d51dfc2c07871ebc89f547c",
+ "composite": {
+  "nom": "Binance (décalé) + Kraken",
+  "bougies": 8098,
+  "du": 1765440000000,
+  "au": 1794589200000,
+  "fleches": 277,
+  "colorees": 196,
+  "trades": 195,
+  "stats": {
+   "avant|tous": {
+    "n": 165,
+    "assez": true,
+    "reussite": 0.38181818181818183,
+    "reussiteBrut": 0.38181818181818183,
+    "Rmoy": -0.01104611292465873,
+    "RmoyNet": -0.051223526368592925,
+    "pf": 0.9772494600893049,
+    "pfNet": 0.8995861823463005,
+    "ecartNet": 1.070731811426241,
+    "serieMax": 9,
+    "achats": 77,
+    "ventes": 88,
+    "raisons": {
+     "stop": 79,
+     "tp1-puis-stop": 18,
+     "tp2": 44,
+     "tp1-puis-temps": 13,
+     "temps": 11
+    }
+   },
+   "avant|achats": {
+    "n": 77,
+    "assez": true,
+    "reussite": 0.37662337662337664,
+    "reussiteBrut": 0.37662337662337664,
+    "Rmoy": -0.07085697188613584,
+    "RmoyNet": -0.10554897843566315,
+    "pf": 0.8604785849611473,
+    "pfNet": 0.8007811700967739,
+    "ecartNet": 1.051353387462042,
+    "serieMax": 6,
+    "achats": 77,
+    "ventes": 0,
+    "raisons": {
+     "stop": 39,
+     "tp1-puis-stop": 8,
+     "tp1-puis-temps": 7,
+     "tp2": 17,
+     "temps": 6
+    }
+   },
+   "avant|ventes": {
+    "n": 88,
+    "assez": true,
+    "reussite": 0.38636363636363635,
+    "reussiteBrut": 0.38636363636363635,
+    "Rmoy": 0.041288388666633764,
+    "RmoyNet": -0.0036887558099066046,
+    "pf": 1.0886022319525588,
+    "pfNet": 0.9925161509641884,
+    "ecartNet": 1.0911782997454642,
+    "serieMax": 10,
+    "achats": 0,
+    "ventes": 88,
+    "raisons": {
+     "tp2": 27,
+     "tp1-puis-stop": 10,
+     "stop": 40,
+     "tp1-puis-temps": 6,
+     "temps": 5
+    }
+   },
+   "apres|tous": {
+    "n": 30,
+    "assez": true,
+    "reussite": 0.4,
+    "reussiteBrut": 0.4,
+    "Rmoy": 0.09495799108590378,
+    "RmoyNet": 0.03566551773658503,
+    "pf": 1.2034814094697939,
+    "pfNet": 1.0703529629052337,
+    "ecartNet": 1.1653449090929584,
+    "serieMax": 5,
+    "achats": 10,
+    "ventes": 20,
+    "raisons": {
+     "stop": 14,
+     "tp1-puis-stop": 4,
+     "temps": 1,
+     "tp2": 11
+    }
+   },
+   "apres|achats": {
+    "n": 10,
+    "assez": false,
+    "reussite": 0.1,
+    "reussiteBrut": 0.1,
+    "Rmoy": -0.45,
+    "RmoyNet": -0.4944554524906734,
+    "pf": 0.25,
+    "pfNet": 0.22904579699242494,
+    "ecartNet": 0.8293252405711392,
+    "serieMax": 7,
+    "achats": 10,
+    "ventes": 0,
+    "raisons": {
+     "tp1-puis-stop": 3,
+     "stop": 6,
+     "tp2": 1
+    }
+   },
+   "apres|ventes": {
+    "n": 20,
+    "assez": false,
+    "reussite": 0.55,
+    "reussiteBrut": 0.55,
+    "Rmoy": 0.3674369866288557,
+    "RmoyNet": 0.3007260028502143,
+    "pf": 1.9185924665721392,
+    "pfNet": 1.683857993324239,
+    "ecartNet": 1.2349597717582304,
+    "serieMax": 2,
+    "achats": 0,
+    "ventes": 20,
+    "raisons": {
+     "stop": 8,
+     "tp1-puis-stop": 1,
+     "temps": 1,
+     "tp2": 10
+    }
+   }
+  },
+  "p": {
+   "avant|tous": {
+    "moyHasard": -0.007382662517896948,
+    "place": 0.2,
+    "p": 0.8001998001998002
+   },
+   "avant|achats": {
+    "moyHasard": -0.0025200889131879985,
+    "place": 0.221,
+    "p": 0.7792207792207793
+   },
+   "avant|ventes": {
+    "moyHasard": -0.017804682804267703,
+    "place": 0.555,
+    "p": 0.44555444555444557
+   },
+   "apres|tous": {
+    "moyHasard": -0.010429006430539609,
+    "place": 0.199,
+    "p": 0.8011988011988012
+   },
+   "apres|achats": {
+    "moyHasard": -0.17902253286470662,
+    "place": 0.174,
+    "p": 0.8261738261738262
+   },
+   "apres|ventes": {
+    "moyHasard": 0.0910233373383926,
+    "place": 0.795,
+    "p": 0.2057942057942058
+   }
+  },
+  "pHolm": {
+   "avant|tous": 1,
+   "avant|achats": 1,
+   "avant|ventes": 1,
+   "apres|tous": 1,
+   "apres|achats": null,
+   "apres|ventes": null
+  },
+  "verdicts": {
+   "avant|tous": "pas mieux que le hasard",
+   "avant|achats": "pas mieux que le hasard",
+   "avant|ventes": "pas mieux que le hasard",
+   "apres|tous": "pas mieux que le hasard",
+   "apres|achats": "pas assez de données",
+   "apres|ventes": "pas assez de données"
+  }
+ },
+ "dukascopy": {
+  "nom": "Dukascopy XAU/USD spot",
+  "bougies": 204825,
+  "du": 1052092800000,
+  "au": 1794394800000,
+  "fleches": 5993,
+  "colorees": 3896,
+  "trades": 3896,
+  "stats": {
+   "avant|tous": {
+    "n": 3868,
+    "assez": true,
+    "reussite": 0.3554808686659772,
+    "reussiteBrut": 0.3572905894519131,
+    "Rmoy": -0.04950389026746362,
+    "RmoyNet": -0.10990082743002864,
+    "pf": 0.9036036900933629,
+    "pfNet": 0.8015759638467415,
+    "ecartNet": 1.1833326747495942,
+    "serieMax": 15,
+    "achats": 1942,
+    "ventes": 1926,
+    "raisons": {
+     "tp1-puis-temps": 190,
+     "tp2": 1064,
+     "stop": 1877,
+     "tp1-puis-stop": 433,
+     "temps": 304
+    }
+   },
+   "avant|achats": {
+    "n": 1942,
+    "assez": true,
+    "reussite": 0.37899073120494337,
+    "reussiteBrut": 0.38105046343975285,
+    "Rmoy": -0.0012687262456652537,
+    "RmoyNet": -0.06090644537745433,
+    "pf": 0.9974074209577309,
+    "pfNet": 0.8845935961052774,
+    "ecartNet": 1.0940733569398122,
+    "serieMax": 15,
+    "achats": 1942,
+    "ventes": 0,
+    "raisons": {
+     "tp1-puis-temps": 111,
+     "tp2": 550,
+     "stop": 920,
+     "tp1-puis-stop": 198,
+     "temps": 163
+    }
+   },
+   "avant|ventes": {
+    "n": 1926,
+    "assez": true,
+    "reussite": 0.3317757009345794,
+    "reussiteBrut": 0.3333333333333333,
+    "Rmoy": -0.09813976177853968,
+    "RmoyNet": -0.15930222407909322,
+    "pf": 0.8175581215558821,
+    "pfNet": 0.7254346126475231,
+    "ecartNet": 1.2653495673774315,
+    "serieMax": 18,
+    "achats": 0,
+    "ventes": 1926,
+    "raisons": {
+     "stop": 957,
+     "tp2": 514,
+     "tp1-puis-stop": 235,
+     "temps": 141,
+     "tp1-puis-temps": 79
+    }
+   },
+   "apres|tous": {
+    "n": 28,
+    "assez": false,
+    "reussite": 0.32142857142857145,
+    "reussiteBrut": 0.32142857142857145,
+    "Rmoy": -0.12667606971726422,
+    "RmoyNet": -0.16695090858221937,
+    "pf": 0.7635380031944401,
+    "pfNet": 0.7051861226380945,
+    "ecartNet": 1.0732219944113777,
+    "serieMax": 7,
+    "achats": 16,
+    "ventes": 12,
+    "raisons": {
+     "stop": 15,
+     "temps": 2,
+     "tp1-puis-stop": 4,
+     "tp2": 7
+    }
+   },
+   "apres|achats": {
+    "n": 16,
+    "assez": false,
+    "reussite": 0.125,
+    "reussiteBrut": 0.125,
+    "Rmoy": -0.5072238342009004,
+    "RmoyNet": -0.5493814323031337,
+    "pf": 0.18844186527855933,
+    "pfNet": 0.17255209624811574,
+    "ecartNet": 0.7468024183576345,
+    "serieMax": 8,
+    "achats": 16,
+    "ventes": 0,
+    "raisons": {
+     "stop": 10,
+     "tp1-puis-stop": 4,
+     "temps": 1,
+     "tp2": 1
+    }
+   },
+   "apres|ventes": {
+    "n": 12,
+    "assez": false,
+    "reussite": 0.5833333333333334,
+    "reussiteBrut": 0.5833333333333334,
+    "Rmoy": 0.3807209495942507,
+    "RmoyNet": 0.3429564563789998,
+    "pf": 1.9137302790262016,
+    "pfNet": 1.7864407007874408,
+    "ecartNet": 1.2531024558030983,
+    "serieMax": 3,
+    "achats": 0,
+    "ventes": 12,
+    "raisons": {
+     "temps": 1,
+     "tp2": 6,
+     "stop": 5
+    }
+   }
+  },
+  "p": {
+   "avant|tous": {
+    "moyHasard": -0.06052947453385787,
+    "place": 0.002,
+    "p": 0.998001998001998
+   },
+   "avant|achats": {
+    "moyHasard": -0.03253071302262349,
+    "place": 0.118,
+    "p": 0.8821178821178821
+   },
+   "avant|ventes": {
+    "moyHasard": -0.08660663078624518,
+    "place": 0,
+    "p": 1
+   },
+   "apres|tous": {
+    "moyHasard": -0.03807474738608146,
+    "place": 0.048,
+    "p": 0.952047952047952
+   },
+   "apres|achats": {
+    "moyHasard": -0.15535136038599018,
+    "place": 0.063,
+    "p": 0.9370629370629371
+   },
+   "apres|ventes": {
+    "moyHasard": 0.12973669603379673,
+    "place": 0.762,
+    "p": 0.23876123876123875
+   }
+  },
+  "pHolm": {
+   "avant|tous": 1,
+   "avant|achats": 1,
+   "avant|ventes": 1,
+   "apres|tous": null,
+   "apres|achats": null,
+   "apres|ventes": null
+  },
+  "verdicts": {
+   "avant|tous": "pas mieux que le hasard",
+   "avant|achats": "pas mieux que le hasard",
+   "avant|ventes": "pas mieux que le hasard",
+   "apres|tous": "pas assez de données",
+   "apres|achats": "pas assez de données",
+   "apres|ventes": "pas assez de données"
+  }
+ },
+ "exemples": {
+  "gag": "rebond_base|1790546400000|-1|BASE|4285",
+  "per": "rebond_base|1790298000000|1|BASE|4266",
+  "inv": "retournement|1788836400000|1|sr442533@1788829200000"
+ }
+}
