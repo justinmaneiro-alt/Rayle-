@@ -2,12 +2,12 @@
    Telegram sur un FAUX serveur local, aucun plantage sans jeton.   node agent-trading/tests/fleches-notif-test.mjs */
 import http from 'node:http'; import fs from 'node:fs'; import os from 'node:os'; import path from 'node:path';
 import { creerNotifieur, formater, evenements, LIMITE_HEURE } from '../front/or/fleches-notif.js';
-import * as F from '../front/or/fleches-simples-v5.js'; import { zonesDirect } from '../front/or/zones-direct.js';
+import * as F from '../front/or/fleches-simples-v6.js'; import { zonesDirect } from '../front/or/zones-direct.js';
 import { cycle, canalTelegram, lireEnv, lireEtat, ecrireEtat } from '../alertes-serveur.mjs';
 import { serieKraken } from '../recherche-or/fleches-simples-rejeu.mjs';
 const H = 3600e3; let ok = 0, ko = 0; const v = (n, c, d = '') => { if (c) ok++; else { ko++; console.log('ÉCHEC', n, d); } };
 const K = serieKraken(), tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'alertes-')), fEtat = path.join(tmp, 'etat.json');
-const recus = []; const srv = http.createServer((req, res) => { let b = ''; req.on('data', d => b += d); req.on('end', () => { recus.push({ url: req.url, corps: JSON.parse(b || '{}') }); res.setHeader('content-type', 'application/json'); res.end('{"ok":true}'); }); });
+const recus = []; const srv = http.createServer((req, res) => { let b = ''; req.setEncoding('latin1'); req.on('data', d => b += d); req.on('end', () => { let corps; if (/multipart/.test(req.headers['content-type'] || '')) { const m = b.match(/name="caption"\r\n\r\n([\s\S]*?)\r\n--/), c = b.match(/name="chat_id"\r\n\r\n([\s\S]*?)\r\n--/); corps = { text: m ? Buffer.from(m[1], 'latin1').toString('utf8') : '', chat_id: c ? c[1] : '', photo: true }; } else corps = JSON.parse(Buffer.from(b, 'latin1').toString('utf8') || '{}'); recus.push({ url: req.url, corps }); res.setHeader('content-type', 'application/json'); res.end('{"ok":true}'); }); });
 await new Promise(r => srv.listen(0, '127.0.0.1', r)); const API = `http://127.0.0.1:${srv.address().port}`;
 const env = { TELEGRAM_BOT_TOKEN: '123:FAUX', TELEGRAM_CHAT_ID: '42', TELEGRAM_API: API }, mu = () => {};
 
@@ -45,8 +45,8 @@ const finalF = F.calculer(K.slice(0, fin + 1), zonesDirect, { maintenant: K[fin]
 const attendus = finalF.filter(f => !f.contre && f.tCloture > K[debut].t + H && f.tCloture <= K[fin].t + H), invs = finalF.filter(f => !f.contre && f.invalidee && f.invalideeT > K[debut].t + H && f.invalideeT <= K[fin].t + H);
 const texte = recus.map(r => r.corps.text).join('\n');
 console.log(`INFO ${attendus.length} flèches normales et ${invs.length} invalidation(s) attendues ; ${recus.length} message(s) Telegram`);
-v('chaque message passe par /bot<jeton>/sendMessage avec le bon chat_id', recus.length > 0 && recus.every(r => /\/bot123:FAUX\/sendMessage$/.test(r.url) && r.corps.chat_id === '42'));
-v('une notification par flèche normale (aucune de plus)', recus.length === attendus.length + invs.length && attendus.every(f => texte.includes(f.dir > 0 ? 'haussier' : 'baissier')), `${recus.length} vs ${attendus.length}+${invs.length}`);
+v('chaque message passe par /bot<jeton>/sendMessage avec le bon chat_id', recus.length > 0 && recus.every(r => /\/bot123:FAUX\/(sendMessage|sendPhoto)$/.test(r.url) && r.corps.chat_id === '42'));
+v('une notification par flèche normale (aucune de plus)', recus.length === attendus.length + invs.length && attendus.every(f => texte.includes(f.dir > 0 ? 'haussier' : 'baissier') || texte.includes(f.dir > 0 ? 'ACHAT' : 'VENTE')), `${recus.length} vs ${attendus.length}+${invs.length}`);
 v('un rebond ravalé produit « Signal invalidé »', invs.length === 0 || /Signal invalidé/.test(texte));
 const gris = finalF.filter(f => f.contre && f.tCloture > K[debut].t + H && f.tCloture <= K[fin].t + H);
 v('aucune notification pour un point gris contre-tendance de la période', gris.every(f => !texte.includes(String(Math.round(f.prix)) + ' ·' + 'x')) && !/point gris/i.test(texte));

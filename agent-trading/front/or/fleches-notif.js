@@ -3,6 +3,7 @@
    Une notification par flèche (déduplication par identifiant, persistante grâce à `etat.ids`) ; rien pour les points gris contre-tendance ; « Signal invalidé » une seule fois par flèche invalidée.
    Anti-spam : au plus 6 notifications par heure et par actif, repos de 5 minutes entre deux notifications d'un même niveau ; plusieurs nouveautés d'un même passage = UN message groupé.
    Information de lecture, jamais un ordre. */
+import { niveauxSignal, texteNiveaux, AVERTISSEMENT } from './signal-niveaux.js';
 export const LIMITE_HEURE = 6, REPOS_NIVEAU = 5 * 60e3, MAX_IDS = 400, FRAICHEUR = 2 * 3600e3;
 const heure = t => new Date(t).toLocaleTimeString('fr-FR', { timeZone: 'Europe/Paris', hour: '2-digit', minute: '2-digit' });
 const fr = x => Math.round(x).toLocaleString('fr-FR').replace(/[\u00a0\u202f]/g, ' ');
@@ -25,9 +26,9 @@ export function formater(e, actif = 'OR', unite = 'H1') {
     const quoi = f.type === 'ma_cassure' ? 'cassure' : `${f.dir > 0 ? 'retournement haussier' : 'retournement baissier'} sur ${plage(f)}`;
     return { titre: `${p}Signal invalidé : ${quoi} (à ${heure(f.invalideeT)})`, corps: `Une bougie a clôturé de l'autre côté du niveau : le rebond est ravalé. Signal posé à ${h}, repère de lecture, pas un ordre.` };
   }
-  if (f.type === 'ma_cassure') return { titre: `${p}${f.dir > 0 ? 'Cassure haussière' : 'Cassure baissière'} de la MA200 confirmée (${h})`, corps: `Apparue à ${h} (clôture de la bougie H1) · prix ${fr(f.prix)} · repère de lecture, pas un ordre.` };
+  if (f.type === 'ma_cassure') return { titre: `${p}${f.dir > 0 ? 'Cassure haussière' : 'Cassure baissière'} de la MA200 confirmée (${h})`, corps: `Apparue à ${h} (clôture de la bougie H1) · prix ${fr(f.prix)} · ${texteNiveaux(niveauxSignal(f))} · ${AVERTISSEMENT}` };
   const niveau = f.niveauType === 'structure' && f.niveauNom ? `${f.niveauNom} ${plage(f)}` : plage(f);
-  return { titre: `${p}${f.dir > 0 ? 'Retournement haussier' : 'Retournement baissier'} sur ${niveau} (confirmé ${h})`, corps: `Apparue à ${h} (clôture de la bougie H1) · prix ${fr(f.prix)}${f.stabilisation ? ' · contre-tendance mais ' + (f.stabilisation === 'base' ? 'base confirmée' : 'divergence RSI') : ''} · repère de lecture, pas un ordre.` };
+  return { titre: `${p}${f.dir > 0 ? 'Retournement haussier' : 'Retournement baissier'} sur ${niveau} (confirmé ${h})`, corps: `Apparue à ${h} (clôture de la bougie H1) · prix ${fr(f.prix)}${f.stabilisation ? ' · contre-tendance mais ' + (f.stabilisation === 'base' ? 'base confirmée' : 'divergence RSI') : ''}${f.deuxiemeTouche ? ' · 2ᵉ touche : double sommet/double creux' : ''} · ${texteNiveaux(niveauxSignal(f))} · ${AVERTISSEMENT}` };
 }
 /* notifieur : etat = { ids: [], envois: [{ t, actif, niveau }] } (sérialisable : fichier du serveur, stockage de la page) ; canaux = [async ({ titre, corps, groupe, evenements }) => void] */
 export function creerNotifieur({ etat = {}, canaux = [], maintenant = () => Date.now(), actif = 'OR', unite = 'H1' } = {}) {
