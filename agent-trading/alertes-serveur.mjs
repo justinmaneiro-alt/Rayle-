@@ -5,7 +5,8 @@
    Test réel unique : node agent-trading/alertes-serveur.mjs --test-telegram (getMe + 1 message + 1 image).
    Lancement : node agent-trading/alertes-serveur.mjs   (ou alertes-serveur.cmd) ;  --une-fois : un seul passage.  Aucun ordre n'est jamais passé : repères de lecture. */
 import fs from 'node:fs'; import path from 'node:path'; import { fileURLToPath } from 'node:url';
-import * as F from './front/or/fleches-simples-v6.js'; import { zonesDirect } from './front/or/zones-direct.js';
+import * as F from './front/or/fleches-simples-v7.js';   // v7 (affinage) ; ancienne ligne : fleches-simples-v6 (Direct stable)
+import { zonesDirect } from './front/or/zones-direct.js';
 import { telechargerHistorique } from './moteur/bougies.js';
 import { creerNotifieur, formater } from './front/or/fleches-notif.js'; import { pngSignal, legendeSignal } from './signal-image.mjs';
 const ici = path.dirname(fileURLToPath(import.meta.url)), H = 3600e3;

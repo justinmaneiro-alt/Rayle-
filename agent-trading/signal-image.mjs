@@ -8,7 +8,7 @@ const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': 
 const nf = (x, d = 0) => Number(x).toLocaleString('fr-FR', { minimumFractionDigits: d, maximumFractionDigits: d }).replace(/[  ]/g, ' ');
 const heureParis = t => new Date(t).toLocaleTimeString('fr-FR', { timeZone: 'Europe/Paris', hour: '2-digit', minute: '2-digit' });
 export const plage = f => f.zoneBas != null && f.zoneHaut != null ? (Math.round(f.zoneBas) === Math.round(f.zoneHaut) ? nf(f.zoneHaut) : `${nf(f.zoneBas)}–${nf(f.zoneHaut)}`) : '';
-export const nomNiveau = f => f.type === 'ma_cassure' ? `Cassure ${f.dir > 0 ? 'haussière' : 'baissière'} MA200` : (f.niveauType === 'structure' && f.niveauNom ? `${f.niveauNom} ${plage(f)}` : `${f.dir > 0 ? 'Support' : 'Résistance'} ${plage(f)}`);
+export const nomNiveau = f => f.type === 'rebond_base' ? `Rebond après base ${plage(f)}` : f.type === 'ma_cassure' ? `Cassure ${f.dir > 0 ? 'haussière' : 'baissière'} MA200` : (f.niveauType === 'structure' && f.niveauNom ? `${f.niveauNom} ${plage(f)}` : `${f.dir > 0 ? 'Support' : 'Résistance'} ${plage(f)}`);
 export const titreSignal = (f, actif = 'OR', unite = 'H1') => `${f.dir > 0 ? 'ACHAT' : 'VENTE'} · ${actif} ${unite} · ${nomNiveau(f)} · confirmé ${heureParis(f.tCloture)}`;
 /* légende texte : type, actif, niveau, entrée, stop, TP1, TP2, R, heure */
 export function legendeSignal(f, actif = 'OR', unite = 'H1') {

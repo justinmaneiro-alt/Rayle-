@@ -62,7 +62,7 @@ export function creerTerminalPro({ racine, graph, strategie, parler = () => {}, 
   lw.addEventListener('pointerup', ev => { if (!bas || !['fib', 'texte', 'mesure'].includes(E.outil)) { bas = null; return; } const d = Math.hypot(ev.clientX - bas.x, ev.clientY - bas.y); bas = null; if (d > 5) return; const r = lw.getBoundingClientRect(); surClic({ point: { x: ev.clientX - r.left, y: ev.clientY - r.top } }); }, true);
   /* ── modes ── */
   function appliquerMode(k, { memoriser = true } = {}) {
-    const M = MODES[k]; if (!M) return; E.mode = k; const tout = Object.keys(graph.couches()), cibles = new Set(M.couches), courant = graph.couches(), etat = {}; for (const c of tout) etat[c] = (c === 'fleches' || c === 'rsi') ? courant[c] !== false : cibles.has(c);   // flèches de lecture et RSI : ne dépendent pas du mode, le choix de l'utilisateur est gardé graph.couches(etat);
+    const M = MODES[k]; if (!M) return; E.mode = k; const tout = Object.keys(graph.couches()), cibles = new Set(M.couches), courant = graph.couches(), etat = {}; for (const c of tout) etat[c] = (c === 'fleches' || c === 'rsi' || c === 'pointsGris') ? courant[c] !== false : cibles.has(c);   // flèches de lecture et RSI : ne dépendent pas du mode, le choix de l'utilisateur est gardé graph.couches(etat);
     for (const c of racine.querySelectorAll('[data-couche]')) c.checked = !!etat[c.dataset.couche];
     for (const cle of ['vwap', 'structure', 'rsi', 'ictLiquidite', 'rayMa']) { const c = racine.querySelector(`[data-couche="${cle}"]`); if (c) c.dispatchEvent(new Event('change', { bubbles: true })); }
     droite(M.panneau); haut.querySelector('[data-tp-mode]').value = k; if (memoriser) ecrire(CLE_MODE, k); try { strategie.maj(true); } catch (e) { /* */ }
