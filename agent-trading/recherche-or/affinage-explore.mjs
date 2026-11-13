@@ -1,0 +1,10 @@
+import { serie13 } from './fleches-v6-diag.mjs';
+import * as V6 from '../front/or/fleches-simples-v6.js'; import * as V7 from '../front/or/fleches-simples-v7.js'; import { zonesDirect } from '../front/or/zones-direct.js';
+const H=3600e3,K=serie13(),o={maintenant:K.at(-1).t+H,bougies:1e5};
+const a=V6.calculer(K,zonesDirect,o), b=V7.calculer(K,zonesDirect,{...o,regime:process.env.REG==="1"});
+const col=f=>!f.contre, d=t=>new Date(t).toISOString().slice(5,16);
+const fmt=f=>`${d(f.tCloture)} ${f.type==='ma_cassure'?'MA':f.type==='rebond_base'?'RB':'RT'} ${f.dir>0?'+':'-'}${f.contre?' gris':''}${f.invalidee?' inv':''}${f.deuxiemeTouche?' 2T':''}${f.stabilisation?' '+f.stabilisation:''}`;
+console.log('v6',a.fleches.filter(col).length,'colorées /',a.fleches.length);console.log('v7',b.fleches.filter(col).length,'colorées /',b.fleches.length);
+console.log('--- v7');for(const f of b.fleches)console.log(fmt(f));
+console.log('--- supprimées',b.supprimees.map(s=>d(s.tCloture)+(s.dir>0?'+':'-')+' vs '+d(s.avecT)));
+if(process.env.V6)for(const f of a.fleches.filter(f=>f.tCloture>=Date.UTC(2026,10,7)))console.log('v6',fmt(f));

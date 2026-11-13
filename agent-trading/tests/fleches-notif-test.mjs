@@ -2,7 +2,7 @@
    Telegram sur un FAUX serveur local, aucun plantage sans jeton.   node agent-trading/tests/fleches-notif-test.mjs */
 import http from 'node:http'; import fs from 'node:fs'; import os from 'node:os'; import path from 'node:path';
 import { creerNotifieur, formater, evenements, LIMITE_HEURE } from '../front/or/fleches-notif.js';
-import * as F from '../front/or/fleches-simples-v6.js'; import { zonesDirect } from '../front/or/zones-direct.js';
+import * as F from '../front/or/fleches-simples-v7.js'; import { zonesDirect } from '../front/or/zones-direct.js';
 import { cycle, canalTelegram, lireEnv, lireEtat, ecrireEtat } from '../alertes-serveur.mjs';
 import { serieKraken } from '../recherche-or/fleches-simples-rejeu.mjs';
 const H = 3600e3; let ok = 0, ko = 0; const v = (n, c, d = '') => { if (c) ok++; else { ko++; console.log('ÉCHEC', n, d); } };

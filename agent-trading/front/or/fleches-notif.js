@@ -23,10 +23,11 @@ export function evenements(registre, { maintenant, vus = new Set(), fraicheur = 
 export function formater(e, actif = 'OR', unite = 'H1') {
   const f = e.f, p = `${actif} ${unite} · `, h = heure(f.tCloture);
   if (e.genre === 'invalide') {
-    const quoi = f.type === 'ma_cassure' ? 'cassure' : `${f.dir > 0 ? 'retournement haussier' : 'retournement baissier'} sur ${plage(f)}`;
+    const quoi = f.type === 'ma_cassure' ? 'cassure' : f.type === 'rebond_base' ? 'rebond après base' : `${f.dir > 0 ? 'retournement haussier' : 'retournement baissier'} sur ${plage(f)}`;
     return { titre: `${p}Signal invalidé : ${quoi} (à ${heure(f.invalideeT)})`, corps: `Une bougie a clôturé de l'autre côté du niveau : le rebond est ravalé. Signal posé à ${h}, repère de lecture, pas un ordre.` };
   }
   if (f.type === 'ma_cassure') return { titre: `${p}${f.dir > 0 ? 'Cassure haussière' : 'Cassure baissière'} de la MA200 confirmée (${h})`, corps: `Apparue à ${h} (clôture de la bougie H1) · prix ${fr(f.prix)} · ${texteNiveaux(niveauxSignal(f))} · ${AVERTISSEMENT}` };
+  if (f.type === 'rebond_base') return { titre: `${p}Rebond après base ${f.dir > 0 ? 'haussier' : 'baissier'} (${plage(f)}, confirmé ${h})`, corps: `Apparue à ${h} (clôture de la bougie H1) · prix ${fr(f.prix)} · base de ${f.baseBougies} bougies · ${texteNiveaux(niveauxSignal(f))} · ${AVERTISSEMENT}` };
   const niveau = f.niveauType === 'structure' && f.niveauNom ? `${f.niveauNom} ${plage(f)}` : plage(f);
   return { titre: `${p}${f.dir > 0 ? 'Retournement haussier' : 'Retournement baissier'} sur ${niveau} (confirmé ${h})`, corps: `Apparue à ${h} (clôture de la bougie H1) · prix ${fr(f.prix)}${f.stabilisation ? ' · contre-tendance mais ' + (f.stabilisation === 'base' ? 'base confirmée' : 'divergence RSI') : ''}${f.deuxiemeTouche ? ' · 2ᵉ touche : double sommet/double creux' : ''} · ${texteNiveaux(niveauxSignal(f))} · ${AVERTISSEMENT}` };
 }

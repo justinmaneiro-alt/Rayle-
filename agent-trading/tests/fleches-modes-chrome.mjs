@@ -15,7 +15,7 @@ for (const [l, h, mob] of [[1600, 900, false], [1024, 768, true], [390, 844, tru
   await p.evaluate(b => { window.__or.structure.injecterH1(b); window.__or.structure.maj(true); }, serie); await w(1200);
   await p.evaluate(() => window.__or.flechesT.maj()); await w(1200);
   const sel = await p.evaluate(() => { const s = document.querySelector('[data-ft-mode]'); return s ? { v: s.value, o: [...s.options].map(x => x.value) } : null; });
-  v(sel && sel.v === 'direct' && sel.o.join() === 'direct,historique', `${l}px : sélecteur « Flèches » présent, Direct par défaut`);
+  v(sel && sel.v === 'direct' && sel.o.join() === 'direct,stable,historique', `${l}px : sélecteur « Flèches » présent, Direct par défaut`);
   await p.select('[data-ft-mode]', 'historique'); await w(600);
   const H1 = await p.evaluate(() => { const T = window.__or.flechesT; return { mode: T.mode(), bandeau: (document.querySelector('[data-ft-bandeau]') || {}).hidden === false, texte: (document.querySelector('[data-ft-bandeau]') || {}).textContent, vis: T.visibles().map(f => ({ v: f.version, t: f.tCloture, type: f.type })), posees: window.__or.graph.flechesTerminalEtat().posees, retro: T.retro().filter(f => !f.masquee).length, direct: T.direct().filter(f => !f.masquee).length }; });
   v(H1.mode === 'historique' && H1.bandeau && H1.texte === BANDEAU, `${l}px : mode Historique : bandeau permanent affiché avec le texte exact`);
