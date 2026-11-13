@@ -33,3 +33,7 @@ Règle : les flèches marquent des ÉVÉNEMENTS de lecture, pas des trades renta
 
 === NUIT 2026-11-13 (branche fleches-v5-nuit) ===
 A flèches v5 (contre-tendance, invalidation, niveaux proposés rétablis) · B notifications (vocal, navigateur, Telegram serveur) · C téléphone (actus stables, Atlas d'anatomie 2D, aperçu Terre, terminal graphique seul, manifeste or, SW 2026.11.13.1). Détail : PROGRESS.md (haut). Worker non déployé, restauration Cloudflare toujours en attente.
+
+
+=== 2026-11-13 (branche fleches-v6) ===
+A flèches v6 (2ᵉ touche, raison des points gris) · B suppression d'un trait (fenêtre + corbeille + Annuler) · C Telegram : images de signal (bot existant introuvable en local : script prêt, jeton à fournir). Voir PROGRESS.md (haut) et agent-trading/recherche-or/RAPPORT-FLECHES-V6.md.

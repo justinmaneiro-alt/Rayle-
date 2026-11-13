@@ -9,7 +9,7 @@ export const MODES = Object.freeze({
   ict: { nom: 'ICT', couches: ['rayMa', 'rayGolden', 'rayNiveaux', 'structure', 'ictLiquidite', 'ictStructure', 'ictFvg', 'ictOb', 'ictPd', 'ictTemps'], panneau: false },
   flux: { nom: 'Flux', couches: ['rayMa', 'rayNiveaux', 'vwap', 'profil', 'cvd', 'carteCarnet', 'seances'], panneau: true }
 });
-const OUTILS = [['curseur', '⌖', 'Curseur'], ['horizontale', '─', 'Ligne horizontale'], ['tendance', '╱', 'Droite (ligne de tendance)'], ['rayon', '↗', 'Rayon'], ['zone', '▭', 'Zone rectangulaire'], ['fib', 'F', 'Fibonacci (2 clics)'], ['texte', 'T', 'Texte (1 clic)'], ['mesure', '↔', 'Mesure (2 clics)'], ['gomme', '⌫', 'Gomme (supprime l’objet touché)'], ['aimant', '🧲', 'Aimant (aligne sur les extrêmes)']];
+const OUTILS = [['curseur', '⌖', 'Curseur'], ['horizontale', '─', 'Ligne horizontale'], ['tendance', '╱', 'Droite (ligne de tendance)'], ['rayon', '↗', 'Rayon'], ['zone', '▭', 'Zone rectangulaire'], ['fib', 'F', 'Fibonacci (2 clics)'], ['texte', 'T', 'Texte (1 clic)'], ['mesure', '↔', 'Mesure (2 clics)'], ['aimant', '🧲', 'Aimant (aligne sur les extrêmes)']];
 const nb = (x, d = 2) => Number(x).toLocaleString('fr-FR', { minimumFractionDigits: d, maximumFractionDigits: d }).replace(/[  ]/g, ' ');
 export function creerTerminalPro({ racine, graph, strategie, parler = () => {}, maintenant = () => Date.now() } = {}) {
   /* Mise en page classique (ancien terminal) : ?pro=0, ou un navigateur piloté par un test sans ?pro=1 (les anciens tests Chrome vérifient l'ancienne mise en page). Un utilisateur normal a le terminal pro. */
@@ -32,7 +32,7 @@ export function creerTerminalPro({ racine, graph, strategie, parler = () => {}, 
   function choisir(k) { 
     if (k === 'aimant') { const a = racine.querySelector('[data-o="aimant"]'); if (a) a.click(); const on = graph.aimant(); bar.querySelector('[data-tp-outil="aimant"]').setAttribute('aria-pressed', String(!!on)); return; }
     if (['horizontale', 'tendance', 'rayon', 'zone'].includes(k)) { if (graph.etat().modeOutil !== k) cliquerLegacy(k); } else if (graph.etat().modeOutil) { cliquerLegacy(graph.etat().modeOutil); }   // un outil existant se désactive en recliquant dessus
-    E.outil = k; try { graph.etat().outilPro = ['fib', 'texte', 'mesure', 'gomme'].includes(k); } catch (e) { /* */ } E.brouillon = null; for (const b of bar.querySelectorAll('[data-tp-outil]')) if (b.dataset.tpOutil !== 'aimant') b.setAttribute('aria-pressed', String(b.dataset.tpOutil === k));
+    E.outil = k; try { graph.etat().outilPro = ['fib', 'texte', 'mesure'].includes(k); } catch (e) { /* */ } E.brouillon = null; for (const b of bar.querySelectorAll('[data-tp-outil]')) if (b.dataset.tpOutil !== 'aimant') b.setAttribute('aria-pressed', String(b.dataset.tpOutil === k));
   }
   /* ── annotations (Fibonacci, texte, mesure) : clics sur le graphique ── */
   const id = () => 'a' + maintenant().toString(36) + Math.floor(Math.random() * 1e5).toString(36);
@@ -43,12 +43,23 @@ export function creerTerminalPro({ racine, graph, strategie, parler = () => {}, 
     if (E.outil === 'fib') { if (!E.brouillon) { E.brouillon = pt; return; } E.ann.push({ id: id(), type: 'fib', t1: E.brouillon.t, p1: E.brouillon.p, t2: pt.t, p2: pt.p }); E.brouillon = null; ecrire(CLE_ANN, E.ann); choisir('curseur'); pousser(); }
     else if (E.outil === 'texte') { let t = 'Note'; try { const r = window.prompt('Texte à poser sur le graphique', 'Note'); if (r === null) return; t = String(r).slice(0, 40) || 'Note'; } catch (e) { /* */ } E.ann.push({ id: id(), type: 'texte', t: pt.t, p: pt.p, texte: t }); ecrire(CLE_ANN, E.ann); choisir('curseur'); pousser(); }
     else if (E.outil === 'mesure') { if (!E.brouillon) { E.brouillon = pt; E.mesure = null; return; } const a = E.brouillon, atr = strategie.interne().atr || null, per = Math.abs(pt.t - a.t) / 3600e3, d = pt.p - a.p; E.mesure = { id: 'mesure', type: 'mesure', t1: a.t, p1: a.p, t2: pt.t, p2: pt.p, libelle: `${d >= 0 ? '+' : '−'}${nb(Math.abs(d))} $ · ${atr ? nb(Math.abs(d) / atr, 1) + ' ATR · ' : ''}${Math.round(per)} h` }; E.brouillon = null; pousser(); choisir('curseur'); }
-    else if (E.outil === 'gomme') { if (!supprimerProche(param.point)) { const s = racine.querySelector('[data-mo-edition] [data-a="supprimer"], [data-mo-edition] button[data-a*="suppr"]'); if (s) s.click(); } }
   }
-  function supprimerProche(pt) { let m = null, d = Infinity; for (const a of E.ann) { const y = graph.serie().priceToCoordinate(a.type === 'fib' ? (a.p1 + a.p2) / 2 : a.p), x = graph.xDeT(a.type === 'fib' ? Math.min(a.t1, a.t2) : a.t); if (y == null || x == null) continue; const dd = Math.hypot((pt.x - x) / 3, pt.y - y); if (dd < d) { d = dd; m = a; } } if (m && d < 60) { E.ann = E.ann.filter(a => a !== m); ecrire(CLE_ANN, E.ann); pousser(); return true; } return false; }
+  /* suppression : fenêtre commune (suppression-niveaux.js) ; ici seulement la recherche de l'annotation sous le pointeur et la suppression / restauration */
+  function candidatsSuppr(x, y, tol) {
+    const L = [], S = graph.serie(); if (!S) return L;
+    for (const a of E.ann) {
+      let d = Infinity;
+      if (a.type === 'fib') { const x1 = graph.xDeT(a.t1), x2 = graph.xDeT(a.t2), y1 = S.priceToCoordinate(a.p1), y2 = S.priceToCoordinate(a.p2); if ([x1, x2, y1, y2].some(v => v == null)) continue; const yl = Math.min(y1, y2), yh = Math.max(y1, y2), xl = Math.min(x1, x2); d = Math.hypot(x < xl ? xl - x : 0, y < yl ? yl - y : y > yh ? y - yh : 0); }
+      else { const ax = graph.xDeT(a.t), ay = S.priceToCoordinate(a.p); if (ax == null || ay == null) continue; d = Math.hypot(Math.max(0, Math.abs(x - ax) - 26), y - ay); }
+      if (d <= tol) L.push({ type: 'ann', cle: 'ann:' + a.id, a, d, nom: a.type === 'fib' ? 'Fibonacci' : (a.texte || 'Note'), bas: a.type === 'fib' ? Math.min(a.p1, a.p2) : a.p, haut: a.type === 'fib' ? Math.max(a.p1, a.p2) : a.p });
+    }
+    return L;
+  }
+  const supprimerAnn = idA => { E.ann = E.ann.filter(a => a.id !== idA); ecrire(CLE_ANN, E.ann); pousser(); };
+  const restaurerAnn = a => { if (!E.ann.some(x => x.id === a.id)) E.ann.push(a); ecrire(CLE_ANN, E.ann); pousser(); };
   /* clics : événements du pointeur (comme les outils existants : le clic de la bibliothèque n'est pas fiable pendant un dessin) */
   let bas = null; lw.addEventListener('pointerdown', ev => { bas = { x: ev.clientX, y: ev.clientY }; }, true);
-  lw.addEventListener('pointerup', ev => { if (!bas || !['fib', 'texte', 'mesure', 'gomme'].includes(E.outil)) { bas = null; return; } const d = Math.hypot(ev.clientX - bas.x, ev.clientY - bas.y); bas = null; if (d > 5) return; const r = lw.getBoundingClientRect(); surClic({ point: { x: ev.clientX - r.left, y: ev.clientY - r.top } }); }, true);
+  lw.addEventListener('pointerup', ev => { if (!bas || !['fib', 'texte', 'mesure'].includes(E.outil)) { bas = null; return; } const d = Math.hypot(ev.clientX - bas.x, ev.clientY - bas.y); bas = null; if (d > 5) return; const r = lw.getBoundingClientRect(); surClic({ point: { x: ev.clientX - r.left, y: ev.clientY - r.top } }); }, true);
   /* ── modes ── */
   function appliquerMode(k, { memoriser = true } = {}) {
     const M = MODES[k]; if (!M) return; E.mode = k; const tout = Object.keys(graph.couches()), cibles = new Set(M.couches), courant = graph.couches(), etat = {}; for (const c of tout) etat[c] = (c === 'fleches' || c === 'rsi') ? courant[c] !== false : cibles.has(c);   // flèches de lecture et RSI : ne dépendent pas du mode, le choix de l'utilisateur est gardé graph.couches(etat);
@@ -69,5 +80,5 @@ export function creerTerminalPro({ racine, graph, strategie, parler = () => {}, 
     if (/\bniveaux majeurs\b/.test(n)) { const m2 = strategie.modele(); const L = (m2 && m2.niveaux) || []; if (!L.length) { graph.couches({ rayNiveaux: true }); try { strategie.maj(true); } catch (e) { /* */ } const m3 = strategie.modele(); const L3 = (m3 && m3.niveaux) || []; return L3.length ? 'Niveaux majeurs affichés : ' + L3.map(x => x.etiquette).join(', ') + '. Un niveau est une zone de réaction possible, jamais une promesse.' : 'Je n’ai pas encore assez de bougies pour les niveaux majeurs.'; } return 'Niveaux majeurs : ' + L.map(x => x.etiquette).join(', ') + '. Un niveau est une zone de réaction possible, jamais une promesse.'; }
     return null;
   }
-  return { appliquerMode, droite, choisir, commande, mode: () => E.mode, annotations: () => E.ann.slice(), outil: () => E.outil, effacerAnnotations() { E.ann = []; ecrire(CLE_ANN, E.ann); pousser(); }, etat: () => ({ mode: E.mode, droite: E.droite, outil: E.outil }) };
+  return { appliquerMode, droite, choisir, commande, candidatsSuppr, supprimerAnn, restaurerAnn, mode: () => E.mode, annotations: () => E.ann.slice(), outil: () => E.outil, effacerAnnotations() { E.ann = []; ecrire(CLE_ANN, E.ann); pousser(); }, etat: () => ({ mode: E.mode, droite: E.droite, outil: E.outil }) };
 }
