@@ -5,7 +5,7 @@
    Test réel unique : node agent-trading/alertes-serveur.mjs --test-telegram (getMe + 1 message + 1 image).
    Lancement : node agent-trading/alertes-serveur.mjs   (ou alertes-serveur.cmd) ;  --une-fois : un seul passage.  Aucun ordre n'est jamais passé : repères de lecture. */
 import fs from 'node:fs'; import path from 'node:path'; import { fileURLToPath } from 'node:url';
-import * as F from './front/or/fleches-simples-v7.js';   // v7 (affinage) ; ancienne ligne : fleches-simples-v6 (Direct stable)
+import * as F8 from './front/or/fleches-simples-v8.js'; import * as F7 from './front/or/fleches-simples-v7.js'; import * as F6 from './front/or/fleches-simples-v6.js';   // v8 (gros mouvements) ; anciennes lignes : fleches-simples-v7 (Direct v7 validée), fleches-simples-v6 (Direct stable)
 import { zonesDirect } from './front/or/zones-direct.js';
 import { telechargerHistorique } from './moteur/bougies.js';
 import { creerNotifieur, formater } from './front/or/fleches-notif.js'; import { pngSignal, legendeSignal } from './signal-image.mjs';
@@ -59,9 +59,10 @@ export async function cycle({ donnees, etat, canaux = [], maintenant = () => Dat
   const B = (await donnees()).filter(b => b.t + H <= maintenant() && b.c > 0), dernier = B.length ? B[B.length - 1].t : 0;
   if (B.length < 300) { log(`bougies insuffisantes (${B.length})`); return { envoyes: [], raison: 'bougies insuffisantes' }; }
   if (dernier === etat.dernierT && etat.initialise) return { envoyes: [], raison: 'pas de nouvelle bougie' };
+  const F = ({ v6: F6, v7: F7 })[process.env.FLECHES_MOTEUR] || F8;   // v8 par défaut ; FLECHES_MOTEUR=v7|v6 pour les anciens moteurs (tests)
   const r = F.calculer(B, zonesDirect, { maintenant: dernier + H, bougies: 720 });
   const n = creerNotifieur({ etat: etat.notif = etat.notif || {}, canaux: [m => { log('ALERTE', m.titre); return Promise.resolve(); }, ...canaux], maintenant });
-  const envoyes = await n.traiter(r.fleches, { silencieux: !etat.initialise });   // premier passage : on mémorise l'existant sans rien envoyer
+  const envoyes = await n.traiter(r.fleches.filter(f => f.type !== 'ma_cassure' || process.env.FLECHES_MA === '1'), { silencieux: !etat.initialise, alertes: process.env.ALERTE_CONTACT === '0' ? [] : (r.alertes || []) });   // flèches MA200 coupées par défaut (FLECHES_MA=1 pour les envoyer) ; alerte de contact en texte seul (ALERTE_CONTACT=0 pour la couper)   // premier passage : on mémorise l'existant sans rien envoyer
   etat.initialise = true; etat.dernierT = dernier; etat.notif = n.etat;
   return { envoyes, flèches: r.fleches.length };
 }

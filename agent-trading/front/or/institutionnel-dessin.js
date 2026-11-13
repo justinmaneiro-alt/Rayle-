@@ -1,11 +1,18 @@
 /* Dessin des outils institutionnels sur le graphique (fonction pure de dessin : reçoit le contexte et les fonctions de conversion du graphique). */
-export function dessinerPropositions(ctx, T, props, { xDeT, yDe, mobile }) {
-  if (!props || !props.length) return; const fs = mobile ? 9 : 10; ctx.font = `${fs}px system-ui, 'Segoe UI', sans-serif`;
+export function dessinerPropositions(ctx, T, props, { xDeT, yDe, mobile, fusion = false }) {
+  if (!props || !props.length) return;
+  if (fusion) {   // Direct v8 : UNE seule position de lecture (la plus récente), un seul bloc de texte en haut à gauche, jamais superposé aux étiquettes de niveaux ni aux boîtes
+    const p = props[props.length - 1], fs0 = mobile ? 9 : 10; ctx.font = `${fs0}px system-ui, 'Segoe UI', sans-serif`;
+    const x0 = Math.max(0, xDeT(p.tCloture) ?? 0);
+    for (const [prix, col] of [[p.entree, 'rgba(232,238,242,.9)'], [p.stop, 'rgba(216,106,106,.95)'], [p.cible, 'rgba(95,184,148,.95)']]) { const y = yDe(prix); if (y == null || y < -2 || y > T.height + 2) continue; ctx.strokeStyle = col; ctx.lineWidth = 1; ctx.setLineDash([2, 3]); ctx.beginPath(); ctx.moveTo(x0, Math.round(y) + 0.5); ctx.lineTo(T.width, Math.round(y) + 0.5); ctx.stroke(); ctx.setLineDash([]); }
+    const t = `Lecture · Entrée ${p.entree.toFixed(2)} · Stop ${p.stop.toFixed(2)} (−1 R) · Cible ${p.cible.toFixed(2)} (${p.rBrut.toFixed(1)} R)`, w = ctx.measureText(t).width + 10;
+    ctx.fillStyle = 'rgba(8,12,16,.82)'; ctx.fillRect(6, 6, w, fs0 + 8); ctx.fillStyle = 'rgba(207,216,220,.95)'; ctx.fillText(t, 11, 6 + fs0 + 1); return;
+  } const fs = mobile ? 9 : 10; ctx.font = `${fs}px system-ui, 'Segoe UI', sans-serif`;
   for (const p of props) { const x0 = Math.max(0, xDeT(p.tCloture) ?? 0); const L = [[p.entree, 'rgba(232,238,242,.9)', `Entrée ${p.entree.toFixed(2)} · ${p.nom} (${p.etiquette})`], [p.stop, 'rgba(216,106,106,.95)', `Stop ${p.stop.toFixed(2)} · −1 R`], [p.cible, 'rgba(95,184,148,.95)', `Cible ${p.cible.toFixed(2)} · ${p.rBrut.toFixed(1)} R brut`]];
     for (const [prix, col, txt] of L) { const y = yDe(prix); if (y == null || y < -2 || y > T.height + 2) continue; ctx.strokeStyle = col; ctx.lineWidth = 1; ctx.setLineDash([]); ctx.beginPath(); ctx.moveTo(x0, Math.round(y) + 0.5); ctx.lineTo(T.width, Math.round(y) + 0.5); ctx.stroke(); ctx.fillStyle = col; const tw = ctx.measureText(txt).width; ctx.fillText(txt, Math.max(4, T.width - tw - 70), y - 3); } }
 }
-export function dessinerInstitutionnel(ctx, T, m, { xDeT, yDe, mobile, props }) {
-  if (!m) { dessinerPropositions(ctx, T, props, { xDeT, yDe, mobile }); return; } const fs = mobile ? 9 : 10; ctx.font = `${fs}px system-ui, 'Segoe UI', sans-serif`; ctx.textBaseline = 'alphabetic';
+export function dessinerInstitutionnel(ctx, T, m, { xDeT, yDe, mobile, props, fusion = false }) {
+  if (!m) { dessinerPropositions(ctx, T, props, { xDeT, yDe, mobile, fusion }); return; } const fs = mobile ? 9 : 10; ctx.font = `${fs}px system-ui, 'Segoe UI', sans-serif`; ctx.textBaseline = 'alphabetic';
   const utilises = []; const place = y => { let yy = y; for (let k = 0; k < 8 && utilises.some(u => Math.abs(u - yy) < fs + 1); k++) yy += fs + 1; utilises.push(yy); return yy; };
   // zones de séance (Paris)
   for (const z of m.zones) { const x0 = xDeT(z.t0), x1 = xDeT(z.t1), yH = yDe(z.h), yL = yDe(z.l); if ([x0, x1, yH, yL].some(v => v == null)) continue; ctx.fillStyle = `rgba(${z.rgb},.09)`; ctx.fillRect(x0, yH, Math.max(2, x1 - x0), yL - yH); ctx.strokeStyle = `rgba(${z.rgb},.55)`; ctx.setLineDash([]); ctx.lineWidth = 1; ctx.strokeRect(x0 + 0.5, yH + 0.5, Math.max(2, x1 - x0) - 1, yL - yH - 1); ctx.fillStyle = `rgba(${z.rgb},.95)`; ctx.fillText(z.txt, x0 + 3, yH + fs + 1); }
@@ -34,6 +41,6 @@ export function dessinerInstitutionnel(ctx, T, m, { xDeT, yDe, mobile, props }) 
     const cv = D.cvd.map(q => [xDeT(q.t), q.v]).filter(q => q[0] != null && q[0] >= 0 && q[0] <= T.width - 60); if (cv.length > 1) { const mn = Math.min(...cv.map(q => q[1])), mx = Math.max(...cv.map(q => q[1])), sp = mx - mn || 1; ctx.strokeStyle = '#7fd0ff'; ctx.lineWidth = 1.3; ctx.beginPath(); cv.forEach(([x, v], k) => { const y = y0 + 3 + (1 - (v - mn) / sp) * (h * 0.42); if (k) ctx.lineTo(x, y); else ctx.moveTo(x, y); }); ctx.stroke(); }
     ctx.fillStyle = '#7fd0ff'; ctx.fillText('CVD (ligne) · delta par bougie (barres), transactions Kraken en direct' + (D.depuis ? ' depuis ' + new Date(D.depuis).toLocaleString('fr-FR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }) : ''), 6, y0 + fs + 2); }
   // notes
-  dessinerPropositions(ctx, T, props, { xDeT, yDe, mobile });
+  dessinerPropositions(ctx, T, props, { xDeT, yDe, mobile, fusion });
   m.notes.forEach((t, k) => { ctx.fillStyle = 'rgba(8,12,16,.8)'; const w = ctx.measureText(t).width + 12; ctx.fillRect(6, 40 + k * (fs + 8), w, fs + 6); ctx.fillStyle = '#e0b25f'; ctx.fillText(t, 12, 40 + k * (fs + 8) + fs); });
 }

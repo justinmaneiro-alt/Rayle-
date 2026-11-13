@@ -21,8 +21,8 @@ import { normaliserZones } from './zones-fines-v1.js';
 import { zoneMasquee, distanceRect } from './suppression-calcul.js';
 import { dessinerZone, dessinerLiquidite } from './zones-affichage-dessin.js';
 
-export const COUCHES = Object.freeze({ sr: 'Supports et résistances', liquidite: 'Zones de liquidité', fleches: 'Flèches simples (cassure MA200 et retournement sur niveau majeur)', pointsGris: 'Points gris (raisons de blocage)', flechesTout: 'Anciennes flèches (debug : v1 à v10, niveaux mineurs, zones tracées)', volume: 'Zones de volume', mouvements: 'Mouvements H1', ...LIBELLES, structure: 'Structure de marché H1 / H4 (cassures, impulsions, retournements)', retournements: 'Retournements : toutes les zones (probabilité mesurée)', rsi: 'RSI 14 (sous-fenêtre) + divergences', divCachees: 'Divergences cachées', schemas: 'Schémas de retournement (double sommet, tête et épaules, balayage, bougies)', ...COUCHES_ICT, ...COUCHES_RAYLE });
-const COUCHES_DEFAUT = Object.freeze({ sr: true, liquidite: true, fleches: true, pointsGris: false, flechesTout: false, volume: false, mouvements: true, structure: false, retournements: false, rsi: true, divCachees: false, schemas: false, ...Object.fromEntries(Object.keys(COUCHES_ICT).map(k => [k, false])), ...COUCHES_RAYLE_DEFAUT, ...Object.fromEntries(Object.keys(LIBELLES).map(k => [k, false])) });
+export const COUCHES = Object.freeze({ sr: 'Supports et résistances', liquidite: 'Zones de liquidité', fleches: 'Flèches simples (cassure MA200 et retournement sur niveau majeur)', pointsGris: 'Points gris (raisons de blocage)', flechesMa: 'Flèches MA200 (cassures confirmées ; la ligne reste colorée par le régime)', boitesPos: 'Boîtes de position (3 dernières flèches)', boitesToutes: 'Boîtes de position : toutes les flèches', zonesLisibles: 'Grosses zones lisibles (R1, R2, R3, S1, S2, S3)', autresNiveaux: 'Réafficher les autres niveaux (zones et niveaux majeurs détaillés)', flechesTout: 'Anciennes flèches (debug : v1 à v10, niveaux mineurs, zones tracées)', volume: 'Zones de volume', mouvements: 'Mouvements H1', ...LIBELLES, structure: 'Structure de marché H1 / H4 (cassures, impulsions, retournements)', retournements: 'Retournements : toutes les zones (probabilité mesurée)', rsi: 'RSI 14 (sous-fenêtre) + divergences', divCachees: 'Divergences cachées', schemas: 'Schémas de retournement (double sommet, tête et épaules, balayage, bougies)', ...COUCHES_ICT, ...COUCHES_RAYLE });
+const COUCHES_DEFAUT = Object.freeze({ sr: true, liquidite: true, fleches: true, pointsGris: false, flechesMa: false, boitesPos: true, boitesToutes: false, zonesLisibles: true, autresNiveaux: false, flechesTout: false, volume: false, mouvements: true, structure: false, retournements: false, rsi: true, divCachees: false, schemas: false, ...Object.fromEntries(Object.keys(COUCHES_ICT).map(k => [k, false])), ...COUCHES_RAYLE_DEFAUT, ...Object.fromEntries(Object.keys(LIBELLES).map(k => [k, false])) });
 const lire = (k, d) => { try { const v = localStorage.getItem(k); return v ? JSON.parse(v) : d; } catch (e) { return d; } };
 const ecrire = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) { /* stockage refusé */ } };
 const nb = (p, d = 2) => Number(p).toLocaleString('fr-FR', { minimumFractionDigits: d, maximumFractionDigits: d }).replace(/ | /g, ' ');
@@ -43,7 +43,7 @@ export function ratio(pos) {
 }
 
 export function creerGraphiqueOr(el, { surClicPrix, mobile = false } = {}) {
-  const etat = { bougies: [], volumes: [], cle: null, debutKraken: null, ecart: null, chargementAncien: false, masques: [], hl: null, suppr: null, zonesVol: [], h1: [], aff: null, cadresZ: [], niveaux: [], retournement: [], bandes: [], liquidite: [], balayages: [], fleches: [], segments: [], segCadres: [], a: null, cadres: [], marques: [], tSerie: new Map(), barres: new Map(), couches: (() => { const c = { ...COUCHES_DEFAUT, ...lire('rayle_or_couches_v2', {}) }; if (!lire('rayle_or_rsi_defaut_v1', false)) { c.rsi = true; c.fleches = true; ecrire('rayle_or_rsi_defaut_v1', true); } return c; })(),   // une seule fois : RSI et flèches de lecture allumés par défaut, puis le choix est mémorisé pos: lire('rayle_or_position', null), outil: null, prix: null,
+  const etat = { tactile: false, lecture: null, bougies: [], volumes: [], cle: null, debutKraken: null, ecart: null, chargementAncien: false, masques: [], hl: null, suppr: null, zonesVol: [], h1: [], aff: null, cadresZ: [], niveaux: [], retournement: [], bandes: [], liquidite: [], balayages: [], fleches: [], segments: [], segCadres: [], a: null, cadres: [], marques: [], tSerie: new Map(), barres: new Map(), couches: (() => { const c = { ...COUCHES_DEFAUT, ...lire('rayle_or_couches_v2', {}) }; if (!lire('rayle_or_rsi_defaut_v1', false)) { c.rsi = true; c.fleches = true; ecrire('rayle_or_rsi_defaut_v1', true); } return c; })(),   // une seule fois : RSI et flèches de lecture allumés par défaut, puis le choix est mémorisé pos: lire('rayle_or_position', null), outil: null, prix: null,
     flechesT: [], outils: { objets: [], proposes: [], croix: [], fleches10: [], selection: null }, modeOutil: null, brouillon: [], aimant: true, outilsCadres: [] };
   let LW = null, chart = null, serie = null, vol = null, pret = null, maSerie = null, rsiSerie = null, rsiHaut = null, rsiBas = null, rsiDiv = [];
   /* couche « Mouvements H1 » (mouvements-v1.js, définition figée) : rétrospectif, jamais un signal ; H1 seulement ; données calculées dans un Worker (mouvements-ui.js) */
@@ -118,7 +118,7 @@ export function creerGraphiqueOr(el, { surClicPrix, mobile = false } = {}) {
     const etq = [], hors = { haut: null, bas: null }, xDe = t => { const x = chart.timeScale().timeToCoordinate(etat.tSerie.get(t) ?? tempsGraphique(t)); return x == null ? 0 : Math.max(0, x); };
     etat.cadresZ = [];
     const G0 = etat.aff || secoursAff(), G = masquerAff(G0);
-    if (etat.couches.sr !== false) {
+    if (etat.couches.sr !== false && !lisibleV8()) {
       for (const z of G.sr.traces) { const c = dessinerZone(ctx, T, z, { xDeT, yDe, fs }); if (c) { c.z = z; c.kind = 'sr'; etat.cadresZ.push(c); surligner(ctx, c, 'sr', z); } }   // traces très pâles, limitées à leur durée
       for (const z of G.sr.actives) {
         const col = z.cote === 'resistance' ? C.resistance : C.support, y0 = yDe(z.p + z.epaisseur / 2), y1 = yDe(z.p - z.epaisseur / 2); if (y0 == null || y1 == null) continue;
@@ -271,7 +271,7 @@ export function creerGraphiqueOr(el, { surClicPrix, mobile = false } = {}) {
     vol = chart.addSeries(LW.HistogramSeries, { priceFormat: { type: 'volume' }, lastValueVisible: false, priceLineVisible: false }, 1);
     try { const P = chart.panes(); P[0].setStretchFactor(mobile ? 4 : 5); P[1].setStretchFactor(1); } catch (e) { /* ancienne version : panneau par défaut */ }
     vol.priceScale().applyOptions({ scaleMargins: { top: 0.12, bottom: 0 }, borderVisible: false });
-    serie.attachPrimitive(primBande); serie.attachPrimitive(primFond); serie.attachPrimitive(primTexte); serie.attachPrimitive(primOutils); serie.attachPrimitive(primMouv); serie.attachPrimitive(primInst);
+    serie.attachPrimitive(primBande); serie.attachPrimitive(primFond); serie.attachPrimitive(primTexte); serie.attachPrimitive(primOutils); serie.attachPrimitive(primMouv); serie.attachPrimitive(primInst); serie.attachPrimitive(primLecture);
     if (LW.createSeriesMarkers) marqueurs = LW.createSeriesMarkers(serie, []);
     chart.subscribeClick(p => {
       if (!p.point || !serie) return; const prix = serie.coordinateToPrice(p.point.y); if (prix == null) return;
@@ -426,9 +426,56 @@ export function creerGraphiqueOr(el, { surClicPrix, mobile = false } = {}) {
     }
   }, 'bottom');
   /* outils institutionnels (VWAP, profil de volume, CVD, séances…) : modèle calculé par institutionnel-or.js, dessiné par institutionnel-dessin.js */
+  /* ── mode Direct v8 : lecture (boîtes de position, grosses zones R1…S3, MA200 colorée par le régime) ── */
+  const lecture = { boites: [], zones: [], ma: 0, etiq: [], zonesPix: [], boitesPix: [] };
+  const lisibleV8 = () => !!(etat.lecture && etat.lecture.zones && etat.couches.zonesLisibles !== false && !etat.couches.autresNiveaux);
+  const primLecture = new Primitive((ctx, T) => {
+    lecture.boites = []; lecture.zones = []; lecture.etiq = []; lecture.zonesPix = []; lecture.boitesPix = []; lecture.ma = 0;
+    const L = etat.lecture; if (!L || !chart || !serie || !etat.bougies.length) return;
+    const fs = mobile ? 10 : 11, derT = etat.bougies[etat.bougies.length - 1].t, xFin = (xDeT(derT) ?? T.width) + (mobile ? 8 : 14), pas = perBougie();
+    if (lisibleV8()) {
+      const utilises = [];
+      for (const z of L.zones) {
+        const y0 = yDe(z.haut), y1 = yDe(z.bas); if (y0 == null || y1 == null || y1 < 0 || y0 > T.height) continue;
+        const h = Math.max(2, y1 - y0), col = z.sens === 'resistance' ? '226,174,98' : '134,195,232', x0 = Math.max(0, z.tDebut != null ? (xDeT(z.tDebut) ?? 0) : 0);
+        ctx.fillStyle = `rgba(${col},.10)`; ctx.fillRect(x0, y0, T.width - x0, h); ctx.strokeStyle = `rgba(${col},.55)`; ctx.lineWidth = 1; ctx.setLineDash([]);
+        ctx.beginPath(); ctx.moveTo(x0, Math.round(y0) + 0.5); ctx.lineTo(T.width, Math.round(y0) + 0.5); ctx.moveTo(x0, Math.round(y1) + 0.5); ctx.lineTo(T.width, Math.round(y1) + 0.5); ctx.stroke();
+        ctx.font = `600 ${fs}px system-ui, 'Segoe UI', sans-serif`; const t = `${z.etiquette}  ${z.plage}${z.niveauNom && z.niveauType === 'structure' ? '  ' + z.niveauNom : ''}`, w = ctx.measureText(t).width + 8;
+        let yt = y0 + h / 2; for (let k = 0; k < 6 && utilises.some(u => Math.abs(u - yt) < fs + 4); k++) yt += fs + 4; utilises.push(yt);
+        const xt = T.width - w - 4; ctx.fillStyle = 'rgba(8,12,16,.78)'; ctx.fillRect(xt, yt - fs, w, fs + 4); ctx.fillStyle = `rgba(${col},1)`; ctx.fillText(t, xt + 4, yt + 1);
+        lecture.zones.push({ etiquette: z.etiquette }); lecture.etiq.push({ x: xt, y: yt - fs, w, h: fs + 4, texte: t }); lecture.zonesPix.push({ etiquette: z.etiquette, y0, y1, bas: z.bas, haut: z.haut, nom: `${z.etiquette} ${z.plage}`, x1: T.width });
+      }
+    }
+    const tout = !!etat.couches.boitesToutes, quelques = tout || etat.couches.boitesPos !== false;
+    if (quelques && L.boites) {
+      const B = L.boites.filter(b => b.visible !== false), liste = tout ? B : B.slice(-3);
+      for (const b of liste) {
+        const xa = xDeT(b.t0 - pas); if (xa == null) continue; let xb = b.figee ? xDeT(b.tFin - pas) : xFin; if (xb == null) xb = xFin; const x0 = Math.max(0, xa); if (xb < 0 || x0 > T.width) continue; xb = Math.max(x0 + 3, xb);
+        const ye = yDe(b.entree), ys = yDe(b.stop), y1 = yDe(b.tp1), y2 = yDe(b.tp2); if ([ye, ys, y1, y2].some(v => v == null)) continue;
+        const gris = b.figee, aa = gris ? 0.07 : 0.15;
+        ctx.fillStyle = `rgba(216,106,106,${aa})`; ctx.fillRect(x0, Math.min(ye, ys), xb - x0, Math.abs(ys - ye)); ctx.fillStyle = `rgba(95,184,148,${aa})`; ctx.fillRect(x0, Math.min(ye, y1), xb - x0, Math.abs(y1 - ye));
+        ctx.strokeStyle = gris ? 'rgba(160,170,176,.55)' : 'rgba(207,216,220,.7)'; ctx.lineWidth = 1; ctx.setLineDash([]); ctx.beginPath(); ctx.moveTo(x0, Math.round(ye) + 0.5); ctx.lineTo(xb, Math.round(ye) + 0.5); ctx.stroke();
+        ctx.strokeStyle = gris ? 'rgba(216,106,106,.35)' : 'rgba(216,106,106,.8)'; ctx.beginPath(); ctx.moveTo(x0, Math.round(ys) + 0.5); ctx.lineTo(xb, Math.round(ys) + 0.5); ctx.stroke();
+        ctx.strokeStyle = gris ? 'rgba(95,184,148,.35)' : 'rgba(95,184,148,.8)'; ctx.beginPath(); ctx.moveTo(x0, Math.round(y1) + 0.5); ctx.lineTo(xb, Math.round(y1) + 0.5); ctx.stroke();
+        ctx.setLineDash([3, 3]); ctx.strokeStyle = gris ? 'rgba(95,184,148,.3)' : 'rgba(95,184,148,.6)'; ctx.beginPath(); ctx.moveTo(x0, Math.round(y2) + 0.5); ctx.lineTo(xb, Math.round(y2) + 0.5); ctx.stroke(); ctx.setLineDash([]);
+        if (b.figee) { ctx.font = `600 ${fs}px system-ui, 'Segoe UI', sans-serif`; const t = b.libelle, w = ctx.measureText(t).width + 6, xr = Math.max(x0 + 2, xb - w - 2), yr = (b.R >= 0 ? Math.min(ye, y1) : Math.max(ye, ys)) + (b.R >= 0 ? -3 : fs + 1); ctx.fillStyle = 'rgba(8,12,16,.7)'; ctx.fillRect(xr, yr - fs, w, fs + 3); ctx.fillStyle = b.R >= 0 ? '#5fb894' : '#d86a6a'; ctx.fillText(t, xr + 3, yr); }
+        lecture.boites.push({ id: b.id, figee: !!b.figee }); lecture.boitesPix.push({ id: b.id, x0, x1: xb, ye, ys, y1, y2, libelle: b.libelle, figee: !!b.figee });
+      }
+    }
+    if (L.regime && L.regime.length && inst.ray && inst.ray.ma && inst.ray.ma.length > 1 && etat.couches.rayMa !== false) {
+      const pts = inst.ray.ma; ctx.lineWidth = 2; ctx.setLineDash([]);
+      for (const sg of L.regime) {
+        if (!sg.dir) continue; ctx.strokeStyle = sg.dir > 0 ? 'rgba(95,184,148,.95)' : 'rgba(216,106,106,.95)'; ctx.beginPath(); let debut = true, n = 0;
+        for (const q of pts) { if (q.t < sg.t0 || q.t > sg.t1) { if (q.t > sg.t1) break; continue; } const x = xDeT(q.t), y = yDe(q.v); if (x == null || y == null || x < -20 || x > T.width + 20) { debut = true; continue; } if (debut) { ctx.moveTo(x, y); debut = false; } else ctx.lineTo(x, y); n++; }
+        if (n) { ctx.stroke(); lecture.ma += n; }
+      }
+      ctx.lineWidth = 1;
+    }
+  }, 'top');
+
   const inst = { m: null, props: [], struct: null, cadresS: [], sch: null, cadresSch: [], ict: null, cadresIct: [], ray: null, cadresRay: [] };
-  const primInst = new Primitive((ctx, T) => { if (!chart || !serie || !etat.bougies.length) return; dessinerInstitutionnel(ctx, T, inst.m, { xDeT, yDe, mobile, props: inst.props }); inst.cadresS = (etat.couches.structure || etat.couches.retournements) ? dessinerStructure(ctx, T, inst.struct, { xDeT, yDe, mobile }) : []; inst.cadresSch = (etat.couches.rsi || etat.couches.divCachees || etat.couches.schemas) && inst.sch ? dessinerSchemas(ctx, T, inst.sch, { xDeT, yDe, mobile }) : []; inst.cadresIct = inst.ict ? dessinerIct(ctx, T, inst.ict, { xDeT, yDe, mobile }) : []; inst.cadresRay = inst.ray ? dessinerRayle(ctx, T, inst.ray, { xDeT, yDe, mobile }) : []; }, 'top');
-  const redessiner = () => { primTexte.maj && primTexte.maj(); primFond.maj && primFond.maj(); primMouv.maj && primMouv.maj(); primInst.maj && primInst.maj(); };
+  const primInst = new Primitive((ctx, T) => { if (!chart || !serie || !etat.bougies.length) return; dessinerInstitutionnel(ctx, T, inst.m, { xDeT, yDe, mobile, props: inst.props, fusion: !!etat.lecture }); inst.cadresS = (etat.couches.structure || etat.couches.retournements) ? dessinerStructure(ctx, T, inst.struct, { xDeT, yDe, mobile }) : []; inst.cadresSch = (etat.couches.rsi || etat.couches.divCachees || etat.couches.schemas) && inst.sch ? dessinerSchemas(ctx, T, inst.sch, { xDeT, yDe, mobile }) : []; inst.cadresIct = inst.ict ? dessinerIct(ctx, T, inst.ict, { xDeT, yDe, mobile }) : []; inst.cadresRay = inst.ray ? dessinerRayle(ctx, T, lisibleV8() ? { ...inst.ray, niveaux: [] } : inst.ray, { xDeT, yDe, mobile }) : []; }, 'top');
+  const redessiner = () => { primTexte.maj && primTexte.maj(); primFond.maj && primFond.maj(); primMouv.maj && primMouv.maj(); primInst.maj && primInst.maj(); primLecture.maj && primLecture.maj(); };
 
   const api = {
     pret: () => pret,
@@ -455,6 +502,11 @@ export function creerGraphiqueOr(el, { surClicPrix, mobile = false } = {}) {
     schemas(m) { inst.sch = m; redessiner(); },
     ict(m) { inst.ict = m; redessiner(); },
     rayle(m) { inst.ray = m; redessiner(); },
+    /* terminal tactile (tactile-v1.js) : volume masqué (le panneau du volume est réduit à presque rien), la bande RSI reste celle de la couche « rsi » */
+    tactile(on) { etat.tactile = !!on; try { vol.applyOptions({ visible: !on }); const P = chart.panes(); P[1].setStretchFactor(on ? 0.001 : 1); } catch (e) { /* */ } redessiner(); return etat.tactile; },
+    /* mode Direct v8 : boîtes de position, grosses zones lisibles, MA200 colorée par le régime ({ boites, zones, regime }) ; null = rien (autres modes) */
+    lectureV8(L) { etat.lecture = L || null; redessiner(); return etat.lecture ? { boites: (etat.lecture.boites || []).length, zones: (etat.lecture.zones || []).length } : null; },
+    lectureV8Etat: () => ({ boites: lecture.boites.length, zones: lecture.zones.length, lisible: lisibleV8(), ma: lecture.ma, etiq: lecture.etiq.slice(), zonesPix: lecture.zonesPix.slice(), boitesPix: lecture.boitesPix.slice() }),
     margeDroite(n) { if (chart) chart.applyOptions({ timeScale: { rightOffset: n } }); },
     rayleEtat: () => ({ cadres: (inst.cadresRay || []).length, types: (inst.cadresRay || []).reduce((o, c) => (o[c.kind] = (o[c.kind] || 0) + 1, o), {}), cadresListe: (inst.cadresRay || []).map(c => ({ kind: c.kind, x0: c.x0, x1: c.x1, y0: c.y0, y1: c.y1, texte: c.g && c.g.texte })), etiquettes: ((inst.cadresRay && inst.cadresRay.etiquettes) || []).map(r => ({ x0: r.x0, y0: r.y0, w: r.w, h: r.h })) }),
     ictEtat: () => ({ cadres: (inst.cadresIct || []).length, types: (inst.cadresIct || []).reduce((o, c) => (o[c.kind] = (o[c.kind] || 0) + 1, o), {}) }),
@@ -475,7 +527,7 @@ export function creerGraphiqueOr(el, { surClicPrix, mobile = false } = {}) {
         rsiSerie.createPriceLine({ price: 70, color: 'rgba(216,106,106,.45)', lineWidth: 1, lineStyle: 0, axisLabelVisible: true, title: '70' });
         rsiSerie.createPriceLine({ price: 30, color: 'rgba(95,184,148,.45)', lineWidth: 1, lineStyle: 0, axisLabelVisible: true, title: '30' });
         rsiSerie.createPriceLine({ price: 50, color: 'rgba(255,224,138,.16)', lineWidth: 1, lineStyle: 1, axisLabelVisible: false, title: '' });
-        try { const P = chart.panes(); P[0].setStretchFactor(mobile ? 4 : 5); P[1].setStretchFactor(1); if (P[2]) P[2].setStretchFactor(mobile ? 1.4 : 1.6); } catch (e) { /* */ }
+        try { const P = chart.panes(); P[0].setStretchFactor(mobile ? 4 : 5); P[1].setStretchFactor(etat.tactile ? 0.001 : 1); if (P[2]) P[2].setStretchFactor(mobile ? 1.4 : 1.6); } catch (e) { /* */ }
       }
       const m = new Map(); for (const q of points) { const tt = tDe(q.t); if (tt != null && Number.isFinite(q.v)) m.set(tt, q.v); }
       const data = [...m.entries()].sort((a, b) => a[0] - b[0]).map(([time, value]) => ({ time, value }));
@@ -521,6 +573,7 @@ export function creerGraphiqueOr(el, { surClicPrix, mobile = false } = {}) {
       if (h && h.o) { const o = h.o, bas = o.bas ?? o.p ?? o.p1 ?? o.entree, haut = o.haut ?? o.p ?? o.p2 ?? o.entree; L.push({ type: 'objet', cle: 'obj:' + o.id, o, d: h.d, nom: libelle(o) || NOMS_OUTILS[o.type], bas: Math.min(bas, haut), haut: Math.max(bas, haut) }); }
       else if (h && h.pr) L.push({ type: 'propose', cle: 'pr:' + h.pr.cle, pr: h.pr, d: h.d, nom: `Niveau proposé ${h.pr.unite === 'J' ? 'Jour' : h.pr.unite} (${h.pr.sorte})`, bas: h.pr.p, haut: h.pr.p });
       for (const c of etat.cadresZ || []) { if (!c.z) continue; const d = distanceRect(x, y, { x0: c.x0, x1: c.x1, y0: c.y0, y1: c.y1 }); if (d > tol) continue; const z = c.z, bas = z.bas ?? z.p, haut = z.haut ?? z.p; L.push({ type: 'zone', kind: c.kind, cle: cleZ(c.kind, z), z, d, nom: c.g && c.g.texte ? c.g.texte : (z.texte || 'Niveau'), bas: Math.min(bas, haut), haut: Math.max(bas, haut) }); }
+      for (const q of lecture.zonesPix) { const d = distanceRect(x, y, { x0: 0, x1: q.x1, y0: q.y0, y1: q.y1 }); if (d > tol) continue; L.push({ type: 'zone', kind: 'sr', cle: 'z:sr:' + Math.round(((q.bas + q.haut) / 2) * 100), z: { bas: q.bas, haut: q.haut, p: (q.bas + q.haut) / 2 }, d, nom: q.nom, bas: q.bas, haut: q.haut }); }   // grosses zones lisibles (v8) : même suppression que les autres niveaux
       return L;
     },
     xDeT, tDeX, outilsCadres: () => etat.outilsCadres.map(c => ({ sorte: c.sorte, id: c.o ? c.o.id : c.pr ? c.pr.cle : null, y: c.y ?? c.y0 ?? (c.ys && c.ys.entree) ?? c.y1, x: c.x ?? c.x1 ?? c.x0 ?? null, ys: c.ys || null, y0: c.y0, y1: c.y1, x1: c.x1, x2: c.x2, y2: c.y2 })),

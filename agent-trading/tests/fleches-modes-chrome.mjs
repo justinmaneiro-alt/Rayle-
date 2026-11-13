@@ -9,7 +9,7 @@ const BANDEAU = 'Flèches rétrospectives : placées avec des informations post�
 const nav = await puppeteer.launch({ executablePath: 'C:/Program Files/Google/Chrome/Application/chrome.exe', headless: 'new', args: ['--no-sandbox'] });
 for (const [l, h, mob] of [[1600, 900, false], [1024, 768, true], [390, 844, true]]) {
   const p = await nav.newPage(); await p.setViewport({ width: l, height: h, isMobile: mob, hasTouch: mob }); const err = []; p.on('pageerror', e => err.push(e.message));
-  await p.evaluateOnNewDocument(() => { try { if (!sessionStorage.getItem('__init')) { sessionStorage.setItem('__init', '1'); for (const k of Object.keys(localStorage)) if (/^rayle_(or|invest)_/.test(k)) localStorage.removeItem(k); localStorage.setItem('rayle_or_fleches_t10', '[]'); } } catch (e) {} });   // registre vide existant : les alertes sont actives
+  await p.evaluateOnNewDocument(() => { try { if (!sessionStorage.getItem('__init')) { sessionStorage.setItem('__init', '1'); for (const k of Object.keys(localStorage)) if (/^rayle_(or|invest)_/.test(k)) localStorage.removeItem(k); for (const k of ['t10','t12','t13']) localStorage.setItem('rayle_or_fleches_' + k, '[]'); } } catch (e) {} });   // registre vide existant : les alertes sont actives
   await p.goto(BASE + '/agent-trading/front/or.html?pro=1#trading', { waitUntil: 'domcontentloaded' });
   await p.waitForFunction(() => window.__or && window.__or.graph && window.__or.flechesT && window.__or.graph.etat().bougies.length > 20, { timeout: 45000 }).catch(() => {});
   await p.evaluate(b => { window.__or.structure.injecterH1(b); window.__or.structure.maj(true); }, serie); await w(1200);
@@ -26,7 +26,7 @@ for (const [l, h, mob] of [[1600, 900, false], [1024, 768, true], [390, 844, tru
   await p.select('[data-ft-mode]', 'direct'); await w(800);
   const D = await p.evaluate(() => { const T = window.__or.flechesT; return { mode: T.mode(), bandeau: (document.querySelector('[data-ft-bandeau]') || {}).hidden === false, vis: T.visibles().map(f => f.version), posees: window.__or.graph.flechesTerminalEtat().posees }; });
   v(D.mode === 'direct' && !D.bandeau, `${l}px : mode Direct : bandeau absent`);
-  v(D.vis.length > 0 && D.vis.every(x => x === 'fleches-simples-v5') && D.posees === D.vis.length, `${l}px : mode Direct : le graphique porte uniquement le jeu v5 (${D.posees} / ${D.vis.length})`);
+  v(D.vis.length > 0 && D.vis.every(x => /^fleches-simples-v[0-9]+$/.test(x)) && D.posees === D.vis.length, `${l}px : mode Direct : le graphique porte uniquement le jeu Direct courant (${D.posees} / ${D.vis.length})`);
   const jeux = await p.evaluate(() => { const T = window.__or.flechesT; return { d: T.visibles().length }; });
   v(jeux.d !== H1.vis.length || true, `${l}px : jeux : Direct ${D.vis.length} flèches, Historique ${H1.vis.length}`);
   await p.screenshot({ path: `outils-restructuration/captures/fleches-mode-direct-${l}.png` });
@@ -40,7 +40,7 @@ for (const [l, h, mob] of [[1600, 900, false], [1024, 768, true], [390, 844, tru
 /* alertes : première analyse EN mode Historique, horloge figée juste après la dernière flèche Direct ; registre existant vide (les alertes sont actives) */
 {
   const p = await nav.newPage(); await p.setViewport({ width: 1600, height: 900 }); const AT = 1794445200000 + 600000;
-  await p.evaluateOnNewDocument(t => { try { if (!sessionStorage.getItem('__init')) { sessionStorage.setItem('__init', '1'); for (const k of Object.keys(localStorage)) if (/^rayle_(or|invest)_/.test(k)) localStorage.removeItem(k); localStorage.setItem('rayle_or_fleches_t10', '[]'); localStorage.setItem('rayle_or_fleches_mode', '"historique"'); } Date.now = () => t; window.__alertes = []; let vr; Object.defineProperty(window, '__or', { configurable: true, get() { return vr; }, set(T) { vr = T; const o = T.notifier; if (typeof o === 'function') T.notifier = (m, x) => { window.__alertes.push(m); return o.call(T, m, x); }; } }); } catch (e) {} }, AT);
+  await p.evaluateOnNewDocument(t => { try { if (!sessionStorage.getItem('__init')) { sessionStorage.setItem('__init', '1'); for (const k of Object.keys(localStorage)) if (/^rayle_(or|invest)_/.test(k)) localStorage.removeItem(k); for (const k of ['t10','t12','t13']) localStorage.setItem('rayle_or_fleches_' + k, '[]'); localStorage.setItem('rayle_or_fleches_mode', '"historique"'); } Date.now = () => t; window.__alertes = []; let vr; Object.defineProperty(window, '__or', { configurable: true, get() { return vr; }, set(T) { vr = T; const o = T.notifier; if (typeof o === 'function') T.notifier = (m, x) => { window.__alertes.push(m); return o.call(T, m, x); }; } }); } catch (e) {} }, AT);
   await p.goto(BASE + '/agent-trading/front/or.html?pro=1#trading', { waitUntil: 'domcontentloaded' });
   await p.waitForFunction(() => window.__or && window.__or.flechesT && window.__or.graph.etat().bougies.length > 20, { timeout: 45000 }).catch(() => {});
   for (let k = 0; k < 12; k++) { await w(2500); await p.evaluate(() => { window.__or.flechesT.maj(); }); if (await p.evaluate(() => window.__or.flechesT.direct().length > 0)) break; } await w(1500);

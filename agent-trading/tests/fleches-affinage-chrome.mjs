@@ -15,9 +15,10 @@ for (const [l, h, mob] of [[1600, 900, false], [1024, 768, true], [390, 844, tru
   await p.waitForFunction(() => window.__or && window.__or.graph && window.__or.flechesT && window.__or.graph.etat().bougies.length > 20, { timeout: 45000 }).catch(() => {});
   await p.evaluate(b => { window.__or.structure.injecterH1(b); window.__or.structure.maj(true); }, serie); await w(800);
   await p.evaluate(() => { window.__or.flechesT.maj(); }); await w(1500);
+  await p.evaluate(() => window.__or.flechesT.fixerMode('v7')); await w(2500);   // « Direct (v7 validée) » : la v7 affinée, figée (le Direct par défaut est maintenant la v8)
   const E = await p.evaluate(() => { const T = window.__or, L = T.flechesT.liste(); return { mode: T.flechesT.mode(), n: L.length, versions: [...new Set(L.map(f => f.version))], rebond: L.filter(f => f.type === 'rebond_base').length, gris: L.filter(f => f.contre).length, couche: T.graph.couches().pointsGris, options: [...document.querySelectorAll('[data-ft-mode] option')].map(o => o.value + ':' + o.textContent), caseGris: !!document.querySelector('[data-couche="pointsGris"]') }; });
-  v(E.mode === 'direct' && E.versions.length === 1 && E.versions[0] === 'fleches-simples-v7', `${l}px : « Direct » par défaut = v7 (${E.n} flèches, versions ${E.versions})`);
-  v(E.options.join() === 'direct:Direct,stable:Direct (stable),historique:Historique', `${l}px : sélecteur ${E.options.join(' | ')}`);
+  v(E.mode === 'v7' && E.versions.length === 1 && E.versions[0] === 'fleches-simples-v7', `${l}px : « Direct (v7 validée) » = v7 (${E.n} flèches, versions ${E.versions})`);
+  v(E.options.join() === 'direct:Direct,v7:Direct (v7 validée),stable:Direct (stable),historique:Historique', `${l}px : sélecteur ${E.options.join(' | ')}`);
   v(E.caseGris && E.couche !== true, `${l}px : case « Points gris (raisons de blocage) » présente, désactivée par défaut`);
   v(E.rebond >= 1, `${l}px : ${E.rebond} flèche(s) « rebond après base »`);
   let M = await marques(p); v(M.length > 0 && M.every(m => m.c !== '#7d8791' && m.c !== '#5d6872' || m.t === '×'), `${l}px : aucun point gris affiché par défaut (${M.length} marques)`);
@@ -31,8 +32,8 @@ for (const [l, h, mob] of [[1600, 900, false], [1024, 768, true], [390, 844, tru
   v(S.mode === 'stable' && S.versions.join() === 'fleches-simples-v6' && S.rebond === 0 && S.n > 0, `${l}px : « Direct (stable) » = v6 inchangée (${S.n} flèches, ${S.versions})`);
   await p.evaluate(() => { const c = document.querySelector('[data-couche="pointsGris"]'); c.checked = false; c.dispatchEvent(new Event('change', { bubbles: true })); }); await w(400);
   M = await marques(p); v(M.some(m => m.c === '#5d6872' || m.c === '#7d8791'), `${l}px : la stable montre toujours ses points gris, même case décochée`);
-  await p.evaluate(() => window.__or.flechesT.fixerMode('direct')); await w(2500);
-  const D = await p.evaluate(() => ({ mode: window.__or.flechesT.mode(), v: [...new Set(window.__or.flechesT.liste().map(f => f.version))] })); v(D.mode === 'direct' && D.v.join() === 'fleches-simples-v7', `${l}px : retour à Direct = v7`);
+  await p.evaluate(() => window.__or.flechesT.fixerMode('v7')); await w(2500);
+  const D = await p.evaluate(() => ({ mode: window.__or.flechesT.mode(), v: [...new Set(window.__or.flechesT.liste().map(f => f.version))] })); v(D.mode === 'v7' && D.v.join() === 'fleches-simples-v7', `${l}px : retour à Direct (v7 validée) = v7`);
   v(err.length === 0, `${l}px : aucune erreur de script ${err.join(' | ').slice(0, 160)}`); await p.close();
 }
 await nav.close(); console.log(ko ? 'ÉCHECS : ' + ko : 'tout passe'); process.exit(ko ? 1 : 0);

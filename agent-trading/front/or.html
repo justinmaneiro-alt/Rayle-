@@ -9,6 +9,8 @@
 <link rel="stylesheet" href="./invest/invest.css">
 <link rel="stylesheet" href="./pages/pages.css" data-pages-css>
 <link rel="stylesheet" href="./or/terminal-mobile.css" media="(max-width:600px)">
+<link rel="stylesheet" href="./or/tactile-v1.css">
+<script>try{var q=new URLSearchParams(location.search),t=q.get("tactile");if(t==="1"||(t!=="0"&&matchMedia("(pointer: coarse)").matches&&!matchMedia("(hover: hover) and (pointer: fine)").matches))document.documentElement.classList.add("tm-tactile")}catch(e){}</script>
 <style>html,body{margin:0;background:#05080c;color:#d7e3ea}#vue{min-height:100vh}</style>
 </head>
 <body>
@@ -20,6 +22,7 @@
   import { demarrerPage } from './or/page-or.js';
   document.body.dataset.actif = (await import('./or/instruments.js')).actifCourant();
   window.__or = demarrerPage(document.getElementById('vue'));
+  import('./or/tactile-v1.js').then(m => m.monterTactile(window.__or)).catch(e => console.warn('terminal tactile :', e.message));   // écran tactile : graphique d'abord (sans effet sur PC)
   if (!new URLSearchParams(location.search).has('tele')) { const { parler } = await import('./or/tableau-or.js'); const m = await import('./espaces.js'); window.__espaces = m.monterEspaces({ trading: document.getElementById('vue'), parler }); }
 </script>
 </body>
