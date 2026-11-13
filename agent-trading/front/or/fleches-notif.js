@@ -10,8 +10,9 @@ const fr = x => Math.round(x).toLocaleString('fr-FR').replace(/[\u00a0\u202f]/g,
 const plage = f => f.zoneBas != null && f.zoneHaut != null ? (Math.round(f.zoneBas) === Math.round(f.zoneHaut) ? fr(f.zoneHaut) : `${fr(f.zoneBas)}–${fr(f.zoneHaut)}`) : '';
 
 /* événements à notifier : flèches normales récentes (jamais un point gris), invalidations récentes */
-export function evenements(registre, { maintenant, vus = new Set(), fraicheur = FRAICHEUR } = {}) {
+export function evenements(registre, { maintenant, vus = new Set(), fraicheur = FRAICHEUR, alertes = [] } = {}) {
   const out = [];
+  for (const a of alertes || []) if (a && a.tCloture > maintenant - fraicheur && !vus.has('c|' + a.id)) out.push({ cle: 'c|' + a.id, genre: 'contact', f: a, t: a.tCloture });   // alerte de contact (v8) : jamais un marqueur, jamais une image
   for (const f of registre || []) {
     if (!f || f.masquee || f.contre) continue;                                     // point gris : ni notification ni alerte vocale
     if (f.tCloture > maintenant - fraicheur && !vus.has('f|' + f.id)) out.push({ cle: 'f|' + f.id, genre: 'fleche', f, t: f.tCloture });
@@ -22,6 +23,7 @@ export function evenements(registre, { maintenant, vus = new Set(), fraicheur = 
 /* texte d'un événement : { titre, corps } (titre court de type « OR H1 · Retournement haussier sur 4 131–4 144 (confirmé 21:00) ») */
 export function formater(e, actif = 'OR', unite = 'H1') {
   const f = e.f, p = `${actif} ${unite} · `, h = heure(f.tCloture);
+  if (e.genre === 'contact') { const nv = (f.niveauNom ? f.niveauNom + ' ' : '') + plage(f); return { titre: `${p}Attention : prix sur ${nv} (${f.cote === 'resistance' ? 'résistance' : 'support'} majeur), surveille un retournement`, corps: `Contact à ${h} (clôture de la bougie H1) · prix ${fr(f.prix)} · aucun signal pour l'instant : la flèche n'apparaît qu'à la confirmation. Repère de lecture, pas un ordre.` }; }
   if (e.genre === 'invalide') {
     const quoi = f.type === 'ma_cassure' ? 'cassure' : f.type === 'rebond_base' ? 'rebond après base' : `${f.dir > 0 ? 'retournement haussier' : 'retournement baissier'} sur ${plage(f)}`;
     return { titre: `${p}Signal invalidé : ${quoi} (à ${heure(f.invalideeT)})`, corps: `Une bougie a clôturé de l'autre côté du niveau : le rebond est ravalé. Signal posé à ${h}, repère de lecture, pas un ordre.` };
@@ -36,8 +38,8 @@ export function creerNotifieur({ etat = {}, canaux = [], maintenant = () => Date
   etat.ids = etat.ids || []; etat.envois = etat.envois || [];
   const stats = { envoyes: 0, groupes: 0, refusesLimite: 0, refusesRepos: 0, erreurs: 0 };
   const vu = () => new Set(etat.ids);
-  async function traiter(registre, { silencieux = false } = {}) {
-    const n = maintenant(), nouveaux = evenements(registre, { maintenant: n, vus: vu() });
+  async function traiter(registre, { silencieux = false, alertes = [] } = {}) {
+    const n = maintenant(), nouveaux = evenements(registre, { maintenant: n, vus: vu(), alertes });
     for (const e of nouveaux) { etat.ids.push(e.cle); }                              // dédupliqué dans tous les cas (même si la limite refuse l'envoi : jamais de rattrapage tardif)
     if (etat.ids.length > MAX_IDS) etat.ids = etat.ids.slice(-MAX_IDS);
     if (silencieux || !nouveaux.length) return [];
