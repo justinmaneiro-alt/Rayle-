@@ -5,6 +5,7 @@
 import { creerNotifieur } from './fleches-notif.js'; import { notifierNavigateur, permissionNavigateur, demanderPermission } from './canal-navigateur.js';
 import * as V1 from './fleches-simples.js'; import { zonesDirect } from './zones-direct.js';
 import { exclureDe, CLE_MASQUES } from './suppression-calcul.js';
+import { monterHistorique, TEXTE_REGLAGE } from './fleches-historique-ui.js'; import { REGLAGE_T } from './fleches-bilan-v1.js';
 import * as F8 from './fleches-simples-v8.js'; import * as F7 from './fleches-simples-v7.js'; import * as F6 from './fleches-simples-v6.js';   // v8 (2026-11-13, gros mouvements) = « Direct » par défaut ; v7 = « Direct (v7 validée) » figée ; v6 = « Direct (stable) ».   // v7 (2026-11-13, affinage) = « Direct » par défaut ; v6 = « Direct (stable) », intacte. Ancienne ligne : import * as F from './fleches-simples-v6.js';
 //   // v6 (2026-11-13) : v5 + exception « 2ᵉ touche » + raison des points gris. Ancienne ligne : import * as F from './fleches-simples-v5.js';   // v5 (2026-11-13) : v4 + contre-tendance (point gris) + invalidation. Ancienne ligne : import * as F from './fleches-simples-v4.js'; import { zonesDirect } from './zones-direct.js';   // v4 (2026-11-12) : seulement les niveaux en trait plein (structure niveaux-majeurs-v1 + zones de swing actives, ≥ 3 touches vues). Ancienne ligne : import * as F from './fleches-simples-v3.js'; import { zonesDirect } from './zones-direct.js';   // v3 : zones majeures causales (3 touches déjà vues). Ancienne ligne : import * as F from './fleches-simples-v2.js'; import { zonesDirect } from './zones-direct.js';   // v2 (2026-11-12) : flèches simples rejouées EN DIRECT (causales). Ancienne ligne : import * as F from './fleches-simples.js';   // v2 (2026-11-12) : flèches lues sur les zones H1 DESSINÉES ; v1 et terminal-v1 (scellées) restent disponibles. Ancienne ligne :    // 2026-11-12 : flèches de lecture (MA200 et gros niveaux seulement, sans grappes) ; l'ancienne règle fleches-terminal-v1 (scellée) reste disponible en mode debug
 
@@ -22,6 +23,7 @@ export function monterFlechesTerminal(T, { maintenant = () => Date.now(), pret =
   const mode0 = normMode(lireJ(CLE_MODE, 'direct')); let F = MOT[cleMoteur(mode0)].F; const mot = () => MOT[cleMoteur(E.mode)];
   const R = T.R, E = { registre: lireJ(MOT[cleMoteur(mode0)].reg, null), hist: lireJ(CLE_HIST, true), notif: { vocal: true, navigateur: false, contact: true, ...lireJ(CLE_NOTIF, {}) }, mode: mode0, retro: [], cle: '', liste: [], contacts: lireJ(MOT[cleMoteur(mode0)].ctc, []), banque: {}, dernier: null, nouvelles: 0 };
   let premier = E.registre === null; if (premier) E.registre = [];
+  let histo = null; try { histo = monterHistorique(T, R, { maintenant, surChangement: () => { try { afficher(); } catch (e) { /* graphique pas prêt */ } } }); } catch (e) { console.warn('historique des flèches :', e.message); }   // sélecteur 1 / 3 / 6 mois / tout, carte « Bilan des flèches », ligne de la période de réglage
   /* notifications du mode Direct : un seul module (fleches-notif.js) ; canaux vocal et navigateur/PWA activables ; Telegram = script serveur (alertes-serveur.mjs) */
   const notifieur = creerNotifieur({ etat: lireJ(CLE_NOTIF_ETAT, {}), maintenant, actif: 'OR', unite: 'H1', canaux: [
     async m => { if (E.notif.vocal) T.notifier(m.titre.replace(/^OR H1 · /, ''), { niveau: 'fort', dit: true }); },
@@ -63,7 +65,10 @@ export function monterFlechesTerminal(T, { maintenant = () => Date.now(), pret =
   bandeau.hidden = E.mode !== 'historique'; if (zone) zone.appendChild(bandeau);
 
   /* arrows visibles : tout l'historique des 30 jours, ou seulement les dernières 24 heures quand l'interrupteur est coupé */
-  const visibles = () => { const n = maintenant(), de = n - (E.hist ? 30 : 1) * 86400e3; if (E.mode === 'historique') return E.retro.filter(f => !f.masquee && f.tCloture >= de); return E.liste.filter(f => !f.masquee && f.tCloture >= de && !(F.boite && f.type === 'ma_cassure' && !flechesMaVisibles()) && (f.levelId === 'MA200' || f.niveauType === 'structure' || !E.ids || E.ids.some(z => z.bas <= f.zoneHaut + 2 && z.haut >= f.zoneBas - 2))); };   // jamais de flèche sans niveau dessiné
+  const visibles = () => { const n = maintenant(), de = n - (E.hist ? 30 : 1) * 86400e3; if (E.mode === 'historique') return E.retro.filter(f => !f.masquee && f.tCloture >= de); if (E.mode === 'direct' && histo) { const de2 = histo.depuis(n), ids = new Set(E.liste.map(f => f.id)), debutReg = E.liste.length ? Math.min(...E.liste.map(f => f.tCloture)) : Infinity, masqueMa = f => f.type === 'ma_cassure' && !flechesMaVisibles();   // v8 : historique long (rejeu causal en Worker) avant le registre local, puis le registre
+      const anc = histo.flechesAnciennes().filter(f => !f.masquee && !ids.has(f.id) && f.tCloture >= de2 && f.tCloture < debutReg && !masqueMa(f));
+      return anc.concat(E.liste.filter(f => !f.masquee && f.tCloture >= de2 && !masqueMa(f) && (f.levelId === 'MA200' || f.niveauType === 'structure' || !E.ids || E.ids.some(z => z.bas <= f.zoneHaut + 2 && z.haut >= f.zoneBas - 2)))); }
+    return E.liste.filter(f => !f.masquee && f.tCloture >= de && !(F.boite && f.type === 'ma_cassure' && !flechesMaVisibles()) && (f.levelId === 'MA200' || f.niveauType === 'structure' || !E.ids || E.ids.some(z => z.bas <= f.zoneHaut + 2 && z.haut >= f.zoneBas - 2))); };   // jamais de flèche sans niveau dessiné
   /* contacts expliqués (points gris) : un seul marqueur par bougie, la flèche prime ; même fenêtre de temps que les flèches */
   const contactsVisibles = V => { const n = maintenant(), de = n - (E.hist ? 30 : 1) * 86400e3, pris = new Set(V.map(f => f.tCloture)); return (E.contacts || []).filter(k => k.tCloture >= de && !pris.has(k.tCloture)); };
   /* points gris (contacts expliqués et rebonds contre-tendance) : masqués par défaut dans « Direct » (case Couches « Points gris », mémorisée) ; toujours visibles dans « Direct (stable) » */
@@ -75,7 +80,7 @@ export function monterFlechesTerminal(T, { maintenant = () => Date.now(), pret =
     const H1 = (T.h1 ? T.h1() : []).filter(b => b.t + 3600e3 <= maintenant()), prix = H1.length ? H1[H1.length - 1].c : null; if (!H1.length) return null;
     const bo = V.filter(f => f.type !== 'ma_cassure' && !f.contre && !f.invalidee || f.type === 'ma_cassure' && flechesMaVisibles()).map(f => F.boite(H1, f)).filter(Boolean);
     const zs = prix != null && E.zonesFin ? F.zonesLisibles(E.zonesFin, prix) : [];
-    return { boites: bo, zones: zs, regime: F.segmentsRegimeMa(E.registre, H1[0].t, H1[H1.length - 1].t + 3600e3) };
+    return { boites: bo, zones: zs, regime: F.segmentsRegimeMa(E.registre, H1[0].t, H1[H1.length - 1].t + 3600e3), reglage: REGLAGE_T };
   }
   function afficher() {
     bandeau.hidden = E.mode !== 'historique'; const V0 = visibles(), V = grisVisibles() || E.mode === 'historique' ? V0 : V0.filter(f => !f.contre); try { T.graph.flechesTerminal(V, E.mode === 'historique' ? [] : grisVisibles() ? contactsVisibles(V) : []); } catch (e) { /* graphique pas prêt */ }
@@ -114,6 +119,7 @@ export function monterFlechesTerminal(T, { maintenant = () => Date.now(), pret =
     parTemps = new Map(); for (const f of V.concat(E.mode === 'historique' || !grisVisibles() ? [] : contactsVisibles(V))) { const t = T.graph.tempsDeBougie ? T.graph.tempsDeBougie(f.tCloture - 1) : null; if (t != null) { if (!parTemps.has(t)) parTemps.set(t, []); parTemps.get(t).push(f); } }
     if (abonne) return; const ch = T.graph.chart && T.graph.chart(); if (!ch) return; abonne = true;
     surPoint = p => {
+      const rx = T.graph.xReglage ? T.graph.xReglage() : null; if (E.mode === 'direct' && p && p.point && rx != null && Math.abs(p.point.x - rx) < (window.__ttTactile ? 14 : 7)) { bulle.innerHTML = '<div class="tor-ft-f" data-ft-reglage><b>Période de réglage →</b><span>' + esc(TEXTE_REGLAGE) + '</span></div>'; bulle.hidden = false; const w1 = bulle.offsetWidth || 260; bulle.style.left = Math.max(4, Math.min(p.point.x + 12, (zone ? zone.clientWidth : 600) - w1 - 4)) + 'px'; bulle.style.top = Math.max(4, p.point.y - 20) + 'px'; return; }
       if (!p || !p.point || p.time == null) { if (window.__ttTactile) { clearTimeout(bulle.__h); bulle.__h = setTimeout(() => { bulle.hidden = true; }, 7000); } else bulle.hidden = true; return; }   // tactile : l'infobulle d'une flèche reste après l'appui (7 s ou prochain appui ailleurs)
       const L = parTemps.get(p.time); if (!L || !L.length) { bulle.hidden = true; return; }
       if (E.mode === 'historique') { bulle.innerHTML = '<div class="tor-ft-f"><b>Flèche rétrospective</b><span>' + esc(dateLongue(L[0].tCloture)) + '</span><span>' + esc(BANDEAU) + '</span></div>'; bulle.hidden = false; const w0 = bulle.offsetWidth || 260; bulle.style.left = Math.max(4, Math.min(p.point.x + 12, (zone ? zone.clientWidth : 600) - w0 - 4)) + 'px'; bulle.style.top = Math.max(4, p.point.y - 20) + 'px'; return; }
@@ -127,11 +133,11 @@ export function monterFlechesTerminal(T, { maintenant = () => Date.now(), pret =
     bulleEl: () => bulle,
     bulleA(time, x, y) { if (surPoint && E.mode !== 'historique') surPoint({ point: { x, y }, time }); return !!(surPoint && !bulle.hidden); },   // tactile : un appui sur une flèche montre son infobulle
     maj() { if (window.__ttGeste) { clearTimeout(api.__t); api.__t = setTimeout(() => api.maj(), 500); return; }   // tactile : pas de recalcul des flèches ni des zones pendant un geste (reporté à la fin)
-      try { placerMode(); placerNotif(); if (calculer()) afficher(); else if (!E.liste.length) afficher(); } catch (e) { console.warn('flèches du Terminal :', e.message); } },
+      try { placerMode(); placerNotif(); if (histo) { histo.placer(); histo.demander(); } if (calculer()) afficher(); else if (!E.liste.length) afficher(); } catch (e) { console.warn('flèches du Terminal :', e.message); } },
     fixerMode(m) { const avant = mot(); E.mode = normMode(m); ecrireJ(CLE_MODE, E.mode); const apres = mot();
       if (avant !== apres) { E.banque[cleDe(avant)] = { registre: E.registre, contacts: E.contacts, liste: E.liste }; const b = E.banque[cleDe(apres)]; F = apres.F; E.cle = ''; E.registre = b ? b.registre : lireJ(apres.reg, null) || []; premier = !b && lireJ(apres.reg, null) === null; E.contacts = b ? b.contacts : lireJ(apres.ctc, []); E.liste = E.registre; try { api.maj(); } catch (e) { /* */ } } if (choix) choix.value = E.mode; if (E.mode === 'historique' && !E.retro.length) { try { retro(T.h1 ? T.h1() : [], T.graph.zonesH1 ? T.graph.zonesH1() : []); } catch (e) { /* */ } } afficher(); },
     mode: () => E.mode, notifieur: () => notifieur, reglagesNotif: () => ({ ...E.notif }), direct: () => E.liste.slice(), retro: () => E.retro.slice(),
-    etat: () => ({ mode: E.mode, bandeau: !bandeau.hidden, n: E.liste.length, visibles: visibles().length, hist: E.hist, raison: E.raison || null, nouvelles: E.nouvelles, barres: E.n || 0 }),
+    histo: () => histo, etat: () => ({ histoFenetre: histo ? histo.fenetre() : null, mode: E.mode, bandeau: !bandeau.hidden, n: E.liste.length, visibles: visibles().length, hist: E.hist, raison: E.raison || null, nouvelles: E.nouvelles, barres: E.n || 0 }),
     liste: () => E.liste.slice(), contacts: () => (E.contacts || []).slice(), visibles, bilan: () => F.bilan(T.h1 ? T.h1() : [], E.liste.filter(f => !f.masquee)), fixerHistorique(v) { E.hist = !!v; ecrireJ(CLE_HIST, E.hist); if (caseHist) caseHist.checked = E.hist; afficher(); }
   };
   pret.then(() => api.maj());

@@ -249,8 +249,8 @@ export function creerGraphiqueOr(el, { surClicPrix, mobile = false } = {}) {
   const marquesTerminal = () => etat.flechesT.map(f => { const tb = tBougie(f.tCloture - 1); if (tb == null) return null; const ma = f.type === 'ma_cassure';
     /* flèches simples : AUCUN texte sur le graphique (le détail est dans l'infobulle) ; vert = achat, rouge = vente, cyan = cassure de la MA200 */
     if (f.contre) return { id: 'ft' + f.id, time: tDe(tb), position: f.dir > 0 ? 'belowBar' : 'aboveBar', color: '#7d8791', shape: 'circle', size: 0.5 };   // v5 : rebond contre-tendance = petit point gris discret
-    if (f.invalidee) return { id: 'ft' + f.id, time: tDe(tb), position: f.dir > 0 ? 'belowBar' : 'aboveBar', color: '#7d8791', shape: 'circle', size: 1, text: '×' };   // v5 : invalidée = grise, petite croix (la flèche n'est jamais supprimée)
-    if (f.type === 'rebond_base') return { id: 'ft' + f.id, time: tDe(tb), position: f.dir > 0 ? 'belowBar' : 'aboveBar', color: f.dir > 0 ? '#8ef0b4' : '#ff9d9d', shape: f.dir > 0 ? 'arrowUp' : 'arrowDown', size: 1.4, text: 'B' };   // v7 : rebond après base = flèche plus claire marquée B
+    if (f.invalidee) return { id: 'ft' + f.id, time: tDe(tb), position: f.dir > 0 ? 'belowBar' : 'aboveBar', color: '#7d8791', shape: 'circle', size: 1, ...(etat.flechesT.length > 40 ? {} : { text: '×' }) };   // v5 : invalidée = grise, petite croix (la flèche n'est jamais supprimée)
+    if (f.type === 'rebond_base') return { id: 'ft' + f.id, time: tDe(tb), position: f.dir > 0 ? 'belowBar' : 'aboveBar', color: f.dir > 0 ? '#8ef0b4' : '#ff9d9d', shape: f.dir > 0 ? 'arrowUp' : 'arrowDown', size: 1.4, ...(etat.flechesT.length > 40 ? {} : { text: 'B' }) };   // v7 : rebond après base = flèche plus claire marquée B
     return { id: 'ft' + f.id, time: tDe(tb), position: f.dir > 0 ? 'belowBar' : 'aboveBar', color: ma ? '#8fd0e3' : f.dir > 0 ? '#2ecc71' : '#ff4d4d', shape: f.dir > 0 ? 'arrowUp' : 'arrowDown', size: 1.4 }; }).filter(Boolean);
   /* contacts expliqués : petit point gris, une seule marque par bougie (la flèche prime), raison dans l'infobulle ; aucune notification */
   const marquesContacts = () => { const pris = new Set(etat.flechesT.map(f => tBougie(f.tCloture - 1))); return (etat.contactsT || []).map(k => { const tb = tBougie(k.tCloture - 1); if (tb == null || pris.has(tb)) return null; pris.add(tb); return { id: 'fc' + k.id, time: tDe(tb), position: k.dir > 0 ? 'belowBar' : 'aboveBar', color: '#5d6872', shape: 'circle', size: 0.35 }; }).filter(Boolean); };
@@ -431,7 +431,7 @@ export function creerGraphiqueOr(el, { surClicPrix, mobile = false } = {}) {
   const lisibleV8 = () => !!(etat.lecture && etat.lecture.zones && etat.couches.zonesLisibles !== false && !etat.couches.autresNiveaux);
   const primLecture = new Primitive((ctx, T) => {
     lecture.boites = []; lecture.zones = []; lecture.etiq = []; lecture.zonesPix = []; lecture.boitesPix = []; lecture.ma = 0;
-    const L = etat.lecture; if (!L || !chart || !serie || !etat.bougies.length) return;
+    lecture.reglageX = null; const L = etat.lecture; if (!L || !chart || !serie || !etat.bougies.length) return;
     const fs = mobile ? 10 : 11, derT = etat.bougies[etat.bougies.length - 1].t, xFin = (xDeT(derT) ?? T.width) + (mobile ? 8 : 14), pas = perBougie();
     if (lisibleV8()) {
       const utilises = [];
@@ -460,6 +460,12 @@ export function creerGraphiqueOr(el, { surClicPrix, mobile = false } = {}) {
         ctx.setLineDash([3, 3]); ctx.strokeStyle = gris ? 'rgba(95,184,148,.3)' : 'rgba(95,184,148,.6)'; ctx.beginPath(); ctx.moveTo(x0, Math.round(y2) + 0.5); ctx.lineTo(xb, Math.round(y2) + 0.5); ctx.stroke(); ctx.setLineDash([]);
         if (b.figee) { ctx.font = `600 ${fs}px system-ui, 'Segoe UI', sans-serif`; const t = b.libelle, w = ctx.measureText(t).width + 6, xr = Math.max(x0 + 2, xb - w - 2), yr = (b.R >= 0 ? Math.min(ye, y1) : Math.max(ye, ys)) + (b.R >= 0 ? -3 : fs + 1); ctx.fillStyle = 'rgba(8,12,16,.7)'; ctx.fillRect(xr, yr - fs, w, fs + 3); ctx.fillStyle = b.R >= 0 ? '#5fb894' : '#d86a6a'; ctx.fillText(t, xr + 3, yr); }
         lecture.boites.push({ id: b.id, figee: !!b.figee }); lecture.boitesPix.push({ id: b.id, x0, x1: xb, ye, ys, y1, y2, libelle: b.libelle, figee: !!b.figee });
+      }
+    }
+    if (L.reglage != null) {   // ligne fine « Période de réglage → » (début de la période regardée pour régler les règles ; avant = hors échantillon)
+      const xr = xDeT(L.reglage); if (xr != null && xr >= 0 && xr <= T.width) {
+        ctx.save(); ctx.strokeStyle = 'rgba(201,178,122,.55)'; ctx.lineWidth = 1; ctx.setLineDash([2, 4]); ctx.beginPath(); ctx.moveTo(Math.round(xr) + 0.5, 0); ctx.lineTo(Math.round(xr) + 0.5, T.height); ctx.stroke(); ctx.setLineDash([]);
+        ctx.font = `600 ${mobile ? 10 : 11}px system-ui, 'Segoe UI', sans-serif`; ctx.fillStyle = 'rgba(201,178,122,.85)'; ctx.fillText('Période de réglage →', Math.min(xr + 4, Math.max(0, T.width - 120)), mobile ? 40 : 46); ctx.restore(); lecture.reglageX = xr;
       }
     }
     if (L.regime && L.regime.length && inst.ray && inst.ray.ma && inst.ray.ma.length > 1 && etat.couches.rayMa !== false) {
@@ -505,8 +511,9 @@ export function creerGraphiqueOr(el, { surClicPrix, mobile = false } = {}) {
     /* terminal tactile (tactile-v1.js) : volume masqué (le panneau du volume est réduit à presque rien), la bande RSI reste celle de la couche « rsi » */
     tactile(on) { etat.tactile = !!on; try { vol.applyOptions({ visible: !on }); const P = chart.panes(); P[1].setStretchFactor(on ? 0.001 : 1); } catch (e) { /* */ } redessiner(); return etat.tactile; },
     /* mode Direct v8 : boîtes de position, grosses zones lisibles, MA200 colorée par le régime ({ boites, zones, regime }) ; null = rien (autres modes) */
+    xReglage: () => lecture.reglageX == null ? null : lecture.reglageX,
     lectureV8(L) { etat.lecture = L || null; redessiner(); return etat.lecture ? { boites: (etat.lecture.boites || []).length, zones: (etat.lecture.zones || []).length } : null; },
-    lectureV8Etat: () => ({ boites: lecture.boites.length, zones: lecture.zones.length, lisible: lisibleV8(), ma: lecture.ma, etiq: lecture.etiq.slice(), zonesPix: lecture.zonesPix.slice(), boitesPix: lecture.boitesPix.slice() }),
+    lectureV8Etat: () => ({ reglageX: lecture.reglageX == null ? null : lecture.reglageX, boites: lecture.boites.length, zones: lecture.zones.length, lisible: lisibleV8(), ma: lecture.ma, etiq: lecture.etiq.slice(), zonesPix: lecture.zonesPix.slice(), boitesPix: lecture.boitesPix.slice() }),
     margeDroite(n) { if (chart) chart.applyOptions({ timeScale: { rightOffset: n } }); },
     rayleEtat: () => ({ cadres: (inst.cadresRay || []).length, types: (inst.cadresRay || []).reduce((o, c) => (o[c.kind] = (o[c.kind] || 0) + 1, o), {}), cadresListe: (inst.cadresRay || []).map(c => ({ kind: c.kind, x0: c.x0, x1: c.x1, y0: c.y0, y1: c.y1, texte: c.g && c.g.texte })), etiquettes: ((inst.cadresRay && inst.cadresRay.etiquettes) || []).map(r => ({ x0: r.x0, y0: r.y0, w: r.w, h: r.h })) }),
     ictEtat: () => ({ cadres: (inst.cadresIct || []).length, types: (inst.cadresIct || []).reduce((o, c) => (o[c.kind] = (o[c.kind] || 0) + 1, o), {}) }),
