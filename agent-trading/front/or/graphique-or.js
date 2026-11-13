@@ -43,7 +43,7 @@ export function ratio(pos) {
 }
 
 export function creerGraphiqueOr(el, { surClicPrix, mobile = false } = {}) {
-  const etat = { lecture: null, bougies: [], volumes: [], cle: null, debutKraken: null, ecart: null, chargementAncien: false, masques: [], hl: null, suppr: null, zonesVol: [], h1: [], aff: null, cadresZ: [], niveaux: [], retournement: [], bandes: [], liquidite: [], balayages: [], fleches: [], segments: [], segCadres: [], a: null, cadres: [], marques: [], tSerie: new Map(), barres: new Map(), couches: (() => { const c = { ...COUCHES_DEFAUT, ...lire('rayle_or_couches_v2', {}) }; if (!lire('rayle_or_rsi_defaut_v1', false)) { c.rsi = true; c.fleches = true; ecrire('rayle_or_rsi_defaut_v1', true); } return c; })(),   // une seule fois : RSI et flèches de lecture allumés par défaut, puis le choix est mémorisé pos: lire('rayle_or_position', null), outil: null, prix: null,
+  const etat = { tactile: false, lecture: null, bougies: [], volumes: [], cle: null, debutKraken: null, ecart: null, chargementAncien: false, masques: [], hl: null, suppr: null, zonesVol: [], h1: [], aff: null, cadresZ: [], niveaux: [], retournement: [], bandes: [], liquidite: [], balayages: [], fleches: [], segments: [], segCadres: [], a: null, cadres: [], marques: [], tSerie: new Map(), barres: new Map(), couches: (() => { const c = { ...COUCHES_DEFAUT, ...lire('rayle_or_couches_v2', {}) }; if (!lire('rayle_or_rsi_defaut_v1', false)) { c.rsi = true; c.fleches = true; ecrire('rayle_or_rsi_defaut_v1', true); } return c; })(),   // une seule fois : RSI et flèches de lecture allumés par défaut, puis le choix est mémorisé pos: lire('rayle_or_position', null), outil: null, prix: null,
     flechesT: [], outils: { objets: [], proposes: [], croix: [], fleches10: [], selection: null }, modeOutil: null, brouillon: [], aimant: true, outilsCadres: [] };
   let LW = null, chart = null, serie = null, vol = null, pret = null, maSerie = null, rsiSerie = null, rsiHaut = null, rsiBas = null, rsiDiv = [];
   /* couche « Mouvements H1 » (mouvements-v1.js, définition figée) : rétrospectif, jamais un signal ; H1 seulement ; données calculées dans un Worker (mouvements-ui.js) */
@@ -443,7 +443,7 @@ export function creerGraphiqueOr(el, { surClicPrix, mobile = false } = {}) {
         ctx.font = `600 ${fs}px system-ui, 'Segoe UI', sans-serif`; const t = `${z.etiquette}  ${z.plage}${z.niveauNom && z.niveauType === 'structure' ? '  ' + z.niveauNom : ''}`, w = ctx.measureText(t).width + 8;
         let yt = y0 + h / 2; for (let k = 0; k < 6 && utilises.some(u => Math.abs(u - yt) < fs + 4); k++) yt += fs + 4; utilises.push(yt);
         const xt = T.width - w - 4; ctx.fillStyle = 'rgba(8,12,16,.78)'; ctx.fillRect(xt, yt - fs, w, fs + 4); ctx.fillStyle = `rgba(${col},1)`; ctx.fillText(t, xt + 4, yt + 1);
-        lecture.zones.push({ etiquette: z.etiquette }); lecture.etiq.push({ x: xt, y: yt - fs, w, h: fs + 4, texte: t }); lecture.zonesPix.push({ etiquette: z.etiquette, y0, y1 });
+        lecture.zones.push({ etiquette: z.etiquette }); lecture.etiq.push({ x: xt, y: yt - fs, w, h: fs + 4, texte: t }); lecture.zonesPix.push({ etiquette: z.etiquette, y0, y1, bas: z.bas, haut: z.haut, nom: `${z.etiquette} ${z.plage}`, x1: T.width });
       }
     }
     const tout = !!etat.couches.boitesToutes, quelques = tout || etat.couches.boitesPos !== false;
@@ -502,6 +502,8 @@ export function creerGraphiqueOr(el, { surClicPrix, mobile = false } = {}) {
     schemas(m) { inst.sch = m; redessiner(); },
     ict(m) { inst.ict = m; redessiner(); },
     rayle(m) { inst.ray = m; redessiner(); },
+    /* terminal tactile (tactile-v1.js) : volume masqué (le panneau du volume est réduit à presque rien), la bande RSI reste celle de la couche « rsi » */
+    tactile(on) { etat.tactile = !!on; try { vol.applyOptions({ visible: !on }); const P = chart.panes(); P[1].setStretchFactor(on ? 0.001 : 1); } catch (e) { /* */ } redessiner(); return etat.tactile; },
     /* mode Direct v8 : boîtes de position, grosses zones lisibles, MA200 colorée par le régime ({ boites, zones, regime }) ; null = rien (autres modes) */
     lectureV8(L) { etat.lecture = L || null; redessiner(); return etat.lecture ? { boites: (etat.lecture.boites || []).length, zones: (etat.lecture.zones || []).length } : null; },
     lectureV8Etat: () => ({ boites: lecture.boites.length, zones: lecture.zones.length, lisible: lisibleV8(), ma: lecture.ma, etiq: lecture.etiq.slice(), zonesPix: lecture.zonesPix.slice(), boitesPix: lecture.boitesPix.slice() }),
@@ -525,7 +527,7 @@ export function creerGraphiqueOr(el, { surClicPrix, mobile = false } = {}) {
         rsiSerie.createPriceLine({ price: 70, color: 'rgba(216,106,106,.45)', lineWidth: 1, lineStyle: 0, axisLabelVisible: true, title: '70' });
         rsiSerie.createPriceLine({ price: 30, color: 'rgba(95,184,148,.45)', lineWidth: 1, lineStyle: 0, axisLabelVisible: true, title: '30' });
         rsiSerie.createPriceLine({ price: 50, color: 'rgba(255,224,138,.16)', lineWidth: 1, lineStyle: 1, axisLabelVisible: false, title: '' });
-        try { const P = chart.panes(); P[0].setStretchFactor(mobile ? 4 : 5); P[1].setStretchFactor(1); if (P[2]) P[2].setStretchFactor(mobile ? 1.4 : 1.6); } catch (e) { /* */ }
+        try { const P = chart.panes(); P[0].setStretchFactor(mobile ? 4 : 5); P[1].setStretchFactor(etat.tactile ? 0.001 : 1); if (P[2]) P[2].setStretchFactor(mobile ? 1.4 : 1.6); } catch (e) { /* */ }
       }
       const m = new Map(); for (const q of points) { const tt = tDe(q.t); if (tt != null && Number.isFinite(q.v)) m.set(tt, q.v); }
       const data = [...m.entries()].sort((a, b) => a[0] - b[0]).map(([time, value]) => ({ time, value }));
@@ -571,6 +573,7 @@ export function creerGraphiqueOr(el, { surClicPrix, mobile = false } = {}) {
       if (h && h.o) { const o = h.o, bas = o.bas ?? o.p ?? o.p1 ?? o.entree, haut = o.haut ?? o.p ?? o.p2 ?? o.entree; L.push({ type: 'objet', cle: 'obj:' + o.id, o, d: h.d, nom: libelle(o) || NOMS_OUTILS[o.type], bas: Math.min(bas, haut), haut: Math.max(bas, haut) }); }
       else if (h && h.pr) L.push({ type: 'propose', cle: 'pr:' + h.pr.cle, pr: h.pr, d: h.d, nom: `Niveau proposé ${h.pr.unite === 'J' ? 'Jour' : h.pr.unite} (${h.pr.sorte})`, bas: h.pr.p, haut: h.pr.p });
       for (const c of etat.cadresZ || []) { if (!c.z) continue; const d = distanceRect(x, y, { x0: c.x0, x1: c.x1, y0: c.y0, y1: c.y1 }); if (d > tol) continue; const z = c.z, bas = z.bas ?? z.p, haut = z.haut ?? z.p; L.push({ type: 'zone', kind: c.kind, cle: cleZ(c.kind, z), z, d, nom: c.g && c.g.texte ? c.g.texte : (z.texte || 'Niveau'), bas: Math.min(bas, haut), haut: Math.max(bas, haut) }); }
+      for (const q of lecture.zonesPix) { const d = distanceRect(x, y, { x0: 0, x1: q.x1, y0: q.y0, y1: q.y1 }); if (d > tol) continue; L.push({ type: 'zone', kind: 'sr', cle: 'z:sr:' + Math.round(((q.bas + q.haut) / 2) * 100), z: { bas: q.bas, haut: q.haut, p: (q.bas + q.haut) / 2 }, d, nom: q.nom, bas: q.bas, haut: q.haut }); }   // grosses zones lisibles (v8) : même suppression que les autres niveaux
       return L;
     },
     xDeT, tDeX, outilsCadres: () => etat.outilsCadres.map(c => ({ sorte: c.sorte, id: c.o ? c.o.id : c.pr ? c.pr.cle : null, y: c.y ?? c.y0 ?? (c.ys && c.ys.entree) ?? c.y1, x: c.x ?? c.x1 ?? c.x0 ?? null, ys: c.ys || null, y0: c.y0, y1: c.y1, x1: c.x1, x2: c.x2, y2: c.y2 })),

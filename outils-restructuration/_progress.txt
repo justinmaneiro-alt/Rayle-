@@ -37,3 +37,7 @@ A flèches v5 (contre-tendance, invalidation, niveaux proposés rétablis) · B 
 
 === 2026-11-13 (branche fleches-v6) ===
 A flèches v6 (2ᵉ touche, raison des points gris) · B suppression d'un trait (fenêtre + corbeille + Annuler) · C Telegram : images de signal (bot existant introuvable en local : script prêt, jeton à fournir). Voir PROGRESS.md (haut) et agent-trading/recherche-or/RAPPORT-FLECHES-V6.md.
+
+
+=== 2026-11-13 (branche fleches-gros-mouvements) ===
+0 sauvegarde Direct v7 (étiquette direct-v7-valide, archive + test) · 1 tests Chrome réparés (vrai bug terminal-pro : graph.couches avalé par un commentaire) · 2 flèches v8 gros mouvements (46 flèches, boîtes de position, zones R/S, alerte de contact ; 2 règles relâchées) · 3 tactile graphique d'abord (tactile-v1, CPU x4 : 130 i/s). Voir PROGRESS.md (haut), agent-trading/recherche-or/RAPPORT-FLECHES-GROS-MOUVEMENTS.md, outils-restructuration/DIAGNOSTIC-TACTILE.md.

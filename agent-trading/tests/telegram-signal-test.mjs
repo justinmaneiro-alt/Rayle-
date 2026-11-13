@@ -3,7 +3,7 @@
 import http from 'node:http'; import fs from 'node:fs'; import path from 'node:path'; import { execFileSync } from 'node:child_process'; import { fileURLToPath } from 'node:url';
 import { canalTelegram, cycle, testerTelegram, lireEnv } from '../alertes-serveur.mjs'; import * as V6 from '../front/or/fleches-simples-v6.js'; import { zonesDirect } from '../front/or/zones-direct.js';
 import { pngSignal, legendeSignal, svgSignal } from '../signal-image.mjs'; import { serie13 } from '../recherche-or/fleches-v6-diag.mjs';
-const ici = path.dirname(fileURLToPath(import.meta.url)), H = 3600e3; let ok = 0, ko = 0; const v = (n, c, d = '') => { if (c) ok++; else { ko++; console.log('ÉCHEC', n, d); } };
+process.env.FLECHES_MOTEUR = 'v6'; const ici = path.dirname(fileURLToPath(import.meta.url)), H = 3600e3; let ok = 0, ko = 0; const v = (n, c, d = '') => { if (c) ok++; else { ko++; console.log('ÉCHEC', n, d); } };
 const JETON_FAUX = '1234567890:FAUX_JETON_DE_TEST_aaaaaaaaaaaaaaaaaaaaa', K = serie13();
 const recus = []; const srv = http.createServer((req, res) => { const bufs = []; req.on('data', d => bufs.push(d)); req.on('end', () => { const corps = Buffer.concat(bufs); recus.push({ url: req.url, type: req.headers['content-type'] || '', corps }); res.setHeader('content-type', 'application/json'); res.end(JSON.stringify({ ok: true, result: req.url.endsWith('getMe') ? { username: 'bot_de_test' } : req.url.endsWith('getUpdates') ? [{ message: { chat: { id: 42 } } }] : {} })); }); });
 await new Promise(r => srv.listen(0, '127.0.0.1', r)); const api = `http://127.0.0.1:${srv.address().port}`, env = { TELEGRAM_BOT_TOKEN: JETON_FAUX, TELEGRAM_CHAT_ID: '42', TELEGRAM_API: api };

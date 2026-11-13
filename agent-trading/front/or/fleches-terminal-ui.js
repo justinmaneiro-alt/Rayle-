@@ -113,16 +113,21 @@ export function monterFlechesTerminal(T, { maintenant = () => Date.now(), pret =
   function ancrerBulle(V) {
     parTemps = new Map(); for (const f of V.concat(E.mode === 'historique' || !grisVisibles() ? [] : contactsVisibles(V))) { const t = T.graph.tempsDeBougie ? T.graph.tempsDeBougie(f.tCloture - 1) : null; if (t != null) { if (!parTemps.has(t)) parTemps.set(t, []); parTemps.get(t).push(f); } }
     if (abonne) return; const ch = T.graph.chart && T.graph.chart(); if (!ch) return; abonne = true;
-    ch.subscribeCrosshairMove(p => {
-      if (!p || !p.point || p.time == null) { bulle.hidden = true; return; }
+    surPoint = p => {
+      if (!p || !p.point || p.time == null) { if (window.__ttTactile) { clearTimeout(bulle.__h); bulle.__h = setTimeout(() => { bulle.hidden = true; }, 7000); } else bulle.hidden = true; return; }   // tactile : l'infobulle d'une flèche reste après l'appui (7 s ou prochain appui ailleurs)
       const L = parTemps.get(p.time); if (!L || !L.length) { bulle.hidden = true; return; }
       if (E.mode === 'historique') { bulle.innerHTML = '<div class="tor-ft-f"><b>Flèche rétrospective</b><span>' + esc(dateLongue(L[0].tCloture)) + '</span><span>' + esc(BANDEAU) + '</span></div>'; bulle.hidden = false; const w0 = bulle.offsetWidth || 260; bulle.style.left = Math.max(4, Math.min(p.point.x + 12, (zone ? zone.clientWidth : 600) - w0 - 4)) + 'px'; bulle.style.top = Math.max(4, p.point.y - 20) + 'px'; return; }
       bulle.innerHTML = L.map(f => f.type ? `<div class="tor-ft-f"><b>${esc(f.nom)}</b><span>${esc(dateLongue(f.tCloture))} (clôture de la bougie H1)</span>${F.detail(f).concat(F.textesRes(f.resultat)).map(x => `<span>${esc(x)}</span>`).join('')}</div>` : `<div class="tor-ft-f" data-ft-contact><b>Pas de flèche</b>${F.detailContact(f).map(x => `<span>${esc(x)}</span>`).join('')}</div>`).join('') + '<small>Description de ce qui s’est passé, jamais un ordre.</small>';
       bulle.hidden = false; const w = bulle.offsetWidth || 260; bulle.style.left = Math.max(4, Math.min(p.point.x + 12, (zone ? zone.clientWidth : 600) - w - 4)) + 'px'; bulle.style.top = Math.max(4, p.point.y - 20) + 'px';
-    });
+    };
+    ch.subscribeCrosshairMove(surPoint);
   }
+  let surPoint = null;   // affichage de l'infobulle (réticule ou appui au doigt)
   const api = {
-    maj() { try { placerMode(); placerNotif(); if (calculer()) afficher(); else if (!E.liste.length) afficher(); } catch (e) { console.warn('flèches du Terminal :', e.message); } },
+    bulleEl: () => bulle,
+    bulleA(time, x, y) { if (surPoint && E.mode !== 'historique') surPoint({ point: { x, y }, time }); return !!(surPoint && !bulle.hidden); },   // tactile : un appui sur une flèche montre son infobulle
+    maj() { if (window.__ttGeste) { clearTimeout(api.__t); api.__t = setTimeout(() => api.maj(), 500); return; }   // tactile : pas de recalcul des flèches ni des zones pendant un geste (reporté à la fin)
+      try { placerMode(); placerNotif(); if (calculer()) afficher(); else if (!E.liste.length) afficher(); } catch (e) { console.warn('flèches du Terminal :', e.message); } },
     fixerMode(m) { const avant = mot(); E.mode = normMode(m); ecrireJ(CLE_MODE, E.mode); const apres = mot();
       if (avant !== apres) { E.banque[cleDe(avant)] = { registre: E.registre, contacts: E.contacts, liste: E.liste }; const b = E.banque[cleDe(apres)]; F = apres.F; E.cle = ''; E.registre = b ? b.registre : lireJ(apres.reg, null) || []; premier = !b && lireJ(apres.reg, null) === null; E.contacts = b ? b.contacts : lireJ(apres.ctc, []); E.liste = E.registre; try { api.maj(); } catch (e) { /* */ } } if (choix) choix.value = E.mode; if (E.mode === 'historique' && !E.retro.length) { try { retro(T.h1 ? T.h1() : [], T.graph.zonesH1 ? T.graph.zonesH1() : []); } catch (e) { /* */ } } afficher(); },
     mode: () => E.mode, notifieur: () => notifieur, reglagesNotif: () => ({ ...E.notif }), direct: () => E.liste.slice(), retro: () => E.retro.slice(),
