@@ -137,15 +137,14 @@ export function monterOutils(T, { stockage = null, fetchFn = fetch, maintenant =
       <label><input type="checkbox" data-c="muet"${o.muet ? ' checked' : ''}> Muet (journal seulement)</label>
       <label><input type="checkbox" data-c="repete"${o.repete !== false ? ' checked' : ''}> Annoncer à chaque fois (sinon une seule fois)</label>
       ${c ? `<p class="tor-doux">${c.sens === 'achat' ? 'Achat' : 'Vente'} (déduit du stop) · risque ${nb(c.risque, 0)} $ · taille ${nb(c.taille, 3)} contrats (1 oz) · risque réel ${nb(c.risqueReel, 0)} $</p><button type="button" data-mo="journal">Enregistrer dans mon journal</button>` : ''}
-      <button type="button" data-mo="supprimer">Supprimer</button> <button type="button" data-mo="fermer">Fermer</button></div>`;
+      <button type="button" data-mo="fermer">Fermer</button> <small class="tor-doux">Pour supprimer : clique sur le trait, puis sur la corbeille.</small></div>`;
   }
   bloc.addEventListener('click', async e => {
     const x = e.target.closest('[data-mo]'); if (!x) return; const a = x.dataset.mo;
     if (a === 'choisir') selectionner(x.dataset.id);
     else if (a === 'fermer') selectionner(null);
-    else if (a === 'supprimer' && E.selection) supprimer(E.selection);
     else if (a === 'journal') versJournal(E.objets.find(o => o.id === E.selection));
-    else if (a === 'confirmer' || a === 'rejeter') decider(x.dataset.cle, a === 'confirmer');
+    else if (a === 'confirmer') decider(x.dataset.cle, true);
   });
   bloc.addEventListener('change', e => {
     const i = e.target.closest('[data-c]'), ed = e.target.closest('[data-ed]'); if (!i || !ed) return; const k = i.dataset.c;
@@ -172,14 +171,20 @@ export function monterOutils(T, { stockage = null, fetchFn = fetch, maintenant =
   }
   function majProposes() {
     E.proposes = niveauxProposes(E.fractales, E.decisions, maintenant());
-    b('[data-mo-proposes]').innerHTML = E.proposes.map(p => `<li data-cle="${esc(p.cle)}"><span>${p.sorte === 'sommet' ? 'Sommet' : 'Creux'} ${p.unite === 'J' ? 'Jour' : p.unite} <b>${nb(p.p)}</b> <small>${new Date(p.t).toLocaleDateString('fr-FR')}</small></span> <button type="button" data-mo="confirmer" data-cle="${esc(p.cle)}">Mon niveau</button><button type="button" data-mo="rejeter" data-cle="${esc(p.cle)}">Supprimer</button></li>`).join('') || `<li class="tor-doux">${E.fractales.length ? 'Tous les niveaux proposés sont traités.' : 'Calcul des grands creux et sommets…'}</li>`;
+    b('[data-mo-proposes]').innerHTML = E.proposes.map(p => `<li data-cle="${esc(p.cle)}"><span>${p.sorte === 'sommet' ? 'Sommet' : 'Creux'} ${p.unite === 'J' ? 'Jour' : p.unite} <b>${nb(p.p)}</b> <small>${new Date(p.t).toLocaleDateString('fr-FR')}</small></span> <button type="button" data-mo="confirmer" data-cle="${esc(p.cle)}">Mon niveau</button></li>`).join('') || `<li class="tor-doux">${E.fractales.length ? 'Tous les niveaux proposés sont traités.' : 'Calcul des grands creux et sommets…'}</li>`;
     envoyerAuGraphique();
   }
   /* Rétablir les niveaux proposés masqués (décisions « supprime ») : les niveaux « proposé H4 » reviennent en pointillé orange ; ils ne portent aucune flèche. Les « confirmés » restent. */
+  async function annulerDecision(cle) {
+    E.decisions = E.decisions.filter(d => !(d.cle === cle && d.etat === 'supprime'));
+    if (st) { try { await st.supprimer('decisions', cle); } catch (e) { /* base indisponible */ } }
+    majProposes(); analyser();
+  }
   async function retablirMasques() {
+    let zones = 0; try { if (T.suppression && T.suppression.retablir) zones = T.suppression.retablir(); } catch (e) { /* */ }   // zones support / résistance et liquidité masquées
     const sup = E.decisions.filter(d => d.etat === 'supprime'); E.decisions = E.decisions.filter(d => d.etat !== 'supprime');
     if (st) for (const d of sup) { try { await st.supprimer('decisions', d.cle); } catch (e) { /* base indisponible : le retrait en mémoire suffit pour cette session */ } }
-    majProposes(); analyser(); return sup.length;
+    majProposes(); analyser(); return sup.length + zones;
   }
   function boutonRetablir() {
     const zone = R.querySelector('[data-tp-couches]') || R.querySelector('.tor-couches-corps'); if (!zone || zone.querySelector('[data-mo-retablir]')) return;
@@ -303,7 +308,6 @@ export function monterOutils(T, { stockage = null, fetchFn = fetch, maintenant =
   addEventListener('keydown', surTouche);
   function surTouche(e) {
     if (e.key === 'Escape' && graph.etat().modeOutil) choisirOutil(null);
-    else if ((e.key === 'Delete' || e.key === 'Backspace') && E.selection && !/INPUT|TEXTAREA|SELECT/.test((document.activeElement || {}).tagName || '')) supprimer(E.selection);
   }
 
   /* ─── démarrage ─── */
@@ -318,7 +322,7 @@ export function monterOutils(T, { stockage = null, fetchFn = fetch, maintenant =
   })();
 
   const api = {
-    E, regl, pret, retablirMasques, boutonRetablir, analyser, tour, choisirOutil, changer, supprimer, selectionner, importerTexte, decider, chargerFractales,
+    E, regl, pret, retablirMasques, boutonRetablir, analyser, tour, choisirOutil, changer, supprimer, enregistrer, annulerDecision, selectionner, importerTexte, decider, chargerFractales,
     creer: async (type, d) => { const o = creer(type, { ...d, ...(type === 'position' ? { risquePct: d.risquePct ?? regl.risquePct, capital: d.capital ?? regl.capital } : {}) }, { t: d.cree ?? maintenant() }); if (o) { await enregistrer(o); await analyser(); } return o; },
     ajouterBougies: async L => { E.C = fusionner(E.C, L); await analyser(); },
     regler: k => { Object.assign(regl, k); ecrireJ(CLE_REGL, regl); for (const c of R.querySelectorAll('[data-or]')) c.checked = !!regl[c.dataset.or]; appliquerAffichage(); },

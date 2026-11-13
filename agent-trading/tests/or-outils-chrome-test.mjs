@@ -72,7 +72,7 @@ await p.evaluate(() => { const ed = document.querySelector('[data-ed]'), i = ed.
 const d4 = await p.evaluate(id => window.__or.outils.E.objets.find(o => o.id === id), idZ);
 verifier(d4.etiquette === 'Ma zone' && d4.couleur === '#ff8800' && d4.epaisseur === 2 && d4.alerte === true, 'objet modifiable : étiquette, couleur, épaisseur, case « m’alerter »');
 const idR = await p.evaluate(() => window.__or.outils.E.objets.find(o => o.type === 'rayon').id);
-await p.evaluate(id => window.__or.outils.selectionner(id), idR); await w(100); await p.click('[data-mo="supprimer"]'); await w(300);
+await p.evaluate(id => window.__or.outils.selectionner(id), idR); await w(100); await p.evaluate(id => window.__or.outils.supprimer(id), idR); await w(300);   // l'ancien bouton « Supprimer » n'existe plus : la suppression à la souris est testée dans suppression-chrome.mjs
 verifier(await p.evaluate(id => !window.__or.outils.E.objets.some(o => o.id === id), idR), 'objet supprimé');
 // MA200
 await p.evaluate(() => window.__or.outils.regler({ ma200: true })); await w(500);

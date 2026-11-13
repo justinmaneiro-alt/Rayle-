@@ -18,6 +18,7 @@ import { dessinerRayle } from './rayle-dessin.js';
 import { COUCHES_RAYLE, COUCHES_RAYLE_DEFAUT } from './rayle-couches.js';
 import { zonesAffichage, liquiditeAffichage, dedoublonnerLiquidite, atrH1, detailZone } from './zones-affichage-v1.js';
 import { normaliserZones } from './zones-fines-v1.js';
+import { zoneMasquee, distanceRect } from './suppression-calcul.js';
 import { dessinerZone, dessinerLiquidite } from './zones-affichage-dessin.js';
 
 export const COUCHES = Object.freeze({ sr: 'Supports et résistances', liquidite: 'Zones de liquidité', fleches: 'Flèches simples (cassure MA200 et retournement sur niveau majeur)', flechesTout: 'Anciennes flèches (debug : v1 à v10, niveaux mineurs, zones tracées)', volume: 'Zones de volume', mouvements: 'Mouvements H1', ...LIBELLES, structure: 'Structure de marché H1 / H4 (cassures, impulsions, retournements)', retournements: 'Retournements : toutes les zones (probabilité mesurée)', rsi: 'RSI 14 (sous-fenêtre) + divergences', divCachees: 'Divergences cachées', schemas: 'Schémas de retournement (double sommet, tête et épaules, balayage, bougies)', ...COUCHES_ICT, ...COUCHES_RAYLE });
@@ -42,7 +43,7 @@ export function ratio(pos) {
 }
 
 export function creerGraphiqueOr(el, { surClicPrix, mobile = false } = {}) {
-  const etat = { bougies: [], volumes: [], cle: null, debutKraken: null, ecart: null, chargementAncien: false, zonesVol: [], h1: [], aff: null, cadresZ: [], niveaux: [], retournement: [], bandes: [], liquidite: [], balayages: [], fleches: [], segments: [], segCadres: [], a: null, cadres: [], marques: [], tSerie: new Map(), barres: new Map(), couches: (() => { const c = { ...COUCHES_DEFAUT, ...lire('rayle_or_couches_v2', {}) }; if (!lire('rayle_or_rsi_defaut_v1', false)) { c.rsi = true; c.fleches = true; ecrire('rayle_or_rsi_defaut_v1', true); } return c; })(),   // une seule fois : RSI et flèches de lecture allumés par défaut, puis le choix est mémorisé pos: lire('rayle_or_position', null), outil: null, prix: null,
+  const etat = { bougies: [], volumes: [], cle: null, debutKraken: null, ecart: null, chargementAncien: false, masques: [], hl: null, suppr: null, zonesVol: [], h1: [], aff: null, cadresZ: [], niveaux: [], retournement: [], bandes: [], liquidite: [], balayages: [], fleches: [], segments: [], segCadres: [], a: null, cadres: [], marques: [], tSerie: new Map(), barres: new Map(), couches: (() => { const c = { ...COUCHES_DEFAUT, ...lire('rayle_or_couches_v2', {}) }; if (!lire('rayle_or_rsi_defaut_v1', false)) { c.rsi = true; c.fleches = true; ecrire('rayle_or_rsi_defaut_v1', true); } return c; })(),   // une seule fois : RSI et flèches de lecture allumés par défaut, puis le choix est mémorisé pos: lire('rayle_or_position', null), outil: null, prix: null,
     flechesT: [], outils: { objets: [], proposes: [], croix: [], fleches10: [], selection: null }, modeOutil: null, brouillon: [], aimant: true, outilsCadres: [] };
   let LW = null, chart = null, serie = null, vol = null, pret = null, maSerie = null, rsiSerie = null, rsiHaut = null, rsiBas = null, rsiDiv = [];
   /* couche « Mouvements H1 » (mouvements-v1.js, définition figée) : rétrospectif, jamais un signal ; H1 seulement ; données calculées dans un Worker (mouvements-ui.js) */
@@ -104,6 +105,11 @@ export function creerGraphiqueOr(el, { surClicPrix, mobile = false } = {}) {
     }
   }, 'bottom');
 
+  /* niveaux calculés masqués par l'utilisateur (suppression-niveaux.js) : jamais dessinés, jamais cliquables */
+  const masquerAff = G => { if (!etat.masques.length) return G; const a = G.a || etat.a || 1, f = L => L.filter(z => !zoneMasquee(etat.masques, 'zone', z.bas, z.haut, a)), fl = L => L.filter(z => !zoneMasquee(etat.masques, 'liq', z.p, z.p, a));
+    return { ...G, sr: { ...G.sr, actives: f(G.sr.actives), traces: f(G.sr.traces) }, liq: { ...G.liq, actives: fl(G.liq.actives), balayees: fl(G.liq.balayees) } }; };
+  const cleZ = (kind, z) => 'z:' + kind + ':' + Math.round(z.p * 100);
+  const surligner = (ctx, c, kind, z) => { if (c && etat.hl && etat.hl === cleZ(kind, z)) { ctx.save(); ctx.strokeStyle = 'rgba(255,255,255,.95)'; ctx.lineWidth = 2.5; ctx.beginPath(); ctx.moveTo(c.x0, Math.round(c.ym) + 0.5); ctx.lineTo(c.x1, Math.round(c.ym) + 0.5); ctx.stroke(); ctx.restore(); } };
   const primTexte = new Primitive((ctx, T) => {
     if (!serie) return;
     const fs = mobile ? 10 : 11; ctx.font = `${fs}px system-ui, 'Segoe UI', sans-serif`;
@@ -111,19 +117,19 @@ export function creerGraphiqueOr(el, { surClicPrix, mobile = false } = {}) {
        liquidité en pointillés ; étiquettes courtes alignées à droite, SANS trait de rappel : une étiquette qui chevaucherait est omise (détail au survol) */
     const etq = [], hors = { haut: null, bas: null }, xDe = t => { const x = chart.timeScale().timeToCoordinate(etat.tSerie.get(t) ?? tempsGraphique(t)); return x == null ? 0 : Math.max(0, x); };
     etat.cadresZ = [];
-    const G = etat.aff || secoursAff();
+    const G0 = etat.aff || secoursAff(), G = masquerAff(G0);
     if (etat.couches.sr !== false) {
-      for (const z of G.sr.traces) { const c = dessinerZone(ctx, T, z, { xDeT, yDe, fs }); if (c) etat.cadresZ.push(c); }   // traces très pâles, limitées à leur durée
+      for (const z of G.sr.traces) { const c = dessinerZone(ctx, T, z, { xDeT, yDe, fs }); if (c) { c.z = z; c.kind = 'sr'; etat.cadresZ.push(c); surligner(ctx, c, 'sr', z); } }   // traces très pâles, limitées à leur durée
       for (const z of G.sr.actives) {
         const col = z.cote === 'resistance' ? C.resistance : C.support, y0 = yDe(z.p + z.epaisseur / 2), y1 = yDe(z.p - z.epaisseur / 2); if (y0 == null || y1 == null) continue;
         if (y1 < 0 || y0 > T.height) { const k = y1 < 0 ? 'haut' : 'bas', b = { p: z.p, texte: zoneTexte(z), detail: detailZoneG(z) }; if (!hors[k] || Math.abs(b.p - (etat.prix ?? b.p)) < Math.abs(hors[k].p - (etat.prix ?? b.p))) hors[k] = b; continue; }
-        const c = dessinerZone(ctx, T, z, { xDeT, yDe, fs }); if (!c) continue; etat.cadresZ.push(c);
+        const c = dessinerZone(ctx, T, z, { xDeT, yDe, fs }); if (!c) continue; c.z = z; c.kind = 'sr'; etat.cadresZ.push(c); surligner(ctx, c, 'sr', z);
         if (z.proche) etq.push({ y: c.ym, texte: zoneTexte(z), col, prio: z.elements.some(e => e.fort) ? 3 : 1.5, gras: z.elements.some(e => e.fort), g: { texte: zoneTexte(z), detail: detailZoneG(z), p: z.p } });
       }
     }
     if (etat.couches.liquidite !== false) {
       for (const z of [...G.liq.balayees, ...G.liq.actives]) {
-        const c = dessinerLiquidite(ctx, T, z, { xDeT, yDe }); if (!c) continue; etat.cadresZ.push(c);
+        const c = dessinerLiquidite(ctx, T, z, { xDeT, yDe }); if (!c) continue; c.z = z; c.kind = 'liq'; etat.cadresZ.push(c); surligner(ctx, c, 'liq', z);
         if (z.tBalayage == null) etq.push({ y: c.ym, texte: z.texte, col: C.liquidite, prio: 2, g: { texte: z.texte, detail: z.detail, p: z.p } });
       }
     }
@@ -174,9 +180,9 @@ export function creerGraphiqueOr(el, { surClicPrix, mobile = false } = {}) {
     const poignee = (x, y, col) => { ctx.fillStyle = '#0b1117'; ctx.strokeStyle = col; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.arc(x, y, 3.5, 0, 6.3); ctx.fill(); ctx.stroke(); };
     const hy = y => Math.round(y) + 0.5;
     for (const pr of O.proposes) { const y = yDe(pr.p); if (y == null || y < 0 || y > T.height) continue;
-      trait(0, hy(y), T.width, hy(y), COUL_PROP, 1, [3, 4], 0.7); texte(`proposé ${pr.unite === 'J' ? 'Jour' : pr.unite} ${nb(pr.p, 0)}`, 4, y - 3, C.sable, 0.75); etat.outilsCadres.push({ sorte: 'propose', y, pr }); }
+      trait(0, hy(y), T.width, hy(y), COUL_PROP, etat.hl === 'pr:' + pr.cle ? 3 : 1, [3, 4], 0.7); texte(`proposé ${pr.unite === 'J' ? 'Jour' : pr.unite} ${nb(pr.p, 0)}`, 4, y - 3, C.sable, 0.75); etat.outilsCadres.push({ sorte: 'propose', y, pr }); }
     for (const o of O.objets) {
-      const sel = O.selection === o.id, col = o.couleur || C.texte, w = (o.epaisseur || 1) + (sel ? 0.5 : 0), lab = libelle(o) + (o.alerte ? ' · alerte' : '') + (o.retourne ? '' : '');
+      const sel = O.selection === o.id, col = o.couleur || C.texte, w = (o.epaisseur || 1) + (sel ? 0.5 : 0) + (etat.hl === 'obj:' + o.id ? 2 : 0), lab = libelle(o) + (o.alerte ? ' · alerte' : '') + (o.retourne ? '' : '');
       if (o.type === 'horizontale') { const y = yDe(o.p); if (y == null || y < -2 || y > T.height + 2) continue; trait(0, hy(y), T.width, hy(y), col, w); texte(lab, 4, y - 3, col); if (sel) { poignee(8, y, col); poignee(T.width - 8, y, col); } etat.outilsCadres.push({ sorte: 'objet', o, y }); }
       else if (o.type === 'zone') { const y0 = yDe(o.haut), y1 = yDe(o.bas); if (y0 == null || y1 == null) continue; ctx.globalAlpha = 0.07; ctx.fillStyle = col; ctx.fillRect(0, y0, T.width, Math.max(1, y1 - y0)); ctx.globalAlpha = 1;
         trait(0, hy(y0), T.width, hy(y0), col, w, [], 0.6); trait(0, hy(y1), T.width, hy(y1), col, w, [], 0.6); texte(lab, 4, y0 - 3, col); if (sel) { poignee(8, y0, col); poignee(8, y1, col); } etat.outilsCadres.push({ sorte: 'objet', o, y0, y1 }); }
@@ -236,7 +242,7 @@ export function creerGraphiqueOr(el, { surClicPrix, mobile = false } = {}) {
     ...(etat.couches.flechesTout === true ? etat.fleches.map(f => ({ id: 'f' + f.t + (plusieursVersions() ? '-' + court(f.version) : ''), time: tDe(f.t), position: f.sens === 'baisse' ? 'aboveBar' : 'belowBar', color: f.sens === 'baisse' ? C.flecheBas : C.flecheHaut, shape: f.sens === 'baisse' ? 'arrowDown' : 'arrowUp', size: f.version === 'fleches-h1-v9' ? 1 : 0.6, ...(plusieursVersions() ? { text: court(f.version) } : {}) })) : []),
     ...(etat.couches.liquidite !== false ? etat.balayages.map(b => ({ id: 'b' + b.t + b.sorte, time: tDe(b.t), position: b.sorte === 'haute' ? 'aboveBar' : 'belowBar', color: 'rgba(195,155,224,.75)', shape: 'circle', size: 0.35 })) : []),
     ...(etat.couches.flechesTout === true ? (etat.outils.fleches10 || []) : []).map(f => { const tb = tBougie(f.t); return tb == null ? null : { id: 'w' + f.t + f.objet, time: tDe(tb), position: f.sens === 'baisse' ? 'aboveBar' : 'belowBar', color: f.sens === 'baisse' ? C.flecheBas : C.flecheHaut, shape: f.sens === 'baisse' ? 'arrowDown' : 'arrowUp', size: 0.9 }; }).filter(Boolean),
-    ...(etat.couches.fleches !== false ? marquesTerminal() : []),
+    ...(etat.couches.fleches !== false ? marquesTerminal().concat(marquesContacts()) : []),
     ...marquesJournal()].filter(m => m.time != null).sort((a, b) => a.time - b.time);
   /* flèches du Terminal (fleches-terminal-v1) : posées à la clôture de leur bougie, sur la bougie affichée qui contient cet instant ; jamais déplacées */
   const COULEURS_T = { ma_retest: '#ffd27a', niv_precoce: '#ffb84d', niv_confirme: '#ffe08a', ma_cassure: '#e8c15a', ma_retour: '#8fd0e3', ma_rebond: '#4fd18b', ma_fausse: '#e08a5a', niveau_rebond: '#c39be0', zone_rebond: '#5bc0eb' };
@@ -245,6 +251,8 @@ export function creerGraphiqueOr(el, { surClicPrix, mobile = false } = {}) {
     if (f.contre) return { id: 'ft' + f.id, time: tDe(tb), position: f.dir > 0 ? 'belowBar' : 'aboveBar', color: '#7d8791', shape: 'circle', size: 0.5 };   // v5 : rebond contre-tendance = petit point gris discret
     if (f.invalidee) return { id: 'ft' + f.id, time: tDe(tb), position: f.dir > 0 ? 'belowBar' : 'aboveBar', color: '#7d8791', shape: 'circle', size: 1, text: '×' };   // v5 : invalidée = grise, petite croix (la flèche n'est jamais supprimée)
     return { id: 'ft' + f.id, time: tDe(tb), position: f.dir > 0 ? 'belowBar' : 'aboveBar', color: ma ? '#8fd0e3' : f.dir > 0 ? '#2ecc71' : '#ff4d4d', shape: f.dir > 0 ? 'arrowUp' : 'arrowDown', size: 1.4 }; }).filter(Boolean);
+  /* contacts expliqués : petit point gris, une seule marque par bougie (la flèche prime), raison dans l'infobulle ; aucune notification */
+  const marquesContacts = () => { const pris = new Set(etat.flechesT.map(f => tBougie(f.tCloture - 1))); return (etat.contactsT || []).map(k => { const tb = tBougie(k.tCloture - 1); if (tb == null || pris.has(tb)) return null; pris.add(tb); return { id: 'fc' + k.id, time: tDe(tb), position: k.dir > 0 ? 'belowBar' : 'aboveBar', color: '#5d6872', shape: 'circle', size: 0.35 }; }).filter(Boolean); };
   const marquesJournal = () => etat.marques.filter(m => m.t).map(m => ({ time: tDe(m.t), position: m.sens === 'achat' ? 'belowBar' : 'aboveBar', color: m.r == null ? '#cfd8dc' : m.r >= 0 ? C.haut : C.bas, shape: m.sens === 'achat' ? 'arrowUp' : 'arrowDown', text: m.texte || '' })).sort((a, b) => a.time - b.time);
 
   async function monter() {
@@ -371,15 +379,31 @@ export function creerGraphiqueOr(el, { surClicPrix, mobile = false } = {}) {
       if (z) return { p: z.p, texte: `Liquidité ${z.sorte} ${nb(z.p, 0)} balayée`, detail: [`${z.raison} dépassé par cette bougie`] };
       return null;
     }
+    /* marque réellement affichée (flèche, point gris, trade du journal) sous le pointeur : elle garde son infobulle, la corbeille ne s'y applique pas */
+    function marqueVisibleSous(x, y) {
+      if (!chart) return false; const t = chart.timeScale().coordinateToTime(x); if (t == null) return false;
+      const b = etat.barres.get(t); if (!b) return false; const yH = yDe(b.h), yL = yDe(b.l); if (yH == null || yL == null) return false;
+      return marquesLW().some(m => m.time === t && (m.position === 'aboveBar' ? y <= yH + 3 && y >= yH - 28 : y >= yL - 3 && y <= yL + 28));
+    }
     const montrer = (g, y) => {
       const L = (g.detail || []).filter(d => d !== g.texte);
       tip.innerHTML = `<b>${esc(g.bord ? texteBord(g, etat.prix) : g.texte)}</b>${L.length ? '<ul style="margin:4px 0 0;padding-left:16px">' + L.map(d => `<li>${esc(d)}</li>`).join('') + '</ul>' : ''}<div style="color:#7d8a90;margin-top:3px">${etat.prix != null ? `à ${nb(Math.abs(g.p - etat.prix), 2)} $ du prix` : ''}</div>`;
       tip.hidden = false; tip.style.top = Math.max(4, Math.min(y + 16, el.clientHeight - tip.offsetHeight - 4)) + 'px';
     };
     const pos = e => { const r = el.getBoundingClientRect(); return [e.clientX - r.left, e.clientY - r.top]; };
-    el.addEventListener('pointermove', e => { if (epingle || etat.outilPro) return; const [x, y] = pos(e), g = trouver(x, y); if (g) montrer(g, y); else tip.hidden = true; el.style.cursor = g ? 'help' : ''; });
+    el.addEventListener('pointermove', e => { if (epingle || etat.outilPro) return; const [x, y] = pos(e), g = trouver(x, y); if (g) montrer(g, y); else tip.hidden = true; el.style.cursor = g ? 'help' : ''; if (etat.suppr && !etat.modeOutil && e.pointerType === 'mouse' && !marqueVisibleSous(x, y) && etat.suppr.survol(x, y, e)) el.style.cursor = 'pointer'; });
     el.addEventListener('pointerleave', () => { if (!epingle) tip.hidden = true; });
-    el.addEventListener('click', e => { if (etat.outilPro) return; const [x, y] = pos(e), g = trouver(x, y) || mouvementSous(x, y); if (g) { e.stopPropagation(); epingle = epingle === g.texte ? null : g.texte; if (epingle) montrer(g, y); else tip.hidden = true; } else if (epingle) { epingle = null; tip.hidden = true; } }, true);
+    let basPt = null, basT = 0, dernierTap = 0; el.addEventListener('pointerdown', e => { basPt = [e.clientX, e.clientY]; basT = Date.now(); }, true);
+    /* appui du doigt : la bibliothèque de graphique peut retenir le « click » synthétique ; l'appui court sans glisser ouvre la fenêtre de suppression */
+    el.addEventListener('pointerup', e => {
+      if (e.pointerType !== 'touch' || !etat.suppr || etat.outilPro || etat.modeOutil || (etat.brouillon && etat.brouillon.length) || !basPt) return;
+      if (e.target.closest && e.target.closest('.tor-sup, .tor-sup-toast')) return;
+      if (Math.hypot(e.clientX - basPt[0], e.clientY - basPt[1]) > 10 || Date.now() - basT > 600) return;
+      const [sx, sy] = pos(e); if (!marqueVisibleSous(sx, sy) && etat.suppr.clic(sx, sy, e)) { dernierTap = Date.now(); tip.hidden = true; epingle = null; }
+    }, true);
+    el.addEventListener('click', e => { if (etat.outilPro || (e.target.closest && e.target.closest('.tor-sup, .tor-sup-toast'))) return; if (Date.now() - dernierTap < 500) { e.stopPropagation(); return; }   // la fenêtre de suppression gère ses propres clics
+      if (etat.suppr && !etat.modeOutil && !(etat.brouillon && etat.brouillon.length) && !(basPt && Math.hypot(e.clientX - basPt[0], e.clientY - basPt[1]) > 5)) { const [sx, sy] = pos(e); if (!marqueVisibleSous(sx, sy) && etat.suppr.clic(sx, sy, e)) { e.stopPropagation(); tip.hidden = true; epingle = null; return; } }
+      const [x, y] = pos(e), g = trouver(x, y) || mouvementSous(x, y); if (g) { e.stopPropagation(); epingle = epingle === g.texte ? null : g.texte; if (epingle) montrer(g, y); else tip.hidden = true; } else if (epingle) { epingle = null; tip.hidden = true; } }, true);
     api.info = (texte) => { const c = etat.cadres.find(c => c.g.texte === texte); if (!c) return null; montrer(c.g, c.y); epingle = texte; return tip.innerText; };
   }
   /* rectangles des mouvements : de la bougie de départ à la bougie de fin (pointillés si « en cours »), marqueur fin sur l'extrême de la bougie de départ, étiquette discrète */
@@ -474,7 +498,7 @@ export function creerGraphiqueOr(el, { surClicPrix, mobile = false } = {}) {
     fleches: () => etat.fleches.slice(), segments: () => etat.segCadres.map(q => ({ x0: q.x0, x1: q.x1, y: q.y, libelle: q.sg.libelle, sens: q.sg.sens, etiquette: !q.sg.sansEtiquette })), marquesAffichees: () => marquesLW(),
     dessin({ zonesVol, niveaux, retournement, prix, a, bandes, liquidite, balayages, fleches, segments, h1 }) { if (h1) etat.h1 = h1; if (segments) etat.segments = segments; if (bandes) etat.bandes = bandes; if (liquidite) etat.liquidite = liquidite; if (balayages) etat.balayages = balayages; if (fleches) { const ch = fleches !== etat.fleches; etat.fleches = fleches; if (ch && marqueurs) marqueurs.setMarkers(marquesLW()); } if (zonesVol) etat.zonesVol = zonesVol.slice().sort((x, y) => (y.force || 0) - (x.force || 0)).slice(0, 3); if (niveaux) etat.niveaux = niveaux; if (retournement) etat.retournement = retournement; if (a != null) etat.a = a; if (prix != null) etat.prix = prix; calculerAff(); redessiner(); },
     etiquettes: () => etat.cadres.map(c => ({ texte: c.g.texte, bord: c.g.bord || null, n: c.g.n, detail: c.g.detail, x: c.x, y: c.y, w: c.w, h: c.h })),
-    flechesTerminal(L) { etat.flechesT = L || []; if (marqueurs) marqueurs.setMarkers(marquesLW()); return etat.flechesT.length; },
+    flechesTerminal(L, contacts) { etat.flechesT = L || []; etat.contactsT = contacts || []; if (marqueurs) marqueurs.setMarkers(marquesLW()); return etat.flechesT.length; },
     flechesTerminalEtat: () => ({ n: etat.flechesT.length, posees: marquesTerminal().length }),
     tempsDeBougie: t => { const tb = tBougie(t); return tb == null ? null : tDe(tb); },
     marques(L) { etat.marques = L || []; if (marqueurs) marqueurs.setMarkers(marquesLW()); },
@@ -486,6 +510,18 @@ export function creerGraphiqueOr(el, { surClicPrix, mobile = false } = {}) {
     async ma200(points, { couleur = 'rgba(201,178,122,.85)' } = {}) { await pret; if (!points) { if (maSerie) { chart.removeSeries(maSerie); maSerie = null; } return; }
       if (!maSerie) maSerie = chart.addSeries(LW.LineSeries, { color: couleur, lineWidth: 1, priceLineVisible: false, lastValueVisible: false, crosshairMarkerVisible: false, autoscaleInfoProvider: () => null });
       const m = new Map(); for (const q of points) { const tt = tDe(q.t); if (tt != null && Number.isFinite(q.v)) m.set(tt, q.v); } maSerie.setData([...m.entries()].sort((a, b) => a[0] - b[0]).map(([time, value]) => ({ time, value }))); return maSerie; },
+    conteneur: () => el,
+    masques(l) { etat.masques = Array.isArray(l) ? l.slice() : []; redessiner(); return etat.masques.length; },
+    surbrillance(cle) { if (etat.hl === cle) return; etat.hl = cle || null; redessiner(); },
+    brancherSuppression(h) { etat.suppr = h || null; },
+    /* éléments sous le pointeur qu'on peut supprimer ou masquer (tolérance en pixels) : dessins, niveaux proposés, zones support / résistance et liquidité ; jamais les flèches */
+    candidatsSuppr(x, y, tol) {
+      const L = [], h = outilSous(x, y, tol);
+      if (h && h.o) { const o = h.o, bas = o.bas ?? o.p ?? o.p1 ?? o.entree, haut = o.haut ?? o.p ?? o.p2 ?? o.entree; L.push({ type: 'objet', cle: 'obj:' + o.id, o, d: h.d, nom: libelle(o) || NOMS_OUTILS[o.type], bas: Math.min(bas, haut), haut: Math.max(bas, haut) }); }
+      else if (h && h.pr) L.push({ type: 'propose', cle: 'pr:' + h.pr.cle, pr: h.pr, d: h.d, nom: `Niveau proposé ${h.pr.unite === 'J' ? 'Jour' : h.pr.unite} (${h.pr.sorte})`, bas: h.pr.p, haut: h.pr.p });
+      for (const c of etat.cadresZ || []) { if (!c.z) continue; const d = distanceRect(x, y, { x0: c.x0, x1: c.x1, y0: c.y0, y1: c.y1 }); if (d > tol) continue; const z = c.z, bas = z.bas ?? z.p, haut = z.haut ?? z.p; L.push({ type: 'zone', kind: c.kind, cle: cleZ(c.kind, z), z, d, nom: c.g && c.g.texte ? c.g.texte : (z.texte || 'Niveau'), bas: Math.min(bas, haut), haut: Math.max(bas, haut) }); }
+      return L;
+    },
     xDeT, tDeX, outilsCadres: () => etat.outilsCadres.map(c => ({ sorte: c.sorte, id: c.o ? c.o.id : c.pr ? c.pr.cle : null, y: c.y ?? c.y0 ?? (c.ys && c.ys.entree) ?? c.y1, x: c.x ?? c.x1 ?? c.x0 ?? null, ys: c.ys || null, y0: c.y0, y1: c.y1, x1: c.x1, x2: c.x2, y2: c.y2 })),
     position: () => etat.pos, poserPosition(p) { etat.pos = p ? { entree: p.entree, stop: p.stop, objectif: p.objectif } : null; ecrire('rayle_or_position', etat.pos); },   // données seulement (dessin : outil Position en lignes)
     effacerPosition() { etat.pos = null; etat.outil = null; ecrire('rayle_or_position', null); redessiner(); },
