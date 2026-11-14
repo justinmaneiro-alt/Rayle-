@@ -11,7 +11,7 @@ const sceauRegles = async () => { try { return (await (await import('./recherche
 import { telechargerHistorique } from './moteur/bougies.js';
 import { creerNotifieur, formater } from './front/or/fleches-notif.js'; import { pngSignal, legendeSignal } from './signal-image.mjs';
 const ici = path.dirname(fileURLToPath(import.meta.url)), H = 3600e3;
-export const FICHIER_ETAT = path.join(ici, '.alertes-etat.json');
+export const FICHIER_ETAT = process.env.ALERTES_ETAT || path.join(ici, '.alertes-etat.json');   // GitHub Actions : l'état est gardé sur la branche « donnees » entre deux passages
 
 export function lireEnv(fichiers = [path.join(ici, '.env'), path.join(ici, '..', '.env')]) {
   const o = {};

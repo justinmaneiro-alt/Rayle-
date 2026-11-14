@@ -3,6 +3,8 @@
    Chaque bloc dit sa source, sa date et son éventuel retard ; une source en panne affiche « indisponible : raison », jamais une valeur inventée.
    Rayle lit chaque page : `instantane(nom)` donne l'état structuré, `commande(texte)` répond à voix haute. Aucun conseil d'achat ou de vente. */
 import * as C from './pages-calcul.js';
+import { lireRoute } from '../donnees/routes.js';
+import { badge } from '../donnees/couche.js';
 import { instrument, PAR_ID } from '../or/instruments.js';
 const { nf, signe, dateFr, dateMs } = C;
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -22,14 +24,14 @@ export function courbe(points, { w = 340, h = 96, ref = null, ref2 = null, coule
 const echantillon = (L, n = 220) => { if (L.length <= n) return L; const k = L.length / n, o = []; for (let i = 0; i < n; i++) o.push(L[Math.floor(i * k)]); o.push(L[L.length - 1]); return o; };
 
 export function monterPages({ zones, parler = () => {}, aller = () => {}, fetchFn = (...a) => fetch(...a), actif = () => 'OR', maintenant = () => Date.now() } = {}) {
-  const E = { donnees: {}, snap: {}, cotAns: '3', actusFiltre: 'marches', rendus: {} };
-  const origine = (() => { try { const l = location; return /^(127\.0\.0\.1|localhost)$/.test(l.hostname) ? l.origin : (l.protocol === 'file:' ? null : l.origin); } catch (e) { return ''; } })();
+  const E = { origines: {}, donnees: {}, snap: {}, cotAns: '3', actusFiltre: 'marches', rendus: {} };
+  /* 2026-11-14 : plus aucune dépendance au PC. Chaque route /__xxx passe par la couche de données (PC si la page en vient, sinon snapshot publié, sinon copie locale datée). */
   async function api(chemin) {
-    const r = await fetchFn((origine ?? '') + chemin);
-    const type = (r.headers && r.headers.get && r.headers.get('content-type')) || '';
-    if (!/json/.test(type)) throw new Error('le serveur du PC ne répond pas à cette route (relance l’application Rayle : la route ' + chemin.split('?')[0] + ' est récente)');
-    const d = await r.json(); if (!r.ok || (d && d.erreur)) throw new Error((d && d.erreur) || 'erreur ' + r.status); return d;
+    const res = await lireRoute(chemin, { fetchFn });
+    E.origines[chemin.split('?')[0]] = { origine: res.origine, t: res.t, horsLigne: res.horsLigne, badge: badge(res) };
+    return res.donnees;
   }
+  const badgeDe = (...routes) => { const L = routes.map(r => E.origines[r]).filter(o => o && o.badge); if (!L.length) return ''; const o = L.find(x => x.horsLigne) || L[0]; return `<p class="pg-etat${o.horsLigne ? ' pg-hl' : ''}" role="status">${esc(o.badge)}</p>`; };
   const panne = (e, ctx = '') => `<p class="pg-panne" role="alert">Indisponible${ctx ? ' (' + esc(ctx) + ')' : ''} : ${esc(e && e.message || e)}</p>`;
   const entete = (titre, sous) => `<h2>${esc(titre)} <small>${esc(sous)}</small></h2>`;
   const snap = (nom, o) => { E.snap[nom] = { page: nom, maj: maintenant(), ...o }; };
@@ -151,11 +153,14 @@ export function monterPages({ zones, parler = () => {}, aller = () => {}, fetchF
 
   /* ───── montage ───── */
   const PAGES = { actualites: pageActus, cot: pageCot, sante: pageSante, institutions: pageInstitutions, calendrier: pageCalendrier };
+  const ROUTES_PAGE = { actualites: ['/__actus'], cot: ['/__cot'], sante: ['/__yahoo', '/__sante', '/__gld'], institutions: ['/__institutions', '/__banques', '/__cot'], calendrier: ['/__calendrier2'] };
   const conteneurs = {};
   async function ouvrir(nom, { force = false } = {}) {
     const el = conteneurs[nom] || (zones && zones[nom]); if (!el || !PAGES[nom]) return null;
     conteneurs[nom] = el; if (E.rendus[nom] && !force && maintenant() - E.rendus[nom] < 300e3) return E.snap[nom]; E.rendus[nom] = maintenant();
-    await PAGES[nom](el); return E.snap[nom];
+    await PAGES[nom](el);
+    const b = badgeDe(...(ROUTES_PAGE[nom] || [])); if (b) el.insertAdjacentHTML('afterbegin', b);   // « hors ligne : dernière donnée du … » / « snapshot du … »
+    return E.snap[nom];
   }
   const parlerSur = (t) => { if (C.sansConseil(t)) parler(t); else parler('Je ne peux pas formuler cette réponse.'); };
   async function lire(nom) {
