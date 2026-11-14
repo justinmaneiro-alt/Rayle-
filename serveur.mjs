@@ -13,6 +13,7 @@ import { fileURLToPath } from 'node:url';
 import { gererTerminal } from './app-pc/terminal-sources.mjs';
 import { gererDonnees } from './app-pc/terminal-donnees.mjs';
 import { creerVoixLocale } from './app-pc/voix-locale.mjs';
+import { gererMarches } from './marches/donnees/api.js';   // RAYLE MARCHÉS : couche de données publiques (lecture seule)
 
 const RACINE = path.dirname(fileURLToPath(import.meta.url));
 const PORT = Number(process.argv.slice(2).find(a => /^\d+$/.test(a))) || Number(process.env.PORT) || 8000;
@@ -52,6 +53,7 @@ export function creerServeur({ portReseau, dossierDonnees = process.env.RAYLE_DO
     const origine = req.headers.origin; if (origine && ORIGINE_PRIVEE.test(origine)) { res.setHeader('Access-Control-Allow-Origin', origine); res.setHeader('Vary', 'Origin'); res.setHeader('Access-Control-Allow-Headers', 'content-type, x-rayle-token'); res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS'); if (req.method === 'OPTIONS') { res.writeHead(204); return res.end(); } }
     if (chemin === '/__reseau') { res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store' }); return res.end(JSON.stringify({ reseau: RESEAU, port: PORT, adresses: RESEAU ? adressesReseau() : [], local: 'http://127.0.0.1:' + PORT })); }
     if (chemin.startsWith('/__voix/')) return voixLocale.gerer(req, res, chemin);
+    if (chemin.startsWith('/marches/') && req.method !== 'POST') { gererMarches(new Request('http://' + (req.headers.host || '127.0.0.1') + req.url, { method: req.method }), { env: process.env }).then(async r => { res.writeHead(r.status, Object.fromEntries(r.headers)); res.end(Buffer.from(await r.arrayBuffer())); }).catch(e => { res.writeHead(500, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: 'marchés : ' + (e && e.message || e) })); }); return; }
     if (gererApi && ROUTES_API.test(chemin)) return repondreApi(req, res);
     if (/^\/__(bougies|cot|actus|banques|institutions|sante|gld|calendrier2)$/.test(chemin) && gererDonnees(req, res, chemin)) return;   // données du Terminal (app-pc/terminal-donnees.mjs)
     if ((chemin.startsWith('/__relais/') || chemin === '/__rapports' || chemin === '/__yahoo' || chemin === '/__calendrier') && gererTerminal(req, res, chemin)) return;   // sources publiques du terminal lues par le PC (app-pc/terminal-sources.mjs)
