@@ -5,6 +5,7 @@
    Outil « Position » : entrée, stop, objectif posés au clic puis déplaçables ; ratio gain / risque affiché. Trades du journal : marques. */
 import { chargerLib } from '../graphique.js';
 import { espacerEtiquettes } from '../etiquettes-calcul.js';
+import { filtrerProposes, atrSimple, etiquettesLibres, reduireMA } from './proposes-filtre.js';
 import { tempsGraphique, tempsMonotones } from './temps-or.js';
 import { libelle, libellePosition, aimanter, NOMS as NOMS_OUTILS } from './outils-calcul.js';
 import { fiche as ficheMouv, etiquette as etiquetteMouv } from './mouvements-calcul.js';
@@ -179,8 +180,12 @@ export function creerGraphiqueOr(el, { surClicPrix, mobile = false } = {}) {
     const texte = (t, x, y, col, alpha = 0.95) => { ctx.font = `${fs}px system-ui, 'Segoe UI', sans-serif`; ctx.globalAlpha = alpha; ctx.fillStyle = col; ctx.fillText(t, x, y); ctx.globalAlpha = 1; };
     const poignee = (x, y, col) => { ctx.fillStyle = '#0b1117'; ctx.strokeStyle = col; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.arc(x, y, 3.5, 0, 6.3); ctx.fill(); ctx.stroke(); };
     const hy = y => Math.round(y) + 0.5;
-    for (const pr of O.proposes) { const y = yDe(pr.p); if (y == null || y < 0 || y > T.height) continue;
-      trait(0, hy(y), T.width, hy(y), COUL_PROP, etat.hl === 'pr:' + pr.cle ? 3 : 1, [3, 4], 0.7); texte(`proposé ${pr.unite === 'J' ? 'Jour' : pr.unite} ${nb(pr.p, 0)}`, 4, y - 3, C.sable, 0.75); etat.outilsCadres.push({ sorte: 'propose', y, pr }); }
+    /* niveaux proposés : proches du prix (± 8 ATR), fusionnés (0,5 ATR), 6 au plus, étiquettes sans chevauchement (correctif H4/Jour) */
+    { const B = etat.bougies, prix = B.length ? B[B.length - 1].c : NaN, gardes = filtrerProposes(O.proposes, prix, atrSimple(B)), ys = {};
+      for (const pr of gardes) { const y = yDe(pr.p); if (y != null) ys[pr.cle] = y; }
+      const libres = etiquettesLibres(gardes, ys, fs + 3);
+      for (const pr of gardes) { const y = ys[pr.cle]; if (y == null || y < 0 || y > T.height) continue;
+        trait(0, hy(y), T.width, hy(y), COUL_PROP, etat.hl === 'pr:' + pr.cle ? 3 : 1, [3, 4], 0.7); if (libres.has(pr.cle)) texte(`proposé ${pr.unite === 'J' ? 'Jour' : pr.unite} ${nb(pr.p, 0)}`, 4, y - 3, C.sable, 0.75); etat.outilsCadres.push({ sorte: 'propose', y, pr }); } }
     for (const o of O.objets) {
       const sel = O.selection === o.id, col = o.couleur || C.texte, w = (o.epaisseur || 1) + (sel ? 0.5 : 0) + (etat.hl === 'obj:' + o.id ? 2 : 0), lab = libelle(o) + (o.alerte ? ' · alerte' : '') + (o.retourne ? '' : '');
       if (o.type === 'horizontale') { const y = yDe(o.p); if (y == null || y < -2 || y > T.height + 2) continue; trait(0, hy(y), T.width, hy(y), col, w); texte(lab, 4, y - 3, col); if (sel) { poignee(8, y, col); poignee(T.width - 8, y, col); } etat.outilsCadres.push({ sorte: 'objet', o, y }); }
@@ -469,7 +474,7 @@ export function creerGraphiqueOr(el, { surClicPrix, mobile = false } = {}) {
       }
     }
     if (L.regime && L.regime.length && inst.ray && inst.ray.ma && inst.ray.ma.length > 1 && etat.couches.rayMa !== false) {
-      const pts = inst.ray.ma; ctx.lineWidth = 2; ctx.setLineDash([]);
+      const pts = reduireMA(inst.ray.ma, etat.bougies); ctx.lineWidth = 2; ctx.setLineDash([]);
       for (const sg of L.regime) {
         if (!sg.dir) continue; ctx.strokeStyle = sg.dir > 0 ? 'rgba(95,184,148,.95)' : 'rgba(216,106,106,.95)'; ctx.beginPath(); let debut = true, n = 0;
         for (const q of pts) { if (q.t < sg.t0 || q.t > sg.t1) { if (q.t > sg.t1) break; continue; } const x = xDeT(q.t), y = yDe(q.v); if (x == null || y == null || x < -20 || x > T.width + 20) { debut = true; continue; } if (debut) { ctx.moveTo(x, y); debut = false; } else ctx.lineTo(x, y); n++; }
@@ -480,7 +485,7 @@ export function creerGraphiqueOr(el, { surClicPrix, mobile = false } = {}) {
   }, 'top');
 
   const inst = { m: null, props: [], struct: null, cadresS: [], sch: null, cadresSch: [], ict: null, cadresIct: [], ray: null, cadresRay: [] };
-  const primInst = new Primitive((ctx, T) => { if (!chart || !serie || !etat.bougies.length) return; dessinerInstitutionnel(ctx, T, inst.m, { xDeT, yDe, mobile, props: inst.props, fusion: !!etat.lecture }); inst.cadresS = (etat.couches.structure || etat.couches.retournements) ? dessinerStructure(ctx, T, inst.struct, { xDeT, yDe, mobile }) : []; inst.cadresSch = (etat.couches.rsi || etat.couches.divCachees || etat.couches.schemas) && inst.sch ? dessinerSchemas(ctx, T, inst.sch, { xDeT, yDe, mobile }) : []; inst.cadresIct = inst.ict ? dessinerIct(ctx, T, inst.ict, { xDeT, yDe, mobile }) : []; inst.cadresRay = inst.ray ? dessinerRayle(ctx, T, lisibleV8() ? { ...inst.ray, niveaux: [] } : inst.ray, { xDeT, yDe, mobile }) : []; }, 'top');
+  const primInst = new Primitive((ctx, T) => { if (!chart || !serie || !etat.bougies.length) return; dessinerInstitutionnel(ctx, T, inst.m, { xDeT, yDe, mobile, props: inst.props, fusion: !!etat.lecture }); inst.cadresS = (etat.couches.structure || etat.couches.retournements) ? dessinerStructure(ctx, T, inst.struct, { xDeT, yDe, mobile }) : []; inst.cadresSch = (etat.couches.rsi || etat.couches.divCachees || etat.couches.schemas) && inst.sch ? dessinerSchemas(ctx, T, inst.sch, { xDeT, yDe, mobile }) : []; inst.cadresIct = inst.ict ? dessinerIct(ctx, T, inst.ict, { xDeT, yDe, mobile }) : []; inst.cadresRay = inst.ray ? dessinerRayle(ctx, T, (r => lisibleV8() ? { ...r, niveaux: [] } : r)(inst.ray && inst.ray.ma ? { ...inst.ray, ma: reduireMA(inst.ray.ma, etat.bougies) } : inst.ray), { xDeT, yDe, mobile }) : []; }, 'top');
   const redessiner = () => { primTexte.maj && primTexte.maj(); primFond.maj && primFond.maj(); primMouv.maj && primMouv.maj(); primInst.maj && primInst.maj(); primLecture.maj && primLecture.maj(); };
 
   const api = {

@@ -10,7 +10,8 @@
 (function(){
   const FENETRES=[
     {id:'rayle',nom:'Rayle',alias:['rayle','accueil','maison','l accueil'],sous:'Accueil'},
-    {id:'terminal',nom:'Terminal',alias:['terminal','trading','le terminal','marche','marches','bourse'],sous:'Terminal de trading'},
+    {id:'terminal',nom:'Terminal',alias:['terminal','trading','le terminal'],sous:'Terminal de trading'},
+    {id:'marches',nom:'Marchés',alias:['marches','marche','les marches','bourse','cours','economie','annonces'],sous:'Marchés · annonces et actifs'},
     {id:'anatomie',nom:'Anatomie',alias:['anatomie','squelette','le corps','corps humain','muscles'],sous:'Anatomie 3D'},
     {id:'terre',nom:'Terre',alias:['terre','actualite','actualites','la terre','globe','planete','monde','news'],sous:'Terre · actualité'},
     {id:'dev3d',nom:'Développement 3D',alias:['developpement','developpement 3d','atelier','maquette','maquettes','neptune','3d','bim'],sous:'Développement 3D'}
@@ -183,6 +184,32 @@
     const m=await import(new URL('planetes/saturne/atlas/atlas.js',document.baseURI).href); m.ouvrir(); atlasOuvert=true;
   }
   async function fermerAtlas(){ try{ const m=await import(new URL('planetes/saturne/atlas/atlas.js',document.baseURI).href); m.fermer(); }catch(e){} atlasOuvert=false; }
+  /* Terre mobile (2026-11-14) : sur téléphone et tablette, un globe autonome et léger remplace le module 3D du PC (qui restait sur « Chargement de la Terre… »).
+     Réglage rayle_terre_vue : auto (PC = 3D, sinon mobile) | mobile | 3d | leger (ancienne carte plate). */
+  /* Marchés : fenêtre du carrousel au même niveau que Terminal, Anatomie, Terre et 3D (annonces avec compte à rebours, actifs, couverture et performances) */
+  let marchesOuvert=false;
+  async function ouvrirMarches(){
+    if(!document.querySelector('link[data-marches-fenetre]')){ for(const css of ['agent-trading/front/marches/marches.css','agent-trading/front/marches/marches-fenetre.css']){ const l=document.createElement('link'); l.rel='stylesheet'; l.dataset.marchesFenetre=''; l.href=new URL(css,document.baseURI).href; document.head.appendChild(l); } }
+    const m=await import(new URL('agent-trading/front/marches/marches-fenetre.js',document.baseURI).href); await m.ouvrir({onFermer:()=>{ marchesOuvert=false; }}); marchesOuvert=true;
+  }
+  async function fermerMarches(){ try{ const m=await import(new URL('agent-trading/front/marches/marches-fenetre.js',document.baseURI).href); m.fermer(); }catch(e){} marchesOuvert=false; }
+  let terreMobileOuverte=false;
+  function utiliserTerreMobile(){
+    let pref='auto'; try{ pref=localStorage.getItem('rayle_terre_vue')||'auto'; }catch(e){}
+    try{ const q=new URLSearchParams(location.search).get('terre'); if(q==='mobile') return true; if(q==='3d') return false; }catch(e){}
+    if(pref==='mobile') return true; if(pref==='3d'||pref==='leger') return false;
+    try{ return !!(window.RayleAppareil&&window.RayleAppareil.mode()!=='pc'); }catch(e){ return false; }
+  }
+  async function ouvrirTerreMobile(){
+    if(!document.querySelector('link[data-terre-mobile]')){ const l=document.createElement('link'); l.rel='stylesheet'; l.dataset.terreMobile=''; l.href=new URL('planetes/terre/mobile/terre-mobile.css',document.baseURI).href; document.head.appendChild(l); }
+    const m=await import(new URL('planetes/terre/mobile/terre-mobile.js',document.baseURI).href); await m.ouvrir({onFermer:()=>{ terreMobileOuverte=false; }}); terreMobileOuverte=true;
+  }
+  async function fermerTerreMobile(){ try{ const m=await import(new URL('planetes/terre/mobile/terre-mobile.js',document.baseURI).href); m.fermer(); }catch(e){} terreMobileOuverte=false; }
+  /* squelette immédiat (jamais un écran noir) pendant le chargement du terminal ou des marchés ; retiré dès que la fenêtre a pris la main */
+  function montrerSquelette(){
+    if(!document.getElementById('app-sq-css')){ const st=document.createElement('style'); st.id='app-sq-css'; st.textContent='#app-squelette{position:fixed;inset:0;z-index:105;display:flex;flex-direction:column;justify-content:center;gap:14px;padding:0 6%;background:#05080c;transition:opacity .3s}#app-squelette.fin{opacity:0;pointer-events:none}#app-squelette p{margin:0;text-align:center;color:#7d8f99;font:13px system-ui,sans-serif}.app-sq-b{display:flex;align-items:flex-end;gap:5px;height:42vh}.app-sq-b i{flex:1;background:#14212b;border-radius:2px;animation:app-sq 1.4s ease-in-out infinite}@keyframes app-sq{50%{opacity:.35}}@media (prefers-reduced-motion:reduce){.app-sq-b i{animation:none}}'; document.head.appendChild(st); }
+    const d=document.createElement('div'); d.id='app-squelette'; d.setAttribute('role','status'); d.innerHTML='<div class="app-sq-b">'+Array.from({length:32},(_,i)=>'<i style="height:'+(22+Math.round(38*Math.abs(Math.sin(i*0.7+1))))+'%;animation-delay:'+(i%8)*0.12+'s"></i>').join('')+'</div><p>Chargement…</p>'; document.body.appendChild(d); return d;
+  }
   async function ouvrir(id,opts){
     const f=FENETRES.find(x=>x.id===id); if(!f||id==='rayle') return aller(0,{force:true});
     if(ouvert===id) return true; if(ouvert) await fermer({silencieux:true,sansAnim:true});
@@ -190,15 +217,17 @@
     if(id==='terre'){ try{ window.__RAYLE_TERRE_DEPART__=window.Miniatures&&window.Miniatures.terreEtat?window.Miniatures.terreEtat():null; }catch(e){} }   // la grande Terre démarre là où tournait la miniature
     const g=grandir(id);
     ouvert=id; corps.classList.add('app-ouvert'); croix.hidden=false; corps.dataset.appOuvert=id; placer();
+    const sq=(id==='terminal'||id==='marches')?montrerSquelette():null; const finSq=()=>{ if(sq){ sq.classList.add('fin'); setTimeout(()=>sq.remove(),350); } };
     try{
-      if(id==='terre') montrerApercuTerre();
-      if(id==='terminal') await bus().demander('vue:ouvrir','terminal'); else if(id==='anatomie'&&await utiliserAtlas()) await ouvrirAtlas(); else await ouvrirPlanete(id,opts);
+      if(id==='terre'&&!utiliserTerreMobile()) montrerApercuTerre();
+      if(id==='terminal') await bus().demander('vue:ouvrir','terminal'); else if(id==='marches') await ouvrirMarches(); else if(id==='anatomie'&&await utiliserAtlas()) await ouvrirAtlas(); else if(id==='terre'&&utiliserTerreMobile()) await ouvrirTerreMobile(); else await ouvrirPlanete(id,opts);
     }catch(e){
       if(apercu){ const a0=apercu; apercu=null; a0.remove(); }
       console.error('[app] ouverture de '+id+' :',e); try{ bus().emit('vue:erreur',{message:f.nom+' n’a pas pu s’ouvrir : '+(e&&e.message||e)}); }catch(x){}
-      if(g) g.remove(); await fermer({silencieux:true,sansAnim:true}); return false;
+      finSq(); if(g) g.remove(); await fermer({silencieux:true,sansAnim:true}); return false;
     }
-    if(id==='terre') cacherApercuTerre();
+    finSq();
+    if(id==='terre'&&!terreMobileOuverte) cacherApercuTerre();
     if(g){ await attendre(220); g.classList.add('ac-fond'); setTimeout(()=>g.remove(),450); }
     try{ bus().emit('app:ouvert',{id}); bus().fusion('app',{vue:id,ouvert:id}); }catch(e){}
     return true;
@@ -207,6 +236,8 @@
     if(!ouvert) return false; const id=ouvert; ouvert=null;
     try{
       if(atlasOuvert){ await fermerAtlas(); }
+      else if(terreMobileOuverte){ await fermerTerreMobile(); }
+      else if(marchesOuvert){ await fermerMarches(); }
       else if(id==='terminal'){ if(vueOuverte()==='terminal') await bus().demander('vue:fermer'); }
       else{
         window.dispatchEvent(new CustomEvent('galaxie:sortie',{detail:{app:true}}));

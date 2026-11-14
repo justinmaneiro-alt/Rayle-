@@ -176,7 +176,7 @@ export function importerCsv(texte, { orSeulement = true } = {}) {
   const out = []; let ignores = 0;
   if (xtb) for (const r of L) {
     const ins = String(r.instrument || r.symbol || ''); if (orSeulement && !/gold|xau/i.test(ins)) { ignores++; continue; }
-    const vol = nombre(r.volume), t = { id: 'xtb' + (r['position id'] || r.position || out.length), source: 'xtb', devise: 'EUR', etiquette: ETIQUETTE_XTB, sens: /sell/i.test(r.type) ? 'vente' : 'achat', entree: nombre(r['open price']), sortie: nombre(r['close price']), stop: nombre(r['stop loss']) || null, objectif: nombre(r['take profit']) || null, taille: vol != null ? vol * 100 : null, tEntree: date(r['open time (utc)'] || r['open time']), tSortie: date(r['close time (utc)'] || r['close time']), pl: nombre(r['profit/loss'] ?? r.profit), frais: -(nombre(r.commission) || 0) - (nombre(r.swap) || 0), raison: '' };
+    const vol = nombre(r.volume), t = { id: 'xtb' + (r['position id'] || r.position || out.length), source: 'xtb', devise: 'EUR', instrument: ins, etiquette: ETIQUETTE_XTB, sens: /sell/i.test(r.type) ? 'vente' : 'achat', entree: nombre(r['open price']), sortie: nombre(r['close price']), stop: nombre(r['stop loss']) || null, objectif: nombre(r['take profit']) || null, taille: vol != null ? vol * 100 : null, tEntree: date(r['open time (utc)'] || r['open time']), tSortie: date(r['close time (utc)'] || r['close time']), pl: nombre(r['profit/loss'] ?? r.profit), frais: -(nombre(r.commission) || 0) - (nombre(r.swap) || 0), raison: '' };
     if (!(t.entree > 0) || !t.tEntree) { ignores++; continue; } out.push(t);
   }
   else if (kraken) for (const r of L) {

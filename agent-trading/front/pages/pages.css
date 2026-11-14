@@ -26,3 +26,5 @@
 /* instruments autres que l'or : pas de blocs propres à l'or */
 body:not([data-actif="OR"]) section[data-contexte], body:not([data-actif="OR"]) .tor-carnet { display: none !important; }
 @media (max-width: 700px) { .esp-instr-l { margin-left: 0; } .esp-src { white-space: normal; } }
+.pg-etat { margin: 0 0 8px; padding: 4px 8px; border: 1px solid #22323c; border-left: 3px solid #8fd0e3; color: #9fb4be; font-size: 12px; background: #0b1319; }
+.pg-etat.pg-hl { border-left-color: #e8a85a; color: #e8c78f; }

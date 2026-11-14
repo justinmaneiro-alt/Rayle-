@@ -9,11 +9,15 @@
    • Mise à jour : changer VERSION (= window.RAYLE_VERSION de index.html, vérifié par build.mjs) installe une nouvelle version qui ATTEND ; la page affiche « Nouvelle version disponible » ;
      au toucher, la page envoie SKIP_WAITING puis se recharge. Chaque version a ses caches : les anciens sont supprimés à l'activation.
    COEUR est remplacé à la construction (build.mjs) par la liste exacte des fichiers chargés au démarrage. */
-const VERSION = '2026.11.13.1';
+const VERSION = '2026.11.14.1';
 const SHELL = 'rayle-shell-' + VERSION, IMAGES = 'rayle-images-1';
 const COEUR = ['./', 'index.html', 'offline.html', 'manifest.webmanifest', 'favicon.svg', 'icones/rayle-192.png', 'config.js'];   // /*COEUR*/
-const TAILLE_MAX = 600 * 1024;
-const GARDER = /\.(?:js|mjs|css|html|json|webmanifest|svg|png|woff2?)$/i;
+const TAILLE_MAX = 2 * 1024 * 1024;
+/* 2026-11-14 (mobile autonome) : la liste de TOUS les fichiers d'un parcours complet est dans precache.json (outils-restructuration/collecter-precache.mjs) : installée avec la coque ;
+   ensuite le code et les ressources du même fichier viennent du cache D'ABORD (démarrage immédiat, hors ligne), sauf les pages de navigation, sw.js, precache.json et config.js (réseau d'abord : les mises à jour sont vues tout de suite).
+   Un changement de VERSION ré-installe tout (anciens caches supprimés). Les données de marché (instantanés, Kraken, Binance, Open-Meteo) ne passent PAS ici : la couche de données de la page gère son cache IndexedDB. */
+const RESEAU_D_ABORD = /(?:^|\/)(?:sw\.js|precache\.json|config\.js|index\.html|offline\.html)$|\/$/;
+const GARDER = /\.(?:js|mjs|css|html|json|webmanifest|svg|png|jpe?g|webp|woff2?)$/i;
 const JAMAIS = /\/(?:assets-lourds|captures[^/]*|docs|idees)\//i;
 
 /* Notifications des flèches (mode Direct) : un clic ramène sur le terminal. */
@@ -26,7 +30,8 @@ self.addEventListener('install', e => {
     const c = await caches.open(SHELL);
     // par lots de 8 (un serveur ne doit pas recevoir 90 demandes d'un coup), un nouvel essai par fichier ; un fichier absent n'empêche pas l'installation
     const un = async u => { for (let k = 0; k < 2; k++) { try { await c.add(new Request(u, { cache: 'reload' })); return; } catch (err) { /* nouvel essai */ } } };
-    for (let i = 0; i < COEUR.length; i += 8) await Promise.all(COEUR.slice(i, i + 8).map(un));
+    let liste = COEUR.slice(); try { const r = await fetch('precache.json', { cache: 'reload' }); if (r.ok) { const d = await r.json(); if (d && Array.isArray(d.coeur)) liste = [...new Set([...COEUR, ...d.coeur])]; } } catch (err) { /* sans liste : coque minimale */ }
+    for (let i = 0; i < liste.length; i += 8) await Promise.all(liste.slice(i, i + 8).map(un));
     self.skipWaiting();   // 2026-11-12 : la nouvelle version prend la main tout de suite (l'ancienne interface mobile ne doit plus jamais rester affichée)
   })());
 });
@@ -56,6 +61,11 @@ async function reseauDAbord(req) {
     throw err;
   }
 }
+async function cacheDAbord(req) {
+  const c = await caches.open(SHELL), copie = await c.match(req, { ignoreSearch: true });
+  if (copie) return copie;
+  return reseauDAbord(req);
+}
 async function copieDAbord(req) {
   const c = await caches.open(IMAGES), copie = await c.match(req);
   if (copie) return copie;
@@ -70,7 +80,7 @@ self.addEventListener('fetch', e => {
   const u = new URL(req.url);
   if (u.origin === self.location.origin) {
     if (u.pathname.includes('/__') || req.headers.has('range') || /^\/(?:health|sources|actualites|meteo|evenements|calendar|cot|macro|sec|wgc|ce-jour-la|chat|tts)(?:\/|$)/.test(u.pathname)) return;   // routes du PC ou du backend servi sur la même origine : le réseau, sans interception
-    e.respondWith(reseauDAbord(req));
+    e.respondWith(RESEAU_D_ABORD.test(u.pathname) || req.mode === 'navigate' ? reseauDAbord(req) : cacheDAbord(req));
   } else if (req.destination === 'image') e.respondWith(copieDAbord(req));
   // tout le reste (backend, API de marché, météo…) : le réseau, sans interception
 });

@@ -6,6 +6,7 @@
    se mélangent jamais à celles d'un autre. À importer EN PREMIER (avant tout module du moteur). */
 import { instrument, actifCourant, cleDe, baseDe, echelleDe, ID_DEFAUT } from './instruments.js';
 import { RELAIS, BINANCE, PERIODES } from './config-or.js';
+import { lireBougies as lireBougiesCouche } from '../donnees/routes.js';
 
 export const ACTIF = actifCourant();
 export const INSTR = instrument(ACTIF);
@@ -18,17 +19,22 @@ export function agreger(B, ms) {
   for (const b of B) { const t0 = Math.floor(b.t / ms) * ms; if (!cur || cur.t !== t0) { cur = { t: t0, o: b.o, h: b.h, l: b.l, c: b.c, v: b.v }; o.push(cur); } else { cur.h = Math.max(cur.h, b.h); cur.l = Math.min(cur.l, b.l); cur.c = b.c; cur.v += b.v; } }
   return o;
 }
-export function creerAdaptateur(inst, { fetchReel, ttl = 20e3, maintenant = () => Date.now() } = {}) {
+export function creerAdaptateur(inst, { fetchReel, lireBougies = null, ttl = 20e3, maintenant = () => Date.now() } = {}) {
   const memoire = new Map();
   async function serie(periodeId) {
     const k = periodeId, c = memoire.get(k);
     if (c && maintenant() - c.t < ttl) return c.p;
     const intervalle = YAHOO[periodeId], p = (async () => {
-      const r = await fetchReel(`/__bougies?sym=${encodeURIComponent(inst.yahoo)}&interval=${intervalle}`);
-      if (!r.ok) { let m = ''; try { m = (await r.json()).erreur || ''; } catch (e) { /* */ } throw new Error(`serveur local : ${r.status}${m ? ' · ' + m : ''}`); }
-      const type = (r.headers && r.headers.get && r.headers.get('content-type')) || '';
-      if (!/json/.test(type)) throw new Error('le serveur du PC ne sert pas les données du Terminal (relance l’application Rayle)');
-      const d = await r.json(), K = echelleDe(inst); let B = (d.bougies || []).map(b => (K === 1 ? b : { ...b, o: b.o * K, h: b.h * K, l: b.l * K, c: b.c * K })); if (K !== 1 && d.prix > 0) d.prix = d.prix * K;
+      let d;
+      if (lireBougies) { const res = await lireBougies(inst.yahoo, intervalle); d = res.donnees; try { if (typeof window !== 'undefined') window.dispatchEvent(new CustomEvent('rayle:bougies-origine', { detail: { sym: inst.yahoo, origine: res.origine, t: res.t, horsLigne: res.horsLigne } })); } catch (e) { /* */ } }
+      else {
+        const r = await fetchReel(`/__bougies?sym=${encodeURIComponent(inst.yahoo)}&interval=${intervalle}`);
+        if (!r.ok) { let m = ''; try { m = (await r.json()).erreur || ''; } catch (e) { /* */ } throw new Error(`serveur local : ${r.status}${m ? ' · ' + m : ''}`); }
+        const type = (r.headers && r.headers.get && r.headers.get('content-type')) || '';
+        if (!/json/.test(type)) throw new Error('le serveur du PC ne sert pas les données du Terminal (relance l’application Rayle)');
+        d = await r.json();
+      }
+      const K = echelleDe(inst); let B = (d.bougies || []).map(b => (K === 1 ? b : { ...b, o: b.o * K, h: b.h * K, l: b.l * K, c: b.c * K })); if (K !== 1 && d.prix > 0) d.prix = d.prix * K;
       if (periodeId === 'H4') B = agreger(B, PERIODES.H4.ms);
       return { ...d, bougies: B };
     })();
@@ -66,7 +72,7 @@ export function creerAdaptateur(inst, { fetchReel, ttl = 20e3, maintenant = () =
 function installer() {
   if (typeof window === 'undefined' || ACTIF === ID_DEFAUT || window.__adaptateurInstrument) return;
   window.__adaptateurInstrument = ACTIF;
-  const fetchOrig = window.fetch.bind(window), A = creerAdaptateur(INSTR, { fetchReel: u => fetchOrig(u) });
+  const fetchOrig = window.fetch.bind(window), A = creerAdaptateur(INSTR, { fetchReel: u => fetchOrig(u), lireBougies: (sym, iv) => lireBougiesCouche(sym, iv, { fetchFn: fetchOrig }) });
   window.fetch = async function (url, opts) { const r = await A(typeof url === 'string' ? url : (url && url.url) || url, opts); return r || fetchOrig(url, opts); };
   // stockage : clés suffixées par instrument (les clés qui ne commencent pas par rayle_or_ ne bougent pas)
   const P = Storage.prototype, g = P.getItem, s = P.setItem, d = P.removeItem;

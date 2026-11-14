@@ -156,9 +156,41 @@
     return { dessiner, tic(now){ dessiner(now); }, intervalle:90, statique:true };
   }
 
+  /* ───── marchés : prochaine annonce avec compte à rebours, un titre d'actualité, mini-cours (données réelles, datées ; rien d'inventé) ───── */
+  async function creerMarches(m){
+    const base=u=>new URL(u,document.baseURI).href; let D=null, charge=0, erreur=null;
+    async function charger(){ if(charge) return; charge=1; try{ D=D||await import(base('agent-trading/front/marches/marches-donnees.js')); const [cal,act,cr]=await Promise.all([D.calendrierSemaine().catch(()=>null),D.actualites('marches',12).catch(()=>null),D.coursRapides().catch(()=>null)]); m.cal=cal&&cal.liste; m.actu=act&&act.items; m.cours=cr&&cr.cours; m.tCharge=Date.now(); erreur=(!m.cal&&!m.actu&&!m.cours)?'données indisponibles':null; }catch(e){ erreur='données indisponibles'; } charge=0; }
+    function dessiner(){
+      const c=m.ctx; c.clearRect(0,0,W,H); c.fillStyle='rgba(6,12,18,.88)'; c.fillRect(0,0,W,H); c.textBaseline='alphabetic'; const px=H/260;
+      const f=(t,x,y,couleur,taille,gras)=>{ c.font=(gras?'600 ':'')+Math.round(taille*px)+'px system-ui,Segoe UI,sans-serif'; c.fillStyle=couleur; c.fillText(t,x,y); };
+      const coupe=(t,l)=>{ t=String(t||''); while(t.length>4&&c.measureText(t).width>l) t=t.slice(0,-2); return t; };
+      if((!m.tCharge||Date.now()-m.tCharge>5*60e3)&&!charge) charger();
+      if(erreur&&!m.cal&&!m.actu&&!m.cours){ f('Marchés : données indisponibles',16*px,H/2,'#e8a85a',14,false); return; }
+      if(!D||(!m.cal&&!m.actu&&!m.cours)){ f('Chargement des marchés…',16*px,H/2,'#8497a1',14,false); return; }
+      const now=Date.now(), g=16*px; f('PROCHAINE ANNONCE',g,26*px,'#8fd0e3',11,true);
+      const p=m.cal?D.prochaines(m.cal,now,{impacts:['fort'],max:1})[0]:null;
+      if(p){ f(coupe(p.titre+' ('+p.pays+')',W-2*g),g,50*px,'#e6f0f5',15,true); f(D.compteARebours(p.t,now),g,76*px,'#f1d34f',22,true); f(D.heureParis(p.t)+' · heure de Paris'+(p.precedent?' · préc. '+p.precedent:''),g,96*px,'#8497a1',11,false); }
+      else f(m.cal?'Aucune annonce majeure à venir cette semaine':'Calendrier indisponible',g,56*px,'#8497a1',13,false);
+      f('ACTUALITÉ',g,126*px,'#8fd0e3',11,true); const a=(m.actu||[])[0]; f(a?coupe(a.titre,W-2*g):'actualité indisponible',g,146*px,'#d7e3ea',12,false); if(a&&a.source) f(a.source,g,162*px,'#6e8089',10,false);
+      f('COURS',g,188*px,'#8fd0e3',11,true); const L=[['or','Or'],['btc','Bitcoin'],['us100','Nasdaq']]; const cw=(W-2*g)/3;
+      L.forEach(([id,nom],i)=>{ const q=m.cours&&m.cours[id], x=g+i*cw; f(nom,x,208*px,'#8497a1',11,false); if(q&&Number.isFinite(q.prix)){ const v=D.variation(q.prix,q.veille); f(D.formatPrix(q.prix,id==='btc'||id==='us100'?0:1),x,230*px,'#fff',15,true); if(v!=null) f((v>=0?'+':'')+v.toFixed(2).replace('.',',')+' %',x,248*px,v>=0?'#5fb894':'#d86a6a',11,true); } else f('—',x,230*px,'#6e8089',15,false); });
+    }
+    return { dessiner, tic(){ dessiner(); }, intervalle:1000, statique:true };
+  }
+
+  /* ───── terre légère (téléphone, tablette) : une image de 30 Ko, aucune texture 8k, aucun moteur 3D ───── */
+  async function creerTerreLegere(m){
+    const img=new Image(); img.src=new URL('planetes/terre/apercu/terre-apercu.jpg',document.baseURI).href; try{ await img.decode(); }catch(e){}
+    function dessiner(t){ const c=m.ctx; c.clearRect(0,0,W,H); c.fillStyle='#02040a'; c.fillRect(0,0,W,H); const r=Math.min(W,H)*0.36, cx=W/2, cy=H/2;
+      const g=c.createRadialGradient(cx,cy,r*0.9,cx,cy,r*1.25); g.addColorStop(0,'rgba(90,150,255,.35)'); g.addColorStop(1,'rgba(90,150,255,0)'); c.fillStyle=g; c.beginPath(); c.arc(cx,cy,r*1.25,0,7); c.fill();
+      c.save(); c.beginPath(); c.arc(cx,cy,r,0,7); c.clip(); if(img.naturalWidth){ const k=(t*0.00002)%1, w2=img.naturalWidth, h2=img.naturalHeight, sc=(2*r)/h2*1.0; const dw=w2*sc; for(const dx of [-dw,0,dw]) c.drawImage(img,cx-r+dx-k*dw,cy-r,dw,2*r); } c.restore();
+      c.fillStyle='rgba(0,0,0,.28)'; c.beginPath(); c.arc(cx+r*0.35,cy,r,0,7); c.globalCompositeOperation='destination-out'; c.globalCompositeOperation='source-over'; }
+    return { dessiner, tic(now){ dessiner(now); }, intervalle:120, statique:true };
+  }
+
   /* ───── cycle de vie ───── */
-  const LIBELLES={terminal:'Or · H1 · Kraken · lecture seule',anatomie:'Squelette 3D complet',terre:'',dev3d:'Atelier de maquettes 3D',rayle:''};
-  const FABRIQUES={terminal:creerTerminal,anatomie:creerAnatomie,terre:creerTerre,dev3d:creerDev3d,rayle:creerRayle};
+  const LIBELLES={marches:'Annonces, actualité, cours · lecture seule',terminal:'Or · H1 · Kraken · lecture seule',anatomie:'Squelette 3D complet',terre:'',dev3d:'Atelier de maquettes 3D',rayle:''};
+  const FABRIQUES={marches:creerMarches,terminal:creerTerminal,anatomie:creerAnatomie,terre:(window.RayleAppareil&&window.RayleAppareil.mode()!=='pc')?creerTerreLegere:creerTerre,dev3d:creerDev3d,rayle:creerRayle};
   async function creer(id,canvas){
     if(minis.has(id)) return minis.get(id);
     if(!minis.size&&canvas.parentElement){ const bw=canvas.parentElement.offsetWidth, bh=canvas.parentElement.offsetHeight; if(bw>50&&bh>50){ H=260; W=Math.max(320,Math.min(720,Math.round(260*bw/bh))); } }

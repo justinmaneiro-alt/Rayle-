@@ -1,0 +1,16 @@
+import assert from 'node:assert/strict'; import fs from 'node:fs';
+await import('../../core/commun/reglages-autonomie.js');
+const P = globalThis.ReglagesAutonomiePur; let n = 0; const ok = (c, m) => { assert.ok(c, m); n++; };
+const mem = o => ({ length: Object.keys(o).length, key: i => Object.keys(o)[i], getItem: k => (k in o ? o[k] : null), setItem: (k, v) => { o[k] = String(v); } });
+const st = mem({ rayle_qualite: 'elevee', rayle_or_journal: '[1]', 'rayle-capital': '{"a":1}', rayle_token: 'SECRET', rayle_worker_url: 'x', rayle_pin: '1234', autre: 'z', rayle_cle_ia: 'k', rayle_phrase: 'p' });
+const c = P.clesSauvegardables(st); ok(c.join() === 'rayle-capital,rayle_or_journal,rayle_qualite', 'clés sauvegardées sans secrets : ' + c.join());
+const s = P.construireSauvegarde({ stockage: st, bases: {}, maintenant: 5, version: 'v' }); ok(s.format === P.FORMAT && s.cles.rayle_qualite === 'elevee' && !('rayle_token' in s.cles) && !JSON.stringify(s).includes('SECRET'), 'sauvegarde sans secret');
+ok(P.validerSauvegarde(s) === true, 'sauvegarde valide');
+ok(P.validerSauvegarde(null) !== true && P.validerSauvegarde([]) !== true && P.validerSauvegarde({ format: 'x' }) !== true, 'refus : formats douteux');
+ok(typeof P.validerSauvegarde({ format: P.FORMAT, cles: { rayle_token: 'a' } }) === 'string', 'refus : clé secrète'); ok(typeof P.validerSauvegarde({ format: P.FORMAT, cles: { autre: 'a' } }) === 'string', 'refus : clé hors périmètre');
+ok(typeof P.validerSauvegarde({ format: P.FORMAT, cles: { rayle_a: 1 } }) === 'string', 'refus : valeur non texte'); ok(typeof P.validerSauvegarde({ format: P.FORMAT, cles: {}, bases: { 'rayle-donnees': { stores: {} } } }) === 'string', 'refus : base de cache'); ok(typeof P.validerSauvegarde({ format: P.FORMAT, cles: {}, bases: { malveillante: { stores: {} } } }) === 'string', 'refus : base hors périmètre');
+ok(P.validerSauvegarde({ format: P.FORMAT, cles: { rayle_a: '1' }, bases: { 'rayle-or-outils': { stores: { s: { lignes: [] } } } } }) === true, 'base autorisée'); ok(/1 réglage\(s\)/.test(P.resume({ cles: { a: 1 }, bases: {} })), 'résumé');
+ok(P.phraseAge(null) === 'jamais' && P.phraseAge(30 * 60e3) === 'il y a 30 min' && /h$/.test(P.phraseAge(5 * 3600e3)), 'âge');
+const L = P.lignesEtat([{ cle: 'a', origine: 'snapshot', t: 1000, erreur: null }, { cle: 'b', origine: null, t: null, erreur: 'x', horsLigne: true }], 1000 + 3 * 60e3); ok(L[0].age === 'il y a 3 min' && L[1].origine === 'aucune' && L[1].horsLigne, 'lignes d’état');
+ok(P.qualiteLue(mem({ rayle_qualite: 'economie' })) === 'economie' && P.qualiteLue(mem({ rayle_qualite: 'zzz' })) === 'auto' && P.qualiteLue(mem({})) === 'auto', 'qualité lue');
+console.log('réglages autonomie (pur) : ' + n + ' vérifications OK');

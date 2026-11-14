@@ -287,10 +287,11 @@
     espaces:'<svg viewBox="0 0 24 24"><rect x="4" y="4" width="7" height="7"/><rect x="13" y="4" width="7" height="7"/><rect x="4" y="13" width="7" height="7"/><rect x="13" y="13" width="7" height="7"/></svg>',
     reglages:'<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3.2"/><circle cx="12" cy="12" r="7.5"/><path d="M12 2.5v3M12 18.5v3M2.5 12h3M18.5 12h3"/></svg>'
   };
-  const ICONES=[['accueil','Accueil'],['terminal','Terminal'],['anatomie','Anatomie'],['terre','Terre'],['dev3d','3D'],['reglages','Réglages']];
+  const ICONES=[['accueil','Accueil'],['terminal','Terminal'],['marches','Marchés'],['anatomie','Anatomie'],['terre','Terre'],['dev3d','3D'],['reglages','Réglages']];
   IC.terminal='<svg viewBox="0 0 24 24"><path d="M3 20h18M4 16l5-6 4 3 7-8"/><path d="M16 5h4v4"/></svg>';
   IC.anatomie='<svg viewBox="0 0 24 24"><circle cx="12" cy="5" r="2.6"/><path d="M12 8v8M7 10h10M9 10l-1.5 6M15 10l1.5 6M12 16l-3 5M12 16l3 5"/></svg>';
   IC.terre='<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c3 3 3 15 0 18M12 3c-3 3-3 15 0 18"/></svg>';
+  IC.marches='<svg viewBox="0 0 24 24"><path d="M4 19V5M4 19h16"/><path d="M8 15l3-4 3 2 4-6"/><circle cx="8" cy="15" r="1"/><circle cx="11" cy="11" r="1"/><circle cx="14" cy="13" r="1"/><circle cx="18" cy="7" r="1"/></svg>';
   IC.dev3d='<svg viewBox="0 0 24 24"><path d="M12 3l8 4.5v9L12 21l-8-4.5v-9z"/><path d="M4 7.5l8 4.5 8-4.5M12 12v9"/></svg>';
   $('g1Icones').innerHTML=ICONES.map(i=>'<button type="button" class="g1-ic" data-i="'+i[0]+'" aria-label="'+i[1]+'" title="'+i[1]+'"><span class="g1-ic-r">'+IC[i[0]]+'</span><small>'+i[1]+'</small></button>').join('');
   const PLANETES=[['terre','Terre'],['mars','Mars'],['saturne','Saturne'],['terminal','Terminal'],['galaxie','Galaxie'],['pays','Pays'],['sources','Sources'],['musique','Musique'],['tele','Télé'],['couper','Couper']];

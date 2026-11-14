@@ -1,0 +1,57 @@
+name: donnees
+# Snapshots de données de marché PUBLIQUES (aucune donnée personnelle, aucun secret) publiés sur la branche orpheline « donnees »
+# (historique écrasé à chaque passage : le dépôt ne grossit pas). L'application les lit par raw.githubusercontent.com.
+# Dépôt public : minutes d'Actions gratuites. Le déclencheur « schedule » est au mieux toutes les 15 minutes (GitHub peut retarder de quelques minutes).
+on:
+  schedule:
+    - cron: '*/15 * * * *'
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths: ['outils-donnees/**', '.github/workflows/donnees.yml', 'app-pc/terminal-donnees.mjs', 'app-pc/terminal-sources.mjs', 'marches/donnees/**']
+concurrency:
+  group: donnees-branche
+  cancel-in-progress: false
+permissions:
+  contents: write
+jobs:
+  snapshots:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Reprendre la branche donnees (copies précédentes conservées si une source échoue)
+        env:
+          JETON: ${{ github.token }}
+        run: |
+          git clone --depth 1 --branch donnees "https://x-access-token:${JETON}@github.com/${GITHUB_REPOSITORY}.git" sortie 2>/dev/null || mkdir -p sortie
+          rm -rf sortie/.git
+      - name: Choisir les lots
+        id: lots
+        run: |
+          M=$((10#$(date +%M)))
+          LOTS="rapide"
+          if [ "${{ github.event_name }}" != "schedule" ]; then LOTS="tout"; else
+            [ $(( M / 15 % 2 )) -eq 0 ] && LOTS="$LOTS bougies"
+            [ $M -lt 15 ] && LOTS="$LOTS horaire"
+          fi
+          echo "lots=$LOTS" >> "$GITHUB_OUTPUT"
+      - name: Télécharger, valider, écrire
+        run: |
+          for L in ${{ steps.lots.outputs.lots }}; do node outils-donnees/snapshots.mjs --sortie sortie --lot "$L"; done
+      - name: Vérifier qu'aucun secret ni donnée personnelle n'est publié
+        run: node outils-donnees/verifier-publication.mjs sortie
+      - name: Publier (branche orpheline, historique écrasé)
+        env:
+          JETON: ${{ github.token }}
+        run: |
+          cd sortie
+          git init -q -b donnees
+          git config user.name "rayle-donnees"
+          git config user.email "rayle-donnees@users.noreply.github.com"
+          git add -A
+          git commit -q -m "snapshots $(date -u +%FT%TZ)"
+          git push -q --force "https://x-access-token:${JETON}@github.com/${GITHUB_REPOSITORY}.git" donnees
