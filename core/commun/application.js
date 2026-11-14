@@ -10,7 +10,8 @@
 (function(){
   const FENETRES=[
     {id:'rayle',nom:'Rayle',alias:['rayle','accueil','maison','l accueil'],sous:'Accueil'},
-    {id:'terminal',nom:'Terminal',alias:['terminal','trading','le terminal','marche','marches','bourse'],sous:'Terminal de trading'},
+    {id:'terminal',nom:'Terminal',alias:['terminal','trading','le terminal'],sous:'Terminal de trading'},
+    {id:'marches',nom:'Marchés',alias:['marches','marche','les marches','bourse','cours','economie','annonces'],sous:'Marchés · annonces et actifs'},
     {id:'anatomie',nom:'Anatomie',alias:['anatomie','squelette','le corps','corps humain','muscles'],sous:'Anatomie 3D'},
     {id:'terre',nom:'Terre',alias:['terre','actualite','actualites','la terre','globe','planete','monde','news'],sous:'Terre · actualité'},
     {id:'dev3d',nom:'Développement 3D',alias:['developpement','developpement 3d','atelier','maquette','maquettes','neptune','3d','bim'],sous:'Développement 3D'}
@@ -185,6 +186,13 @@
   async function fermerAtlas(){ try{ const m=await import(new URL('planetes/saturne/atlas/atlas.js',document.baseURI).href); m.fermer(); }catch(e){} atlasOuvert=false; }
   /* Terre mobile (2026-11-14) : sur téléphone et tablette, un globe autonome et léger remplace le module 3D du PC (qui restait sur « Chargement de la Terre… »).
      Réglage rayle_terre_vue : auto (PC = 3D, sinon mobile) | mobile | 3d | leger (ancienne carte plate). */
+  /* Marchés : fenêtre du carrousel au même niveau que Terminal, Anatomie, Terre et 3D (annonces avec compte à rebours, actifs, couverture et performances) */
+  let marchesOuvert=false;
+  async function ouvrirMarches(){
+    if(!document.querySelector('link[data-marches-fenetre]')){ for(const css of ['agent-trading/front/marches/marches.css','agent-trading/front/marches/marches-fenetre.css']){ const l=document.createElement('link'); l.rel='stylesheet'; l.dataset.marchesFenetre=''; l.href=new URL(css,document.baseURI).href; document.head.appendChild(l); } }
+    const m=await import(new URL('agent-trading/front/marches/marches-fenetre.js',document.baseURI).href); await m.ouvrir({onFermer:()=>{ marchesOuvert=false; }}); marchesOuvert=true;
+  }
+  async function fermerMarches(){ try{ const m=await import(new URL('agent-trading/front/marches/marches-fenetre.js',document.baseURI).href); m.fermer(); }catch(e){} marchesOuvert=false; }
   let terreMobileOuverte=false;
   function utiliserTerreMobile(){
     let pref='auto'; try{ pref=localStorage.getItem('rayle_terre_vue')||'auto'; }catch(e){}
@@ -206,7 +214,7 @@
     ouvert=id; corps.classList.add('app-ouvert'); croix.hidden=false; corps.dataset.appOuvert=id; placer();
     try{
       if(id==='terre'&&!utiliserTerreMobile()) montrerApercuTerre();
-      if(id==='terminal') await bus().demander('vue:ouvrir','terminal'); else if(id==='anatomie'&&await utiliserAtlas()) await ouvrirAtlas(); else if(id==='terre'&&utiliserTerreMobile()) await ouvrirTerreMobile(); else await ouvrirPlanete(id,opts);
+      if(id==='terminal') await bus().demander('vue:ouvrir','terminal'); else if(id==='marches') await ouvrirMarches(); else if(id==='anatomie'&&await utiliserAtlas()) await ouvrirAtlas(); else if(id==='terre'&&utiliserTerreMobile()) await ouvrirTerreMobile(); else await ouvrirPlanete(id,opts);
     }catch(e){
       if(apercu){ const a0=apercu; apercu=null; a0.remove(); }
       console.error('[app] ouverture de '+id+' :',e); try{ bus().emit('vue:erreur',{message:f.nom+' n’a pas pu s’ouvrir : '+(e&&e.message||e)}); }catch(x){}
@@ -222,6 +230,7 @@
     try{
       if(atlasOuvert){ await fermerAtlas(); }
       else if(terreMobileOuverte){ await fermerTerreMobile(); }
+      else if(marchesOuvert){ await fermerMarches(); }
       else if(id==='terminal'){ if(vueOuverte()==='terminal') await bus().demander('vue:fermer'); }
       else{
         window.dispatchEvent(new CustomEvent('galaxie:sortie',{detail:{app:true}}));
