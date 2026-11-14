@@ -178,9 +178,19 @@
     return { dessiner, tic(){ dessiner(); }, intervalle:1000, statique:true };
   }
 
+  /* ───── terre légère (téléphone, tablette) : une image de 30 Ko, aucune texture 8k, aucun moteur 3D ───── */
+  async function creerTerreLegere(m){
+    const img=new Image(); img.src=new URL('planetes/terre/apercu/terre-apercu.jpg',document.baseURI).href; try{ await img.decode(); }catch(e){}
+    function dessiner(t){ const c=m.ctx; c.clearRect(0,0,W,H); c.fillStyle='#02040a'; c.fillRect(0,0,W,H); const r=Math.min(W,H)*0.36, cx=W/2, cy=H/2;
+      const g=c.createRadialGradient(cx,cy,r*0.9,cx,cy,r*1.25); g.addColorStop(0,'rgba(90,150,255,.35)'); g.addColorStop(1,'rgba(90,150,255,0)'); c.fillStyle=g; c.beginPath(); c.arc(cx,cy,r*1.25,0,7); c.fill();
+      c.save(); c.beginPath(); c.arc(cx,cy,r,0,7); c.clip(); if(img.naturalWidth){ const k=(t*0.00002)%1, w2=img.naturalWidth, h2=img.naturalHeight, sc=(2*r)/h2*1.0; const dw=w2*sc; for(const dx of [-dw,0,dw]) c.drawImage(img,cx-r+dx-k*dw,cy-r,dw,2*r); } c.restore();
+      c.fillStyle='rgba(0,0,0,.28)'; c.beginPath(); c.arc(cx+r*0.35,cy,r,0,7); c.globalCompositeOperation='destination-out'; c.globalCompositeOperation='source-over'; }
+    return { dessiner, tic(now){ dessiner(now); }, intervalle:120, statique:true };
+  }
+
   /* ───── cycle de vie ───── */
   const LIBELLES={marches:'Annonces, actualité, cours · lecture seule',terminal:'Or · H1 · Kraken · lecture seule',anatomie:'Squelette 3D complet',terre:'',dev3d:'Atelier de maquettes 3D',rayle:''};
-  const FABRIQUES={marches:creerMarches,terminal:creerTerminal,anatomie:creerAnatomie,terre:creerTerre,dev3d:creerDev3d,rayle:creerRayle};
+  const FABRIQUES={marches:creerMarches,terminal:creerTerminal,anatomie:creerAnatomie,terre:(window.RayleAppareil&&window.RayleAppareil.mode()!=='pc')?creerTerreLegere:creerTerre,dev3d:creerDev3d,rayle:creerRayle};
   async function creer(id,canvas){
     if(minis.has(id)) return minis.get(id);
     if(!minis.size&&canvas.parentElement){ const bw=canvas.parentElement.offsetWidth, bh=canvas.parentElement.offsetHeight; if(bw>50&&bh>50){ H=260; W=Math.max(320,Math.min(720,Math.round(260*bw/bh))); } }

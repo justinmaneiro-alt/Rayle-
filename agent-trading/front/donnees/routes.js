@@ -55,7 +55,7 @@ export async function krakenSpot(sym, intervalle, { fetchFn = (...a) => fetch(..
   const der = L.length ? L[L.length - 1] : null;
   return { bougies, prix: der ? +der[4] : null, tPrix: Date.now() };
 }
-export async function lireBougies(sym, intervalle, { range = null, fetchFn = (...a) => fetch(...a), loc = globalThis.location, stockage = null, maintenant = () => Date.now() } = {}) {
+export async function lireBougies(sym, intervalle, { ttl = null, range = null, fetchFn = (...a) => fetch(...a), loc = globalThis.location, stockage = null, maintenant = () => Date.now() } = {}) {
   const o = originePc(loc), sources = [];
   if (o) sources.push({ niveau: 'pc', nom: 'serveur du PC (Yahoo)', ms: 20000, url: `${o}/__bougies?sym=${encodeURIComponent(sym)}&interval=${intervalle}${range ? '&range=' + range : ''}` });
   sources.push({ niveau: KRAKEN_PAIRES[sym] ? 'direct' : 'snapshot', nom: KRAKEN_PAIRES[sym] ? 'Kraken (direct) + snapshot' : 'snapshot ' + nomFichierBougies(sym, intervalle), ms: 15000,
@@ -67,7 +67,7 @@ export async function lireBougies(sym, intervalle, { range = null, fetchFn = (..
       const bougies = fusionnerBougies(base && base.bougies, direct && direct.bougies);
       return { ...(base || { sym, nom: sym, intervalle }), bougies, prix: direct && direct.prix != null ? direct.prix : (base && base.prix), tPrix: direct ? direct.tPrix : (base && base.tPrix), source: direct ? 'Kraken (direct) · historique du snapshot' : (base && base.source), t: direct ? maintenant() : (base && base.t) };
     } });
-  const res = await lireDonnee(`bougies|${sym}|${intervalle}`, { sources, ttl: intervalle === '1d' ? 10 * 60e3 : 45e3, stockage: stockage || creerStockageParDefaut(), fetchFn, maintenant,
+  const res = await lireDonnee(`bougies|${sym}|${intervalle}`, { sources, ttl: ttl != null ? ttl : (intervalle === '1d' ? 10 * 60e3 : 45e3), stockage: stockage || creerStockageParDefaut(), fetchFn, maintenant,
     valider: d => (d && Array.isArray(d.bougies) && d.bougies.length ? true : 'aucune bougie') });
   return { ...res, donnees: expanserBougies(res.donnees) };
 }

@@ -1,0 +1,22 @@
+{
+ "squeletteMs": 807,
+ "graphiqueMs": 1503,
+ "tachesLonguesTerminal": [
+  63,
+  54,
+  59,
+  86,
+  120,
+  94,
+  73
+ ],
+ "marchesPretMs": 517,
+ "marchesDonneesFroidesMs": 11698,
+ "tachesLonguesMarches": [],
+ "heapMo": 26,
+ "terreMs": 214,
+ "heapTerreMo": 30,
+ "heapApresFermetureMo": 26,
+ "tacheLongueMaxMs": 120,
+ "conditions": "S23 émulé 412×915 ×2 · CPU ralenti ×4 · réseau 1,6 Mbit/s, latence 150 ms · SwiftShader (GPU logiciel : pessimiste)"
+}
