@@ -64,7 +64,7 @@ for (const [app, avantApres] of [['s23', true], ['tablette', true], ['paysage', 
   // ── petites cases + fenêtre du bas
   await p.evaluate(() => document.querySelector('[data-tt-donnees]').click()); await w(300);
   const T1 = await p.evaluate(() => [...document.querySelectorAll('.tt-tuile')].map(b => { const r = b.getBoundingClientRect(); return { t: b.textContent, w: r.width, h: r.height, ok: r.width > 0 && r.right <= innerWidth + 1 && r.bottom <= innerHeight + 1 }; }));
-  v(T1.length === 7 && T1.every(t => t.h >= 43.5 && t.ok), L + `bouton Données : 7 petites cases ≥ 44 px (${T1.map(t => t.t).join(', ')})`);
+  v(T1.length === 8 && T1.every(t => t.h >= 43.5 && t.ok), L + `bouton Données : 8 petites cases (Marchés ajouté) ≥ 44 px (${T1.map(t => t.t).join(', ')})`);
   await p.evaluate(() => document.querySelector('[data-tt-tuile="cot"]').click()); await w(1500);
   const F = await p.evaluate(() => { const z = document.querySelector('[data-zone="cot"]'), r = z.getBoundingClientRect(), h = document.querySelector('.tt-feuille-haut').getBoundingClientRect(); return { z: { x: r.x, y: r.y, w: r.width, h: r.height, vis: !z.hidden }, haut: { h: h.height, w: h.width }, cls: document.documentElement.classList.contains('tt-feuille-ouverte'), scrollH: document.documentElement.scrollHeight, actif: window.__espaces.etat().actif }; });
   v(F.cls && F.z.vis && F.actif === 'cot' && F.z.y >= 50 && F.z.h > 200, L + `une case s'ouvre dans une fenêtre du bas (${Math.round(F.z.w)}×${Math.round(F.z.h)})`);

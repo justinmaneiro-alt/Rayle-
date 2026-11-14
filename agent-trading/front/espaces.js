@@ -3,9 +3,9 @@
    (« Investissement » reste accessible depuis Capital et à la voix.) Le sélecteur change l'instrument du graphique (l'or par défaut) : la vue est
    rechargée, car les modules du moteur lisent leur instrument au chargement. Pilotable à la voix (window.__espaces.commande). Aucun ordre n'est jamais envoyé. */
 import { INSTRUMENTS, instrument, actifCourant, instrumentDepuisTexte, CLE_ACTIF, avertissement } from './or/instruments.js';
-export const NOMS = { trading: 'Graphique', actualites: 'Actualités', cot: 'COT', sante: 'Santé du marché', institutions: 'Institutions', calendrier: 'Calendrier', journal: 'Journal', capital: 'Capital' };
+export const NOMS = { trading: 'Graphique', marches: 'Marchés', actualites: 'Actualités', cot: 'COT', sante: 'Santé du marché', institutions: 'Institutions', calendrier: 'Calendrier', journal: 'Journal', capital: 'Capital' };
 const VUES_TRADING = new Set(['trading', 'journal']);
-const ALIAS = { graphique: 'trading', trading: 'trading', 'trading actif': 'trading', actualite: 'actualites', actualites: 'actualites', cot: 'cot', sante: 'sante', institutions: 'institutions', institution: 'institutions', calendrier: 'calendrier', journal: 'journal', capital: 'capital', investissement: 'investissement' };
+const ALIAS = { marches: 'marches', marche: 'marches', 'rayle marches': 'marches', graphique: 'trading', trading: 'trading', 'trading actif': 'trading', actualite: 'actualites', actualites: 'actualites', cot: 'cot', sante: 'sante', institutions: 'institutions', institution: 'institutions', calendrier: 'calendrier', journal: 'journal', capital: 'capital', investissement: 'investissement' };
 export function monterEspaces({ trading, parler = () => {} } = {}) {
   const ACTIF = actifCourant(), INST = instrument(ACTIF);
   const E = { actif: 'trading', invest: null, capital: null, pages: null }, barre = document.createElement('nav'); barre.className = 'esp-barre'; barre.setAttribute('aria-label', 'Terminal');
@@ -14,18 +14,25 @@ export function monterEspaces({ trading, parler = () => {} } = {}) {
     <small class="esp-src" data-instrument-source></small>`;
   document.body.insertBefore(barre, document.body.firstChild);
   barre.querySelector('[data-instrument-source]').textContent = `${INST.court} · ${INST.source} · ${INST.retard}`;
-  const zones = {}; for (const k of ['investissement', 'actualites', 'cot', 'sante', 'institutions', 'calendrier', 'capital']) { const d = document.createElement('div'); d.className = 'esp-zone' + (['investissement', 'capital'].includes(k) ? '' : ' pg inv'); d.dataset.zone = k; d.hidden = true; trading.parentNode.insertBefore(d, trading.nextSibling); zones[k] = d; }
+  const zones = {}; for (const k of ['investissement', 'marches', 'actualites', 'cot', 'sante', 'institutions', 'calendrier', 'capital']) { const d = document.createElement('div'); d.className = 'esp-zone' + (['investissement', 'capital', 'marches'].includes(k) ? '' : ' pg inv'); d.dataset.zone = k; d.hidden = true; trading.parentNode.insertBefore(d, trading.nextSibling); zones[k] = d; }
   const ensureCss = () => { if (!document.querySelector('link[data-pages-css]')) { const l = document.createElement('link'); l.rel = 'stylesheet'; l.href = new URL('./pages/pages.css', import.meta.url).href; l.dataset.pagesCss = ''; document.head.appendChild(l); } };
   ensureCss();
   async function investissement() { if (!E.invest) { const m = await import('./invest/espace.js'); E.invest = m.monterInvestissement(zones.investissement, { parler }); } return E.invest; }
   async function capital() { if (!E.capital) { const m = await import('./invest/capital.js'); E.capital = m.monterCapital(zones.capital, { investissement: await investissement(), allerTrading: async w => { await aller('trading'); if (w === 'cot') { const s = document.querySelector('[data-contexte]'); if (s) s.scrollIntoView({ behavior: 'smooth' }); } } }); const p = document.createElement('p'); p.className = 'pg-barre'; p.innerHTML = '<button type="button" data-espace-aller="investissement">Investissement (long terme)</button>'; zones.capital.insertBefore(p, zones.capital.firstChild); } else E.capital.rendre(); return E.capital; }
+  async function marches() {   // RAYLE MARCHÉS : chargé à la demande (aucun appel réseau tant que l'onglet n'est pas ouvert)
+    if (!E.marches) {
+      if (!document.querySelector('link[data-marches-css]')) { const l = document.createElement('link'); l.rel = 'stylesheet'; l.href = new URL('./marches/marches.css', import.meta.url).href; l.dataset.marchesCss = ''; document.head.appendChild(l); }
+      const m = await import('./marches/marches-ui.js'); E.marches = m.monterMarches(zones.marches, { parler }); window.__marches = E.marches;
+    }
+    return E.marches;
+  }
   async function pages() { if (!E.pages) { const m = await import('./pages/pages-ui.js'); E.pages = m.monterPages({ zones, parler, aller: k => aller(k), actif: () => ACTIF }); } return E.pages; }
   async function aller(k0) {
     const k = ALIAS[k0] || k0; if (!NOMS[k] && k !== 'investissement') return;
     E.actif = k; trading.hidden = !VUES_TRADING.has(k); trading.dataset.vue = k === 'journal' ? 'journal' : 'graphique';
     for (const z of Object.keys(zones)) zones[z].hidden = z !== k;
     for (const b of barre.querySelectorAll('[data-espace]')) { b.classList.toggle('actif', b.dataset.espace === k); b.setAttribute('aria-pressed', String(b.dataset.espace === k)); }
-    if (k === 'investissement') await investissement(); else if (k === 'capital') await capital(); else if (zones[k] && !VUES_TRADING.has(k)) { const P = await pages(); await P.ouvrir(k); }
+    if (k === 'marches') { const M = await marches(); if (!M.panneau()) await M.ouvrir('ensemble'); } else if (k === 'investissement') await investissement(); else if (k === 'capital') await capital(); else if (zones[k] && !VUES_TRADING.has(k)) { const P = await pages(); await P.ouvrir(k); }
     try { history.replaceState(null, '', location.pathname + location.search + '#' + k); } catch (e) { /* */ }
     window.dispatchEvent(new CustomEvent('terminal:onglet', { detail: { onglet: k } }));
   }
@@ -39,6 +46,8 @@ export function monterEspaces({ trading, parler = () => {} } = {}) {
   document.addEventListener('click', ev => { const b = ev.target.closest('[data-espace-aller]'); if (b) aller(b.dataset.espaceAller); });
   async function commande(texte) {
     const n = String(texte || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[’'`]/g, ' ').replace(/\s+/g, ' ').trim();
+    const mm = n.match(/^(?:ouvre |affiche |va sur |montre )?(?:le |la |les )?(?:rayle )?marches?(?: (.*))?$/);   // « marchés », « marchés or », « rayle marchés cot btc »
+    if (mm) { await aller('marches'); const M = await marches(); if (mm[1]) { if (!M.commande(mm[1])) return 'Rayle Marchés est ouvert, mais « ' + mm[1] + ' » n’est pas une commande connue.'; } return 'Rayle Marchés ouvert : lecture seule, chaque chiffre porte sa source.'; }
     const P = await pages(), r = await P.commande(texte); if (r) return r;
     const inst = instrumentDepuisTexte(n);
     if (inst && /\b(passe|mets?|met|bascule|affiche|ouvre|va|charge)\b/.test(n) && !/\b(cot|sante|institutions?|calendrier|journal|capital|investissement|dca|fiche|etude)\b/.test(n)) {
@@ -53,9 +62,10 @@ export function monterEspaces({ trading, parler = () => {} } = {}) {
     if (/\b(ouvre|affiche|va|passe)\b.*\binvestissement\b|\betude de marche\b|\bplan dca\b|\binterets composes\b|\bmon portefeuille\b|\bfiche (de|d|du) /.test(n)) { const inv = await investissement(); await aller('investissement'); return inv.commande(n) || 'Espace Investissement : étude de marché, plan DCA, intérêts composés et portefeuille. Ceci n’est pas un conseil financier.'; }
     return null;
   }
+  import('./marches/marches-ui.js').then(m => m.brancherRaccourci(async () => { await aller('marches'); (await marches()).focusCommande(); })).catch(() => { /* raccourci facultatif */ });   // « / » = barre de commande
   const bandeau = avertissement(ACTIF); if (bandeau) { const p = document.createElement('p'); p.className = 'esp-avert'; p.dataset.avertInstrument = ''; p.textContent = bandeau; barre.insertAdjacentElement('afterend', p); }
   const h = (location.hash || '').slice(1);
   aller(NOMS[h] || h === 'investissement' ? h : (NOMS[ALIAS[h]] ? ALIAS[h] : (new URLSearchParams(location.search).get('espace') || 'trading')));
-  return { aller, commande, changerInstrument, instrument: () => ({ ...INST }), etat: () => ({ actif: E.actif, instrument: ACTIF }), investissement, capital, pages,
+  return { aller, commande, marches, changerInstrument, instrument: () => ({ ...INST }), etat: () => ({ actif: E.actif, instrument: ACTIF }), investissement, capital, pages,
     instantane: async nom => { const P = await pages(); return P.instantane(nom); }, instantanes: () => (E.pages ? E.pages.instantanes() : {}) };
 }

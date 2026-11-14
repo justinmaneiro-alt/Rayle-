@@ -1,0 +1,54 @@
+/* RAYLE MARCHÉS : terminal d'information (lecture seule). Thème sombre du terminal, un seul accent cyan froid. */
+.mk { --mk-fond: #070b10; --mk-carte: #0c141c; --mk-bord: #1c2a36; --mk-txt: #d7e3ea; --mk-doux: #8fa3b1; --mk-acc: #8fd0e3; --mk-ok: #57c896; --mk-ko: #eb6e6e; --mk-ambre: #d6b66a; color: var(--mk-txt); background: var(--mk-fond); font: 14px/1.45 system-ui, -apple-system, "Segoe UI", sans-serif; box-sizing: border-box; padding: 10px 14px 18px; max-width: 1500px; margin: 0 auto; min-height: calc(100vh - 44px); display: flex; flex-direction: column; gap: 10px; overscroll-behavior: contain; }
+.mk *, .mk *::before, .mk *::after { box-sizing: border-box; }
+.mk-tete { position: sticky; top: 0; z-index: 5; background: var(--mk-fond); padding: 6px 0 8px; border-bottom: 1px solid var(--mk-bord); display: grid; gap: 8px; }
+.mk-cmd { position: relative; display: flex; gap: 8px; }
+.mk-cmd-l { flex: 1; display: flex; align-items: center; gap: 8px; background: var(--mk-carte); border: 1px solid var(--mk-bord); border-radius: 6px; padding: 0 12px; min-height: 44px; }
+.mk-cmd-l:focus-within { border-color: var(--mk-acc); }
+.mk-cmd-l span { color: var(--mk-acc); font: 700 18px ui-monospace, Consolas, monospace; }
+.mk input[type=text] { flex: 1; min-width: 0; background: transparent; border: 0; outline: 0; color: var(--mk-txt); font: 15px ui-monospace, Consolas, monospace; min-height: 44px; }
+.mk button { min-height: 44px; min-width: 44px; background: var(--mk-carte); color: var(--mk-txt); border: 1px solid var(--mk-bord); border-radius: 6px; padding: 0 14px; font: inherit; cursor: pointer; touch-action: manipulation; }
+.mk button:hover { border-color: var(--mk-acc); } .mk button:focus-visible, .mk a:focus-visible { outline: 2px solid var(--mk-acc); outline-offset: 2px; }
+.mk-ok { color: var(--mk-acc) !important; }
+.mk-sugg { position: absolute; top: 48px; left: 0; right: 0; z-index: 10; margin: 0; padding: 4px; list-style: none; background: #0a1118; border: 1px solid var(--mk-acc); border-radius: 6px; box-shadow: 0 12px 30px rgba(0,0,0,.5); }
+.mk-sugg li { display: flex; gap: 12px; align-items: baseline; min-height: 44px; padding: 8px 10px; border-radius: 4px; cursor: pointer; }
+.mk-sugg li b { font: 700 13px ui-monospace, Consolas, monospace; color: var(--mk-acc); min-width: 92px; } .mk-sugg li span { color: var(--mk-doux); font-size: 12.5px; }
+.mk-sugg li[aria-selected=true], .mk-sugg li:hover { background: #12202c; }
+.mk-puces { display: flex; gap: 6px; overflow-x: auto; scrollbar-width: thin; padding-bottom: 2px; -webkit-overflow-scrolling: touch; }
+.mk-puces button { flex: none; font-size: 13px; padding: 0 12px; }
+.mk-puces button[aria-pressed=true] { border-color: var(--mk-acc); color: var(--mk-acc); background: #0e1d28; }
+.mk-corps { flex: 1 0 auto; min-height: 240px; } .mk-pied, .mk-tete { flex: none; }
+.mk-section { margin: 0 0 16px; } .mk-section h3 { margin: 4px 0 8px; font: 700 11.5px/1 system-ui; letter-spacing: .09em; text-transform: uppercase; color: var(--mk-acc); }
+.mk-grille { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 10px; }
+.mk-carte { background: var(--mk-carte); border: 1px solid var(--mk-bord); border-radius: 6px; padding: 10px 12px; min-width: 0; }
+.mk-carte header { display: flex; justify-content: space-between; align-items: flex-start; gap: 8px; } .mk-carte h4 { margin: 0; font-size: 12.5px; font-weight: 600; color: var(--mk-doux); }
+.mk-val { margin: 6px 0 4px; display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; } .mk-val b { font: 600 22px ui-monospace, Consolas, monospace; letter-spacing: -.01em; }
+.mk-var { font: 12.5px ui-monospace, Consolas, monospace; } .mk-s1 { color: var(--mk-ok); } .mk-s-1 { color: var(--mk-ko); } .mk-s0 { color: var(--mk-doux); }
+.mk-spark { color: var(--mk-acc); margin-left: auto; opacity: .85; }
+.mk-prov { margin: 4px 0 0; font-size: 11.5px; color: var(--mk-doux); } .mk-note { margin: 4px 0 0; font-size: 11.5px; color: #a79c78; }
+.mk-badge { flex: none; font: 600 10.5px/1 system-ui; padding: 4px 6px; border-radius: 3px; border: 1px solid var(--mk-bord); color: var(--mk-doux); white-space: nowrap; margin-left: 3px; }
+.mk-b-tr { color: var(--mk-ok); border-color: #285a45; } .mk-b-df { color: var(--mk-acc); border-color: #28505c; } .mk-b-qt { color: #b9c7d1; } .mk-b-hb { color: var(--mk-ambre); border-color: #5a4d28; } .mk-b-ms { color: #b79cd8; border-color: #473a5e; } .mk-b-ev { color: var(--mk-doux); }
+.mk-b-pe, .mk-b-ko { color: var(--mk-ko); border-color: #6b3434; }
+.mk-ko .mk-indispo { font: 600 16px system-ui; color: var(--mk-ko); } .mk-pe { border-color: #4d3b3b; }
+.mk-liste { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+.mk-liste li { background: var(--mk-carte); border: 1px solid var(--mk-bord); border-radius: 6px; padding: 10px 12px; display: grid; gap: 3px; min-width: 0; }
+.mk-evts time { font: 12.5px ui-monospace, Consolas, monospace; color: var(--mk-acc); } .mk-evts time em { color: var(--mk-doux); font-style: normal; }
+.mk-liste small { color: var(--mk-doux); font-size: 11.5px; } .mk-imp-haute { border-left: 3px solid var(--mk-ambre); }
+.mk-actus a { color: var(--mk-txt); text-decoration: none; font-weight: 600; overflow-wrap: anywhere; } .mk-actus a:hover { color: var(--mk-acc); } .mk-actus p { margin: 2px 0 0; color: var(--mk-doux); font-size: 12.5px; }
+.mk-avert { background: #1b1410; border: 1px solid #5a4d28; color: #e6d7a8; padding: 10px 12px; border-radius: 6px; margin: 0 0 10px; }
+.mk-vide, .mk-chargement { color: var(--mk-doux); padding: 18px 4px; } .mk-erreurs { color: #c6a0a0; }
+.mk-tableau { overflow-x: auto; -webkit-overflow-scrolling: touch; border: 1px solid var(--mk-bord); border-radius: 6px; }
+.mk table { border-collapse: collapse; width: 100%; font-size: 12.5px; } .mk th, .mk td { padding: 8px 10px; border-bottom: 1px solid var(--mk-bord); text-align: left; vertical-align: top; } .mk thead th { color: var(--mk-doux); font-weight: 600; white-space: nowrap; }
+.mk-corr td { text-align: center; font: 13px ui-monospace, Consolas, monospace; min-width: 64px; } .mk-corr thead th { text-align: center; } .mk-na { color: var(--mk-doux); }
+.mk-corr-tete { display: flex; gap: 8px; margin: 0 0 10px; } .mk-corr-tete button[aria-pressed=true] { border-color: var(--mk-acc); color: var(--mk-acc); }
+.mk-etat { font-weight: 700; } .mk-e-ok { color: var(--mk-ok); } .mk-e-lent { color: var(--mk-ambre); } .mk-e-en_panne { color: var(--mk-ko); } .mk-e-desactivee, .mk-e-non_testee { color: var(--mk-doux); } .mk-err { display: block; color: #c6a0a0; }
+.mk-src small { display: block; color: var(--mk-doux); font-size: 11px; max-width: 46ch; }
+.mk-pied { border-top: 1px solid var(--mk-bord); padding-top: 10px; display: grid; gap: 8px; }
+.mk-copilote { display: flex; gap: 8px; } .mk-copilote label { flex: 1; display: flex; align-items: center; gap: 10px; background: var(--mk-carte); border: 1px solid var(--mk-bord); border-radius: 6px; padding: 0 12px; min-height: 44px; } .mk-copilote label span { color: var(--mk-acc); font-size: 12px; white-space: nowrap; }
+.mk-reponse { background: var(--mk-carte); border: 1px solid var(--mk-bord); border-radius: 6px; padding: 10px 12px; white-space: pre-wrap; overflow-wrap: anywhere; } .mk-reponse.mk-avert { background: #1b1410; }
+.mk-mention { margin: 0; font-size: 11.5px; color: var(--mk-doux); }
+@media (max-width: 700px) { .mk { padding: 8px 10px 20px; } .mk-grille { grid-template-columns: 1fr; } .mk-val b { font-size: 20px; } .mk-copilote label span { display: none; } .mk-sugg li b { min-width: 74px; } }
+/* fenêtre du bas (tactile) : un seul panneau, pas de défilement parasite de la page */
+html.tm-tactile .esp-zone.mk.tt-feuille { padding: 0 10px calc(16px + env(safe-area-inset-bottom)); display: flex; flex-direction: column; min-height: 0; background: var(--mk-fond); max-width: none; }
+html.tm-tactile .esp-zone.mk.tt-feuille .mk-tete { top: 0; }
+@media (prefers-reduced-motion: reduce) { .mk * { transition: none !important; animation: none !important; } }
