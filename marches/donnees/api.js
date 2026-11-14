@@ -7,6 +7,8 @@ import { PANNEAUX, calendrier14, filtrerActus, correlations, ACTIFS_CORR } from 
 import { repondre } from './copilote.js';
 import { indisponible, mesure } from './normaliser.js';
 import { lireFred } from './analyseurs.js';
+import { SERIES_FRED, CONTRATS_COT } from './registre.js';
+const libelleDe = id => { const f = SERIES_FRED.find(s => s[0] === id); if (f) return f[2]; const c = id.match(/^cot\.(\w+)\.(spec|comm)$/); if (c) { const k = CONTRATS_COT.find(x => x[0] === c[1]); if (k) return 'COT ' + k[2] + ' : ' + (c[2] === 'spec' ? 'spéculateurs' : 'commerciaux'); } return id; };
 
 const ENTETES = { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store', 'Access-Control-Allow-Origin': '*', 'Access-Control-Allow-Methods': 'GET, OPTIONS', 'Access-Control-Allow-Headers': 'Content-Type, X-Rayle-Token' };
 const json = (o, status = 200) => new Response(JSON.stringify(o), { status, headers: ENTETES });
@@ -44,7 +46,7 @@ export async function construirePanneau(hub, id, p = {}, maintenant = Date.now()
   reponse.titre = def.titre; reponse.lots = def.lots; reponse.absent = def.absent || [];
   const res = await Promise.all(def.lots.map(l => hub.lot(l))), m = {}, items = [];
   for (const r of res) { for (const x of r.mesures) m[x.id] = x; items.push(...r.items); if (r.erreur && !r.desactive) reponse.erreurs.push(r.lot + ' : ' + r.erreur); if (r.partiel && r.partiel.length) reponse.erreurs.push(...r.partiel.map(x => r.lot + ' · ' + x)); }
-  reponse.sections = def.sections.map(([titre, ids]) => ({ titre, mesures: ids.map(i => m[i] || indisponible(i, i, 'source du lot', i.split('.')[0], 'la source n\'a pas fourni cette donnée', maintenant)) }))
+  reponse.sections = def.sections.map(([titre, ids]) => ({ titre, mesures: ids.map(i => m[i] || indisponible(i, libelleDe(i), 'sources du panneau : ' + def.lots.join(', '), i.split('.')[0], "aucune des sources du panneau n'a fourni cette donnée", maintenant)) }))
   if (def.lots.includes('calendrier')) { reponse.evenements = calendrier14(items, maintenant, 14, def.actif && id !== 'macro' ? def.actif : null).slice(0, 12); }
   if (def.lots.some(l => l.startsWith('rss'))) reponse.actualites = filtrerActus(items, def.actif || null, 8);
   return reponse;
@@ -53,7 +55,7 @@ export async function construirePanneau(hub, id, p = {}, maintenant = Date.now()
 let hubParDefaut = null;
 export const hubPartage = (env = {}) => hubParDefaut || (hubParDefaut = creerHub({ env }));
 
-export async function gererMarches(request, { hub = hubPartage(), maintenant = () => Date.now(), env = {} } = {}) {
+export async function gererMarches(request, { env = {}, hub = hubPartage(env), maintenant = () => Date.now() } = {}) {
   const url = new URL(request.url), chemin = url.pathname.replace(/\/+$/, ''), q = url.searchParams;
   if (request.method === 'OPTIONS') return new Response(null, { status: 204, headers: ENTETES });
   if (request.method !== 'GET') return json({ error: 'méthode non permise', code: 405 }, 405);

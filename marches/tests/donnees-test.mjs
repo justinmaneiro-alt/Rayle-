@@ -159,6 +159,9 @@ await t('API : panneaux de toute la liste, 200, valeurs avec source', async () =
   const h = hubFx(); for (const id of ['ensemble', 'or', 'us100', 'btc', 'usd', 'chf', 'macro', 'cot', 'calendrier', 'actualites', 'correlations', 'sources']) { const { status, j } = await appel(h, '/marches/panneau?id=' + id); assert.equal(status, 200, id); assert.ok(j.titre, id); for (const s of j.sections || []) for (const m of s.mesures) assert.ok(m.source && (m.etat === 'indisponible' || m.horodatage), id + ' ' + m.id); }
   const { j } = await appel(h, '/marches/panneau?id=or'); assert.ok(j.absent.length >= 1, 'les données manquantes sont déclarées'); assert.ok(j.evenements && j.actualites);
 });
+await t('API : avec toutes les sources disponibles, aucune case de panneau n’est « indisponible » (configuration cohérente)', async () => {
+  const h = hubFx(); for (const id of ['ensemble', 'or', 'us100', 'btc', 'usd', 'chf', 'macro', 'cot']) { const p = await construirePanneau(h, id, {}, T0); const ko = p.sections.flatMap(s => s.mesures).filter(m => m.etat === 'indisponible').map(m => m.id); assert.deepEqual(ko, [], id + ' : ' + ko.join()); }
+});
 await t('API : « État des sources » reflète une panne simulée', async () => {
   const h = hubFx({ 'api.alternative.me': { status: 500, corps: 'x' } }); await appel(h, '/marches/panneau?id=btc'); const { j } = await appel(h, '/marches/sources'); const a = j.sources.find(s => s.id === 'altme'), k = j.sources.find(s => s.id === 'kraken');
   assert.equal(a.statut, 'en_panne'); assert.ok(a.derniereErreur); assert.equal(k.statut, 'ok'); assert.ok(k.dernierSucces); assert.ok(j.sources.length >= 20);

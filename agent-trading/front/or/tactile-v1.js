@@ -10,7 +10,7 @@ export const estTactile = () => {
   try { const q = new URLSearchParams(location.search); if (q.get('tactile') === '0') return false; if (q.get('tactile') === '1') return true;
     return matchMedia('(pointer: coarse)').matches && !matchMedia('(hover: hover) and (pointer: fine)').matches; } catch (e) { return false; }
 };
-export const TUILES = Object.freeze([['cot', 'Rapport COT'], ['sante', 'Santé du marché'], ['institutions', 'Institutions'], ['actualites', 'Actualités'], ['calendrier', 'Calendrier'], ['journal', 'Journal'], ['capital', 'Capital']]);
+export const TUILES = Object.freeze([['marches', 'Marchés'], ['cot', 'Rapport COT'], ['sante', 'Santé du marché'], ['institutions', 'Institutions'], ['actualites', 'Actualités'], ['calendrier', 'Calendrier'], ['journal', 'Journal'], ['capital', 'Capital']]);
 export const PERIODES_BARRE = Object.freeze([['M5', 'M5'], ['M15', 'M15'], ['H1', 'H1'], ['H4', 'H4'], ['J', 'Jour']]);
 const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);
 const attendre = async (f, ms = 8000) => { const t0 = Date.now(); while (Date.now() - t0 < ms) { const v = f(); if (v) return v; await new Promise(r => setTimeout(r, 100)); } return null; };
