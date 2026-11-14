@@ -1,0 +1,5 @@
+/* Section « Autonomie » des Réglages + fenêtre Réglages toujours au-dessus des autres fenêtres (la Terre mobile est à 120, l'aperçu à 150, la croix à 200) */
+.cfg.open { z-index: 250; }
+#ra-section select, #ra-section input[type=url] { width: 100%; min-height: 44px; box-sizing: border-box; }
+#ra-section .row { display: flex; flex-wrap: wrap; gap: 8px; margin: 6px 0; } #ra-section .row button { min-height: 44px; }
+.ra-tab { overflow-x: auto; } .ra-t { width: 100%; border-collapse: collapse; font-size: 12px; } .ra-t th, .ra-t td { text-align: left; padding: 4px 6px; border-bottom: 1px solid rgba(143,208,227,.18); vertical-align: top; } .ra-t th { color: #8fd0e3; font-weight: 500; } .ra-t .ra-hl td { color: #e8c78f; }

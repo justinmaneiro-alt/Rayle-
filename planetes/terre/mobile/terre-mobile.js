@@ -30,7 +30,7 @@ export async function ouvrir({ racine = document.body, onFermer = () => {} } = {
   el.innerHTML = `<canvas class="tm-toile" aria-hidden="true"></canvas>
     <div class="tm-charge" role="status"><div class="tm-globe" aria-hidden="true"></div><p class="tm-msg">Chargement de la Terre…</p><div class="tm-barre"><i></i></div><p class="tm-detail"></p></div>
     <div class="tm-erreur" hidden role="alert"><p class="tm-erreur-txt"></p><button type="button" data-a="reessayer">Réessayer</button></div>
-    <header class="tm-tete"><b>Terre</b><span class="tm-info"></span></header>
+    <header class="tm-tete"><b>Terre</b><span class="tm-info"></span></header><button type="button" class="tm-reglages" data-a="reglages" aria-label="Réglages">⚙</button>
     <form class="tm-recherche" role="search"><input type="search" placeholder="Ville ou pays" aria-label="Chercher un lieu" autocomplete="off"><button type="submit" aria-label="Aller à ce lieu">Aller</button></form>
     <nav class="tm-couches" aria-label="Couches"><button type="button" data-c="seismes" aria-pressed="true">Séismes</button><button type="button" data-c="nuages" aria-pressed="true">Nuages</button><button type="button" data-c="nuit" aria-pressed="true">Jour / nuit</button><button type="button" data-c="rotation" aria-pressed="true">Rotation</button><button type="button" data-a="actus">Actualités</button></nav>
     <aside class="tm-fiche" hidden></aside><p class="tm-credit">Textures : Solar System Scope (CC BY 4.0), d’après NASA · séismes : USGS · météo : Open-Meteo</p>`;
@@ -146,7 +146,7 @@ export async function ouvrir({ racine = document.body, onFermer = () => {} } = {
   const ptrs = new Map(); let gest = null;
   const ecart = () => { const [a, b] = [...ptrs.values()]; return a && b ? Math.hypot(a.x - b.x, a.y - b.y) : null; };
   const sur = (n, f, o) => el.addEventListener(n, f, o);
-  const surToile = e => !e.target.closest('.tm-couches,.tm-fiche,.tm-recherche,.tm-erreur,.tm-tete');
+  const surToile = e => !e.target.closest('.tm-couches,.tm-fiche,.tm-recherche,.tm-erreur,.tm-tete,.tm-reglages');
   sur('pointerdown', e => { if (!surToile(e) || !S.pret) return; el.setPointerCapture && el.setPointerCapture(e.pointerId); ptrs.set(e.pointerId, { x: e.clientX, y: e.clientY }); gest = { t: performance.now(), x: e.clientX, y: e.clientY, bouge: 0, dist0: ecart(), d0: S.vue.dist }; S.vit.lon = S.vit.lat = 0; S.vol = null; });
   sur('pointermove', e => {
     const p = ptrs.get(e.pointerId); if (!p) return; const dx = e.clientX - p.x, dy = e.clientY - p.y; p.x = e.clientX; p.y = e.clientY;
@@ -190,6 +190,7 @@ export async function ouvrir({ racine = document.body, onFermer = () => {} } = {
     if (b.dataset.a === 'reessayer') { demarrer(); return; }
     if (b.dataset.a === 'fiche-fermer') { $('.tm-fiche').hidden = true; S.marque && (S.marque.visible = false); return; }
     if (b.dataset.a === 'actus') actualites();
+    if (b.dataset.a === 'reglages') { const g = document.getElementById('gear'); if (g) g.click(); }
   });
   $('.tm-recherche').addEventListener('submit', e => { e.preventDefault(); chercher($('.tm-recherche input').value); });
   const surVisibilite = () => { if (!document.hidden) dernier = 0; };
