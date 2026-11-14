@@ -52,3 +52,10 @@
 html.tm-tactile .esp-zone.mk.tt-feuille { padding: 0 10px calc(16px + env(safe-area-inset-bottom)); display: flex; flex-direction: column; min-height: 0; background: var(--mk-fond); max-width: none; }
 html.tm-tactile .esp-zone.mk.tt-feuille .mk-tete { top: 0; }
 @media (prefers-reduced-motion: reduce) { .mk * { transition: none !important; animation: none !important; } }
+
+.mk-ia { border-top: 1px solid var(--mk-bord); padding-top: 12px; margin-top: 18px; }
+.mk-ia textarea { width: 100%; background: var(--mk-carte); color: var(--mk-txt); border: 1px solid var(--mk-bord); border-radius: 6px; padding: 10px; font: 12.5px ui-monospace, Consolas, monospace; resize: vertical; min-height: 88px; }
+.mk-ia-barre { display: flex; gap: 8px; flex-wrap: wrap; margin: 8px 0; } .mk-ia-etat { color: var(--mk-doux); font-size: 12.5px; margin: 6px 0; }
+.mk-ia-import label, .mk-ia-img label { display: grid; gap: 4px; margin: 8px 0; font-size: 12.5px; color: var(--mk-doux); } .mk-ia input[type=number], .mk-ia input[type=file] { min-height: 44px; background: var(--mk-carte); color: var(--mk-txt); border: 1px solid var(--mk-bord); border-radius: 6px; padding: 6px 10px; }
+.mk-ia-img summary { cursor: pointer; min-height: 44px; display: flex; align-items: center; color: var(--mk-acc); }
+.mk-ia-canvas { width: 100%; height: auto; border: 1px solid var(--mk-bord); border-radius: 6px; margin: 8px 0; display: block; } .mk-ia-msg { margin: 8px 0; }

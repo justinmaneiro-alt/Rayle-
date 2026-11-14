@@ -7,10 +7,12 @@ import { PANNEAUX, calendrier14, filtrerActus, correlations, ACTIFS_CORR } from 
 import { repondre } from './copilote.js';
 import { indisponible, mesure } from './normaliser.js';
 import { lireFred } from './analyseurs.js';
+import { creerFournisseur, creerQuota, limiteDe } from '../ia/fournisseurs.js';
+import { texteGraphique, texteActualite, texteScenarios } from '../ia/prompt.js';
 import { SERIES_FRED, CONTRATS_COT } from './registre.js';
 const libelleDe = id => { const f = SERIES_FRED.find(s => s[0] === id); if (f) return f[2]; const c = id.match(/^cot\.(\w+)\.(spec|comm)$/); if (c) { const k = CONTRATS_COT.find(x => x[0] === c[1]); if (k) return 'COT ' + k[2] + ' : ' + (c[2] === 'spec' ? 'spéculateurs' : 'commerciaux'); } return id; };
 
-const ENTETES = { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store', 'Access-Control-Allow-Origin': '*', 'Access-Control-Allow-Methods': 'GET, OPTIONS', 'Access-Control-Allow-Headers': 'Content-Type, X-Rayle-Token' };
+const ENTETES = { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store', 'Access-Control-Allow-Origin': '*', 'Access-Control-Allow-Methods': 'GET, POST, OPTIONS', 'Access-Control-Allow-Headers': 'Content-Type, X-Rayle-Token' };
 const json = (o, status = 200) => new Response(JSON.stringify(o), { status, headers: ENTETES });
 
 export async function construirePanneau(hub, id, p = {}, maintenant = Date.now()) {
@@ -52,12 +54,29 @@ export async function construirePanneau(hub, id, p = {}, maintenant = Date.now()
   return reponse;
 }
 
+let iaParDefaut = null;
+/* Fournisseur d'IA : configuré par agent-trading/.env côté serveur (jamais dans le navigateur) ; `ia` injectable pour les tests */
+export const iaPartage = (env = {}, stockage = null) => iaParDefaut || (iaParDefaut = creerFournisseur({ env, quota: creerQuota({ limite: limiteDe(env), stockage }) }));
+const MAX_CORPS = 300000;
 let hubParDefaut = null;
 export const hubPartage = (env = {}) => hubParDefaut || (hubParDefaut = creerHub({ env }));
 
-export async function gererMarches(request, { env = {}, hub = hubPartage(env), maintenant = () => Date.now() } = {}) {
+export async function gererMarches(request, { env = {}, hub = hubPartage(env), maintenant = () => Date.now(), ia = null } = {}) {
   const url = new URL(request.url), chemin = url.pathname.replace(/\/+$/, ''), q = url.searchParams;
   if (request.method === 'OPTIONS') return new Response(null, { status: 204, headers: ENTETES });
+  if (chemin.startsWith('/marches/ia/')) {
+    const F = ia || iaPartage(env);
+    try {
+      if (chemin === '/marches/ia/etat' && request.method === 'GET') return json(F.etat());
+      if (request.method !== 'POST') return json({ error: 'méthode non permise', code: 405 }, 405);
+      const brut = await request.text(); if (brut.length > MAX_CORPS) return json({ ok: false, raison: 'données trop volumineuses', retourManuel: true }, 413);
+      let m; try { m = JSON.parse(brut); } catch (e) { return json({ ok: false, raison: 'corps JSON invalide', retourManuel: true }, 400); }
+      const type = ['graphique', 'scenarios', 'actualite'].includes(m && m.type) ? m.type : 'graphique';
+      if (chemin === '/marches/ia/estimer') { let t; try { t = type === 'actualite' ? texteActualite(m.entree || {}) : type === 'scenarios' ? texteScenarios(m.entree || {}) : texteGraphique(m.entree || {}); } catch (e) { return json({ ...F.etat(), erreurDonnees: e.message }); } return json(F.etat(t.texte)); }
+      if (chemin === '/marches/ia/analyser') return json(await F.analyser(type, m.entree || {}));
+      return json({ error: 'route inconnue : ' + chemin, code: 404 }, 404);
+    } catch (e) { return json({ ok: false, raison: 'erreur : ' + String(e && e.message || e).slice(0, 120), retourManuel: true }, 200); }
+  }
   if (request.method !== 'GET') return json({ error: 'méthode non permise', code: 405 }, 405);
   try {
     if (chemin === '/marches/sante' || chemin === '/marches/ping') return json({ ok: true, service: 'rayle-marches', lots: hub.idsLots().length, heure: new Date(maintenant()).toISOString() });
