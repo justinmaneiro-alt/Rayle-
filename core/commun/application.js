@@ -183,6 +183,20 @@
     const m=await import(new URL('planetes/saturne/atlas/atlas.js',document.baseURI).href); m.ouvrir(); atlasOuvert=true;
   }
   async function fermerAtlas(){ try{ const m=await import(new URL('planetes/saturne/atlas/atlas.js',document.baseURI).href); m.fermer(); }catch(e){} atlasOuvert=false; }
+  /* Terre mobile (2026-11-14) : sur téléphone et tablette, un globe autonome et léger remplace le module 3D du PC (qui restait sur « Chargement de la Terre… »).
+     Réglage rayle_terre_vue : auto (PC = 3D, sinon mobile) | mobile | 3d | leger (ancienne carte plate). */
+  let terreMobileOuverte=false;
+  function utiliserTerreMobile(){
+    let pref='auto'; try{ pref=localStorage.getItem('rayle_terre_vue')||'auto'; }catch(e){}
+    try{ const q=new URLSearchParams(location.search).get('terre'); if(q==='mobile') return true; if(q==='3d') return false; }catch(e){}
+    if(pref==='mobile') return true; if(pref==='3d'||pref==='leger') return false;
+    try{ return !!(window.RayleAppareil&&window.RayleAppareil.mode()!=='pc'); }catch(e){ return false; }
+  }
+  async function ouvrirTerreMobile(){
+    if(!document.querySelector('link[data-terre-mobile]')){ const l=document.createElement('link'); l.rel='stylesheet'; l.dataset.terreMobile=''; l.href=new URL('planetes/terre/mobile/terre-mobile.css',document.baseURI).href; document.head.appendChild(l); }
+    const m=await import(new URL('planetes/terre/mobile/terre-mobile.js',document.baseURI).href); await m.ouvrir({onFermer:()=>{ terreMobileOuverte=false; }}); terreMobileOuverte=true;
+  }
+  async function fermerTerreMobile(){ try{ const m=await import(new URL('planetes/terre/mobile/terre-mobile.js',document.baseURI).href); m.fermer(); }catch(e){} terreMobileOuverte=false; }
   async function ouvrir(id,opts){
     const f=FENETRES.find(x=>x.id===id); if(!f||id==='rayle') return aller(0,{force:true});
     if(ouvert===id) return true; if(ouvert) await fermer({silencieux:true,sansAnim:true});
@@ -191,14 +205,14 @@
     const g=grandir(id);
     ouvert=id; corps.classList.add('app-ouvert'); croix.hidden=false; corps.dataset.appOuvert=id; placer();
     try{
-      if(id==='terre') montrerApercuTerre();
-      if(id==='terminal') await bus().demander('vue:ouvrir','terminal'); else if(id==='anatomie'&&await utiliserAtlas()) await ouvrirAtlas(); else await ouvrirPlanete(id,opts);
+      if(id==='terre'&&!utiliserTerreMobile()) montrerApercuTerre();
+      if(id==='terminal') await bus().demander('vue:ouvrir','terminal'); else if(id==='anatomie'&&await utiliserAtlas()) await ouvrirAtlas(); else if(id==='terre'&&utiliserTerreMobile()) await ouvrirTerreMobile(); else await ouvrirPlanete(id,opts);
     }catch(e){
       if(apercu){ const a0=apercu; apercu=null; a0.remove(); }
       console.error('[app] ouverture de '+id+' :',e); try{ bus().emit('vue:erreur',{message:f.nom+' n’a pas pu s’ouvrir : '+(e&&e.message||e)}); }catch(x){}
       if(g) g.remove(); await fermer({silencieux:true,sansAnim:true}); return false;
     }
-    if(id==='terre') cacherApercuTerre();
+    if(id==='terre'&&!terreMobileOuverte) cacherApercuTerre();
     if(g){ await attendre(220); g.classList.add('ac-fond'); setTimeout(()=>g.remove(),450); }
     try{ bus().emit('app:ouvert',{id}); bus().fusion('app',{vue:id,ouvert:id}); }catch(e){}
     return true;
@@ -207,6 +221,7 @@
     if(!ouvert) return false; const id=ouvert; ouvert=null;
     try{
       if(atlasOuvert){ await fermerAtlas(); }
+      else if(terreMobileOuverte){ await fermerTerreMobile(); }
       else if(id==='terminal'){ if(vueOuverte()==='terminal') await bus().demander('vue:fermer'); }
       else{
         window.dispatchEvent(new CustomEvent('galaxie:sortie',{detail:{app:true}}));
