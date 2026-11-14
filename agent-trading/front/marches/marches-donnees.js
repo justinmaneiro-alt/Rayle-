@@ -36,8 +36,8 @@ export async function actualites(q = 'marches', n = 40, opts = {}) { const r = a
 /* cours rapides : Yahoo (instantané, différé) ; Bitcoin et Solana aussi en direct par Kraken */
 export async function coursRapides(opts = {}) {
   const y = await lireRoute('/__yahoo?syms=' + encodeURIComponent('GC=F,^NDX,^GSPC,BTC-USD') + '&range=2y', opts).catch(() => null); const out = {};
-  for (const a of ACTIFS) { const c = y && y.donnees && y.donnees.cotes && y.donnees.cotes[a.sym]; if (c && !c.erreur) out[a.id] = { prix: c.prix, veille: c.veille, t: c.tPrix || (y.donnees && y.donnees.t), origine: 'instantané', retard: 'différé' }; }
-  await Promise.all(ACTIFS.filter(a => a.live).map(async a => { try { const k = await krakenSpot(a.live, '1h', opts); if (k.prix) { const veille = (out[a.id] && out[a.id].veille) ?? (k.bougies.length > 24 ? k.bougies[k.bougies.length - 24].c : null); out[a.id] = { prix: k.prix, veille, t: k.tPrix, origine: 'direct (Kraken)', retard: 'temps réel' }; } } catch (e) { /* on garde l'instantané */ } }));
+  for (const a of ACTIFS) { const c = y && y.donnees && y.donnees.cotes && y.donnees.cotes[a.sym]; if (c && !c.erreur) { const sr = Array.isArray(c.serie) && c.serie.length > 1 ? c.serie[c.serie.length - 2].c : c.veille; out[a.id] = { prix: c.prix, veille: sr, t: c.tPrix || (y.donnees && y.donnees.t), origine: 'instantané', retard: 'différé' }; } }
+  await Promise.all(ACTIFS.filter(a => a.live).map(async a => { try { const k = await krakenSpot(a.live, '1h', opts); if (k.prix) { const veille = k.bougies.length > 24 ? k.bougies[k.bougies.length - 24].c : ((out[a.id] && out[a.id].veille) ?? null); out[a.id] = { prix: k.prix, veille, t: k.tPrix, origine: 'direct (Kraken)', retard: 'temps réel' }; } } catch (e) { /* on garde l'instantané */ } }));
   return { cours: out, fraicheur: y ? { origine: y.origine, t: y.t, horsLigne: y.horsLigne } : null };
 }
 export { lireBougies };

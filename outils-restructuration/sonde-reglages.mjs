@@ -1,0 +1,13 @@
+import { createRequire } from 'node:module'; import path from 'node:path';
+const require = createRequire(path.resolve('tests-navigateur/package.json')); const puppeteer = require('puppeteer-core');
+const w = ms => new Promise(r => setTimeout(r, ms)); const BASE = process.env.BASE || 'http://127.0.0.1:8000';
+const nav = await puppeteer.launch({ executablePath: 'C:/Program Files/Google/Chrome/Application/chrome.exe', headless: 'new', args: ['--no-sandbox'] });
+const p = await nav.newPage(); await p.setUserAgent('Mozilla/5.0 (Linux; Android 14; SM-S918B) AppleWebKit/537.36 Chrome/126.0 Mobile Safari/537.36');
+await p.setViewport({ width: 412, height: 915, deviceScaleFactor: 2, isMobile: true, hasTouch: true });
+const err = []; p.on('pageerror', e => err.push(e.message.slice(0, 160)));
+await p.goto(BASE + '/index.html', { waitUntil: 'domcontentloaded' }); await w(5000);
+const avant = process.argv[2] === 'dock'; 
+if (avant) { await p.evaluate(() => { const b = [...document.querySelectorAll('button')].find(x => /^Réglages$/.test((x.getAttribute('aria-label') || x.title || x.textContent).trim())); if (b) b.click(); }); } else await p.evaluate(() => document.getElementById('gear').click());
+await w(1500);
+console.log(JSON.stringify(await p.evaluate(() => { const c = document.getElementById('cfg'), r = c.getBoundingClientRect(), cs = getComputedStyle(c); return { classe: c.className, ouvert: c.classList.contains('open'), rect: [Math.round(r.x), Math.round(r.y), Math.round(r.width), Math.round(r.height)], display: cs.display, vis: cs.visibility, z: cs.zIndex, op: cs.opacity, pos: cs.position, tr: cs.transform, bodyClasses: document.body.className }; })));
+await p.screenshot({ path: 'outils-restructuration/captures-mobile-autonome/sonde-reglages.png' }); console.log(err.join('\n') || 'aucune erreur'); await nav.close();
