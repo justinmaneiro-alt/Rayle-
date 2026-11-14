@@ -11,7 +11,7 @@ await p.goto('http://127.0.0.1:8000/index.html', { waitUntil: 'domcontentloaded'
 verif(await attendre(() => p.evaluate(async () => { const r = await navigator.serviceWorker.getRegistration(); return !!(r && r.active); }), 30000), 'le service worker est actif');
 const n = async () => p.evaluate(async () => { let t = 0; for (const k of await caches.keys()) if (/^rayle-shell-/.test(k)) t += (await (await caches.open(k)).keys()).length; return t; });
 verif(await attendre(async () => (await n()) >= 300, 90000), 'précache : ' + await n() + ' fichiers en cache (≥ 300)');
-verif(await p.evaluate(async () => { const r = await navigator.serviceWorker.getRegistration(); const rep = await fetch('sw.js', { cache: 'no-store' }); return /2026\.11\.14\.1/.test(await rep.text()) && window.RAYLE_VERSION === '2026.11.14.1'; }), 'version de la page = version du service worker');
+verif(await p.evaluate(async () => { const r = await navigator.serviceWorker.getRegistration(); const rep = await fetch('sw.js', { cache: 'no-store' }); return /2026\.11\.14\.1/.test(await rep.text()) && window.RAYLE_VERSION === '2026.11.14.2'; }), 'version de la page = version du service worker');
 await p.setOfflineMode(true); await p.reload({ waitUntil: 'domcontentloaded' }); await w(4000);
 verif(await p.evaluate(() => !!window.Application && !!document.getElementById('g1Icones')), 'hors ligne : la page se recharge depuis le cache');
 await p.evaluate(() => window.Application.ouvrir('terre')); verif(await attendre(() => p.evaluate(() => { const c = document.querySelector('#terre-mobile .tm-charge'); return !!c && c.hidden; }), 60000), 'hors ligne : la Terre mobile s\u2019affiche depuis le cache');

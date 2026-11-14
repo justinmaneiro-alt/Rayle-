@@ -22,6 +22,6 @@ const tout = [...vus.keys()].filter(k => k && !/^__|^assets-lourds|^tts|^eveneme
 const taille = k => { try { return fs.statSync(k).size; } catch (e) { return -1; } };
 const L = tout.map(k => [k, taille(k)]).filter(([, t]) => t >= 0), coeur = L.filter(([, t]) => t <= 700 * 1024).map(([k]) => k).sort(), lourd = L.filter(([, t]) => t > 700 * 1024).map(([k]) => k).sort();
 const gros = k => /\/terre\/mobile\/textures\//.test(k);
-const out = { version: '2026.11.14.1', coeur, lourd, genere: new Date().toISOString().slice(0, 10) };
+const out = { version: '2026.11.14.2', coeur, lourd, genere: new Date().toISOString().slice(0, 10) };
 fs.writeFileSync('precache.json', JSON.stringify(out)); console.log('coeur', coeur.length, 'fichiers', Math.round(coeur.reduce((s, k) => s + taille(k), 0) / 1024), 'Ko ; lourd', lourd.length, lourd.map(k => k + ' ' + Math.round(taille(k) / 1024) + 'Ko').join(', '));
 await nav.close();

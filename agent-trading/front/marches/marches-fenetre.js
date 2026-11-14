@@ -76,13 +76,13 @@ export async function ouvrir({ racine = document.body, onFermer = () => {} } = {
   }
   async function dessiner(box, B, fleches, dec, n) {
     try { const { chargerLib } = await import('../graphique.js'), { tempsParis } = await import('../terminal/indicateurs.js'), LW = await chargerLib(); if (S.ferme || n !== S.seq || !box.isConnected) return;
-      if (S.chart) { try { S.chart.remove(); } catch (e) { /* */ } S.chart = null; }
+      if (S.ro) { try { S.ro.disconnect(); } catch (e) { /* */ } S.ro = null; } if (S.chart) { try { S.chart.remove(); } catch (e) { /* */ } S.chart = null; }
       const css = getComputedStyle(el), texte = '#8497a1', chart = LW.createChart(box, { height: 220, layout: { background: { color: 'transparent' }, textColor: texte, fontSize: 11 }, grid: { vertLines: { color: 'rgba(143,208,227,.06)' }, horzLines: { color: 'rgba(143,208,227,.06)' } }, rightPriceScale: { borderVisible: false }, timeScale: { borderVisible: false, timeVisible: true, secondsVisible: false }, crosshair: { mode: 0 }, handleScroll: { pressedMouseMove: true, horzTouchDrag: true, vertTouchDrag: false, mouseWheel: false }, handleScale: { pinch: true, mouseWheel: false, axisPressedMouseMove: true } });
       const serie = chart.addSeries(LW.CandlestickSeries, { upColor: '#5fb894', downColor: '#d86a6a', borderVisible: false, wickUpColor: '#5fb894', wickDownColor: '#d86a6a', priceFormat: { type: 'price', precision: dec, minMove: dec ? Math.pow(10, -dec) : 1 } });
       const temps = B.map(b => tempsParis(b.t)); let p = -1; const T = temps.map(t => (t > p ? (p = t) : (p = p + 1))); serie.setData(B.map((b, i) => ({ time: T[i], open: b.o, high: b.h, low: b.l, close: b.c })));
       const ix = t => { let k = B.findIndex(b => b.t >= t - 1); return k < 0 ? B.length - 1 : k; };
       if (LW.createSeriesMarkers && fleches && fleches.length) LW.createSeriesMarkers(serie, fleches.filter(f => f.t >= B[0].t).map(f => ({ time: T[ix(f.t)], position: f.dir > 0 ? 'belowBar' : 'aboveBar', color: f.dir > 0 ? '#5fb894' : '#d86a6a', shape: f.dir > 0 ? 'arrowUp' : 'arrowDown' })).sort((a, b) => a.time - b.time));
-      chart.timeScale().fitContent(); S.chart = chart; new ResizeObserver(() => { try { chart.applyOptions({ width: box.clientWidth }); } catch (e) { /* */ } }).observe(box);
+      chart.timeScale().fitContent(); S.chart = chart; S.ro = new ResizeObserver(() => { if (S.chart !== chart) return; try { chart.applyOptions({ width: box.clientWidth }); } catch (e) { /* graphique déjà libéré */ } }); S.ro.observe(box);
     } catch (e) { box.innerHTML = '<p class="mf-doux">Graphique indisponible : ' + esc(e && e.message || e) + '</p>'; }
   }
   async function ficheSante(cible, n) {
@@ -137,7 +137,7 @@ export async function ouvrir({ racine = document.body, onFermer = () => {} } = {
 
   function fermer() {
     if (S.ferme) return; S.ferme = true; clearInterval(S.minuteur); clearInterval(S.alerteMinuteur);
-    try { if (S.chart) S.chart.remove(); } catch (e) { /* */ } try { arreterCalcul(); } catch (e) { /* */ } try { if (S.panneaux && S.panneaux.detruire) S.panneaux.detruire(); } catch (e) { /* */ }
+    try { if (S.ro) S.ro.disconnect(); S.ro = null; const c = S.chart; S.chart = null; if (c) c.remove(); } catch (e) { /* */ } try { arreterCalcul(); } catch (e) { /* */ } try { if (S.panneaux && S.panneaux.detruire) S.panneaux.detruire(); } catch (e) { /* */ }
     el.remove(); instance = null; try { onFermer(); } catch (e) { /* */ }
   }
   instance = { fermer, fiche, charger, etat: () => ({ actif: !S.ferme, actifCourant: S.actif, sections: Object.keys(S.charge) }) };
