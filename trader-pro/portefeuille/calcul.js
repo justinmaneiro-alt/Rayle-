@@ -62,7 +62,9 @@ export function courbes(C, T, soldeInitial = 0) {
     soldePts.push({ t: o.t, v: r2(solde) }); perfPts.push({ t: o.t, v: r2(perf) }); apportePts.push({ t: o.t, v: r2(apporte) });
   }
   /* drawdown : baisse depuis le plus haut précédent du résultat cumulé (en euros) ; en % du capital apporté jusque-là (les retraits ne sont pas des pertes ; une valeur relative au solde explose quand le solde est proche de zéro) */
-  const dd = drawdown(perfPts.map(p => p.v)), ddPct = dd.courbe.map((d, i) => (apportePts[i].v > 0 ? +(d / apportePts[i].v * 100).toFixed(2) : 0));
+  /* % : baisse depuis le plus haut du résultat, rapportée à la valeur du compte à CE plus haut (capital apporté jusque-là + résultat au plus haut) ; les dépôts faits après le plus haut ne diluent pas la baisse */
+  const dd = drawdown(perfPts.map(p => p.v)); let picPerf = -Infinity, apporteAuPic = 0;
+  const ddPct = dd.courbe.map((d, i) => { if (perfPts[i].v > picPerf) { picPerf = perfPts[i].v; apporteAuPic = apportePts[i].v; } const base = apporteAuPic + Math.max(0, picPerf); return base > 0 ? +(d / base * 100).toFixed(2) : 0; });
   return { solde: soldePts, perf: perfPts, apporte: apportePts, drawdownPerf: perfPts.map((p, i) => ({ t: p.t, v: r2(dd.courbe[i]) })), drawdownPct: perfPts.map((p, i) => ({ t: p.t, v: ddPct[i] })), soldeFinal: soldePts.length ? soldePts[soldePts.length - 1].v : 0, fluxNet: r2(flux), capitalApporte: r2(apporte), perfTotale: r2(perf), drawdownPerfMax: r2(dd.max), drawdownPctMax: ddPct.length ? Math.min(0, ...ddPct) : 0 };
 }
 /* P&L par jour (date de Paris de la fermeture) */

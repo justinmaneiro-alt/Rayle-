@@ -1,7 +1,7 @@
 /* Test Chrome du terminal « pro » H4 / Jour (or.html). Usage : node trader-pro/tests/terminal-chrome.mjs [tel|tablette|pc] */
 import { lancer, w } from './aide-chrome.mjs';
 const mode = process.argv[2] || 'pc', T = await lancer(mode), { p, verif, attendre, capture } = T;
-const url = 'http://rayle.test:8000/agent-trading/front/or.html';
+const url = 'http://rayle.test:8000/agent-trading/front/or.html?hj=1';
 await p.goto(url, { waitUntil: 'domcontentloaded', timeout: 90000 });
 verif(await attendre(() => p.evaluate(() => !!window.__orPro), 60000), 'le terminal pro est monté');
 verif(await attendre(() => p.evaluate(() => window.__orPro && window.__orPro.etat().ma.length === 2), 30000), 'MA200 H4 et MA200 J présentes sur le graphique');
@@ -24,7 +24,7 @@ const nFiches = await p.evaluate(() => document.querySelectorAll('.tp-panneau [d
 await p.evaluate(() => document.querySelector('.tp-panneau [data-fermer]').click());
 console.log('— « Détails » —');
 await p.evaluate(() => document.querySelector('.tp-b-details').click()); await w(1500);
-verif(await p.evaluate(() => { const b = document.querySelector('.tor-graph-barre, .tor-ft-ligne'); return document.documentElement.classList.contains('tp-details') && !!b && getComputedStyle(b).display !== 'none'; }), '« Détails » rend la barre d’outils');
+verif(await p.evaluate(() => document.documentElement.classList.contains('tp-details') && [...document.querySelectorAll('.tor-graph-barre, .tor-ft-ligne, .tt-fl')].some(b => getComputedStyle(b).display !== 'none')), '« Détails » rend les barres d’outils');
 await capture('terminal-details'); await p.evaluate(() => document.querySelector('.tp-b-details').click()); await w(800);
 verif(await p.evaluate(() => Object.values(window.__or.graph.couches()).every(v => v === false)), 'retour au graphique propre');
 console.log('— copie locale des bougies —');

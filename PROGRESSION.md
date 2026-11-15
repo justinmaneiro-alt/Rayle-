@@ -13,7 +13,7 @@ instantanés « pro » en local : `node outils-donnees/snapshots.mjs --sortie <d
 - [x] Phase 3 : fenêtre Portefeuille XTB (trader-pro/portefeuille/, Worker dédié trader-pro/worker/) : import réel vérifié, coach et synchronisation testés ; le Worker reste à déployer par Justin (trader-pro/worker/LISEZMOI.md)
 - [x] Phase 4 : Terminal H4 / Jour (trader-pro/terminal/) : MA200 H4/J réelles, niveaux forts, signaux, backtest walk-forward, alertes voix + Telegram, graphique propre + « Détails », cache des bougies
 - [x] Phase 5 : fiches d'ordre XTB (taille en lots) et voix de Rayle (portefeuille, risque, erreurs, couverture, signaux, COT)
-- [ ] Phase 6 : contrôle final, fusion dans main, publication
+- [~] Phase 6 : contrôle final fait (tests purs et Chrome PC/tablette/téléphone) ; fusion dans main et publication : EN ATTENTE de l'autorisation de pousser (voir ci-dessous)
 
 ## Structure du fichier XTB (étape préliminaire)
 Export xStation « EUR_<compte>_<début>_<fin>.xlsx » dans un .zip. Trois feuilles :
@@ -33,7 +33,13 @@ Export xStation « EUR_<compte>_<début>_<fin>.xlsx » dans un .zip. Trois feuil
 8. **Calendrier** : le flux Forex Factory ne fournit pas le chiffre « publié » : affiché seulement s'il existe, sinon « non fourni par la source » (jamais inventé).
 9. **Worker principal absent du dépôt** (`worker/` ignoré par git) : un Worker DÉDIÉ sera ajouté pour le portefeuille (comme `relais-or`).
 10. Avant ce lot, `tactile-chrome.mjs` avait déjà un échec connu (« aucune zone visible pour le test d'appui sur un niveau »).
-(la suite de l'audit est complétée phase par phase)
+11. Dock du carrousel : 9 icônes dépassaient 412 px (la page s'élargissait sur téléphone) → icônes qui rétrécissent, libellés courts.
+12. Terminal : après un changement d'unité (H4 → Jour) le graphique pouvait rester calé sur l'ancienne plage (une seule bougie tout à gauche) → recadrage sur les dernières bougies.
+13. Terminal : « Chargement du graphique… » long (historique paginé relu à chaque ouverture) → copie locale IndexedDB des bougies, affichage immédiat.
+14. `.gitignore` : « worker/ » ignorait aussi trader-pro/worker/ → exception ajoutée (code sans secret).
+15. Tests Chrome anciens du terminal : 2 échecs DÉJÀ présents sur main (couches par défaut, « aucun autre actif que l'or ») : non causés par ce lot (vérifié sur une copie de main).
+16. Alertes Telegram GitHub : les flèches H1 ne partent plus (ALERTES_FLECHES_H1=0) ; seuls les signaux H4/Jour sont annoncés.
+17. FUITE CORRIGÉE : le numéro de compte XTB figurait dans 3 fichiers de test du commit Phase 3 déjà poussé sur la branche GitHub. Corrigé et historique local réécrit (sans ce numéro) ; **la branche distante doit être remplacée par un push forcé** (ou supprimée puis repoussée) : voir le résumé final.
 
 ## Notes de fin de Phase 1
 - Fichiers : `trader-pro/{commun,marches,tests,outils}/`, `outils-donnees/pro.mjs` (+ lot `pro` dans `snapshots.mjs`), `core/commun/application.js` (le carrousel ouvre la nouvelle fenêtre), `sw.js` / `index.html` / `precache.json` (version 2026.11.15.1).
@@ -57,3 +63,9 @@ Export xStation « EUR_<compte>_<début>_<fin>.xlsx » dans un .zip. Trois feuil
 - Robot : alertes H4/Jour par Telegram sans le PC (trader-pro/terminal/alertes-hj.mjs, étape ajoutée à .github/workflows/alertes.yml) ; premier passage = mémorisation sans envoi.
 - Fiche d'ordre : nom XTB, sens, entrée, stop, objectif, R/R, taille en lots (capital × risque % ÷ (distance × valeur du point)) ; décalage au comptant pour l'or ; rien n'est envoyé à XTB.
 - Voix : window.TraderPro.commande (chargeur léger) branché dans core/intelligence/phrase.js ; intentions testées.
+
+## Phase 6 : contrôle final
+- Tests purs : `npm test` (trader-pro/tests/*-test.mjs) ; Chrome : marches-chrome (tel, pc), couverture-chrome (tel, tablette), terminal-chrome (tel, tablette, pc), portefeuille-chrome (tel, pc) : tous verts.
+- Le terminal « pro » ne se charge pas dans les navigateurs pilotés par test sauf avec ?hj=1 (convention de terminal-pro.js) : les anciens tests du terminal ne changent pas.
+- Aucune donnée de trading suivie par git (donnees-privees/ ignoré) ; aucun numéro de compte ni montant dans les fichiers suivis (vérifié par recherche dans tout l'historique réécrit).
+- Reste à faire par Justin : déployer le Worker Portefeuille (trader-pro/worker/LISEZMOI.md), poser les secrets, autoriser le push forcé de la branche puis le push de main.

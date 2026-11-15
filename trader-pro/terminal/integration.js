@@ -69,6 +69,14 @@ export async function monterPro(T) {
     el.innerHTML = '<span style="color:' + COULEURS.ma4 + '">MA200 H4 ' + nf(E.L.ma200H4, 0) + ' ' + d(E.L.ma200H4) + '</span><span style="color:' + COULEURS.maJ + '">MA200 J ' + nf(E.L.ma200J, 0) + ' ' + d(E.L.ma200J) + '</span><span class="tp-biais ' + (E.L.biais > 0 ? 'tp-h' : E.L.biais < 0 ? 'tp-b' : '') + '">biais J : ' + (E.L.biais > 0 ? 'acheteur' : E.L.biais < 0 ? 'vendeur' : 'neutre') + '</span>';
   }
 
+  /* l'or a UN prix de référence dans l'appli (le XAU/USD au comptant, celui de XTB) : le terminal trace le perpétuel Kraken, qui diffère surtout le week-end ; on affiche donc le prix au comptant à côté, étiqueté */
+  async function majSpot() {
+    if (id !== 'or' || document.hidden) return; let p = null; try { const tp = window.parent !== window ? window.parent.TraderPro : window.TraderPro; p = tp && tp.prixOr ? await tp.prixOr() : null; } catch (e) { p = null; }
+    const cible = document.querySelector('[data-or-prix]'); if (!cible) return; let chip = document.querySelector('.tp-spot'); if (!chip) { chip = document.createElement('small'); chip.className = 'tp-spot'; cible.insertAdjacentElement('afterend', chip); }
+    const kr = T.moteur.S.prix; if (!p || !p.reference || !Number.isFinite(kr) || Math.abs(p.prix / kr - 1) < 0.001) { chip.hidden = true; return; }
+    chip.hidden = false; chip.textContent = 'comptant (XTB) ' + nf(p.prix, 2); chip.title = p.source + (p.note ? ' — ' + p.note : '') + ' · le graphique et les signaux sont sur le perpétuel Kraken (écart ' + nf(kr - p.prix, 1) + ' $)';
+  }
+
   /* ───── données, alertes ───── */
   const idsVus = () => new Set(lire(LS.vus, null) || []);
   async function charger() {
@@ -111,8 +119,8 @@ export async function monterPro(T) {
   bHJ.addEventListener('click', () => ouvrirPanneau(!(E.panneau && !E.panneau.hidden)));
 
   /* ───── cycle ───── */
-  await charger(); chargerBacktest();
+  await charger(); chargerBacktest(); majSpot(); const spot = setInterval(majSpot, 30000);
   const suivi = setInterval(() => dessiner(), 1500), maj = setInterval(() => { if (!document.hidden) charger(); }, 120000);
-  window.addEventListener('pagehide', () => { clearInterval(suivi); clearInterval(maj); });
+  window.addEventListener('pagehide', () => { clearInterval(suivi); clearInterval(maj); clearInterval(spot); });
   return { charger, dessiner: () => dessiner(true), lecture: () => E.L, etat: () => ({ id, details: E.details, niveaux: E.lignes.length, signaux: E.L && E.L.signaux ? E.L.signaux.length : 0, ma: Object.keys(E.series) }), ouvrirPanneau, appliquerDetails };
 }

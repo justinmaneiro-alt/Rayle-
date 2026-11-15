@@ -21,6 +21,7 @@ jobs:
       TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
       TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
       REGISTRE_DIRECT: '0'
+      ALERTES_FLECHES_H1: '0'   # 2026-11-15 : les signaux sont maintenant les signaux H4 / Jour (étape suivante) ; les flèches H1 ne partent plus par Telegram depuis GitHub
       ALERTES_ETAT: ${{ github.workspace }}/etat-sortie/etat/alertes-etat.json
     steps:
       - uses: actions/checkout@v4
