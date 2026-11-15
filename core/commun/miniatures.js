@@ -178,6 +178,20 @@
     return { dessiner, tic(){ dessiner(); }, intervalle:1000, statique:true };
   }
 
+  /* ───── Couverture et Portefeuille : cartes statiques (aucune donnée de trading dessinée, sauf le résumé gardé sur CET appareil) ───── */
+  function carteTexte(titre,lignes){
+    return function(m){
+      function dessiner(){ const c=m.ctx; c.clearRect(0,0,W,H); c.fillStyle='rgba(6,12,18,.88)'; c.fillRect(0,0,W,H); const px=H/260, g=16*px; c.textBaseline='alphabetic';
+        const f=(t,x,y,couleur,taille,gras)=>{ c.font=(gras?'600 ':'')+Math.round(taille*px)+'px system-ui,Segoe UI,sans-serif'; c.fillStyle=couleur; c.fillText(t,x,y); };
+        f(titre,g,28*px,'#8fd0e3',12,true); const L=lignes(); L.forEach((l,i)=>f(l.t,g,(62+i*30)*px,l.c||'#d7e3ea',l.g||14,!!l.b)); }
+      return { dessiner, tic(){ dessiner(); }, intervalle:5000, statique:true };
+    };
+  }
+  const lsLire=(k)=>{ try{ return JSON.parse(localStorage.getItem(k)||'null'); }catch(e){ return null; } };
+  const creerCouverture=carteTexte('COUVERTURE',()=>[{t:'Corrélations 30 / 90 / 250 jours',b:1,g:15},{t:'Or, argent, US100, S&P 500, BTC, SOL,',c:'#8497a1',g:12},{t:'dollar, EUR/USD, taux US, pétrole',c:'#8497a1',g:12},{t:'Outil : quel actif couvre ma position ?',c:'#e8a85a',g:13}]);
+  const creerPortefeuille=carteTexte('PORTEFEUILLE XTB',()=>{ const r=lsLire('rayle_pf_resume_v1'); if(!r) return [{t:'Importer mon historique XTB',b:1,g:15},{t:'Résultats, graphiques, erreurs à corriger',c:'#8497a1',g:12},{t:'Synchronisé sur PC, tablette, téléphone',c:'#8497a1',g:12}]; const j=Math.round((Date.now()-r.t)/864e5);
+    return [{t:r.n+' transactions',b:1,g:16},{t:'Résultat total '+(r.pnl>=0?'+':'−')+Math.abs(r.pnl).toLocaleString('fr-FR',{maximumFractionDigits:2})+' €',c:r.pnl>=0?'#5fb894':'#d86a6a',b:1,g:18},{t:r.discipline!=null?'Discipline '+r.discipline+' / 100':'',c:'#8497a1',g:12},{t:'Import il y a '+(j<1?'moins d’un jour':j+' j'),c:'#6e8089',g:11}]; });
+
   /* ───── terre légère (téléphone, tablette) : une image de 30 Ko, aucune texture 8k, aucun moteur 3D ───── */
   async function creerTerreLegere(m){
     const img=new Image(); img.src=new URL('planetes/terre/apercu/terre-apercu.jpg',document.baseURI).href; try{ await img.decode(); }catch(e){}
@@ -189,8 +203,8 @@
   }
 
   /* ───── cycle de vie ───── */
-  const LIBELLES={marches:'Annonces, actualité, cours · lecture seule',terminal:'Or · H1 · Kraken · lecture seule',anatomie:'Squelette 3D complet',terre:'',dev3d:'Atelier de maquettes 3D',rayle:''};
-  const FABRIQUES={marches:creerMarches,terminal:creerTerminal,anatomie:creerAnatomie,terre:(window.RayleAppareil&&window.RayleAppareil.mode()!=='pc')?creerTerreLegere:creerTerre,dev3d:creerDev3d,rayle:creerRayle};
+  const LIBELLES={marches:'Annonces, actualité, cours · lecture seule',couverture:'Corrélations et couverture · lecture seule',portefeuille:'Suivi XTB · résultats et coach',terminal:'Or · H1 · Kraken · lecture seule',anatomie:'Squelette 3D complet',terre:'',dev3d:'Atelier de maquettes 3D',rayle:''};
+  const FABRIQUES={marches:creerMarches,couverture:creerCouverture,portefeuille:creerPortefeuille,terminal:creerTerminal,anatomie:creerAnatomie,terre:(window.RayleAppareil&&window.RayleAppareil.mode()!=='pc')?creerTerreLegere:creerTerre,dev3d:creerDev3d,rayle:creerRayle};
   async function creer(id,canvas){
     if(minis.has(id)) return minis.get(id);
     if(!minis.size&&canvas.parentElement){ const bw=canvas.parentElement.offsetWidth, bh=canvas.parentElement.offsetHeight; if(bw>50&&bh>50){ H=260; W=Math.max(320,Math.min(720,Math.round(260*bw/bh))); } }
