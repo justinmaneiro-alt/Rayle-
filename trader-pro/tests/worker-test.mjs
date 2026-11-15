@@ -1,0 +1,51 @@
+/* Tests du Worker Portefeuille avec un VRAI moteur SQLite (D1 est du SQLite). node trader-pro/tests/worker-test.mjs */
+import { DatabaseSync } from 'node:sqlite';
+import { traiter, viderCacheJetons, nettoyerFermees, nettoyerTresorerie, nettoyerAlertes, nettoyerReglages, egalTempsConstant } from '../worker/src/coeur.js';
+import { depotD1, d1DepuisSqlite } from '../worker/src/depot-d1.js';
+import { verifierAlertes } from '../worker/src/index.js';
+let ok = 0, ko = 0; const v = (c, m) => { if (c) ok++; else { ko++; console.log('  ✗ ' + m); } };
+const env = { PORTEFEUILLE_CODE: 'code-de-test-123456', ORIGINES: 'https://justinmaneiro-alt.github.io' };
+const nouveau = () => depotD1(d1DepuisSqlite(new DatabaseSync(':memory:')));
+const appel = async (depot, methode, chemin, corps, entetes = {}, e = env) => { const r = await traiter(new Request('https://w.test' + chemin, { method: methode, headers: { 'Content-Type': 'application/json', Origin: 'https://justinmaneiro-alt.github.io', 'X-Portefeuille-Code': 'code-de-test-123456', ...entetes }, body: corps ? JSON.stringify(corps) : undefined }), e, depot); return { s: r.status, j: await r.json().catch(() => null), h: r.headers }; };
+const F = (i, o = {}) => ({ id: String(1000 + i), instrument: 'GOLD', ticker: 'GOLD', categorie: 'CFD', sens: 'BUY', volume: 0.01, prixOuv: 4000, tOuv: 1e12 + i, prixFerm: 4001, tFerm: 1e12 + i + 1000, pnl: 1, brut: 1, commission: 0, swap: 0, rollover: 0, marge: 40, sl: null, tp: null, origine: 'Android', commentaire: '', ...o });
+const T = i => ({ id: 'c' + i, type: 'Close trade', t: 1e12 + i, montant: 1, idPosition: String(1000 + i), ticker: 'GOLD' });
+
+let d = nouveau();
+v((await appel(d, 'GET', '/sante', null, { 'X-Portefeuille-Code': '' })).j.ok === true, '/sante est ouvert');
+let r = await appel(d, 'GET', '/donnees', null, { 'X-Portefeuille-Code': 'mauvais-code' }); v(r.s === 401, 'mauvais code : 401'); r = await appel(d, 'GET', '/donnees', null, { 'X-Portefeuille-Code': '' }); v(r.s === 401, 'sans code : 401');
+r = await appel(d, 'GET', '/donnees'); v(r.s === 200 && r.j.rev === 0 && r.j.fermees.length === 0, 'base vide');
+v(r.h.get('Access-Control-Allow-Origin') === 'https://justinmaneiro-alt.github.io', 'CORS : origine autorisée'); r = await appel(d, 'GET', '/donnees', null, { Origin: 'https://pirate.example' }); v(r.h.get('Access-Control-Allow-Origin') === 'null', 'CORS : origine inconnue refusée');
+/* import : 120 positions et 100 opérations, plus 2 positions ouvertes */
+const lot1 = Array.from({ length: 120 }, (_, i) => F(i)), tres1 = Array.from({ length: 100 }, (_, i) => T(i));
+r = await appel(d, 'POST', '/importer', { fermees: lot1, tresorerie: tres1, ouvertes: [{ id: 'o1', ticker: 'GOLD', sens: 'BUY', volume: 0.01, valeur: 400, prixOuv: 4000, prixCourant: 4010, tOuv: 1e12, sl: null, tp: null, pnl: 1, brut: 1, marge: 40, swap: 0 }], resume: { valeur: 400, profit: 1, devise: 'EUR' } });
+v(r.s === 200 && r.j.rev === 1 && r.j.ecrites.fermees === 120 && r.j.ecrites.tresorerie === 100, 'import : lignes écrites ' + JSON.stringify(r.j));
+r = await appel(d, 'GET', '/donnees'); v(r.j.fermees.length === 120 && r.j.tresorerie.length === 100 && r.j.ouvertes.positions.length === 1 && r.j.total.fermees === 120, 'lecture complète');
+/* second import : 5 nouvelles + 1 modifiée + 1 doublon identique → pas de doublon, révision suivante */
+r = await appel(d, 'POST', '/importer', { fermees: [...Array.from({ length: 5 }, (_, i) => F(200 + i)), F(3, { pnl: 2.5 }), F(4)], tresorerie: [] }); v(r.j.rev === 2, 'deuxième révision');
+r = await appel(d, 'GET', '/donnees?depuis=1'); v(r.j.fermees.length === 7 && r.j.tresorerie.length === 0, 'delta : seulement les lignes de la révision 2 (' + r.j.fermees.length + ')'); r = await appel(d, 'GET', '/donnees'); v(r.j.total.fermees === 125 && r.j.fermees.find(x => x.id === '1003').pnl === 2.5, 'fusion sans doublon (125) et ligne modifiée');
+v(r.j.ouvertes.positions.length === 1, 'sans « ouvertes » dans la requête : positions ouvertes conservées');
+/* validation : champs inconnus ignorés, ligne invalide écartée, id dangereux refusé */
+r = await appel(d, 'POST', '/importer', { fermees: [F(900, { pirate: 'x', compte: '12345678' }), { id: 'x; DROP TABLE fermees', sens: 'BUY' }, F(901, { sens: 'LONG' }), { ...F(902), pnl: 'abc' }] }); v(r.j.ecrites.fermees === 1, 'une seule ligne valide écrite');
+r = await appel(d, 'GET', '/donnees?depuis=2'); const g = r.j.fermees.find(x => x.id === '1900'); v(g && !('pirate' in g) && !('compte' in g), 'champs inconnus non stockés (pas de numéro de compte)');
+v(nettoyerFermees([F(1, { commentaire: 'x'.repeat(500) })])[0].commentaire.length === 60, 'commentaires tronqués'); v(nettoyerTresorerie([{ id: 'c1', type: 'Deposit', t: 1, montant: 5, comment: 'XTB Card IA:52423515' }])[0].comment === undefined, 'commentaire bancaire jamais stocké');
+/* réglages, alertes, rapport */
+r = await appel(d, 'PUT', '/reglages', { capital: 1500, risquePct: 1, valeursPoint: { GOLD: 85.3 }, mauvais: 1, devise: 'EUR' }); v(r.j.reglages.capital === 1500 && r.j.reglages.valeursPoint.GOLD === 85.3 && !('mauvais' in r.j.reglages), 'réglages : filtrés');
+r = await appel(d, 'PUT', '/reglages', { capital: -5, risquePct: 500 }); v(r.j.reglages.capital === 1500 && r.j.reglages.risquePct === 1, 'réglages invalides ignorés (les valeurs précédentes restent)');
+r = await appel(d, 'PUT', '/alertes', { alertes: [{ id: 'a1', actif: 'or', sens: 'dessus', niveau: 4100, creeLe: 1, declenchee: null }, { id: 'a2', actif: 'or', sens: 'mauvais', niveau: 1 }, { id: 'a3', actif: 'btc', sens: 'dessous', niveau: -3 }] }); v(r.j.alertes.length === 1, 'alertes : seules les valides'); r = await appel(d, 'GET', '/alertes'); v(r.j.alertes.length === 1 && r.j.alertes[0].id === 'a1', 'GET /alertes : seulement les alertes');
+r = await appel(d, 'PUT', '/rapport', { texte: 'Rapport de test', note: 71, sections: { a: 1 }, ia: true }); v(r.j.rapport.note === 71, 'rapport enregistré'); r = await appel(d, 'GET', '/donnees'); v(r.j.rapport.texte === 'Rapport de test' && r.j.alertes.length === 1 && r.j.reglages.capital === 1500, 'tout est relu');
+/* sauvegarde / restauration / effacement */
+const sauv = (await appel(d, 'GET', '/sauvegarde')).j; v(sauv.fermees.length === 126 && sauv.tresorerie.length === 100, 'sauvegarde complète'); const d2 = nouveau(); r = await appel(d2, 'POST', '/restaurer', sauv); v(r.s === 200 && r.j.restaurees.fermees === 126, 'restauration dans une base vierge'); r = await appel(d2, 'GET', '/donnees'); v(r.j.total.fermees === 126 && r.j.reglages.capital === 1500, 'restauration : données et réglages');
+r = await appel(d2, 'POST', '/restaurer', { fermees: [], tresorerie: [] }); v(r.s === 400, 'sauvegarde vide refusée (rien n’est effacé)'); r = await appel(d2, 'DELETE', '/tout'); v(r.s === 400, 'effacement sans confirmation refusé'); r = await appel(d2, 'DELETE', '/tout?confirmation=OUI'); r = await appel(d2, 'GET', '/donnees'); v(r.j.total.fermees === 0, 'effacement confirmé');
+v((await appel(d, 'GET', '/inconnu')).s === 404, 'route inconnue : 404'); v(egalTempsConstant('abc', 'abc') && !egalTempsConstant('abc', 'abd') && !egalTempsConstant('abc', 'abcd'), 'comparaison à temps constant');
+/* verrou par jeton Rayle : accepté seulement si le Worker principal accepte le bon jeton ET refuse un faux */
+const sansCode = { ORIGINES: env.ORIGINES, WORKER_RAYLE: 'https://principal.test' };
+const faux = verrou => async (u, o) => { const j = (o.headers || {})['X-Rayle-Token']; return new Response('{}', { status: verrou(j) ? 200 : 401 }); };
+const viaJeton = async (e, f) => (viderCacheJetons(), await traiter(new Request('https://w.test/donnees', { headers: { Origin: env.ORIGINES, 'X-Rayle-Token': 'jeton-secret-ok' } }), e, nouveau(), { fetchFn: f })).status;
+v(await viaJeton(sansCode, faux(j => j === 'jeton-secret-ok')) === 200, 'jeton Rayle valide + verrou réel du principal : accepté'); v(await viaJeton(sansCode, faux(j => false)) === 401, 'jeton refusé par le principal : 401'); v(await viaJeton(sansCode, faux(() => true)) === 503, 'principal sans verrou (accepte un faux jeton) : refus 503'); v(await viaJeton({ ORIGINES: env.ORIGINES }, faux(() => true)) === 503, 'principal non configuré : 503');
+/* alertes par Telegram */
+const dA = nouveau(); await dA.kvEcrire('alertes', [{ id: 'a1', actif: 'or', sens: 'dessus', niveau: 3800, creeLe: 1, declenchee: null }, { id: 'a2', actif: 'btc', sens: 'dessous', niveau: 10, creeLe: 1, declenchee: null }]);
+const envoyes = []; const fTel = async (u, o) => { if (String(u).includes('api.telegram.org')) { envoyes.push(JSON.parse(o.body)); return new Response('{"ok":true}', { status: 200 }); } if (String(u).includes('futures.kraken.com')) return new Response(JSON.stringify({ ticker: { markPrice: 3850 } }), { status: 200 }); if (String(u).includes('api.kraken.com')) return new Response(JSON.stringify({ result: { XXBTZUSD: { c: ['90000', '1'] } } }), { status: 200 }); return new Response('{}', { status: 404 }); };
+const rv = await verifierAlertes({ TELEGRAM_BOT_TOKEN: 'T', TELEGRAM_CHAT_ID: '1' }, dA, fTel); v(rv.declenchees === 1 && rv.envoyees === 1 && envoyes.length === 1 && /Or/.test(envoyes[0].text), 'alerte franchie : un message Telegram'); const A2 = await dA.kvLire('alertes'); v(A2.find(a => a.id === 'a1').declenchee && A2.find(a => a.id === 'a1').envoyee && !A2.find(a => a.id === 'a2').declenchee, 'l’alerte est marquée envoyée, l’autre attend');
+const rv2 = await verifierAlertes({ TELEGRAM_BOT_TOKEN: 'T', TELEGRAM_CHAT_ID: '1' }, dA, fTel); v(envoyes.length === 1, 'jamais deux messages pour la même alerte'); const dB = nouveau(); await dB.kvEcrire('alertes', [{ id: 'a1', actif: 'or', sens: 'dessus', niveau: 3800, creeLe: 1, declenchee: null }]); const rv3 = await verifierAlertes({}, dB, fTel); v(rv3.declenchees === 1 && rv3.envoyees === 0 && !(await dB.kvLire('alertes'))[0].envoyee, 'sans secrets Telegram : rien n’est envoyé, rien n’est inventé');
+v(nettoyerAlertes([{ id: 'ok1', actif: 'or', sens: 'dessus', niveau: 1 }]).length === 1 && nettoyerReglages({ capital: 1000 }).capital === 1000, 'nettoyage');
+console.log(ko ? `✗ ${ko} échec(s), ${ok} ok` : `tous les tests passent (${ok})`); process.exit(ko ? 1 : 0);

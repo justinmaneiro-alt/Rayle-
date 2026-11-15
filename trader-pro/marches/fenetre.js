@@ -6,6 +6,7 @@ import { esc, nf, pct, cls, lireLS, ecrireLS, age } from '../commun/ui.js';
 import { lireActifPro, prixOr } from '../commun/donnees.js';
 import { parler } from '../commun/ia.js';
 import { verifierGlobal } from './onglet-alertes.js';
+import { brancherSynchroAlertes } from '../portefeuille/alertes-sync.js';
 
 const ONGLETS = [['aujourdhui', 'Aujourd’hui', './onglet-aujourdhui.js'], ['actifs', 'Actifs', './onglet-actifs.js'], ['cot', 'COT', './onglet-cot.js'], ['macro', 'Macro', './onglet-macro.js'], ['actualite', 'Actualité', './onglet-actualite.js'], ['alertes', 'Alertes', './onglet-alertes.js']];
 let instance = null;
@@ -43,7 +44,7 @@ export async function ouvrir({ racine = document.body, onFermer = () => {} } = {
   });
   const toast = t => { const d = document.createElement('div'); d.className = 'tp-toast'; d.setAttribute('role', 'alert'); d.textContent = t; el.appendChild(d); setTimeout(() => d.remove(), 12000); };
   S.minuteurs.push(setInterval(majOr, 20000), setInterval(() => { verifierGlobal(toast).catch(() => {}); }, 30000));
-  majOr(); aller(lireLS('tp_onglet', 'aujourdhui'));
+  majOr(); brancherSynchroAlertes(); aller(lireLS('tp_onglet', 'aujourdhui'));
 
   function fermer() {
     if (S.ferme) return; S.ferme = true; S.seq++; S.minuteurs.forEach(clearInterval);

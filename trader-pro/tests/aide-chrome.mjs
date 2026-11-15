@@ -15,6 +15,7 @@ export async function lancer(mode = 'tel', { stockage = {}, dossierCaptures = 'd
   p.on('request', async r => {
     const u = r.url(); if (interception && await interception(r, u)) return;
     if (!u.includes('.workers.dev')) return r.continue();
+    if (u.includes('//rayle.justinmaneiro.workers.dev/chat')) return r.respond({ status: r.method() === 'OPTIONS' ? 204 : 503, headers: { 'access-control-allow-origin': '*', 'access-control-allow-headers': '*', 'access-control-allow-methods': 'POST, GET, OPTIONS', 'content-type': 'application/json' }, body: r.method() === 'OPTIONS' ? '' : '{"error":"Worker de test"}' });
     if (u.includes('//rayle.justinmaneiro.workers.dev/health')) return r.respond({ status: 200, headers: { 'access-control-allow-origin': '*', 'content-type': 'application/json' }, body: JSON.stringify({ ok: true, service: 'rayle', cible: 'cloudflare' }) });
     try { const x = await fetch(u, { headers: { origin: 'https://justinmaneiro-alt.github.io' }, signal: AbortSignal.timeout(12000) }); r.respond({ status: x.status, headers: { 'access-control-allow-origin': '*', 'content-type': x.headers.get('content-type') || 'application/json' }, body: Buffer.from(await x.arrayBuffer()) }); } catch (e) { r.abort('failed'); }
   });

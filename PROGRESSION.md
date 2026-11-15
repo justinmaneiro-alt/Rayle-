@@ -9,8 +9,8 @@ instantanés « pro » en local : `node outils-donnees/snapshots.mjs --sortie <d
 - [x] Étape préliminaire : historique XTB copié dans `donnees-privees/` (ignoré par git) et étudié
 - [x] Phase 0 : audit (liste ci-dessous, complétée au fil des phases)
 - [x] Phase 1 : fenêtre Marchés pro (`trader-pro/marches/`) : fait et testé dans Chrome (téléphone, PC) ; reste : Telegram des alertes (Phase 3, Worker dédié)
-- [ ] Phase 2 : fenêtre Couverture
-- [ ] Phase 3 : fenêtre Portefeuille XTB (import, stockage Cloudflare, coach)
+- [x] Phase 2 : fenêtre Couverture (trader-pro/couverture/) : fait et testé (calculs purs + Chrome)
+- [x] Phase 3 : fenêtre Portefeuille XTB (trader-pro/portefeuille/, Worker dédié trader-pro/worker/) : import réel vérifié, coach et synchronisation testés ; le Worker reste à déployer par Justin (trader-pro/worker/LISEZMOI.md)
 - [ ] Phase 4 : Terminal H4 / Jour, signaux, backtest, alertes
 - [ ] Phase 5 : fiches d'ordre XTB et voix
 - [ ] Phase 6 : contrôle final, fusion dans main, publication
@@ -39,3 +39,13 @@ Export xStation « EUR_<compte>_<début>_<fin>.xlsx » dans un .zip. Trois feuil
 - Fichiers : `trader-pro/{commun,marches,tests,outils}/`, `outils-donnees/pro.mjs` (+ lot `pro` dans `snapshots.mjs`), `core/commun/application.js` (le carrousel ouvre la nouvelle fenêtre), `sw.js` / `index.html` / `precache.json` (version 2026.11.15.1).
 - Les `pro-*.json` n'existent sur la branche `donnees` qu'après le prochain passage du robot sur main (le workflow se déclenche au push sur main) ; d'ici là la fenêtre affiche « aucune donnée » avec Réessayer pour les actifs (le robot actuel publie encore les anciens fichiers). Le repli sur les anciens `bougies-*.json` n'est volontairement pas codé (1 Mo, lent).
 - Non vérifié : vrai téléphone / tablette ; prix spot par le Worker (aucun Worker configuré dans les tests Chrome : repli Kraken testé) ; voix réelle.
+
+## Notes de fin de Phase 2 et 3
+- Fenêtres Couverture et Portefeuille ajoutées au carrousel et au dock (9 icônes, libellés courts sur téléphone). Le dock à 9 icônes dépassait la largeur d'un téléphone de 412 px (la page s'élargissait) : corrigé.
+- Import XTB vérifié sur le vrai fichier : Profit/Loss = brut + commission + swap ; la trésorerie (Close trade + Correction + Swap) retombe exactement sur le résultat net des positions ; la somme des opérations égale la ligne « Total » du fichier ; aucun numéro de compte conservé. Les chiffres du compte ne sont PAS écrits ici : ils sont dans le résumé final.
+- Le solde avant le 31/12/2025 n'est pas dans l'export : le « solde reconstitué » part de zéro sauf si le réglage « solde au 31/12/2025 » est saisi ; sans capital saisi, aucun pourcentage de risque n'est affiché.
+- Drawdown calculé sur le résultat cumulé en euros et en % du capital apporté (une valeur relative au solde explose quand le solde est proche de zéro).
+- R seulement quand le stop final est du côté de la perte (sinon le risque initial est inconnu) : estimation.
+- .gitignore : « worker/ » ignorait aussi trader-pro/worker/ ; exception ajoutée (code sans secret).
+- Worker Portefeuille : D1, verrou par code (secret PORTEFEUILLE_CODE) ou jeton Rayle validé par le Worker principal (refus si ce dernier accepte un faux jeton), alertes de prix par Telegram (cron 5 min). Testé avec un vrai SQLite et un faux appareil ; NON déployé.
+- Non vérifié : vrai téléphone/tablette ; Worker déployé ; Telegram réel ; IA de Rayle réelle pour le rapport (repli calculé testé).

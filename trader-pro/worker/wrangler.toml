@@ -1,0 +1,21 @@
+# Worker DÉDIÉ « Rayle Portefeuille » : stockage D1 de l'historique XTB + alertes de prix par Telegram. Le Worker principal « rayle » n'est jamais touché.
+# AUCUN SECRET dans ce fichier. Déploiement : voir LISEZMOI.md (ne jamais lancer « wrangler deploy » depuis la racine du projet).
+name = "rayle-portefeuille"
+main = "src/index.js"
+compatibility_date = "2026-10-07"
+workers_dev = true
+preview_urls = false
+
+[vars]
+WORKER_RAYLE = "https://rayle.justinmaneiro.workers.dev"
+ORIGINES = "https://justinmaneiro-alt.github.io,http://127.0.0.1:8000,http://localhost:8000"
+
+# Base D1 : créée par « npx.cmd wrangler d1 create rayle-portefeuille » ; coller ici l'identifiant affiché (database_id), puis redéployer.
+[[d1_databases]]
+binding = "DB"
+database_name = "rayle-portefeuille"
+database_id = "REMPLACER-PAR-L-IDENTIFIANT-D1"
+
+# Toutes les 5 minutes : alertes de prix franchies → message Telegram (si les secrets TELEGRAM_BOT_TOKEN et TELEGRAM_CHAT_ID existent).
+[triggers]
+crons = ["*/5 * * * *"]
