@@ -83,3 +83,4 @@
 .tp .tp-tri { min-height: 32px; min-width: 0; padding: 2px 6px; border: 0; background: none; color: #8497a1; font-weight: 500; font-size: 12px; text-align: left; border-radius: 6px; }
 .tp-portefeuille .tp-bouton { min-height: 38px; padding: 4px 12px; font-size: 13px; } .tp-portefeuille .tp-tete .tp-lire { min-height: 38px; } .tp-nav button { min-height: 38px; font-size: 13px; padding: 6px 4px; } .tp-portefeuille > .tp-bandeau { cursor: pointer; }
 @media (max-width: 560px) { .tp-tete { padding-top: calc(6px + env(safe-area-inset-top, 0px)); } .tp-nav { padding-bottom: 6px; gap: 4px; } }
+.tp-liens { display: flex; flex-wrap: wrap; gap: 6px; margin: 6px 0 2px; } .tp-liens button { min-height: 38px; font-size: 13px; padding: 4px 12px; }

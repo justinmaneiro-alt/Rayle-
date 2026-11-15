@@ -39,7 +39,7 @@ export function monter(zone, ctx = {}) {
   function ouvrir(id) {
     nettoyer(); E.id = id; ecrireLS('tp_actif', id); marquer(); const a = parId[id], n = E.seq;
     fiche.innerHTML = `<article class="tp-carte"><header class="tp-entete"><b>${esc(a.nom)}</b><span class="tp-prix" data-prix>—</span><span class="tp-var" data-var></span></header><p class="tp-doux" data-src></p>
-      <div class="tp-tfs" role="group" aria-label="Unité de temps">${Object.values(TF).map(t => `<button type="button" data-tf="${t.nom === 'Jour' ? 'J' : t.nom}">${esc(t.nom)}</button>`).join('')}</div>
+      <p class="tp-liens" role="group" aria-label="Aller à"><button type="button" data-aller="terminal">Terminal</button><button type="button" data-aller="couverture">Couvrir</button><button type="button" data-aller="portefeuille">Mon portefeuille</button></p><div class="tp-tfs" role="group" aria-label="Unité de temps">${Object.values(TF).map(t => `<button type="button" data-tf="${t.nom === 'Jour' ? 'J' : t.nom}">${esc(t.nom)}</button>`).join('')}</div>
       <div class="tp-graph" data-graph aria-label="Graphique"></div><p class="tp-doux" data-legende></p>
       <div data-tendance></div><h4>Annonces liées (impact fort)</h4><div data-annonces></div><h4>Actualités liées</h4><div data-actus></div><h4>Positions des fonds (COT)</h4><div data-cot></div></article>`;
     const q = s => fiche.querySelector(s);
@@ -88,6 +88,7 @@ export function monter(zone, ctx = {}) {
       <p class="tp-doux">Tendance = lecture descriptive (prix vs MA200 et pente de la MA50), jamais un signal. ${pastille(d.source, d.tPrix || d.t, { garde: m.copie })}</p>`;
   }
   zone.addEventListener('click', e => {
+    const go = e.target.closest('[data-aller]'); if (go) { try { window.Application && window.Application.ouvrir(go.dataset.aller); } catch (er) { /* pas dans le carrousel */ } return; }
     const a = e.target.closest('[data-actif]'), t = e.target.closest('[data-tf]');
     if (a) { ouvrir(a.dataset.actif); return; }
     if (t) { E.tf = t.dataset.tf; ecrireLS('tp_tf', E.tf); fiche.querySelectorAll('[data-tf]').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.tf === E.tf))); dessiner(E.seq); return; }

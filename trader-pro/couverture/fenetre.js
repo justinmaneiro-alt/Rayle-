@@ -8,6 +8,7 @@ import { monterGraphique, COULEURS } from '../commun/graph.js';
 import { parler } from '../commun/ia.js';
 import { idDepuisTicker, CLE_POSITIONS_OUVERTES } from '../commun/xtb.js';
 import { UNIVERS_COUV, parId, FENETRES_CORR, matriceCorr, corrPaire, glissante, classerCouvertures } from './calcul.js';
+import { phraseCouverture } from './phrase.js';
 
 let instance = null;
 export const etat = () => (instance ? instance.etat() : { actif: false });
@@ -86,10 +87,7 @@ export async function ouvrir({ racine = document.body, onFermer = () => {} } = {
     S.res = { f: { ...f }, liste: classerCouvertures(S.series, f.actif, f.sens, { notionnel: N, spreadPct: num(f.spread), swapAnPct: num(f.swap) }), N, choisi: 0 }; resultats();
   }
   const SENS = s => (s > 0 ? 'achat' : 'vente');
-  function phrase(r, x, N) {
-    const a = parId[r.f.actif], c = x.verdict.niveau === 'fiable' ? 'fiable' : x.verdict.niveau === 'fragile' ? 'fragile' : 'à éviter';
-    return `Pour couvrir ${r.f.sens > 0 ? 'un achat' : 'une vente'} sur ${a.nom}, le meilleur candidat est ${x.nom} en ${SENS(x.sensCouverture)}. Corrélation sur 250 jours : ${fr2(x.c250)}. Verdict : ${c}. ${N ? `Taille conseillée : environ ${nf(x.tailleNotionnel, 0)} euros de notionnel, soit ${nf(x.tailleRelative * 100, 0)} pour cent de la position. ` : `Taille conseillée : ${nf(x.tailleRelative * 100, 0)} pour cent du notionnel de la position. `}${x.backtest ? `Sur les ${x.backtest.jours} derniers jours, sans regarder l’avenir, la volatilité aurait baissé de ${nf(x.backtest.reductionVol * 100, 0)} pour cent. ` : ''}Une corrélation passée ne garantit pas la suite.`;
-  }
+  const phrase = (r, x, N) => phraseCouverture(parId[r.f.actif].nom, r.f.sens, x, N);
   async function resultats() {
     const box = zone.querySelector('[data-resultats]'); if (!box || !S.res) return; const r = S.res, L = r.liste;
     if (!L.length) { box.innerHTML = '<p class="tp-panne" role="alert">Aucun candidat : les séries journalières nécessaires ne sont pas disponibles.</p>'; return; }

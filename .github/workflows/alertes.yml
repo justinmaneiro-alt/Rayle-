@@ -38,6 +38,8 @@ jobs:
           if [ -z "$TELEGRAM_BOT_TOKEN" ] || [ -z "$TELEGRAM_CHAT_ID" ]; then echo "::warning::Secrets Telegram absents : les alertes sont calculées mais aucun message n'est envoyé."; fi
       - name: Un passage des alertes
         run: node agent-trading/alertes-serveur.mjs --une-fois 2>&1 | sed -E "s/${TELEGRAM_BOT_TOKEN:-__aucun__}/***/g"
+      - name: Alertes H4 / Jour (nouveaux signaux, contact avec la MA200 H4 / J ou un niveau Jour fort)
+        run: node trader-pro/terminal/alertes-hj.mjs --donnees etat-sortie --etat etat-sortie/etat/alertes-hj-etat.json 2>&1 | sed -E "s/${TELEGRAM_BOT_TOKEN:-__aucun__}/***/g"
       - name: Publier l'état (seulement le fichier d'état, sans toucher aux snapshots)
         env:
           JETON: ${{ github.token }}

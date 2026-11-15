@@ -9,7 +9,7 @@ export async function lancer(mode = 'tel', { stockage = {}, dossierCaptures = 'd
   let ok = 0, ko = 0; const verif = (c, m) => { if (c) ok++; else { ko++; console.log('  ✗ ' + m); } };
   const nav = await puppeteer.launch({ executablePath: 'C:/Program Files/Google/Chrome/Application/chrome.exe', headless: 'new', args: ['--no-sandbox', '--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--host-resolver-rules=MAP rayle.test 127.0.0.1'] });
   const p = await nav.newPage(); await p.setViewport(VUES[mode]); if (mode !== 'pc') await p.setUserAgent('Mozilla/5.0 (Linux; Android 14; SM-S918B) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0 Mobile Safari/537.36');
-  const erreurs = []; p.on('pageerror', e => erreurs.push(String(e.stack || e.message).replace(/\s+/g, ' ').slice(0, 420))); p.on('console', m => { if (m.type() === 'error') erreurs.push('console: ' + m.text().slice(0, 200)); });
+  const erreurs = []; p.on('pageerror', e => erreurs.push(String(e.stack || e.message).replace(/\s+/g, ' ').slice(0, 420))); p.on('console', async m => { if (m.type() === 'error') { let t = m.text(); try { const L = await Promise.all(m.args().map(h => h.evaluate(e => (e && (e.stack || e.message)) || String(e)).catch(() => ''))); if (L.some(Boolean)) t += ' ' + L.join(' | '); } catch (e) { /* */ } erreurs.push('console: ' + t.replace(/\s+/g, ' ').slice(0, 400)); } });
   await p.evaluateOnNewDocument(s => { try { localStorage.setItem('rayle_donnees_base', 'http://127.0.0.1:8801/'); localStorage.setItem('rayle_m_sw', '0'); for (const [k, v] of Object.entries(s)) localStorage.setItem(k, typeof v === 'string' ? v : JSON.stringify(v)); } catch (e) { /* */ } }, stockage);
   await p.setRequestInterception(true);
   p.on('request', async r => {
@@ -24,7 +24,7 @@ export async function lancer(mode = 'tel', { stockage = {}, dossierCaptures = 'd
   await p.goto('http://rayle.test:8000/index.html', { waitUntil: 'domcontentloaded' }); await w(4000);
   const capture = async nom => p.screenshot({ path: path.join(sortie, `${nom}-${mode}.png`) });
   const fin = async () => {
-    const graves = erreurs.filter(e => !/favicon|ERR_NAME_NOT_RESOLVED|ERR_BLOCKED|Failed to load resource|net::|Unrecognized feature|manifest|service worker|ServiceWorker/i.test(e));
+    const graves = erreurs.filter(e => !/allorigins|favicon|ERR_NAME_NOT_RESOLVED|ERR_BLOCKED|Failed to load resource|net::|Unrecognized feature|manifest|service worker|ServiceWorker/i.test(e));
     if (graves.length) { console.log('  erreurs de console :'); [...new Set(graves)].slice(0, 12).forEach(e => console.log('   · ' + e)); } verif(graves.length === 0, 'aucune erreur JavaScript');
     console.log(ko ? `✗ ${ko} échec(s), ${ok} ok` : `tout passe (${ok})`); await nav.close(); process.exit(ko ? 1 : 0);
   };

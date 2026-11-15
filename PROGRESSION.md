@@ -11,8 +11,8 @@ instantanés « pro » en local : `node outils-donnees/snapshots.mjs --sortie <d
 - [x] Phase 1 : fenêtre Marchés pro (`trader-pro/marches/`) : fait et testé dans Chrome (téléphone, PC) ; reste : Telegram des alertes (Phase 3, Worker dédié)
 - [x] Phase 2 : fenêtre Couverture (trader-pro/couverture/) : fait et testé (calculs purs + Chrome)
 - [x] Phase 3 : fenêtre Portefeuille XTB (trader-pro/portefeuille/, Worker dédié trader-pro/worker/) : import réel vérifié, coach et synchronisation testés ; le Worker reste à déployer par Justin (trader-pro/worker/LISEZMOI.md)
-- [ ] Phase 4 : Terminal H4 / Jour, signaux, backtest, alertes
-- [ ] Phase 5 : fiches d'ordre XTB et voix
+- [x] Phase 4 : Terminal H4 / Jour (trader-pro/terminal/) : MA200 H4/J réelles, niveaux forts, signaux, backtest walk-forward, alertes voix + Telegram, graphique propre + « Détails », cache des bougies
+- [x] Phase 5 : fiches d'ordre XTB (taille en lots) et voix de Rayle (portefeuille, risque, erreurs, couverture, signaux, COT)
 - [ ] Phase 6 : contrôle final, fusion dans main, publication
 
 ## Structure du fichier XTB (étape préliminaire)
@@ -49,3 +49,11 @@ Export xStation « EUR_<compte>_<début>_<fin>.xlsx » dans un .zip. Trois feuil
 - .gitignore : « worker/ » ignorait aussi trader-pro/worker/ ; exception ajoutée (code sans secret).
 - Worker Portefeuille : D1, verrou par code (secret PORTEFEUILLE_CODE) ou jeton Rayle validé par le Worker principal (refus si ce dernier accepte un faux jeton), alertes de prix par Telegram (cron 5 min). Testé avec un vrai SQLite et un faux appareil ; NON déployé.
 - Non vérifié : vrai téléphone/tablette ; Worker déployé ; Telegram réel ; IA de Rayle réelle pour le rapport (repli calculé testé).
+
+## Notes de fin de Phase 4 et 5
+- Moteur de signaux H4/Jour (trader-pro/terminal/signaux-hj.js) : biais Jour (MA200 J et pente), signal à la clôture (rebond sur niveau / MA200, cassure + retest), stop au-delà du swing, objectif au prochain niveau Jour ≥ 2 R. Aucun signal ne se redessine (testé). Règles fixées avant le calcul.
+- Backtest honnête (trader-pro/terminal/BACKTEST-HJ.md, backtest-hj.json) : walk-forward ; résultats hors échantillon : voir le rapport et le résumé final. Le délai H4 est passé de 6 à 12 bougies APRÈS un premier essai qui donnait 6,3 signaux par mois sur l'or (trop) : choix fait sur le nombre de signaux, pas sur le résultat ; les chiffres du premier essai sont conservés dans le rapport.
+- Terminal : le graphique d'origine (agent-trading/front/or/*) n'a pas été réécrit : intégration par trader-pro/terminal/integration.js (+ CSS) ; trois corrections ciblées dans graphique-or.js (bande de référence et niveaux proposés masqués en mode propre ; recadrage quand la série passe de quelques bougies à tout l'historique) et un cache IndexedDB des bougies dans moteur-or.js (affichage immédiat, le réseau remplace ensuite). « ?pro=0 » désactive la couche pro.
+- Robot : alertes H4/Jour par Telegram sans le PC (trader-pro/terminal/alertes-hj.mjs, étape ajoutée à .github/workflows/alertes.yml) ; premier passage = mémorisation sans envoi.
+- Fiche d'ordre : nom XTB, sens, entrée, stop, objectif, R/R, taille en lots (capital × risque % ÷ (distance × valeur du point)) ; décalage au comptant pour l'or ; rien n'est envoyé à XTB.
+- Voix : window.TraderPro.commande (chargeur léger) branché dans core/intelligence/phrase.js ; intentions testées.
