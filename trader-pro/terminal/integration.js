@@ -5,6 +5,7 @@
 import { lireActifPro } from '../commun/donnees.js';
 import { lireHJ, projeterMA, idSignal } from './lecture-hj.js';
 import { parler } from '../../agent-trading/front/or/tableau-or.js';
+import { ma200Unite, bandeauMA, niveauxUniteEtJour, sansChevauchement, avecRang, NOM_UNITE } from '../commun/lecture-unite.js';
 
 const ID_PRO = { OR: 'or', NASDAQ: 'us100', SP500: 'us500', BTC: 'btc', SOL: 'sol' };
 const NOMS = { or: 'Or', us100: 'Nasdaq 100', us500: 'S&P 500', btc: 'Bitcoin', sol: 'Solana' };
@@ -14,7 +15,7 @@ const ecrire = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } c
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const nf = (v, d = 2) => (Number.isFinite(v) ? v.toLocaleString('fr-FR', { minimumFractionDigits: d, maximumFractionDigits: d }).replace(/[  ]/g, ' ') : '—');
 const dateParis = t => new Date(t).toLocaleString('fr-FR', { timeZone: 'Europe/Paris', weekday: 'short', day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
-const COULEURS = { ma4: '#f1d34f', maJ: '#b49cf0', hausse: '#5fb894', baisse: '#d86a6a' };
+const COULEURS = { ma: '#f1d34f', hausse: '#5fb894', baisse: '#d86a6a' };
 
 export async function monterPro(T) {
   const actif = (document.body.dataset.actif || 'OR'), id = ID_PRO[actif], tactile = document.documentElement.classList.contains('tm-tactile'), barre = tactile ? document.querySelector('.tt-periodes') : document.querySelector('.tor-periodes') || document.querySelector('.tt-periodes');
@@ -34,47 +35,71 @@ export async function monterPro(T) {
   const COUCHES_PROPRES = () => Object.fromEntries(Object.keys(graph.couches()).map(k => [k, false]));
   function appliquerDetails(b, { sauver = true } = {}) {
     E.details = b; ecrire(LS.details, b); document.documentElement.classList.toggle('tp-details', b); bDet.setAttribute('aria-pressed', String(b));
-    try { if (b) { const av = lire(LS.avant, null); if (av) graph.couches(av); } else { if (sauver) ecrire(LS.avant, graph.couches()); graph.couches(COUCHES_PROPRES()); } } catch (e) { console.warn('[tp] couches :', e.message); }
+    try { if (b) { const av = lire(LS.avant, null); if (av) graph.couches({ ...av, rayMa: false }); } else { if (sauver) ecrire(LS.avant, graph.couches()); graph.couches(COUCHES_PROPRES()); } } catch (e) { console.warn('[tp] couches :', e.message); }
     setTimeout(() => { try { graph.chart().timeScale().applyOptions({}); graph.chart().resize(graph.conteneur().clientWidth, graph.conteneur().clientHeight); } catch (e) { /* */ } }, 50);
   }
   if (!E.details) { appliquerDetails(false, { sauver: !lire(LS.avant, null) }); for (const ms of [2500, 7000]) setTimeout(() => { if (!E.details) appliquerDetails(false, { sauver: false }); }, ms); }   // le mode tactile règle ses propres calques un peu plus tard : on réaffirme le graphique propre
   bDet.addEventListener('click', () => appliquerDetails(!E.details));
+  /* UNE seule moyenne sur le graphique : la MA200 de l'unité affichée (la nôtre). Les anciennes options « MA200 » du terminal sont coupées (et masquées par terminal-pro.css). */
+  const couperAnciennesMA = () => { try { for (const k of ['ma200', 'ma200H1']) { const c = document.querySelector(`[data-or="${k}"]`); if (c && c.checked) c.click(); } const cc = graph.couches(); if (cc && cc.rayMa) graph.couches({ ...cc, rayMa: false }); } catch (e) { /* option absente */ } };
+  couperAnciennesMA(); for (const ms of [2500, 7000]) setTimeout(couperAnciennesMA, ms);
 
-  /* ───── dessin sur le graphique ───── */
+  /* ───── dessin sur le graphique : UNE moyenne (celle de l'unité affichée), des niveaux sans chevauchement ───── */
   const temps = t => { try { return graph.tempsDeBougie(t); } catch (e) { return null; } };
-  function ligneMA(cle, couleur, titre) { if (!E.series[cle]) E.series[cle] = graph.chart().addSeries(LW.LineSeries, { color: couleur, lineWidth: 2, priceLineVisible: false, lastValueVisible: true, crosshairMarkerVisible: false, title: titre, autoscaleInfoProvider: () => null }); return E.series[cle]; }
+  const uniteAffichee = () => { const p = T.moteur.S.periode; return p === 'H4' || p === 'J' ? p : 'H1'; };
+  function ligneMA(titre) { if (!E.series.ma) E.series.ma = graph.chart().addSeries(LW.LineSeries, { color: COULEURS.ma, lineWidth: 2, priceLineVisible: false, lastValueVisible: false, crosshairMarkerVisible: false, autoscaleInfoProvider: () => null }); E.series.ma.applyOptions({ title: titre }); return E.series.ma; }
   /* après un changement d'unité de temps, le graphique d'origine pouvait rester calé sur l'ancienne plage (H4 → Jour : une seule bougie tout à gauche) : on le recadre sur les dernières bougies pendant 10 s, seulement si la dernière bougie n'est pas visible */
   function recadrer(B) {
     const per = T.moteur.S.periode; if (per !== E.derPeriode) { E.derPeriode = per; E.recadrerJusqua = Date.now() + 10000; }
     if (!(Date.now() < E.recadrerJusqua) || B.length < 30) return;
     try { const ts = graph.chart().timeScale(), r = ts.getVisibleLogicalRange(), n = B.length; if (!r || r.to < n - 12 || r.from > n) ts.setVisibleLogicalRange({ from: Math.max(0, n - 150), to: n - 1 + 5 }); } catch (e) { /* graphique en cours de rechargement */ }
   }
+  /* prix de référence pour les distances : le XAU/USD de l'appli pour l'or, sinon le dernier cours du graphique */
+  const prixRef = B => (window.__tpPrixRef && Number.isFinite(window.__tpPrixRef.prix) ? window.__tpPrixRef.prix : B[B.length - 1].c);
   function dessiner(force = false) {
-    if (!E.L || !E.L.ok) return; const B = T.moteur.serie() || []; if (B.length < 5) return; recadrer(B);
-    const cle = `${T.moteur.S.periode}|${B.length}|${B[B.length - 1].t}|${E.L.derniereH4}|${E.L.derniereJ}`; if (!force && cle === E.cle) return; E.cle = cle;
-    const P = projeterMA(E.L, B), poser = (s, pts) => { const m = new Map(); for (const p of pts) { const t = temps(p.t); if (t != null && Number.isFinite(p.v)) m.set(t, p.v); } s.setData([...m.entries()].sort((a, b) => a[0] - b[0]).map(([time, value]) => ({ time, value }))); };
-    poser(ligneMA('ma4', COULEURS.ma4, 'MA200 H4'), P.h4); poser(ligneMA('maJ', COULEURS.maJ, 'MA200 J'), P.j);
-    legendeMA();
-    const s = graph.serie(); for (const l of E.lignes) { try { s.removePriceLine(l); } catch (e) { /* */ } } E.lignes = [];
-    for (const n of E.L.niveaux) E.lignes.push(s.createPriceLine({ price: n.prix, color: n.cote === 'R' ? 'rgba(216,106,106,.8)' : 'rgba(95,184,148,.8)', lineWidth: 1, lineStyle: 2, axisLabelVisible: true, title: `${n.nom} ${n.src} ${nf(n.prix, 0)}` }));
-    const M = E.L.signaux.map(x => { const t = temps(x.tCloture - 1); return t == null ? null : { time: t, position: x.dir > 0 ? 'belowBar' : 'aboveBar', color: x.dir > 0 ? COULEURS.hausse : COULEURS.baisse, shape: x.dir > 0 ? 'arrowUp' : 'arrowDown', size: 1.6, text: x.tf === 'J' ? 'J' : 'H4' }; }).filter(Boolean).sort((a, b) => a.time - b.time);
-    const doubles = new Set(); const M2 = M.filter(m => { const k = m.time + m.text + m.shape; if (doubles.has(k)) return false; doubles.add(k); return true; });
-    if (LW.createSeriesMarkers) { if (!E.marqueurs) E.marqueurs = LW.createSeriesMarkers(s, M2); else E.marqueurs.setMarkers(M2); }
+    const B = T.moteur.serie() || []; if (B.length < 5) return; recadrer(B);
+    const u = uniteAffichee(), bj = u === 'J' ? B : (E.D && E.D.j && E.D.j.length ? E.D.j : null);
+    const cle = `${u}|${B.length}|${B[B.length - 1].t}|${bj ? bj.length : 0}`;
+    if (force || cle !== E.cle) {
+      E.cle = cle;
+      /* la MA200 de l'unité affichée, sur ses vraies bougies ; sous 200 bougies affichées, repli sur l'instantané de la MÊME unité */
+      let S = ma200Unite(B), source = 'bougies affichées';
+      if (!S.length && E.D) { const alt = { H1: E.D.h1, H4: E.D.h4, J: E.D.j }[u]; if (alt && alt.length) { S = ma200Unite(alt); source = 'instantané du robot'; } }
+      const m = new Map(); for (const p of S) { const t = temps(p.t); if (t != null && Number.isFinite(p.v)) m.set(t, p.v); }
+      ligneMA('MA200 ' + NOM_UNITE[u]).setData([...m.entries()].sort((a, b) => a[0] - b[0]).map(([time, value]) => ({ time, value })));
+      E.ma = { unite: u, source, derniere: S.length ? S[S.length - 1].v : null };
+      legendeMA(B, u);
+      E.cand = niveauxUniteEtJour(B, bj, B[B.length - 1].c, { unite: u }); E.cleNiv = null;
+    }
+    niveauxSansChevauchement(B, u);
+  }
+  /* niveaux : 3 au plus de chaque côté ; deux étiquettes à moins de 24 px l'une de l'autre → on garde la plus proche du prix. Recalculé à chaque passage (zoom, défilement, taille). */
+  function niveauxSansChevauchement(B, u) {
+    const s = graph.serie(), px = B[B.length - 1].c, gardes = sansChevauchement(avecRang(E.cand || [], px, u), p => { try { return s.priceToCoordinate(p); } catch (e) { return NaN; } }, 24);
+    const k = gardes.map(n => n.nom + n.src + Math.round(n.prix * 100)).join('|'); if (k === E.cleNiv) return; E.cleNiv = k;
+    for (const l of E.lignes) { try { s.removePriceLine(l); } catch (e) { /* */ } } E.lignes = [];
+    for (const n of gardes) E.lignes.push(s.createPriceLine({ price: n.prix, color: n.cote === 'R' ? 'rgba(216,106,106,.8)' : 'rgba(95,184,148,.8)', lineWidth: 1, lineStyle: 2, axisLabelVisible: true, title: `${n.nom} ${n.src === 'J' ? 'Jour' : n.src} ${nf(n.prix, 0)}` }));
+    E.niveaux = gardes;
   }
 
-  /* légende toujours visible : les deux MA200 peuvent sortir de l'échelle des unités de temps courtes (elles ne déforment jamais l'échelle des prix) */
-  function legendeMA() {
-    const c = graph.conteneur(); if (!c || !E.L || !E.L.ok) return; let el = c.querySelector('.tp-ma-legende'); if (!el) { el = document.createElement('div'); el.className = 'tp-ma-legende'; c.appendChild(el); }
-    const px = E.L.prix, d = v => (Number.isFinite(v) && px ? (v > px ? '▲ ' : '▼ ') + nf(Math.abs((v / px - 1) * 100), 1) + ' %' : '');
-    el.innerHTML = '<span style="color:' + COULEURS.ma4 + '">MA200 H4 ' + nf(E.L.ma200H4, 0) + ' ' + d(E.L.ma200H4) + '</span><span style="color:' + COULEURS.maJ + '">MA200 J ' + nf(E.L.ma200J, 0) + ' ' + d(E.L.ma200J) + '</span><span class="tp-biais ' + (E.L.biais > 0 ? 'tp-h' : E.L.biais < 0 ? 'tp-b' : '') + '">biais J : ' + (E.L.biais > 0 ? 'acheteur' : E.L.biais < 0 ? 'vendeur' : 'neutre') + '</span>';
+  /* bandeau du haut : seulement la MA200 de l'unité affichée (valeur + distance du prix en %) */
+  function legendeMA(B, u) {
+    const c = graph.conteneur(); if (!c) return; let el = c.querySelector('.tp-ma-legende'); if (!el) { el = document.createElement('div'); el.className = 'tp-ma-legende'; c.appendChild(el); }
+    const b = bandeauMA(B, u, prixRef(B)), v = b.ok ? b : (E.ma && Number.isFinite(E.ma.derniere) ? { ok: true, nom: 'MA200 ' + NOM_UNITE[u], valeur: E.ma.derniere, distancePct: prixRef(B) / E.ma.derniere * 100 - 100 } : b);
+    el.innerHTML = v.ok ? `<span style="color:${COULEURS.ma}">${esc(v.nom)} ${nf(v.valeur, 0)} · prix ${nf(Math.abs(v.distancePct), 1)} % ${v.distancePct >= 0 ? 'au-dessus' : 'sous'}</span>` : `<span style="color:${COULEURS.ma}">${esc(v.nom)} : ${esc(v.raison)}</span>`;
+    el.title = 'Moyenne mobile simple sur 200 bougies ' + NOM_UNITE[u] + (E.ma ? ' (' + E.ma.source + ')' : '') + ' ; distance calculée avec le prix de référence de l’appli';
   }
 
-  /* l'or a UN prix de référence dans l'appli (le XAU/USD au comptant, celui de XTB) : le terminal trace le perpétuel Kraken, qui diffère surtout le week-end ; on affiche donc le prix au comptant à côté, étiqueté */
+  /* l'or a UN seul prix dans l'appli : le XAU/USD au comptant (celui de l'accueil et de XTB), ou son dernier cours de clôture avec la mention « marché fermé ».
+     Le graphique trace le perpétuel Kraken (bougies) : son dernier cours n'est donc pas affiché sur l'échelle, et l'en-tête montre le prix de référence (voir tableau-or.js : window.__tpPrixRef). */
   async function majSpot() {
-    if (id !== 'or' || document.hidden) return; let p = null; try { const tp = window.parent !== window ? window.parent.TraderPro : window.TraderPro; p = tp && tp.prixOr ? await tp.prixOr() : null; } catch (e) { p = null; }
-    const cible = document.querySelector('[data-or-prix]'); if (!cible) return; let chip = document.querySelector('.tp-spot'); if (!chip) { chip = document.createElement('small'); chip.className = 'tp-spot'; cible.insertAdjacentElement('afterend', chip); }
-    const kr = T.moteur.S.prix; if (!p || !p.reference || !Number.isFinite(kr) || Math.abs(p.prix / kr - 1) < 0.001) { chip.hidden = true; return; }
-    chip.hidden = false; chip.textContent = 'comptant (XTB) ' + nf(p.prix, 2); chip.title = p.source + (p.note ? ' — ' + p.note : '') + ' · le graphique et les signaux sont sur le perpétuel Kraken (écart ' + nf(kr - p.prix, 1) + ' $)';
+    if (id !== 'or' || document.hidden) return; let p = null;
+    try { const tp = window.parent !== window ? window.parent.TraderPro : window.TraderPro; p = tp && tp.prixOr ? await tp.prixOr() : null; } catch (e) { p = null; }
+    if (!p) { try { p = await (await import('../commun/donnees.js')).prixOr(); } catch (e) { p = null; } }
+    window.__tpPrixRef = p && p.reference ? p : null;
+    const etiq = document.querySelector('.tor-titre small'); if (etiq && window.__tpPrixRef) { etiq.textContent = 'XAU/USD · bougies Kraken'; etiq.title = p.source + (p.note ? ' — ' + p.note : ''); }
+    const cible = document.querySelector('[data-or-prix]'); if (cible && window.__tpPrixRef) { cible.textContent = nf(p.prix, 2); cible.title = p.source + (p.note ? ' — ' + p.note : ''); const v = document.querySelector('[data-or-var]'); if (v) v.textContent = p.ferme ? 'marché fermé · dernier cours' : (Number.isFinite(p.pct) ? (p.pct >= 0 ? '+' : '') + nf(p.pct, 2) + ' % sur le jour' : ''); }
+    try { if (window.__tpPrixRef) graph.serie().applyOptions({ lastValueVisible: false, priceLineVisible: false }); } catch (e) { /* option absente */ }
   }
 
   /* ───── données, alertes ───── */
@@ -122,5 +147,5 @@ export async function monterPro(T) {
   await charger(); chargerBacktest(); majSpot(); const spot = setInterval(majSpot, 30000);
   const suivi = setInterval(() => dessiner(), 1500), maj = setInterval(() => { if (!document.hidden) charger(); }, 120000);
   window.addEventListener('pagehide', () => { clearInterval(suivi); clearInterval(maj); clearInterval(spot); });
-  return { charger, dessiner: () => dessiner(true), lecture: () => E.L, etat: () => ({ id, details: E.details, niveaux: E.lignes.length, signaux: E.L && E.L.signaux ? E.L.signaux.length : 0, ma: Object.keys(E.series) }), ouvrirPanneau, appliquerDetails };
+  return { charger, majSpot, dessiner: () => dessiner(true), lecture: () => E.L, niveaux: () => (E.niveaux || []).map(n => ({ nom: n.nom, src: n.src, cote: n.cote, prix: n.prix, y: graph.serie().priceToCoordinate(n.prix) })), etat: () => ({ id, details: E.details, niveaux: E.lignes.length, signaux: E.L && E.L.signaux ? E.L.signaux.length : 0, ma: Object.keys(E.series) }), ouvrirPanneau, appliquerDetails };
 }

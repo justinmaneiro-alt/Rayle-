@@ -69,3 +69,19 @@ Export xStation « EUR_<compte>_<début>_<fin>.xlsx » dans un .zip. Trois feuil
 - Le terminal « pro » ne se charge pas dans les navigateurs pilotés par test sauf avec ?hj=1 (convention de terminal-pro.js) : les anciens tests du terminal ne changent pas.
 - Aucune donnée de trading suivie par git (donnees-privees/ ignoré) ; aucun numéro de compte ni montant dans les fichiers suivis (vérifié par recherche dans tout l'historique réécrit).
 - Reste à faire par Justin : déployer le Worker Portefeuille (trader-pro/worker/LISEZMOI.md), poser les secrets, autoriser le push forcé de la branche puis le push de main.
+
+# MISE À JOUR V2 (branche `maj-trader-pro-v2`) : autonomie totale, phases 1 à 6
+Reprise : relire ce fichier, `git log --oneline -15`, `git status`, puis continuer à la première phase V2 non cochée. Mêmes règles (aucune clé API touchée, aucune donnée inventée, aucune donnée de trading dans git, PC + tablette + téléphone). Marchés (Aujourd'hui, COT, Macro, Actualité, Alertes) et Couverture : seulement les bugs listés.
+- [x] V2-Phase 1 : bugs de la vidéo
+- [ ] V2-Phase 2 : graphique du terminal (H1/H4/Jour seulement, une seule MA200 de l'unité affichée, S/R de l'unité + Jour)
+- [ ] V2-Phase 3 : flèches Daily simples (3 méthodes testées, backtest, encart)
+- [ ] V2-Phase 4 : dashboard enrichi (score de marché, volume net USD, ATR, perfs…)
+- [ ] V2-Phase 5 : données XTB sur tous les appareils (Worker prêt à déployer, états de synchro, import)
+- [ ] V2-Phase 6 : publication + déploiement Cloudflare guidé
+
+## V2-Phase 1 : notes
+- Prix de l'or : UN seul prix = `prixOr()` (XAU/USD au comptant du Worker de Rayle). Lecture partagée 15 s entre les fenêtres (même chiffre partout) ; dernier cours reçu gardé sur l'appareil (localStorage `tp_prix_or_dernier`) : si le direct ne répond pas, on garde CE cours (jamais un chiffre Kraken) ; week-end : dernier cours de clôture + mention « marché fermé ». Terminal : l'en-tête montre ce prix (`window.__tpPrixRef`, lu par `tableau-or.js`), le dernier cours Kraken n'est plus affiché sur l'échelle ; les bougies restent celles du perpétuel Kraken (étiqueté « XAU/USD · bougies Kraken »). Marchés > Actifs n'affiche plus le prix de l'instantané avant l'arrivée du comptant.
+- Nombres : `trader-pro/commun/nombre.js` (`lireNombre`) accepte virgule et point (aussi « 1 234,5 », « 1.234,5 », virgule arabe/pleine chasse) ; filtre global des champs `inputmode="decimal"` qui ne retire jamais la virgule tapée ; Couverture, Portefeuille (réglages), alertes l'utilisent.
+- Couverture : changer un champ efface les résultats AUSSITÔT (titre compris) puis recalcule après une courte pause ; les valeurs tapées survivent aux redessins.
+- Terminal : aperçu immédiat = dernières bougies de la copie locale (IndexedDB) dessinées dans le squelette (`agent-trading/front/terminal/apercu-cache.js`), levé quand le vrai graphique a des bougies ; « Période de réglage » supprimée (dessin + infobulle).
+- Tests : `nombre-test`, `prix-or-test` (purs, dans `npm test`) ; `couverture-chrome` étendu.

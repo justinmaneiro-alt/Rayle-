@@ -4,7 +4,8 @@ const mode = process.argv[2] || 'pc', T = await lancer(mode), { p, verif, attend
 const url = 'http://rayle.test:8000/agent-trading/front/or.html?hj=1';
 await p.goto(url, { waitUntil: 'domcontentloaded', timeout: 90000 });
 verif(await attendre(() => p.evaluate(() => !!window.__orPro), 60000), 'le terminal pro est monté');
-verif(await attendre(() => p.evaluate(() => window.__orPro && window.__orPro.etat().ma.length === 2), 30000), 'MA200 H4 et MA200 J présentes sur le graphique');
+verif(await attendre(() => p.evaluate(() => window.__orPro && window.__orPro.etat().ma.length === 1), 30000), 'UNE seule MA200 sur le graphique');
+verif(await p.evaluate(() => [...document.querySelectorAll('[data-periode]')].map(b => b.dataset.periode).join() === 'H1,H4,J'), 'unités proposées : H1, H4, Jour seulement (plus de M5 ni M15)');
 await w(2500); const e = await p.evaluate(() => window.__orPro.etat()); console.log('  état :', JSON.stringify(e));
 verif(e.niveaux >= 2 && e.niveaux <= 6, 'niveaux forts : ' + e.niveaux + ' (6 au plus)');
 verif(await p.evaluate(() => Object.values(window.__or.graph.couches()).every(v => v === false)), 'graphique propre : tous les calques sont désactivés par défaut');
@@ -13,8 +14,25 @@ verif(await p.evaluate(() => { const s = document.querySelector('.tor-graph-sour
 verif(await p.evaluate(() => [...document.querySelectorAll('.tp-b-details, .tp-b-hj')].length === 2 && [...document.querySelectorAll('.tp-b-details, .tp-b-hj')].every(b => { const r = b.getBoundingClientRect(); return r.width > 30 && r.height > 20 && r.right <= innerWidth + 1 && getComputedStyle(b).visibility !== 'hidden'; })), 'boutons « Détails » et « Signaux H4 / J » visibles à l’écran');
 const labels = await p.evaluate(() => { const g = window.__or.graph; return g.chart().panes().length; }); verif(labels >= 1, 'graphique présent');
 await capture('terminal-propre');
-console.log('— unités de temps : la MA200 H4 / J reste visible —');
-for (const per of ['M15', 'H1', 'H4', 'J']) { await p.evaluate(x => document.querySelector(`[data-periode="${x}"]`).click(), per); await w(9000); verif(await p.evaluate(() => window.__orPro.etat().ma.length === 2 && window.__or.moteur.serie().length > 20), per + ' : MA200 H4 et J dessinées, bougies présentes'); verif(await attendre(() => p.evaluate(() => { const r = window.__or.graph.chart().timeScale().getVisibleLogicalRange(), n = window.__or.moteur.serie().length; return !!r && r.to >= n - 12 && r.from < n; }), 15000), per + ' : la dernière bougie est visible (vue sur les dernières bougies)'); await capture('terminal-' + per); }
+console.log('— unités de temps : UNE moyenne, celle de l’unité affichée —');
+for (const per of ['H1', 'H4', 'J']) {
+  await p.evaluate(x => document.querySelector(`[data-periode="${x}"]`).click(), per); await w(9000);
+  verif(await p.evaluate(() => window.__orPro.etat().ma.length === 1 && window.__or.moteur.serie().length > 200), per + ' : une seule série de moyenne, bougies présentes');
+  const lg = await p.evaluate(() => [...document.querySelectorAll('.tp-ma-legende span')].map(x => x.textContent)); verif(lg.length === 1 && lg[0].startsWith('MA200 ' + (per === 'J' ? 'Jour' : per)), per + ' : le bandeau n’affiche que la MA200 de l’unité (' + lg.join(' | ') + ')');
+  verif(/prix [\d,]+ % (au-dessus|sous)/.test(lg[0] || ''), per + ' : le bandeau donne la distance du prix en %');
+  const ma = await p.evaluate(() => { const B = window.__or.moteur.serie(), n = 200; let s = 0; for (const b of B.slice(-n)) s += b.c; return s / n; }); const val = await p.evaluate(() => (document.querySelector('.tp-ma-legende span') || {}).textContent || '');
+  const num = +(val.match(/MA200 \S+ ([\d\s  ]+) ·/) || [0, '0'])[1].replace(/\s/g, ''); verif(Math.abs(num - ma) <= 1, per + ' : la valeur affichée (' + num + ') est la SMA des 200 dernières bougies affichées (' + Math.round(ma) + ')');
+  const niv = await p.evaluate(() => window.__orPro.niveaux().map(n => ({ nom: n.nom, src: n.src, cote: n.cote, y: n.y })));
+  verif(niv.filter(n => n.cote === 'R').length <= 3 && niv.filter(n => n.cote === 'S').length <= 3, per + ' : 3 niveaux au plus de chaque côté (' + niv.length + ')');
+  verif(niv.every(n => n.src === per || n.src === 'J'), per + ' : niveaux de l’unité affichée et du Jour seulement');
+  const ys = niv.map(n => n.y).filter(Number.isFinite).sort((x, y) => x - y); verif(ys.every((y, i) => i === 0 || y - ys[i - 1] >= 22), per + ' : aucune étiquette ne chevauche une autre (écart mini ' + Math.round(Math.min(...ys.slice(1).map((y, i) => y - ys[i]), 999)) + ' px)');
+  verif(await attendre(() => p.evaluate(() => { const r = window.__or.graph.chart().timeScale().getVisibleLogicalRange(), n = window.__or.moteur.serie().length; return !!r && r.to >= n - 12 && r.from < n; }), 15000), per + ' : la dernière bougie est visible (vue sur les dernières bougies)'); await capture('terminal-' + per);
+}
+console.log('— un seul prix de l’or —');
+await p.evaluate(() => { window.TraderPro = { prixOr: async () => ({ prix: 3886.12, t: Date.now(), reference: true, ferme: true, pct: 0.4, source: 'XAU/USD au comptant (test)', note: 'Marché fermé : dernier cours de clôture, comme sur XTB. ' }) }; return window.__orPro.majSpot(); }); await w(2500);
+const tete = await p.evaluate(() => ({ prix: document.querySelector('[data-or-prix]').textContent, v: document.querySelector('[data-or-var]').textContent, etiq: document.querySelector('.tor-titre small').textContent }));
+verif(/3\s?886,12/.test(tete.prix.replace(/[\u202F\u00A0]/g, ' ')), 'l’en-tête affiche le prix de référence (' + tete.prix + ')'); verif(/marché fermé/.test(tete.v), 'mention « marché fermé » : ' + tete.v); verif(/Kraken/.test(tete.etiq) && /XAU/.test(tete.etiq), 'étiquette : ' + tete.etiq);
+verif(await p.evaluate(() => !document.body.innerText.includes('Période de réglage')), 'plus de « Période de réglage » à l’écran');
 console.log('— panneau H4 / Jour —');
 await p.evaluate(() => document.querySelector('.tp-b-hj').click()); await w(600);
 verif(await p.evaluate(() => { const a = document.querySelector('.tp-panneau'); return !!a && !a.hidden && /Biais Jour/i.test(a.innerText) && /Backtest/i.test(a.innerText); }), 'le panneau indique le biais, les niveaux, les signaux et le backtest'); await capture('terminal-panneau');

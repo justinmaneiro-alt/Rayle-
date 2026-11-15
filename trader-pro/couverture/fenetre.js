@@ -6,6 +6,7 @@ import { lireJour } from '../commun/donnees.js';
 import { depuisSnapshotJour } from '../commun/series.js';
 import { monterGraphique, COULEURS } from '../commun/graph.js';
 import { parler } from '../commun/ia.js';
+import { lireNombreOuZero } from '../commun/nombre.js';
 import { idDepuisTicker, CLE_POSITIONS_OUVERTES } from '../commun/xtb.js';
 import { UNIVERS_COUV, parId, FENETRES_CORR, matriceCorr, corrPaire, glissante, classerCouvertures } from './calcul.js';
 import { phraseCouverture } from './phrase.js';
@@ -81,7 +82,7 @@ export async function ouvrir({ racine = document.body, onFermer = () => {} } = {
       <div data-resultats></div>`;
     if (S.res) resultats();
   }
-  const num = s => { const v = parseFloat(String(s).replace(/\s/g, '').replace(',', '.')); return Number.isFinite(v) ? v : 0; };
+  const num = lireNombreOuZero;
   function calculer() {
     const f = S.formulaire, N = num(f.notionnel) || null;
     S.res = { f: { ...f }, liste: classerCouvertures(S.series, f.actif, f.sens, { notionnel: N, spreadPct: num(f.spread), swapAnPct: num(f.swap) }), N, choisi: 0 }; resultats();
@@ -117,6 +118,15 @@ export async function ouvrir({ racine = document.body, onFermer = () => {} } = {
     if (e.target.closest('[data-lire]')) parler(S.resume || 'Rien à lire pour le moment.');
   });
   el.addEventListener('submit', e => { const f = e.target.closest('[data-form]'); if (!f) return; e.preventDefault(); const d = new FormData(f); S.formulaire = { actif: d.get('actif'), sens: +d.get('sens'), notionnel: d.get('notionnel'), spread: d.get('spread'), swap: d.get('swap') }; calculer(); });
+  /* un champ change → les anciens résultats (et leur titre) disparaissent aussitôt ; si une recherche avait été lancée, elle est refaite après une courte pause. Les valeurs tapées sont gardées même si la fenêtre se redessine. */
+  function champsChanges(e) {
+    const f = e.target.closest('[data-form]'); if (!f) return; const d = new FormData(f);
+    S.formulaire = { actif: d.get('actif'), sens: +d.get('sens'), notionnel: d.get('notionnel'), spread: d.get('spread'), swap: d.get('swap') };
+    if (!S.res) return; S.res = null; S.resume = ''; S.seq++; if (S.graph) { S.graph.detruire(); S.graph = null; }
+    const box = zone.querySelector('[data-resultats]'); if (box) box.innerHTML = '<p class="tp-doux" role="status">Paramètres modifiés : nouveau calcul en cours…</p>';
+    clearTimeout(S.tRecalcul); S.tRecalcul = setTimeout(() => { if (!S.ferme && S.onglet === 'couvrir' && zone.querySelector('[data-form]')) calculer(); }, e.type === 'input' ? 900 : 150);
+  }
+  el.addEventListener('input', champsChanges); el.addEventListener('change', champsChanges);
   charger();
   function fermer() { if (S.ferme) return; S.ferme = true; S.seq++; vue.detruire(); if (S.graph) S.graph.detruire(); el.remove(); instance = null; try { onFermer(); } catch (e) { /* */ } }
   instance = { fermer, etat: () => ({ actif: !S.ferme, onglet: S.onglet }), el };

@@ -40,7 +40,7 @@ for (const k of ['aujourdhui', 'actifs', 'cot', 'macro', 'actualite', 'alertes']
 console.log('— onglet actifs : changer d’actif et d’unité —');
 await p.evaluate(() => document.querySelector('#marches-fenetre [data-onglet="actifs"]').click()); await w(2500);
 for (const a of ['btc', 'us100']) { await p.evaluate(a2 => document.querySelector(`#marches-fenetre [data-actif="${a2}"]`).click(), a); verif(await attendre(() => p.evaluate(() => !!document.querySelector('#marches-fenetre .tp-graph canvas')), 15000), a + ' : graphique dessiné'); }
-for (const tf of ['M15', 'H1', 'J']) { await p.evaluate(t2 => document.querySelector(`#marches-fenetre [data-tf="${t2}"]`).click(), tf); await w(1200); verif(await p.evaluate(() => !!document.querySelector('#marches-fenetre .tp-graph canvas')), tf + ' : graphique dessiné'); }
+for (const tf of ['H1', 'H4', 'J']) { await p.evaluate(t2 => document.querySelector(`#marches-fenetre [data-tf="${t2}"]`).click(), tf); await w(1200); verif(await p.evaluate(() => !!document.querySelector('#marches-fenetre .tp-graph canvas')), tf + ' : graphique dessiné'); }
 console.log('— prix de l’or unique —');
 verif(/Or\s*[\d\s  ,.]+/.test(await texte('#marches-fenetre [data-or]')), 'prix de l’or dans l’en-tête : ' + (await texte('#marches-fenetre [data-or]')).replace(/\s+/g, ' '));
 console.log('— fermeture —'); await p.evaluate(() => window.Application.fermer()); await w(1500);

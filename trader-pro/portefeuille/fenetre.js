@@ -5,6 +5,7 @@ import { esc, nf, lireLS, ecrireLS, age, creerVue } from '../commun/ui.js';
 import { creerStockageParDefaut } from '../../agent-trading/front/donnees/couche.js';
 import { lireActifPro, prixOr, parId as actifsPro } from '../commun/donnees.js';
 import { demanderIA, parler } from '../commun/ia.js';
+import { lireNombre } from '../commun/nombre.js';
 import { idDepuisTicker, CLE_POSITIONS_OUVERTES } from '../commun/xtb.js';
 import { creerPortefeuille, lireConn, ecrireConn, CLE_RESUME } from './stockage.js';
 import { valeursDuPoint, enrichir, resume, courbes } from './calcul.js';
@@ -112,8 +113,8 @@ export async function ouvrir({ racine = document.body, onFermer = () => {} } = {
     const c = e.target.closest('[data-conn]'), r = e.target.closest('[data-reg]'), v = e.target.closest('[data-vp]'); if (!c && !r && !v) return; e.preventDefault(); const d = new FormData(e.target);
     if (c) { ecrireConn({ url: String(d.get('url') || ''), code: String(d.get('code') || '') }); const m = el.querySelector('[data-conn-msg]'); m.textContent = 'Test de la connexion…'; if (!lireConn()) { m.textContent = 'Connexion supprimée : les données restent sur cet appareil.'; majSync(); return; }
       try { const s = await fetch(lireConn().url + '/sante', { signal: AbortSignal.timeout(10000) }).then(x => x.json()); if (!s.ok) throw new Error('réponse inattendue'); await synchroniser(false); m.textContent = S.sync.ok ? 'Connecté : ' + S.L.fermees.length + ' positions disponibles.' : 'Worker joignable mais accès refusé : ' + S.sync.texte; } catch (er) { m.textContent = 'Worker injoignable : ' + (er && er.message || er); S.sync = { ok: false, texte: String(er && er.message || er) }; majSync(); } return; }
-    if (r) { const cap = parseFloat(String(d.get('capital') || '').replace(',', '.')), risque = parseFloat(String(d.get('risquePct') || '').replace(',', '.')); const n = {}; const si = parseFloat(String(d.get('soldeInitial') || '').replace(',', '.')); if (Number.isFinite(cap) && cap > 0) n.capital = cap; if (Number.isFinite(si) && si >= 0) n.soldeInitial = si; if (Number.isFinite(risque) && risque > 0 && risque <= 100) n.risquePct = risque; await P.sauverReglages(n); S.L = await P.charger(); recalculer(); dire('Réglages enregistrés.'); return; }
-    if (v) { const vp = {}; for (const [k, x] of d.entries()) { const n = parseFloat(String(x).replace(',', '.')); if (Number.isFinite(n) && n > 0) vp[k] = n; } await P.sauverReglages({ valeursPoint: vp }); S.L = await P.charger(); recalculer(); dire('Valeurs du point enregistrées.'); }
+    if (r) { const cap = lireNombre(d.get('capital')), risque = lireNombre(d.get('risquePct')); const n = {}; const si = lireNombre(d.get('soldeInitial')); if (Number.isFinite(cap) && cap > 0) n.capital = cap; if (Number.isFinite(si) && si >= 0) n.soldeInitial = si; if (Number.isFinite(risque) && risque > 0 && risque <= 100) n.risquePct = risque; await P.sauverReglages(n); S.L = await P.charger(); recalculer(); dire('Réglages enregistrés.'); return; }
+    if (v) { const vp = {}; for (const [k, x] of d.entries()) { const n = lireNombre(x); if (Number.isFinite(n) && n > 0) vp[k] = n; } await P.sauverReglages({ valeursPoint: vp }); S.L = await P.charger(); recalculer(); dire('Valeurs du point enregistrées.'); }
   });
   /* glisser-déposer du fichier sur la fenêtre (PC) */
   el.addEventListener('dragover', e => { e.preventDefault(); }); el.addEventListener('drop', e => { e.preventDefault(); if (e.dataTransfer && e.dataTransfer.files.length) importerFichiers([...e.dataTransfer.files]); });

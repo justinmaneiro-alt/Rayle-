@@ -2,7 +2,7 @@
    Charge les bougies (Kraken pour le prix, Binance pour volume / delta / niveaux), suit le prix en direct (transactions du WebSocket Kraken
    du carnet : un seul flux), calcule niveaux, zones, états, événements et lecture. fetch et horloge injectables (tests Node).
    Aucune valeur inventée : un champ inconnu reste null avec sa raison. */
-import { PERIODES, REGLES } from './config-or.js';
+import { PERIODES, PERIODES_AFFICHEES, REGLES } from './config-or.js';
 import { bougiesKraken, bougiesBinance, ticker24hBinance, tickerKraken } from './sources-or.js';
 import { fusionner, appliquerTransaction, regrouperBougies, atr, derniereValeur, ecartMesure, biaisH1 } from './bougies-or.js';
 import { niveauxCles, zonesVolume, decaler, fusionnerNiveaux } from './niveaux-or.js';
@@ -32,11 +32,11 @@ const ecrireJ = (k, v) => { try { globalThis.localStorage && localStorage.setIte
 
 export function creerMoteurOr({ fetchFn = (...a) => fetch(...a), horloge = () => Date.now(), surMaj = () => {}, surEvenement = () => {}, etudeAuto = true, structureAuto = etudeAuto, chargerH1 = null } = {}) {
   const S = {
-    periode: lireJ('rayle_or_periode', 'M15'), k: [], kM15: [], refM15: [], refH1: [], refP: [], atrH1: [], ecart: null, ecartN: 0,
+    periode: lireJ('rayle_or_periode', 'H1'), k: [], kM15: [], refM15: [], refH1: [], refP: [], atrH1: [], ecart: null, ecartN: 0,
     prix: null, tPrix: null, ticker: null, ref24h: null, erreurs: {}, niveaux: [], zonesVol: [], zones: [], etats: {}, lecture: null, etude: null, etudeEtat: 'à faire',
     chargement: true, derniereRefM15: null, evenements: [], hist: null, chargementAncien: false, niveauxP: null, liquidite: null, fleches: null, bilanFleches: null, spreads: lireJ('rayle_or_spreads', []).filter(x => x && x.s > 0), registreH1: null
   };
-  if (!PERIODES[S.periode]) S.periode = 'M15';
+  if (!PERIODES[S.periode] || !PERIODES_AFFICHEES.includes(S.periode)) S.periode = 'H1';   // une ancienne préférence M5 / M15 devient H1
   const anti = creerAntiBruit(); const regl = lireJ('rayle_or_alertes', null); if (regl) { anti.regler(regl); if (regl.coupe) anti.couper(true); }
   let minuteries = [], arrete = false;
   const err = (k, e) => { S.erreurs[k] = e ? (e.message || String(e)) : null; };
@@ -249,7 +249,7 @@ export function creerMoteurOr({ fetchFn = (...a) => fetch(...a), horloge = () =>
       return S;
     },
     versionsH1(sel) { if (sel) { const L = VERSIONS.filter(v => sel.includes(v) && AFFICHABLES_H1.includes(v)); versionsH1 = L.length ? L : DEFAUT_H1.slice(); ecrireJ(CLE_CHOIX_H1, versionsH1); composerH1(); surMaj(S); } return versionsH1.slice(); },
-    async periode(p) { if (!PERIODES[p] || p === S.periode) return; S.periode = p; ecrireJ('rayle_or_periode', p); S.k = []; S.hist = null; await chargerPeriode(); calculer(); surMaj(S); },
+    async periode(p) { if (!PERIODES_AFFICHEES.includes(p) || p === S.periode) return; S.periode = p; ecrireJ('rayle_or_periode', p); S.k = []; S.hist = null; await chargerPeriode(); calculer(); surMaj(S); },
     /* transactions du WebSocket Kraken (carnet) : prix en direct et bougie en cours */
     transactions(L) {
       let maj = false;

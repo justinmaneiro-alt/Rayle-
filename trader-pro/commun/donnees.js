@@ -64,12 +64,26 @@ export async function lireSpotOr() {
   if (!q || q.vide || !Number.isFinite(q.prix)) throw new Error((q && q.erreur) || 'pas de prix au comptant');
   return q;
 }
-export async function prixOrUnique({ lireSpot, lireTicker, lirePro, maintenant = Date.now() } = {}) {
-  const ferme = !marcheOrOuvert(maintenant), note = ferme ? 'Marché au comptant fermé (week-end).' : '';
-  if (lireSpot) { try { const q = await avecDelai(lireSpot(), 6000, 'prix au comptant'); if (q && Number.isFinite(q.prix)) return { prix: q.prix, t: q.t || maintenant, source: 'XAU/USD au comptant (' + (q.source || 'Worker de Rayle') + ')', reference: true, pct: Number.isFinite(q.pct) ? q.pct : null, note: (ferme ? 'Marché au comptant fermé : dernier cours de clôture, comme sur XTB. ' : '') + (q.differe ? 'Prix différé. ' : '') + (q.perime ? 'Donnée périmée. ' : '') }; } catch (e) { /* on passe au perpétuel */ } }
+/* dernier cours au comptant reçu, gardé sur l'appareil : si le direct ne répond pas, on garde CE prix (étiqueté « dernier cours reçu »), jamais un chiffre d'une autre source */
+const CLE_SPOT = 'tp_prix_or_dernier', JOURS4 = 4 * 86400e3;
+const lireSpotGarde = () => { try { const v = JSON.parse(localStorage.getItem(CLE_SPOT) || 'null'); return v && Number.isFinite(v.prix) ? v : null; } catch (e) { return null; } };
+const garderSpot = v => { try { localStorage.setItem(CLE_SPOT, JSON.stringify({ prix: v.prix, t: v.t, pct: v.pct, source: v.source })); } catch (e) { /* stockage plein ou interdit */ } };
+export async function prixOrUnique({ lireSpot, lireTicker, lirePro, lireGarde = lireSpotGarde, garder = garderSpot, maintenant = Date.now(), delaiSpot = 9000 } = {}) {
+  const ferme = !marcheOrOuvert(maintenant);
+  const mention = ferme ? 'Marché fermé : dernier cours de clôture, comme sur XTB. ' : '';
+  if (lireSpot) { try { const q = await avecDelai(lireSpot(), delaiSpot, 'prix au comptant'); if (q && Number.isFinite(q.prix)) { const r = { prix: q.prix, t: q.t || maintenant, source: 'XAU/USD au comptant (' + (q.source || 'Worker de Rayle') + ')', reference: true, ferme, pct: Number.isFinite(q.pct) ? q.pct : null, note: mention + (q.differe ? 'Prix différé. ' : '') + (q.perime ? 'Donnée périmée. ' : '') }; try { garder(r); } catch (e) { /* */ } return r; } } catch (e) { /* on passe au dernier cours gardé */ } }
+  if (lireGarde) { try { const g = lireGarde(), age = g ? maintenant - g.t : Infinity; if (g && (ferme ? age < JOURS4 : age < 20 * 60e3)) return { prix: g.prix, t: g.t, source: g.source || 'XAU/USD au comptant', reference: true, ferme, pct: Number.isFinite(g.pct) ? g.pct : null, note: mention + 'Dernier cours reçu : le prix en direct n’a pas répondu. ' }; } catch (e) { /* aucun cours gardé */ } }
   if (lireTicker) { try { const k = await avecDelai(lireTicker(), 5000, 'Kraken'); const p = k && Number.isFinite(+k.last) ? +k.last : null; if (p) return { prix: p, t: Date.parse(k.lastTime) || maintenant, source: 'Kraken PF_XAUUSD (perpétuel, direct)', reference: false, note: (ferme ? 'Le comptant est fermé : indication du perpétuel Kraken (il cote le week-end), pas le cours de clôture de XTB. ' : 'Prix du perpétuel Kraken : le prix au comptant n’a pas répondu. '), bid: +k.bid || null, ask: +k.ask || null }; } catch (e) { /* on passe à l'instantané */ } }
   if (lirePro) { try { const r = await lirePro(), d = r.donnees; if (d && Number.isFinite(d.prix)) { const kr = /Kraken/.test(d.source || ''); return { prix: d.prix, t: d.tPrix || r.t, source: kr ? 'Kraken PF_XAUUSD (instantané)' : 'futures COMEX GC=F (instantané) : pas le XAU/USD au comptant', reference: false, note: (kr ? '' : 'Prix des futures, plusieurs dollars à dizaines de dollars de l’or au comptant. ') + (ferme ? 'Marché au comptant fermé. ' : '') + 'Prix issu d’un instantané du robot, pas du direct.' }; } } catch (e) { /* aucune source */ } }
   return null;
 }
 /* le lecteur par défaut, câblé sur les vraies sources de l'appli */
-export const prixOr = (opts = {}) => prixOrUnique({ lireSpot: lireSpotOr, lireTicker: async () => (await import('../../agent-trading/front/or/sources-or.js')).tickerKraken(), lirePro: () => lireActifPro('or'), ...opts });
+/* Les fenêtres demandent le prix en même temps : une seule lecture partagée pendant 15 s, donc EXACTEMENT le même chiffre partout */
+let _prixOr = null;
+export function prixOr(opts = {}) {
+  const perso = Object.keys(opts).length > 0, maintenant = Date.now();
+  if (!perso && _prixOr && (_prixOr.p || maintenant - _prixOr.t0 < 15000)) return _prixOr.promesse;
+  const promesse = prixOrUnique({ lireSpot: lireSpotOr, lireTicker: async () => (await import('../../agent-trading/front/or/sources-or.js')).tickerKraken(), lirePro: () => lireActifPro('or'), ...opts });
+  if (!perso) { _prixOr = { t0: maintenant, p: true, promesse }; promesse.then(v => { if (_prixOr && _prixOr.promesse === promesse) { _prixOr.p = false; _prixOr.t0 = Date.now(); if (!v) _prixOr = null; } }, () => { _prixOr = null; }); }
+  return promesse;
+}

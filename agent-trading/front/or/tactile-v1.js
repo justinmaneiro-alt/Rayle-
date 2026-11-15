@@ -1,5 +1,5 @@
 /* ═════════════ TERMINAL TACTILE « graphique d'abord » (téléphone et tablette ; 2026-11-13) ═════════════
-   Écran tactile = le graphique en plein écran + une barre fine (instrument, M5 / M15 / H1 / H4 / Jour, sélecteur Flèches, ⋯) + une bande RSI repliable.
+   Écran tactile = le graphique en plein écran + une barre fine (instrument, H1 / H4 / Jour, sélecteur Flèches, ⋯) + une bande RSI repliable.
    Tout le reste (COT, Santé du marché, Institutions, Actualités, Calendrier, Journal, Capital) = petites cases derrière « Données » ; chaque case s'ouvre dans une fenêtre du bas
    (fermée par la croix ou un balayage vers le bas) et ne s'ajoute JAMAIS sous le graphique. Les données restent disponibles pour Rayle (les modules ne sont pas retirés, seulement masqués).
    Un seul gestionnaire de gestes : ceux de Lightweight Charts (glisser, pincer, appui long = réticule, axe des prix) + double appui (recentrer) ; touch-action: none sur le graphique,
@@ -11,7 +11,7 @@ export const estTactile = () => {
     return matchMedia('(pointer: coarse)').matches && !matchMedia('(hover: hover) and (pointer: fine)').matches; } catch (e) { return false; }
 };
 export const TUILES = Object.freeze([['marches', 'Marchés'], ['cot', 'Rapport COT'], ['sante', 'Santé du marché'], ['institutions', 'Institutions'], ['actualites', 'Actualités'], ['calendrier', 'Calendrier'], ['journal', 'Journal'], ['capital', 'Capital']]);
-export const PERIODES_BARRE = Object.freeze([['M5', 'M5'], ['M15', 'M15'], ['H1', 'H1'], ['H4', 'H4'], ['J', 'Jour']]);
+export const PERIODES_BARRE = Object.freeze([['H1', 'H1'], ['H4', 'H4'], ['J', 'Jour']]);   // M5 et M15 retirées
 const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);
 const attendre = async (f, ms = 8000) => { const t0 = Date.now(); while (Date.now() - t0 < ms) { const v = f(); if (v) return v; await new Promise(r => setTimeout(r, 100)); } return null; };
 

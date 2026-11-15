@@ -25,6 +25,14 @@ await p.evaluate(() => { const c = document.querySelector('#couverture-fenetre .
 await p.evaluate(() => document.querySelectorAll('#couverture-fenetre [data-cand]')[1].click()); await w(800);
 verif(await p.evaluate(() => document.querySelectorAll('#couverture-fenetre .tp-cand tr.tp-sel').length === 1), 'un autre candidat peut être choisi');
 verif(await p.evaluate(() => document.documentElement.scrollWidth <= visualViewport.width + 1), 'pas de défilement horizontal de la page (résultats)');
+console.log('— changer l’actif efface / recalcule les résultats ; la virgule est conservée —');
+const nom0 = await p.evaluate(() => document.querySelector('#couverture-fenetre [name=actif] option:checked').textContent), titre0 = await texte('#couverture-fenetre [data-resultats] h3.tp-titre');
+verif(await p.evaluate(() => { const s = document.querySelector('#couverture-fenetre [name=actif]'); s.selectedIndex = (s.selectedIndex + 1) % s.options.length; s.dispatchEvent(new Event('change', { bubbles: true })); return !document.querySelector('#couverture-fenetre [data-resultats] .tp-cand'); }), 'dès que l’actif change, les anciens résultats disparaissent (même instant)');
+const nom1 = await p.evaluate(() => document.querySelector('#couverture-fenetre [name=actif] option:checked').textContent);
+verif(await attendre(() => p.evaluate(n => { const h = document.querySelector('#couverture-fenetre [data-resultats] h3.tp-titre'); return !!h && h.textContent.includes(n); }, nom1), 15000), 'le titre est recalculé pour le nouvel actif (' + nom0 + ' → ' + nom1 + ')');
+verif(!(await texte('#couverture-fenetre [data-resultats] h3.tp-titre')).includes(titre0.split(' sur ').pop()) || nom0 === nom1, 'l’ancien titre n’est plus affiché');
+for (const nom of ['spread', 'swap']) { await p.click(`#couverture-fenetre [name=${nom}]`, { clickCount: 3 }); await p.keyboard.type('0,1'); await w(150); verif(await p.evaluate(n => document.querySelector(`#couverture-fenetre [name=${n}]`).value === '0,1', nom), nom + ' : « 0,1 » garde sa virgule'); }
+await w(1500); verif(await p.evaluate(() => document.querySelector('#couverture-fenetre [name=spread]').value === '0,1'), 'la saisie survit au recalcul');
 await p.evaluate(() => window.Application.fermer()); await w(1200);
 verif(await p.evaluate(() => !document.querySelector('#couverture-fenetre')), 'la fenêtre se ferme proprement');
 await T.fin();

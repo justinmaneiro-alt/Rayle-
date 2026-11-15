@@ -5,7 +5,7 @@ const racine = process.cwd(), lireJ = f => JSON.parse(fs.readFileSync(path.join(
 const pc = lireJ('precache.json'), vu = new Set(), pile = [];
 const ajouter = f => { const k = f.split(path.sep).join('/'); if (!vu.has(k) && fs.existsSync(path.join(racine, k))) { vu.add(k); pile.push(k); } };
 const parcourir = d => { for (const e of fs.readdirSync(path.join(racine, d), { withFileTypes: true })) { const p = d + '/' + e.name; if (e.isDirectory()) { if (!/^(tests|outils|node_modules)$/.test(e.name)) parcourir(p); } else if (/\.(js|css|json)$/.test(e.name)) ajouter(p); } };
-parcourir('trader-pro');
+parcourir('trader-pro'); ajouter('agent-trading/front/terminal/apercu-cache.js');   // aperçu immédiat du terminal (hors du dossier trader-pro)
 while (pile.length) {
   const f = pile.pop(); if (!/\.js$/.test(f)) continue; const src = fs.readFileSync(path.join(racine, f), 'utf8');
   for (const m of src.matchAll(/(?:from\s+|import\s*\(\s*)['"](\.{1,2}\/[^'"]+)['"]/g)) ajouter(path.posix.normalize(path.posix.join(path.posix.dirname(f), m[1])));

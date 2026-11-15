@@ -16,7 +16,7 @@ import { creerIct } from './ict-or.js';
 import { creerStrategie } from './rayle-strategie.js';
 import { creerRisqueProp } from './risque-prop-ui.js';
 import { FICHES } from './contexte-calcul.js';
-import { PERIODES, REGLES, TEXTE_REGLES, KRAKEN } from './config-or.js';
+import { PERIODES, PERIODES_AFFICHEES, REGLES, TEXTE_REGLES, KRAKEN } from './config-or.js';
 import { instrument as instrumentDe, actifCourant } from './instruments.js';
 const INSTR = instrumentDe(actifCourant());
 import { texteType, texteHistorique, NOMS_TYPES } from './zones-or.js';
@@ -60,7 +60,7 @@ export function monterTableauOr(el, { modules = {}, contexte = 'page', fetchFn, 
   el.innerHTML = `<div class="tor" data-contexte="${esc(contexte)}">
   <header class="tor-tete">
     <div class="tor-titre"><b>${esc(INSTR.nom)}</b> <small>${INSTR.id === 'OR' ? 'Kraken ' + KRAKEN.symbole : esc(INSTR.court + ' · ' + INSTR.retard)}</small> <span class="tor-prix" data-or-prix>—</span> <small class="tor-var" data-or-var></small></div>
-    <nav class="tor-periodes" aria-label="Période">${Object.keys(PERIODES).map(p => `<button type="button" data-periode="${p}">${p === 'J' ? 'Jour' : p}</button>`).join('')}</nav>
+    <nav class="tor-periodes" aria-label="Période">${PERIODES_AFFICHEES.map(p => `<button type="button" data-periode="${p}">${p === 'J' ? 'Jour' : p}</button>`).join('')}</nav>
     <div class="tor-outils">
       <details class="tor-couches"><summary>Couches</summary><div class="tor-couches-corps">${Object.entries(COUCHES).map(([k, v]) => `<label><input type="checkbox" data-couche="${k}"> ${v}${FICHES[k] ? ` <button type="button" class="tor-qm" data-fiche-couche="${k}" aria-label="Comment lire ça : ${v}" title="Comment lire ça ? (Rayle répond à voix haute)">?</button>` : ''}</label>`).join('')}<div class="tor-mouv" data-mouv-bloc hidden><label class="tor-mouv-seuil">Seuil des mouvements <input type="range" data-mouv-seuil min="1" max="3" step="0.1" value="1.5" aria-label="Seuil minimal des mouvements en ATR"> <output data-mouv-seuil-val>1,5 ATR</output></label><div class="tor-mouv-btns"><span>Exporter les mouvements</span> <button type="button" data-mouv-export="csv">CSV</button> <button type="button" data-mouv-export="json">JSON</button></div><details class="tor-mouv-stats"><summary>Statistiques</summary><div data-mouv-stats-corps><p>Calcul en cours…</p></div></details></div></div></details>
       <button type="button" data-a="position" title="Poser entrée, stop et objectif sur le graphique">📐 Position</button>
@@ -148,8 +148,9 @@ export function monterTableauOr(el, { modules = {}, contexte = 'page', fetchFn, 
 
   function rendreTete() {
     const S = moteur.S, p = S.prix, o = S.ticker && S.ticker.open24h;
-    q('[data-or-prix]').textContent = nb(p); q('[data-or-prix]').dataset.valeur = p ?? '';
-    q('[data-or-var]').textContent = p && o ? `${p >= o ? '+' : ''}${nb((p / o - 1) * 100)} % sur 24 h` : '';
+    const ref = INSTR.id === 'OR' ? window.__tpPrixRef : null;   // prix de référence unique de l'appli (XAU/USD au comptant, posé par la couche Trader Pro) ; sinon le perpétuel Kraken
+    q('[data-or-prix]').textContent = nb(ref ? ref.prix : p); q('[data-or-prix]').dataset.valeur = (ref ? ref.prix : p) ?? '';
+    q('[data-or-var]').textContent = ref ? (ref.ferme ? 'marché fermé · dernier cours' : (Number.isFinite(ref.pct) ? `${ref.pct >= 0 ? '+' : ''}${nb(ref.pct)} % sur le jour` : '')) : (p && o ? `${p >= o ? '+' : ''}${nb((p / o - 1) * 100)} % sur 24 h` : '');
     carnet.maj('OR', p ? { prix: p } : null);
   }
   /* où en est l'historique chargé (glisser vers la gauche pour en charger plus) */

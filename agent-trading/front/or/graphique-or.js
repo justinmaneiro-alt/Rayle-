@@ -469,12 +469,6 @@ export function creerGraphiqueOr(el, { surClicPrix, mobile = false } = {}) {
         lecture.boites.push({ id: b.id, figee: !!b.figee }); lecture.boitesPix.push({ id: b.id, x0, x1: xb, ye, ys, y1, y2, libelle: b.libelle, figee: !!b.figee });
       }
     }
-    if (L.reglage != null) {   // ligne fine « Période de réglage → » (début de la période regardée pour régler les règles ; avant = hors échantillon)
-      const xr = xDeT(L.reglage); if (xr != null && xr >= 0 && xr <= T.width) {
-        ctx.save(); ctx.strokeStyle = 'rgba(201,178,122,.55)'; ctx.lineWidth = 1; ctx.setLineDash([2, 4]); ctx.beginPath(); ctx.moveTo(Math.round(xr) + 0.5, 0); ctx.lineTo(Math.round(xr) + 0.5, T.height); ctx.stroke(); ctx.setLineDash([]);
-        ctx.font = `600 ${mobile ? 10 : 11}px system-ui, 'Segoe UI', sans-serif`; ctx.fillStyle = 'rgba(201,178,122,.85)'; ctx.fillText('Période de réglage →', Math.min(xr + 4, Math.max(0, T.width - 120)), mobile ? 40 : 46); ctx.restore(); lecture.reglageX = xr;
-      }
-    }
     if (L.regime && L.regime.length && inst.ray && inst.ray.ma && inst.ray.ma.length > 1 && etat.couches.rayMa !== false) {
       const pts = reduireMA(inst.ray.ma, etat.bougies); ctx.lineWidth = 2; ctx.setLineDash([]);
       for (const sg of L.regime) {

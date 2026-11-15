@@ -1,9 +1,10 @@
 /* ═════════════ ALERTES DE PRIX PAR ACTIF (pures, testées) ═════════════
    Une alerte : { id, actif, sens: 'dessus' | 'dessous', niveau, creeLe, declenchee (ms) | null, prixDeclenchement }.
    Elles sont gardées sur l'appareil (localStorage) ; le Worker Portefeuille peut en garder une copie pour les envoyer aussi par Telegram quand l'appli est fermée. */
+import { lireNombreOuZero } from '../commun/nombre.js';
 export const CLE_ALERTES = 'rayle_tp_alertes_v1';
 export const MAX_ALERTES = 60;
-export const nouvelleAlerte = (actif, sens, niveau, maintenant = Date.now()) => ({ id: 'a' + maintenant.toString(36) + Math.random().toString(36).slice(2, 6), actif: String(actif), sens, niveau: Number(String(niveau).replace(/\s/g, '').replace(',', '.')), creeLe: maintenant, declenchee: null, prixDeclenchement: null });
+export const nouvelleAlerte = (actif, sens, niveau, maintenant = Date.now()) => ({ id: 'a' + maintenant.toString(36) + Math.random().toString(36).slice(2, 6), actif: String(actif), sens, niveau: lireNombreOuZero(niveau), creeLe: maintenant, declenchee: null, prixDeclenchement: null });
 export function validerAlerte(a, prixActuel = null) {
   if (!a || !a.actif) return 'Choisir un actif.';
   if (a.sens !== 'dessus' && a.sens !== 'dessous') return 'Choisir « au-dessus » ou « sous ».';

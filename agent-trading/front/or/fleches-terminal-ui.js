@@ -80,7 +80,7 @@ export function monterFlechesTerminal(T, { maintenant = () => Date.now(), pret =
     const H1 = (T.h1 ? T.h1() : []).filter(b => b.t + 3600e3 <= maintenant()), prix = H1.length ? H1[H1.length - 1].c : null; if (!H1.length) return null;
     const bo = V.filter(f => f.type !== 'ma_cassure' && !f.contre && !f.invalidee || f.type === 'ma_cassure' && flechesMaVisibles()).map(f => F.boite(H1, f)).filter(Boolean);
     const zs = prix != null && E.zonesFin ? F.zonesLisibles(E.zonesFin, prix) : [];
-    return { boites: bo, zones: zs, regime: F.segmentsRegimeMa(E.registre, H1[0].t, H1[H1.length - 1].t + 3600e3), reglage: REGLAGE_T };
+    return { boites: bo, zones: zs, regime: F.segmentsRegimeMa(E.registre, H1[0].t, H1[H1.length - 1].t + 3600e3) };
   }
   function afficher() {
     bandeau.hidden = E.mode !== 'historique'; const V0 = visibles(), V = grisVisibles() || E.mode === 'historique' ? V0 : V0.filter(f => !f.contre); try { T.graph.flechesTerminal(V, E.mode === 'historique' ? [] : grisVisibles() ? contactsVisibles(V) : []); } catch (e) { /* graphique pas prêt */ }
@@ -119,7 +119,7 @@ export function monterFlechesTerminal(T, { maintenant = () => Date.now(), pret =
     parTemps = new Map(); for (const f of V.concat(E.mode === 'historique' || !grisVisibles() ? [] : contactsVisibles(V))) { const t = T.graph.tempsDeBougie ? T.graph.tempsDeBougie(f.tCloture - 1) : null; if (t != null) { if (!parTemps.has(t)) parTemps.set(t, []); parTemps.get(t).push(f); } }
     if (abonne) return; const ch = T.graph.chart && T.graph.chart(); if (!ch) return; abonne = true;
     surPoint = p => {
-      const rx = T.graph.xReglage ? T.graph.xReglage() : null; if (E.mode === 'direct' && p && p.point && rx != null && Math.abs(p.point.x - rx) < (window.__ttTactile ? 14 : 7)) { bulle.innerHTML = '<div class="tor-ft-f" data-ft-reglage><b>Période de réglage →</b><span>' + esc(TEXTE_REGLAGE) + '</span></div>'; bulle.hidden = false; const w1 = bulle.offsetWidth || 260; bulle.style.left = Math.max(4, Math.min(p.point.x + 12, (zone ? zone.clientWidth : 600) - w1 - 4)) + 'px'; bulle.style.top = Math.max(4, p.point.y - 20) + 'px'; return; }
+      const rx = null;   // la « période de réglage » n'est plus affichée if (E.mode === 'direct' && p && p.point && rx != null && Math.abs(p.point.x - rx) < (window.__ttTactile ? 14 : 7)) { bulle.innerHTML = '<div class="tor-ft-f" data-ft-reglage><b>Période de réglage →</b><span>' + esc(TEXTE_REGLAGE) + '</span></div>'; bulle.hidden = false; const w1 = bulle.offsetWidth || 260; bulle.style.left = Math.max(4, Math.min(p.point.x + 12, (zone ? zone.clientWidth : 600) - w1 - 4)) + 'px'; bulle.style.top = Math.max(4, p.point.y - 20) + 'px'; return; }
       if (!p || !p.point || p.time == null) { if (window.__ttTactile) { clearTimeout(bulle.__h); bulle.__h = setTimeout(() => { bulle.hidden = true; }, 7000); } else bulle.hidden = true; return; }   // tactile : l'infobulle d'une flèche reste après l'appui (7 s ou prochain appui ailleurs)
       const L = parTemps.get(p.time); if (!L || !L.length) { bulle.hidden = true; return; }
       if (E.mode === 'historique') { bulle.innerHTML = '<div class="tor-ft-f"><b>Flèche rétrospective</b><span>' + esc(dateLongue(L[0].tCloture)) + '</span><span>' + esc(BANDEAU) + '</span></div>'; bulle.hidden = false; const w0 = bulle.offsetWidth || 260; bulle.style.left = Math.max(4, Math.min(p.point.x + 12, (zone ? zone.clientWidth : 600) - w0 - 4)) + 'px'; bulle.style.top = Math.max(4, p.point.y - 20) + 'px'; return; }

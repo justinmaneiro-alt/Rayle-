@@ -34,7 +34,7 @@ export async function ouvrir({ racine = document.body, onFermer = () => {} } = {
   async function majOr() {
     if (S.ferme || document.hidden) return; const pastille = $('[data-or]'); if (!pastille) return;
     try { const p = await prixOr(); if (S.ferme) return;
-      if (p) { pastille.innerHTML = `Or <b>${nf(p.prix, 2)}</b><small> ${esc(age(p.t))}</small>`; pastille.title = p.source + (p.note ? ' — ' + p.note : ''); pastille.classList.toggle('tp-ferme', !!p.note); } else pastille.textContent = 'Or : prix indisponible'; }
+      if (p) { pastille.innerHTML = `Or <b>${nf(p.prix, 2)}</b><small> ${p.ferme ? 'marché fermé · dernier cours' : esc(age(p.t))}</small>`; pastille.title = p.source + (p.note ? ' — ' + p.note : ''); pastille.classList.toggle('tp-ferme', !!p.ferme || !p.reference); } else pastille.textContent = 'Or : prix indisponible'; }
     catch (e) { pastille.textContent = 'Or : prix indisponible'; }
   }
   el.addEventListener('click', e => {

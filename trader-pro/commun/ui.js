@@ -1,6 +1,8 @@
 /* ═════════════ OUTILS D'INTERFACE COMMUNS DES FENÊTRES PRO ═════════════ */
 import { phraseAge } from '../../agent-trading/front/donnees/couche.js';
 import { lectureProgressive } from './donnees.js';
+import { installerSaisieNombres } from './nombre.js';
+installerSaisieNombres();   // virgule ET point décimal acceptés dans tous les champs numériques des fenêtres pro
 
 export const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 export const nf = (v, dec = 2) => (Number.isFinite(v) ? v.toLocaleString('fr-FR', { minimumFractionDigits: dec, maximumFractionDigits: dec }).replace(/[  ]/g, ' ') : '—');
