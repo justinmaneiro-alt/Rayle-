@@ -34,6 +34,9 @@
     const cmdOr=window.TableauOr&&TableauOr.commande?await TableauOr.commande(text):null;    // tableau de bord de l'or ouvert : « on en est où ? » (il parle lui-même)
     if(my!==epoch) return;
     if(cmdOr){ diagAction('tableau de bord de l or'); addLine('ray',cmdOr); return; }
+    const cmdTP=window.TraderPro?await TraderPro.commande(text):null;    // trading : « où en est mon portefeuille », « quel risque j'ai », « mes erreurs », « couvre ma position sur l'or », « signaux H4 », « COT de l'or » (trader-pro/commun/voix-trader.js)
+    if(my!==epoch) return;
+    if(cmdTP){ diagAction('trading (portefeuille, signaux, COT)'); addLine('ray',cmdTP); await speak(cmdTP); return; }
     const quick=quickAnswer(text);
     if(quick){ diagAction('réponse rapide'); addLine('ray',quick); await speak(quick); return; }
     // Questions visuelles (« montre-moi… », « à quoi ressemble… », « photo de… ») : des images libres dans une fenêtre holographique, sans IA ; « qui est… » : l'IA répond, les images arrivent en même temps

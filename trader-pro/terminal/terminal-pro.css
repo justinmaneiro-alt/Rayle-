@@ -1,0 +1,27 @@
+/* Terminal « pro » H4 / Jour : graphique propre par défaut (tout le reste derrière « Détails »), panneau des signaux, boutons visibles sur tablette et téléphone. */
+html.tp-terminal:not(.tp-details) .tor-graph-barre,
+html.tp-terminal:not(.tp-details) .tor-graph-source,
+html.tp-terminal:not(.tp-details) .tor-ray-bandeau,
+html.tp-terminal:not(.tp-details) .tor-struct-bandeau,
+html.tp-terminal:not(.tp-details) .tor-bloc,
+html.tp-terminal:not(.tp-details) .tor-props,
+html.tp-terminal:not(.tp-details) .tor-ray-feuille,
+html.tp-terminal:not(.tp-details) .tor-ft-ligne,
+html.tp-terminal:not(.tp-details) .tt-fl { display: none !important; }
+.tp-b-hj, .tp-b-details { margin-left: 8px; min-height: 36px; padding: 4px 12px; border: 1px solid #2a3f4d; border-radius: 8px; background: rgba(8,16,24,.85); color: #cfe3ee; font: 600 13px system-ui, sans-serif; cursor: pointer; }
+.tp-b-hj { border-color: #8fd0e3; color: #fff; } .tp-b-details[aria-pressed="true"], .tp-b-hj[aria-expanded="true"] { background: rgba(20,50,68,.9); border-color: #8fd0e3; }
+.tp-panneau { position: fixed; z-index: 70; top: 52px; right: 0; bottom: 0; width: min(400px, 100vw); overflow-y: auto; box-sizing: border-box; padding: 10px 14px calc(18px + env(safe-area-inset-bottom, 0px)); background: #070d12; border-left: 1px solid #1a2a35; color: #d7e3ea; font: 13px/1.45 system-ui, sans-serif; }
+.tp-panneau[hidden] { display: none; } .tp-panneau header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; } .tp-panneau header b { font-size: 15px; font-weight: 500; color: #8fd0e3; } .tp-panneau button { min-height: 36px; padding: 4px 10px; border: 1px solid #2a3f4d; border-radius: 8px; background: rgba(8,16,24,.85); color: #cfe3ee; font: inherit; cursor: pointer; }
+.tp-panneau h4 { margin: 14px 0 4px; font-size: 12px; font-weight: 500; color: #8fd0e3; text-transform: uppercase; letter-spacing: .04em; } .tp-panneau .tp-doux { color: #7d8f99; font-size: 12px; margin: 6px 0; } .tp-panneau .tp-ligne { margin: 4px 0; font-size: 14px; }
+.tp-panneau .tp-h { color: #5fb894; } .tp-panneau .tp-b { color: #d86a6a; } .tp-niv { margin: 4px 0; line-height: 1.8; }
+.tp-sigs { list-style: none; margin: 0; padding: 0; } .tp-sigs li { padding: 8px 0; border-bottom: 1px solid #14212b; display: grid; gap: 2px; } .tp-sigs li small { color: #8497a1; font-size: 12px; } .tp-fiche { margin-top: 4px; }
+.tp-fiche table { width: 100%; border-collapse: collapse; font-size: 12px; } .tp-fiche td, .tp-fiche th { padding: 3px 4px; border-bottom: 1px solid #14212b; text-align: left; } .tp-fiche .tp-copie { font: 12px ui-monospace, Consolas, monospace; background: #0c161d; padding: 6px; border-radius: 6px; white-space: pre-wrap; user-select: all; }
+.tp-bt { width: 100%; border-collapse: collapse; font-size: 12px; } .tp-bt th, .tp-bt td { padding: 4px; border-bottom: 1px solid #14212b; text-align: left; vertical-align: top; }
+.tp-v { display: inline-block; padding: 1px 7px; border-radius: 9px; font-size: 11px; font-weight: 600; } .tp-v-positif { background: rgba(95,184,148,.2); color: #5fb894; } .tp-v-fragile, .tp-v-insuffisant { background: rgba(232,168,90,.2); color: #e8a85a; } .tp-v-negatif { background: rgba(216,106,106,.22); color: #e07a7a; }
+.tp-case { display: flex; gap: 8px; align-items: center; min-height: 36px; font-size: 13px; color: #b9cdd8; }
+@media (max-width: 700px) { .tp-panneau { top: auto; right: 0; left: 0; bottom: 0; width: auto; max-height: 72vh; border-left: 0; border-top: 1px solid #1a2a35; border-radius: 14px 14px 0 0; z-index: 95; } }
+/* tactile : « Données » et « RSI » passent à droite (à gauche, l'icône de la barre de Rayle les cachait) */
+html.tm-tactile .tt-donnees { left: auto; right: 10px; } html.tm-tactile .tt-rsi { left: auto; right: 112px; }
+.tor-graph { position: relative; } .tp-ma-legende { position: absolute; left: 8px; top: 6px; z-index: 5; display: flex; flex-wrap: wrap; gap: 4px 12px; padding: 3px 8px; border-radius: 6px; background: rgba(5,8,12,.78); font: 600 11px system-ui, sans-serif; pointer-events: none; max-width: calc(100% - 90px); } .tp-ma-legende .tp-h { color: #5fb894; } .tp-ma-legende .tp-b { color: #d86a6a; }
+.tp-ligne-boutons { position: absolute; left: 8px; top: 52px; z-index: 7; display: flex; gap: 8px; } .tp-ligne-boutons .tp-b-hj, .tp-ligne-boutons .tp-b-details { margin: 0; min-height: 44px; padding: 4px 14px; background: rgba(5,8,12,.85); }
+.tp-spot { margin-left: 8px; padding: 1px 7px; border-radius: 8px; background: rgba(241,211,79,.12); color: #f1d34f; font: 600 11px system-ui, sans-serif; white-space: nowrap; } .tp-spot[hidden] { display: none; }

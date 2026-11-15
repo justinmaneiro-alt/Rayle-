@@ -122,7 +122,15 @@ async function lotDefiLlama(c) {
 /* ─── BCE, Frankfurter, Eurostat, INSEE ─── */
 async function lotBce(c) {
   const mesures = [], points = {}, erreurs = [];
-  try { const pts = lireBce(await c.get('bce', 'https://data-api.ecb.europa.eu/service/data/EXR/D.USD.EUR.SP00.A?lastNObservations=400&format=csvdata', { type: 'text' })); const r = depuisSerie(pts, { id: 'eurusd.bce', libelle: 'Euro en dollars (cours de référence de la BCE)', unite: '$', source: 'BCE · EXR D.USD.EUR', sourceId: 'bce', url: 'https://data.ecb.europa.eu/data/datasets/EXR', frequence: 'quotidien', delaiPublication: 'publié chaque jour ouvré vers 16 h (Francfort)' }, c.maintenant); mesures.push(r.m); points['eurusd.bce'] = r.pts; } catch (e) { erreurs.push('EXR : ' + e.message); }
+  try { const pts = lireBce(await c.get('bce', 'https://data-api.ecb.europa.eu/service/data/EXR/D.USD.EUR.SP00.A?lastNObservations=400&format=csvdata', { type: 'text' })); const r = depuisSerie(pts, { id: 'eurusd.bce', libelle: 'Euro en dollars (cours de référence de la BCE)', unite: '$', source: 'BCE · EXR D.USD.EUR', sourceId: 'bce', url: 'https://data.ecb.europa.eu/data/datasets/EXR', frequence: 'quotidien', delaiPublication: 'publié chaque jour ouvré vers 16 h (Francfort)' }, c.maintenant); mesures.push(r.m); points['eurusd.bce'] = r.pts; } catch (e) {
+    erreurs.push('EXR : ' + e.message);
+    /* secours : les mêmes cours de référence de la BCE, relayés par Frankfurter (le portail de la BCE répond parfois 503) */
+    try {
+      const j = await c.get('frankfurter', 'https://api.frankfurter.dev/v1/' + ISO(c.maintenant() - 400 * 864e5) + '..?base=EUR&symbols=USD', { type: 'json' });
+      const pts = Object.entries(j.rates || {}).map(([d, v]) => [Date.parse(d + 'T00:00:00Z'), v.USD]).filter(p => isFinite(p[0]) && isFinite(p[1])).sort((a, b) => a[0] - b[0]);
+      const r = depuisSerie(pts, { id: 'eurusd.bce', libelle: 'Euro en dollars (cours de référence de la BCE, via Frankfurter : secours)', unite: '$', source: 'Frankfurter · base BCE (secours)', sourceId: 'frankfurter', url: 'https://frankfurter.dev/', frequence: 'quotidien', delaiPublication: 'publié chaque jour ouvré vers 16 h (Francfort)' }, c.maintenant); mesures.push(r.m); points['eurusd.bce'] = r.pts;
+    } catch (e2) { erreurs.push('EXR secours : ' + e2.message); }
+  }
   try { const pts = lireBce(await c.get('bce', 'https://data-api.ecb.europa.eu/service/data/FM/B.U2.EUR.4F.KR.DFR.LEV?lastNObservations=6&format=csvdata', { type: 'text' })); const r = depuisSerie(pts, { id: 'taux.bce', libelle: 'Taux de la facilité de dépôt de la BCE (taux directeur)', unite: '%', source: 'BCE · FM DFR', sourceId: 'bce', url: 'https://data.ecb.europa.eu/data/datasets/FM', frequence: 'palier', delaiPublication: 'à la décision du Conseil des gouverneurs', note: 'la date est celle d\'entrée en vigueur du taux' }, c.maintenant); mesures.push(r.m); } catch (e) { erreurs.push('DFR : ' + e.message); }
   if (!mesures.length) throw new Error(erreurs.join(' ; '));
   return { mesures, points, partiel: erreurs };

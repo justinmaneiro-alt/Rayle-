@@ -1,12 +1,13 @@
 /* ═════════════ ROBOT DE SNAPSHOTS (GitHub Actions ou PC) : télécharge les sources publiques, valide, écrit des JSON ═════════════
-   Usage : node outils-donnees/snapshots.mjs --sortie <dossier> [--lot rapide|horaire|bougies|tout] [--seulement nom1,nom2]
-   Lots : rapide = actus, calendrier, yahoo, panneaux Marchés ; horaire = COT, banques, institutions, santé, GLD ; bougies = bougies Yahoo compactes.
+   Usage : node outils-donnees/snapshots.mjs --sortie <dossier> [--lot rapide|horaire|bougies|pro|tout] [--seulement nom1,nom2]
+   Lots : rapide = actus, calendrier, yahoo, panneaux Marchés ; horaire = COT, banques, institutions, santé, GLD ; bougies = bougies Yahoo compactes ; pro = séries compactes par actif (pro-<id>.json, construites à partir des bougies déjà écrites).
    Règles : DONNÉES DE MARCHÉ SEULEMENT (publiques, aucune donnée personnelle, aucun secret). Une source en panne ne détruit JAMAIS la copie précédente :
    le fichier existant est gardé et l'échec est noté dans index.json (erreur + âge). Fichier écrit seulement si la réponse est valide. */
 import fs from 'node:fs'; import path from 'node:path';
 import { cot, actus, banques, institutions, sante, gld, calendrier2, bougies, MARCHES_COT } from '../app-pc/terminal-donnees.mjs';
 import { yahoo } from '../app-pc/terminal-sources.mjs';
 import { listeUnivers, telechargerJour, nomFichierJour } from './univers-jours.mjs';
+import { construirePro } from './pro.mjs';
 
 export const SYMBOLES_BOUGIES = ['^NDX', '^GSPC', 'BTC-USD', 'SOL-USD', 'GC=F', 'DX-Y.NYB', 'EURUSD=X', 'CHF=X'];
 export const INTERVALLES_BOUGIES = [['5m', '14d'], ['15m', '60d'], ['1h', '730d'], ['1d', '10y']];
@@ -64,6 +65,8 @@ for (const groupe of lots2) await Promise.all(groupe.map(async t => {
     if (d && !d.t) d.t = Date.now(); ecrire(t.nom, d); ok++;
   } catch (e) { ko++; noter(t.nom, false, e && e.message || e); console.error('✗ ' + t.nom + ' : ' + String(e && e.message || e).slice(0, 140)); }
 }));
+/* instantanés « pro » (séries compactes par actif) : construits APRÈS les bougies, à partir des fichiers déjà écrits dans le dossier de sortie */
+if (['bougies', 'pro', 'tout'].includes(lot)) { const pro = await construirePro(sortie); for (const e of pro.ecrits) noter(e.nom, true, null, e.octets); for (const e of pro.echecs) { noter(e.nom, false, e.erreur); console.error('✗ ' + e.nom + ' : ' + e.erreur.slice(0, 140)); } ok += pro.ecrits.length; ko += pro.echecs.length; }
 index.t = Date.now(); index.lot = lot; index.avertissement = 'Données publiques de marché, différées ; copie précédente conservée quand une source échoue.';
 fs.writeFileSync(indexFichier, JSON.stringify(index, null, 1));
 console.log(`snapshots : ${ok} écrits, ${ko} en échec, dossier ${sortie}`);

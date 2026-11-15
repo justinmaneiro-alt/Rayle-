@@ -2,6 +2,8 @@
    Honnêteté : pour chaque actif, la source et ses limites sont écrites ; sans donnée gratuite fiable, on le dit au lieu de combler par des approximations. */
 export const UNIVERS = Object.freeze([
   { id: 'XAUUSD', nom: 'Or (XAU/USD)', groupe: 'matières', yahoo: 'GC=F', jours365: false, source: 'Yahoo Finance GC=F (contrat à terme or, proxy du spot : écart de base)', retard: 'différé ~15 min', profondeur: '≈ 10 ans (journalier)', facteur: 'or' },
+  { id: 'XAGUSD', nom: 'Argent (XAG/USD)', groupe: 'matières', yahoo: 'SI=F', jours365: false, source: 'Yahoo Finance SI=F (contrat à terme argent, proxy du spot : écart de base)', retard: 'différé ~15 min', profondeur: '≈ 10 ans (journalier)', facteur: 'or', optionnel: true },
+  { id: 'WTI', nom: 'Pétrole WTI', groupe: 'matières', yahoo: 'CL=F', jours365: false, source: 'Yahoo Finance CL=F (contrat à terme pétrole WTI, contrat qui change chaque mois : sauts possibles à l’échéance)', retard: 'différé ~15 min', profondeur: '≈ 10 ans (journalier)', facteur: 'petrole', optionnel: true },
   { id: 'US100', nom: 'Nasdaq 100 (US100)', groupe: 'indices', yahoo: '^NDX', jours365: false, source: 'Yahoo Finance ^NDX (indice, sans dividendes)', retard: 'différé ~15 min', profondeur: '≈ 10 ans', facteur: 'actions' },
   { id: 'US500', nom: 'S&P 500 (US500)', groupe: 'indices', yahoo: '^GSPC', jours365: false, source: 'Yahoo Finance ^GSPC (indice, sans dividendes)', retard: 'différé ~15 min', profondeur: '≈ 10 ans', facteur: 'actions' },
   { id: 'BTC', nom: 'Bitcoin', groupe: 'crypto', yahoo: 'BTC-USD', jours365: true, source: 'Yahoo Finance BTC-USD (agrégé) ; Kraken en direct pour le prix du moment', retard: 'quasi temps réel', profondeur: '≈ 10 ans (depuis 2014)', facteur: 'crypto' },
@@ -24,7 +26,7 @@ export const CONTEXTE_SEUL = Object.freeze({ id: 'INFLATION', nom: 'Inflation (C
 export const nomFichierJour = id => `jour-${String(id).replace(/[^A-Za-z0-9]/g, '_')}.json`;
 export const nomFichierHoraire = id => `horaire-${String(id).replace(/[^A-Za-z0-9]/g, '_')}.json`;
 /* facteurs d'exposition (convention simple et documentée, pas une mesure) : position longue = +1 sur le facteur */
-export const FACTEURS = Object.freeze({ dollar: 'Dollar', actions: 'Risque actions', or: 'Or', crypto: 'Crypto', franc: 'Franc suisse' });
+export const FACTEURS = Object.freeze({ petrole: 'Pétrole', dollar: 'Dollar', actions: 'Risque actions', or: 'Or', crypto: 'Crypto', franc: 'Franc suisse' });
 export function expositions(actifId, sens) {   // sens : +1 achat, -1 vente
   const u = parId[actifId]; if (!u) return {}; const s = sens >= 0 ? 1 : -1, o = {};
   if (u.id === 'DXY') { o.dollar = s; return o; }

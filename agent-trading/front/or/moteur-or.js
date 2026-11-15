@@ -14,6 +14,7 @@ import { instrument, actifCourant } from './instruments.js';
 import { marcheInstrument, retardInstrument } from './marche-instrument.js';
 const INSTR = instrument(actifCourant());
 import { niveauxPeriode, liquidite, fleches, bilanFleches } from './niveaux-periode.js';
+import { lireCacheBougies, ecrireCacheBougies } from './cache-bougies.js';
 import { flechesH1v2, bilanH1, DEPUIS_H1_V2, indicesCandidats, listesAvant } from './fleches-h1-v2.js';
 import { CLE_REGISTRE, lireRegistre, ajouter, prefixeDe, flechesDu, VERSIONS } from './registre-fleches.js';
 import { flechesH1v3 } from './fleches-h1-v3.js';
@@ -42,10 +43,12 @@ export function creerMoteurOr({ fetchFn = (...a) => fetch(...a), horloge = () =>
 
   /* historique de la période affichée : Kraken paginé jusqu'à la mise en ligne du perpétuel, puis la référence Binance (historique-or.js) */
   async function chargerPeriode() {
-    const p = S.periode;
+    const p = S.periode, clePeriode = (INSTR.id || 'OR') + '|' + p;
+    /* 2026-11-15 : la dernière copie des bougies s'affiche tout de suite (le réseau la remplace ensuite) : plus d'attente devant un graphique vide */
+    if (!S.k.length) { try { const c = await lireCacheBougies(clePeriode); if (c && p === S.periode && !S.k.length && Array.isArray(c.k) && c.k.length > 50) { S.hist = c; S.k = c.k.slice(); S.refP = c.vol || []; try { calculer(); } catch (e) { /* les références arrivent avec le réseau */ } surMaj(S); } } catch (e) { /* pas de copie : on attend le réseau */ } }
     try {
       const H = await chargerHistorique(p, { fetchFn, maintenant: horloge() }); if (p !== S.periode) return;
-      S.hist = H; S.k = H.k.slice(); S.refP = H.vol; err('kraken', null); err('binanceP', H.erreurRef);
+      S.hist = H; S.k = H.k.slice(); S.refP = H.vol; err('kraken', null); err('binanceP', H.erreurRef); ecrireCacheBougies(clePeriode, H);
     } catch (e) {
       err('kraken', e);   // secours : les 1500 dernières bougies, comme avant
       try { S.k = await bougiesKraken(p, { fetchFn, maintenant: horloge(), n: p === 'J' ? 400 : 1500 }); S.hist = null; err('kraken', null); } catch (e2) { /* l'erreur reste affichée */ }

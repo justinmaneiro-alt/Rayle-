@@ -77,7 +77,7 @@ async function principal() {
   const sceauG = await sceauRegles(), registre = (B, fl) => mettreAJourRegistre(B, fl, { maintenant: Date.now(), sceauGlobal: sceauG });
   const une = process.argv.includes('--une-fois'); console.log('Alertes des flèches (Direct, or H1) démarrées' + (canal ? ' : Telegram actif.' : ' : sans Telegram.'));
   for (;;) {
-    try { await cycle({ donnees, etat, canaux: canal ? [canal] : [], registre: env.REGISTRE_DIRECT === '0' ? null : registre }); ecrireEtat(etat); } catch (e) { console.log('passage échoué :', e.message); }
+    try { await cycle({ donnees, etat, canaux: canal && env.ALERTES_FLECHES_H1 !== '0' ? [canal] : [], registre: env.REGISTRE_DIRECT === '0' ? null : registre }); ecrireEtat(etat); } catch (e) { console.log('passage échoué :', e.message); }
     if (une) break; await new Promise(r => setTimeout(r, 60000));
   }
 }

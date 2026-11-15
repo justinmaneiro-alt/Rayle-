@@ -117,3 +117,6 @@ dist/
 # Alertes Telegram : etat local
 agent-trading/.alertes-etat.json
 agent-trading/.alertes-etat.json.tmp
+
+# Worker dédié du portefeuille : code sans aucun secret, versionné (les données sont dans D1, jamais ici)
+!trader-pro/worker/

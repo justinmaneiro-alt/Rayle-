@@ -57,6 +57,8 @@ export function creerGraphiqueOr(el, { surClicPrix, mobile = false } = {}) {
   const C = { liquidite: '#c39be0', flecheHaut: '#4fd18b', flecheBas: '#ef5f5f', refHaut: 'rgba(160,170,150,.55)', refBas: 'rgba(170,140,140,.55)', bande: 'rgba(201,178,122,.07)', sable: '#c9b27a', haut: '#5fb894', bas: '#d86a6a', volZone: '143,136,204', support: '#86c3e8', resistance: '#e2ae62', retour: '#e8e2cf', texte: '#cfd8dc', doux: '#7d8a90', fond: 'rgba(8,12,16,.86)' };
   const yDe = p => serie ? serie.priceToCoordinate(p) : null;
 
+  /* graphique propre (terminal pro, trader-pro/terminal) : ni bande « historique de référence », ni niveaux proposés tant que « Détails » n'est pas ouvert */
+  const propre = () => { const c = document.documentElement.classList; return c.contains('tp-terminal') && !c.contains('tp-details'); };
   /* bande « historique de référence » : tout ce qui est avant la première bougie Kraken (Binance décalé de l'écart mesuré) */
   function xDebutKraken(T) {
     if (!chart || etat.debutKraken == null || !etat.bougies.length || !etat.bougies[0].ref) return null;
@@ -65,7 +67,7 @@ export function creerGraphiqueOr(el, { surClicPrix, mobile = false } = {}) {
     return tempsGraphique(etat.debutKraken) <= r.from ? -1 : T.width;   // perpétuel à gauche de la vue : pas de bande ; à droite : toute la largeur
   }
   const primBande = new Primitive((ctx, T) => {
-    const x = xDebutKraken(T); if (x == null || x <= 0) return;
+    if (propre()) return; const x = xDebutKraken(T); if (x == null || x <= 0) return;
     const fs = mobile ? 10 : 11; ctx.fillStyle = C.bande; ctx.fillRect(0, 0, x, T.height);
     ctx.strokeStyle = 'rgba(201,178,122,.55)'; ctx.setLineDash([4, 4]); ctx.beginPath(); ctx.moveTo(Math.round(x) + 0.5, 0); ctx.lineTo(Math.round(x) + 0.5, T.height); ctx.stroke(); ctx.setLineDash([]);
     ctx.font = `600 ${fs}px system-ui, sans-serif`; ctx.fillStyle = C.sable;
@@ -181,7 +183,7 @@ export function creerGraphiqueOr(el, { surClicPrix, mobile = false } = {}) {
     const poignee = (x, y, col) => { ctx.fillStyle = '#0b1117'; ctx.strokeStyle = col; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.arc(x, y, 3.5, 0, 6.3); ctx.fill(); ctx.stroke(); };
     const hy = y => Math.round(y) + 0.5;
     /* niveaux proposés : proches du prix (± 8 ATR), fusionnés (0,5 ATR), 6 au plus, étiquettes sans chevauchement (correctif H4/Jour) */
-    { const B = etat.bougies, prix = B.length ? B[B.length - 1].c : NaN, gardes = filtrerProposes(O.proposes, prix, atrSimple(B)), ys = {};
+    { const B = etat.bougies, prix = B.length ? B[B.length - 1].c : NaN, gardes = propre() ? [] : filtrerProposes(O.proposes, prix, atrSimple(B)), ys = {};
       for (const pr of gardes) { const y = yDe(pr.p); if (y != null) ys[pr.cle] = y; }
       const libres = etiquettesLibres(gardes, ys, fs + 3);
       for (const pr of gardes) { const y = ys[pr.cle]; if (y == null || y < 0 || y > T.height) continue;
@@ -492,7 +494,8 @@ export function creerGraphiqueOr(el, { surClicPrix, mobile = false } = {}) {
     pret: () => pret,
     /* L : bougies affichées (référence décalée « ref: true » puis Kraken) ; cle : la période (nouvelle période → vue par défaut) */
     bougies(L, volumes, { cle = null, debutKraken = null, ecart = null } = {}) {
-      const nouvelle = (cle !== etat.cle) || (!etat.bougies.length && L.length);
+      /* 2026-11-15 : une série qui passe de quelques bougies (bougie en direct seule) à tout l'historique recadre aussi la vue (sinon le graphique restait calé tout à gauche en H4 et Jour) */
+      const nouvelle = (cle !== etat.cle) || (!etat.bougies.length && L.length) || (etat.bougies.length < 20 && L.length >= 50);
       etat.bougies = L; if (volumes) etat.volumes = volumes; etat.cle = cle; etat.debutKraken = debutKraken; etat.ecart = ecart;
       if (nouvelle) sig = null;
       try { versSerie(); } catch (e) { console.warn('bougies :', e.message); }

@@ -21,6 +21,7 @@ jobs:
       TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
       TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
       REGISTRE_DIRECT: '0'
+      ALERTES_FLECHES_H1: '0'   # 2026-11-15 : les signaux sont maintenant les signaux H4 / Jour (étape suivante) ; les flèches H1 ne partent plus par Telegram depuis GitHub
       ALERTES_ETAT: ${{ github.workspace }}/etat-sortie/etat/alertes-etat.json
     steps:
       - uses: actions/checkout@v4
@@ -38,6 +39,8 @@ jobs:
           if [ -z "$TELEGRAM_BOT_TOKEN" ] || [ -z "$TELEGRAM_CHAT_ID" ]; then echo "::warning::Secrets Telegram absents : les alertes sont calculées mais aucun message n'est envoyé."; fi
       - name: Un passage des alertes
         run: node agent-trading/alertes-serveur.mjs --une-fois 2>&1 | sed -E "s/${TELEGRAM_BOT_TOKEN:-__aucun__}/***/g"
+      - name: Alertes H4 / Jour (nouveaux signaux, contact avec la MA200 H4 / J ou un niveau Jour fort)
+        run: node trader-pro/terminal/alertes-hj.mjs --donnees etat-sortie --etat etat-sortie/etat/alertes-hj-etat.json 2>&1 | sed -E "s/${TELEGRAM_BOT_TOKEN:-__aucun__}/***/g"
       - name: Publier l'état (seulement le fichier d'état, sans toucher aux snapshots)
         env:
           JETON: ${{ github.token }}

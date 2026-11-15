@@ -80,7 +80,7 @@ body[data-etat=speaking] .g1-etat i{border-color:var(--g1-a);animation-duration:
 .g1-ic{display:flex;flex-direction:column;align-items:center;gap:3px;width:84px;background:none;border:0;color:var(--g1-txt);cursor:pointer;font:inherit;padding:0}
 .g1-ic-r{width:34px;height:34px;border-radius:50%;border:1px solid var(--g1-bord);background:rgba(255,255,255,.05);display:flex;align-items:center;justify-content:center;transition:box-shadow .2s,border-color .2s,transform .2s}
 .g1-ic svg{width:17px;height:17px;fill:none;stroke:currentColor;stroke-width:1.5;stroke-linejoin:round;stroke-linecap:round}
-.g1-ic small{font-size:9px;letter-spacing:.04em;color:var(--g1-dim);white-space:nowrap;max-width:84px;overflow:hidden;text-overflow:ellipsis}
+.g1-ic small b{font-weight:inherit}.g1-ic small .c{display:none}.g1-ic small{font-size:9px;letter-spacing:.04em;color:var(--g1-dim);white-space:nowrap;max-width:84px;overflow:hidden;text-overflow:ellipsis}
 .g1-ic:hover .g1-ic-r,.g1-ic:focus-visible .g1-ic-r,.g1-ic:active .g1-ic-r{border-color:var(--g1-a);box-shadow:0 0 14px color-mix(in srgb,var(--g1-a) 70%,transparent);transform:translateY(-2px)}
 .g1-ic:focus-visible{outline:none}
 .g1-menu{position:absolute;left:50%;bottom:98px;transform:translateX(-30%);display:flex;flex-wrap:wrap;gap:6px;max-width:420px;padding:8px;border:1px solid var(--g1-bord);border-radius:12px;background:rgba(10,11,20,.82);backdrop-filter:blur(10px);pointer-events:auto}
@@ -222,7 +222,7 @@ body.g1.g1-pause .g1-racine *,body.g1.hud-pause .g1-racine *{animation-play-stat
   body.g1 .g1-fil{display:none}
   .g1-dock-in{gap:8px;width:100%;justify-content:center}
   .g1-etat{min-width:58px}.g1-etat i{width:38px;height:38px}.g1-etat span{font-size:8.5px;letter-spacing:.08em}
-  .g1-icones{gap:0;padding:6px 8px 5px}.g1-ic{width:50px}.g1-ic small{font-size:8px;max-width:50px}.g1-ic-r{width:30px;height:30px}
+  .g1-icones{gap:0;padding:6px 6px 5px;max-width:100%;box-sizing:border-box}.g1-ic{flex:1 1 0;min-width:0;width:auto;max-width:50px}.g1-ic small{font-size:8px;max-width:100%}.g1-ic small .l{display:none}.g1-ic small .c{display:inline}.g1-ic-r{width:30px;height:30px;max-width:100%}
   .g1-fen{width:96vw;height:calc(100% - var(--g1-dock-h) - 70px);bottom:calc(var(--g1-dock-h) + 20px)}
   .g1-tuiles{grid-template-columns:repeat(2,1fr)}
   .g1-fen-corps{padding:4px 12px 12px}
