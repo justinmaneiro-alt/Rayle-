@@ -73,8 +73,8 @@ Export xStation « EUR_<compte>_<début>_<fin>.xlsx » dans un .zip. Trois feuil
 # MISE À JOUR V2 (branche `maj-trader-pro-v2`) : autonomie totale, phases 1 à 6
 Reprise : relire ce fichier, `git log --oneline -15`, `git status`, puis continuer à la première phase V2 non cochée. Mêmes règles (aucune clé API touchée, aucune donnée inventée, aucune donnée de trading dans git, PC + tablette + téléphone). Marchés (Aujourd'hui, COT, Macro, Actualité, Alertes) et Couverture : seulement les bugs listés.
 - [x] V2-Phase 1 : bugs de la vidéo
-- [ ] V2-Phase 2 : graphique du terminal (H1/H4/Jour seulement, une seule MA200 de l'unité affichée, S/R de l'unité + Jour)
-- [ ] V2-Phase 3 : flèches Daily simples (3 méthodes testées, backtest, encart)
+- [x] V2-Phase 2 : graphique du terminal (H1/H4/Jour seulement, une seule MA200 de l unité affichée, S/R de l unité + Jour)
+- [x] V2-Phase 3 : flèches Daily simples (3 méthodes testées, backtest, encart)
 - [ ] V2-Phase 4 : dashboard enrichi (score de marché, volume net USD, ATR, perfs…)
 - [ ] V2-Phase 5 : données XTB sur tous les appareils (Worker prêt à déployer, états de synchro, import)
 - [ ] V2-Phase 6 : publication + déploiement Cloudflare guidé
@@ -85,3 +85,9 @@ Reprise : relire ce fichier, `git log --oneline -15`, `git status`, puis continu
 - Couverture : changer un champ efface les résultats AUSSITÔT (titre compris) puis recalcule après une courte pause ; les valeurs tapées survivent aux redessins.
 - Terminal : aperçu immédiat = dernières bougies de la copie locale (IndexedDB) dessinées dans le squelette (`agent-trading/front/terminal/apercu-cache.js`), levé quand le vrai graphique a des bougies ; « Période de réglage » supprimée (dessin + infobulle).
 - Tests : `nombre-test`, `prix-or-test` (purs, dans `npm test`) ; `couverture-chrome` étendu.
+
+## V2-Phase 3 : notes
+- Anciens signaux H4/J supprimés (signaux-hj, lecture-hj, backtest-hj, alertes-hj, fiche d'ordre). Nouveau : `trader-pro/terminal/fleches-daily.js` (3 méthodes causales et invariantes par translation), `fleches-eval.js`, `backtest-fleches.mjs` (10 ans Daily, apprentissage 60 % / hors échantillon 40 %, hasard 400 tirages), rapport `BACKTEST-FLECHES.md`.
+- Méthode retenue (meilleur F1 d'apprentissage) : pivot de swing confirmé L=R=12, amplitude ≥ 5 ATR. Hors échantillon or+Nasdaq : précision ≈ 51 %, rappel ≈ 74 %, décalage ≈ 17 jours ; mouvement des 20 jours suivants ≈ 0 : elle confirme un retournement déjà amorcé, ce n'est pas un signal rentable ; Bitcoin (contrôle) : 24 % de bonnes.
+- Registre local (`fleches-registre.js`) : une flèche publiée ne bouge jamais ; mêmes flèches dans le terminal et Marchés > Actifs ; H1/H4 : dernière bougie de la journée Daily. Alertes voix/Telegram/robot (`alertes-fleches.mjs`) seulement sur ces flèches.
+- Piège : `.tp-doux` est masqué sur téléphone par rayle.css (ancien terminal) : contourné dans terminal-pro.css.

@@ -7,7 +7,8 @@ html.tp-terminal:not(.tp-details) .tor-bloc,
 html.tp-terminal:not(.tp-details) .tor-props,
 html.tp-terminal:not(.tp-details) .tor-ray-feuille,
 html.tp-terminal:not(.tp-details) .tor-ft-ligne,
-html.tp-terminal:not(.tp-details) .tt-fl { display: none !important; }
+html.tp-terminal:not(.tp-details) .tt-fl,
+html.tp-terminal:not(.tp-details) .tor-ray-carte { display: none !important; }   /* aucune annotation technique sur le graphique propre (carte « Carnet · zone de vente » comprise) */
 .tp-b-hj, .tp-b-details { margin-left: 8px; min-height: 36px; padding: 4px 12px; border: 1px solid #2a3f4d; border-radius: 8px; background: rgba(8,16,24,.85); color: #cfe3ee; font: 600 13px system-ui, sans-serif; cursor: pointer; }
 .tp-b-hj { border-color: #8fd0e3; color: #fff; } .tp-b-details[aria-pressed="true"], .tp-b-hj[aria-expanded="true"] { background: rgba(20,50,68,.9); border-color: #8fd0e3; }
 .tp-panneau { position: fixed; z-index: 70; top: 52px; right: 0; bottom: 0; width: min(400px, 100vw); overflow-y: auto; box-sizing: border-box; padding: 10px 14px calc(18px + env(safe-area-inset-bottom, 0px)); background: #070d12; border-left: 1px solid #1a2a35; color: #d7e3ea; font: 13px/1.45 system-ui, sans-serif; }
@@ -28,3 +29,6 @@ html.tm-tactile .tt-donnees { left: auto; right: 10px; } html.tm-tactile .tt-rsi
 
 /* UNE seule moyenne mobile : la MA200 de l'unité affichée (couche Trader Pro) ; les anciennes cases « MA200 » du terminal ne servent plus */
 label:has(> [data-or="ma200"]), label:has(> [data-or="ma200H1"]) { display: none !important; }
+/* « .tp-doux » existe aussi dans l'ancien terminal (rayle.css : masqué et poussé à droite sur téléphone) : dans nos panneaux il reste un paragraphe normal */
+html .tp-panneau .tp-doux, html .tp-donnees .tp-doux { display: block; margin-left: 0; }
+.tp-bilan > summary { cursor: pointer; padding: 8px 0; color: #8fd0e3; font-weight: 500; } .tp-bilan[open] > summary { margin-bottom: 4px; }

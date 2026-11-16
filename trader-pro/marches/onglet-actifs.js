@@ -7,6 +7,8 @@ import { rsi, tendance, niveauxCles, serieSma, projeter, fusionnerNiveaux, atr, 
 import { lireEvenements, filtrer, compteARebours, heureParis } from './calendrier.js';
 import { analyserCot, lectureCot } from './cot.js';
 import { ma200Unite, bandeauMA, niveauxUniteEtJour, NOM_UNITE } from '../commun/lecture-unite.js';
+import { flechesDe } from '../terminal/fleches-registre.js';
+import { indexSurUnite } from '../terminal/fleches-daily.js';
 
 const TF = Object.freeze({ H1: { nom: 'H1', pas: H, cle: 'h1', n: 200 }, H4: { nom: 'H4', pas: 4 * H, cle: 'h4', n: 180 }, J: { nom: 'Jour', pas: J, cle: 'j', n: 220 } });
 
@@ -83,6 +85,8 @@ export function monter(zone, ctx = {}) {
       const u = E.tf, S = ma200Unite(B), prix = an.prix ?? B[B.length - 1].c;
       if (S.length) G.ligne(S, { couleur: COULEURS.or, epaisseur: 2, titre: 'MA200 ' + NOM_UNITE[u], horsEchelle: true });
       for (const x of niveauxUniteEtJour(B, d.j, B[B.length - 1].c, { unite: u })) G.niveau(s, x.prix, { couleur: x.cote === 'R' ? COULEURS.baisse : COULEURS.hausse, titre: `${x.nom} ${x.src === 'J' ? 'Jour' : x.src}`, style: 2 });
+      /* flèches Daily (les mêmes que dans le terminal) : rouge au-dessus d'un sommet, verte sous un creux ; sur H1 / H4, sur la dernière bougie de la journée Daily */
+      try { const M = [], vus = new Set(); for (const f of flechesDe(E.id, d.j)) { const i = indexSurUnite(B, f.t, t.pas); if (i < 0) continue; const k = B[i].t + '|' + f.dir; if (vus.has(k)) continue; vus.add(k); M.push({ time: Math.floor(B[i].t / 1000), position: f.dir > 0 ? 'belowBar' : 'aboveBar', color: f.dir > 0 ? COULEURS.hausse : COULEURS.baisse, shape: f.dir > 0 ? 'arrowUp' : 'arrowDown', size: 2 }); } G.marqueurs(s, M); } catch (e) { /* flèches facultatives */ }
       G.montrerDerniers(t.n, B.length);
       E.legCtx = { B, u, a, d, t }; majLegende();
     } catch (e) { box.innerHTML = '<p class="tp-panne" role="alert">Graphique indisponible : ' + esc(e && e.message || e) + ' <button type="button" data-redessiner>Réessayer</button></p>'; }

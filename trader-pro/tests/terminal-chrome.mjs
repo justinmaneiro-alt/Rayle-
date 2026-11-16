@@ -33,12 +33,21 @@ await p.evaluate(() => { window.TraderPro = { prixOr: async () => ({ prix: 3886.
 const tete = await p.evaluate(() => ({ prix: document.querySelector('[data-or-prix]').textContent, v: document.querySelector('[data-or-var]').textContent, etiq: document.querySelector('.tor-titre small').textContent }));
 verif(/3\s?886,12/.test(tete.prix.replace(/[\u202F\u00A0]/g, ' ')), 'l’en-tête affiche le prix de référence (' + tete.prix + ')'); verif(/marché fermé/.test(tete.v), 'mention « marché fermé » : ' + tete.v); verif(/Kraken/.test(tete.etiq) && /XAU/.test(tete.etiq), 'étiquette : ' + tete.etiq);
 verif(await p.evaluate(() => !document.body.innerText.includes('Période de réglage')), 'plus de « Période de réglage » à l’écran');
-console.log('— panneau H4 / Jour —');
+console.log('— flèches Daily —');
+const fl = await p.evaluate(() => window.__orPro.fleches().map(x => ({ dir: x.dir, t: x.t, decalageJours: x.decalageJours })));
+verif(fl.length >= 5 && fl.length <= 120, 'des flèches Daily existent sur l’historique (' + fl.length + ')'); verif(fl.every(x => x.dir === 1 || x.dir === -1), 'sens ±1');
+const recents = fl.filter(x => x.t > Date.now() - 365 * 86400e3); verif(recents.length >= 1 && recents.length <= 16, 'très peu de flèches : ' + recents.length + ' sur 12 mois (quelques-unes par trimestre)');
+verif(await p.evaluate(() => window.__orPro.etat().marques > 0), 'les flèches sont posées sur le graphique de l’unité affichée');
+const marq = {}; for (const per of ['H1', 'H4', 'J']) { await p.evaluate(x => document.querySelector(`[data-periode="${x}"]`).click(), per); await w(7000); marq[per] = await p.evaluate(() => window.__orPro.etat().marques); verif(marq[per] > 0, per + ' : des flèches Daily sont visibles (' + marq[per] + ')'); }
+await capture('terminal-fleches-J'); await p.evaluate(() => document.querySelector('[data-periode="H4"]').click()); await w(6000); await capture('terminal-fleches-H4');
 await p.evaluate(() => document.querySelector('.tp-b-hj').click()); await w(600);
-verif(await p.evaluate(() => { const a = document.querySelector('.tp-panneau'); return !!a && !a.hidden && /Biais Jour/i.test(a.innerText) && /Backtest/i.test(a.innerText); }), 'le panneau indique le biais, les niveaux, les signaux et le backtest'); await capture('terminal-panneau');
-const txt = await p.evaluate(() => document.querySelector('.tp-panneau').innerText); console.log('  ' + txt.replace(/\s+/g, ' ').slice(0, 520));
-verif(/NON RENTABLE|positif|fragile|insuffisant/i.test(txt), 'le verdict du backtest est affiché clairement');
-const nFiches = await p.evaluate(() => document.querySelectorAll('.tp-panneau [data-fiche]').length); if (nFiches) { await p.evaluate(() => document.querySelector('.tp-panneau [data-fiche]').click()); await w(1200); }
+verif(await p.evaluate(() => { const a = document.querySelector('.tp-panneau'); return !!a && !a.hidden && /Flèches Daily/.test(a.innerText) && /clôture de la bougie Daily/.test(a.innerText) && /Dernières flèches/i.test(a.innerText); }), 'le panneau explique les flèches Daily et liste les dernières');
+verif(await p.evaluate(() => { const d = document.querySelector('.tp-panneau details.tp-bilan'); return !!d && !d.open; }), 'l’encart bilan est repliable et replié par défaut'); await p.evaluate(() => { document.querySelector('.tp-panneau details.tp-bilan').open = true; }); await w(300);
+const txt = await p.evaluate(() => document.querySelector('.tp-panneau').innerText); console.log('  ' + txt.replace(/\s+/g, ' ').slice(0, 700));
+verif(/Nombre de flèches/.test(txt) && /Bonnes flèches/.test(txt) && /Mouvement moyen capté/.test(txt) && /Pire fausse flèche/.test(txt) && /Décalage moyen/.test(txt), 'bilan : nombre de flèches, % de bonnes, mouvement moyen capté, pire fausse flèche, décalage moyen');
+verif(/déjà amorcé|DÉJÀ amorcé/.test(txt) && /hasard/.test(txt), 'le bilan dit honnêtement que la flèche confirme un retournement déjà amorcé et compare au hasard');
+verif(!/Signal H4|Biais Jour|Fiche d’ordre|MA200 J/.test(txt), 'plus aucun ancien signal H4 / Jour dans le panneau');
+await capture('terminal-panneau');
 await p.evaluate(() => document.querySelector('.tp-panneau [data-fermer]').click());
 console.log('— « Détails » —');
 await p.evaluate(() => document.querySelector('.tp-b-details').click()); await w(1500);
