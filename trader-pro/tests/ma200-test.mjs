@@ -1,10 +1,12 @@
 /* Tests de « MA200 Daily + H4 » (module pur) : sens Daily, grosses et petites flèches, jamais de flèche contradictoire, aucune bougie future (walk-forward), suivi en R, registre, réglages, textes.
    Usage : node trader-pro/tests/ma200-test.mjs */
 import { sensJour, petitesFleches, analyserMA, paramsDe, VARIANTES, FILTRES, VARIANTE_DEFAUT, FILTRE_DEFAUT, suivre, ancrer, fusionnerRegistre, idFleche, styleFleche, indexSurUnite, sensPourBougies, niveauParle, phraseFleche, typeLibelle, cloturees, PARAMS, COULEURS, J, H4 } from '../terminal/ma200-h4.js';
-import { analyseDe, flechesDe, nouvellesFleches, lireReglages, ecrireReglages, lireRegistre, barresDaily, CLE_REGLAGES } from '../terminal/fleches-registre.js';
+import { analyseDe, flechesDe, nouvellesFleches, lireReglages, ecrireReglages, lireRegistre, barresDaily, purgerAnciens, CLE_REGLAGES, CLE_REGISTRE } from '../terminal/fleches-registre.js';
+import { ALGO_ID } from '../terminal/ma200-h4.js';
+import fs from 'node:fs';
 
 let ok = 0, ko = 0; const v = (c, m) => { if (c) ok++; else { ko++; console.log('  ✗ ' + m); } };
-const memoire = () => { const m = new Map(); return { getItem: k => (m.has(k) ? m.get(k) : null), setItem: (k, x) => m.set(k, String(x)), m }; };
+const memoire = () => { const m = new Map(); return { getItem: k => (m.has(k) ? m.get(k) : null), setItem: (k, x) => m.set(k, String(x)), removeItem: k => m.delete(k), key: i => [...m.keys()][i] ?? null, get length() { return m.size; }, m }; };
 
 /* marché synthétique déterministe : grandes vagues (changements de sens Daily) + oscillations (replis) + bruit ; 6 bougies H4 par jour (22 h UTC), pas de week-end ; Daily = regroupement des 6 bougies */
 function marche(jours, graine = 11) {
@@ -143,12 +145,12 @@ console.log('— registre sur l’appareil et réglages —');
   v(JSON.stringify(r1.reg.map(f => f.id)) === JSON.stringify(r0.map(f => f.id)) && r1.reg.every(f => f.vueLe === t) && r1.sens.length === Jr.length, 'second calcul : mêmes flèches, aucune ne bouge ; le sens Daily est fourni');
   v(nouvellesFleches(id, r1.reg, { maintenant: t + 2000, stockage: st }).length === 0, 'aucune annonce pour l’historique');
   const st2 = memoire(), tous = flechesDe(id, D, { maintenant: t, stockage: st2 }), der = tous[tous.length - 1];
-  st2.setItem('rayle_tp_ma1_or', JSON.stringify(tous.slice(0, -1)));
+  st2.setItem(CLE_REGISTRE('or'), JSON.stringify(tous.slice(0, -1)));
   const r2 = flechesDe(id, D, { maintenant: der.tFin + 3600e3, stockage: st2 });
   v(r2.length === tous.length && !r2[r2.length - 1].vueLe, 'une flèche apparue après coup est nouvelle (pas encore annoncée)');
   const n1 = nouvellesFleches(id, r2, { maintenant: der.tFin + 3600e3, stockage: st2 }), n2 = nouvellesFleches(id, r2, { maintenant: der.tFin + 7200e3, stockage: st2 });
   v(n1.length === 1 && n2.length === 0, 'annoncée une seule fois');
-  const st3 = memoire(); st3.setItem('rayle_tp_ma1_or', JSON.stringify(tous.slice(0, -1))); const r3 = flechesDe(id, D, { maintenant: der.tFin + 40 * 3600e3, stockage: st3 });
+  const st3 = memoire(); st3.setItem(CLE_REGISTRE('or'), JSON.stringify(tous.slice(0, -1))); const r3 = flechesDe(id, D, { maintenant: der.tFin + 40 * 3600e3, stockage: st3 });
   v(nouvellesFleches(id, r3, { maintenant: der.tFin + 40 * 3600e3, stockage: st3 }).length === 0, 'jamais annoncée si elle a plus de 36 h');
   const fausse = { id: 'or|1|1|grosse', type: 'grosse', t: 1, tFin: 2, dir: 1, vueLe: 5 }, fus = fusionnerRegistre('or', [fausse], []);
   v(fus.length === 1 && fus[0] === fausse, 'une flèche confirmée reste dans le registre');
@@ -162,6 +164,25 @@ console.log('— registre sur l’appareil et réglages —');
   sr.setItem(CLE_REGLAGES, 'pas du json'); v(lireReglages(sr).actif === true, 'réglages illisibles : valeurs par défaut');
   v(cloturees([{ t: 0 }, { t: 1e12 }], 5e11).length === 1, 'la bougie du jour en cours est écartée');
   v(barresDaily('or', [{ t: Date.UTC(2026, 0, 3) }, { t: Date.UTC(2026, 0, 5) }]).length === 1 && barresDaily('btc', [{ t: Date.UTC(2026, 0, 3) }]).length === 1, 'or : pas de bougie Daily le week-end ; crypto : toutes');
+}
+
+console.log('— version, mise à jour et anciens registres —');
+{
+  const lireV = (f, re) => (fs.readFileSync(new URL('../../' + f, import.meta.url), 'utf8').match(re) || [])[1];
+  const versions = { 'precache.json': lireV('precache.json', /"version":"([^"]+)"/), 'sw.js': lireV('sw.js', /const VERSION = '([^']+)'/), 'index.html': lireV('index.html', /RAYLE_VERSION='([^']+)'/), 'or.html': lireV('agent-trading/front/or.html', /RAYLE_OR_VERSION = '([^']+)'/), 'version.js': lireV('trader-pro/terminal/version.js', /VERSION = '([^']+)'/) };
+  v(Object.values(versions).every(x => x && x === versions['sw.js']), 'la même version dans sw.js, precache.json, index.html, or.html et version.js : ' + JSON.stringify(versions));
+  v(JSON.parse(fs.readFileSync(new URL('../../precache.json', import.meta.url), 'utf8')).coeur.includes('trader-pro/terminal/version.js'), 'version.js est dans la liste de précache (hors ligne)');
+  const orHtml = fs.readFileSync(new URL('../../agent-trading/front/or.html', import.meta.url), 'utf8');
+  v(/precache\.json/.test(orHtml) && /getRegistrations/.test(orHtml) && /caches\.delete/.test(orHtml) && /controllerchange/.test(orHtml) && />= 2\) return/.test(orHtml), 'or.html : compare à la version publiée, met le service worker à jour, vide les caches, recharge, au plus 2 tentatives par version');
+  /* un téléphone qui avait enregistré les flèches d'une ancienne variante ne les revoit plus */
+  const st = memoire(), D = { j: Jr, h4: H }, t = FIN + 3600e3, faux = i => ({ id: 'or|' + i + '|-1|cassure', type: 'cassure', dir: -1, t: Date.now() - i * 864e5, tFin: Date.now() - i * 864e5 + 144e5, entree: 4000, stop: 4100, R: 100, zone: '20 dernières bougies H4', vueLe: 1 });
+  const vieux = Array.from({ length: 12 }, (_, i) => faux(i + 1));
+  st.setItem('rayle_tp_ma1_or', JSON.stringify(vieux)); st.setItem('rayle_tp_ma2_or_V0-base-r1', JSON.stringify(vieux)); st.setItem('rayle_tp_zz1_or_2_5', '[]'); st.setItem('rayle_tp_rv1_or_sansVolume', '[]'); st.setItem('autre_cle', 'x');
+  const r = analyseDe('or', D, { maintenant: t, stockage: st });
+  v(r.reg.length > 0 && r.reg.every(f => f.type !== 'cassure') && !r.reg.some(f => /cassure/.test(f.id)), 'ancien registre (12 petites flèches « cassure » de la première version) : jamais relu, aucune ne s’affiche');
+  v(!st.m.has('rayle_tp_ma1_or') && !st.m.has('rayle_tp_ma2_or_V0-base-r1') && !st.m.has('rayle_tp_zz1_or_2_5') && !st.m.has('rayle_tp_rv1_or_sansVolume') && st.m.has('autre_cle') && st.m.has(CLE_REGISTRE('or')), 'les anciens registres sont supprimés, la clé du registre actuel contient l’algorithme (' + ALGO_ID() + '), les autres clés restent');
+  v(r.reg.every(f => f.vueLe === t), 'premier calcul avec la nouvelle clé : historique enregistré comme déjà vu, rien n’est annoncé');
+  const st2 = memoire(); st2.setItem('rayle_tp_ma2_btc_V2-atr1-r2', '[]'); v(purgerAnciens(st2) === 0 && st2.m.size === 1, 'la purge ne touche pas le registre de l’algorithme actuel');
 }
 
 console.log(ko ? `${ko} échec(s) sur ${ok + ko}` : `tous les tests passent (${ok})`); process.exit(ko ? 1 : 0);

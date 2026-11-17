@@ -16,6 +16,47 @@
 </head>
 <body>
 <div id="vue"></div>
+<script>
+/* MISE À JOUR AUTOMATIQUE. Cette page est toujours demandée au réseau (le service worker ne la sert jamais depuis son cache) : elle connaît donc la bonne version.
+   RAYLE_OR_VERSION = version de cette page = celle de sw.js, precache.json, index.html et trader-pro/terminal/version.js (montée de version : node trader-pro/outils/precache.mjs <version>).
+   Au démarrage, toutes les 3 minutes et à chaque retour au premier plan : si une version PLUS RÉCENTE est publiée (precache.json), ou si le code du terminal chargé n'est pas celui de cette page (cache ancien),
+   on met le service worker à jour, on vide ses caches et on recharge. Au plus 2 tentatives par version et par onglet (jamais de boucle). */
+window.RAYLE_OR_VERSION = '2026.11.17.6';
+(function () {
+  var V = window.RAYLE_OR_VERSION, enCours = false;
+  var essais = function (v) { try { return +sessionStorage.getItem('rayle_maj_' + v) || 0; } catch (e) { return 0; } };
+  var plusRecente = function (a, b) { var x = String(a).split('.'), y = String(b).split('.'); for (var i = 0; i < Math.max(x.length, y.length); i++) { var d = (+x[i] || 0) - (+y[i] || 0); if (d) return d > 0; } return false; };
+  async function forcer(cible, raison) {
+    if (enCours || essais(cible) >= 2) return; enCours = true;
+    try { sessionStorage.setItem('rayle_maj_' + cible, String(essais(cible) + 1)); } catch (e) { /* stockage refusé */ }
+    window.__majVersion = { cible: cible, raison: raison, t: Date.now() };
+    var rechargee = false, aller = function () { if (!rechargee) { rechargee = true; location.reload(); } };
+    try {
+      if ('serviceWorker' in navigator) {
+        var regs = await navigator.serviceWorker.getRegistrations();
+        if (regs.length) {
+          navigator.serviceWorker.addEventListener('controllerchange', aller);   // le nouveau service worker prend la main (skipWaiting + claim) : on recharge
+          await Promise.all(regs.map(function (r) { return r.update().catch(function () { /* hors ligne */ }); }));
+          if (regs.some(function (r) { return r.installing || r.waiting; })) await new Promise(function (ok) { setTimeout(ok, 20000); });
+        }
+      }
+    } catch (e) { /* pas de service worker */ }
+    try { var ks = await caches.keys(); for (var i = 0; i < ks.length; i++) await caches.delete(ks[i]); } catch (e) { /* pas de cache */ }
+    aller();
+  }
+  async function verifier() {
+    if (enCours) return;
+    try {
+      if (window.__orPro && window.__tpVersion !== V) return forcer(V, 'code du terminal ' + (window.__tpVersion || 'inconnu') + ' différent de la page ' + V);
+      var r = await fetch('../../precache.json', { cache: 'no-store' }), d = await r.json();
+      if (d && d.version && plusRecente(d.version, V)) return forcer(d.version, 'version publiée ' + d.version + ' plus récente que ' + V);
+    } catch (e) { /* hors ligne : on garde la version en cours */ }
+  }
+  setTimeout(verifier, 3500); setTimeout(verifier, 20000); setInterval(verifier, 180000);
+  document.addEventListener('visibilitychange', function () { if (!document.hidden) verifier(); });
+  window.__verifierVersion = verifier;
+})();
+</script>
 <script type="module">
   // Terminal de Rayle : une seule page, des onglets (Graphique, Actualités, COT, Santé du marché, Institutions, Calendrier, Journal, Capital)
   // et un sélecteur d'instruments (l'or par défaut). ?tele=1 (ou un grand écran sans souris fine) = mode télé.

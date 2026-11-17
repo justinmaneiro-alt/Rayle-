@@ -1,5 +1,5 @@
 /* Ajoute à precache.json (installation hors ligne) tous les fichiers de trader-pro/ (sauf tests) et leurs dépendances relatives (import statiques et dynamiques).
-   Usage : node trader-pro/outils/precache.mjs [nouvelle-version]  → met aussi à jour la version dans precache.json, sw.js et index.html (les trois doivent rester identiques). */
+   Usage : node trader-pro/outils/precache.mjs [nouvelle-version]  → met aussi à jour la version dans precache.json, sw.js, index.html, agent-trading/front/or.html et trader-pro/terminal/version.js (les cinq doivent rester identiques). */
 import fs from 'node:fs'; import path from 'node:path';
 const racine = process.cwd(), lireJ = f => JSON.parse(fs.readFileSync(path.join(racine, f), 'utf8'));
 const pc = lireJ('precache.json'), vu = new Set(), pile = [];
@@ -17,7 +17,7 @@ pc.coeur = [...new Set(pc.coeur)].sort();
 const version = process.argv[2];
 if (version) {
   pc.version = version; pc.genere = new Date().toISOString().slice(0, 10);
-  for (const [f, re, rempl] of [['sw.js', /const VERSION = '[^']+';/, `const VERSION = '${version}';`], ['index.html', /window\.RAYLE_VERSION\s*=\s*'[^']+'/, `window.RAYLE_VERSION='${version}'`]]) {
+  for (const [f, re, rempl] of [['sw.js', /const VERSION = '[^']+';/, `const VERSION = '${version}';`], ['index.html', /window\.RAYLE_VERSION\s*=\s*'[^']+'/, `window.RAYLE_VERSION='${version}'`], ['agent-trading/front/or.html', /window\.RAYLE_OR_VERSION = '[^']+'/, `window.RAYLE_OR_VERSION = '${version}'`], ['trader-pro/terminal/version.js', /export const VERSION = '[^']+'/, `export const VERSION = '${version}'`]]) {
     const t = fs.readFileSync(path.join(racine, f), 'utf8'); if (!re.test(t)) throw new Error('version introuvable dans ' + f); fs.writeFileSync(path.join(racine, f), t.replace(re, rempl));
   }
 }

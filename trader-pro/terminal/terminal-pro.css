@@ -40,3 +40,4 @@ html .tp-panneau .tp-doux, html .tp-donnees .tp-doux { display: block; margin-le
 .tor-ob-pan .tp-reg { padding: 4px 0 6px; border-bottom: 1px solid var(--b, #1a2a35); margin-bottom: 4px; } .tor-ob-pan .tp-reg-mult { grid-template-columns: 1fr 1fr; }
 
 .tp-fleche-info { position: absolute; left: 6px; top: 96px; z-index: 6; white-space: pre; padding: 4px 8px; border-radius: 6px; background: rgba(5,8,12,.92); border: 1px solid rgba(255,255,255,.14); color: #e8edf2; font: 600 11px/1.4 system-ui, sans-serif; pointer-events: none; max-width: 78%; box-sizing: border-box; overflow: hidden; }
+.tp-ma-legende .tp-version { color: rgba(200,210,222,.78); font: 600 10px system-ui, sans-serif; letter-spacing: .02em; margin-left: auto; }

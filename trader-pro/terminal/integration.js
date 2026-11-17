@@ -10,6 +10,7 @@ import { ma200Unite, bandeauMA, niveauxUniteEtJour, sansChevauchement, avecRang,
 import { indexSurUnite, styleFleche, phraseFleche, typeLibelle, sensPourBougies, suivre, ancrer, COULEURS } from './ma200-h4.js';
 import { analyseDe, nouvellesFleches, lireReglages, ecrireReglages, lireRegistre } from './fleches-registre.js';
 import { monterDashboard } from '../commun/dashboard.js';
+import { VERSION } from './version.js';
 
 const ID_PRO = { OR: 'or', NASDAQ: 'us100', SP500: 'us500', BTC: 'btc', SOL: 'sol', DOGE: 'doge' };
 const NOMS = { or: 'Or', us100: 'Nasdaq 100', us500: 'S&P 500', btc: 'Bitcoin', sol: 'Solana', doge: 'Dogecoin' };
@@ -22,6 +23,7 @@ const dateJour = t => new Date(t).toLocaleDateString('fr-FR', { timeZone: 'UTC',
 const COULEURS_UI = { ma: '#f1d34f', hausse: '#5fb894', baisse: '#d86a6a' }, COULEURS_FOND = COULEURS.fond;
 
 export async function monterPro(T) {
+  window.__tpVersion = VERSION;   // or.html compare ce numéro à la version publiée et force la mise à jour si le code chargé n'est pas le bon
   const actif = (document.body.dataset.actif || 'OR'), id = ID_PRO[actif], tactile = document.documentElement.classList.contains('tm-tactile'), barre = tactile ? document.querySelector('.tt-periodes') : document.querySelector('.tor-periodes') || document.querySelector('.tt-periodes');
   document.documentElement.classList.add('tp-terminal'); document.documentElement.classList.toggle('tp-details', lire(LS.details, false) === true);
   const E = { id, D: null, fleches: [], reglages: lireReglages(), series: {}, lignes: [], marqueurs: null, cle: '', panneau: null, details: lire(LS.details, false) === true, seq: 0 };
@@ -126,24 +128,32 @@ export async function monterPro(T) {
     const gain = !sv ? 'Gain : non calculable' : sv.etat === 'sortie' ? `Gain : ${R} (${sv.motif})` : `En cours : ${R}`;
     return `${f.dir > 0 ? '▲' : '▼'} ${f.type === 'grosse' ? 'Grosse flèche · Daily' : 'Petite flèche · H4'} · ${f.dir > 0 ? 'achat' : 'vente'}\n${typeLibelle(f)}\nEntrée ${nf(f.entree)} · Stop ${nf(f.stop)}\n${gain}`;
   }
-  /* info-bulle : petite, posée À CÔTÉ de la flèche (jamais en haut à gauche : elle ne cache ni les boutons ni la légende), se ferme seule au bout de 6 s (toucher) */
+  /* info-bulle : petite, posée À CÔTÉ de la flèche, dans la zone des bougies (jamais sur l'échelle des prix ni en haut à gauche). Elle n'apparaît QUE sur une action de l'utilisateur (survol à la souris, toucher sur téléphone)
+     et se referme seule au bout de 6 s : les mises à jour du graphique (nouveau cours, nouvelle bougie) ne la réaffichent JAMAIS (sur téléphone, le curseur reste posé après le toucher et le graphique le signale à chaque cours : l'ancienne info-bulle restait donc affichée en permanence). */
   function infoFleche() {
     if (E.infoOk) return; const c = graph.conteneur(); if (!c) return; E.infoOk = true;
-    const el = document.createElement('div'); el.className = 'tp-fleche-info'; el.style.display = 'none'; c.appendChild(el); E.infoEl = el; let minuteur = null;
-    graph.chart().subscribeCrosshairMove(p => {
-      const x = p && p.time != null ? E.infos && E.infos.get(p.time) : null; clearTimeout(minuteur);
-      if (!x) { el.style.display = 'none'; return; }
-      el.textContent = x.texte; el.style.display = 'block';
+    const el = document.createElement('div'); el.className = 'tp-fleche-info'; el.style.display = 'none'; c.appendChild(el); E.infoEl = el;
+    let minuteur = null, cle = null, tPointeur = 0;
+    const cacher = () => { clearTimeout(minuteur); minuteur = null; cle = null; el.style.display = 'none'; };
+    const montrer = (time, x) => {
+      if (cle === time && el.style.display === 'block') return; cle = time; el.textContent = x.texte; el.style.display = 'block';
       try {
         /* la zone utile est le graphique SANS l'échelle des prix (à droite) : l'info-bulle ne la recouvre jamais */
-        const ps = (() => { try { return graph.chart().priceScale('right').width() || 0; } catch (e) { return 0; } })(), W = c.clientWidth - ps, Hh = c.clientHeight, cx = graph.chart().timeScale().timeToCoordinate(p.time);
+        const ps = (() => { try { return graph.chart().priceScale('right').width() || 0; } catch (e) { return 0; } })(), W = c.clientWidth - ps, Hh = c.clientHeight, cx = graph.chart().timeScale().timeToCoordinate(time);
         el.style.maxWidth = Math.max(120, W - 12) + 'px'; const w = el.offsetWidth, h = el.offsetHeight, py = graph.serie().priceToCoordinate(x.f.entree), bas = Number.isFinite(py) ? py : Hh / 2;
         const gauche = cx - w - 14, droite = cx + 14; let left = cx > W / 2 ? gauche : droite;   // à droite de la flèche si elle est dans la moitié gauche, sinon à gauche
         if (left < 6 || left + w > W - 6) left = gauche >= 6 ? gauche : (droite + w <= W - 6 ? droite : Math.max(6, Math.min(W - w - 6, left)));
         el.style.left = Math.max(6, left) + 'px'; el.style.top = Math.max(tactile ? 96 : 40, Math.min(Hh - h - 30, x.haut ? bas - h - 10 : bas - h / 2)) + 'px';
       } catch (e) { /* position par défaut */ }
-      minuteur = setTimeout(() => { el.style.display = 'none'; }, 6000);
-    });
+      clearTimeout(minuteur); minuteur = setTimeout(cacher, 6000);
+    };
+    const touche = () => { tPointeur = Date.now(); };
+    for (const n of ['pointerdown', 'pointermove', 'touchstart', 'touchmove', 'wheel']) c.addEventListener(n, touche, { passive: true });
+    c.addEventListener('pointerleave', cacher);
+    const info = p => (p && p.time != null && E.infos ? E.infos.get(p.time) : null);
+    graph.chart().subscribeCrosshairMove(p => { if (Date.now() - tPointeur > 600) return; const x = info(p); if (x) montrer(p.time, x); else cacher(); });   // seulement quand le doigt / la souris bouge vraiment
+    graph.chart().subscribeClick(p => { const x = info(p); if (x) { tPointeur = Date.now(); montrer(p.time, x); } else cacher(); });
+    graph.chart().timeScale().subscribeVisibleLogicalRangeChange(() => { if (Date.now() - tPointeur < 600) cacher(); });   // défilement / zoom par l'utilisateur : on ferme
   }
   /* niveaux : 3 au plus de chaque côté ; deux étiquettes à moins de 24 px l'une de l'autre → on garde la plus proche du prix. Recalculé à chaque passage (zoom, défilement, taille). */
   function niveauxSansChevauchement(B, u) {
@@ -155,10 +165,12 @@ export async function monterPro(T) {
   }
 
   /* bandeau du haut : seulement la MA200 de l'unité affichée (valeur + distance du prix en %) */
+  /* numéro de version du code, en petit, toujours visible dans la légende du graphique (pendant une mise à jour forcée : « mise à jour → v… ») */
+  const versionHtml = () => { const m = window.__majVersion; return `<span class="tp-version" title="Version du code affichée sur ce graphique">${m ? 'mise à jour → v' + esc(m.cible) + '…' : 'v' + esc(VERSION)}</span>`; };
   function legendeMA(B, u) {
     const c = graph.conteneur(); if (!c) return; let el = c.querySelector('.tp-ma-legende'); if (!el) { el = document.createElement('div'); el.className = 'tp-ma-legende'; c.appendChild(el); }
     const b = bandeauMA(B, u, prixRef(B)), v = b.ok ? b : (E.ma && Number.isFinite(E.ma.derniere) ? { ok: true, nom: 'MA200 ' + NOM_UNITE[u], valeur: E.ma.derniere, distancePct: prixRef(B) / E.ma.derniere * 100 - 100 } : b);
-    el.innerHTML = v.ok ? `<span style="color:${COULEURS_UI.ma}">${esc(v.nom)} ${nf(v.valeur, 0)} · prix ${nf(Math.abs(v.distancePct), 1)} % ${v.distancePct >= 0 ? 'au-dessus' : 'sous'}</span>` : `<span style="color:${COULEURS_UI.ma}">${esc(v.nom)} : ${esc(v.raison)}</span>`;
+    el.innerHTML = (v.ok ? `<span style="color:${COULEURS_UI.ma}">${esc(v.nom)} ${nf(v.valeur, 0)} · prix ${nf(Math.abs(v.distancePct), 1)} % ${v.distancePct >= 0 ? 'au-dessus' : 'sous'}</span>` : `<span style="color:${COULEURS_UI.ma}">${esc(v.nom)} : ${esc(v.raison)}</span>`) + versionHtml();
     el.title = 'Moyenne mobile simple sur 200 bougies ' + NOM_UNITE[u] + (E.ma ? ' (' + E.ma.source + ')' : '') + ' ; distance calculée avec le prix de référence de l’appli';
   }
 

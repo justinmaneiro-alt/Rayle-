@@ -1,6 +1,7 @@
 /* Test Chrome du terminal « pro » H4 / Jour (or.html). Usage : node trader-pro/tests/terminal-chrome.mjs [tel|tablette|pc] */
 import { lancer, w } from './aide-chrome.mjs';
-const mode = process.argv[2] || 'pc', T = await lancer(mode), { p, verif, attendre, capture } = T;
+const vieux = Array.from({ length: 12 }, (_, i) => ({ id: 'or|' + i + '|-1|cassure', type: 'cassure', dir: -1, t: Date.now() - (i + 5) * 864e5, tFin: Date.now() - (i + 5) * 864e5 + 144e5, entree: 4000, stop: 4100, R: 100, zone: '20 dernières bougies H4', vueLe: 1 }));
+const mode = process.argv[2] || 'pc', T = await lancer(mode, { stockage: { rayle_tp_ma1_or: vieux, 'rayle_tp_ma2_or_V0-base-r1': vieux } }), { p, verif, attendre, capture } = T;
 const url = 'http://rayle.test:8000/agent-trading/front/or.html?hj=1';
 await p.goto(url, { waitUntil: 'domcontentloaded', timeout: 90000 });
 verif(await attendre(() => p.evaluate(() => !!window.__orPro), 60000), 'le terminal pro est monté');
@@ -18,9 +19,9 @@ console.log('— unités de temps : UNE moyenne, celle de l’unité affichée �
 for (const per of ['H1', 'H4', 'J']) {
   await p.evaluate(x => document.querySelector(`[data-periode="${x}"]`).click(), per); await w(9000);
   verif(await p.evaluate(() => window.__orPro.etat().ma.length === 1 && window.__or.moteur.serie().length > 200), per + ' : une seule série de moyenne, bougies présentes');
-  const lg = await p.evaluate(() => [...document.querySelectorAll('.tp-ma-legende span')].map(x => x.textContent)); verif(lg.length === 1 && lg[0].startsWith('MA200 ' + (per === 'J' ? 'Jour' : per)), per + ' : le bandeau n’affiche que la MA200 de l’unité (' + lg.join(' | ') + ')');
+  const lg = await p.evaluate(() => [...document.querySelectorAll('.tp-ma-legende span:not(.tp-version)')].map(x => x.textContent)); verif(lg.length === 1 && lg[0].startsWith('MA200 ' + (per === 'J' ? 'Jour' : per)), per + ' : le bandeau n’affiche que la MA200 de l’unité (' + lg.join(' | ') + ')');
   verif(/prix [\d,]+ % (au-dessus|sous)/.test(lg[0] || ''), per + ' : le bandeau donne la distance du prix en %');
-  const ma = await p.evaluate(() => { const B = window.__or.moteur.serie(), n = 200; let s = 0; for (const b of B.slice(-n)) s += b.c; return s / n; }); const val = await p.evaluate(() => (document.querySelector('.tp-ma-legende span') || {}).textContent || '');
+  const ma = await p.evaluate(() => { const B = window.__or.moteur.serie(), n = 200; let s = 0; for (const b of B.slice(-n)) s += b.c; return s / n; }); const val = await p.evaluate(() => (document.querySelector('.tp-ma-legende span:not(.tp-version)') || {}).textContent || '');
   const num = +(val.match(/MA200 \S+ ([\d\s  ]+) ·/) || [0, '0'])[1].replace(/\s/g, ''); verif(Math.abs(num - ma) <= 1, per + ' : la valeur affichée (' + num + ') est la SMA des 200 dernières bougies affichées (' + Math.round(ma) + ')');
   const niv = await p.evaluate(() => window.__orPro.niveaux().map(n => ({ nom: n.nom, src: n.src, cote: n.cote, y: n.y })));
   verif(niv.filter(n => n.cote === 'R').length <= 3 && niv.filter(n => n.cote === 'S').length <= 3, per + ' : 3 niveaux au plus de chaque côté (' + niv.length + ')');
@@ -43,13 +44,15 @@ for (const per of ['H1', 'H4', 'J']) {
   verif(Math.abs(r.dernier - r.derC) <= 1, per + ' : la dernière valeur (' + Math.round(r.dernier) + ') est la moyenne des 200 dernières bougies ' + per + ' (' + Math.round(r.derC) + ')');
   verif(r.de != null && r.de >= (prolonge ? 0 : 199), per + ' : la MA200 existe dès le bord gauche de l’écran (bougie ' + r.de + ', MA200 dès la bougie ' + (prolonge ? 0 : 199) + ')');
   verif(per === 'H1' ? Math.abs(r.pas - 3600e3) < 1 : per === 'H4' ? Math.abs(r.pas - 4 * 3600e3) < 1 : Math.abs(r.pas - 86400e3) < 1, per + ' : bougies de l’unité ' + per + ' (jamais celles d’une autre unité)');
-  verif(await p.evaluate(() => window.__orPro.etat().ma.length === 1 && [...document.querySelectorAll('.tp-ma-legende span')].length === 1), per + ' : une seule ligne MA200');
+  verif(await p.evaluate(() => window.__orPro.etat().ma.length === 1 && [...document.querySelectorAll('.tp-ma-legende span:not(.tp-version)')].length === 1), per + ' : une seule ligne MA200');
   verif(await p.evaluate(() => { const k = window.__or.graph.couches(), m = window.__or.strategie.modele() || {}; return k.rayMa === false && Object.values(k).every(v => v === false) && !m.ma && !(m.boites || []).length && !(m.structure || []).length; }), per + ' : aucune autre MA200 (celle de la stratégie H1 est coupée), graphique propre conservé après le changement d’unité');
 }
 console.log('— MA200 Daily + H4 : grosses flèches (Daily) et petites flèches (H4) —');
 await p.evaluate(() => document.querySelector('[data-periode="J"]').click()); await w(8000);
 const fl = await p.evaluate(() => window.__orPro.fleches().map(x => ({ type: x.type, dir: x.dir, t: x.t, tFin: x.tFin, entree: x.entree, stop: x.stop })));
 const sensTab = await p.evaluate(() => window.__orPro.sens());
+verif(fl.every(x => x.type !== 'cassure') && await p.evaluate(() => !localStorage.getItem('rayle_tp_ma1_or') && !localStorage.getItem('rayle_tp_ma2_or_V0-base-r1')), 'ancien registre sur l’appareil (12 petites flèches « cassure ») : supprimé, aucune ancienne flèche affichée (' + fl.length + ' flèches)');
+verif(await p.evaluate(() => { const e = document.querySelector('.tp-ma-legende .tp-version'); if (!e) return false; const r = e.getBoundingClientRect(), g = window.__or.graph.conteneur().getBoundingClientRect(); return /^v\d{4}\.\d+\.\d+\.\d+$/.test(e.textContent) && e.textContent === 'v' + window.RAYLE_OR_VERSION && window.__tpVersion === window.RAYLE_OR_VERSION && r.width > 20 && r.left >= g.left && r.right <= g.right && r.top >= g.top && r.bottom <= g.bottom; }), 'le numéro de version est affiché en petit sur le graphique (' + await p.evaluate(() => (document.querySelector('.tp-ma-legende .tp-version') || {}).textContent) + ') et correspond à la page et au code chargé');
 verif(fl.length >= 6 && fl.length <= 40 && fl.some(x => x.type === 'grosse') && fl.some(x => x.type !== 'grosse') && fl.every(x => (x.dir === 1 || x.dir === -1) && x.entree > 0 && x.stop > 0 && (x.dir > 0 ? x.stop < x.entree : x.stop > x.entree)), 'des flèches existent : grosses (' + fl.filter(x => x.type === 'grosse').length + ') et petites (' + fl.filter(x => x.type !== 'grosse').length + '), stop du bon côté de l’entrée');
 verif(sensTab.length >= 1000 && sensTab.every(x => [-1, 0, 1].includes(x.sens)) && sensTab.some(x => x.sens === 1) && sensTab.some(x => x.sens === -1) && sensTab.some(x => x.sens === 0), 'sens Daily sur plus de 3 ans (' + sensTab.length + ' bougies) : haussier, baissier et neutre');
 const dernierSens = t => { let s = 0; for (const x of sensTab) { if (x.tFin <= t) s = x.sens; else break; } return s; };
@@ -77,6 +80,15 @@ for (const per of ['H1', 'H4', 'J']) {
     await capture('terminal-fleches-' + per);
     await p.mouse.move(5, 5); await w(500);
   } else verif(false, per + ' : position de la flèche introuvable');
+}
+await p.evaluate(() => document.querySelector('[data-periode="J"]').click()); await w(6000);
+{
+  const pos = await p.evaluate(() => { const g = window.__or.graph, f = window.__orPro.fleches(), M = window.__orPro.marqueurs(), m = M[M.length - 1], r = g.conteneur().getBoundingClientRect(); const x = g.chart().timeScale().timeToCoordinate(m.time), y = g.serie().priceToCoordinate(f[f.length - 1].entree); return Number.isFinite(x) && Number.isFinite(y) ? { x: r.left + x, y: r.top + y } : null; });
+  const visible = () => p.evaluate(() => { const e = document.querySelector('.tp-fleche-info'); return !!e && getComputedStyle(e).display !== 'none'; });
+  await p.mouse.move(5, 5); await p.mouse.move(pos.x, pos.y, { steps: 4 }); await w(900); const vu = await visible();
+  await w(2000); await p.evaluate(() => window.__orPro.charger()); await w(2500); await p.evaluate(() => window.__orPro.dessiner()); await w(2500);   // la souris ne bouge plus ; le graphique se met à jour : l'info-bulle doit se fermer seule (6 s)
+  verif(vu && !(await visible()), 'l’info-bulle se ferme seule au bout de 6 s, même quand le graphique se met à jour pendant que le curseur reste posé (affichée : ' + vu + ')');
+  await p.mouse.move(5, 5);
 }
 {
   const recent = fl.filter(f => f.tFin > Date.now() - 120 * 86400e3), cleJ = new Set(attJ.J.map(a => a.tFin + '|' + a.dir)), cleH = new Set(attJ.H4.map(a => a.tFin + '|' + a.dir));
@@ -123,4 +135,14 @@ verif(await p.evaluate(() => Object.values(window.__or.graph.couches()).every(v 
 console.log('— copie locale des bougies —');
 const db = await p.evaluate(() => new Promise(res => { const r = indexedDB.open('rayle-or-cache'); r.onsuccess = () => { try { const q = r.result.transaction('historique').objectStore('historique').getAllKeys(); q.onsuccess = () => res(q.result); } catch (er) { res([]); } }; r.onerror = () => res([]); })); verif(db.length >= 1, 'copie locale des bougies enregistrée : ' + db.join(', '));
 await p.reload({ waitUntil: 'domcontentloaded' }); const t0 = Date.now(); verif(await attendre(() => p.evaluate(() => window.__or && window.__or.moteur && window.__or.moteur.serie().length > 50), 30000, 200), 'après rechargement, les bougies sont là en ' + (Date.now() - t0) + ' ms'); console.log('  premières bougies après', Date.now() - t0, 'ms ; copie utilisée :', await p.evaluate(() => !!(window.__or.moteur.S.hist && window.__or.moteur.S.hist.depuisCache)));
+console.log('— mise à jour automatique : code ancien en cache —');
+{
+  await attendre(() => p.evaluate(() => !!window.__orPro), 60000); const V = await p.evaluate(() => window.RAYLE_OR_VERSION);
+  await p.evaluate(() => { try { sessionStorage.clear(); } catch (e) { /* */ } window.__tpVersion = 'ancienne'; window.__verifierVersion(); });
+  const vue = await attendre(() => p.evaluate(() => !!window.__majVersion).catch(() => true), 8000);
+  const revenu = await attendre(() => p.evaluate(() => !!window.__orPro && window.__tpVersion === window.RAYLE_OR_VERSION && !window.__majVersion).catch(() => false), 90000);
+  verif(vue && revenu, 'le code chargé ne correspond pas à la page : la page se met à jour toute seule (cache vidé, rechargement) et affiche la bonne version');
+  verif(await p.evaluate(v => sessionStorage.getItem('rayle_maj_' + v) === '1', V).catch(() => false), 'une seule tentative de mise à jour (jamais de boucle)');
+  verif(await p.evaluate(() => (document.querySelector('.tp-ma-legende .tp-version') || {}).textContent).catch(() => '') === 'v' + V, 'après la mise à jour, la version affichée est v' + V);
+}
 await T.fin();

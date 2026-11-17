@@ -23,6 +23,8 @@ export const VARIANTES = Object.freeze({
 });
 export const FILTRES = Object.freeze({ base: { nom: '2 clôtures, marge 0,5 ATR', confirmations: 2, bande: 0.5 }, trois: { nom: '3 clôtures, marge 0,5 ATR', confirmations: 3, bande: 0.5 }, atr1: { nom: '2 clôtures, marge 1 ATR', confirmations: 2, bande: 1 } });
 export const VARIANTE_DEFAUT = 'V2', FILTRE_DEFAUT = 'atr1';   // fixés par le backtest
+/* identifiant de l'algorithme : fait partie de la clé du registre sur l'appareil, pour qu'un changement de variante / de règles n'hérite jamais des flèches enregistrées par l'ancienne version (à changer à chaque modification des règles) */
+export const ALGO_ID = () => `${VARIANTE_DEFAUT}-${FILTRE_DEFAUT}-r2`;
 export const paramsDe = (filtre = FILTRE_DEFAUT) => ({ ...PARAMS, ...(FILTRES[filtre] || FILTRES[FILTRE_DEFAUT]), nom: undefined });
 export const cloturees = (B, maintenant = Date.now()) => (B || []).filter(b => b.t + J <= maintenant);
 
