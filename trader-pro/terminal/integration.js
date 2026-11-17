@@ -1,14 +1,14 @@
 /* ═════════════ TERMINAL « PRO » : branché sur le terminal existant (agent-trading/front/or.html) sans le réécrire ═════════════
    Ajoute : UNE seule moyenne mobile (la MA200 de l'unité affichée H1 / H4 / Jour, calculée sur ses vraies bougies) ; les niveaux les plus forts de l'unité affichée et du Jour (3 au plus de chaque côté,
-   étiquettes jamais superposées) ; les FLÈCHES DAILY (sommets et creux majeurs du Daily, zigzag ATR : rouge au-dessus de la mèche d'un sommet, verte sous la mèche d'un creux, posées sur la bougie extrême,
-   pleines dans le sens de la tendance MA200 Daily, pâles contre elle ; sur le Jour et sur H4 seulement, jamais sur H1 ; jamais redessinées) ; un bouton « Flèches Daily » (réglages, liste) et un bouton « Détails ».
-   Réglages : interrupteur « Flèches Daily » (activé par défaut) et multiplicateur ATR par actif (2,5 par défaut), aussi dans « Affichage ».
+   étiquettes jamais superposées) ; les RETOURNEMENTS DAILY (flèches rares, seulement les gros retournements : touch d'une zone Daily, puis confirmation par une clôture H4 ; flèche verte ▲ / rouge ▼ posée sur la bougie de confirmation,
+   jamais redessinée ; sur le Jour et sur H4 seulement, jamais sur H1 ; info-bulle : zone, volume, entrée, stop, objectif) ; un bouton « Retournements » (réglages, liste) et un bouton « Détails ».
+   Réglages : interrupteur « Flèches Daily » (activé par défaut) et version (complète / sans filtre volume / sens de la MA200), aussi dans « Affichage ».
    Graphique PROPRE par défaut : tout le reste (zones, boîtes de position, volume, RSI, bandeaux de sources…) est derrière « Détails ». Lecture seule : aucun ordre n'est envoyé. */
 import { lireActifPro } from '../commun/donnees.js';
 import { parler } from '../../agent-trading/front/or/tableau-or.js';
 import { ma200Unite, bandeauMA, niveauxUniteEtJour, sansChevauchement, avecRang, NOM_UNITE, PAS_UNITE } from '../commun/lecture-unite.js';
-import { indexSurUnite, indexConfirmation, styleFleche, phraseFleche, MULT_DEFAUT, COULEURS as COULEURS_RVB } from './zigzag-daily.js';
-import { flechesDe, nouvellesFleches, lireReglages, ecrireReglages, multActif, lireRegistre } from './fleches-registre.js';
+import { indexSurUnite, styleFleche, phraseFleche, VERSIONS, VERSION_DEFAUT, versionDe } from './retournements-daily.js';
+import { flechesDe, nouvellesFleches, lireReglages, ecrireReglages, versionActive, lireRegistre } from './fleches-registre.js';
 import { monterDashboard } from '../commun/dashboard.js';
 
 const ID_PRO = { OR: 'or', NASDAQ: 'us100', SP500: 'us500', BTC: 'btc', SOL: 'sol', DOGE: 'doge' };
@@ -27,7 +27,7 @@ export async function monterPro(T) {
   const E = { id, D: null, fleches: [], reglages: lireReglages(), series: {}, lignes: [], marqueurs: null, cle: '', panneau: null, details: lire(LS.details, false) === true, seq: 0 };
   /* ───── boutons ───── */
   const bDet = document.createElement('button'); bDet.type = 'button'; bDet.className = 'tp-b-details'; bDet.textContent = 'Détails'; bDet.setAttribute('aria-pressed', String(E.details)); bDet.title = 'Afficher tous les calques, bandeaux et sources du terminal';
-  const bHJ = document.createElement('button'); bHJ.type = 'button'; bHJ.className = 'tp-b-hj'; bHJ.textContent = 'Flèches Daily'; bHJ.title = 'Flèches Daily : sommets et creux majeurs du Daily, réglages (interrupteur, multiplicateur ATR) et alertes'; bHJ.setAttribute('aria-expanded', 'false');
+  const bHJ = document.createElement('button'); bHJ.type = 'button'; bHJ.className = 'tp-b-hj'; bHJ.textContent = 'Retournements'; bHJ.title = 'Retournements Daily : flèches rares sur les gros retournements, réglages (interrupteur, version) et alertes'; bHJ.setAttribute('aria-expanded', 'false');
   const bDon = document.createElement('button'); bDon.type = 'button'; bDon.className = 'tp-b-donnees'; bDon.textContent = 'Données'; bDon.title = 'Score de marché, tendance, volume net, données pro'; bDon.setAttribute('aria-expanded', 'false');
   /* PC : à la suite des unités de temps ; tactile : sur une ligne à part sous les unités de temps (la grille de 5 colonnes du mode tactile ne les accueille pas) */
   if (tactile || (barre && barre.classList.contains('tt-periodes'))) { const ligne = document.createElement('div'); ligne.className = 'tp-ligne-boutons'; ligne.append(bHJ, bDon, bDet); E.ligneTactile = ligne; } else if (barre) { barre.appendChild(bHJ); barre.appendChild(bDon); barre.appendChild(bDet); } else document.body.append(bHJ, bDon, bDet);
@@ -87,34 +87,41 @@ export async function monterPro(T) {
     }
     niveauxSansChevauchement(B, u); poserFleches(B, u);
   }
-  /* flèches Daily : sommets et creux majeurs, posées sur la bougie EXTRÊME. Jour : la bougie Daily ; H4 : la bougie H4 qui contient le plus haut / plus bas exact de la journée ; H1 : aucune flèche.
-     Pleine = dans le sens de la tendance (MA200 Daily), pâle (40 %) = contre la tendance ; aucun texte. */
+  /* RETOURNEMENTS DAILY : une flèche par retournement confirmé, posée sur la bougie de CONFIRMATION (H4 : la bougie H4 exacte ; Jour : la bougie Daily du jour de confirmation). Verte ▲ sous la bougie (haussier),
+     rouge ▼ au-dessus (baissier), sans texte ; rien sur H1 (ni M15 / M5). Info-bulle au survol / au toucher : zone touchée, volume, entrée, stop, objectif. */
   function poserFleches(B, u) {
-    const actives = E.reglages.actif !== false && u !== 'H1', cle = [u, B.length, B[B.length - 1].t, E.fleches.length, actives, multActif(id, E.reglages)].join('|'); if (cle === E.cleFleches) return; E.cleFleches = cle;
-    const M = [], vus = new Set(), infos = new Map(), pas = PAS_UNITE[u], ch = graph.chart();
-    for (const s of E.traits || []) { try { ch.removeSeries(s); } catch (e) { /* déjà retirée */ } } E.traits = [];
+    const actives = E.reglages.actif !== false && u !== 'H1', cle = [u, B.length, B[B.length - 1].t, E.fleches.length, actives, versionActive(E.reglages)].join('|'); if (cle === E.cleFleches) return; E.cleFleches = cle;
+    const M = [], vus = new Set(), infos = new Map(), pas = PAS_UNITE[u];
     if (actives) for (const f of E.fleches) {
-      const kx = indexSurUnite(B, f, pas), kc = indexConfirmation(B, f, pas); if (kx < 0 || kc < 0) continue;
-      const tx = temps(B[kx].t), tc = temps(B[kc].t); if (tx == null || tc == null) continue; const cl = tc + '|' + f.dir; if (vus.has(cl)) continue; vus.add(cl);
-      const s = styleFleche(f), prixC = Number.isFinite(f.prixConf) ? f.prixConf : B[kc].c, [r, g, b] = f.dir > 0 ? COULEURS_RVB.creux : COULEURS_RVB.sommet, sens = f.dir < 0 ? 'Sommet' : 'Creux';
-      /* flèche principale : sur la bougie de CONFIRMATION, au prix de clôture de ce jour-là (le moment où elle apparaît en direct) */
-      M.push({ time: tc, position: f.dir > 0 ? 'atPriceBottom' : 'atPriceTop', price: prixC, color: s.couleur, shape: s.forme, size: tactile ? 2.2 : 1.8 });
-      /* sur la bougie extrême : un petit point discret et transparent, relié à la flèche par un trait pointillé fin */
-      M.push({ time: tx, position: 'atPriceMiddle', price: f.niveau, color: `rgba(${r},${g},${b},0.5)`, shape: 'circle', size: 0.5 });
-      if (tx !== tc) { try { const tr = ch.addSeries(LW.LineSeries, { color: `rgba(${r},${g},${b},${f.pleine ? 0.9 : 0.55})`, lineWidth: 1, lineStyle: LW.LineStyle ? LW.LineStyle.Dotted : 1, priceLineVisible: false, lastValueVisible: false, crosshairMarkerVisible: false, autoscaleInfoProvider: () => null }); tr.setData([{ time: Math.min(tx, tc), value: tx < tc ? f.niveau : prixC }, { time: Math.max(tx, tc), value: tx < tc ? prixC : f.niveau }]); E.traits.push(tr); } catch (e) { /* trait facultatif */ } }
-      const dec = Math.round((f.tConf - f.t) / 86400e3), txt = `${sens} Daily${f.pleine ? '' : ' (contre la tendance)'}\nExtrême : ${dateJour(f.t)} · ${nf(f.niveau)}\nApparu : ${dateJour(f.tConf)} · ${nf(prixC)}\nDécalage : ${dec} j`;
-      infos.set(tc, txt); if (!infos.has(tx)) infos.set(tx, txt);
+      const k = indexSurUnite(B, f, pas); if (k < 0) continue; const t = temps(B[k].t); if (t == null) continue; const cl = t + '|' + f.dir; if (vus.has(cl)) continue; vus.add(cl);
+      const s = styleFleche(f); M.push({ time: t, position: s.position, color: s.couleur, shape: s.forme, size: tactile ? 2 : 1.5 });
+      infos.set(t, { f, haut: f.dir < 0, texte: texteFleche(f) });
     }
-    M.sort((a, b) => a.time - b.time); E.marques = M.length; E.M = M; E.infos = infos; infoFleche();
+    M.sort((a, b) => a.time - b.time); E.marques = M.length; E.M = M; E.infos = infos; E.infoEl && (E.infoEl.style.display = 'none'); infoFleche();
     if (LW.createSeriesMarkers) { const s = graph.serie(); if (!E.marqueurs) E.marqueurs = LW.createSeriesMarkers(s, M); else E.marqueurs.setMarkers(M); }
   }
-  /* niveaux : 3 au plus de chaque côté ; deux étiquettes à moins de 24 px l'une de l'autre → on garde la plus proche du prix. Recalculé à chaque passage (zoom, défilement, taille). */
-  /* info-bulle des flèches : survol (PC) ou toucher (téléphone) de la flèche ou du point de l'extrême */
+  /* texte de l'info-bulle : zone touchée, volume, entrée, stop, objectif */
+  const texteFleche = f => {
+    const z = f.zone || {}, vol = Number.isFinite(f.ratio) && f.ratio > 0 ? `${nf(f.volume, 0)} (×${nf(f.ratio, 1)} la moyenne 20 j)` : 'non disponible';
+    return `${f.dir > 0 ? '▲ Retournement haussier' : '▼ Retournement baissier'} · Daily + H4\nZone touchée : ${z.nom || '—'} (${nf(z.niveau, z.niveau >= 100 ? 0 : 2)})\nVolume du touch : ${vol}\nEntrée ${nf(f.entree)} · Stop ${nf(f.stop)}\nObjectif ${nf(f.objectif)} (${nf(f.rr, 1)} R)`;
+  };
+  /* info-bulle : petite, posée À CÔTÉ de la flèche (jamais en haut à gauche : elle ne cache ni les boutons ni la légende), se ferme seule au bout de 6 s (toucher) */
   function infoFleche() {
     if (E.infoOk) return; const c = graph.conteneur(); if (!c) return; E.infoOk = true;
-    const el = document.createElement('div'); el.className = 'tp-fleche-info'; el.style.display = 'none'; c.appendChild(el); E.infoEl = el;
-    graph.chart().subscribeCrosshairMove(p => { const t = p && p.time != null ? E.infos && E.infos.get(p.time) : null; if (!t) { el.style.display = 'none'; return; } el.textContent = t; el.style.display = 'block'; });
+    const el = document.createElement('div'); el.className = 'tp-fleche-info'; el.style.display = 'none'; c.appendChild(el); E.infoEl = el; let minuteur = null;
+    graph.chart().subscribeCrosshairMove(p => {
+      const x = p && p.time != null ? E.infos && E.infos.get(p.time) : null; clearTimeout(minuteur);
+      if (!x) { el.style.display = 'none'; return; }
+      el.textContent = x.texte; el.style.display = 'block';
+      try {
+        const cx = graph.chart().timeScale().timeToCoordinate(p.time), W = c.clientWidth, Hh = c.clientHeight, w = el.offsetWidth, h = el.offsetHeight, py = graph.serie().priceToCoordinate(x.f.entree);
+        const gauche = cx > W / 2 ? cx - w - 14 : cx + 14, bas = Number.isFinite(py) ? py : Hh / 2;   // à droite de la flèche si elle est dans la moitié gauche, sinon à gauche
+        el.style.left = Math.max(6, Math.min(W - w - 6, gauche)) + 'px'; el.style.top = Math.max(tactile ? 96 : 40, Math.min(Hh - h - 30, x.haut ? bas - h - 10 : bas - h / 2)) + 'px';
+      } catch (e) { /* position par défaut */ }
+      minuteur = setTimeout(() => { el.style.display = 'none'; }, 6000);
+    });
   }
+  /* niveaux : 3 au plus de chaque côté ; deux étiquettes à moins de 24 px l'une de l'autre → on garde la plus proche du prix. Recalculé à chaque passage (zoom, défilement, taille). */
   function niveauxSansChevauchement(B, u) {
     const s = graph.serie(), px = B[B.length - 1].c, gardes = sansChevauchement(avecRang(E.cand || [], px, u), p => { try { return s.priceToCoordinate(p); } catch (e) { return NaN; } }, 24);
     const k = gardes.map(n => n.nom + n.src + Math.round(n.prix * 100)).join('|'); if (k === E.cleNiv) return; E.cleNiv = k;
@@ -145,52 +152,50 @@ export async function monterPro(T) {
 
   /* ───── données, alertes ───── */
   async function charger() {
-    if (!id) { E.raison = 'Les flèches Daily sont disponibles pour l’or, le Nasdaq 100, le S&P 500, le Bitcoin et Solana.'; rendrePanneau(); return; }
+    if (!id) { E.raison = 'Les retournements Daily sont disponibles pour l’or, le Nasdaq 100, le S&P 500, le Bitcoin et Solana.'; rendrePanneau(); return; }
     const n = ++E.seq;
-    try { const r = await lireActifPro(id, { delai: 8000 }); if (n !== E.seq) return; E.D = r.donnees; E.meta = r; E.raison = null; E.fleches = flechesDe(id, E.D.j, { mult: multActif(id, E.reglages) }); }
-    catch (e) { E.raison = 'Données Daily indisponibles : ' + (e && e.message || e) + ' (le robot publie ces séries toutes les 30 minutes). Les flèches déjà confirmées restent affichées.'; try { E.fleches = lireRegistre(id, multActif(id, E.reglages)); } catch (e2) { /* aucune */ } }
+    try { const r = await lireActifPro(id, { delai: 8000 }); if (n !== E.seq) return; E.D = r.donnees; E.meta = r; E.raison = null; E.fleches = flechesDe(id, E.D, { version: versionActive(E.reglages) }); }
+    catch (e) { E.raison = 'Données Daily indisponibles : ' + (e && e.message || e) + ' (le robot publie ces séries toutes les 30 minutes). Les flèches déjà confirmées restent affichées.'; try { E.fleches = lireRegistre(id, versionActive(E.reglages)); } catch (e2) { /* aucune */ } }
     E.cleFleches = null; dessiner(true); rendrePanneau(); alerter();
   }
   /* alertes : SEULEMENT les nouvelles flèches Daily confirmées : UNE annonce vocale de Rayle (« Or : sommet Daily confirmé, vers 2 650 ») + une notification + un message Telegram (pont du Worker existant).
      Une flèche n'est annoncée qu'une fois (registre de l'appareil : vueLe), et jamais si elle date de plus de 36 h. Interrupteur « Flèches Daily » coupé : aucune annonce. */
   function alerter() {
-    if (E.reglages.actif === false || !E.fleches.length) return; const att = lire(LS.alerte, {}), nouvelles = nouvellesFleches(id, E.fleches, { mult: multActif(id, E.reglages) });
-    for (const f of nouvelles.slice(0, 2)) { const texte = phraseFleche(NOMS[id], f); parler(texte); try { if (T.notifier) T.notifier(texte, { niveau: 'info', dit: false, raison: 'flèche Daily' }); } catch (e) { /* */ } try { if (att.telegram !== false && T.envoyerTelegram) T.envoyerTelegram(texte + (f.pleine ? ' (dans le sens de la tendance)' : ' (contre la tendance)') + ' · lecture seule, aucun ordre'); } catch (e) { /* */ } }
+    if (E.reglages.actif === false || !E.fleches.length) return; const att = lire(LS.alerte, {}), nouvelles = nouvellesFleches(id, E.fleches, { version: versionActive(E.reglages) });
+    for (const f of nouvelles.slice(0, 2)) { const texte = phraseFleche(NOMS[id], f); parler(texte); try { if (T.notifier) T.notifier(texte, { niveau: 'info', dit: false, raison: 'retournement Daily' }); } catch (e) { /* */ } try { if (att.telegram !== false && T.envoyerTelegram) T.envoyerTelegram(`${texte} · stop ${nf(f.stop)} · objectif ${nf(f.objectif)} (${nf(f.rr, 1)} R) · lecture seule, aucun ordre`); } catch (e) { /* */ } }
   }
 
   /* ───── panneau « Flèches Daily » ───── */
-  const IDS_REGLAGES = ['or', 'us100', 'us500', 'btc', 'sol', 'doge'];
-  /* réglages : interrupteur « Flèches Daily » + multiplicateur ATR par actif (même bloc dans le panneau « Flèches Daily » et dans « Affichage » du terminal) */
+  /* réglages : interrupteur « Flèches Daily » + version de l'indicateur (même bloc dans le panneau « Retournements Daily » et dans « Affichage » du terminal) */
   function reglagesHtml() {
-    const R = E.reglages;
-    return `<div class="tp-reg" data-tp-reg><label class="tp-case"><input type="checkbox" data-reg="actif"${R.actif !== false ? ' checked' : ''}> Flèches Daily (sommets et creux majeurs)</label>
-      <div class="tp-reg-mult"><span>Multiplicateur ATR par actif</span>${IDS_REGLAGES.map(k => `<label class="tp-reg-l${k === id ? ' tp-reg-ici' : ''}"><span>${esc(NOMS[k])}</span><input type="number" inputmode="decimal" min="0.5" max="10" step="0.1" value="${multActif(k, R)}" data-reg-mult="${k}" aria-label="Multiplicateur ATR ${esc(NOMS[k])}"></label>`).join('')}</div>
-      <small class="tp-doux">Défaut ${String(MULT_DEFAUT).replace('.', ',')} : plus le nombre est grand, moins il y a de flèches (le recul exigé pour confirmer un sommet ou un creux = multiplicateur × ATR 14 Daily).</small></div>`;
+    const R = E.reglages, v = versionActive(R);
+    return `<div class="tp-reg" data-tp-reg><label class="tp-case"><input type="checkbox" data-reg="actif"${R.actif !== false ? ' checked' : ''}> Flèches Daily (retournements)</label>
+      <label class="tp-reg-l"><span>Version</span><select data-reg-version aria-label="Version des retournements Daily">${Object.entries(VERSIONS).map(([k, x]) => `<option value="${k}"${k === v ? ' selected' : ''}>${esc(x.nom)}${k === VERSION_DEFAUT ? ' (défaut)' : ''}</option>`).join('')}</select></label>
+      <small class="tp-doux">« Complète » : touch d’une zone Daily avec volume ≥ 1,2 × la moyenne 20 j. « Sans filtre volume » : même chose sans la condition de volume (défaut : la plus rentable sur l’historique testé). « Sens de la MA200 » : complète, seulement dans le sens de la MA200 Daily.</small></div>`;
   }
   function appliquerReglage(el) {
     const R = E.reglages;
-    if (el.dataset.reg === 'actif') R.actif = el.checked;
-    else if (el.dataset.regMult) { const v = Number(String(el.value).replace(',', '.')); if (Number.isFinite(v) && v >= 0.5 && v <= 10) R.mult[el.dataset.regMult] = Math.round(v * 100) / 100; else { el.value = multActif(el.dataset.regMult, R); return; } }
+    if (el.dataset.reg === 'actif') R.actif = el.checked; else if (el.dataset.regVersion !== undefined) R.version = versionDe(el.value);
     ecrireReglages(R); majFleches();
   }
-  /* recalcule les flèches avec les réglages courants (autre multiplicateur = autre registre), redessine et synchronise les deux blocs de réglages */
+  /* recalcule les flèches avec les réglages courants (autre version = autre registre), redessine et synchronise les deux blocs de réglages */
   function majFleches() {
-    if (E.D) { try { E.fleches = flechesDe(id, E.D.j, { mult: multActif(id, E.reglages) }); } catch (e) { E.fleches = []; } } else { try { E.fleches = lireRegistre(id, multActif(id, E.reglages)); } catch (e) { E.fleches = []; } }
+    if (E.D) { try { E.fleches = flechesDe(id, E.D, { version: versionActive(E.reglages) }); } catch (e) { E.fleches = []; } } else { try { E.fleches = lireRegistre(id, versionActive(E.reglages)); } catch (e) { E.fleches = []; } }
     E.cleFleches = null; dessiner(true); rendrePanneau(); synchroReglages(); alerter();
   }
   const zonesReglages = () => [...document.querySelectorAll('[data-tp-reg]')];
-  function synchroReglages() { for (const z of zonesReglages()) { const c = z.querySelector('[data-reg="actif"]'); if (c) c.checked = E.reglages.actif !== false; for (const i of z.querySelectorAll('[data-reg-mult]')) if (document.activeElement !== i) i.value = multActif(i.dataset.regMult, E.reglages); } }
-  document.addEventListener('change', ev => { const el = ev.target.closest && ev.target.closest('[data-reg],[data-reg-mult]'); if (el && el.closest('[data-tp-reg]')) appliquerReglage(el); });
+  function synchroReglages() { for (const z of zonesReglages()) { const c = z.querySelector('[data-reg="actif"]'); if (c) c.checked = E.reglages.actif !== false; const s = z.querySelector('[data-reg-version]'); if (s) s.value = versionActive(E.reglages); } }
+  document.addEventListener('change', ev => { const el = ev.target.closest && ev.target.closest('[data-reg],[data-reg-version]'); if (el && el.closest('[data-tp-reg]')) appliquerReglage(el); });
   /* « Affichage » du terminal : le même bloc de réglages (s'il existe) */
   (function dansAffichage() { const pan = document.querySelector('.tor-ob-pan'); if (!pan || pan.querySelector('[data-tp-reg]')) return; const d = document.createElement('div'); d.innerHTML = reglagesHtml(); pan.insertBefore(d.firstElementChild, pan.querySelector('hr') || pan.firstChild); })();
   function rendrePanneau() {
     const p = E.panneau; if (!p) return; const att = lire(LS.alerte, {}), L = E.fleches.slice().reverse().slice(0, 10);
-    p.innerHTML = `<header><b>Flèches Daily · ${esc(NOMS[id] || actif)}</b><button type="button" data-fermer aria-label="Fermer">✕</button></header>
+    p.innerHTML = `<header><b>Retournements Daily · ${esc(NOMS[id] || actif)}</b><button type="button" data-fermer aria-label="Fermer">✕</button></header>
       ${E.raison ? `<p class="tp-doux">${esc(E.raison)}</p>` : ''}
-      <p class="tp-doux">Flèche <b class="tp-b">rouge ▼</b> au-dessus de la mèche d’un sommet, <b class="tp-h">verte ▲</b> sous la mèche d’un creux : seulement les grands mouvements du Daily. Un sommet (creux) est confirmé quand le prix a reculé (remonté) d’au moins ${esc(String(multActif(id, E.reglages)).replace('.', ','))} × l’ATR 14 Daily, avec au moins 5 bougies Daily entre deux flèches et une alternance stricte. La flèche est posée sur la bougie extrême, ne bouge plus et ne disparaît plus. <b>Pleine</b> = dans le sens de la tendance (creux au-dessus de la MA200 Daily, sommet en dessous), <b>pâle</b> = contre la tendance. Sur H4, elle est posée sur la bougie H4 du plus haut / plus bas exact de la journée ; aucune flèche sur H1.</p>
+      <p class="tp-doux">Peu de flèches, seulement les gros retournements : une bougie Daily touche une zone (3 derniers sommets / creux Daily, R1 R2 S1 S2, MA200 Daily ± 0,3 ATR), puis, dans les 5 jours, une bougie H4 clôture au-delà du dernier sommet (creux) H4 de la descente (montée). <b class="tp-h">Verte ▲</b> = haussier, <b class="tp-b">rouge ▼</b> = baissier. La flèche est posée sur la bougie de confirmation (Jour : la bougie du jour ; H4 : la bougie H4 exacte), ne bouge plus et ne disparaît plus. Aucune flèche sur H1. Touchez la flèche : zone, volume, entrée, stop, objectif.</p>
       <h4>Réglages</h4>${reglagesHtml()}
-      <h4>Dernières flèches</h4>${L.length ? `<ul class="tp-sigs">${L.map(f => `<li class="${f.dir > 0 ? 'tp-h' : 'tp-b'}"><b>${f.dir > 0 ? '▲ creux' : '▼ sommet'} ${f.pleine ? '(dans le sens de la tendance)' : '(contre la tendance)'}</b> <span>${esc(dateJour(f.t))} · vers ${nf(f.niveau, f.niveau >= 100 ? 0 : 2)}</span><small>confirmé le ${esc(dateJour(f.tCloture - 1))}</small></li>`).join('')}</ul>` : '<p class="tp-doux">Aucune flèche pour le moment.</p>'}
-      <h4>Alertes</h4><label class="tp-case"><input type="checkbox" data-al="telegram"${att.telegram !== false ? ' checked' : ''}> Telegram (pont du Worker de Rayle)</label><p class="tp-doux">À chaque nouvelle flèche confirmée : une seule annonce de Rayle (« ${esc(phraseFleche(NOMS[id] || actif, { dir: -1, niveau: 2650 }))} »), une notification et un message Telegram. Une flèche n’est annoncée qu’une fois. Aucun autre signal.</p>`;
+      <h4>Dernières flèches</h4>${L.length ? `<ul class="tp-sigs">${L.map(f => `<li class="${f.dir > 0 ? 'tp-h' : 'tp-b'}"><b>${f.dir > 0 ? '▲ haussier' : '▼ baissier'} · ${esc((f.zone && f.zone.nom) || '')}</b> <span>${esc(dateJour(f.t))} · entrée ${nf(f.entree, f.entree >= 100 ? 0 : 2)}</span><small>stop ${nf(f.stop, f.stop >= 100 ? 0 : 2)} · objectif ${nf(f.objectif, f.objectif >= 100 ? 0 : 2)} (${nf(f.rr, 1)} R)</small></li>`).join('')}</ul>` : '<p class="tp-doux">Aucune flèche pour le moment.</p>'}
+      <h4>Alertes</h4><label class="tp-case"><input type="checkbox" data-al="telegram"${att.telegram !== false ? ' checked' : ''}> Telegram (pont du Worker de Rayle)</label><p class="tp-doux">À chaque nouvelle flèche confirmée : une seule annonce de Rayle (« ${esc(phraseFleche(NOMS[id] || actif, { dir: 1, entree: 2650 }))} »), une notification et un message Telegram. Une flèche n’est annoncée qu’une fois. Aucun autre signal.</p>`;
   }
   function ouvrirPanneau(o) {
     if (!E.panneau) { E.panneau = document.createElement('aside'); E.panneau.className = 'tp-panneau'; E.panneau.setAttribute('aria-label', 'Flèches Daily'); document.body.appendChild(E.panneau); E.panneau.addEventListener('click', ev => { if (ev.target.closest('[data-fermer]')) ouvrirPanneau(false); });
