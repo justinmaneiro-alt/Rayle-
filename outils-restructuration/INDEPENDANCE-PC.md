@@ -10,7 +10,7 @@
 | Copilote de données, analyse IA automatique | serveur de Rayle | sans le PC : message clair ; **mode manuel gratuit** (export / import) inchangé |
 | Journal et Capital | déjà sur l'appareil (localStorage / IndexedDB) | + sauvegarde / restauration JSON dans ⚙ Réglages |
 | Terre (téléphone) | module 3D du PC (tuiles de plusieurs serveurs, Workers, texture 8k) : restait sur « Chargement… » | **Terre mobile** autonome (`planetes/terre/mobile/`), textures du dépôt, séismes USGS et météo Open-Meteo en direct |
-| Alertes Telegram | processus `alertes-serveur.mjs` sur le PC | workflow GitHub Actions `alertes.yml` (même moteur v8, mêmes règles) |
+| Alertes Telegram | processus `alertes-serveur.mjs` sur le PC (supprimé avec l’ancien système de flèches) | le terminal annonce chaque nouvelle flèche Daily (voix, notification, Telegram via le pont du Worker) quand il est ouvert |
 | Miniature de la Terre (carrousel) | globe 3D avec textures 8k téléchargées sur téléphone | image de 30 Ko sur téléphone et tablette |
 
 ## 2. Couche de données (trois niveaux)

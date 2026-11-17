@@ -63,20 +63,6 @@ export function dessinerRayle(ctx, T, m, { xDeT, yDe, mobile }) {
     place(`${c.type} ${c.dir > 0 ? '↑' : '↓'}`, Math.max(2, x1 - 38), y - 3, col, 0.9, {});
     cadres.push({ kind: 'struct', x0: Math.max(0, x0), x1, y0: y - 3, y1: y + 3, g: { p: c.niveau, texte: `${c.type === 'MSS' ? 'Changement de caractère (MSS)' : 'Cassure de structure (BOS)'} ${c.dir > 0 ? 'haussier' : 'baissier'}`, detail: ['clôture H1 au-delà d’un creux ou d’un sommet de la structure H1 (structure-marche-v1)', 'description, jamais un ordre'] } });
   }
-  // ── événements de la moyenne mobile ──
-  for (const e of m.evenements || []) {
-    if (e.type === 'rebond') continue;   // 2026-11-12 : plus de « Rebond sur la MA » (continuation) ; seules la cassure, la fausse cassure et le retest de la MA200 restent
-    const x = xDeT(e.t), y = yDe(e.p); if (!ok(x, y) || x < 0 || x > T.width) continue; const col = e.type === 'fausse' ? COUL.orange : e.dir > 0 ? COUL.haut : COUL.bas, a = e.grise ? 0.35 : 1;
-    ctx.fillStyle = `rgba(${col},${0.95 * a})`; ctx.beginPath();
-    const s = e.type === 'rebond' ? 3.5 : 4.5, sens = e.dir > 0 ? -1 : 1;   // pointe vers le prix
-    if (e.type === 'cassure' || e.type === 'confirmee') { ctx.moveTo(x, y); ctx.lineTo(x - s, y - sens * s * 1.6); ctx.lineTo(x + s, y - sens * s * 1.6); ctx.closePath(); ctx.fill(); }
-    else if (e.type === 'fausse') { ctx.moveTo(x - s, y - s); ctx.lineTo(x + s, y + s); ctx.moveTo(x + s, y - s); ctx.lineTo(x - s, y + s); ctx.strokeStyle = `rgba(${col},${0.95 * a})`; ctx.lineWidth = 1.6; ctx.stroke(); ctx.lineWidth = 1; }
-    else { ctx.arc(x, y, s, 0, Math.PI * 2); ctx.fill(); }
-    if (e.etiquette) place(e.etiquette, x + 7, y + (e.dir > 0 ? fs + 6 : -6), col, 0.95 * a);
-    cadres.push({ kind: 'evt', x0: x - 8, x1: x + 8, y0: y - 10, y1: y + 10, g: { p: e.p, texte: e.etiquette || e.nom, detail: e.detail || [] } });
-  }
-  // ── flèches du setup A+ (petite flèche, jamais un ordre) ──
-  for (const f of m.aplus || []) { const x = xDeT(f.t), y = yDe(f.p); if (!ok(x, y) || x < 0 || x > T.width) continue; const col = f.dir > 0 ? COUL.haut : COUL.bas, s = 6, yy = y + (f.dir > 0 ? 10 : -10); ctx.fillStyle = `rgba(${col},.95)`; ctx.beginPath(); ctx.moveTo(x, yy + (f.dir > 0 ? -s : s)); ctx.lineTo(x - s * 0.8, yy + (f.dir > 0 ? s * 0.6 : -s * 0.6)); ctx.lineTo(x + s * 0.8, yy + (f.dir > 0 ? s * 0.6 : -s * 0.6)); ctx.closePath(); ctx.fill(); place('A+', x + 6, yy + (f.dir > 0 ? 14 : -6), col, 0.95); cadres.push({ kind: 'aplus', x0: x - 9, x1: x + 20, y0: yy - 10, y1: yy + 14, g: { p: f.p, texte: 'Setup A+ (règle non prouvée)', detail: ['cinq conditions réunies à la clôture de cette bougie H1 (aplus-v1)', 'proposition de lecture, jamais un ordre'] } }); }
   // ── scénarios (phase 5) ──
   if (m.scenarios) dessinerScenarios(ctx, T, m.scenarios, { xDeT, yDe, mobile, place, cadres, ok, fs });
   cadres.etiquettes = occ.slice();   // rectangles des étiquettes posées (test de non-chevauchement)

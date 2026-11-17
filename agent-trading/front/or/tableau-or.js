@@ -22,15 +22,7 @@ const INSTR = instrumentDe(actifCourant());
 import { texteType, texteHistorique, NOMS_TYPES } from './zones-or.js';
 import { heureParis } from './temps-or.js';
 import { nomClair } from './reperes-or.js';
-import { REGLES_NIVEAUX, REGLES_FLECHES, TEXTE_REGLES_FLECHES } from './niveaux-periode.js';
-import { REGLES_H1_V2, TEXTE_REGLES_H1_V2 } from './fleches-h1-v2.js';
-import { REGLES_H1_V3, TEXTE_REGLES_H1_V3 } from './fleches-h1-v3.js';
-import { REGLES_H1_V4, TEXTE_REGLES_H1_V4 } from './fleches-h1-v4.js';
-import { REGLES_H1_V5, TEXTE_REGLES_H1_V5 } from './fleches-h1-v5.js';
-import { REGLES_H1_V6, TEXTE_REGLES_H1_V6 } from './fleches-h1-v6.js';
-import { REGLES_H1_V7, TEXTE_REGLES_H1_V7 } from './fleches-h1-v7.js';
-import { REGLES_H1_V8, TEXTE_REGLES_H1_V8 } from './fleches-h1-v8.js';
-import { REGLES_H1_V9, TEXTE_REGLES_H1_V9 } from './fleches-h1-v9.js';
+import { REGLES_NIVEAUX } from './niveaux-periode.js';
 import { interpreter } from './commandes-or.js';
 
 const lireJ = (k, d) => { try { const v = localStorage.getItem(k); return v ? JSON.parse(v) : d; } catch (e) { return d; } };
@@ -45,7 +37,7 @@ export function chargerCssOr() {
 }
 /* niveaux, liquidité et flèches de la période affichée (niveaux-periode.js) pour le graphique */
 const VIDE = Object.freeze([]);
-export const dessinPeriode = S => ({ bandes: S.niveauxP ? S.niveauxP.bandes : VIDE, liquidite: S.liquidite ? S.liquidite.zones : VIDE, balayages: S.liquidite ? S.liquidite.balayages : VIDE, fleches: S.fleches && S.fleches.periode === S.periode ? S.fleches.liste : VIDE, segments: S.periode === 'H1' && S.segmentsH1 ? S.segmentsH1 : VIDE });
+export const dessinPeriode = S => ({ bandes: S.niveauxP ? S.niveauxP.bandes : VIDE, liquidite: S.liquidite ? S.liquidite.zones : VIDE, balayages: S.liquidite ? S.liquidite.balayages : VIDE });
 export const disposition = (l, h) => (l >= 1000 && l >= h ? 'pc' : 'colonne');
 
 /* voix : celle de Rayle si la page est dans Rayle (window.speak), sinon la synthèse du navigateur */
@@ -69,7 +61,7 @@ export function monterTableauOr(el, { modules = {}, contexte = 'page', fetchFn, 
   </header>
   <p class="tor-bandeau" data-bandeau role="status" hidden></p>
   <section class="tor-ecran1">
-    <div class="tor-graph"><div class="tor-graph-barre" data-graph-barre><button type="button" class="tor-gb tor-gb-pos" data-a="positions-rayle" aria-pressed="false" title="Positions simulées que Rayle propose">Positions de Rayle</button><button type="button" class="tor-gb tor-gb-prop" data-a="propositions-h1" aria-pressed="false" title="Propositions H1 de Rayle : lectures de structure à la clôture des bougies H1">Propositions H1</button><button type="button" class="tor-gb" data-a="mouv-h1" aria-pressed="false" title="Afficher ou masquer la couche Mouvements H1">Mouvements H1</button><button type="button" class="tor-gb" data-a="ict-un-clic" aria-pressed="false" title="Analyse ICT de la semaine en un clic : liquidité, structure, FVG, order blocks, premium / discount, killzones, AMD. Un second clic efface. Interprétation de l’ICT, définitions variables selon les sources.">Analyse ICT</button><button type="button" class="tor-gb" data-a="pourquoi" title="Rayle explique en quelques phrases ce qui fait bouger l’or">Pourquoi l’or bouge ?</button></div><div class="tor-graph-lw" data-graph></div><p class="tor-pos" data-pos hidden></p><p class="tor-graph-source" data-source></p><p class="tor-struct-bandeau tor-struct-haut" data-struct-bandeau hidden></p><p class="tor-graph-source tor-mouv-note" data-mouv-note hidden></p><p class="tor-graph-source tor-bilan" data-bilan-fleches></p><p class="tor-graph-source" data-versions-h1 hidden>Flèches H1 affichées : <label><input type="checkbox" data-vh1="fleches-h1-v9"> v9</label> <label><input type="checkbox" data-vh1="fleches-h1-v8"> v8</label> <label><input type="checkbox" data-vh1="fleches-h1-v7"> v7</label> <label><input type="checkbox" data-vh1="fleches-h1-v2"> v2</label> <span class="tor-doux">(cocher plusieurs pour comparer ; les flèches portent alors leur version ; v1, v3, v4, v5 et v6 restent calculées en arrière-plan)</span></p></div>
+    <div class="tor-graph"><div class="tor-graph-barre" data-graph-barre><button type="button" class="tor-gb tor-gb-pos" data-a="positions-rayle" aria-pressed="false" title="Positions simulées que Rayle propose">Positions de Rayle</button><button type="button" class="tor-gb tor-gb-prop" data-a="propositions-h1" aria-pressed="false" title="Propositions H1 de Rayle : lectures de structure à la clôture des bougies H1">Propositions H1</button><button type="button" class="tor-gb" data-a="mouv-h1" aria-pressed="false" title="Afficher ou masquer la couche Mouvements H1">Mouvements H1</button><button type="button" class="tor-gb" data-a="ict-un-clic" aria-pressed="false" title="Analyse ICT de la semaine en un clic : liquidité, structure, FVG, order blocks, premium / discount, killzones, AMD. Un second clic efface. Interprétation de l’ICT, définitions variables selon les sources.">Analyse ICT</button><button type="button" class="tor-gb" data-a="pourquoi" title="Rayle explique en quelques phrases ce qui fait bouger l’or">Pourquoi l’or bouge ?</button></div><div class="tor-graph-lw" data-graph></div><p class="tor-pos" data-pos hidden></p><p class="tor-graph-source" data-source></p><p class="tor-struct-bandeau tor-struct-haut" data-struct-bandeau hidden></p><p class="tor-graph-source tor-mouv-note" data-mouv-note hidden></p></div>
     <aside class="tor-carnet at" data-carnet aria-label="Carnet d’ordres"></aside>
   </section>
   <section class="tor-bloc tor-lecture" data-lecture>
@@ -79,7 +71,7 @@ export function monterTableauOr(el, { modules = {}, contexte = 'page', fetchFn, 
     <p class="tor-reponse" data-reponse aria-live="polite"></p>
     <details class="tor-zones-det" data-zones><summary>Zones de retournement en détail <small>les plus proches, classées par confluence</small></summary><ol class="tor-zones" data-zones-liste></ol><p class="tor-doux" data-etude></p>
     <details><summary>Règles figées ${REGLES.version}</summary><pre class="tor-regles">${esc(TEXTE_REGLES)}</pre></details>
-    <details><summary>Règles figées des niveaux et des flèches (${REGLES_NIVEAUX.version}, ${REGLES_FLECHES.version})</summary><pre class="tor-regles">${esc(TEXTE_REGLES_FLECHES)}</pre></details><details><summary>Règles figées des flèches H1, version 2 (${REGLES_H1_V2.version}, affichées seulement en H1)</summary><pre class="tor-regles">${esc(TEXTE_REGLES_H1_V2)}</pre></details><details><summary>Règles figées des flèches H1, version 3 (${REGLES_H1_V3.version})</summary><pre class="tor-regles">${esc(TEXTE_REGLES_H1_V3)}</pre></details><details><summary>Règles figées des flèches H1, version 4 (${REGLES_H1_V4.version})</summary><pre class="tor-regles">${esc(TEXTE_REGLES_H1_V4)}</pre></details><details><summary>Règles figées des flèches H1, version 5, et des niveaux H1 affichés (${REGLES_H1_V5.version}, ${REGLES_H1_V5.niveaux})</summary><pre class="tor-regles">${esc(TEXTE_REGLES_H1_V5)}</pre></details><details><summary>Règles figées des flèches H1, version 6, et des niveaux H1 retournés (${REGLES_H1_V6.version}, ${REGLES_H1_V6.niveaux})</summary><pre class="tor-regles">${esc(TEXTE_REGLES_H1_V6)}</pre></details><details><summary>Règles figées des flèches H1, version 7 (${REGLES_H1_V7.version})</summary><pre class="tor-regles">${esc(TEXTE_REGLES_H1_V7)}</pre></details><details><summary>Règles figées des flèches H1, version 8 (${REGLES_H1_V8.version})</summary><pre class="tor-regles">${esc(TEXTE_REGLES_H1_V8)}</pre></details><details><summary>Règles figées des flèches H1, version 9 (${REGLES_H1_V9.version} ; affichée par défaut en H1)</summary><pre class="tor-regles">${esc(TEXTE_REGLES_H1_V9)}</pre></details></details>
+    </details>
   </section>
   <section class="tor-bloc tor-structure" data-structure><h2>Structure de marché H1 / H4 <small>lecture, jamais un ordre</small></h2><p class="tor-struct-bandeau" data-struct-bandeau>Chargement…</p><p class="tor-reponse tor-struct-avert" data-struct-avert hidden role="alert"></p><div class="tor-ctx-actions"><button type="button" class="tor-gb" data-a="struct-resume">Où en est la tendance ?</button><button type="button" class="tor-gb" data-a="struct-fiche">Rebond ou retournement ?</button></div><p class="tor-reponse" data-struct-texte hidden aria-live="polite"></p><ol class="tor-struct-liste" data-struct-liste></ol><p class="tor-ctx-pied" data-struct-reg></p><p class="tor-ctx-pied">Avertissement quand un changement de caractère H1 va contre ta position en cours : <label><input type="checkbox" data-struct-reg-c="voix"> voix</label> <label><input type="checkbox" data-struct-reg-c="notif"> notification</label></p><details data-retourn><summary>Retournements : toutes les zones, triées par probabilité mesurée</summary><div class="tor-rz-ctl"><label>Probabilité minimale <input type="range" data-rz-min min="0" max="90" step="5" value="0"> <output data-rz-min-val>0 %</output></label> <button type="button" class="tor-gb" data-a="rz-mode" title="Basculer entre les 6 zones les plus proches et toutes les zones">Toutes</button></div><table class="tor-ctx"><thead><tr><th>Zone</th><th><button type="button" data-a="rz-tri" data-tri="prob">Probabilité</button></th><th><button type="button" data-a="rz-tri" data-tri="dist">Distance</button></th><th><button type="button" data-a="rz-tri" data-tri="type">Type</button></th><th><button type="button" data-a="rz-tri" data-tri="n">n</button></th></tr></thead><tbody data-rz-corps></tbody></table><p class="tor-ctx-pied">Active la couche « Retournements » dans « Couches » pour afficher les zones sur le graphique.</p></details></section>
   <section class="tor-bloc tor-ict" data-ict><h2>Analyse ICT de la semaine <small>interprétation de l’ICT, définitions variables selon les sources · lecture, jamais un ordre</small></h2><div class="tor-ctx-actions"><button type="button" class="tor-gb" data-a="ict-un-clic">Analyse ICT</button><button type="button" class="tor-gb" data-a="ict-lire">Lire le rapport à voix haute</button></div><div class="tor-reponse" data-ict-rapport hidden aria-live="polite"></div><div class="tor-rz-ctl"><label>Objets visibles <input type="range" data-ict-max min="2" max="20" step="1" value="8"> <output data-ict-max-val>8</output></label></div><p class="tor-ctx-pied" data-ict-stats>Mesures : chargement…</p><p class="tor-ctx-pied" data-ict-reg></p></section>
@@ -193,10 +185,6 @@ export function monterTableauOr(el, { modules = {}, contexte = 'page', fetchFn, 
     else if (S.retard && S.retard.enRetard) msg.push(S.retard.texte);
     if (S.fiable === false) msg.push(`Données peu fiables : seulement ${nb(S.volume24h / 1e6, 0)} M$ échangés sur 24 h sur la référence.`);
     const b = q('[data-bandeau]'); b.hidden = !msg.length; b.textContent = msg.join(' · ');
-    const bf = q('[data-bilan-fleches]'), BF = S.bilanFleches && S.fleches && S.fleches.periode === S.periode ? S.bilanFleches : null;
-    const ro = regOutils(), anc = !ro || ro.anciennesFleches; bf.hidden = !anc;
-    const vh = q('[data-versions-h1]'); vh.hidden = S.periode !== 'H1' || !anc; if (!vh.hidden) { const sel = moteur.versionsH1(); for (const c of vh.querySelectorAll('[data-vh1]')) c.checked = sel.includes(c.dataset.vh1); }
-    bf.textContent = BF ? `${BF.titre || `Flèches de rebond (${S.periode})`} : ${BF.texte} Informations de lecture, jamais un ordre.` : 'Flèches de rebond : calcul en cours…';
     q('[data-source]').textContent = INSTR.id !== 'OR' ? `Source : ${INSTR.source} · ${INSTR.retard} · ATR H1 ${nb(S.a)}` : `Prix Kraken · volume Binance · écart Kraken − Binance ${S.ecart == null ? 'non mesuré' : (S.ecart >= 0 ? '+' : '') + nb(S.ecart)} $${S.ecartN ? ` (médiane de ${S.ecartN} bougies)` : ''} · ATR H1 ${nb(S.a)} $${texteHistoriqueCharge(S)}`;
     // lecture
     const L = S.lecture; if (L) {
@@ -215,7 +203,6 @@ export function monterTableauOr(el, { modules = {}, contexte = 'page', fetchFn, 
     modules.journal && modules.journal.majMarche && modules.journal.majMarche(S);
     modules.gardien && modules.gardien.majMarche && modules.gardien.majMarche(S);
     modules.outils && modules.outils.majMarche && modules.outils.majMarche(S);
-    if (api.flechesT) api.flechesT.maj();   // flèches du Terminal (MA200, niveaux majeurs, zones tracées) : à la clôture des bougies H1
     api.surRendu && api.surRendu(S);
   }
   function majPosition(pos, outil) {
@@ -258,7 +245,6 @@ export function monterTableauOr(el, { modules = {}, contexte = 'page', fetchFn, 
     else if (a === 'micro') ecouter();
   });
   q('[data-demande]').addEventListener('submit', e => { e.preventDefault(); const i = e.target.querySelector('input'); if (i.value.trim()) repondre(i.value.trim()); i.value = ''; });
-  for (const c of R.querySelectorAll('[data-vh1]')) c.addEventListener('change', () => { const sel = [...R.querySelectorAll('[data-vh1]')].filter(x => x.checked).map(x => x.dataset.vh1); moteur.versionsH1(sel.length ? sel : ['fleches-h1-v9']); });
   for (const c of R.querySelectorAll('[data-couche]')) { c.checked = graph.couches()[c.dataset.couche] !== false; c.addEventListener('change', () => { graph.couches({ [c.dataset.couche]: c.checked }); if (instUI) { if (c.dataset.couche === 'carteCarnet') instUI.carteThermique(c.checked); instUI.maj(true); } if (structUI && (c.dataset.couche === 'structure' || c.dataset.couche === 'retournements')) structUI.maj(true); if (schUI && ['rsi', 'divCachees', 'schemas'].includes(c.dataset.couche)) schUI.maj(true); if (ictUI && /^ict/.test(c.dataset.couche)) ictUI.maj(true); }); }
   // boutons collés au graphique : « Positions de Rayle » (panneau Trades simulés) et « Mouvements H1 » (couche)
   { const bp = R.querySelector('[data-a="positions-rayle"]'), bm = R.querySelector('[data-a="mouv-h1"]'), cm = R.querySelector('[data-couche="mouvements"]');
@@ -302,7 +288,6 @@ export function monterTableauOr(el, { modules = {}, contexte = 'page', fetchFn, 
   // mes outils (dessin, surveillance, alertes, registre) : dans tous les contextes ; un échec n'empêche pas le reste
   import('./mobile-outils.js').then(m => { api.outilsMobiles = m.monterOutilsMobiles(R); }).catch(() => { /* facultatif */ });
   import('./rsi-ui.js').then(m => { api.rsiUI = m.monterRsi(api); }).catch(e => notifier('RSI indisponible : ' + e.message, { niveau: 'doux', dit: false, raison: 'module' }));
-  import('./fleches-terminal-ui.js').then(m => { api.flechesT = m.monterFlechesTerminal(api, {}); }).catch(e => notifier('Flèches du Terminal indisponibles : ' + e.message, { niveau: 'doux', dit: false, raison: 'module' }));
   import('./suppression-niveaux.js').then(m => { api.suppression = m.monterSuppression(api); }).catch(e => notifier('Suppression des niveaux indisponible : ' + e.message, { niveau: 'doux', dit: false, raison: 'module' }));
   import('./terminal-outils.js').then(m => { if (!R.isConnected && el.innerHTML === '') return; modules.outils = m.monterOutils(api, { ...(fetchFn ? { fetchFn } : {}), ...(window.__RAYLE_OR_OUTILS_TEST__ || {}) /* crochet de test : horloge et bougies H1 rejouées */ }); api.outils = modules.outils; }).catch(e => notifier('Outils de dessin indisponibles : ' + e.message, { niveau: 'doux', dit: false, raison: 'module' }));
   moteur.demarrer().then(() => { notifier('Données de l’or chargées.', { niveau: 'doux', dit: false, raison: 'information interne' }); }).catch(e => notifier('Chargement impossible : ' + e.message, { niveau: 'fort' }));

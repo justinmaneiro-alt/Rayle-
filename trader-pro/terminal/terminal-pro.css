@@ -9,8 +9,8 @@ html.tp-terminal:not(.tp-details) .tor-ray-feuille,
 html.tp-terminal:not(.tp-details) .tor-ft-ligne,
 html.tp-terminal:not(.tp-details) .tt-fl,
 html.tp-terminal:not(.tp-details) .tor-ray-carte { display: none !important; }   /* aucune annotation technique sur le graphique propre (carte « Carnet · zone de vente » comprise) */
-.tp-b-hj, .tp-b-details { margin-left: 8px; min-height: 36px; padding: 4px 12px; border: 1px solid #2a3f4d; border-radius: 8px; background: rgba(8,16,24,.85); color: #cfe3ee; font: 600 13px system-ui, sans-serif; cursor: pointer; }
-.tp-b-hj { border-color: #8fd0e3; color: #fff; } .tp-b-details[aria-pressed="true"], .tp-b-hj[aria-expanded="true"] { background: rgba(20,50,68,.9); border-color: #8fd0e3; }
+.tp-b-hj, .tp-b-details, .tp-b-donnees { margin-left: 8px; min-height: 36px; padding: 4px 12px; border: 1px solid #2a3f4d; border-radius: 8px; background: rgba(8,16,24,.85); color: #cfe3ee; font: 600 13px system-ui, sans-serif; cursor: pointer; }
+.tp-b-donnees[aria-expanded="true"] { background: rgba(20,50,68,.9); border-color: #8fd0e3; } .tp-b-hj { border-color: #8fd0e3; color: #fff; } .tp-b-details[aria-pressed="true"], .tp-b-hj[aria-expanded="true"] { background: rgba(20,50,68,.9); border-color: #8fd0e3; }
 .tp-panneau { position: fixed; z-index: 70; top: 52px; right: 0; bottom: 0; width: min(400px, 100vw); overflow-y: auto; box-sizing: border-box; padding: 10px 14px calc(18px + env(safe-area-inset-bottom, 0px)); background: #070d12; border-left: 1px solid #1a2a35; color: #d7e3ea; font: 13px/1.45 system-ui, sans-serif; }
 .tp-panneau[hidden] { display: none; } .tp-panneau header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; } .tp-panneau header b { font-size: 15px; font-weight: 500; color: #8fd0e3; } .tp-panneau button { min-height: 36px; padding: 4px 10px; border: 1px solid #2a3f4d; border-radius: 8px; background: rgba(8,16,24,.85); color: #cfe3ee; font: inherit; cursor: pointer; }
 .tp-panneau h4 { margin: 14px 0 4px; font-size: 12px; font-weight: 500; color: #8fd0e3; text-transform: uppercase; letter-spacing: .04em; } .tp-panneau .tp-doux { color: #7d8f99; font-size: 12px; margin: 6px 0; } .tp-panneau .tp-ligne { margin: 4px 0; font-size: 14px; }
@@ -24,11 +24,17 @@ html.tp-terminal:not(.tp-details) .tor-ray-carte { display: none !important; }  
 /* tactile : « Données » et « RSI » passent à droite (à gauche, l'icône de la barre de Rayle les cachait) */
 html.tm-tactile .tt-donnees { left: auto; right: 10px; } html.tm-tactile .tt-rsi { left: auto; right: 112px; }
 .tor-graph { position: relative; } .tp-ma-legende { position: absolute; left: 8px; top: 6px; z-index: 5; display: flex; flex-wrap: wrap; gap: 4px 12px; padding: 3px 8px; border-radius: 6px; background: rgba(5,8,12,.78); font: 600 11px system-ui, sans-serif; pointer-events: none; max-width: calc(100% - 90px); } .tp-ma-legende .tp-h { color: #5fb894; } .tp-ma-legende .tp-b { color: #d86a6a; }
-.tp-ligne-boutons { position: absolute; left: 8px; top: 52px; z-index: 7; display: flex; gap: 8px; } .tp-ligne-boutons .tp-b-hj, .tp-ligne-boutons .tp-b-details { margin: 0; min-height: 44px; padding: 4px 14px; background: rgba(5,8,12,.85); }
+.tp-ligne-boutons { position: absolute; left: 8px; top: 52px; z-index: 7; display: flex; gap: 8px; } .tp-ligne-boutons .tp-b-hj, .tp-ligne-boutons .tp-b-details, .tp-ligne-boutons .tp-b-donnees { margin: 0; min-height: 44px; padding: 4px 14px; background: rgba(5,8,12,.85); }
 .tp-spot { margin-left: 8px; padding: 1px 7px; border-radius: 8px; background: rgba(241,211,79,.12); color: #f1d34f; font: 600 11px system-ui, sans-serif; white-space: nowrap; } .tp-spot[hidden] { display: none; }
 
 /* UNE seule moyenne mobile : la MA200 de l'unité affichée (couche Trader Pro) ; les anciennes cases « MA200 » du terminal ne servent plus */
-label:has(> [data-or="ma200"]), label:has(> [data-or="ma200H1"]) { display: none !important; }
 /* « .tp-doux » existe aussi dans l'ancien terminal (rayle.css : masqué et poussé à droite sur téléphone) : dans nos panneaux il reste un paragraphe normal */
 html .tp-panneau .tp-doux, html .tp-donnees .tp-doux { display: block; margin-left: 0; }
 .tp-bilan > summary { cursor: pointer; padding: 8px 0; color: #8fd0e3; font-weight: 500; } .tp-bilan[open] > summary { margin-bottom: 4px; }
+.tp-panneau.tp-donnees { width: min(520px, 100vw); }
+/* Réglages des flèches Daily : interrupteur + multiplicateur ATR par actif (panneau « Flèches Daily » et menu « Affichage » du terminal) */
+.tp-reg { display: grid; gap: 6px; } .tp-reg .tp-case { margin: 0; } .tp-reg-mult { display: grid; grid-template-columns: repeat(auto-fill, minmax(128px, 1fr)); gap: 6px 10px; align-items: center; } .tp-reg-mult > span { grid-column: 1 / -1; font-size: 12px; color: #8497a1; }
+.tp-reg-l { display: flex; justify-content: space-between; align-items: center; gap: 6px; font-size: 13px; color: #b9cdd8; } .tp-reg-ici span { color: #8fd0e3; font-weight: 600; }
+.tp-reg-l input[type="number"] { width: 64px; min-height: 36px; box-sizing: border-box; padding: 2px 6px; border: 1px solid #2a3f4d; border-radius: 8px; background: #0c161d; color: #e6f0f5; font: 14px system-ui, sans-serif; text-align: right; }
+.tp-reg input[type="checkbox"] { width: 20px; height: 20px; flex: none; } .tp-reg small { color: #7d8f99; font-size: 11px; line-height: 1.35; }
+.tor-ob-pan .tp-reg { padding: 4px 0 6px; border-bottom: 1px solid var(--b, #1a2a35); margin-bottom: 4px; } .tor-ob-pan .tp-reg-mult { grid-template-columns: 1fr 1fr; }

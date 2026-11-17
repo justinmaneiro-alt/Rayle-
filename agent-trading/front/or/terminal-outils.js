@@ -6,7 +6,7 @@
 import { creer, modifier, libelle, calculPosition, NOMS, COULEURS, DEFAUTS_POSITION, exporter, importer } from './outils-calcul.js';
 import { atrLocal } from './niveaux-periode.js';
 import { detecterRetests, autoriser } from './zones-alertes.js';
-import { surveiller, fractalesMajeures, niveauxProposes, excursionEvenement, bilanRegistre, bilanV10, REGLES_V10, TEXTE_REGLES_V10, DEPUIS_V10 } from './fleches-v10.js';
+import { surveiller, fractalesMajeures, niveauxProposes, excursionEvenement, bilanRegistre, REGLES_V10, TEXTE_REGLES_V10, DEPUIS_V10 } from './fleches-v10.js';
 import { ouvrirStockage } from './stockage-outils.js';
 import { bougiesKraken } from './sources-or.js';
 import { chargerHistorique } from './historique-or.js';
@@ -14,7 +14,7 @@ import { fusionner } from './bougies-or.js';
 import { heureParis } from './temps-or.js';
 
 const H = 3600e3, CLE_REGL = 'rayle_or_outils_regl', CLE_PROP = 'rayle_or_proposes_v10';
-export const REGLAGES_DEFAUT = Object.freeze({ ma200: false, ma200H1: false, niveauxAuto: false, anciennesFleches: false, aimant: true, son: false, notif: false, telegram: false, risquePct: DEFAUTS_POSITION.risquePct, capital: DEFAUTS_POSITION.capital });
+export const REGLAGES_DEFAUT = Object.freeze({ niveauxAuto: false, aimant: true, son: false, notif: false, telegram: false, risquePct: DEFAUTS_POSITION.risquePct, capital: DEFAUTS_POSITION.capital });
 const lireJ = (k, d) => { try { const v = localStorage.getItem(k); return v ? JSON.parse(v) : d; } catch (e) { return d; } };
 const ecrireJ = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) { /* stockage refusé */ } };
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -39,10 +39,7 @@ export function monterOutils(T, { stockage = null, fetchFn = fetch, maintenant =
   const barre = q('.tor-outils'), ancien = barre.querySelector('[data-a="position"]');
   const htmlBarre = `<span class="tor-ob" role="toolbar" aria-label="Outils de dessin">${OUTILS_BARRE.map(([t, g, titre]) => `<button type="button" data-outil="${t}" title="${esc(titre)}" aria-pressed="false">${g}<span class="tor-ob-nom"> ${t === 'horizontale' ? 'Ligne' : t === 'position' ? 'Position' : NOMS[t]}</span></button>`).join('')}<button type="button" data-o="aimant" title="Aimantation aux hauts et bas des bougies" aria-pressed="${regl.aimant}">🧲</button>
     <details class="tor-ob-aff"><summary title="Affichage">Affichage</summary><div class="tor-ob-pan">
-      <label><input type="checkbox" data-or="ma200"> MA200 (SMA 200 de l’unité affichée)</label>
-      <label><input type="checkbox" data-or="ma200H1"> SMA 200 H1 sur toutes les unités</label>
       <label><input type="checkbox" data-or="niveauxAuto"> Niveaux automatiques détaillés</label>
-      <label><input type="checkbox" data-or="anciennesFleches"> Anciennes flèches (v1 à v9)</label>
       <hr><button type="button" data-o="exporter">Exporter mes outils (JSON)</button><label class="tor-ob-imp">Importer <input type="file" accept="application/json,.json" data-o="importer"></label></div>
     </details></span>`;
   if (ancien) ancien.outerHTML = htmlBarre; else barre.insertAdjacentHTML('afterbegin', htmlBarre);
@@ -66,10 +63,8 @@ export function monterOutils(T, { stockage = null, fetchFn = fetch, maintenant =
 
   /* ─── réglages d'affichage ─── */
   function appliquerAffichage() {
-    graph.couches({ sr: regl.niveauxAuto, liquidite: regl.niveauxAuto, flechesTout: regl.anciennesFleches });
+    graph.couches({ sr: regl.niveauxAuto, liquidite: regl.niveauxAuto });
     for (const c of R.querySelectorAll('[data-couche]')) c.checked = graph.couches()[c.dataset.couche] !== false;
-    for (const s of ['[data-bilan-fleches]']) { const x = q(s); if (x) x.hidden = !regl.anciennesFleches; }
-    const vh = q('[data-versions-h1]'); if (vh && !regl.anciennesFleches) vh.hidden = true;
     graph.aimant(regl.aimant); majMA();
   }
   for (const c of R.querySelectorAll('[data-or]')) {
@@ -77,19 +72,13 @@ export function monterOutils(T, { stockage = null, fetchFn = fetch, maintenant =
     c.addEventListener('change', async () => {
       const k = c.dataset.or; regl[k] = c.checked;
       if (k === 'notif' && c.checked && typeof Notification !== 'undefined' && Notification.permission !== 'granted') { try { const p = await Notification.requestPermission(); if (p !== 'granted') { regl.notif = false; c.checked = false; T.notifier('Notifications refusées par le navigateur.', { niveau: 'doux', dit: false, raison: 'autorisation' }); } } catch (e) { regl.notif = false; c.checked = false; } }
-      ecrireJ(CLE_REGL, regl); appliquerAffichage(); if (k === 'anciennesFleches' || k === 'niveauxAuto') T.rendre && T.rendre();
+      ecrireJ(CLE_REGL, regl); appliquerAffichage(); if (k === 'niveauxAuto') T.rendre && T.rendre();
     });
   }
 
   /* ─── MA200 ─── */
   let derMA = '';
-  function majMA() {
-    if (!regl.ma200 && !regl.ma200H1) { if (derMA) { graph.ma200(null); derMA = ''; } return; }
-    const B = moteur.serie() || [], P = moteur.S.periode; if (!B.length) return;
-    const pts = regl.ma200H1 ? smaSurBougies(B, sma(E.C, 200)) : sma(B, 200);
-    const cle = `${P}|${regl.ma200H1}|${B.length}|${B[B.length - 1].t}|${B[B.length - 1].c}|${E.C.length}`; if (cle === derMA) return; derMA = cle;
-    graph.ma200(pts);
-  }
+  function majMA() { if (derMA === '') { graph.ma200(null); derMA = 'x'; } }   // plus aucune MA200 ici : la seule MA200 du graphique est celle de l'unité affichée (couche Trader Pro, bougies de la même unité)
 
   /* ─── création, sélection, modification ─── */
   function choisirOutil(type) {
@@ -266,13 +255,10 @@ export function monterOutils(T, { stockage = null, fetchFn = fetch, maintenant =
   /* ─── bilans ─── */
   function rendreBilan(C) {
     const L = bilanRegistre(E.registre, E.suivis), { fleches } = marques();
-    const autres = Object.fromEntries(Object.entries(moteur.S.bilansH1 || {}).map(([v, x]) => [v, { p: x && x.p != null ? x.p : null }]));
-    let bv = null; try { bv = bilanV10(C, fleches, { maintenant: maintenant(), autres }); } catch (e) { bv = null; }
     const ligne = x => `<tr><td>${esc(NOMS[x.outil])}</td><td>${esc(TEXTES_EV[x.type] || x.type)}</td><td>${x.n}</td><td>${x.assez ? `${nb(x.favAtr)} ATR (${nb(x.favPct)} %)` : 'pas assez de données'}</td><td>${x.assez ? `${nb(x.advAtr)} ATR (${nb(x.advPct)} %)` : `${x.mesures} / ${REGLES_V10.minEvenements}`}</td></tr>`;
     b('[data-mo-bilan]').innerHTML = `<p class="tor-doux">Registre daté, en ajout seul : ${E.registre.length} événement(s), ${E.suivis.length} mesuré(s) sur ${REGLES_V10.excursionBougies} bougies H1. Les excursions décrivent ce qui s’est passé ensuite ; elles ne servent jamais de décision.</p>
       <table class="tor-mo-tab"><thead><tr><th>Outil</th><th>Événement</th><th>N</th><th>Excursion favorable (médiane)</th><th>Défavorable (médiane)</th></tr></thead><tbody>${L.map(ligne).join('') || '<tr><td colspan="5">Aucun événement enregistré pour l’instant.</td></tr>'}</tbody></table>
-      <p data-mo-bilan-v10><b>Flèches ${REGLES_V10.version}</b> (depuis son commit ${DEPUIS_V10.commit}, ${DEPUIS_V10.texte}) : ${bv ? esc(bv.texte) : 'pas encore de bougie H1 depuis le commit.'}</p>`;
-    E.bilanV10 = bv;
+`;
   }
   function rendreEtat() {
     const n = E.objets.length, txt = E.erreur ? `Surveillance interrompue : ${E.erreur}` : !E.C.length ? 'Chargement des bougies H1 de Kraken…' : `${n} objet(s) surveillé(s) sur ${E.C.length} bougies H1 closes · dernière analyse ${heureParis(E.derAnalyse)} · stockage ${st ? st.type : '—'}. Les alertes fonctionnent tant que Rayle est ouvert.`;

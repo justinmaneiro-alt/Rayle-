@@ -10,7 +10,7 @@ export const estTactile = () => {
   try { const q = new URLSearchParams(location.search); if (q.get('tactile') === '0') return false; if (q.get('tactile') === '1') return true;
     return matchMedia('(pointer: coarse)').matches && !matchMedia('(hover: hover) and (pointer: fine)').matches; } catch (e) { return false; }
 };
-export const TUILES = Object.freeze([['marches', 'Marchés'], ['cot', 'Rapport COT'], ['sante', 'Santé du marché'], ['institutions', 'Institutions'], ['actualites', 'Actualités'], ['calendrier', 'Calendrier'], ['journal', 'Journal'], ['capital', 'Capital']]);
+export const TUILES = Object.freeze([['marches', 'Marchés'], ['cot', 'Rapport COT'], ['sante', 'Santé du marché'], ['institutions', 'Institutions'], ['actualites', 'Actualités'], ['calendrier', 'Calendrier'], ['journal', 'Journal'], ['capital', 'Capital'], ['score', 'Score et données']]);
 export const PERIODES_BARRE = Object.freeze([['H1', 'H1'], ['H4', 'H4'], ['J', 'Jour']]);   // M5 et M15 retirées
 const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);
 const attendre = async (f, ms = 8000) => { const t0 = Date.now(); while (Date.now() - t0 < ms) { const v = f(); if (v) return v; await new Promise(r => setTimeout(r, 100)); } return null; };
@@ -72,6 +72,7 @@ export async function monterTactile(T) {
   bd.addEventListener('click', () => { E.donnees = !E.donnees; tuiles.hidden = !E.donnees; bd.setAttribute('aria-expanded', String(E.donnees)); bd.textContent = E.donnees ? 'Données ✕' : 'Données'; fermerReglages(); });
   tuiles.addEventListener('click', ev => { const b = ev.target.closest('[data-tt-tuile]'); if (b) ouvrirFeuille(b.dataset.ttTuile); });
   async function ouvrirFeuille(k) {
+    if (k === 'score') { try { if (window.__orPro) window.__orPro.ouvrirDonnees(true); tuiles.hidden = true; E.donnees = false; bd.textContent = 'Données'; bd.setAttribute('aria-expanded', 'false'); } catch (e) { /* */ } return true; }
     if (!esp || !TUILES.some(t => t[0] === k)) return false; fermerReglages(); if (E.feuille) { try { document.querySelector(`[data-zone="${E.feuille}"]`)?.classList.remove('tt-feuille'); } catch (e) { /* */ } }
     E.feuille = k; html.classList.add('tt-feuille-ouverte'); html.dataset.ttFeuille = k; tete.hidden = false; tete.querySelector('[data-tt-titre]').textContent = TUILES.find(t => t[0] === k)[1];
     await esp.aller(k); const z = document.querySelector(`[data-zone="${k}"]`); if (z) z.classList.add('tt-feuille'); return true;

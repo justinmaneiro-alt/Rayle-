@@ -1,6 +1,6 @@
 /* Zones H1 dessinées, calculées par la MÊME chaîne que graphique-or.js, à partir des seules bougies données (flux en direct : jamais d'information future). Pur, sans DOM. */
 import { niveauxPeriode } from './niveaux-periode.js';
-import { selectionV6 } from './fleches-h1-v6.js';
+import { selectionV6 } from './niveaux-h1.js';
 import { zonesAffichage, atrH1 } from './zones-affichage-v1.js';
 import { normaliserZones } from './zones-fines-v1.js';
 const H = 3600e3;

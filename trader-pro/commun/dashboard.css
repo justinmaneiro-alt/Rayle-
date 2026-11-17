@@ -1,0 +1,16 @@
+/* Dashboard pro (score, tendance, volume net, données) : autonome, identique dans le terminal et dans Marchés */
+.tp-dash { color: #d7e3ea; font: 13px/1.45 system-ui, sans-serif; }
+.tp-dash .tp-carte { border: 1px solid #1a2a35; border-radius: 10px; padding: 10px 14px 14px; background: #0b1319; margin: 10px 0; }
+.tp-dash h3 { margin: 0 0 6px; font-size: 14px; font-weight: 500; color: #8fd0e3; } .tp-dash h4 { margin: 12px 0 4px; font-size: 12px; font-weight: 500; color: #8fd0e3; text-transform: uppercase; letter-spacing: .04em; }
+.tp-dash .tp-doux, .tp-dash .tp-att { color: #8497a1; font-size: 12px; margin: 6px 0; display: block; } .tp-dash small { color: #8497a1; font-size: 11px; }
+.tp-dash .tp-hausse { color: #5fb894; } .tp-dash .tp-baisse { color: #d86a6a; } .tp-dash .tp-neutre { color: #a8b8c0; }
+.tp-dash button { min-height: 34px; padding: 4px 10px; border: 1px solid #2a3f4d; border-radius: 8px; background: rgba(8,16,24,.85); color: #cfe3ee; font: inherit; cursor: pointer; } .tp-dash button[aria-pressed="true"] { border-color: #8fd0e3; color: #8fd0e3; }
+.tp-dash .tp-tfs { display: flex; gap: 6px; margin: 6px 0; }
+.tp-score-tete { display: flex; align-items: center; gap: 14px; } .tp-score-n { font: 600 46px/1 ui-monospace, Consolas, monospace; }
+.tp-jauge { position: relative; height: 10px; margin: 10px 0 2px; border-radius: 6px; background: linear-gradient(90deg, #d86a6a, #3a4650 50%, #5fb894); } .tp-jauge i { position: absolute; top: -4px; width: 4px; height: 18px; margin-left: -2px; border-radius: 2px; background: #fff; box-shadow: 0 0 0 2px #05080c; }
+.tp-jauge-l { display: flex; justify-content: space-between; font-size: 10px; color: #8497a1; }
+.tp-dash table { width: 100%; border-collapse: collapse; font-size: 12px; } .tp-dash th, .tp-dash td { padding: 4px 6px; border-bottom: 1px solid #14212a; text-align: left; vertical-align: top; } .tp-dash th { color: #8497a1; font-weight: 500; }
+.tp-comp .tp-det td { border-bottom: 1px solid #1a2a35; padding-top: 0; } .tp-comp .tp-off { opacity: .6; }
+.tp-dash .tp-cartes { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; } .tp-dash .tp-cartes small { display: block; } .tp-dash .tp-cartes b { font: 600 18px ui-monospace, Consolas, monospace; display: block; } .tp-dash .tp-cartes span { color: #8497a1; font-size: 11px; }
+.tp-dash .tp-graph { width: 100%; min-height: 120px; } .tp-dash .tp-etiq { display: inline-block; margin-left: 6px; padding: 1px 6px; border-radius: 6px; font-size: 10px; background: #3a2a10; color: #f1b45a; } .tp-dash .tp-etiq-ok { background: #123325; color: #5fb894; }
+.tp-dash .tp-liste { padding-left: 16px; margin: 6px 0; } .tp-dash .tp-panne { color: #d86a6a; }

@@ -11,6 +11,7 @@ export function intention(texte) {
   const n = normaliser(texte); if (!n) return null;
   if (/\bcouvr(e|ir|ez|ons|ant)\b/.test(n) && /\b(position|achat|vente|trade|or|gold|nasdaq|us100|bitcoin|btc|solana|sol|argent|petrole|s ?p ?500)\b/.test(n)) return { type: 'couverture', actif: actifDe(n) };
   if (/\bfleches?\b/.test(n) || (/\bsignaux?\b/.test(n) && /\b(h4|h 4|jour|journalier|journaliers|aujourd hui|du jour|recents?|derniers?|y a t il)\b/.test(n))) return { type: 'fleches', actif: actifDe(n) };
+  if (/\bscores?\b/.test(n) && /\b(marche|marches|or|gold|nasdaq|us100|bitcoin|btc|solana|sol|s ?p ?500|dollar)\b/.test(n)) return { type: 'score', actif: actifDe(n) || { id: 'or', nom: 'l’or' } };
   if (/\bcot\b|commitments|positions? des fonds|fonds speculatifs|managed money/.test(n)) return { type: 'cot', actif: actifDe(n) || { id: 'or', nom: 'l’or' } };
   if (/\b(quel|quels|combien|c est quoi)\b.*\brisques?\b|\bmon risque\b|\brisque (total|actuel|que j ai|de mes positions)\b|\bmes risques\b/.test(n)) return { type: 'risque' };
   if (/\b(mes erreurs|mes fautes|mes defauts|ma discipline|mon coach|que (est ce que )?je fais mal|quelles sont mes erreurs|mes points faibles)\b/.test(n)) return { type: 'erreurs' };
@@ -46,10 +47,14 @@ export async function repondre(texte, S, { maintenant = Date.now() } = {}) {
     }
     if (i.type === 'fleches') {
       const L = await S.fleches(i.actif ? i.actif.id : null); if (!L || !L.length) return 'Je n’ai pas les données Daily pour le moment.';
+      const quoi = f => `${f.dir < 0 ? 'sommet' : 'creux'} Daily confirmé, vers ${f.niveauTxt || ''}`.replace(/, vers $/, '');
       const jour = t => new Date(t).toLocaleDateString('fr-FR', { timeZone: 'UTC', day: 'numeric', month: 'long' });
       const recents = L.filter(x => x.recentes.length);
-      if (!recents.length) return 'Aucune flèche Daily dans les 7 derniers jours' + (i.actif ? ' sur ' + i.actif.nom : '') + ' : il n’y en a que quelques-unes par trimestre.' + (L.length === 1 && L[0].derniere ? ` La dernière, ${L[0].derniere.dir < 0 ? 'rouge, un sommet' : 'verte, un creux'}, a été confirmée le ${jour(L[0].derniere.t)}.` : '');
-      return recents.map(x => x.recentes.slice(-2).map(f => `Sur ${x.nom} : flèche Daily ${f.dir < 0 ? 'rouge' : 'verte'} confirmée le ${jour(f.t)} : ${f.dir < 0 ? 'un sommet' : 'un creux'} semble confirmé, ${f.dir < 0 ? 'sommet' : 'creux'} du ${jour(f.tExtreme)}, décalage ${f.decalageJours} jours. Ce n’est pas un ordre.`).join(' ')).join(' ');
+      if (!recents.length) return 'Aucune flèche Daily dans les 7 derniers jours' + (i.actif ? ' sur ' + i.actif.nom : '') + ' : il n’y en a qu’une à trois par mois.' + (L.length === 1 && L[0].derniere ? ` La dernière, ${L[0].derniere.dir < 0 ? 'rouge, un sommet' : 'verte, un creux'}, a été confirmée le ${jour(L[0].derniere.tCloture ? L[0].derniere.tCloture - 1 : L[0].derniere.t)}.` : '');
+      return recents.map(x => x.recentes.slice(-2).map(f => `Sur ${x.nom} : flèche Daily ${f.dir < 0 ? 'rouge' : 'verte'}, ${quoi(f)}, extrême du ${jour(f.t)}, ${f.pleine ? 'dans le sens' : 'contre le sens'} de la tendance. Ce n’est pas un ordre.`).join(' ')).join(' ');
+    }
+    if (i.type === 'score') {
+      const r = await S.score(i.actif.id); return r ? phraseScore(i.actif.nom, r) : `Je n’ai pas les données pour calculer le score de ${i.actif.nom}.`;
     }
     if (i.type === 'cot') {
       const a = await S.cot(i.actif.id); if (!a) return `Je n’ai pas les données COT pour ${i.actif.nom} pour le moment.`;
@@ -79,9 +84,10 @@ export function sourceNavigateur() {
       const L = C.classerCouvertures(S, cal, sens, { notionnel }); return L.length ? { sens, notionnel, meilleur: L[0], deMaPosition } : null;
     },
     async fleches(id) {
-      const M = await charge(), { flechesDe } = await import('../terminal/fleches-registre.js'), ids = id ? [id] : ['or', 'us100', 'us500', 'btc', 'sol'], noms = { or: 'l’or', us100: 'le Nasdaq 100', us500: 'le S&P 500', btc: 'le Bitcoin', sol: 'Solana' };
-      const out = []; for (const a of ids) { if (!noms[a]) continue; try { const r = await M.dn.lireActifPro(a, { delai: 8000 }), reg = flechesDe(a, r.donnees.j), maintenant = Date.now(); out.push({ id: a, nom: noms[a], derniere: reg.length ? reg[reg.length - 1] : null, recentes: reg.filter(x => maintenant - x.tCloture < 7 * 86400e3 && x.tCloture <= maintenant) }); } catch (e) { /* actif sans données */ } } return out;
+      const M = await charge(), { flechesDe } = await import('../terminal/fleches-registre.js'), { niveauParle } = await import('../terminal/zigzag-daily.js'), ids = id ? [id] : ['or', 'us100', 'us500', 'btc', 'sol', 'doge'], noms = { or: 'l’or', us100: 'le Nasdaq 100', us500: 'le S&P 500', btc: 'le Bitcoin', sol: 'Solana', doge: 'Dogecoin' };
+      const out = []; for (const a of ids) { if (!noms[a]) continue; try { const r = await M.dn.lireActifPro(a, { delai: 8000 }), reg = flechesDe(a, r.donnees.j), maintenant = Date.now(); const avec = f => ({ ...f, niveauTxt: niveauParle(f.niveau) }); out.push({ id: a, nom: noms[a], derniere: reg.length ? avec(reg[reg.length - 1]) : null, recentes: reg.filter(x => maintenant - x.tCloture < 7 * 86400e3 && x.tCloture <= maintenant).map(avec) }); } catch (e) { /* actif sans données */ } } return out;
     },
+    async score(id) { const { calculerScoreActif } = await import('./dashboard.js'); return calculerScoreActif(id); },
     async cot(id) {
       const M = await charge(), { analyserCot } = await import('../marches/cot.js'), a = M.dn.parId[id] || null; if (!a) return null; const r = await M.dn.lireCot(a.cot, { delai: 8000 }); return analyserCot(r.donnees);
     }

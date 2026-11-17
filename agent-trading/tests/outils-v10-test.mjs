@@ -2,7 +2,7 @@
    cassure = croix + retourné, position, alertes libres, non-repeint, registre, bilan) : node agent-trading/tests/outils-v10-test.mjs */
 import assert from 'node:assert/strict';
 import * as O from '../front/or/outils-calcul.js';
-import { REGLES_V10, DEPUIS_V10, surveiller, surveillerObjet, fractalesMajeures, niveauxProposes, excursionEvenement, bilanRegistre, bilanV10 } from '../front/or/fleches-v10.js';
+import { REGLES_V10, DEPUIS_V10, surveiller, surveillerObjet, fractalesMajeures, niveauxProposes, excursionEvenement, bilanRegistre } from '../front/or/fleches-v10.js';
 import { atrLocal } from '../front/or/niveaux-periode.js';
 let n = 0; const eq = (a, b, m) => { assert.deepEqual(a, b, m); n++; }, ok = (c, m) => { assert.ok(c, m); n++; };
 const H = 3600e3, T0 = Date.UTC(2026, 9, 5, 0);
@@ -89,9 +89,7 @@ const evts = (B, o) => { const A = atrLocal(B, 14), r = surveillerObjet(B, A, o)
   // registre : excursions et bilan par type
   const S = tout.ev.map(e => excursionEvenement(B, e)).filter(Boolean), Bi = bilanRegistre(tout.ev, S);
   ok(S.length > 0 && S.every(x => x.favAtr >= 0 && x.advAtr >= 0 && x.favPct >= 0), 'excursions favorable / défavorable en ATR et en %');
-  ok(Bi.length > 0 && Bi.every(x => x.assez === (x.mesures >= 30)), 'bilan par type d’outil : « pas assez de données » sous 30');
-  const b = bilanV10(B, tout.fleches, { maintenant: B[B.length - 1].t + H, autres: { 'fleches-h1-v9': { p: 0.5 } } });
-  ok(/depuis le 8 nov\. 2026, 16 h 14/.test(b.texte) && /Aucune décision avant 100/.test(b.texte) && b.total === 0, 'bilan v10 : depuis son commit (flèches fabriquées antérieures non comptées)'); }
+  ok(Bi.length > 0 && Bi.every(x => x.assez === (x.mesures >= 30)), 'bilan par type d’outil : « pas assez de données » sous 30');  }
 /* niveaux proposés : fractales de 60 bougies de chaque côté ; décisions */
 { const B = Array.from({ length: 400 }, (_, i) => { const p = 2000 + 50 * Math.sin(i / 40); return { t: T0 + i * 4 * H, o: p, h: p + 2, l: p - 2, c: p }; });
   const F = fractalesMajeures(B, 60, 4 * H, 'H4'), fin = B[B.length - 1].t + 4 * H;

@@ -1,0 +1,156 @@
+{
+ "or": {
+  "nom": "Or (futures GC=F, séances)",
+  "bougies": 2514,
+  "debut": "2016-11-17",
+  "fin": "2026-11-16",
+  "multDepart": 2.5,
+  "parMoisDepart": 1.19,
+  "mult": 2.5,
+  "fleches": 143,
+  "parMois": 1.19,
+  "parMois12m": 1.08,
+  "pleines": 50,
+  "controles": {
+   "memeSens": 0,
+   "espace": 0,
+   "pasExtreme": 2,
+   "repaint": 0,
+   "enFormation": 0,
+   "details": [
+    "2019-06-25 : un plus haut existe le 2019-07-03",
+    "2020-09-24 : un plus bas existe le 2020-11-09"
+   ]
+  }
+ },
+ "us100": {
+  "nom": "Nasdaq 100",
+  "bougies": 2511,
+  "debut": "2016-11-17",
+  "fin": "2026-11-13",
+  "multDepart": 2.5,
+  "parMoisDepart": 1.18,
+  "mult": 2.5,
+  "fleches": 141,
+  "parMois": 1.18,
+  "parMois12m": 1.17,
+  "pleines": 50,
+  "controles": {
+   "memeSens": 0,
+   "espace": 0,
+   "pasExtreme": 7,
+   "repaint": 0,
+   "enFormation": 0,
+   "details": [
+    "2017-03-21 : un plus haut existe le 2017-04-05",
+    "2017-05-23 : un plus bas existe le 2017-06-09",
+    "2018-02-06 : un plus bas existe le 2018-02-09",
+    "2020-06-10 : un plus haut existe le 2020-06-23",
+    "2021-12-03 : un plus bas existe le 2021-12-20"
+   ]
+  }
+ },
+ "btc": {
+  "nom": "Bitcoin",
+  "bougies": 3651,
+  "debut": "2016-11-17",
+  "fin": "2026-11-15",
+  "multDepart": 2.5,
+  "parMoisDepart": 1.63,
+  "mult": 2.5,
+  "fleches": 196,
+  "parMois": 1.63,
+  "parMois12m": 1.33,
+  "pleines": 68,
+  "controles": {
+   "memeSens": 0,
+   "espace": 0,
+   "pasExtreme": 4,
+   "repaint": 0,
+   "enFormation": 0,
+   "details": [
+    "2017-11-29 : un plus haut existe le 2017-12-03",
+    "2019-04-03 : un plus haut existe le 2019-04-10",
+    "2020-08-02 : un plus haut existe le 2020-08-10",
+    "2020-11-25 : un plus haut existe le 2020-12-01"
+   ]
+  }
+ },
+ "sol": {
+  "nom": "Solana",
+  "bougies": 2411,
+  "debut": "2020-04-10",
+  "fin": "2026-11-15",
+  "multDepart": 2.5,
+  "parMoisDepart": 1.53,
+  "mult": 2.5,
+  "fleches": 121,
+  "parMois": 1.53,
+  "parMois12m": 1,
+  "pleines": 34,
+  "controles": {
+   "memeSens": 0,
+   "espace": 0,
+   "pasExtreme": 1,
+   "repaint": 0,
+   "enFormation": 0,
+   "details": [
+    "2023-11-11 : un plus haut existe le 2023-11-16"
+   ]
+  }
+ },
+ "doge": {
+  "nom": "Dogecoin",
+  "bougies": 3294,
+  "debut": "2017-11-09",
+  "fin": "2026-11-15",
+  "multDepart": 2.5,
+  "parMoisDepart": 1.59,
+  "mult": 2.5,
+  "fleches": 172,
+  "parMois": 1.59,
+  "parMois12m": 1.17,
+  "pleines": 55,
+  "controles": {
+   "memeSens": 0,
+   "espace": 0,
+   "pasExtreme": 5,
+   "repaint": 0,
+   "enFormation": 0,
+   "details": [
+    "2017-12-17 : un plus haut existe le 2017-12-21",
+    "2019-04-03 : un plus haut existe le 2019-04-04",
+    "2022-10-29 : un plus haut existe le 2022-11-01",
+    "2023-11-11 : un plus haut existe le 2023-11-17",
+    "2024-02-29 : un plus haut existe le 2024-03-05"
+   ]
+  }
+ },
+ "us500": {
+  "nom": "S&P 500",
+  "bougies": 2511,
+  "debut": "2016-11-17",
+  "fin": "2026-11-13",
+  "multDepart": 2.5,
+  "parMoisDepart": 1.09,
+  "mult": 2.5,
+  "fleches": 131,
+  "parMois": 1.09,
+  "parMois12m": 1.17,
+  "pleines": 41,
+  "controles": {
+   "memeSens": 0,
+   "espace": 0,
+   "pasExtreme": 5,
+   "repaint": 0,
+   "enFormation": 0,
+   "details": [
+    "2018-02-06 : un plus bas existe le 2018-02-09",
+    "2022-05-02 : un plus bas existe le 2022-05-20",
+    "2022-12-01 : un plus haut existe le 2022-12-13",
+    "2023-04-26 : un plus bas existe le 2023-05-04",
+    "2024-12-20 : un plus bas existe le 2025-01-02"
+   ]
+  }
+ }
+}

@@ -1,6 +1,6 @@
 /* Zones H1 dessinées, calculées hors navigateur par la MÊME chaîne que graphique-or.js (niveauxPeriode H1 → selectionV6 → zonesAffichage). */
 import { niveauxPeriode } from '../front/or/niveaux-periode.js';
-import { selectionV6 } from '../front/or/fleches-h1-v6.js';
+import { selectionV6 } from '../front/or/niveaux-h1.js';
 import { zonesAffichage, atrH1 } from '../front/or/zones-affichage-v1.js';
 import { normaliserZones } from '../front/or/zones-fines-v1.js';
 const H = 3600e3;

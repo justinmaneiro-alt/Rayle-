@@ -75,6 +75,7 @@ Reprise : relire ce fichier, `git log --oneline -15`, `git status`, puis continu
 - [x] V2-Phase 1 : bugs de la vidéo
 - [x] V2-Phase 2 : graphique du terminal (H1/H4/Jour seulement, une seule MA200 de l unité affichée, S/R de l unité + Jour)
 - [x] V2-Phase 3 : flèches Daily simples (3 méthodes testées, backtest, encart)
+- [x] V2-Phase 3 bis (2026-11-17) : NOUVELLES flèches Daily (zigzag ATR) à la place de TOUT l’ancien système — voir « V2-Phase 3 bis : notes »
 - [ ] V2-Phase 4 : dashboard enrichi (score de marché, volume net USD, ATR, perfs…)
 - [ ] V2-Phase 5 : données XTB sur tous les appareils (Worker prêt à déployer, états de synchro, import)
 - [ ] V2-Phase 6 : publication + déploiement Cloudflare guidé
@@ -91,3 +92,9 @@ Reprise : relire ce fichier, `git log --oneline -15`, `git status`, puis continu
 - Méthode retenue (meilleur F1 d'apprentissage) : pivot de swing confirmé L=R=12, amplitude ≥ 5 ATR. Hors échantillon or+Nasdaq : précision ≈ 51 %, rappel ≈ 74 %, décalage ≈ 17 jours ; mouvement des 20 jours suivants ≈ 0 : elle confirme un retournement déjà amorcé, ce n'est pas un signal rentable ; Bitcoin (contrôle) : 24 % de bonnes.
 - Registre local (`fleches-registre.js`) : une flèche publiée ne bouge jamais ; mêmes flèches dans le terminal et Marchés > Actifs ; H1/H4 : dernière bougie de la journée Daily. Alertes voix/Telegram/robot (`alertes-fleches.mjs`) seulement sur ces flèches.
 - Piège : `.tp-doux` est masqué sur téléphone par rayle.css (ancien terminal) : contourné dans terminal-pro.css.
+
+## V2-Phase 3 bis : notes (2026-11-17)
+- Supprimé : tout l’ancien système de flèches (rebonds H1/H4, flèches MA200, versions v1 à v9, registre H1, historique, notifications, alertes-serveur / robot GitHub d’alertes, archives, tests et scripts de recherche associés). Les niveaux H1 affichés restent (extraits dans `agent-trading/front/or/niveaux-h1.js`).
+- Ajouté : `trader-pro/terminal/zigzag-daily.js` (ATR 14, sommet / creux confirmé à 2,5 × ATR, 5 bougies minimum, alternance stricte, aucun repaint, pleine / pâle selon la MA200 Daily), `fleches-registre.js` (réglages, registre, annonces une seule fois), `verifier-fleches.mjs` + `VERIFICATION-FLECHES.md` (rapport par actif).
+- Affichage : Jour = bougie extrême ; H4 = bougie H4 du plus haut / plus bas exact de la journée ; H1 = rien. Réglages : « Flèches Daily » + multiplicateur ATR par actif (panneau « Flèches Daily » et menu « Affichage »).
+- MA200 : une seule par graphique, sur les bougies de SON unité ; quand l’historique affiché est trop court (or en Daily), complété avant la première bougie par la série de la même unité du robot.

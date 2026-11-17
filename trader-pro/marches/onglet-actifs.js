@@ -7,8 +7,9 @@ import { rsi, tendance, niveauxCles, serieSma, projeter, fusionnerNiveaux, atr, 
 import { lireEvenements, filtrer, compteARebours, heureParis } from './calendrier.js';
 import { analyserCot, lectureCot } from './cot.js';
 import { ma200Unite, bandeauMA, niveauxUniteEtJour, NOM_UNITE } from '../commun/lecture-unite.js';
-import { flechesDe } from '../terminal/fleches-registre.js';
-import { indexSurUnite } from '../terminal/fleches-daily.js';
+import { flechesDe, lireReglages } from '../terminal/fleches-registre.js';
+import { monterDashboard } from '../commun/dashboard.js';
+import { indexSurUnite, styleFleche } from '../terminal/zigzag-daily.js';
 
 const TF = Object.freeze({ H1: { nom: 'H1', pas: H, cle: 'h1', n: 200 }, H4: { nom: 'H4', pas: 4 * H, cle: 'h4', n: 180 }, J: { nom: 'Jour', pas: J, cle: 'j', n: 220 } });
 
@@ -38,16 +39,17 @@ export function monter(zone, ctx = {}) {
   const fiche = zone.querySelector('[data-fiche]');
   const marquer = () => zone.querySelectorAll('[data-actif]').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.actif === E.id)));
 
-  function nettoyer() { E.seq++; E.legCtx = null; E.prixOr = null; E.prixOrFini = false; if (E.graph) { E.graph.detruire(); E.graph = null; } E.vues.forEach(v => v.detruire()); E.vues = []; }
+  function nettoyer() { E.seq++; if (E.dash) { try { E.dash.detruire(); } catch (e) { /* */ } E.dash = null; } E.legCtx = null; E.prixOr = null; E.prixOrFini = false; if (E.graph) { E.graph.detruire(); E.graph = null; } E.vues.forEach(v => v.detruire()); E.vues = []; }
   function ouvrir(id) {
     nettoyer(); E.id = id; ecrireLS('tp_actif', id); marquer(); const a = parId[id], n = E.seq;
     fiche.innerHTML = `<article class="tp-carte"><header class="tp-entete"><b>${esc(a.nom)}</b><span class="tp-prix" data-prix>—</span><span class="tp-var" data-var></span></header><p class="tp-doux" data-src></p>
       <p class="tp-liens" role="group" aria-label="Aller à"><button type="button" data-aller="terminal">Terminal</button><button type="button" data-aller="couverture">Couvrir</button><button type="button" data-aller="portefeuille">Mon portefeuille</button></p><div class="tp-tfs" role="group" aria-label="Unité de temps">${Object.values(TF).map(t => `<button type="button" data-tf="${t.nom === 'Jour' ? 'J' : t.nom}">${esc(t.nom)}</button>`).join('')}</div>
       <div class="tp-graph" data-graph aria-label="Graphique"></div><p class="tp-doux" data-legende></p>
-      <div data-tendance></div><h4>Annonces liées (impact fort)</h4><div data-annonces></div><h4>Actualités liées</h4><div data-actus></div><h4>Positions des fonds (COT)</h4><div data-cot></div></article>`;
+      <div data-tendance></div><h4>Score de marché et données pro</h4><div data-dash></div><h4>Annonces liées (impact fort)</h4><div data-annonces></div><h4>Actualités liées</h4><div data-actus></div><h4>Positions des fonds (COT)</h4><div data-cot></div></article>`;
     const q = s => fiche.querySelector(s);
     /* prix : l'or a UN seul prix (Kraken PF_XAUUSD) dans toute l'appli */
     if (id === 'or') prixOr().then(p => { if (n !== E.seq) return; E.prixOr = p || null; E.prixOrFini = true; majPrix(); }).catch(() => { if (n === E.seq) { E.prixOrFini = true; majPrix(); } });
+    E.dash = monterDashboard(q('[data-dash]'), id, { prixRef: () => (id === 'or' ? (E.prixOr ? E.prixOr.prix : null) : null) });
     /* bloc 1 : graphique + tendance (instantané pro) */
     const v1 = creerVue(q('[data-tendance]')); E.vues.push(v1);
     v1.lire('pro|' + id, () => lireActifPro(id), (d, m) => { if (n !== E.seq) return; E.d = d; E.an = analyserActif(d); E.meta = m; majPrix(); tendanceHtml(q('[data-tendance]'), d, E.an, m); dessiner(n); });
@@ -67,7 +69,7 @@ export function monter(zone, ctx = {}) {
     const v = E.id === 'or' && E.prixOr && Number.isFinite(E.prixOr.pct) ? E.prixOr.pct : (Number.isFinite(p) && pv ? (p / pv - 1) * 100 : null), el = fiche.querySelector('[data-prix]'), ev = fiche.querySelector('[data-var]'), es = fiche.querySelector('[data-src]'); if (!el) return;
     el.textContent = Number.isFinite(p) ? nf(p, a.dec) : '—'; ev.textContent = v == null ? '' : pct(v); ev.className = 'tp-var ' + cls(v);
     const src = E.id === 'or' ? E.prixOr : (E.d ? { source: E.d.source, t: E.d.tPrix || E.d.t, note: '' } : null);
-    majLegende(); es.innerHTML = src ? `${pastille(src.source, src.t, { garde: !!(E.meta && E.meta.copie) })}${src.note ? '<br><span class="tp-avert">' + esc(src.note) + '</span>' : ''}` : (E.id === 'or' && E.prixOrFini ? '<span class="tp-avert">Prix de l’or indisponible pour le moment (aucune source n’a répondu).</span>' : '');
+    majLegende(); if (E.dash && E.id === 'or' && E.prixOr && E.dashPrix !== E.prixOr.prix) { E.dashPrix = E.prixOr.prix; E.dash.rafraichir(); } es.innerHTML = src ? `${pastille(src.source, src.t, { garde: !!(E.meta && E.meta.copie) })}${src.note ? '<br><span class="tp-avert">' + esc(src.note) + '</span>' : ''}` : (E.id === 'or' && E.prixOrFini ? '<span class="tp-avert">Prix de l’or indisponible pour le moment (aucune source n’a répondu).</span>' : '');
   }
   /* légende : seulement la MA200 de l'unité affichée ; distance calculée avec le prix de référence (pour l'or : le XAU/USD de l'appli, le même que partout) */
   function majLegende() {
@@ -85,8 +87,8 @@ export function monter(zone, ctx = {}) {
       const u = E.tf, S = ma200Unite(B), prix = an.prix ?? B[B.length - 1].c;
       if (S.length) G.ligne(S, { couleur: COULEURS.or, epaisseur: 2, titre: 'MA200 ' + NOM_UNITE[u], horsEchelle: true });
       for (const x of niveauxUniteEtJour(B, d.j, B[B.length - 1].c, { unite: u })) G.niveau(s, x.prix, { couleur: x.cote === 'R' ? COULEURS.baisse : COULEURS.hausse, titre: `${x.nom} ${x.src === 'J' ? 'Jour' : x.src}`, style: 2 });
-      /* flèches Daily (les mêmes que dans le terminal) : rouge au-dessus d'un sommet, verte sous un creux ; sur H1 / H4, sur la dernière bougie de la journée Daily */
-      try { const M = [], vus = new Set(); for (const f of flechesDe(E.id, d.j)) { const i = indexSurUnite(B, f.t, t.pas); if (i < 0) continue; const k = B[i].t + '|' + f.dir; if (vus.has(k)) continue; vus.add(k); M.push({ time: Math.floor(B[i].t / 1000), position: f.dir > 0 ? 'belowBar' : 'aboveBar', color: f.dir > 0 ? COULEURS.hausse : COULEURS.baisse, shape: f.dir > 0 ? 'arrowUp' : 'arrowDown', size: 2 }); } G.marqueurs(s, M); } catch (e) { /* flèches facultatives */ }
+      /* flèches Daily (les mêmes que dans le terminal) : sommets et creux majeurs, sur la bougie extrême (Jour) ou sur la bougie H4 du plus haut / plus bas exact de la journée ; aucune sur H1 ; pâles contre la tendance */
+      try { const M = [], vus = new Set(); if (lireReglages().actif !== false) for (const f of flechesDe(E.id, d.j)) { const i = indexSurUnite(B, f, t.pas); if (i < 0) continue; const k = B[i].t + '|' + f.dir; if (vus.has(k)) continue; vus.add(k); const st = styleFleche(f); M.push({ time: Math.floor(B[i].t / 1000), position: st.position, color: st.couleur, shape: st.forme, size: 1 }); } G.marqueurs(s, M); } catch (e) { /* flèches facultatives */ }
       G.montrerDerniers(t.n, B.length);
       E.legCtx = { B, u, a, d, t }; majLegende();
     } catch (e) { box.innerHTML = '<p class="tp-panne" role="alert">Graphique indisponible : ' + esc(e && e.message || e) + ' <button type="button" data-redessiner>Réessayer</button></p>'; }

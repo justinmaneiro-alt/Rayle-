@@ -35,7 +35,6 @@ export const TEXTE_REGLES_V10 = `Règles figées ${REGLES_V10.version} (écrites
 
 /* ───────────── calcul (ajouté après le commit des règles eceda99 ; aucune règle ci-dessus n'a changé) ───────────── */
 import { atrLocal } from './niveaux-periode.js';
-import { bilanH1, DEPUIS_H1_V2 } from './fleches-h1-v2.js';
 import { holm, deuxProportions } from './zones-or.js';
 import { valeur } from './outils-calcul.js';
 
@@ -138,12 +137,3 @@ export function bilanRegistre(evenements, suivis, R = REGLES_V10) {
   return out;
 }
 
-/* ───────────── bilan des flèches v10 (depuis son commit), Holm sur toutes les versions suivies ───────────── */
-export function bilanV10(C, fleches, { maintenant = Date.now(), spread = null, autres = {} } = {}) {
-  const b = bilanH1(C, fleches, { maintenant, depuis: DEPUIS_V10.t, spread, version: REGLES_V10.version });
-  const texte = b.texte.replace(DEPUIS_H1_V2.texte, DEPUIS_V10.texte);
-  const p = b.assez && b.hasard ? deuxProportions(Math.round(b.reussite * b.mesurees), b.mesurees, Math.round(b.hasard.reussite * b.hasard.tirages), b.hasard.tirages) : null;
-  const vs = Object.keys(autres), ps = [...vs.map(v => autres[v] && autres[v].p != null ? autres[v].p : null), p];
-  const adj = holm(ps), pHolm = adj[adj.length - 1], m = ps.filter(x => x != null).length;
-  return { ...b, p, texte: b.assez && pHolm != null ? texte.replace(' Aucune décision avant', ` Écart au hasard : p corrigée (Holm, ${vs.length + 1} versions suivies) ${pHolm.toFixed(3).replace('.', ',')}. Aucune décision avant`) : texte, pHolm, versionsHolm: vs.length + 1, mesuresHolm: m };
-}

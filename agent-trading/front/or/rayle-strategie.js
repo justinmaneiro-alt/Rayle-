@@ -135,7 +135,7 @@ export function creerStrategie({ racine, moteur, graph, carnet = null, structure
         marge(Math.min(sv.bougies, 60));
       }
     } else marge(5);
-    m.aplus = E.trading ? E.trading.fleches() : []; m.annotations = E.annotations || [];
+    m.annotations = E.annotations || [];
     m.vue = E.reg.vue; return m;
   }
   function maj(force = false) {

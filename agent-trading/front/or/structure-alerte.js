@@ -4,7 +4,8 @@
    (niveau fort de l'écran) parce qu'elle décrit une structure que Justin surveille, pas parce qu'elle serait rentable.
    Registre daté en AJOUT SEUL, chaîné (comme registre-fleches.js) : une entrée n'est jamais modifiée ni retirée ; suivi en avant (forward) calculé après coup. */
 import * as S from './structure-v1.js';
-import { empreinte } from './registre-fleches.js';
+/* FNV-1a 32 bits en hexadécimal : simple, sans dépendance, identique navigateur / Node */
+export function empreinte(s) { let h = 0x811c9dc5; for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 0x01000193) >>> 0; } return h.toString(16).padStart(8, '0'); }
 
 export const CLE_REGISTRE_STRUCTURE = 'rayle_or_registre_structure';
 export const VERDICT = Object.freeze({

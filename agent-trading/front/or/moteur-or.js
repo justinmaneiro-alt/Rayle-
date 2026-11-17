@@ -13,17 +13,9 @@ import { marcheOr, retard, heureLocale, dateParis } from './temps-or.js';
 import { instrument, actifCourant } from './instruments.js';
 import { marcheInstrument, retardInstrument } from './marche-instrument.js';
 const INSTR = instrument(actifCourant());
-import { niveauxPeriode, liquidite, fleches, bilanFleches } from './niveaux-periode.js';
+import { niveauxPeriode, liquidite } from './niveaux-periode.js';
 import { lireCacheBougies, ecrireCacheBougies } from './cache-bougies.js';
-import { flechesH1v2, bilanH1, DEPUIS_H1_V2, indicesCandidats, listesAvant } from './fleches-h1-v2.js';
-import { CLE_REGISTRE, lireRegistre, ajouter, prefixeDe, flechesDu, VERSIONS } from './registre-fleches.js';
-import { flechesH1v3 } from './fleches-h1-v3.js';
-import { flechesH1v4, listesDetail } from './fleches-h1-v4.js';
-import { flechesH1v5 } from './fleches-h1-v5.js';
-import { flechesH1v6, selectionV6, indicesV6, REGLES_NIVEAUX_H1_V6 } from './fleches-h1-v6.js';
-import { flechesH1v7, listesQuatre, listesV7Seule, indicesV7, segmentsV7 } from './fleches-h1-v7.js';
-import { flechesH1v8, bandesV8Avant, segmentsV8 } from './fleches-h1-v8.js';
-import { flechesH1v9, bandesV9Avant, segmentsV9, bilans9, NOMS_9 } from './fleches-h1-v9.js';
+import { selectionV6, REGLES_NIVEAUX_H1_V6 } from './niveaux-h1.js';
 import { chargerHistorique, chargerPlusAncien, rafraichirVolume, serieAffichee } from './historique-or.js';
 import { analyser as analyserStructure, CLE_REGISTRE_STRUCTURE, lireRegistre as lireRegStructure, ajouter as ajouterStructure, prefixeDe as prefixeStructure, bilan as bilanStructure } from './structure-alerte.js';
 
@@ -34,7 +26,7 @@ export function creerMoteurOr({ fetchFn = (...a) => fetch(...a), horloge = () =>
   const S = {
     periode: lireJ('rayle_or_periode', 'H1'), k: [], kM15: [], refM15: [], refH1: [], refP: [], atrH1: [], ecart: null, ecartN: 0,
     prix: null, tPrix: null, ticker: null, ref24h: null, erreurs: {}, niveaux: [], zonesVol: [], zones: [], etats: {}, lecture: null, etude: null, etudeEtat: 'à faire',
-    chargement: true, derniereRefM15: null, evenements: [], hist: null, chargementAncien: false, niveauxP: null, liquidite: null, fleches: null, bilanFleches: null, spreads: lireJ('rayle_or_spreads', []).filter(x => x && x.s > 0), registreH1: null
+    chargement: true, derniereRefM15: null, evenements: [], hist: null, chargementAncien: false, niveauxP: null, liquidite: null, spreads: lireJ('rayle_or_spreads', []).filter(x => x && x.s > 0)
   };
   if (!PERIODES[S.periode] || !PERIODES_AFFICHEES.includes(S.periode)) S.periode = 'H1';   // une ancienne préférence M5 / M15 devient H1
   const anti = creerAntiBruit(); const regl = lireJ('rayle_or_alertes', null); if (regl) { anti.regler(regl); if (regl.coupe) anti.couper(true); }
@@ -83,28 +75,6 @@ export function creerMoteurOr({ fetchFn = (...a) => fetch(...a), horloge = () =>
     if (!t || !(t.ask > t.bid) || !(S.marche && S.marche.ouvert)) return;
     S.spreads = [...S.spreads, { t: n, s: +(t.ask - t.bid).toFixed(4) }].slice(-500); ecrireJ('rayle_or_spreads', S.spreads);
   }
-  const spreadMesure = () => { const L = S.spreads.map(x => x.s).sort((a, b) => a - b); return L.length ? L[L.length >> 1] : null; };
-  /* registre H1 daté en AJOUT SEUL (registre-fleches.js) : on n'écrit que si ce qui est stocké en est un préfixe exact */
-  function enregistrerH1(par, vu) {
-    const stocke = lireJ(CLE_REGISTRE, null); let reg = lireRegistre(stocke, vu), a = 0, r;
-    for (const v of VERSIONS) if (par[v]) { r = ajouter(reg, v, par[v], { depuis: DEPUIS_H1_V2.t, vu }); reg = r.registre; a += r.ajoutes; }
-    if (a && (!stocke || prefixeDe(lireRegistre(stocke, vu), reg))) ecrireJ(CLE_REGISTRE, reg);
-    S.registreH1 = reg; return reg;
-  }
-  /* H1 : versions affichées (cases à cocher v1 / v2 / v3 ; v3 par défaut), mémorisées sur l'appareil */
-  // v5 par défaut ; seules v5 et v2 sont proposées à l'affichage (v1, v3, v4 tournent en arrière-plan, registres seulement) ; nouvelle clé : un ancien choix ne masque pas v5
-  const DEFAUT_H1 = ['fleches-h1-v9'], AFFICHABLES_H1 = ['fleches-h1-v2', 'fleches-h1-v7', 'fleches-h1-v8', 'fleches-h1-v9'], CLE_CHOIX_H1 = 'rayle_or_fleches_h1_choix_v9';   // v9 par défaut, cases v8, v7 et v2 ; v1, v3 à v6 en arrière-plan ; cases v6, v5, v2
-  let versionsH1 = (lireJ(CLE_CHOIX_H1, null) || []).filter(v => AFFICHABLES_H1.includes(v)); if (!versionsH1.length) versionsH1 = DEFAUT_H1.slice();
-  function composerH1() {
-    if (!S.flechesH1 || S.periode !== 'H1') return;
-    const sel = VERSIONS.filter(v => versionsH1.includes(v)), liste = sel.flatMap(v => S.flechesH1[v].map(f => ({ ...f, version: v }))).sort((x, y) => x.t - y.t || (x.version < y.version ? -1 : 1));
-    S.fleches = { periode: 'H1', liste, version: sel[0], versions: sel };
-    const cs = S.serieH1 || [];   // segments des niveaux déclencheurs de v7 et v8
-    S.segmentsH1 = [...(sel.includes('fleches-h1-v7') ? segmentsV7(S.flechesH1['fleches-h1-v7'].map(f => ({ ...f, version: 'fleches-h1-v7' }))) : []), ...(sel.includes('fleches-h1-v8') && cs.length ? segmentsV8(cs, S.flechesH1['fleches-h1-v8']) : []), ...(sel.includes('fleches-h1-v9') && cs.length ? segmentsV9(cs, S.flechesH1['fleches-h1-v9']) : [])];
-    const B = S.bilansH1 || {};
-    S.bilanFleches = sel.length === 1 ? { ...B[sel[0]], titre: `Flèches H1 (version ${NOMS_9[sel[0]].slice(1)})` }
-      : { titre: 'Flèches H1 (comparaison)', parVersion: B, texte: sel.map(v => `${NOMS_9[v]} : ${B[v] ? B[v].texte : 'calcul en cours'}`).join(' | ') };
-  }
   function calculer() {
     const n = horloge(), m15c = S.refM15.filter(b => b.t + 15 * 60e3 <= n), h1c = S.refH1.filter(b => b.t + 3600e3 <= n), a = derniereValeur(S.atrH1);
     const E = ecartMesure(S.periode === 'M15' ? S.k : S.kM15, S.refM15); if (E.ecart != null) { S.ecart = E.ecart; S.ecartN = E.n; }
@@ -120,9 +90,9 @@ export function creerMoteurOr({ fetchFn = (...a) => fetch(...a), horloge = () =>
     S.lecture = lecture({ prix: S.prix, zones: S.zones, biais: S.biais, etats: S.etats, marche: S.marche, fiable: S.fiable !== false });
     S.chargement = false;
   }
-  /* supports, résistances, liquidité et flèches de LA PÉRIODE AFFICHÉE (niveaux-periode.js) : recalculés seulement quand une bougie se
-     clôt (ou que le prix change de demi-ATR) ; les flèches, plus longues à calculer, juste après le rendu (sans bloquer la page) */
-  let cleNiv = null, cleFl = null, minuterieFl = null, cacheListes = { cle: null, m: new Map() }; const memoFleches = new Map();
+  /* supports, résistances et liquidité de LA PÉRIODE AFFICHÉE (niveaux-periode.js) : recalculés seulement quand une bougie se
+     clôt (ou que le prix change de demi-ATR) */
+  let cleNiv = null;
   function analysePeriode(n) {
     const serie = serieAffichee(S.hist, S.k, S.ecart); if (serie.length < 30) { S.niveauxP = null; S.liquidite = null; return; }
     const P = PERIODES[S.periode].ms; let j = serie.length - 1; while (j >= 0 && serie[j].t + P > n) j--;
@@ -134,46 +104,6 @@ export function creerMoteurOr({ fetchFn = (...a) => fetch(...a), horloge = () =>
       // H1 : niveaux affichés selon niveaux-h1-v6 (sélection v5 + niveaux retournés) ; les autres périodes ne changent pas
       if (S.periode === 'H1' && S.niveauxP.a) { const cs = serie.filter(b => b.t + P <= n); S.niveauxP = { ...S.niveauxP, bandes: selectionV6(S.niveauxP, S.prix ?? (cs.length ? cs[cs.length - 1].c : null), cs.slice(-1600)), version: REGLES_NIVEAUX_H1_V6.version }; }
       S.liquidite = liquidite(serie, { periode: S.periode, maintenant: n, prix: S.prix, a: S.niveauxP.a, pivotsL: S.niveauxP.pivots, i0: S.niveauxP.i0 });
-    }
-    if (base !== cleFl) {
-      cleFl = base; const periode = S.periode, V = new Map((S.refP || []).map(b => [b.t, b.v]));
-      clearTimeout(minuterieFl);
-      const cleLancee = base;
-      minuterieFl = setTimeout(async () => {
-        if (arrete || periode !== S.periode) return;
-        const F = fleches(serie, { periode, maintenant: n, volumes: V });
-        // une flèche affichée ne disparaît jamais et ne bouge jamais : elles sont gardées par période (même si l'on charge un historique plus ancien)
-        const garder = (cle, L) => { const memo = memoFleches.get(cle) || new Map(); for (const f of L) if (!memo.has(f.t)) memo.set(f.t, f); memoFleches.set(cle, memo); return [...memo.values()].sort((x, y) => x.t - y.t); };
-        const liste1 = garder(periode, F);
-        if (periode !== 'H1') { S.fleches = { periode, liste: liste1, version: 'fleches-v1' }; S.bilanFleches = bilanFleches(serie, liste1, { periode, maintenant: n }); surMaj(S); return; }
-        // H1 : la version 2 est AFFICHÉE ; la version 1 reste calculée en arrière-plan (registre seulement, jamais affichée)
-        // niveaux listés de chaque bougie candidate : précalculés par morceaux (la page reste fluide), gardés pour les bougies déjà closes
-        const cc = `${serie[0].t}|${Math.round((S.ecart || 0) * 10)}`; if (cacheListes.cle !== cc) cacheListes = { cle: cc, m: new Map() };
-        // bougies où v2 à v6 lisent les niveaux (listes complètes) et bougies où seule v7 les lit (bandes v7 seulement, sans la liquidité)
-        const { C, indices } = indicesV6(serie, { maintenant: n, volumes: V }), s6 = new Set(indices), seul7 = indicesV7(serie, { maintenant: n }).indices.filter(i => !s6.has(i));
-        const travail = [...indices.filter(i => { const e = cacheListes.m.get(C[i].t); return !e || !e.detail; }).map(i => [i, true]), ...seul7.filter(i => !cacheListes.m.has(C[i].t)).map(i => [i, false])];
-        for (let d = 0; d < travail.length; d += 40) {
-          for (const [i, complet] of travail.slice(d, d + 40)) cacheListes.m.set(C[i].t, complet ? listesQuatre(C, i) : { v7: listesV7Seule(C, i) });   // une fois par bougie (identiques, vérifié)
-          await new Promise(r => setTimeout(r, 0)); if (arrete || periode !== S.periode || cleFl !== cleLancee) return;
-        }
-        const complete = (X, i) => { let e = cacheListes.m.get(X[i].t); if (!e || !e.detail) { e = listesQuatre(X, i); cacheListes.m.set(X[i].t, e); } return e; }, lst7 = (X, i) => { const e = cacheListes.m.get(X[i].t); return e && e.v7 ? e.v7 : listesV7Seule(X, i); };
-        const deux = complete, lst = (X, i) => deux(X, i).detail, lst5 = (X, i) => deux(X, i).v5, lst6 = (X, i) => deux(X, i).v6;
-        // v8 : bandes aux bougies des flèches v2 (calcul complet de v2), précalculées par morceaux et gardées
-        const F2plein = flechesH1v2(serie, { maintenant: n, volumes: V, listes: lst }), b8 = new Map();
-        const manque8 = F2plein.map(f => f.i).filter(i => { const e = cacheListes.m.get(C[i].t); return !(e && e.b8 && e.b9); });
-        for (let d = 0; d < manque8.length; d += 20) {
-          for (const i of manque8.slice(d, d + 20)) { const e = cacheListes.m.get(C[i].t) || {}; e.b8 = bandesV8Avant(C, i); e.b9 = bandesV9Avant(C, i); cacheListes.m.set(C[i].t, e); }
-          await new Promise(r => setTimeout(r, 0)); if (arrete || periode !== S.periode || cleFl !== cleLancee) return;
-        }
-        const lst8 = (X, i) => { const e = cacheListes.m.get(X[i].t); return e && e.b8 ? e.b8 : bandesV8Avant(X, i); }, lst9 = (X, i) => { const e = cacheListes.m.get(X[i].t); return e && e.b9 ? e.b9 : bandesV9Avant(X, i); };
-        const liste2 = garder('H1|v2', flechesH1v2(serie, { maintenant: n, volumes: V, listes: lst })), liste3 = garder('H1|v3', flechesH1v3(serie, { maintenant: n, volumes: V, listes: lst })), liste4 = garder('H1|v4', flechesH1v4(serie, { maintenant: n, volumes: V, listes: lst })), liste5 = garder('H1|v5', flechesH1v5(serie, { maintenant: n, volumes: V, listes: lst5 })), liste6 = garder('H1|v6', flechesH1v6(serie, { maintenant: n, volumes: V, listes: lst6 })), liste7 = garder('H1|v7', flechesH1v7(serie, { maintenant: n, listes: lst7 })), liste8 = garder('H1|v8', flechesH1v8(serie, { maintenant: n, volumes: V, F2: F2plein, bandes: lst8 })), liste9 = garder('H1|v9', flechesH1v9(serie, { maintenant: n, volumes: V, F2: F2plein, bandes: lst9 }));   // v8 : les flèches v2 (calcul complet, pas la mémoire d'affichage), filtrées
-        const par = { 'fleches-v1': liste1, 'fleches-h1-v2': liste2, 'fleches-h1-v3': liste3, 'fleches-h1-v4': liste4, 'fleches-h1-v5': liste5, 'fleches-h1-v6': liste6, 'fleches-h1-v7': liste7, 'fleches-h1-v8': liste8, 'fleches-h1-v9': liste9 }, reg = enregistrerH1(par, horloge());
-        S.flechesH1 = par; // bilan : registre (ajout seul) ∪ flèches recalculées (causales, donc identiques) : v1 part du commit de sa règle, avant l'ouverture du registre
-        const union = v => { const m = new Map(flechesDu(reg, v).map(f => [f.t + '|' + f.sens, f])); for (const f of par[v]) if (!m.has(f.t + '|' + f.sens)) m.set(f.t + '|' + f.sens, f); return [...m.values()]; };
-        await new Promise(r => setTimeout(r, 0)); if (arrete || periode !== S.periode || cleFl !== cleLancee) return;   // bilans dans une autre tâche (page fluide)
-        S.serieH1 = serie.filter(b => b.t + 3600e3 <= n); S.bilansH1 = bilans9(serie, Object.fromEntries(VERSIONS.map(v => [v, union(v)])), { maintenant: n, spread: spreadMesure() });
-        composerH1(); surMaj(S);
-      }, 0);
     }
   }
   /* événements : à chaque nouvelle M15 de référence close, et à chaque changement d'état « approche » / « sur » */
@@ -248,7 +178,6 @@ export function creerMoteurOr({ fetchFn = (...a) => fetch(...a), horloge = () =>
       if (structureAuto) setTimeout(suiviStructure, 6000);
       return S;
     },
-    versionsH1(sel) { if (sel) { const L = VERSIONS.filter(v => sel.includes(v) && AFFICHABLES_H1.includes(v)); versionsH1 = L.length ? L : DEFAUT_H1.slice(); ecrireJ(CLE_CHOIX_H1, versionsH1); composerH1(); surMaj(S); } return versionsH1.slice(); },
     async periode(p) { if (!PERIODES_AFFICHEES.includes(p) || p === S.periode) return; S.periode = p; ecrireJ('rayle_or_periode', p); S.k = []; S.hist = null; await chargerPeriode(); calculer(); surMaj(S); },
     /* transactions du WebSocket Kraken (carnet) : prix en direct et bougie en cours */
     transactions(L) {
