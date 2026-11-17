@@ -1,13 +1,13 @@
 /* ═════════════ TERMINAL « PRO » : branché sur le terminal existant (agent-trading/front/or.html) sans le réécrire ═════════════
    Ajoute : UNE seule moyenne mobile (la MA200 de l'unité affichée H1 / H4 / Jour, calculée sur ses vraies bougies) ; les niveaux les plus forts de l'unité affichée et du Jour (3 au plus de chaque côté,
-   étiquettes jamais superposées) ; les FLÈCHES « MA200 DAILY + H4 » (le Daily décide du sens, le H4 du moment : grosse flèche Daily au croisement confirmé de la MA200 Daily, petites flèches H4 dans le sens Daily ;
-   verte ▲ / rouge ▼ posées sur la bougie de confirmation, sur le Jour ET sur H4, jamais sur H1 ; fond du graphique teinté selon le sens Daily ; info-bulle : type, entrée, stop, gain en R) ; un bouton « MA200 D+H4 » (réglages, liste) et un bouton « Détails ».
+   étiquettes jamais superposées) ; les FLÈCHES « MA200 DAILY + H4 » (un seul niveau, la MA200 Daily : CASSURE = grosse flèche, REBOND = petite flèche ; verte ▲ / rouge ▼ posées sur la bougie de confirmation, sur le Jour ET sur H4,
+   jamais sur H1 ; fond du graphique teinté selon le côté de la MA200 Daily ; info-bulle : type, entrée, stop, gain en R) ; un bouton « MA200 D+H4 » (réglages, liste) et un bouton « Détails ».
    Réglages : interrupteur « Flèches » et fond coloré (activés par défaut), aussi dans « Affichage ».
    Graphique PROPRE par défaut : tout le reste (zones, boîtes de position, volume, RSI, bandeaux de sources…) est derrière « Détails ». Lecture seule : aucun ordre n'est envoyé. */
 import { lireActifPro } from '../commun/donnees.js';
 import { parler } from '../../agent-trading/front/or/tableau-or.js';
 import { ma200Unite, bandeauMA, niveauxUniteEtJour, sansChevauchement, avecRang, NOM_UNITE, PAS_UNITE } from '../commun/lecture-unite.js';
-import { indexSurUnite, styleFleche, phraseFleche, typeLibelle, sensPourBougies, suivre, ancrer, COULEURS } from './ma200-h4.js';
+import { indexSurUnite, styleFleche, phraseFleche, typeLibelle, typeNom, sensPourBougies, suivre, ancrer, COULEURS } from './ma200-h4.js';
 import { analyseDe, nouvellesFleches, lireReglages, ecrireReglages, lireRegistre } from './fleches-registre.js';
 import { monterDashboard } from '../commun/dashboard.js';
 import { VERSION } from './version.js';
@@ -89,12 +89,12 @@ export async function monterPro(T) {
     }
     niveauxSansChevauchement(B, u); poserFleches(B, u);
   }
-  /* MA200 DAILY + H4 : le Daily décide du sens, le H4 du moment. TOUTES les flèches (grosses = Daily, petites = H4) sont sur le Jour ET sur H4, au même endroit (la bougie de confirmation) ; rien sur H1 (ni M15 / M5).
-     Verte ▲ sous la bougie (achat), rouge ▼ au-dessus (vente), sans texte. Le fond du graphique est légèrement teinté selon le sens Daily (vert / rouge / gris neutre). Info-bulle : type, entrée, stop, gain en R. */
+  /* MA200 DAILY + H4 : un seul niveau, la MA200 Daily. TOUTES les flèches (cassures = grosses, rebonds = petites) sont sur le Jour ET sur H4, au même endroit (la bougie de confirmation) ; rien sur H1 (ni M15 / M5).
+     Verte ▲ sous la bougie (achat), rouge ▼ au-dessus (vente), sans texte. Le fond du graphique est légèrement teinté selon le côté de la MA200 Daily (vert au-dessus, rouge en dessous). Info-bulle : type, entrée, stop, gain en R. */
   function poserFleches(B, u) {
     const actives = E.reglages.actif !== false && u !== 'H1', cle = [u, B.length, B[B.length - 1].t, E.fleches.length, actives, E.reglages.fond !== false, E.A ? E.A.sens.length : 0].join('|'); if (cle === E.cleFleches) return; E.cleFleches = cle;
     const M = [], vus = new Set(), infos = new Map(), pas = PAS_UNITE[u];
-    if (actives) for (const f of E.fleches.slice().sort((x, y) => (x.type === 'grosse' ? 0 : 1) - (y.type === 'grosse' ? 0 : 1))) {
+    if (actives) for (const f of E.fleches.slice().sort((x, y) => (x.type === 'cassure' ? 0 : 1) - (y.type === 'cassure' ? 0 : 1))) {
       const k = indexSurUnite(B, f, pas); if (k < 0) continue; const t = temps(B[k].t); if (t == null) continue; const cl = t + '|' + f.dir; if (vus.has(cl)) continue; vus.add(cl);
       const s = styleFleche(f); M.push({ time: t, position: s.position, color: s.couleur, shape: s.forme, size: s.taille * (tactile ? 1.25 : 1) });
       infos.set(t, { f, haut: f.dir < 0, texte: texteFleche(f) });
@@ -126,7 +126,7 @@ export async function monterPro(T) {
   function texteFleche(f) {
     const a = E.A && E.A.S ? ancrer(f, E.A.Bj, E.A.Bh) : null, sv = a ? suivre(a, E.A.Bj, E.A.Bh, E.A.S) : null, R = sv && Number.isFinite(sv.r) ? `${sv.r >= 0 ? '+' : '−'}${nf(Math.abs(sv.r), 1)} R` : null;
     const gain = !sv ? 'Gain : non calculable' : sv.etat === 'sortie' ? `Gain : ${R} (${sv.motif})` : `En cours : ${R}`;
-    return `${f.dir > 0 ? '▲' : '▼'} ${f.type === 'grosse' ? 'Grosse flèche · Daily' : 'Petite flèche · H4'} · ${f.dir > 0 ? 'achat' : 'vente'}\n${typeLibelle(f)}\nEntrée ${nf(f.entree)} · Stop ${nf(f.stop)}\n${gain}`;
+    return `${f.dir > 0 ? '▲' : '▼'} ${typeNom(f)} · ${f.dir > 0 ? 'achat' : 'vente'}\n${typeLibelle(f)}\nEntrée ${nf(f.entree)} · Stop ${nf(f.stop)}\n${gain}`;
   }
   /* info-bulle : petite, posée À CÔTÉ de la flèche, dans la zone des bougies (jamais sur l'échelle des prix ni en haut à gauche). Elle n'apparaît QUE sur une action de l'utilisateur (survol à la souris, toucher sur téléphone)
      et se referme seule au bout de 6 s : les mises à jour du graphique (nouveau cours, nouvelle bougie) ne la réaffichent JAMAIS (sur téléphone, le curseur reste posé après le toucher et le graphique le signale à chaque cours : l'ancienne info-bulle restait donc affichée en permanence). */
@@ -206,7 +206,7 @@ export async function monterPro(T) {
   function reglagesHtml() {
     const R = E.reglages;
     return `<div class="tp-reg" data-tp-reg><label class="tp-case"><input type="checkbox" data-reg="actif"${R.actif !== false ? ' checked' : ''}> Flèches MA200 Daily + H4</label>
-      <label class="tp-case"><input type="checkbox" data-reg="fond"${R.fond !== false ? ' checked' : ''}> Fond coloré selon le sens Daily (vert / rouge / gris)</label></div>`;
+      <label class="tp-case"><input type="checkbox" data-reg="fond"${R.fond !== false ? ' checked' : ''}> Fond coloré selon le côté de la MA200 Daily (vert / rouge)</label></div>`;
   }
   function appliquerReglage(el) {
     const R = E.reglages; if (el.dataset.reg === 'actif') R.actif = el.checked; else if (el.dataset.reg === 'fond') R.fond = el.checked;
@@ -224,14 +224,14 @@ export async function monterPro(T) {
   (function dansAffichage() { const pan = document.querySelector('.tor-ob-pan'); if (!pan || pan.querySelector('[data-tp-reg]')) return; const d = document.createElement('div'); d.innerHTML = reglagesHtml(); pan.insertBefore(d.firstElementChild, pan.querySelector('hr') || pan.firstChild); })();
   function rendrePanneau() {
     const p = E.panneau; if (!p) return; const att = lire(LS.alerte, {}), L = E.fleches.slice().reverse().slice(0, 10);
-    const sens = E.A && E.A.sens.length ? E.A.sens[E.A.sens.length - 1].sens : null, sensTxt = sens === 1 ? '<b class="tp-h">haussier</b>' : sens === -1 ? '<b class="tp-b">baissier</b>' : '<b>neutre</b>';
+    const sens = E.A && E.A.sens.length ? E.A.sens[E.A.sens.length - 1].sens : null, sensTxt = sens === 1 ? '<b class="tp-h">au-dessus de la MA200 Daily</b>' : sens === -1 ? '<b class="tp-b">sous la MA200 Daily</b>' : '<b>sur la MA200 Daily</b>';
     p.innerHTML = `<header><b>MA200 Daily + H4 · ${esc(NOMS[id] || actif)}</b><button type="button" data-fermer aria-label="Fermer">✕</button></header>
       ${E.raison ? `<p class="tp-doux">${esc(E.raison)}</p>` : ''}
-      ${sens === null ? '' : `<p>Sens Daily : ${sensTxt}${sens === 0 ? ' (aucune petite flèche tant que ce n’est pas confirmé)' : ''}</p>`}
-      <p class="tp-doux">Le Daily décide du sens, le H4 du moment. Sens haussier = 2 clôtures Daily d’affilée au-dessus de la MA200 Daily + 0,5 ATR (baissier : miroir ; dans la bande = neutre, aucune petite flèche). <b>Grosse flèche</b> (Daily) : le jour où le sens change. <b>Petite flèche</b> (H4), seulement dans le sens Daily : rebond sur un support (MA200 H4, MA200 Daily, S1 / S2) ou cassure du plus haut des 20 dernières bougies H4 ; une par repli, 3 jours d’écart. Mêmes flèches sur le Jour et sur H4, aucune sur H1. <b class="tp-h">Verte ▲</b> = achat, <b class="tp-b">rouge ▼</b> = vente. Le fond du graphique est teinté selon le sens Daily. Touchez une flèche : type, entrée, stop, gain en R.</p>
+      ${sens === null ? '' : `<p>Dernière clôture Daily : ${sensTxt}</p>`}
+      <p class="tp-doux">Un seul niveau : la <b>MA200 Daily</b>. <b>Cassure</b> (grosse flèche) : une clôture Daily franchit la MA200 Daily et la cassure est confirmée (2 clôtures Daily d’affilée, sans réintégration). <b>Rebond</b> (petite flèche) : en tendance établie (10 jours du même côté, MA200 dans le même sens), le prix vient toucher la MA200 Daily puis une clôture H4 repart dans le sens de la tendance ; une seule par contact. Stop : 0,5 ATR de l’autre côté de la MA200. Mêmes flèches sur le Jour et sur H4, aucune sur H1. <b class="tp-h">Verte ▲</b> = achat, <b class="tp-b">rouge ▼</b> = vente. Le fond du graphique est vert au-dessus de la MA200 Daily, rouge en dessous. Touchez une flèche : type, entrée, stop, gain en R.</p>
       <h4>Réglages</h4>${reglagesHtml()}
-      <h4>Dernières flèches</h4>${L.length ? `<ul class="tp-sigs">${L.map(f => `<li class="${f.dir > 0 ? 'tp-h' : 'tp-b'}"><b>${f.dir > 0 ? '▲ achat' : '▼ vente'} · ${f.type === 'grosse' ? 'grosse (Daily)' : 'petite (H4)'}</b> <span>${esc(dateJour(f.t))} · entrée ${nf(f.entree, f.entree >= 100 ? 0 : 2)}</span><small>${esc(typeLibelle(f))} · stop ${nf(f.stop, f.stop >= 100 ? 0 : 2)}</small></li>`).join('')}</ul>` : '<p class="tp-doux">Aucune flèche pour le moment.</p>'}
-      <h4>Alertes</h4><label class="tp-case"><input type="checkbox" data-al="telegram"${att.telegram !== false ? ' checked' : ''}> Telegram (pont du Worker de Rayle)</label><p class="tp-doux">À chaque nouvelle flèche confirmée : une seule annonce de Rayle (« ${esc(phraseFleche(NOMS[id] || actif, { type: 'grosse', dir: 1, entree: 2650 }))} »), une notification et un message Telegram. Une flèche n’est annoncée qu’une fois. Aucun autre signal.</p>`;
+      <h4>Dernières flèches</h4>${L.length ? `<ul class="tp-sigs">${L.map(f => `<li class="${f.dir > 0 ? 'tp-h' : 'tp-b'}"><b>${f.dir > 0 ? '▲ achat' : '▼ vente'} · ${typeNom(f)}</b> <span>${esc(dateJour(f.t))} · entrée ${nf(f.entree, f.entree >= 100 ? 0 : 2)}</span><small>${esc(typeLibelle(f))} · stop ${nf(f.stop, f.stop >= 100 ? 0 : 2)}</small></li>`).join('')}</ul>` : '<p class="tp-doux">Aucune flèche pour le moment.</p>'}
+      <h4>Alertes</h4><label class="tp-case"><input type="checkbox" data-al="telegram"${att.telegram !== false ? ' checked' : ''}> Telegram (pont du Worker de Rayle)</label><p class="tp-doux">À chaque nouvelle flèche confirmée : une seule annonce de Rayle (« ${esc(phraseFleche(NOMS[id] || actif, { type: 'cassure', dir: 1, entree: 2650, stop: 2600 }))} »), une notification et un message Telegram. Une flèche n’est annoncée qu’une fois. Aucun autre signal.</p>`;
   }
   function ouvrirPanneau(o) {
     if (!E.panneau) { E.panneau = document.createElement('aside'); E.panneau.className = 'tp-panneau'; E.panneau.setAttribute('aria-label', 'Flèches Daily'); document.body.appendChild(E.panneau); E.panneau.addEventListener('click', ev => { if (ev.target.closest('[data-fermer]')) ouvrirPanneau(false); });

@@ -1,113 +1,107 @@
-# MA200 Daily + H4 : backtest walk-forward (variantes à moins de flèches)
+# MA200 Daily + H4 : cassures et rebonds sur la MA200 Daily, backtest walk-forward
 
-Généré par `node trader-pro/outils/backtest-ma200.mjs <dossier>` (données : `telecharger-historique.mjs`, Yahoo Finance ; Or = futures COMEX GC=F). Le H4 est parcouru bougie par bougie sans jamais voir le futur (`trader-pro/tests/ma200-test.mjs`, section « walk-forward », vérifiée pour chaque variante). Chaque flèche est suivie jusqu'à sa sortie (stop, changement de sens Daily, ou clôture H4 sous le dernier creux H4 important pour les petites flèches), en multiples de R, **sans frais ni glissement** ; les flèches encore ouvertes sont exclues.
+Généré par `node trader-pro/outils/backtest-ma200.mjs <dossier>` (données : `telecharger-historique.mjs`, Yahoo Finance ; Or = futures COMEX GC=F). Le H4 est parcouru bougie par bougie sans jamais voir le futur (`trader-pro/tests/ma200-test.mjs`, section « walk-forward », vérifiée pour chaque variante). Gains en multiples de R (R = |entrée − stop|, stop à 0,5 ATR de l'autre côté de la MA200 Daily), sortie au stop ou à la première clôture Daily de l'autre côté de la MA200, **sans frais ni glissement** ; les flèches encore ouvertes sont exclues.
 
-Objectif : au plus 8 flèches par an et par actif au total, en gardant la rentabilité. Variantes : **V0** première version (rebonds + cassures, toutes zones) · **V1** grosses seules · **V2** grosses + rebonds uniquement, sur une zone Daily (MA200 Daily ou S1 / S2 / R1 / R2 Daily, ± 0,5 ATR), plus de cassures, plus de MA200 H4 · **V3** V2 avec au plus 2 petites flèches par tendance Daily. Filtres anti-piège des grosses flèches : 2 clôtures / 0,5 ATR (base), 3 clôtures, ou marge 1 ATR.
+Règles : **cassure** (grosse flèche) = une clôture Daily franchit la MA200 Daily + confirmation (trois variantes testées : 1 clôture Daily puis 1 clôture H4 du bon côté ; 2 clôtures Daily d'affilée ; 1 clôture Daily à 0,5 ATR au-delà), avec ou sans filtre de pente (MA200 plate ou dans le sens de la cassure sur 20 jours). **Rebond** (petite flèche) = tendance établie (10 clôtures du même côté + pente dans le même sens), contact de la MA200 (mèche à moins de 0,3 ATR), puis clôture H4 qui repart ; un seul rebond par contact.
 
-Deux bases : les petites flèches n'existent que là où le H4 existe (2,4 ans d'or, 2,9 ans de Nasdaq 100), alors que les grosses flèches se testent sur 10 ans de Daily. **« Combiné »** = grosses sur 10 ans + petites sur la fenêtre H4 (c'est la base de la sélection) ; **« fenêtre H4 »** = tout, sur la seule période H4 (échantillon très petit).
+Trois bases : **10 ans** (cassures sur tout le Daily ; la confirmation « clôture H4 » n'a pas de H4 avant 2023-2024 : elle est remplacée par un PROXY, « l'ouverture du lendemain reste du bon côté », suivi sur le Daily), **fenêtre H4** (2,4 ans pour l'or, 2,9 ans pour le Nasdaq 100 : vraie clôture H4, échantillon très petit) et **combiné** (cassures 10 ans + rebonds fenêtre H4 : base de la sélection).
 
 ## Or (futures COMEX GC)
 
-Daily 2514 bougies (depuis 2016-11-17, 10,0 ans) · H4 3613 bougies (du 2024-06-27 au 2026-11-17, 2,4 ans)
+Daily 2514 bougies (depuis 2016-11-17) · H4 3614 bougies (du 2024-06-27 au 2026-11-17)
 
-### Grosses flèches seules, 10 ans, par filtre
+### Cassures sur 10 ans (proxy pour la clôture H4)
 
-| Filtre anti-piège | Grosses | Par an | % gagnants | Espérance (R) | Total (R) | Total sans le meilleur trade (R) | Pire série de pertes |
+| Variante | Flèches | Par an | % gagnants | Espérance (R) | Total (R) | Total sans le meilleur trade (R) | Pire série de pertes |
 |---|---|---|---|---|---|---|---|
-| 2 clôtures, marge 0,5 ATR | 20 | 2,0 | 25,0 % | 2,26 | 45,27 | 9,58 | 11 |
-| 3 clôtures, marge 0,5 ATR | 14 | 1,4 | 35,7 % | 2,53 | 35,47 | 8,09 | 5 |
-| 2 clôtures, marge 1 ATR | 14 | 1,4 | 35,7 % | 3,49 | 48,87 | 15,54 | 5 |
+| 1 clôture Daily + 1 clôture H4 · avec filtre de pente | 27 | 2,7 | 14,8 % | 5,43 | 146,72 | -13,33 | 14 |
+| 1 clôture Daily + 1 clôture H4 · sans filtre de pente | 57 | 5,7 | 14,0 % | 2,73 | 155,48 | -4,57 | 26 |
+| 2 clôtures Daily · avec filtre de pente | 19 | 1,9 | 26,3 % | 3,54 | 67,28 | -8,84 | 10 |
+| 2 clôtures Daily · sans filtre de pente | 45 | 4,5 | 20,0 % | 2,41 | 108,56 | 32,44 | 20 |
+| 1 clôture Daily à 0,5 ATR · avec filtre de pente | 7 | 0,7 | 14,3 % | -0,28 | -1,98 | -4,33 | 5 |
+| 1 clôture Daily à 0,5 ATR · sans filtre de pente | 15 | 1,5 | 20,0 % | 0,63 | 9,49 | -6,40 | 11 |
 
-### Combiné (grosses 10 ans + petites fenêtre H4)
+### Cassures sur la fenêtre H4 (vraie clôture H4)
 
-| Variante | Filtre grosses | Flèches | Par an | % gagnants | Espérance (R) | Total (R) | Total sans le meilleur trade (R) | Pire série de pertes |
-|---|---|---|---|---|---|---|---|---|
-| V0 · première version (rebonds + cassures) | 2 clôtures, marge 0,5 ATR | 95 | 33,4 | 50,5 % | 0,70 | 66,17 | 30,48 | 11 |
-| V1 · grosses seules | 2 clôtures, marge 0,5 ATR | 20 | 2,0 | 25,0 % | 2,26 | 45,27 | 9,58 | 11 |
-| V2 · grosses + rebonds sur zone Daily | 2 clôtures, marge 0,5 ATR | 29 | 5,8 | 37,9 % | 1,76 | 50,96 | 15,27 | 11 |
-| V3 · V2, 2 petites par tendance Daily | 2 clôtures, marge 0,5 ATR | 25 | 4,1 | 36,0 % | 1,85 | 46,26 | 10,56 | 11 |
-| V0 · première version (rebonds + cassures) | 3 clôtures, marge 0,5 ATR | 87 | 31,9 | 55,2 % | 0,66 | 57,59 | 30,21 | 5 |
-| V1 · grosses seules | 3 clôtures, marge 0,5 ATR | 14 | 1,4 | 35,7 % | 2,53 | 35,47 | 8,09 | 5 |
-| V2 · grosses + rebonds sur zone Daily | 3 clôtures, marge 0,5 ATR | 23 | 5,2 | 47,8 % | 1,79 | 41,15 | 13,77 | 5 |
-| V3 · V2, 2 petites par tendance Daily | 3 clôtures, marge 0,5 ATR | 19 | 3,5 | 47,4 % | 1,92 | 36,45 | 9,07 | 5 |
-| V0 · première version (rebonds + cassures) | 2 clôtures, marge 1 ATR | 86 | 31,5 | 55,8 % | 0,83 | 71,02 | 37,69 | 5 |
-| V1 · grosses seules | 2 clôtures, marge 1 ATR | 14 | 1,4 | 35,7 % | 3,49 | 48,87 | 15,54 | 5 |
-| V2 · grosses + rebonds sur zone Daily | 2 clôtures, marge 1 ATR | 20 | 3,9 | 50,0 % | 2,73 | 54,59 | 21,26 | 5 |
-| V3 · V2, 2 petites par tendance Daily | 2 clôtures, marge 1 ATR | 18 | 3,1 | 44,4 % | 2,73 | 49,17 | 15,84 | 5 |
+| Variante | Flèches | Par an | % gagnants | Espérance (R) | Total (R) | Total sans le meilleur trade (R) | Pire série de pertes |
+|---|---|---|---|---|---|---|---|
+| 1 clôture Daily + 1 clôture H4 · avec filtre de pente | 1 | 0,4 | 0,0 % | -0,62 | -0,62 | 0,00 | 1 |
+| 1 clôture Daily + 1 clôture H4 · sans filtre de pente | 3 | 1,3 | 0,0 % | -0,64 | -1,91 | -1,62 | 3 |
+| 2 clôtures Daily · avec filtre de pente | 1 | 0,4 | 0,0 % | -0,38 | -0,38 | 0,00 | 1 |
+| 2 clôtures Daily · sans filtre de pente | 3 | 1,3 | 0,0 % | -0,64 | -1,93 | -1,55 | 3 |
+| 1 clôture Daily à 0,5 ATR · avec filtre de pente | 0 | 0,0 | 0,0 % | 0,00 | 0,00 | 0,00 | 0 |
+| 1 clôture Daily à 0,5 ATR · sans filtre de pente | 0 | 0,0 | 0,0 % | 0,00 | 0,00 | 0,00 | 0 |
 
-### Fenêtre H4 seule (grosses + petites sur la même période)
+### Rebonds sur la MA200 Daily (fenêtre H4)
 
-| Variante | Filtre grosses | Flèches | Par an | % gagnants | Espérance (R) | Total (R) | Total sans le meilleur trade (R) | Pire série de pertes |
-|---|---|---|---|---|---|---|---|---|
-| V0 · première version (rebonds + cassures) | 2 clôtures, marge 0,5 ATR | 77 | 32,2 | 55,8 % | 0,25 | 18,90 | 14,90 | 6 |
-| V1 · grosses seules | 2 clôtures, marge 0,5 ATR | 2 | 0,8 | 0,0 % | -1,00 | -2,00 | -1,00 | 2 |
-| V2 · grosses + rebonds sur zone Daily | 2 clôtures, marge 0,5 ATR | 11 | 4,6 | 54,5 % | 0,34 | 3,69 | -1,73 | 2 |
-| V3 · V2, 2 petites par tendance Daily | 2 clôtures, marge 0,5 ATR | 7 | 2,9 | 57,1 % | -0,15 | -1,02 | -1,50 | 2 |
-| V0 · première version (rebonds + cassures) | 3 clôtures, marge 0,5 ATR | 75 | 31,4 | 57,3 % | 0,27 | 20,13 | 16,13 | 5 |
-| V1 · grosses seules | 3 clôtures, marge 0,5 ATR | 2 | 0,8 | 0,0 % | -1,00 | -2,00 | -1,00 | 2 |
-| V2 · grosses + rebonds sur zone Daily | 3 clôtures, marge 0,5 ATR | 11 | 4,6 | 54,5 % | 0,34 | 3,69 | -1,73 | 2 |
-| V3 · V2, 2 petites par tendance Daily | 3 clôtures, marge 0,5 ATR | 7 | 2,9 | 57,1 % | -0,15 | -1,02 | -1,50 | 2 |
-| V0 · première version (rebonds + cassures) | 2 clôtures, marge 1 ATR | 74 | 30,9 | 58,1 % | 0,27 | 20,15 | 16,15 | 4 |
-| V1 · grosses seules | 2 clôtures, marge 1 ATR | 2 | 0,8 | 0,0 % | -1,00 | -2,00 | -1,00 | 2 |
-| V2 · grosses + rebonds sur zone Daily | 2 clôtures, marge 1 ATR | 8 | 3,3 | 62,5 % | 0,47 | 3,72 | -1,69 | 2 |
-| V3 · V2, 2 petites par tendance Daily | 2 clôtures, marge 1 ATR | 6 | 2,5 | 50,0 % | -0,28 | -1,70 | -2,18 | 2 |
+| Variante | Flèches | Par an | % gagnants | Espérance (R) | Total (R) | Total sans le meilleur trade (R) | Pire série de pertes |
+|---|---|---|---|---|---|---|---|
+| Rebonds | 2 | 0,8 | 0,0 % | -0,62 | -1,23 | -1,00 | 2 |
+
+### Combiné (cassures 10 ans + rebonds fenêtre H4)
+
+| Variante | Flèches | Par an | % gagnants | Espérance (R) | Total (R) | Total sans le meilleur trade (R) | Pire série de pertes |
+|---|---|---|---|---|---|---|---|
+| 1 clôture Daily + 1 clôture H4 · avec filtre de pente | 29 | 3,5 | 13,8 % | 5,02 | 145,48 | -14,56 | 14 |
+| 1 clôture Daily + 1 clôture H4 · sans filtre de pente | 59 | 6,5 | 13,6 % | 2,61 | 154,25 | -5,80 | 26 |
+| 2 clôtures Daily · avec filtre de pente | 21 | 2,7 | 23,8 % | 3,14 | 66,04 | -10,07 | 10 |
+| 2 clôtures Daily · sans filtre de pente | 47 | 5,3 | 19,1 % | 2,28 | 107,32 | 31,21 | 20 |
+| 1 clôture Daily à 0,5 ATR · avec filtre de pente | 9 | 1,5 | 11,1 % | -0,36 | -3,22 | -5,56 | 7 |
+| 1 clôture Daily à 0,5 ATR · sans filtre de pente | 17 | 2,3 | 17,6 % | 0,49 | 8,26 | -7,63 | 13 |
 
 ## Nasdaq 100
 
-Daily 2512 bougies (depuis 2016-11-17, 10,0 ans) · H4 1952 bougies (du 2023-12-20 au 2026-11-17, 2,9 ans)
+Daily 2512 bougies (depuis 2016-11-17) · H4 1953 bougies (du 2023-12-20 au 2026-11-17)
 
-### Grosses flèches seules, 10 ans, par filtre
+### Cassures sur 10 ans (proxy pour la clôture H4)
 
-| Filtre anti-piège | Grosses | Par an | % gagnants | Espérance (R) | Total (R) | Total sans le meilleur trade (R) | Pire série de pertes |
+| Variante | Flèches | Par an | % gagnants | Espérance (R) | Total (R) | Total sans le meilleur trade (R) | Pire série de pertes |
 |---|---|---|---|---|---|---|---|
-| 2 clôtures, marge 0,5 ATR | 14 | 1,4 | 28,6 % | 0,31 | 4,33 | -3,91 | 7 |
-| 3 clôtures, marge 0,5 ATR | 9 | 0,9 | 33,3 % | 0,28 | 2,54 | -3,67 | 3 |
-| 2 clôtures, marge 1 ATR | 10 | 1,0 | 40,0 % | 0,72 | 7,21 | -1,03 | 3 |
+| 1 clôture Daily + 1 clôture H4 · avec filtre de pente | 11 | 1,1 | 27,3 % | 2,30 | 25,35 | 1,54 | 5 |
+| 1 clôture Daily + 1 clôture H4 · sans filtre de pente | 28 | 2,8 | 21,4 % | 1,59 | 44,41 | 17,64 | 10 |
+| 2 clôtures Daily · avec filtre de pente | 10 | 1,0 | 30,0 % | 3,13 | 31,29 | 1,13 | 6 |
+| 2 clôtures Daily · sans filtre de pente | 27 | 2,7 | 22,2 % | 1,50 | 40,44 | 10,28 | 10 |
+| 1 clôture Daily à 0,5 ATR · avec filtre de pente | 6 | 0,6 | 16,7 % | -0,23 | -1,36 | -4,01 | 4 |
+| 1 clôture Daily à 0,5 ATR · sans filtre de pente | 19 | 1,9 | 15,8 % | -0,21 | -4,04 | -9,58 | 12 |
 
-### Combiné (grosses 10 ans + petites fenêtre H4)
+### Cassures sur la fenêtre H4 (vraie clôture H4)
 
-| Variante | Filtre grosses | Flèches | Par an | % gagnants | Espérance (R) | Total (R) | Total sans le meilleur trade (R) | Pire série de pertes |
-|---|---|---|---|---|---|---|---|---|
-| V0 · première version (rebonds + cassures) | 2 clôtures, marge 0,5 ATR | 65 | 18,9 | 35,4 % | 0,10 | 6,57 | -1,67 | 7 |
-| V1 · grosses seules | 2 clôtures, marge 0,5 ATR | 14 | 1,4 | 28,6 % | 0,31 | 4,33 | -3,91 | 7 |
-| V2 · grosses + rebonds sur zone Daily | 2 clôtures, marge 0,5 ATR | 17 | 2,4 | 35,3 % | 0,31 | 5,23 | -3,02 | 7 |
-| V3 · V2, 2 petites par tendance Daily | 2 clôtures, marge 0,5 ATR | 17 | 2,4 | 35,3 % | 0,31 | 5,23 | -3,02 | 7 |
-| V0 · première version (rebonds + cassures) | 3 clôtures, marge 0,5 ATR | 60 | 18,4 | 36,7 % | 0,08 | 4,57 | -1,63 | 5 |
-| V1 · grosses seules | 3 clôtures, marge 0,5 ATR | 9 | 0,9 | 33,3 % | 0,28 | 2,54 | -3,67 | 3 |
-| V2 · grosses + rebonds sur zone Daily | 3 clôtures, marge 0,5 ATR | 12 | 1,9 | 41,7 % | 0,29 | 3,43 | -2,77 | 3 |
-| V3 · V2, 2 petites par tendance Daily | 3 clôtures, marge 0,5 ATR | 12 | 1,9 | 41,7 % | 0,29 | 3,43 | -2,77 | 3 |
-| V0 · première version (rebonds + cassures) | 2 clôtures, marge 1 ATR | 61 | 18,5 | 37,7 % | 0,15 | 9,39 | 1,15 | 5 |
-| V1 · grosses seules | 2 clôtures, marge 1 ATR | 10 | 1,0 | 40,0 % | 0,72 | 7,21 | -1,03 | 3 |
-| V2 · grosses + rebonds sur zone Daily | 2 clôtures, marge 1 ATR | 13 | 2,0 | 46,2 % | 0,62 | 8,11 | -0,14 | 3 |
-| V3 · V2, 2 petites par tendance Daily | 2 clôtures, marge 1 ATR | 13 | 2,0 | 46,2 % | 0,62 | 8,11 | -0,14 | 3 |
+| Variante | Flèches | Par an | % gagnants | Espérance (R) | Total (R) | Total sans le meilleur trade (R) | Pire série de pertes |
+|---|---|---|---|---|---|---|---|
+| 1 clôture Daily + 1 clôture H4 · avec filtre de pente | 2 | 0,7 | 50,0 % | 0,85 | 1,71 | -1,00 | 1 |
+| 1 clôture Daily + 1 clôture H4 · sans filtre de pente | 5 | 1,7 | 40,0 % | 0,17 | 0,84 | -1,87 | 2 |
+| 2 clôtures Daily · avec filtre de pente | 2 | 0,7 | 50,0 % | 0,46 | 0,91 | -1,00 | 1 |
+| 2 clôtures Daily · sans filtre de pente | 6 | 2,1 | 33,3 % | -0,40 | -2,38 | -4,54 | 2 |
+| 1 clôture Daily à 0,5 ATR · avec filtre de pente | 2 | 0,7 | 50,0 % | 0,82 | 1,64 | -1,00 | 1 |
+| 1 clôture Daily à 0,5 ATR · sans filtre de pente | 5 | 1,7 | 40,0 % | 0,43 | 2,17 | -1,06 | 2 |
 
-### Fenêtre H4 seule (grosses + petites sur la même période)
+### Rebonds sur la MA200 Daily (fenêtre H4)
 
-| Variante | Filtre grosses | Flèches | Par an | % gagnants | Espérance (R) | Total (R) | Total sans le meilleur trade (R) | Pire série de pertes |
-|---|---|---|---|---|---|---|---|---|
-| V0 · première version (rebonds + cassures) | 2 clôtures, marge 0,5 ATR | 55 | 18,9 | 38,2 % | 0,07 | 3,61 | -1,60 | 6 |
-| V1 · grosses seules | 2 clôtures, marge 0,5 ATR | 4 | 1,4 | 50,0 % | 0,34 | 1,37 | -0,60 | 1 |
-| V2 · grosses + rebonds sur zone Daily | 2 clôtures, marge 0,5 ATR | 7 | 2,4 | 57,1 % | 0,32 | 2,27 | 0,30 | 2 |
-| V3 · V2, 2 petites par tendance Daily | 2 clôtures, marge 0,5 ATR | 7 | 2,4 | 57,1 % | 0,32 | 2,27 | 0,30 | 2 |
-| V0 · première version (rebonds + cassures) | 3 clôtures, marge 0,5 ATR | 54 | 18,6 | 37,0 % | 0,02 | 1,22 | -4,00 | 6 |
-| V1 · grosses seules | 3 clôtures, marge 0,5 ATR | 3 | 1,0 | 33,3 % | -0,27 | -0,82 | -2,25 | 1 |
-| V2 · grosses + rebonds sur zone Daily | 3 clôtures, marge 0,5 ATR | 6 | 2,1 | 50,0 % | 0,01 | 0,08 | -1,35 | 2 |
-| V3 · V2, 2 petites par tendance Daily | 3 clôtures, marge 0,5 ATR | 6 | 2,1 | 50,0 % | 0,01 | 0,08 | -1,35 | 2 |
-| V0 · première version (rebonds + cassures) | 2 clôtures, marge 1 ATR | 55 | 18,9 | 38,2 % | 0,06 | 3,09 | -2,13 | 6 |
-| V1 · grosses seules | 2 clôtures, marge 1 ATR | 4 | 1,4 | 50,0 % | 0,23 | 0,90 | -0,89 | 1 |
-| V2 · grosses + rebonds sur zone Daily | 2 clôtures, marge 1 ATR | 7 | 2,4 | 57,1 % | 0,26 | 1,80 | 0,00 | 2 |
-| V3 · V2, 2 petites par tendance Daily | 2 clôtures, marge 1 ATR | 7 | 2,4 | 57,1 % | 0,26 | 1,80 | 0,00 | 2 |
+| Variante | Flèches | Par an | % gagnants | Espérance (R) | Total (R) | Total sans le meilleur trade (R) | Pire série de pertes |
+|---|---|---|---|---|---|---|---|
+| Rebonds | 6 | 2,1 | 0,0 % | -1,35 | -8,08 | -7,08 | 6 |
 
-## Variante choisie (réglage par défaut) : **V2 + marge 1 ATR**
+### Combiné (cassures 10 ans + rebonds fenêtre H4)
 
-- **Fréquence** : 3,9 flèches par an sur l'or et 2,0 sur le Nasdaq 100 (au lieu de 33,4 et 18,9 : première version), soit largement sous 8.
-- **Rentabilité** (combiné) : or 54,59 R (2,73 R par trade), Nasdaq 100 8,11 R (0,62 R par trade). C'est la meilleure variante à moins de 8 flèches par an sur les DEUX actifs, et la pire série de pertes tombe à 5 (or) et 3 (Nasdaq) contre 11 et 7 avec 2 clôtures / 0,5 ATR.
-- **Filtre anti-piège** : la marge de 1 ATR est le meilleur filtre sur 10 ans sur les deux actifs (or 48,87 R contre 45,27 R, Nasdaq 7,21 R contre 4,33 R ; moins de croisements, davantage de gagnants) ; 3 clôtures fait moins bien.
-- **V3 n'apporte rien** (même nombre de petites flèches sur le Nasdaq, moins de rentabilité sur l'or) : V2 est gardée.
-- **Critère de robustesse non rempli sur le Nasdaq 100** : total sans le meilleur trade -0,14 R (légèrement négatif ; 21,26 R sur l'or, positif). Aucune des 9 combinaisons à moins de 8 flèches par an ne passe le critère « sans le meilleur trade positif sur les deux actifs » : la meilleure en est V2 + marge 1 ATR. Les variantes qui le passent sur le Nasdaq (V0 + marge 1 ATR : +1,15 R) dépassent 18 flèches par an.
+| Variante | Flèches | Par an | % gagnants | Espérance (R) | Total (R) | Total sans le meilleur trade (R) | Pire série de pertes |
+|---|---|---|---|---|---|---|---|
+| 1 clôture Daily + 1 clôture H4 · avec filtre de pente | 17 | 3,2 | 17,6 % | 1,02 | 17,27 | -6,54 | 6 |
+| 1 clôture Daily + 1 clôture H4 · sans filtre de pente | 34 | 4,9 | 17,6 % | 1,07 | 36,33 | 9,56 | 10 |
+| 2 clôtures Daily · avec filtre de pente | 16 | 3,1 | 18,8 % | 1,45 | 23,21 | -6,95 | 7 |
+| 2 clôtures Daily · sans filtre de pente | 33 | 4,8 | 18,2 % | 0,98 | 32,35 | 2,20 | 10 |
+| 1 clôture Daily à 0,5 ATR · avec filtre de pente | 12 | 2,7 | 8,3 % | -0,79 | -9,44 | -12,09 | 7 |
+| 1 clôture Daily à 0,5 ATR · sans filtre de pente | 25 | 4,0 | 12,0 % | -0,48 | -12,12 | -17,66 | 12 |
+
+## Variante choisie (réglage par défaut) : **2 clôtures Daily · sans filtre de pente**
+
+- **Règle de sélection** : parmi les 6 variantes, celles dont le total sans le meilleur trade est positif sur l'or ET sur le Nasdaq 100 (base combinée) ; la plus rentable des deux (total or + Nasdaq) est retenue. 1 variante(s) satisfont le critère : 2 clôtures Daily · sans filtre de pente.
+- **Résultat** : or 5,3 flèches par an, 107,32 R au total (31,21 R sans le meilleur trade, espérance 2,28 R, pire série 20) ; Nasdaq 100 4,8 flèches par an, 32,35 R au total (2,20 R sans le meilleur trade, espérance 0,98 R, pire série 10).
+- **Le filtre de pente ne gagne pas** dans ce test : toutes les variantes avec filtre de pente ont un total sans le meilleur trade négatif sur au moins un actif. Le filtre est donc désactivé par défaut (il reste disponible dans le code : `PENTE_DEFAUT`).
+- **La clôture H4 de confirmation ne gagne pas non plus** sur 10 ans (proxy) : avec la confirmation « 1 clôture Daily + 1 clôture H4 », l'or a un total sans le meilleur trade négatif sans filtre de pente (-5,80 R), alors que 2 clôtures Daily donne +31,21 R. La confirmation par défaut est donc « 2 clôtures Daily ».
 
 ## À lire avant de s'y fier
 
-- Échantillons petits : 20 flèches sur l'or et 13 sur le Nasdaq 100 pour la variante choisie, dont 14 et 10 grosses flèches sur 10 ans. Les grosses flèches de l'or reposent surtout sur un seul trade (achat d'octobre 2023).
-- Les petites flèches (rebonds) ne couvrent que 2,4 à 2,9 ans, dans un marché globalement haussier.
+- **Peu de trades gagnants, de très gros gains** : 19,1 % de gagnants sur l'or, 18,2 % sur le Nasdaq 100 ; l'espérance vient de quelques tendances longues. Pour l'or, le meilleur trade vaut 76,12 R sur 107,32 R au total.
+- **Les rebonds perdent** dans ce test (or : 2 rebonds, -1,23 R ; Nasdaq 100 : 6 rebonds, -8,08 R), sur 2,4 à 2,9 ans de H4 seulement : échantillon trop petit pour conclure, mais aucun signe de rentabilité. Ils sont conservés parce que la consigne les demande.
+- La confirmation « clôture H4 » ne peut être testée avec le vrai H4 que sur 2,4 à 2,9 ans (1 à 5 cassures) : la comparaison sur 10 ans utilise un proxy (ouverture du lendemain).
 - Sans frais, sans spread, sans glissement.

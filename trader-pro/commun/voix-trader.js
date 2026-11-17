@@ -47,7 +47,7 @@ export async function repondre(texte, S, { maintenant = Date.now() } = {}) {
     }
     if (i.type === 'fleches') {
       const L = await S.fleches(i.actif ? i.actif.id : null); if (!L || !L.length) return 'Je n’ai pas les données Daily pour le moment.';
-      const quoi = f => `${f.type === 'grosse' ? 'grosse flèche Daily' : 'petite flèche H4'} ${f.dir > 0 ? 'verte, achat' : 'rouge, vente'}, ${f.libelle || ''}, entrée vers ${f.niveauTxt || ''}`.replace(/, entrée vers $/, '').replace(/, , /, ', ');
+      const quoi = f => `${f.type === 'cassure' ? 'grosse flèche' : 'petite flèche'} ${f.dir > 0 ? 'verte, achat' : 'rouge, vente'}, ${f.libelle || ''}, entrée vers ${f.niveauTxt || ''}`.replace(/, entrée vers $/, '').replace(/, , /, ', ');
       const jour = t => new Date(t).toLocaleDateString('fr-FR', { timeZone: 'UTC', day: 'numeric', month: 'long' });
       const recents = L.filter(x => x.recentes.length);
       if (!recents.length) return 'Aucune flèche MA200 Daily + H4 dans les 7 derniers jours' + (i.actif ? ' sur ' + i.actif.nom : '') + '.' + (L.length === 1 && L[0].derniere ? ` La dernière, ${L[0].derniere.dir < 0 ? 'rouge, une vente' : 'verte, un achat'}, a été confirmée le ${jour(L[0].derniere.t)}.` : '');

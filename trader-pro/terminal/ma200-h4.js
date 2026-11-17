@@ -1,138 +1,107 @@
-/* ═════════════ MA200 DAILY + H4 : le Daily décide du SENS, le H4 décide du MOMENT (module PUR, testé, navigateur et Node) ═════════════
-   Remplace les Retournements Daily. Tout est calculé avec les données PASSÉES uniquement (le H4 est parcouru bougie par bougie, comme en direct) : aucune flèche ne bouge ni ne disparaît.
-   1) SENS DAILY. Bande = MA200 Daily ± 0,5 × ATR(14) Daily. Haussier = 2 clôtures Daily consécutives au-dessus de la bande haute ; baissier = miroir. Tant que ce n'est pas confirmé (prix dans la bande, ou
-      une seule clôture de l'autre côté) le sens est NEUTRE : aucune petite flèche. Le côté confirmé ne change que sur 2 clôtures de l'autre côté.
-   2) GROSSE FLÈCHE (Daily) : le jour où le côté confirmé CHANGE (croisement confirmé), une seule par croisement ; le premier côté confirmé en début d'historique n'est pas un croisement : pas de flèche.
-   3) PETITES FLÈCHES (H4), uniquement dans le sens Daily (haussier : achat ; baissier : miroir), jamais dans l'ancien sens après un changement :
-      - REBOND : le prix recule vers un support (MA200 H4, MA200 Daily, S1 / S2 Daily ; zone = niveau ± 0,3 ATR Daily), puis une bougie H4 CLÔTURE au-dessus du dernier sommet H4 du repli (dans les 30 bougies H4) ;
-      - CASSURE : une bougie H4 clôture au-dessus du plus haut des 20 dernières bougies H4.
-      Au plus 1 petite flèche par repli (un repli = un recul d'au moins 1 ATR Daily depuis le plus haut atteint depuis la dernière flèche) et au moins 3 jours entre deux petites flèches.
-   4) PLAN. Petite flèche : entrée = clôture H4 de confirmation, stop = 1 ATR Daily sous le dernier creux H4 du repli ; sortie = changement de sens Daily (côté confirmé opposé) ou clôture H4 sous le dernier creux H4 important
-      (le creux du repli, remonté au fil des creux H4 à 3 bougies de chaque côté formés depuis l'entrée). Grosse flèche : entrée = clôture Daily du croisement, stop = 1 ATR Daily derrière la MA200 Daily, sortie = changement de sens Daily.
-   Résultat affiché en R (R = |entrée − stop|). Bougies : { t (ouverture, ms UTC), o, h, l, c }. Les bougies Daily doivent être CLÔTURÉES (cloturees). */
-import { atr, sma, niveauxCles } from '../commun/analyse.js';
+/* ═════════════ MA200 DAILY + H4 : un seul niveau, la MA200 Daily (module PUR, testé, navigateur et Node) ═════════════
+   Deux types de flèches seulement, tout est calculé avec les données PASSÉES (le H4 est parcouru bougie par bougie, comme en direct) : aucune flèche ne bouge ni ne disparaît.
+   1) CASSURE (grosse flèche) : une clôture Daily franchit la MA200 Daily (la clôture change de côté), puis la cassure est CONFIRMÉE : par défaut, la première clôture H4 qui suit reste du bon côté (pas de réintégration) ;
+      variantes testées : 2 clôtures Daily d'affilée, ou 1 clôture Daily à 0,5 ATR au-delà de la MA200. Filtre de pente : cassure haussière seulement si la MA200 Daily est plate ou montante sur les 20 derniers jours
+      (plate = baisse de moins de 0,1 ATR) ; miroir en baisse ; une cassure contre la pente ne donne aucune flèche. Une seule flèche par cassure.
+   2) REBOND (petite flèche) : tendance établie = les 10 dernières clôtures Daily du même côté de la MA200 Daily ET pente de la MA200 sur 20 jours dans le même sens. Le prix revient toucher la MA200 Daily (la mèche d'une bougie
+      H4 passe à moins de 0,3 ATR de la MA200, sans clôturer de l'autre côté), puis une clôture H4 repart dans le sens de la tendance (au-delà du plus haut / plus bas de la dernière bougie de contact, dans les 30 bougies H4).
+      Une seule flèche par contact avec la MA200 (un contact se termine quand une bougie H4 est entièrement à plus de 0,3 ATR de la MA200).
+   Plan : entrée = clôture de la bougie de confirmation ; stop = 0,5 ATR de l'autre côté de la MA200 Daily ; sortie = stop, ou clôture Daily de l'autre côté de la MA200. Gain affiché en R (R = |entrée − stop|).
+   Mêmes flèches sur le Jour et sur H4 (la bougie de confirmation), rien en H1. Bougies : { t (ouverture, ms UTC), o, h, l, c }. Les bougies Daily doivent être CLÔTURÉES (cloturees). */
+import { atr, sma } from '../commun/analyse.js';
 
 export const J = 86400e3, H4 = 4 * 3600e3;
-export const PARAMS = Object.freeze({ confirmations: 2, zoneJourATR: 0.5, bande: 0.5, ATR_N: 14, MA_N: 200, espaceH4J: 3, cassureN: 20, repliATR: 1, stopATR: 1, zoneATR: 0.3, pivotH4: 2, remonteH4: 40, fenetreRebond: 30, pivotSortie: 3 });
-/* variantes comparées par le backtest (VERIFICATION-MA200.md) ; filtres anti-piège des grosses flèches : 3 clôtures au lieu de 2, ou marge 1 ATR au lieu de 0,5 */
-export const VARIANTES = Object.freeze({
-  V0: { nom: 'Rebonds + cassures, toutes zones (première version)', petites: true, cassure: true, zonesJour: false, maxParTendance: null },
-  V1: { nom: 'Grosses flèches seules', petites: false },
-  V2: { nom: 'Grosses + rebonds sur zone Daily', petites: true, cassure: false, zonesJour: true, maxParTendance: null },
-  V3: { nom: 'V2, 2 petites flèches au plus par tendance Daily', petites: true, cassure: false, zonesJour: true, maxParTendance: 2 }
-});
-export const FILTRES = Object.freeze({ base: { nom: '2 clôtures, marge 0,5 ATR', confirmations: 2, bande: 0.5 }, trois: { nom: '3 clôtures, marge 0,5 ATR', confirmations: 3, bande: 0.5 }, atr1: { nom: '2 clôtures, marge 1 ATR', confirmations: 2, bande: 1 } });
-export const VARIANTE_DEFAUT = 'V2', FILTRE_DEFAUT = 'atr1';   // fixés par le backtest
-/* identifiant de l'algorithme : fait partie de la clé du registre sur l'appareil, pour qu'un changement de variante / de règles n'hérite jamais des flèches enregistrées par l'ancienne version (à changer à chaque modification des règles) */
-export const ALGO_ID = () => `${VARIANTE_DEFAUT}-${FILTRE_DEFAUT}-r2`;
-export const paramsDe = (filtre = FILTRE_DEFAUT) => ({ ...PARAMS, ...(FILTRES[filtre] || FILTRES[FILTRE_DEFAUT]), nom: undefined });
+export const PARAMS = Object.freeze({ ATR_N: 14, MA_N: 200, pente: 20, penteTol: 0.1, tendanceJours: 10, zoneATR: 0.3, stopATR: 0.5, margeATR: 0.5, fenetreRebond: 30 });
 export const cloturees = (B, maintenant = Date.now()) => (B || []).filter(b => b.t + J <= maintenant);
 
-/* ───── 1) sens Daily ───── */
-export function sensJour(B, P = PARAMS) {
-  const A = atr(B, P.ATR_N), M = sma(B.map(b => b.c), P.MA_N), n = B.length, cote = new Array(n).fill(0), sens = new Array(n).fill(0), haut = new Array(n).fill(false), bas = new Array(n).fill(false), gros = [];
-  let c0 = 0;
-  for (let i = 0; i < n; i++) {
-    if (A[i] == null || M[i] == null) { cote[i] = c0; continue; }
-    haut[i] = B[i].c > M[i] + P.bande * A[i]; bas[i] = B[i].c < M[i] - P.bande * A[i];
-    const nc = P.confirmations || 2; let confH = i >= nc - 1, confB = i >= nc - 1; for (let x = 0; x < nc && (confH || confB); x++) { confH = confH && haut[i - x]; confB = confB && bas[i - x]; }
-    if (confH && c0 !== 1) { if (c0 === -1) gros.push(grosse(B, i, 1, M[i], A[i], P)); c0 = 1; } else if (confB && c0 !== -1) { if (c0 === 1) gros.push(grosse(B, i, -1, M[i], A[i], P)); c0 = -1; }
-    cote[i] = c0; sens[i] = haut[i] ? (c0 === 1 ? 1 : 0) : bas[i] ? (c0 === -1 ? -1 : 0) : 0;
-  }
-  return { A, M, cote, sens, gros };
-}
-function grosse(B, i, dir, m, a, P) {
-  const stop = dir > 0 ? m - P.stopATR * a : m + P.stopATR * a;
-  return { type: 'grosse', dir, i, t: B[i].t, tFin: B[i].t + J, entree: B[i].c, stop, R: Math.abs(B[i].c - stop), zone: 'MA200 Daily', ma200: m, atr: a };
+/* confirmations de cassure comparées par le backtest (VERIFICATION-MA200.md) */
+export const CONFIRMATIONS = Object.freeze({ h4: { nom: '1 clôture Daily + 1 clôture H4' }, daily2: { nom: '2 clôtures Daily' }, marge: { nom: '1 clôture Daily à 0,5 ATR' } });
+export const CONFIRMATION_DEFAUT = 'daily2', PENTE_DEFAUT = false;   // fixés par le backtest
+/* identifiant de l'algorithme : fait partie de la clé du registre sur l'appareil, pour qu'un changement de règles n'hérite jamais des flèches enregistrées par l'ancienne version (à changer à chaque modification des règles) */
+export const ALGO_ID = () => `${CONFIRMATION_DEFAUT}-${PENTE_DEFAUT ? 'pente' : 'sanspente'}-r3`;
+
+/* ───── contexte Daily : ATR, MA200, côté de la clôture, pente ───── */
+export function contexteJour(B, P = PARAMS) {
+  const A = atr(B, P.ATR_N), M = sma(B.map(b => b.c), P.MA_N), cote = B.map((b, i) => (M[i] == null ? 0 : b.c > M[i] ? 1 : b.c < M[i] ? -1 : 0));
+  const pente = i => (i >= P.pente && M[i] != null && M[i - P.pente] != null ? M[i] - M[i - P.pente] : null);
+  /* pente « dans le sens d » : stricte pour un rebond, large (plate ou montante) pour une cassure */
+  const penteOk = (i, d, large) => { const p = pente(i); if (p == null || A[i] == null) return false; return large ? (d > 0 ? p >= -P.penteTol * A[i] : p <= P.penteTol * A[i]) : (d > 0 ? p > 0 : p < 0); };
+  return { A, M, cote, pente, penteOk };
 }
 
-/* ───── 3) petites flèches H4 ───── */
-export function petitesFleches(Bj, Bh, S, { params = PARAMS, maintenant = Date.now(), variante = VARIANTE_DEFAUT } = {}) {
-  const V = VARIANTES[variante] || VARIANTES[VARIANTE_DEFAUT]; if (!V.petites) return [];
-  const P = params, H = (Bh || []).filter(b => b.t + H4 <= maintenant), n = H.length, M4 = sma(H.map(b => b.c), P.MA_N), out = [], cacheN = new Map();
-  const niv = k => { if (!cacheN.has(k)) cacheN.set(k, niveauxCles(Bj.slice(Math.max(0, k + 1 - 300), k + 1), { max: 2, fenetre: 300 })); return cacheN.get(k); };
-  const neuf = (der = -1e18) => ({ arme: true, pic: null, derniere: der, attente: null });
-  const etat = { 1: neuf(), '-1': neuf() }; let k = -1, sensPrec = 0, coteCourant = 0, nTend = { 1: 0, '-1': 0 };   // nTend : petites flèches déjà prises dans la tendance Daily (côté confirmé) en cours
-  /* dernier sommet (creux) H4 du repli : pivot à `pivotH4` bougies de chaque côté, au-dessus (au-dessous) du dernier cours, parmi les `remonteH4` dernières bougies */
-  const declencheur = (h, dir) => {
-    for (let p = h - P.pivotH4, m = 0; p >= P.pivotH4 && m < P.remonteH4; p--, m++) {
-      let ok = true; for (let x = 1; x <= P.pivotH4 && ok; x++) ok = dir > 0 ? (H[p].h > H[p - x].h && H[p].h >= H[p + x].h) : (H[p].l < H[p - x].l && H[p].l <= H[p + x].l);
-      if (ok && (dir > 0 ? H[p].h > H[h].c : H[p].l < H[h].c)) return dir > 0 ? H[p].h : H[p].l;
-    }
-    return null;
-  };
-  for (let h = 0; h < n; h++) {
-    const b = H[h];
-    while (k + 1 < Bj.length && Bj[k + 1].t + J <= b.t) k++;
-    if (k < 0) continue;
-    const s = S.sens[k], a = S.A[k];
-    if (S.cote[k] !== coteCourant) { coteCourant = S.cote[k]; nTend = { 1: 0, '-1': 0 }; }
-    if (s !== sensPrec) { etat[-1].attente = null; etat[1].attente = null; if (s !== 0) etat[s] = neuf(etat[s].derniere); sensPrec = s; }
-    if (s === 0 || a == null) continue;
-    const dir = s, e = etat[dir];
-    /* repli : recul d'au moins 1 ATR Daily depuis le plus haut (plus bas) atteint depuis la dernière flèche */
-    if (e.pic == null) e.pic = dir > 0 ? b.h : b.l; else e.pic = dir > 0 ? Math.max(e.pic, b.h) : Math.min(e.pic, b.l);
-    if (dir > 0 ? b.l <= e.pic - P.repliATR * a : b.h >= e.pic + P.repliATR * a) e.arme = true;
-    const libre = e.arme && b.t - e.derniere >= P.espaceH4J * J && (V.maxParTendance == null || nTend[dir] < V.maxParTendance);
-    let type = null, zone = null;
-    if (e.attente) {
-      const at = e.attente;
-      if (h - at.h0 > P.fenetreRebond) e.attente = null;
-      else if (dir > 0 ? b.c > at.trigger : b.c < at.trigger) { if (libre) { type = 'rebond'; zone = at.zone; } e.attente = null; }
-    }
-    if (!type && V.cassure !== false && h >= P.cassureN) {
-      let ext = dir > 0 ? -Infinity : Infinity; for (let x = h - P.cassureN; x < h; x++) ext = dir > 0 ? Math.max(ext, H[x].h) : Math.min(ext, H[x].l);
-      if (libre && (dir > 0 ? b.c > ext : b.c < ext)) { type = 'cassure'; zone = P.cassureN + ' dernières bougies H4'; }
-    }
-    if (type) {
-      let pk = Math.max(0, h - P.remonteH4); for (let x = pk; x < h; x++) if (dir > 0 ? H[x].h >= H[pk].h : H[x].l <= H[pk].l) pk = x;
-      let creux = dir > 0 ? Infinity : -Infinity; for (let x = pk; x <= h; x++) creux = dir > 0 ? Math.min(creux, H[x].l) : Math.max(creux, H[x].h);
-      const stop = dir > 0 ? creux - P.stopATR * a : creux + P.stopATR * a;
-      out.push({ type, dir, t: b.t, tFin: b.t + H4, iH4: h, entree: b.c, stop, R: Math.abs(b.c - stop), zone, creux, atr: a, sens: s });
-      e.arme = false; e.derniere = b.t; e.pic = dir > 0 ? b.h : b.l; nTend[dir]++;
-    }
-    /* touch d'un support (résistance) : prépare le rebond */
-    if (!e.attente && h >= 1 && (V.zonesJour || M4[h - 1] != null)) {
-      const N = niv(k), tol = (V.zonesJour ? P.zoneJourATR : P.zoneATR) * a, prev = H[h - 1].c, niveaux = (V.zonesJour ? [] : [{ nom: 'MA200 H4', v: M4[h - 1] }]).concat([{ nom: 'MA200 Daily', v: S.M[k] }]).concat((dir > 0 ? N.supports : N.resistances).slice(0, 2).map((x, i) => ({ nom: (dir > 0 ? 'S' : 'R') + (i + 1) + ' Daily', v: x.prix })));
-      const touches = niveaux.filter(z => z.v != null && (dir > 0 ? (prev > z.v && b.l <= z.v + tol && b.c > z.v - tol) : (prev < z.v && b.h >= z.v - tol && b.c < z.v + tol)));
-      if (touches.length) { const z = touches.reduce((u, v) => (dir > 0 ? (v.v > u.v ? v : u) : (v.v < u.v ? v : u))), trig = declencheur(h, dir); if (trig != null) e.attente = { zone: z.nom, trigger: trig, h0: h }; }
+/* ───── 1) cassures ───── */
+const flecheMA = (type, dir, t, tFin, entree, M, a, P, extra) => { const stop = dir > 0 ? M - P.stopATR * a : M + P.stopATR * a; return { type, dir, t, tFin, entree, stop, R: Math.abs(entree - stop), zone: 'MA200 Daily', ma200: M, atr: a, ...extra }; };
+/* `proxyH4` (backtest sur 10 ans, là où il n'y a pas de H4) : la confirmation « 1 clôture H4 » est remplacée par « l'ouverture du lendemain reste du bon côté », entrée à cette ouverture */
+export function cassures(B, H, C, { confirmation = CONFIRMATION_DEFAUT, pente = PENTE_DEFAUT, params = PARAMS, proxyH4 = false } = {}) {
+  const P = params, out = [], n = B.length; let hp = 0;
+  for (let i = 1; i < n; i++) {
+    const d = C.cote[i]; if (!d || !C.cote[i - 1] || d === C.cote[i - 1] || C.A[i] == null) continue;   // clôture Daily qui franchit la MA200 Daily
+    if (pente && !C.penteOk(i, d, true)) continue;                                                     // cassure contre la pente : aucune flèche
+    const M = C.M[i], a = C.A[i], tFinJ = B[i].t + J;
+    if (confirmation === 'marge') { if (d > 0 ? B[i].c > M + P.margeATR * a : B[i].c < M - P.margeATR * a) out.push(flecheMA('cassure', d, B[i].t, tFinJ, B[i].c, M, a, P, { mode: 'jour', i, jSuivi: i + 1 })); }
+    else if (confirmation === 'daily2') { const j = i + 1; if (j < n && C.cote[j] === d && C.A[j] != null) out.push(flecheMA('cassure', d, B[j].t, B[j].t + J, B[j].c, C.M[j], C.A[j], P, { mode: 'jour', i: j, jSuivi: j + 1 })); }
+    else {
+      while (hp < H.length && H[hp].t < tFinJ) hp++;
+      if (hp < H.length && H[0].t <= tFinJ) { const b = H[hp]; if (d > 0 ? b.c > M : b.c < M) out.push(flecheMA('cassure', d, b.t, b.t + H4, b.c, M, a, P, { mode: 'h4', iH4: hp, i })); }   // la première clôture H4 qui suit reste du bon côté
+      else if (proxyH4 && i + 1 < n) { if (d > 0 ? B[i + 1].o > M : B[i + 1].o < M) out.push(flecheMA('cassure', d, B[i + 1].t, B[i + 1].t + H4, B[i + 1].o, M, a, P, { mode: 'jour', i: i + 1, jSuivi: i + 1, proxy: true })); }
     }
   }
   return out;
 }
 
-/* ───── analyse complète : grosses + petites, triées par heure de confirmation, et le sens Daily bougie par bougie ───── */
-export function analyserMA(Bj, Bh, { params = null, filtre = FILTRE_DEFAUT, variante = VARIANTE_DEFAUT, maintenant = Date.now() } = {}) {
-  params = params || paramsDe(filtre);
-  const S = sensJour(Bj, params), petites = Bh && Bh.length ? petitesFleches(Bj, Bh, S, { params, maintenant, variante }) : [];
-  const tout = S.gros.concat(petites).sort((x, y) => x.tFin - y.tFin || (x.type === 'grosse' ? -1 : 1));
-  return { S, grosses: S.gros, petites, tout, sens: Bj.map((b, i) => ({ t: b.t, tFin: b.t + J, sens: S.sens[i], cote: S.cote[i] })) };
+/* ───── 2) rebonds sur la MA200 Daily ───── */
+export function rebonds(B, Hbrut, C, { params = PARAMS, maintenant = Date.now() } = {}) {
+  const P = params, H = (Hbrut || []).filter(b => b.t + H4 <= maintenant), out = [], neuf = () => ({ contact: false, tire: false, attente: null });
+  const etat = { 1: neuf(), '-1': neuf() }; let k = -1;
+  for (let h = 0; h < H.length; h++) {
+    const b = H[h]; while (k + 1 < B.length && B[k + 1].t + J <= b.t) k++;
+    if (k < P.tendanceJours) continue;
+    const a = C.A[k], M = C.M[k], d = C.cote[k]; if (!d || a == null || M == null) { etat[1] = neuf(); etat[-1] = neuf(); continue; }
+    const e = etat[d], autre = etat[-d]; autre.contact = false; autre.tire = false; autre.attente = null;
+    let etabli = C.penteOk(k, d, false); for (let x = 0; x < P.tendanceJours && etabli; x++) etabli = C.cote[k - x] === d;   // 10 clôtures du même côté + pente dans le même sens
+    if (!etabli) { e.contact = false; e.tire = false; e.attente = null; continue; }
+    const zone = P.zoneATR * a, touche = d > 0 ? (b.l <= M + zone && b.c > M) : (b.h >= M - zone && b.c < M), loin = d > 0 ? b.l > M + zone : b.h < M - zone;
+    /* départ après un contact : une clôture H4 repart dans le sens de la tendance au-delà de la dernière bougie de contact */
+    if (e.attente && !e.tire) {
+      if (h - e.attente.h0 > P.fenetreRebond) e.attente = null;
+      else if (d > 0 ? b.c > e.attente.ext : b.c < e.attente.ext) { out.push(flecheMA('rebond', d, b.t, b.t + H4, b.c, M, a, P, { mode: 'h4', iH4: h, i: k })); e.tire = true; e.attente = null; }
+    }
+    if (loin) { e.contact = false; e.tire = false; e.attente = null; }
+    else if (touche) { e.contact = true; if (!e.tire) e.attente = { ext: d > 0 ? b.h : b.l, h0: h }; }
+  }
+  return out;
 }
 
-/* ───── 5) suivi d'une flèche : gain en R (sortie = stop, changement de sens Daily, ou cassure du dernier creux H4 important) ─────
-   Renvoie { r, etat: 'sortie' | 'en cours', motif, prix, t }. Stop avant tout le reste dans une même bougie ; ouverture au-delà du stop = sortie à l'ouverture. */
-export function suivre(f, Bj, Bh, S, { params = PARAMS } = {}) {
-  const L = f.dir > 0, P = params, R = f.R, gain = x => (L ? x - f.entree : f.entree - x) / R, rep = (prix, motif, t) => ({ r: gain(prix), etat: 'sortie', motif, prix, t });
-  const flips = S.gros.filter(g => g.dir !== f.dir && g.tFin > f.tFin);
-  if (f.type === 'grosse') {
-    for (let j = f.i + 1; j < Bj.length; j++) {
+/* ───── analyse complète : cassures + rebonds triés par heure de confirmation, et le côté de la MA200 Daily bougie par bougie (fond du graphique) ───── */
+export function analyserMA(Bj, Bh, { confirmation = CONFIRMATION_DEFAUT, pente = PENTE_DEFAUT, params = PARAMS, proxyH4 = false, avecRebonds = true, maintenant = Date.now() } = {}) {
+  const C = contexteJour(Bj, params), H = (Bh || []).filter(b => b.t + H4 <= maintenant);
+  const cs = cassures(Bj, H, C, { confirmation, pente, params, proxyH4 }), rs = avecRebonds && H.length ? rebonds(Bj, H, C, { params, maintenant }) : [];
+  const tout = cs.concat(rs).sort((x, y) => x.tFin - y.tFin || (x.type === 'cassure' ? -1 : 1));
+  return { S: C, cassures: cs, rebonds: rs, tout, sens: Bj.map((b, i) => ({ t: b.t, tFin: b.t + J, sens: C.cote[i], cote: C.cote[i] })) };
+}
+
+/* ───── suivi d'une flèche : gain en R (sortie = stop, ou clôture Daily de l'autre côté de la MA200) ─────
+   Renvoie { r, etat: 'sortie' | 'en cours', motif, prix, t }. Stop avant tout le reste dans une même bougie ; ouverture au-delà du stop = sortie à l'ouverture.
+   Flèche sur une bougie H4 (mode 'h4') : suivie sur les bougies H4 ; flèche Daily (mode 'jour') : suivie sur les bougies Daily (base : 'jour' force le suivi Daily, pour comparer des flèches de modes différents). */
+export function suivre(f, Bj, Bh, S, { base = null } = {}) {
+  const L = f.dir > 0, R = f.R, gain = x => (L ? x - f.entree : f.entree - x) / R, rep = (prix, motif, t) => ({ r: gain(prix), etat: 'sortie', motif, prix, t });
+  const apresJour = j0 => {
+    for (let j = j0; j < Bj.length; j++) {
       const b = Bj[j];
       if (L ? b.o <= f.stop : b.o >= f.stop) return rep(b.o, 'stop', b.t); if (L ? b.l <= f.stop : b.h >= f.stop) return rep(f.stop, 'stop', b.t);
-      const g = flips.find(x => x.i === j); if (g) return rep(b.c, 'changement de sens Daily', b.t + J);
+      if (S.cote[j] === -f.dir) return rep(b.c, 'clôture Daily de l’autre côté de la MA200', b.t + J);
     }
     const d = Bj[Bj.length - 1]; return { r: gain(d.c), etat: 'en cours', prix: d.c, t: d.t + J };
-  }
-  let niveau = f.creux, dernier = f.iH4;
+  };
+  if (f.mode === 'jour') return apresJour(f.jSuivi);
+  if (base === 'jour') { const j = Bj.findIndex(b => b.t + J > f.tFin); return j < 0 ? { r: 0, etat: 'en cours', prix: f.entree, t: f.tFin } : apresJour(j); }   // flèche H4 suivie sur le Daily : à partir de la bougie Daily en cours
+  let tSortie = Infinity; for (let j = 0; j < Bj.length; j++) if (S.cote[j] === -f.dir && Bj[j].t + J > f.tFin) { tSortie = Bj[j].t + J; break; }
   for (let i = f.iH4 + 1; i < Bh.length; i++) {
     const b = Bh[i];
     if (L ? b.o <= f.stop : b.o >= f.stop) return rep(b.o, 'stop', b.t); if (L ? b.l <= f.stop : b.h >= f.stop) return rep(f.stop, 'stop', b.t);
-    if (flips.some(g => g.tFin <= b.t + H4)) return rep(b.c, 'changement de sens Daily', b.t + H4);
-    /* creux (sommets) H4 importants formés depuis l'entrée : pivots à `pivotSortie` bougies de chaque côté, confirmés à la bougie i */
-    const p = i - P.pivotSortie; if (p > f.iH4 && p >= P.pivotSortie) { let ok = true; for (let x = 1; x <= P.pivotSortie && ok; x++) ok = L ? (Bh[p].l < Bh[p - x].l && Bh[p].l <= Bh[p + x].l) : (Bh[p].h > Bh[p - x].h && Bh[p].h >= Bh[p + x].h); if (ok) niveau = L ? Math.max(niveau, Bh[p].l) : Math.min(niveau, Bh[p].h); }
-    if (L ? b.c < niveau : b.c > niveau) return rep(b.c, 'cassure du dernier creux H4', b.t + H4);
-    dernier = i;
+    if (b.t + H4 >= tSortie) return rep(b.c, 'clôture Daily de l’autre côté de la MA200', b.t + H4);
   }
-  const d = Bh[dernier] || { c: f.entree, t: f.t }; return { r: gain(d.c), etat: 'en cours', prix: d.c, t: d.t + H4 };
+  const d = Bh[Bh.length - 1] || { c: f.entree, t: f.t }; return { r: gain(d.c), etat: 'en cours', prix: d.c, t: d.t + H4 };
 }
 
 /* ───── REGISTRE : une flèche confirmée ne bouge plus et n'est annoncée qu'une fois ───── */
@@ -142,27 +111,34 @@ export function fusionnerRegistre(actif, existantes = [], calculees = []) {
   for (const f of calculees.slice().sort((x, y) => x.tFin - y.tFin)) {
     const id = idFleche(actif, f); if (vus.has(id)) continue;
     const der = out[out.length - 1]; if (der && f.tFin < der.tFin) continue;   // jamais d'insertion dans le passé
-    out.push({ id, type: f.type, dir: f.dir, t: f.t, tFin: f.tFin, entree: f.entree, stop: f.stop, R: f.R, zone: f.zone, creux: f.creux ?? null, i: f.i ?? null, iH4: f.iH4 ?? null, vueLe: null }); vus.add(id);
+    out.push({ id, type: f.type, dir: f.dir, t: f.t, tFin: f.tFin, entree: f.entree, stop: f.stop, R: f.R, zone: f.zone, mode: f.mode, i: f.i ?? null, iH4: f.iH4 ?? null, jSuivi: f.jSuivi ?? null, vueLe: null }); vus.add(id);
   }
   return out;
+}
+/* une flèche du registre (sans index) retrouve ses bougies par leur heure d'ouverture : nécessaire pour `suivre` */
+export function ancrer(f, Bj, Bh) {
+  const g = { ...f };
+  if (f.mode === 'jour') { g.i = Bj.findIndex(b => b.t === f.t); if (g.i < 0) return null; g.jSuivi = f.proxy ? g.i : g.i + 1; }
+  else { g.iH4 = (Bh || []).findIndex(b => b.t === f.t); if (g.iH4 < 0) return null; }
+  if (!Number.isFinite(g.R) || !g.R) g.R = Math.abs(f.entree - f.stop);
+  return g;
 }
 
 /* ───── style, placement, textes ───── */
 export const COULEURS = Object.freeze({ haussier: [95, 184, 148], baissier: [216, 106, 106], fond: { 1: 'rgba(95,184,148,0.11)', '-1': 'rgba(216,106,106,0.11)', 0: 'rgba(150,160,170,0.08)' } });
-/* grosse flèche = Daily (grande), petite = H4 (petite) ; haussier = verte vers le haut sous la bougie, baissier = rouge vers le bas au-dessus ; sans texte */
+/* cassure = grosse flèche, rebond = petite ; haussier = verte vers le haut sous la bougie, baissier = rouge vers le bas au-dessus ; sans texte */
 export function styleFleche(f) {
   const [r, g, b] = f.dir > 0 ? COULEURS.haussier : COULEURS.baissier;
-  return { couleur: `rgba(${r},${g},${b},1)`, position: f.dir > 0 ? 'belowBar' : 'aboveBar', forme: f.dir > 0 ? 'arrowUp' : 'arrowDown', taille: f.type === 'grosse' ? 2.6 : 1.2 };
+  return { couleur: `rgba(${r},${g},${b},1)`, position: f.dir > 0 ? 'belowBar' : 'aboveBar', forme: f.dir > 0 ? 'arrowUp' : 'arrowDown', taille: f.type === 'cassure' ? 2.6 : 1.2 };
 }
-/* la bougie affichée qui CONTIENT l'instant de confirmation (grosse : la bougie Daily du croisement ; H4 : la bougie H4 de confirmation exacte quand les bougies sont alignées sur 22 h UTC).
-   Les mêmes flèches sur le Jour et sur H4, au même endroit ; H1 / M15 / M5 : aucune. Renvoie l'index de la bougie, ou −1. */
+/* la bougie affichée qui CONTIENT l'instant de confirmation. Les mêmes flèches sur le Jour et sur H4, au même endroit ; H1 / M15 / M5 : aucune. Renvoie l'index de la bougie, ou −1. */
 export function indexSurUnite(Bunite, f, pas) {
   if (!Bunite || !Bunite.length || pas < H4 - 1) return -1;
   const m = f.tFin - 1;
   for (let i = Bunite.length - 1; i >= 0; i--) if (Bunite[i].t <= m && m < Bunite[i].t + pas) return i;
   return -1;
 }
-/* sens Daily en vigueur pour chaque bougie affichée (fond du graphique) : H4 / H1 = sens connu à l'ouverture de la bougie ; Jour = sens à la clôture de la bougie */
+/* côté de la MA200 Daily pour chaque bougie affichée (fond du graphique) : H4 / H1 = côté connu à l'ouverture de la bougie ; Jour = côté à la clôture de la bougie */
 export function sensPourBougies(Bunite, tableau, pas) {
   const out = []; let k = -1;
   for (const b of Bunite) { const lim = pas >= J ? b.t + pas : b.t; while (k + 1 < tableau.length && tableau[k + 1].tFin <= lim) k++; out.push(k < 0 ? 0 : tableau[k].sens); }
@@ -173,15 +149,6 @@ export function niveauParle(v) {
   const d = Math.abs(v) >= 100 ? 0 : Math.abs(v) >= 1 ? 2 : 4;
   return v.toLocaleString('fr-FR', { minimumFractionDigits: 0, maximumFractionDigits: d }).replace(/[  ]/g, ' ');
 }
-export const typeLibelle = f => (f.type === 'grosse' ? `croisement MA200 Daily ${f.dir > 0 ? 'haussier' : 'baissier'}` : f.type === 'rebond' ? `rebond sur ${f.zone}` : `cassure des ${PARAMS.cassureN} dernières bougies H4`);
-export const phraseFleche = (nom, f) => (f.type === 'grosse'
-  ? `${nom} : grosse flèche ${f.dir > 0 ? 'haussière' : 'baissière'} Daily, la MA200 Daily est franchie, entrée vers ${niveauParle(f.entree)}`
-  : `${nom} : petite flèche H4 ${f.dir > 0 ? 'haussière' : 'baissière'}, ${f.type === 'rebond' ? 'rebond sur ' + f.zone : 'cassure'}, entrée vers ${niveauParle(f.entree)}, stop ${niveauParle(f.stop)}`);
-
-/* une flèche du registre (sans index) retrouve ses bougies par leur heure d'ouverture : nécessaire pour `suivre` */
-export function ancrer(f, Bj, Bh) {
-  const g = { ...f };
-  if (f.type === 'grosse') { g.i = Bj.findIndex(b => b.t === f.t); if (g.i < 0) return null; if (!Number.isFinite(g.R) || !g.R) g.R = Math.abs(f.entree - f.stop); }
-  else { g.iH4 = (Bh || []).findIndex(b => b.t === f.t); if (g.iH4 < 0 || !Number.isFinite(g.creux)) return null; }
-  return g;
-}
+export const typeNom = f => (f.type === 'cassure' ? 'Cassure' : 'Rebond');
+export const typeLibelle = f => (f.type === 'cassure' ? `cassure ${f.dir > 0 ? 'haussière' : 'baissière'} de la MA200 Daily` : `rebond ${f.dir > 0 ? 'haussier' : 'baissier'} sur la MA200 Daily`);
+export const phraseFleche = (nom, f) => `${nom} : ${typeLibelle(f)} confirmé${f.type === 'cassure' ? 'e' : ''}, entrée vers ${niveauParle(f.entree)}, stop ${niveauParle(f.stop)}`;
