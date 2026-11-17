@@ -7,7 +7,7 @@
 import { lireActifPro } from '../commun/donnees.js';
 import { parler } from '../../agent-trading/front/or/tableau-or.js';
 import { ma200Unite, bandeauMA, niveauxUniteEtJour, sansChevauchement, avecRang, NOM_UNITE, PAS_UNITE } from '../commun/lecture-unite.js';
-import { indexSurUnite, styleFleche, phraseFleche, MULT_DEFAUT } from './zigzag-daily.js';
+import { indexSurUnite, indexConfirmation, styleFleche, phraseFleche, MULT_DEFAUT, COULEURS as COULEURS_RVB } from './zigzag-daily.js';
 import { flechesDe, nouvellesFleches, lireReglages, ecrireReglages, multActif, lireRegistre } from './fleches-registre.js';
 import { monterDashboard } from '../commun/dashboard.js';
 
@@ -91,15 +91,30 @@ export async function monterPro(T) {
      Pleine = dans le sens de la tendance (MA200 Daily), pâle (40 %) = contre la tendance ; aucun texte. */
   function poserFleches(B, u) {
     const actives = E.reglages.actif !== false && u !== 'H1', cle = [u, B.length, B[B.length - 1].t, E.fleches.length, actives, multActif(id, E.reglages)].join('|'); if (cle === E.cleFleches) return; E.cleFleches = cle;
-    const M = [], vus = new Set();
+    const M = [], vus = new Set(), infos = new Map(), pas = PAS_UNITE[u], ch = graph.chart();
+    for (const s of E.traits || []) { try { ch.removeSeries(s); } catch (e) { /* déjà retirée */ } } E.traits = [];
     if (actives) for (const f of E.fleches) {
-      const k = indexSurUnite(B, f, PAS_UNITE[u]); if (k < 0) continue; const t = temps(B[k].t); if (t == null) continue; const cl = t + '|' + f.dir; if (vus.has(cl)) continue; vus.add(cl);
-      const s = styleFleche(f); M.push({ time: t, position: s.position, color: s.couleur, shape: s.forme, size: tactile ? 1.5 : 1.2 });   // discrète mais lisible (téléphone : un peu plus grande), aucun texte
+      const kx = indexSurUnite(B, f, pas), kc = indexConfirmation(B, f, pas); if (kx < 0 || kc < 0) continue;
+      const tx = temps(B[kx].t), tc = temps(B[kc].t); if (tx == null || tc == null) continue; const cl = tc + '|' + f.dir; if (vus.has(cl)) continue; vus.add(cl);
+      const s = styleFleche(f), prixC = Number.isFinite(f.prixConf) ? f.prixConf : B[kc].c, [r, g, b] = f.dir > 0 ? COULEURS_RVB.creux : COULEURS_RVB.sommet, sens = f.dir < 0 ? 'Sommet' : 'Creux';
+      /* flèche principale : sur la bougie de CONFIRMATION, au prix de clôture de ce jour-là (le moment où elle apparaît en direct) */
+      M.push({ time: tc, position: f.dir > 0 ? 'atPriceBottom' : 'atPriceTop', price: prixC, color: s.couleur, shape: s.forme, size: tactile ? 2.2 : 1.8 });
+      /* sur la bougie extrême : un petit point discret et transparent, relié à la flèche par un trait pointillé fin */
+      M.push({ time: tx, position: 'atPriceMiddle', price: f.niveau, color: `rgba(${r},${g},${b},0.5)`, shape: 'circle', size: 0.5 });
+      if (tx !== tc) { try { const tr = ch.addSeries(LW.LineSeries, { color: `rgba(${r},${g},${b},${f.pleine ? 0.9 : 0.55})`, lineWidth: 1, lineStyle: LW.LineStyle ? LW.LineStyle.Dotted : 1, priceLineVisible: false, lastValueVisible: false, crosshairMarkerVisible: false, autoscaleInfoProvider: () => null }); tr.setData([{ time: Math.min(tx, tc), value: tx < tc ? f.niveau : prixC }, { time: Math.max(tx, tc), value: tx < tc ? prixC : f.niveau }]); E.traits.push(tr); } catch (e) { /* trait facultatif */ } }
+      const dec = Math.round((f.tConf - f.t) / 86400e3), txt = `${sens} Daily${f.pleine ? '' : ' (contre la tendance)'}\nExtrême : ${dateJour(f.t)} · ${nf(f.niveau)}\nApparu : ${dateJour(f.tConf)} · ${nf(prixC)}\nDécalage : ${dec} j`;
+      infos.set(tc, txt); if (!infos.has(tx)) infos.set(tx, txt);
     }
-    M.sort((a, b) => a.time - b.time); E.marques = M.length; E.M = M;
+    M.sort((a, b) => a.time - b.time); E.marques = M.length; E.M = M; E.infos = infos; infoFleche();
     if (LW.createSeriesMarkers) { const s = graph.serie(); if (!E.marqueurs) E.marqueurs = LW.createSeriesMarkers(s, M); else E.marqueurs.setMarkers(M); }
   }
   /* niveaux : 3 au plus de chaque côté ; deux étiquettes à moins de 24 px l'une de l'autre → on garde la plus proche du prix. Recalculé à chaque passage (zoom, défilement, taille). */
+  /* info-bulle des flèches : survol (PC) ou toucher (téléphone) de la flèche ou du point de l'extrême */
+  function infoFleche() {
+    if (E.infoOk) return; const c = graph.conteneur(); if (!c) return; E.infoOk = true;
+    const el = document.createElement('div'); el.className = 'tp-fleche-info'; el.style.display = 'none'; c.appendChild(el); E.infoEl = el;
+    graph.chart().subscribeCrosshairMove(p => { const t = p && p.time != null ? E.infos && E.infos.get(p.time) : null; if (!t) { el.style.display = 'none'; return; } el.textContent = t; el.style.display = 'block'; });
+  }
   function niveauxSansChevauchement(B, u) {
     const s = graph.serie(), px = B[B.length - 1].c, gardes = sansChevauchement(avecRang(E.cand || [], px, u), p => { try { return s.priceToCoordinate(p); } catch (e) { return NaN; } }, 24);
     const k = gardes.map(n => n.nom + n.src + Math.round(n.prix * 100)).join('|'); if (k === E.cleNiv) return; E.cleNiv = k;

@@ -83,6 +83,16 @@ export function indexSurUnite(Bunite, f, pas) {
   return r;
 }
 
+/* bougie où la flèche APPARAÎT en direct = la bougie de CONFIRMATION (celle dont la clôture a validé le sommet / le creux). Jour : cette bougie Daily ; H4 : la dernière bougie H4 de cette journée (la clôture Daily
+   est la clôture de cette bougie). H1 : aucune. Renvoie l'index ou −1. */
+export function indexConfirmation(Bunite, f, pas) {
+  if (!Bunite || !Bunite.length || pas < 4 * 3600e3 - 1 || !Number.isFinite(f.tConf)) return -1;
+  if (pas >= J) { for (let i = Bunite.length - 1; i >= 0; i--) if (Bunite[i].t <= f.tConf && f.tConf < Bunite[i].t + pas) return i; return -1; }
+  const j0 = Math.floor(f.tConf / J) * J; let r = -1;
+  for (let i = 0; i < Bunite.length; i++) { const b = Bunite[i]; if (b.t >= j0 + J) break; if (b.t < j0 || b.t + pas > j0 + J + 1) continue; r = i; }
+  return r;
+}
+
 /* texte lu par Rayle et envoyé à Telegram : « Or : sommet Daily confirmé, vers 2 650 » */
 export function niveauParle(v) {
   if (!Number.isFinite(v)) return '';

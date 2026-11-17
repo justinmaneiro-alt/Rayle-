@@ -1,5 +1,5 @@
 /* Tests des flèches Daily (zigzag ATR) : node trader-pro/tests/zigzag-test.mjs */
-import { zigzag, cloturees, fusionnerRegistre, idFleche, styleFleche, indexSurUnite, niveauParle, phraseFleche, multDe, ESPACE_MIN, MULT_DEFAUT, OPACITE_PALE, J } from '../terminal/zigzag-daily.js';
+import { zigzag, cloturees, fusionnerRegistre, idFleche, styleFleche, indexSurUnite, indexConfirmation, niveauParle, phraseFleche, multDe, ESPACE_MIN, MULT_DEFAUT, OPACITE_PALE, J } from '../terminal/zigzag-daily.js';
 import { flechesDe, nouvellesFleches, lireReglages, ecrireReglages, multActif, lireRegistre, barresDaily } from '../terminal/fleches-registre.js';
 let ok = 0, ko = 0; const v = (c, m) => { if (c) ok++; else { ko++; console.log('  ✗ ' + m); } };
 const T0 = Date.UTC(2022, 0, 3);
@@ -44,7 +44,7 @@ v(multDe('or') === 2.5 && multDe('or', { or: 3 }) === 3 && multDe('or', { or: 99
 { const f = { t: T0, dir: -1 }, h4 = Array.from({ length: 12 }, (_, i) => ({ t: T0 - J + i * 4 * 3600e3, o: 1, h: 10 + i, l: 0, c: 1 })), pas = 4 * 3600e3;
   h4[6].h = 99; h4[7].h = 50; v(indexSurUnite(h4, f, pas) === 6, 'H4 : la bougie du plus haut exact de la journée');
   const f2 = { t: T0, dir: 1 }; h4[8].l = -9; h4[7].l = -3; v(indexSurUnite(h4, f2, pas) === 8, 'H4 : la bougie du plus bas exact de la journée');
-  v(indexSurUnite(h4, { t: T0 + 5 * 3600e3, dir: -1 }, pas) === 6, 'H4 : bougie Daily horodatée 05:00 UTC (futures) = la même journée UTC'); v(indexSurUnite(h4, f, 3600e3) === -1, 'H1 : aucune flèche'); const j = Array.from({ length: 5 }, (_, i) => ({ t: T0 + i * J })); v(indexSurUnite(j, { t: T0 + 2 * J, dir: 1 }, J) === 2, 'Jour : la bougie Daily de l’extrême'); }
+  v(indexSurUnite(h4, { t: T0 + 5 * 3600e3, dir: -1 }, pas) === 6, 'H4 : bougie Daily horodatée 05:00 UTC (futures) = la même journée UTC'); v(indexSurUnite(h4, f, 3600e3) === -1, 'H1 : aucune flèche'); { const fc = { t: T0, tConf: T0 + 2 * J, dir: -1 }, j = Array.from({ length: 5 }, (_, i) => ({ t: T0 + i * J })), q = Array.from({ length: 24 }, (_, i) => ({ t: T0 + i * 4 * 3600e3 })); v(indexConfirmation(j, fc, J) === 2 && indexConfirmation(q, fc, pas) === 17 && indexConfirmation(q, fc, 3600e3) === -1, 'confirmation : Jour = la bougie de confirmation, H4 = sa dernière bougie H4, H1 = aucune'); } const j = Array.from({ length: 5 }, (_, i) => ({ t: T0 + i * J })); v(indexSurUnite(j, { t: T0 + 2 * J, dir: 1 }, J) === 2, 'Jour : la bougie Daily de l’extrême'); }
 /* registre : une flèche confirmée ne bouge plus, n'est jamais retirée, et l'alternance reste stricte */
 { const a = F.slice(0, 6), reg1 = fusionnerRegistre('x', [], a), reg2 = fusionnerRegistre('x', reg1, F.slice(0, 3).concat(F.slice(6, 9)));
   v(reg1.length === 6 && reg2.slice(0, 6).every((f, k) => f === reg1[k] || (f.id === reg1[k].id && f.niveau === reg1[k].niveau)), 'registre : les flèches déjà confirmées restent telles quelles, même si le calcul ne les redonne plus');

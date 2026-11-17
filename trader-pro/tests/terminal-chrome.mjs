@@ -48,7 +48,7 @@ for (const per of ['H1', 'H4', 'J']) {
 }
 console.log('— flèches Daily : sommets et creux majeurs —');
 await p.evaluate(() => document.querySelector('[data-periode="J"]').click()); await w(8000);
-const fl = await p.evaluate(() => window.__orPro.fleches().map(x => ({ dir: x.dir, t: x.t, pleine: x.pleine, tCloture: x.tCloture, niveau: x.niveau })));
+const fl = await p.evaluate(() => window.__orPro.fleches().map(x => ({ dir: x.dir, t: x.t, pleine: x.pleine, tCloture: x.tCloture, tConf: x.tConf, prixConf: x.prixConf, niveau: x.niveau })));
 verif(fl.length >= 10 && fl.every(x => x.dir === 1 || x.dir === -1), 'des flèches Daily existent sur l’historique (' + fl.length + ')');
 verif(fl.every((x, k) => k === 0 || x.dir !== fl[k - 1].dir), 'alternance stricte : jamais deux flèches du même sens d’affilée');
 verif(fl.some(x => x.pleine) && fl.some(x => !x.pleine), 'des flèches pleines (sens de la tendance) et pâles (contre la tendance)');
@@ -59,13 +59,13 @@ for (const per of ['H1', 'H4', 'J']) {
   const m = await p.evaluate(() => ({ M: window.__orPro.marqueurs(), B: window.__or.moteur.serie().map(b => [b.t, b.h, b.l, window.__or.graph.tempsDeBougie(b.t)]), n: window.__orPro.etat().marques })); marq[per] = m;
   if (per === 'H1') { verif(m.n === 0 && m.M.length === 0, 'H1 : aucune flèche'); continue; }
   verif(m.M.length > 0, per + ' : des flèches sont posées sur le graphique (' + m.M.length + ')');
-  verif(m.M.every(x => x.shape === (x.position === 'belowBar' ? 'arrowUp' : 'arrowDown') && /^rgba\(/.test(x.color) && !x.text), per + ' : flèche verte vers le haut sous la mèche (creux), rouge vers le bas au-dessus (sommet), sans texte');
-  verif(m.M.every(x => (x.position === 'belowBar' ? /rgba\(95,184,148,/ : /rgba\(216,106,106,/).test(x.color)), per + ' : couleurs verte (creux) / rouge (sommet)');
-  verif(m.M.some(x => /,1\)$/.test(x.color)) && m.M.some(x => /,0\.4\)$/.test(x.color)), per + ' : flèches pleines (100 %) et pâles (40 %)');
-  /* chaque flèche est sur la bougie qui porte le plus haut / plus bas exact de la journée de l’extrême */
-  const J = 86400e3, bad = [], jour0 = m.B.length ? m.B[0][0] : 0;
-  for (const f of fl) { const jour = Math.floor(f.t / J) * J; if (jour < jour0) continue; const lot = m.B.filter(b => b[0] >= jour && b[0] < jour + J); if (!lot.length) continue; const cible = lot.reduce((a, b) => (f.dir < 0 ? (b[1] >= a[1] ? b : a) : (b[2] <= a[2] ? b : a))); const mk = m.M.find(x => x.time === cible[3] && x.position === (f.dir < 0 ? 'aboveBar' : 'belowBar')); if (!mk) bad.push(new Date(jour).toISOString().slice(0, 10)); }
-  verif(bad.length === 0, per + ' : chaque flèche est sur la bougie du plus haut / plus bas exact de la journée (' + bad.length + ' hors plage ou manquante' + (bad.length ? ' : ' + bad.slice(0, 3).join(', ') : '') + ')');
+  const A = m.M.filter(x => /^arrow/.test(x.shape)), D = m.M.filter(x => x.shape === 'circle');
+  verif(A.length > 0 && A.every(x => x.shape === (x.position === 'atPriceBottom' ? 'arrowUp' : 'arrowDown') && Number.isFinite(x.price) && /^rgba\(/.test(x.color) && !x.text), per + ' : flèche principale (verte vers le haut = creux, rouge vers le bas = sommet) au prix de clôture du jour de confirmation, sans texte');
+  verif(A.every(x => (x.position === 'atPriceBottom' ? /rgba\(95,184,148,/ : /rgba\(216,106,106,/).test(x.color)) && D.length === A.length && D.every(x => /,0\.5\)$/.test(x.color) && x.size <= 0.6), per + ' : couleurs verte / rouge ; un petit point transparent sur la bougie extrême pour chaque flèche (' + D.length + ')');
+  verif(A.some(x => /,1\)$/.test(x.color)) && A.some(x => /,0\.4\)$/.test(x.color)), per + ' : flèches pleines (100 %) et pâles (40 %)');
+  const J = 86400e3, bad = [], jour0 = m.B.length ? m.B[0][0] : 0, trop = [];
+  for (const f of fl) { const jour = Math.floor(f.t / J) * J, jc = Math.floor(f.tConf / J) * J; if (jour < jour0) continue; const lot = m.B.filter(b => b[0] >= jour && b[0] < jour + J), lc = m.B.filter(b => b[0] >= jc && b[0] < jc + J); if (!lot.length || !lc.length) continue; const cible = lot.reduce((a, b) => (f.dir < 0 ? (b[1] >= a[1] ? b : a) : (b[2] <= a[2] ? b : a))), conf = lc[lc.length - 1]; const pt = D.find(x => x.time === cible[3] && Math.abs(x.price - f.niveau) < 1e-6 * f.niveau + 0.01), ar = A.find(x => x.time === conf[3] && x.position === (f.dir < 0 ? 'atPriceTop' : 'atPriceBottom') && (per !== 'J' || Math.abs(x.price - f.prixConf) < 0.01)); if (!pt) bad.push('point ' + new Date(jour).toISOString().slice(0, 10)); if (!ar) bad.push('flèche ' + new Date(jc).toISOString().slice(0, 10)); }
+  verif(bad.length === 0, per + ' : le point est sur la bougie du plus haut / plus bas exact de la journée de l’extrême et la flèche sur la bougie de confirmation (' + bad.length + ' hors plage ou manquante' + (bad.length ? ' : ' + bad.slice(0, 3).join(', ') : '') + ')');
   if (per === 'H4') await capture('terminal-fleches-H4'); else await capture('terminal-fleches-J');
 }
 console.log('— réglages : interrupteur et multiplicateur ATR —');

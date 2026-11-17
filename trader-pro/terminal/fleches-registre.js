@@ -29,6 +29,7 @@ export function flechesDe(id, j, { maintenant = Date.now(), stockage = stockageD
   const avant = lireRegistre(id, m, stockage), reg = fusionnerRegistre(id, avant, calc);
   if (!avant.length) for (const f of reg) f.vueLe = maintenant;
   if (reg.length !== avant.length) ecrireRegistre(id, m, reg, stockage);
+  const clot = new Map(B.map(b => [b.t, b.c])); for (const f of reg) { const c = clot.get(f.tConf); if (Number.isFinite(c)) f.prixConf = c; }   // clôture du jour de confirmation (prix d'apparition), pour l'affichage
   return reg;
 }
 /* flèches pas encore annoncées (vueLe nul), confirmées il y a moins de `heures` heures ; toutes sont ensuite marquées comme vues : une flèche n'est jamais annoncée deux fois */
