@@ -105,3 +105,8 @@ Reprise : relire ce fichier, `git log --oneline -15`, `git status`, puis continu
 - Affichage : même flèche sur le Jour (bougie du jour de confirmation) et sur H4 (bougie de confirmation), rien en H1 ; info-bulle (zone, volume, entrée, stop, objectif) posée à côté de la flèche (l'ancienne info-bulle en haut à gauche cachait les boutons du graphique sur téléphone).
 - Robot (`outils-donnees/pro.mjs`) : publie `vj` = volume Daily des futures COMEX GC pour l'or (le perpétuel Kraken n'a qu'un volume en contrats).
 - Backtest (Or 2,4 ans, Nasdaq 2,9 ans de H4) : échantillon minuscule (3 à 10 signaux par version), défaut = « sans filtre volume » (la plus rentable en R total, pas la meilleure par trade).
+
+## MA200 Daily + H4 (2026-11-17, remplace les Retournements Daily)
+- Le Daily décide du sens (2 clôtures Daily au-delà de MA200 ± 0,5 ATR ; neutre sinon), le H4 du moment. Grosse flèche Daily au croisement confirmé ; petites flèches H4 (rebond sur support / cassure des 20 dernières bougies H4) uniquement dans le sens Daily, jamais contradictoires. Mêmes flèches sur le Jour et H4, rien en H1 ; fond du graphique teinté selon le sens Daily ; info-bulle type / entrée / stop / gain en R.
+- Supprimé : `retournements-daily.js`, ses tests et son backtest. Ajouté : `trader-pro/terminal/ma200-h4.js`, `fleches-registre.js` réécrit, `tests/ma200-test.mjs` (62 vérifications dont walk-forward), `outils/backtest-ma200.mjs`, `outils/telecharger-historique.mjs`, `terminal/VERIFICATION-MA200.md`.
+- Robot : `h4` passe de 900 à 3600 bougies (≈ 2 ans d'or) dans les instantanés `pro-<actif>.json` ; Daily : 1300 bougies (≥ 3 ans).

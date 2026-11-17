@@ -9,7 +9,7 @@ import { analyserCot, lectureCot } from './cot.js';
 import { ma200Unite, bandeauMA, niveauxUniteEtJour, NOM_UNITE } from '../commun/lecture-unite.js';
 import { flechesDe, lireReglages } from '../terminal/fleches-registre.js';
 import { monterDashboard } from '../commun/dashboard.js';
-import { indexSurUnite, styleFleche } from '../terminal/retournements-daily.js';
+import { indexSurUnite, styleFleche } from '../terminal/ma200-h4.js';
 
 const TF = Object.freeze({ H1: { nom: 'H1', pas: H, cle: 'h1', n: 200 }, H4: { nom: 'H4', pas: 4 * H, cle: 'h4', n: 180 }, J: { nom: 'Jour', pas: J, cle: 'j', n: 220 } });
 
@@ -87,8 +87,8 @@ export function monter(zone, ctx = {}) {
       const u = E.tf, S = ma200Unite(B), prix = an.prix ?? B[B.length - 1].c;
       if (S.length) G.ligne(S, { couleur: COULEURS.or, epaisseur: 2, titre: 'MA200 ' + NOM_UNITE[u], horsEchelle: true });
       for (const x of niveauxUniteEtJour(B, d.j, B[B.length - 1].c, { unite: u })) G.niveau(s, x.prix, { couleur: x.cote === 'R' ? COULEURS.baisse : COULEURS.hausse, titre: `${x.nom} ${x.src === 'J' ? 'Jour' : x.src}`, style: 2 });
-      /* retournements Daily (les mêmes que dans le terminal) : une flèche sur la bougie de confirmation (Jour : la bougie du jour ; H4 : la bougie H4 exacte) ; aucune sur H1 */
-      try { const M = [], vus = new Set(); if (lireReglages().actif !== false) for (const f of flechesDe(E.id, d)) { const i = indexSurUnite(B, f, t.pas); if (i < 0) continue; const k = B[i].t + '|' + f.dir; if (vus.has(k)) continue; vus.add(k); const st = styleFleche(f); M.push({ time: Math.floor(B[i].t / 1000), position: st.position, color: st.couleur, shape: st.forme, size: 1 }); } G.marqueurs(s, M); } catch (e) { /* flèches facultatives */ }
+      /* flèches MA200 Daily + H4 (les mêmes que dans le terminal) : grosses (Daily) et petites (H4) sur la bougie de confirmation, sur le Jour et sur H4 ; aucune sur H1 */
+      try { const M = [], vus = new Set(); if (lireReglages().actif !== false) for (const f of flechesDe(E.id, d)) { const i = indexSurUnite(B, f, t.pas); if (i < 0) continue; const k = B[i].t + '|' + f.dir; if (vus.has(k)) continue; vus.add(k); const st = styleFleche(f); M.push({ time: Math.floor(B[i].t / 1000), position: st.position, color: st.couleur, shape: st.forme, size: st.taille }); } G.marqueurs(s, M); } catch (e) { /* flèches facultatives */ }
       G.montrerDerniers(t.n, B.length);
       E.legCtx = { B, u, a, d, t }; majLegende();
     } catch (e) { box.innerHTML = '<p class="tp-panne" role="alert">Graphique indisponible : ' + esc(e && e.message || e) + ' <button type="button" data-redessiner>Réessayer</button></p>'; }

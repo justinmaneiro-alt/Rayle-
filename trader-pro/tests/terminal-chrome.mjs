@@ -46,50 +46,59 @@ for (const per of ['H1', 'H4', 'J']) {
   verif(await p.evaluate(() => window.__orPro.etat().ma.length === 1 && [...document.querySelectorAll('.tp-ma-legende span')].length === 1), per + ' : une seule ligne MA200');
   verif(await p.evaluate(() => { const k = window.__or.graph.couches(), m = window.__or.strategie.modele() || {}; return k.rayMa === false && Object.values(k).every(v => v === false) && !m.ma && !(m.boites || []).length && !(m.structure || []).length; }), per + ' : aucune autre MA200 (celle de la stratégie H1 est coupée), graphique propre conservé après le changement d’unité');
 }
-console.log('— retournements Daily : peu de flèches, sur la bougie de confirmation —');
+console.log('— MA200 Daily + H4 : grosses flèches (Daily) et petites flèches (H4) —');
 await p.evaluate(() => document.querySelector('[data-periode="J"]').click()); await w(8000);
-const fl = await p.evaluate(() => window.__orPro.fleches().map(x => ({ dir: x.dir, t: x.t, tFin: x.tFin, entree: x.entree, stop: x.stop, objectif: x.objectif, rr: x.rr, zone: x.zone, ratio: x.ratio, volume: x.volume })));
-verif(fl.length >= 1 && fl.length <= 12 && fl.every(x => (x.dir === 1 || x.dir === -1) && x.entree > 0 && x.stop > 0 && x.objectif > 0 && x.zone && x.zone.nom && x.rr >= 2), 'des retournements existent, peu nombreux (' + fl.length + '), chacun avec zone, entrée, stop et objectif (≥ 2 R)');
-verif(fl.every(x => (x.dir > 0 ? x.stop < x.entree && x.objectif > x.entree : x.stop > x.entree && x.objectif < x.entree)), 'stop et objectif du bon côté de l’entrée');
-const marq = {};
+const fl = await p.evaluate(() => window.__orPro.fleches().map(x => ({ type: x.type, dir: x.dir, t: x.t, tFin: x.tFin, entree: x.entree, stop: x.stop })));
+const sensTab = await p.evaluate(() => window.__orPro.sens());
+verif(fl.length >= 10 && fl.some(x => x.type === 'grosse') && fl.some(x => x.type !== 'grosse') && fl.every(x => (x.dir === 1 || x.dir === -1) && x.entree > 0 && x.stop > 0 && (x.dir > 0 ? x.stop < x.entree : x.stop > x.entree)), 'des flèches existent : grosses (' + fl.filter(x => x.type === 'grosse').length + ') et petites (' + fl.filter(x => x.type !== 'grosse').length + '), stop du bon côté de l’entrée');
+verif(sensTab.length >= 1000 && sensTab.every(x => [-1, 0, 1].includes(x.sens)) && sensTab.some(x => x.sens === 1) && sensTab.some(x => x.sens === -1) && sensTab.some(x => x.sens === 0), 'sens Daily sur plus de 3 ans (' + sensTab.length + ' bougies) : haussier, baissier et neutre');
+const dernierSens = t => { let s = 0; for (const x of sensTab) { if (x.tFin <= t) s = x.sens; else break; } return s; };
+verif(fl.filter(x => x.type !== 'grosse').every(x => x.dir === dernierSens(x.t)) && fl.filter(x => x.type === 'grosse').every((g, i, L) => i === 0 || g.dir !== L[i - 1].dir), 'jamais de flèche contradictoire : chaque petite flèche est dans le sens Daily, les grosses alternent');
+const marq = {}, attJ = {};
 for (const per of ['H1', 'H4', 'J']) {
   await p.evaluate(x => document.querySelector(`[data-periode="${x}"]`).click(), per); await w(8000);
-  const m = await p.evaluate(() => ({ M: window.__orPro.marqueurs(), B: window.__or.moteur.serie().map(b => [b.t, window.__or.graph.tempsDeBougie(b.t)]), n: window.__orPro.etat().marques })); marq[per] = m;
-  if (per === 'H1') { verif(m.n === 0 && m.M.length === 0, 'H1 : aucune flèche'); continue; }
-  const J = 86400e3, pas = per === 'H4' ? 4 * 3600e3 : J, attendues = fl.map(f => { const b = m.B.find(x => x[0] <= f.tFin - 1 && f.tFin - 1 < x[0] + pas); return b ? { b: b[1], dir: f.dir } : null; }).filter(Boolean);
-  verif(m.M.length === attendues.length && m.M.length >= 1, per + ' : une flèche par retournement (' + m.M.length + ')');
-  verif(m.M.every(x => x.shape === (x.position === 'belowBar' ? 'arrowUp' : 'arrowDown') && /^rgba\(/.test(x.color) && !x.text), per + ' : flèche verte vers le haut sous la bougie (haussier), rouge vers le bas au-dessus (baissier), sans texte');
-  verif(m.M.every(x => (x.position === 'belowBar' ? /rgba\(95,184,148,1\)/ : /rgba\(216,106,106,1\)/).test(x.color)), per + ' : couleurs verte / rouge, pleines');
-  verif(attendues.every(a => m.M.some(x => x.time === a.b && x.position === (a.dir > 0 ? 'belowBar' : 'aboveBar'))), per + ' : chaque flèche est sur la bougie de confirmation (' + (per === 'H4' ? 'la bougie H4 exacte' : 'la bougie du jour') + ')');
-  /* info-bulle : survol de la flèche */
-  const pos = await p.evaluate(() => { const g = window.__or.graph, f = window.__orPro.fleches(), m = window.__orPro.marqueurs()[window.__orPro.marqueurs().length - 1], r = g.conteneur().getBoundingClientRect(), L = f[f.length - 1]; const x = g.chart().timeScale().timeToCoordinate(m.time), y = g.serie().priceToCoordinate(L.entree); return Number.isFinite(x) && Number.isFinite(y) ? { x: r.left + x, y: r.top + y } : null; });
+  const m = await p.evaluate(() => ({ M: window.__orPro.marqueurs(), B: window.__or.moteur.serie().map(b => [b.t, window.__or.graph.tempsDeBougie(b.t)]), n: window.__orPro.etat().marques, fond: window.__orPro.fond() })); marq[per] = m;
+  if (per === 'H1') { verif(m.n === 0 && m.M.length === 0 && m.fond.n === 0, 'H1 : aucune flèche, pas de fond'); continue; }
+  const pas = per === 'H4' ? 4 * 3600e3 : 86400e3, att = fl.map(f => { const b = m.B.find(x => x[0] <= f.tFin - 1 && f.tFin - 1 < x[0] + pas); return b ? { b: b[1], dir: f.dir, tFin: f.tFin } : null; }).filter(Boolean), cles = new Set(att.map(a => a.b + '|' + a.dir));
+  attJ[per] = att;
+  verif(att.length >= 10 && m.M.length === cles.size, per + ' : toutes les flèches sont affichées (' + m.M.length + ' sur ' + att.length + ' dans la période chargée)');
+  verif(m.M.every(x => x.shape === (x.position === 'belowBar' ? 'arrowUp' : 'arrowDown') && /^rgba\(/.test(x.color) && !x.text && /,1\)$/.test(x.color)), per + ' : flèche verte vers le haut sous la bougie (achat), rouge vers le bas au-dessus (vente), sans texte');
+  verif(m.M.every(x => (x.position === 'belowBar' ? /rgba\(95,184,148,/ : /rgba\(216,106,106,/).test(x.color)), per + ' : couleurs verte / rouge');
+  const tailles = [...new Set(m.M.map(x => x.size))].sort((a, b) => a - b); verif(tailles.length === 2 && tailles[1] > 2 * tailles[0], per + ' : grosses flèches (Daily) nettement plus grandes que les petites (H4) : ' + tailles.join(' / '));
+  verif(att.every(a => m.M.some(x => x.time === a.b && x.position === (a.dir > 0 ? 'belowBar' : 'aboveBar'))), per + ' : chaque flèche est sur sa bougie de confirmation');
+  verif(m.fond.n >= 100 && [-1, 0, 1].includes(m.fond.sens), per + ' : fond coloré selon le sens Daily (' + m.fond.n + ' bougies, sens actuel ' + m.fond.sens + ')');
+  /* info-bulle : survol de la dernière flèche affichée */
+  const pos = await p.evaluate(() => { const g = window.__or.graph, f = window.__orPro.fleches(), M = window.__orPro.marqueurs(), m = M[M.length - 1], r = g.conteneur().getBoundingClientRect(), L = f.filter(x => true).pop(); const x = g.chart().timeScale().timeToCoordinate(m.time), y = g.serie().priceToCoordinate(L.entree); return Number.isFinite(x) && Number.isFinite(y) ? { x: r.left + x, y: r.top + y } : null; });
   if (pos) {
     await p.mouse.move(5, 5); await p.mouse.move(pos.x, pos.y, { steps: 4 }); await w(900);
-    const ib = await p.evaluate(() => { const e = document.querySelector('.tp-fleche-info'); if (!e || getComputedStyle(e).display === 'none') return null; const r = e.getBoundingClientRect(), g = window.__or.graph.conteneur().getBoundingClientRect(); const cache = [...g && document.querySelectorAll('.tp-ma-legende, .tp-ligne-boutons, .tp-ligne-boutons button')].filter(b => { const q = b.getBoundingClientRect(); return q.width > 0 && !(q.right <= r.left || q.left >= r.right || q.bottom <= r.top || q.top >= r.bottom); }).length; return { t: e.textContent, w: r.width, h: r.height, gw: g.width, gh: g.height, dedans: r.left >= g.left - 1 && r.right <= g.right + 1 && r.top >= g.top - 1 && r.bottom <= g.bottom + 1, cache }; });
-    verif(!!ib && /Zone touchée/.test(ib.t) && /Volume/.test(ib.t) && /Entrée/.test(ib.t) && /Stop/.test(ib.t) && /Objectif/.test(ib.t), per + ' : l’info-bulle donne zone touchée, volume, entrée, stop et objectif' + (ib ? ' (' + ib.t.replace(/\n/g, ' · ') + ')' : ''));
+    const ib = await p.evaluate(() => { const e = document.querySelector('.tp-fleche-info'); if (!e || getComputedStyle(e).display === 'none') return null; const r = e.getBoundingClientRect(), g = window.__or.graph.conteneur().getBoundingClientRect(); const cache = [...document.querySelectorAll('.tp-ma-legende, .tp-ligne-boutons, .tp-ligne-boutons button')].filter(b => { const q = b.getBoundingClientRect(); return q.width > 0 && !(q.right <= r.left || q.left >= r.right || q.bottom <= r.top || q.top >= r.bottom); }).length; return { t: e.textContent, w: r.width, h: r.height, gw: g.width, gh: g.height, dedans: r.left >= g.left - 1 && r.right <= g.right + 1 && r.top >= g.top - 1 && r.bottom <= g.bottom + 1, cache }; });
+    verif(!!ib && /(Grosse|Petite) flèche/.test(ib.t) && /Entrée/.test(ib.t) && /Stop/.test(ib.t) && /(Gain|En cours) : [+−]\d/.test(ib.t), per + ' : l’info-bulle donne type, entrée, stop et gain en R' + (ib ? ' (' + ib.t.replace(/\n/g, ' · ') + ')' : ''));
     verif(!!ib && ib.dedans && ib.cache === 0 && ib.w < ib.gw * 0.75 && ib.h < ib.gh * 0.4, per + ' : l’info-bulle est petite, reste dans le graphique et ne cache ni la légende ni les boutons');
     await capture('terminal-fleches-' + per);
     await p.mouse.move(5, 5); await w(500);
   } else verif(false, per + ' : position de la flèche introuvable');
-  verif(await p.evaluate(() => { const e = document.querySelector('.tp-fleche-info'); return !e || getComputedStyle(e).display === 'none'; }), per + ' : l’info-bulle se referme quand le curseur s’éloigne');
 }
-console.log('— réglages : interrupteur et version —');
-verif(await p.evaluate(() => { const z = document.querySelectorAll('[data-tp-reg]'); return z.length >= 1 && document.querySelector('[data-reg="actif"]').checked && document.querySelector('[data-reg-version]').value === 'sansVolume' && document.querySelector('[data-reg-version]').options.length === 3; }), 'réglages visibles : « Flèches Daily » activé, trois versions, version par défaut = sans filtre volume (la plus rentable au backtest)');
+{
+  const recent = fl.filter(f => f.tFin > Date.now() - 120 * 86400e3), cleJ = new Set(attJ.J.map(a => a.tFin + '|' + a.dir)), cleH = new Set(attJ.H4.map(a => a.tFin + '|' + a.dir));
+  verif(recent.length >= 3 && recent.every(f => cleJ.has(f.tFin + '|' + f.dir) && cleH.has(f.tFin + '|' + f.dir)), 'les mêmes flèches (grosses et petites) sur le Jour et sur H4 : ' + recent.length + ' flèches des 4 derniers mois présentes sur les deux');
+}
+console.log('— réglages : interrupteur et fond —');
+verif(await p.evaluate(() => { const z = document.querySelectorAll('[data-tp-reg]'); return z.length >= 1 && document.querySelector('[data-reg="actif"]').checked && document.querySelector('[data-reg="fond"]').checked; }), 'réglages visibles : flèches et fond coloré activés par défaut');
 verif(await p.evaluate(() => !!document.querySelector('.tor-ob-pan [data-tp-reg]')), 'les réglages sont dans le menu « Affichage » du terminal');
 await p.evaluate(() => document.querySelector('[data-periode="J"]').click()); await w(6000);
 const n0 = await p.evaluate(() => window.__orPro.etat().marques);
+await p.evaluate(() => { const c = document.querySelector('.tor-ob-pan [data-reg="fond"]'); c.checked = false; c.dispatchEvent(new Event('change', { bubbles: true })); }); await w(1200);
+verif(await p.evaluate(x => window.__orPro.fond().n === 0 && window.__orPro.etat().marques === x, n0), 'fond coupé : plus de fond, les flèches restent');
+await p.evaluate(() => { const c = document.querySelector('.tor-ob-pan [data-reg="fond"]'); c.checked = true; c.dispatchEvent(new Event('change', { bubbles: true })); }); await w(1200);
+verif(await p.evaluate(() => window.__orPro.fond().n > 100), 'fond remis');
 await p.evaluate(() => { const c = document.querySelector('.tor-ob-pan [data-reg="actif"]'); c.checked = false; c.dispatchEvent(new Event('change', { bubbles: true })); }); await w(1200);
-verif(await p.evaluate(() => window.__orPro.etat().marques === 0 && window.__orPro.reglages().actif === false), 'interrupteur coupé : plus aucune flèche');
+verif(await p.evaluate(() => window.__orPro.etat().marques === 0 && window.__orPro.fond().n === 0 && window.__orPro.reglages().actif === false), 'interrupteur coupé : plus aucune flèche, plus de fond');
 await p.evaluate(() => { const c = document.querySelector('.tor-ob-pan [data-reg="actif"]'); c.checked = true; c.dispatchEvent(new Event('change', { bubbles: true })); }); await w(1200);
 verif(await p.evaluate(x => window.__orPro.etat().marques === x, n0), 'interrupteur remis : les mêmes flèches reviennent (' + n0 + ')');
-await p.evaluate(() => { const i = document.querySelector('.tor-ob-pan [data-reg-version]'); i.value = 'complete'; i.dispatchEvent(new Event('change', { bubbles: true })); }); await w(1500);
-verif(await p.evaluate(() => window.__orPro.reglages().version === 'complete' && window.__orPro.fleches().every(f => f.ratio >= 1.2)), 'version « Complète » : seulement des flèches au volume ≥ 1,2 × la moyenne (' + await p.evaluate(() => window.__orPro.etat().marques) + ' flèche(s))');
-await p.evaluate(() => { const i = document.querySelector('.tor-ob-pan [data-reg-version]'); i.value = 'sansVolume'; i.dispatchEvent(new Event('change', { bubbles: true })); }); await w(1500);
-verif(await p.evaluate(x => window.__orPro.etat().marques === x, n0), 'retour à la version par défaut : les flèches d’origine');
 await p.evaluate(() => document.querySelector('.tp-b-hj').click()); await w(600);
-verif(await p.evaluate(() => { const a = document.querySelector('.tp-panneau'); return !!a && !a.hidden && /Retournements Daily/.test(a.innerText) && /Version/.test(a.innerText) && /Dernières flèches/i.test(a.innerText) && /Touchez la flèche/.test(a.innerText); }), 'le panneau « Retournements Daily » explique la méthode, donne les réglages et liste les dernières flèches');
+verif(await p.evaluate(() => { const a = document.querySelector('.tp-panneau'); return !!a && !a.hidden && /MA200 Daily \+ H4/.test(a.innerText) && /Sens Daily/.test(a.innerText) && /Dernières flèches/i.test(a.innerText) && /Touchez une flèche/.test(a.innerText) && /Fond coloré/.test(a.innerText); }), 'le panneau « MA200 Daily + H4 » explique la méthode, donne les réglages et liste les dernières flèches');
 const txt = await p.evaluate(() => document.querySelector('.tp-panneau').innerText); console.log('  ' + txt.replace(/\s+/g, ' ').slice(0, 500));
-verif(!/Signal H4|Biais Jour|Fiche d’ordre|backtest|Bilan de la méthode|rebond/i.test(txt), 'plus aucun ancien signal ni bilan de backtest dans le panneau');
+verif(!/Signal H4|Biais Jour|Fiche d’ordre|backtest|Bilan de la méthode/i.test(txt), 'plus aucun ancien signal ni bilan de backtest dans le panneau');
 verif(await p.evaluate(() => { const a = document.querySelector('.tp-panneau'), r = a.getBoundingClientRect(); return r.width <= innerWidth + 1 && a.scrollWidth <= a.clientWidth + 1; }), 'le panneau tient dans l’écran (pas de défilement horizontal)');
 await capture('terminal-panneau');
 await p.evaluate(() => document.querySelector('.tp-panneau [data-fermer]').click());

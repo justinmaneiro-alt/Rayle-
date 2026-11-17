@@ -60,7 +60,7 @@ export async function construireActif(a, dossier, { fetchFn = fetch, maintenant 
   const h4 = enH4(B1, maintenant).map(({ enCours, ...b }) => b);
   /* or : volume Daily des futures COMEX (GC=F), seul vrai volume de l'or (le perpétuel Kraken n'a qu'un volume en contrats, sans rapport) : sert au filtre volume des Retournements Daily */
   const vj = a.kraken ? j.bougies.slice(-1300).map(b => [b.t, b.v || 0]) : null;
-  return { id: a.id, nom: a.nom, sym: a.sym, source, recalage, t: maintenant, prix, tPrix, j: compact(BJ.slice(-1300)), h4: compact(h4.slice(-900)), h1: compact(B1.slice(-700)), m15: compact(B15.slice(-500)), ...(vj ? { vj } : {}) };
+  return { id: a.id, nom: a.nom, sym: a.sym, source, recalage, t: maintenant, prix, tPrix, j: compact(BJ.slice(-1300)), h4: compact(h4.slice(-3600)), h1: compact(B1.slice(-700)), m15: compact(B15.slice(-500)), ...(vj ? { vj } : {}) };
 }
 export async function construirePro(dossier, opts = {}) {
   const ecrits = [], echecs = [];

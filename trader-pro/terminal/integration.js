@@ -1,14 +1,14 @@
 /* ═════════════ TERMINAL « PRO » : branché sur le terminal existant (agent-trading/front/or.html) sans le réécrire ═════════════
    Ajoute : UNE seule moyenne mobile (la MA200 de l'unité affichée H1 / H4 / Jour, calculée sur ses vraies bougies) ; les niveaux les plus forts de l'unité affichée et du Jour (3 au plus de chaque côté,
-   étiquettes jamais superposées) ; les RETOURNEMENTS DAILY (flèches rares, seulement les gros retournements : touch d'une zone Daily, puis confirmation par une clôture H4 ; flèche verte ▲ / rouge ▼ posée sur la bougie de confirmation,
-   jamais redessinée ; sur le Jour et sur H4 seulement, jamais sur H1 ; info-bulle : zone, volume, entrée, stop, objectif) ; un bouton « Retournements » (réglages, liste) et un bouton « Détails ».
-   Réglages : interrupteur « Flèches Daily » (activé par défaut) et version (complète / sans filtre volume / sens de la MA200), aussi dans « Affichage ».
+   étiquettes jamais superposées) ; les FLÈCHES « MA200 DAILY + H4 » (le Daily décide du sens, le H4 du moment : grosse flèche Daily au croisement confirmé de la MA200 Daily, petites flèches H4 dans le sens Daily ;
+   verte ▲ / rouge ▼ posées sur la bougie de confirmation, sur le Jour ET sur H4, jamais sur H1 ; fond du graphique teinté selon le sens Daily ; info-bulle : type, entrée, stop, gain en R) ; un bouton « MA200 D+H4 » (réglages, liste) et un bouton « Détails ».
+   Réglages : interrupteur « Flèches » et fond coloré (activés par défaut), aussi dans « Affichage ».
    Graphique PROPRE par défaut : tout le reste (zones, boîtes de position, volume, RSI, bandeaux de sources…) est derrière « Détails ». Lecture seule : aucun ordre n'est envoyé. */
 import { lireActifPro } from '../commun/donnees.js';
 import { parler } from '../../agent-trading/front/or/tableau-or.js';
 import { ma200Unite, bandeauMA, niveauxUniteEtJour, sansChevauchement, avecRang, NOM_UNITE, PAS_UNITE } from '../commun/lecture-unite.js';
-import { indexSurUnite, styleFleche, phraseFleche, VERSIONS, VERSION_DEFAUT, versionDe } from './retournements-daily.js';
-import { flechesDe, nouvellesFleches, lireReglages, ecrireReglages, versionActive, lireRegistre } from './fleches-registre.js';
+import { indexSurUnite, styleFleche, phraseFleche, typeLibelle, sensPourBougies, suivre, ancrer, COULEURS } from './ma200-h4.js';
+import { analyseDe, nouvellesFleches, lireReglages, ecrireReglages, lireRegistre } from './fleches-registre.js';
 import { monterDashboard } from '../commun/dashboard.js';
 
 const ID_PRO = { OR: 'or', NASDAQ: 'us100', SP500: 'us500', BTC: 'btc', SOL: 'sol', DOGE: 'doge' };
@@ -19,7 +19,7 @@ const ecrire = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } c
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const nf = (v, d = 2) => (Number.isFinite(v) ? v.toLocaleString('fr-FR', { minimumFractionDigits: d, maximumFractionDigits: d }).replace(/[  ]/g, ' ') : '—');
 const dateJour = t => new Date(t).toLocaleDateString('fr-FR', { timeZone: 'UTC', weekday: 'short', day: '2-digit', month: '2-digit', year: 'numeric' });
-const COULEURS = { ma: '#f1d34f', hausse: '#5fb894', baisse: '#d86a6a' };
+const COULEURS_UI = { ma: '#f1d34f', hausse: '#5fb894', baisse: '#d86a6a' }, COULEURS_FOND = COULEURS.fond;
 
 export async function monterPro(T) {
   const actif = (document.body.dataset.actif || 'OR'), id = ID_PRO[actif], tactile = document.documentElement.classList.contains('tm-tactile'), barre = tactile ? document.querySelector('.tt-periodes') : document.querySelector('.tor-periodes') || document.querySelector('.tt-periodes');
@@ -27,7 +27,7 @@ export async function monterPro(T) {
   const E = { id, D: null, fleches: [], reglages: lireReglages(), series: {}, lignes: [], marqueurs: null, cle: '', panneau: null, details: lire(LS.details, false) === true, seq: 0 };
   /* ───── boutons ───── */
   const bDet = document.createElement('button'); bDet.type = 'button'; bDet.className = 'tp-b-details'; bDet.textContent = 'Détails'; bDet.setAttribute('aria-pressed', String(E.details)); bDet.title = 'Afficher tous les calques, bandeaux et sources du terminal';
-  const bHJ = document.createElement('button'); bHJ.type = 'button'; bHJ.className = 'tp-b-hj'; bHJ.textContent = 'Retournements'; bHJ.title = 'Retournements Daily : flèches rares sur les gros retournements, réglages (interrupteur, version) et alertes'; bHJ.setAttribute('aria-expanded', 'false');
+  const bHJ = document.createElement('button'); bHJ.type = 'button'; bHJ.className = 'tp-b-hj'; bHJ.textContent = 'MA200 D+H4'; bHJ.title = 'MA200 Daily + H4 : le Daily décide du sens, le H4 du moment ; réglages et alertes'; bHJ.setAttribute('aria-expanded', 'false');
   const bDon = document.createElement('button'); bDon.type = 'button'; bDon.className = 'tp-b-donnees'; bDon.textContent = 'Données'; bDon.title = 'Score de marché, tendance, volume net, données pro'; bDon.setAttribute('aria-expanded', 'false');
   /* PC : à la suite des unités de temps ; tactile : sur une ligne à part sous les unités de temps (la grille de 5 colonnes du mode tactile ne les accueille pas) */
   if (tactile || (barre && barre.classList.contains('tt-periodes'))) { const ligne = document.createElement('div'); ligne.className = 'tp-ligne-boutons'; ligne.append(bHJ, bDon, bDet); E.ligneTactile = ligne; } else if (barre) { barre.appendChild(bHJ); barre.appendChild(bDon); barre.appendChild(bDet); } else document.body.append(bHJ, bDon, bDet);
@@ -59,7 +59,7 @@ export async function monterPro(T) {
   /* ───── dessin sur le graphique : UNE moyenne (celle de l'unité affichée), des niveaux sans chevauchement ───── */
   const temps = t => { try { return graph.tempsDeBougie(t); } catch (e) { return null; } };
   const uniteAffichee = () => { const p = T.moteur.S.periode; return p === 'H4' || p === 'J' ? p : 'H1'; };
-  function ligneMA(titre) { if (!E.series.ma) E.series.ma = graph.chart().addSeries(LW.LineSeries, { color: COULEURS.ma, lineWidth: 2, priceLineVisible: false, lastValueVisible: false, crosshairMarkerVisible: false, autoscaleInfoProvider: () => null }); E.series.ma.applyOptions({ title: titre }); return E.series.ma; }
+  function ligneMA(titre) { if (!E.series.ma) E.series.ma = graph.chart().addSeries(LW.LineSeries, { color: COULEURS_UI.ma, lineWidth: 2, priceLineVisible: false, lastValueVisible: false, crosshairMarkerVisible: false, autoscaleInfoProvider: () => null }); E.series.ma.applyOptions({ title: titre }); return E.series.ma; }
   /* après un changement d'unité de temps, le graphique d'origine pouvait rester calé sur l'ancienne plage (H4 → Jour : une seule bougie tout à gauche) : on le recadre sur les dernières bougies pendant 10 s, seulement si la dernière bougie n'est pas visible */
   function recadrer(B) {
     const per = T.moteur.S.periode; if (per !== E.derPeriode) { E.derPeriode = per; E.recadrerJusqua = Date.now() + 10000; if (!E.details) for (const ms of [1500, 5000]) setTimeout(() => { if (!E.details) appliquerDetails(false, { sauver: false }); }, ms); }   // un changement d'unité réactive les calques par défaut de la stratégie : on les recoupe
@@ -87,24 +87,45 @@ export async function monterPro(T) {
     }
     niveauxSansChevauchement(B, u); poserFleches(B, u);
   }
-  /* RETOURNEMENTS DAILY : une flèche par retournement confirmé, posée sur la bougie de CONFIRMATION (H4 : la bougie H4 exacte ; Jour : la bougie Daily du jour de confirmation). Verte ▲ sous la bougie (haussier),
-     rouge ▼ au-dessus (baissier), sans texte ; rien sur H1 (ni M15 / M5). Info-bulle au survol / au toucher : zone touchée, volume, entrée, stop, objectif. */
+  /* MA200 DAILY + H4 : le Daily décide du sens, le H4 du moment. TOUTES les flèches (grosses = Daily, petites = H4) sont sur le Jour ET sur H4, au même endroit (la bougie de confirmation) ; rien sur H1 (ni M15 / M5).
+     Verte ▲ sous la bougie (achat), rouge ▼ au-dessus (vente), sans texte. Le fond du graphique est légèrement teinté selon le sens Daily (vert / rouge / gris neutre). Info-bulle : type, entrée, stop, gain en R. */
   function poserFleches(B, u) {
-    const actives = E.reglages.actif !== false && u !== 'H1', cle = [u, B.length, B[B.length - 1].t, E.fleches.length, actives, versionActive(E.reglages)].join('|'); if (cle === E.cleFleches) return; E.cleFleches = cle;
+    const actives = E.reglages.actif !== false && u !== 'H1', cle = [u, B.length, B[B.length - 1].t, E.fleches.length, actives, E.reglages.fond !== false, E.A ? E.A.sens.length : 0].join('|'); if (cle === E.cleFleches) return; E.cleFleches = cle;
     const M = [], vus = new Set(), infos = new Map(), pas = PAS_UNITE[u];
-    if (actives) for (const f of E.fleches) {
+    if (actives) for (const f of E.fleches.slice().sort((x, y) => (x.type === 'grosse' ? 0 : 1) - (y.type === 'grosse' ? 0 : 1))) {
       const k = indexSurUnite(B, f, pas); if (k < 0) continue; const t = temps(B[k].t); if (t == null) continue; const cl = t + '|' + f.dir; if (vus.has(cl)) continue; vus.add(cl);
-      const s = styleFleche(f); M.push({ time: t, position: s.position, color: s.couleur, shape: s.forme, size: tactile ? 2 : 1.5 });
+      const s = styleFleche(f); M.push({ time: t, position: s.position, color: s.couleur, shape: s.forme, size: s.taille * (tactile ? 1.25 : 1) });
       infos.set(t, { f, haut: f.dir < 0, texte: texteFleche(f) });
     }
-    M.sort((a, b) => a.time - b.time); E.marques = M.length; E.M = M; E.infos = infos; E.infoEl && (E.infoEl.style.display = 'none'); infoFleche();
+    M.sort((a, b) => a.time - b.time); E.marques = M.length; E.M = M; E.infos = infos; E.infoEl && (E.infoEl.style.display = 'none'); infoFleche(); poserFond(B, u, actives);
     if (LW.createSeriesMarkers) { const s = graph.serie(); if (!E.marqueurs) E.marqueurs = LW.createSeriesMarkers(s, M); else E.marqueurs.setMarkers(M); }
   }
-  /* texte de l'info-bulle : zone touchée, volume, entrée, stop, objectif */
-  const texteFleche = f => {
-    const z = f.zone || {}, vol = Number.isFinite(f.ratio) && f.ratio > 0 ? `${nf(f.volume, 0)} (×${nf(f.ratio, 1)} la moyenne 20 j)` : 'non disponible';
-    return `${f.dir > 0 ? '▲ Retournement haussier' : '▼ Retournement baissier'} · Daily + H4\nZone touchée : ${z.nom || '—'} (${nf(z.niveau, z.niveau >= 100 ? 0 : 2)})\nVolume du touch : ${vol}\nEntrée ${nf(f.entree)} · Stop ${nf(f.stop)}\nObjectif ${nf(f.objectif)} (${nf(f.rr, 1)} R)`;
-  };
+  /* fond du graphique : bandes pleine hauteur, très transparentes, selon le sens Daily en vigueur (une bande par période de même sens, dessinée DERRIÈRE les bougies par une « primitive » du graphique : continue, sans interstice) */
+  function primitiveFond() {
+    const o = { segs: [], req: null, chart: graph.chart(), attached(p) { this.req = p.requestUpdate; }, detached() { this.req = null; }, updateAllViews() { /* rien à préparer */ },
+      paneViews() { const me = this; return [{ zOrder: () => 'bottom', renderer: () => ({ draw() { /* tout est dans drawBackground */ }, drawBackground(cible) { cible.useBitmapCoordinateSpace(sc => {
+        const ts = me.chart.timeScale(), sp = ts.options().barSpacing, hr = sc.horizontalPixelRatio, ctx = sc.context;
+        for (const g of me.segs) { const x1 = ts.timeToCoordinate(g.t1), x2 = ts.timeToCoordinate(g.t2); if (x1 == null || x2 == null) continue; const a1 = Math.round((x1 - sp / 2) * hr), a2 = Math.round((x2 + sp / 2) * hr); ctx.fillStyle = g.couleur; ctx.fillRect(a1, 0, a2 - a1, sc.bitmapSize.height); }
+      }); } }) }]; } };
+    return o;
+  }
+  function poserFond(B, u, actives) {
+    const voulu = actives && E.reglages.fond !== false && E.A && E.A.sens.length > 0;
+    try {
+      const serie = graph.serie();
+      if (!E.fondPrim || E.fondSerie !== serie) { if (E.fondPrim && E.fondSerie) { try { E.fondSerie.detachPrimitive(E.fondPrim); } catch (e) { /* */ } } E.fondPrim = primitiveFond(); E.fondSerie = serie; serie.attachPrimitive(E.fondPrim); }
+      if (!voulu) { E.fondPrim.segs = []; E.fondN = 0; E.fondSens = null; E.fondPrim.req && E.fondPrim.req(); return; }
+      const sens = sensPourBougies(B, E.A.sens, PAS_UNITE[u]), segs = []; let cur = null, n = 0;
+      B.forEach((b, i) => { const t = temps(b.t); if (t == null) return; n++; const x = sens[i] || 0; if (cur && cur.sens === x) cur.t2 = t; else { cur = { sens: x, t1: t, t2: t, couleur: COULEURS_FOND[x] }; segs.push(cur); } });
+      E.fondPrim.segs = segs; E.fondN = n; E.fondSens = sens.length ? sens[sens.length - 1] : 0; E.fondSegs = segs.length; E.fondPrim.req && E.fondPrim.req();
+    } catch (e) { console.warn('[tp] fond :', e.message); }
+  }
+  /* texte de l'info-bulle : type, entrée, stop et gain en R (gain réalisé si la flèche est sortie, sinon gain latent) */
+  function texteFleche(f) {
+    const a = E.A && E.A.S ? ancrer(f, E.A.Bj, E.A.Bh) : null, sv = a ? suivre(a, E.A.Bj, E.A.Bh, E.A.S) : null, R = sv && Number.isFinite(sv.r) ? `${sv.r >= 0 ? '+' : '−'}${nf(Math.abs(sv.r), 1)} R` : null;
+    const gain = !sv ? 'Gain : non calculable' : sv.etat === 'sortie' ? `Gain : ${R} (${sv.motif})` : `En cours : ${R}`;
+    return `${f.dir > 0 ? '▲' : '▼'} ${f.type === 'grosse' ? 'Grosse flèche · Daily' : 'Petite flèche · H4'} · ${f.dir > 0 ? 'achat' : 'vente'}\n${typeLibelle(f)}\nEntrée ${nf(f.entree)} · Stop ${nf(f.stop)}\n${gain}`;
+  }
   /* info-bulle : petite, posée À CÔTÉ de la flèche (jamais en haut à gauche : elle ne cache ni les boutons ni la légende), se ferme seule au bout de 6 s (toucher) */
   function infoFleche() {
     if (E.infoOk) return; const c = graph.conteneur(); if (!c) return; E.infoOk = true;
@@ -134,7 +155,7 @@ export async function monterPro(T) {
   function legendeMA(B, u) {
     const c = graph.conteneur(); if (!c) return; let el = c.querySelector('.tp-ma-legende'); if (!el) { el = document.createElement('div'); el.className = 'tp-ma-legende'; c.appendChild(el); }
     const b = bandeauMA(B, u, prixRef(B)), v = b.ok ? b : (E.ma && Number.isFinite(E.ma.derniere) ? { ok: true, nom: 'MA200 ' + NOM_UNITE[u], valeur: E.ma.derniere, distancePct: prixRef(B) / E.ma.derniere * 100 - 100 } : b);
-    el.innerHTML = v.ok ? `<span style="color:${COULEURS.ma}">${esc(v.nom)} ${nf(v.valeur, 0)} · prix ${nf(Math.abs(v.distancePct), 1)} % ${v.distancePct >= 0 ? 'au-dessus' : 'sous'}</span>` : `<span style="color:${COULEURS.ma}">${esc(v.nom)} : ${esc(v.raison)}</span>`;
+    el.innerHTML = v.ok ? `<span style="color:${COULEURS_UI.ma}">${esc(v.nom)} ${nf(v.valeur, 0)} · prix ${nf(Math.abs(v.distancePct), 1)} % ${v.distancePct >= 0 ? 'au-dessus' : 'sous'}</span>` : `<span style="color:${COULEURS_UI.ma}">${esc(v.nom)} : ${esc(v.raison)}</span>`;
     el.title = 'Moyenne mobile simple sur 200 bougies ' + NOM_UNITE[u] + (E.ma ? ' (' + E.ma.source + ')' : '') + ' ; distance calculée avec le prix de référence de l’appli';
   }
 
@@ -152,50 +173,50 @@ export async function monterPro(T) {
 
   /* ───── données, alertes ───── */
   async function charger() {
-    if (!id) { E.raison = 'Les retournements Daily sont disponibles pour l’or, le Nasdaq 100, le S&P 500, le Bitcoin et Solana.'; rendrePanneau(); return; }
+    if (!id) { E.raison = 'Les flèches MA200 Daily + H4 sont disponibles pour l’or, le Nasdaq 100, le S&P 500, le Bitcoin et Solana.'; rendrePanneau(); return; }
     const n = ++E.seq;
-    try { const r = await lireActifPro(id, { delai: 8000 }); if (n !== E.seq) return; E.D = r.donnees; E.meta = r; E.raison = null; E.fleches = flechesDe(id, E.D, { version: versionActive(E.reglages) }); }
-    catch (e) { E.raison = 'Données Daily indisponibles : ' + (e && e.message || e) + ' (le robot publie ces séries toutes les 30 minutes). Les flèches déjà confirmées restent affichées.'; try { E.fleches = lireRegistre(id, versionActive(E.reglages)); } catch (e2) { /* aucune */ } }
+    try { const r = await lireActifPro(id, { delai: 8000 }); if (n !== E.seq) return; E.D = r.donnees; E.meta = r; E.raison = null; E.A = analyseDe(id, E.D); E.fleches = E.A.reg; }
+    catch (e) { E.raison = 'Données Daily indisponibles : ' + (e && e.message || e) + ' (le robot publie ces séries toutes les 30 minutes). Les flèches déjà confirmées restent affichées.'; E.A = null; try { E.fleches = lireRegistre(id); } catch (e2) { /* aucune */ } }
     E.cleFleches = null; dessiner(true); rendrePanneau(); alerter();
   }
   /* alertes : SEULEMENT les nouvelles flèches Daily confirmées : UNE annonce vocale de Rayle (« Or : sommet Daily confirmé, vers 2 650 ») + une notification + un message Telegram (pont du Worker existant).
      Une flèche n'est annoncée qu'une fois (registre de l'appareil : vueLe), et jamais si elle date de plus de 36 h. Interrupteur « Flèches Daily » coupé : aucune annonce. */
   function alerter() {
-    if (E.reglages.actif === false || !E.fleches.length) return; const att = lire(LS.alerte, {}), nouvelles = nouvellesFleches(id, E.fleches, { version: versionActive(E.reglages) });
-    for (const f of nouvelles.slice(0, 2)) { const texte = phraseFleche(NOMS[id], f); parler(texte); try { if (T.notifier) T.notifier(texte, { niveau: 'info', dit: false, raison: 'retournement Daily' }); } catch (e) { /* */ } try { if (att.telegram !== false && T.envoyerTelegram) T.envoyerTelegram(`${texte} · stop ${nf(f.stop)} · objectif ${nf(f.objectif)} (${nf(f.rr, 1)} R) · lecture seule, aucun ordre`); } catch (e) { /* */ } }
+    if (E.reglages.actif === false || !E.fleches.length) return; const att = lire(LS.alerte, {}), nouvelles = nouvellesFleches(id, E.fleches);
+    for (const f of nouvelles.slice(0, 2)) { const texte = phraseFleche(NOMS[id], f); parler(texte); try { if (T.notifier) T.notifier(texte, { niveau: 'info', dit: false, raison: 'flèche MA200 Daily + H4' }); } catch (e) { /* */ } try { if (att.telegram !== false && T.envoyerTelegram) T.envoyerTelegram(`${texte} · lecture seule, aucun ordre`); } catch (e) { /* */ } }
   }
 
   /* ───── panneau « Flèches Daily » ───── */
-  /* réglages : interrupteur « Flèches Daily » + version de l'indicateur (même bloc dans le panneau « Retournements Daily » et dans « Affichage » du terminal) */
+  /* réglages : interrupteur « Flèches » et fond coloré selon le sens Daily (même bloc dans le panneau et dans « Affichage » du terminal) */
   function reglagesHtml() {
-    const R = E.reglages, v = versionActive(R);
-    return `<div class="tp-reg" data-tp-reg><label class="tp-case"><input type="checkbox" data-reg="actif"${R.actif !== false ? ' checked' : ''}> Flèches Daily (retournements)</label>
-      <label class="tp-reg-l"><span>Version</span><select data-reg-version aria-label="Version des retournements Daily">${Object.entries(VERSIONS).map(([k, x]) => `<option value="${k}"${k === v ? ' selected' : ''}>${esc(x.nom)}${k === VERSION_DEFAUT ? ' (défaut)' : ''}</option>`).join('')}</select></label>
-      <small class="tp-doux">« Complète » : touch d’une zone Daily avec volume ≥ 1,2 × la moyenne 20 j. « Sans filtre volume » : même chose sans la condition de volume (défaut : la plus rentable sur l’historique testé). « Sens de la MA200 » : complète, seulement dans le sens de la MA200 Daily.</small></div>`;
+    const R = E.reglages;
+    return `<div class="tp-reg" data-tp-reg><label class="tp-case"><input type="checkbox" data-reg="actif"${R.actif !== false ? ' checked' : ''}> Flèches MA200 Daily + H4</label>
+      <label class="tp-case"><input type="checkbox" data-reg="fond"${R.fond !== false ? ' checked' : ''}> Fond coloré selon le sens Daily (vert / rouge / gris)</label></div>`;
   }
   function appliquerReglage(el) {
-    const R = E.reglages;
-    if (el.dataset.reg === 'actif') R.actif = el.checked; else if (el.dataset.regVersion !== undefined) R.version = versionDe(el.value);
+    const R = E.reglages; if (el.dataset.reg === 'actif') R.actif = el.checked; else if (el.dataset.reg === 'fond') R.fond = el.checked;
     ecrireReglages(R); majFleches();
   }
-  /* recalcule les flèches avec les réglages courants (autre version = autre registre), redessine et synchronise les deux blocs de réglages */
+  /* recalcule les flèches, redessine et synchronise les deux blocs de réglages */
   function majFleches() {
-    if (E.D) { try { E.fleches = flechesDe(id, E.D, { version: versionActive(E.reglages) }); } catch (e) { E.fleches = []; } } else { try { E.fleches = lireRegistre(id, versionActive(E.reglages)); } catch (e) { E.fleches = []; } }
+    if (E.D) { try { E.A = analyseDe(id, E.D); E.fleches = E.A.reg; } catch (e) { E.A = null; E.fleches = []; } } else { E.A = null; try { E.fleches = lireRegistre(id); } catch (e) { E.fleches = []; } }
     E.cleFleches = null; dessiner(true); rendrePanneau(); synchroReglages(); alerter();
   }
   const zonesReglages = () => [...document.querySelectorAll('[data-tp-reg]')];
-  function synchroReglages() { for (const z of zonesReglages()) { const c = z.querySelector('[data-reg="actif"]'); if (c) c.checked = E.reglages.actif !== false; const s = z.querySelector('[data-reg-version]'); if (s) s.value = versionActive(E.reglages); } }
-  document.addEventListener('change', ev => { const el = ev.target.closest && ev.target.closest('[data-reg],[data-reg-version]'); if (el && el.closest('[data-tp-reg]')) appliquerReglage(el); });
+  function synchroReglages() { for (const z of zonesReglages()) for (const k of ['actif', 'fond']) { const c = z.querySelector('[data-reg="' + k + '"]'); if (c) c.checked = E.reglages[k] !== false; } }
+  document.addEventListener('change', ev => { const el = ev.target.closest && ev.target.closest('[data-reg]'); if (el && el.closest('[data-tp-reg]')) appliquerReglage(el); });
   /* « Affichage » du terminal : le même bloc de réglages (s'il existe) */
   (function dansAffichage() { const pan = document.querySelector('.tor-ob-pan'); if (!pan || pan.querySelector('[data-tp-reg]')) return; const d = document.createElement('div'); d.innerHTML = reglagesHtml(); pan.insertBefore(d.firstElementChild, pan.querySelector('hr') || pan.firstChild); })();
   function rendrePanneau() {
     const p = E.panneau; if (!p) return; const att = lire(LS.alerte, {}), L = E.fleches.slice().reverse().slice(0, 10);
-    p.innerHTML = `<header><b>Retournements Daily · ${esc(NOMS[id] || actif)}</b><button type="button" data-fermer aria-label="Fermer">✕</button></header>
+    const sens = E.A && E.A.sens.length ? E.A.sens[E.A.sens.length - 1].sens : null, sensTxt = sens === 1 ? '<b class="tp-h">haussier</b>' : sens === -1 ? '<b class="tp-b">baissier</b>' : '<b>neutre</b>';
+    p.innerHTML = `<header><b>MA200 Daily + H4 · ${esc(NOMS[id] || actif)}</b><button type="button" data-fermer aria-label="Fermer">✕</button></header>
       ${E.raison ? `<p class="tp-doux">${esc(E.raison)}</p>` : ''}
-      <p class="tp-doux">Peu de flèches, seulement les gros retournements : une bougie Daily touche une zone (3 derniers sommets / creux Daily, R1 R2 S1 S2, MA200 Daily ± 0,3 ATR), puis, dans les 5 jours, une bougie H4 clôture au-delà du dernier sommet (creux) H4 de la descente (montée). <b class="tp-h">Verte ▲</b> = haussier, <b class="tp-b">rouge ▼</b> = baissier. La flèche est posée sur la bougie de confirmation (Jour : la bougie du jour ; H4 : la bougie H4 exacte), ne bouge plus et ne disparaît plus. Aucune flèche sur H1. Touchez la flèche : zone, volume, entrée, stop, objectif.</p>
+      ${sens === null ? '' : `<p>Sens Daily : ${sensTxt}${sens === 0 ? ' (aucune petite flèche tant que ce n’est pas confirmé)' : ''}</p>`}
+      <p class="tp-doux">Le Daily décide du sens, le H4 du moment. Sens haussier = 2 clôtures Daily d’affilée au-dessus de la MA200 Daily + 0,5 ATR (baissier : miroir ; dans la bande = neutre, aucune petite flèche). <b>Grosse flèche</b> (Daily) : le jour où le sens change. <b>Petite flèche</b> (H4), seulement dans le sens Daily : rebond sur un support (MA200 H4, MA200 Daily, S1 / S2) ou cassure du plus haut des 20 dernières bougies H4 ; une par repli, 3 jours d’écart. Mêmes flèches sur le Jour et sur H4, aucune sur H1. <b class="tp-h">Verte ▲</b> = achat, <b class="tp-b">rouge ▼</b> = vente. Le fond du graphique est teinté selon le sens Daily. Touchez une flèche : type, entrée, stop, gain en R.</p>
       <h4>Réglages</h4>${reglagesHtml()}
-      <h4>Dernières flèches</h4>${L.length ? `<ul class="tp-sigs">${L.map(f => `<li class="${f.dir > 0 ? 'tp-h' : 'tp-b'}"><b>${f.dir > 0 ? '▲ haussier' : '▼ baissier'} · ${esc((f.zone && f.zone.nom) || '')}</b> <span>${esc(dateJour(f.t))} · entrée ${nf(f.entree, f.entree >= 100 ? 0 : 2)}</span><small>stop ${nf(f.stop, f.stop >= 100 ? 0 : 2)} · objectif ${nf(f.objectif, f.objectif >= 100 ? 0 : 2)} (${nf(f.rr, 1)} R)</small></li>`).join('')}</ul>` : '<p class="tp-doux">Aucune flèche pour le moment.</p>'}
-      <h4>Alertes</h4><label class="tp-case"><input type="checkbox" data-al="telegram"${att.telegram !== false ? ' checked' : ''}> Telegram (pont du Worker de Rayle)</label><p class="tp-doux">À chaque nouvelle flèche confirmée : une seule annonce de Rayle (« ${esc(phraseFleche(NOMS[id] || actif, { dir: 1, entree: 2650 }))} »), une notification et un message Telegram. Une flèche n’est annoncée qu’une fois. Aucun autre signal.</p>`;
+      <h4>Dernières flèches</h4>${L.length ? `<ul class="tp-sigs">${L.map(f => `<li class="${f.dir > 0 ? 'tp-h' : 'tp-b'}"><b>${f.dir > 0 ? '▲ achat' : '▼ vente'} · ${f.type === 'grosse' ? 'grosse (Daily)' : 'petite (H4)'}</b> <span>${esc(dateJour(f.t))} · entrée ${nf(f.entree, f.entree >= 100 ? 0 : 2)}</span><small>${esc(typeLibelle(f))} · stop ${nf(f.stop, f.stop >= 100 ? 0 : 2)}</small></li>`).join('')}</ul>` : '<p class="tp-doux">Aucune flèche pour le moment.</p>'}
+      <h4>Alertes</h4><label class="tp-case"><input type="checkbox" data-al="telegram"${att.telegram !== false ? ' checked' : ''}> Telegram (pont du Worker de Rayle)</label><p class="tp-doux">À chaque nouvelle flèche confirmée : une seule annonce de Rayle (« ${esc(phraseFleche(NOMS[id] || actif, { type: 'grosse', dir: 1, entree: 2650 }))} »), une notification et un message Telegram. Une flèche n’est annoncée qu’une fois. Aucun autre signal.</p>`;
   }
   function ouvrirPanneau(o) {
     if (!E.panneau) { E.panneau = document.createElement('aside'); E.panneau.className = 'tp-panneau'; E.panneau.setAttribute('aria-label', 'Flèches Daily'); document.body.appendChild(E.panneau); E.panneau.addEventListener('click', ev => { if (ev.target.closest('[data-fermer]')) ouvrirPanneau(false); });
@@ -218,5 +239,5 @@ export async function monterPro(T) {
   await charger(); majSpot(); const spot = setInterval(majSpot, 30000);
   const suivi = setInterval(() => dessiner(), 1500), maj = setInterval(() => { if (!document.hidden) charger(); }, 120000);
   window.addEventListener('pagehide', () => { clearInterval(suivi); clearInterval(maj); clearInterval(spot); });
-  return { charger, majSpot, dessiner: () => dessiner(true), fleches: () => E.fleches.slice(), marqueurs: () => (E.M || []).map(m => ({ ...m })), maPoints: () => (E.series.ma ? E.series.ma.data() : []), maInfo: () => (E.ma ? { ...E.ma } : null), reglages: () => JSON.parse(JSON.stringify(E.reglages)), niveaux: () => (E.niveaux || []).map(n => ({ nom: n.nom, src: n.src, cote: n.cote, prix: n.prix, y: graph.serie().priceToCoordinate(n.prix) })), etat: () => ({ id, details: E.details, niveaux: E.lignes.length, fleches: E.fleches.length, marques: E.marques || 0, ma: Object.keys(E.series) }), ouvrirPanneau, ouvrirDonnees, dashboard: () => E.dash, appliquerDetails };
+  return { charger, majSpot, dessiner: () => dessiner(true), fleches: () => E.fleches.slice(), sens: () => (E.A ? E.A.sens.map(x => ({ ...x })) : []), fond: () => ({ n: E.fondN || 0, segments: E.fondN ? (E.fondSegs || 0) : 0, sens: E.fondSens ?? null }), infos: () => [...(E.infos || new Map()).entries()].map(([t, x]) => ({ time: t, texte: x.texte })), marqueurs: () => (E.M || []).map(m => ({ ...m })), maPoints: () => (E.series.ma ? E.series.ma.data() : []), maInfo: () => (E.ma ? { ...E.ma } : null), reglages: () => JSON.parse(JSON.stringify(E.reglages)), niveaux: () => (E.niveaux || []).map(n => ({ nom: n.nom, src: n.src, cote: n.cote, prix: n.prix, y: graph.serie().priceToCoordinate(n.prix) })), etat: () => ({ id, details: E.details, niveaux: E.lignes.length, fleches: E.fleches.length, marques: E.marques || 0, ma: Object.keys(E.series) }), ouvrirPanneau, ouvrirDonnees, dashboard: () => E.dash, appliquerDetails };
 }

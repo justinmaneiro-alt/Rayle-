@@ -1,7 +1,7 @@
-/* Télécharge l'historique pour le backtest des « Retournements Daily » (Yahoo Finance, données publiques) :
+/* Télécharge l'historique pour le backtest de « MA200 Daily + H4 » (Yahoo Finance, données publiques) :
    - Daily 10 ans avec volume (or : futures COMEX GC=F ; Nasdaq 100 : ^NDX) ;
    - H1 sur la plus longue période que Yahoo fournit (≈ 2 ans et plus), avec volume ; le H4 s'en déduit (regroupement ancré à 22 h UTC, comme le robot).
-   Usage : node trader-pro/outils/telecharger-retournements.mjs <dossier-de-sortie>
+   Usage : node trader-pro/outils/telecharger-historique.mjs <dossier-de-sortie>
    Écrit <id>-j.json et <id>-h1.json : [[t, o, h, l, c, v], …] (t = ouverture, ms UTC). Une bougie incomplète est écartée ; le volume manquant vaut 0. */
 import fs from 'node:fs'; import path from 'node:path';
 

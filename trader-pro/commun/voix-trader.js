@@ -47,11 +47,11 @@ export async function repondre(texte, S, { maintenant = Date.now() } = {}) {
     }
     if (i.type === 'fleches') {
       const L = await S.fleches(i.actif ? i.actif.id : null); if (!L || !L.length) return 'Je n’ai pas les données Daily pour le moment.';
-      const quoi = f => `retournement ${f.dir > 0 ? 'haussier' : 'baissier'} Daily confirmé, entrée vers ${f.niveauTxt || ''}`.replace(/, entrée vers $/, '');
+      const quoi = f => `${f.type === 'grosse' ? 'grosse flèche Daily' : 'petite flèche H4'} ${f.dir > 0 ? 'verte, achat' : 'rouge, vente'}, ${f.libelle || ''}, entrée vers ${f.niveauTxt || ''}`.replace(/, entrée vers $/, '').replace(/, , /, ', ');
       const jour = t => new Date(t).toLocaleDateString('fr-FR', { timeZone: 'UTC', day: 'numeric', month: 'long' });
       const recents = L.filter(x => x.recentes.length);
-      if (!recents.length) return 'Aucun retournement Daily dans les 7 derniers jours' + (i.actif ? ' sur ' + i.actif.nom : '') + ' : ces flèches sont rares, seulement les gros retournements.' + (L.length === 1 && L[0].derniere ? ` Le dernier, ${L[0].derniere.dir < 0 ? 'baissier, flèche rouge' : 'haussier, flèche verte'}, a été confirmé le ${jour(L[0].derniere.t)}.` : '');
-      return recents.map(x => x.recentes.slice(-2).map(f => `Sur ${x.nom} : flèche ${f.dir < 0 ? 'rouge' : 'verte'}, ${quoi(f)}${f.stopTxt ? `, stop ${f.stopTxt}` : ''}${f.objectifTxt ? `, objectif ${f.objectifTxt}` : ''}. Ce n’est pas un ordre.`).join(' ')).join(' ');
+      if (!recents.length) return 'Aucune flèche MA200 Daily + H4 dans les 7 derniers jours' + (i.actif ? ' sur ' + i.actif.nom : '') + '.' + (L.length === 1 && L[0].derniere ? ` La dernière, ${L[0].derniere.dir < 0 ? 'rouge, une vente' : 'verte, un achat'}, a été confirmée le ${jour(L[0].derniere.t)}.` : '');
+      return recents.map(x => x.recentes.slice(-2).map(f => `Sur ${x.nom} : ${quoi(f)}${f.stopTxt ? `, stop ${f.stopTxt}` : ''}. Ce n’est pas un ordre.`).join(' ')).join(' ');
     }
     if (i.type === 'score') {
       const r = await S.score(i.actif.id); return r ? phraseScore(i.actif.nom, r) : `Je n’ai pas les données pour calculer le score de ${i.actif.nom}.`;
@@ -84,8 +84,8 @@ export function sourceNavigateur() {
       const L = C.classerCouvertures(S, cal, sens, { notionnel }); return L.length ? { sens, notionnel, meilleur: L[0], deMaPosition } : null;
     },
     async fleches(id) {
-      const M = await charge(), { flechesDe } = await import('../terminal/fleches-registre.js'), { niveauParle } = await import('../terminal/retournements-daily.js'), ids = id ? [id] : ['or', 'us100', 'us500', 'btc', 'sol', 'doge'], noms = { or: 'l’or', us100: 'le Nasdaq 100', us500: 'le S&P 500', btc: 'le Bitcoin', sol: 'Solana', doge: 'Dogecoin' };
-      const out = []; for (const a of ids) { if (!noms[a]) continue; try { const r = await M.dn.lireActifPro(a, { delai: 8000 }), reg = flechesDe(a, r.donnees), maintenant = Date.now(); const avec = f => ({ ...f, niveauTxt: niveauParle(f.entree), stopTxt: niveauParle(f.stop), objectifTxt: niveauParle(f.objectif) }); out.push({ id: a, nom: noms[a], derniere: reg.length ? avec(reg[reg.length - 1]) : null, recentes: reg.filter(x => maintenant - x.tFin < 7 * 86400e3 && x.tFin <= maintenant).map(avec) }); } catch (e) { /* actif sans données */ } } return out;
+      const M = await charge(), { flechesDe } = await import('../terminal/fleches-registre.js'), { niveauParle, typeLibelle } = await import('../terminal/ma200-h4.js'), ids = id ? [id] : ['or', 'us100', 'us500', 'btc', 'sol', 'doge'], noms = { or: 'l’or', us100: 'le Nasdaq 100', us500: 'le S&P 500', btc: 'le Bitcoin', sol: 'Solana', doge: 'Dogecoin' };
+      const out = []; for (const a of ids) { if (!noms[a]) continue; try { const r = await M.dn.lireActifPro(a, { delai: 8000 }), reg = flechesDe(a, r.donnees), maintenant = Date.now(); const avec = f => ({ ...f, niveauTxt: niveauParle(f.entree), stopTxt: niveauParle(f.stop), libelle: typeLibelle(f) }); out.push({ id: a, nom: noms[a], derniere: reg.length ? avec(reg[reg.length - 1]) : null, recentes: reg.filter(x => maintenant - x.tFin < 7 * 86400e3 && x.tFin <= maintenant).map(avec) }); } catch (e) { /* actif sans données */ } } return out;
     },
     async score(id) { const { calculerScoreActif } = await import('./dashboard.js'); return calculerScoreActif(id); },
     async cot(id) {
