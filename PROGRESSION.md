@@ -110,3 +110,7 @@ Reprise : relire ce fichier, `git log --oneline -15`, `git status`, puis continu
 - Le Daily décide du sens (2 clôtures Daily au-delà de MA200 ± 0,5 ATR ; neutre sinon), le H4 du moment. Grosse flèche Daily au croisement confirmé ; petites flèches H4 (rebond sur support / cassure des 20 dernières bougies H4) uniquement dans le sens Daily, jamais contradictoires. Mêmes flèches sur le Jour et H4, rien en H1 ; fond du graphique teinté selon le sens Daily ; info-bulle type / entrée / stop / gain en R.
 - Supprimé : `retournements-daily.js`, ses tests et son backtest. Ajouté : `trader-pro/terminal/ma200-h4.js`, `fleches-registre.js` réécrit, `tests/ma200-test.mjs` (62 vérifications dont walk-forward), `outils/backtest-ma200.mjs`, `outils/telecharger-historique.mjs`, `terminal/VERIFICATION-MA200.md`.
 - Robot : `h4` passe de 900 à 3600 bougies (≈ 2 ans d'or) dans les instantanés `pro-<actif>.json` ; Daily : 1300 bougies (≥ 3 ans).
+
+## MA200 Daily + H4 : moins de flèches (2026-11-17)
+- Variantes testées en walk-forward (or + Nasdaq 100) : V0 première version, V1 grosses seules, V2 grosses + rebonds sur zone Daily, V3 = V2 + 2 petites par tendance ; filtres anti-piège des grosses : 3 clôtures / marge 1 ATR. Défaut : **V2 + marge 1 ATR** (≈ 4 flèches par an sur l'or, 2 sur le Nasdaq 100 ; critère « total sans le meilleur trade positif » non rempli sur le Nasdaq : −0,14 R). Détail : `trader-pro/terminal/VERIFICATION-MA200.md`.
+- Info-bulle : ne recouvre plus l'échelle des prix (rectangle noir à droite du graphique corrigé).

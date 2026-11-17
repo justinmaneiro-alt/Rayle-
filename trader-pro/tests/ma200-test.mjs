@@ -1,6 +1,6 @@
 /* Tests de « MA200 Daily + H4 » (module pur) : sens Daily, grosses et petites flèches, jamais de flèche contradictoire, aucune bougie future (walk-forward), suivi en R, registre, réglages, textes.
    Usage : node trader-pro/tests/ma200-test.mjs */
-import { sensJour, petitesFleches, analyserMA, suivre, ancrer, fusionnerRegistre, idFleche, styleFleche, indexSurUnite, sensPourBougies, niveauParle, phraseFleche, typeLibelle, cloturees, PARAMS, COULEURS, J, H4 } from '../terminal/ma200-h4.js';
+import { sensJour, petitesFleches, analyserMA, paramsDe, VARIANTES, FILTRES, VARIANTE_DEFAUT, FILTRE_DEFAUT, suivre, ancrer, fusionnerRegistre, idFleche, styleFleche, indexSurUnite, sensPourBougies, niveauParle, phraseFleche, typeLibelle, cloturees, PARAMS, COULEURS, J, H4 } from '../terminal/ma200-h4.js';
 import { analyseDe, flechesDe, nouvellesFleches, lireReglages, ecrireReglages, lireRegistre, barresDaily, CLE_REGLAGES } from '../terminal/fleches-registre.js';
 
 let ok = 0, ko = 0; const v = (c, m) => { if (c) ok++; else { ko++; console.log('  ✗ ' + m); } };
@@ -18,7 +18,7 @@ function marche(jours, graine = 11) {
   }
   return { Jr, H };
 }
-const { Jr, H } = marche(2400), FIN = H[H.length - 1].t + H4, A = analyserMA(Jr, H, { maintenant: FIN }), S = A.S;
+const { Jr, H } = marche(2400), FIN = H[H.length - 1].t + H4, A = analyserMA(Jr, H, { maintenant: FIN, variante: 'V0', filtre: 'base' }), S = A.S;   // règles de la première version (rebonds + cassures, toutes zones) : testées en détail ci-dessous ; les variantes plus sélectives ont leur section
 
 console.log('— sens Daily et grosses flèches —');
 v(S.gros.length >= 3, 'le marché synthétique produit des croisements confirmés : ' + S.gros.length);
@@ -59,17 +59,39 @@ v(P.filter(f => f.type === 'rebond').every(f => /MA200 H4|MA200 Daily|[SR][12] D
   v(parRepli, 'au plus 1 petite flèche par repli : un recul d’au moins 1 ATR Daily sépare deux petites flèches du même sens');
 }
 
-console.log('— walk-forward : aucune bougie future, aucun repaint —');
+console.log('— variantes (moins de flèches) et filtres anti-piège —');
 {
-  const coupes = [0.3, 0.45, 0.6, 0.75, 0.9].map(f => H[Math.floor(H.length * f)].t), cle = s => [s.type, s.t, s.dir, s.entree.toFixed(6), s.stop.toFixed(6), s.zone].join('|');
+  const run = (variante, filtre) => analyserMA(Jr, H, { maintenant: FIN, variante, filtre }), cote0 = t => { let n = 0, k = -1; for (let i = 0; i < Jr.length && Jr[i].t + J <= t; i++) k = i; for (let i = 1; i <= k; i++) if (S.cote[i] !== S.cote[i - 1]) n++; return n; };
+  const v1 = run('V1', 'base'), v2 = run('V2', 'base'), v3 = run('V3', 'base');
+  v(v1.petites.length === 0 && v1.grosses.length === A.grosses.length && v1.tout.every(f => f.type === 'grosse'), 'V1 : grosses flèches seules (aucune petite)');
+  v(v2.petites.length > 0 && v2.petites.every(f => f.type === 'rebond') && v2.petites.length < A.petites.length, 'V2 : seulement des rebonds, bien moins de petites flèches que la première version (' + v2.petites.length + ' contre ' + A.petites.length + ')');
+  v(v2.petites.every(f => /^(MA200 Daily|[SR][12] Daily)$/.test(f.zone)), 'V2 : seulement sur une zone Daily (MA200 Daily, S1 / S2 / R1 / R2 Daily), jamais sur la MA200 H4');
+  v(v2.petites.every(f => f.dir === S.sens[dernierJour(f.t)]), 'V2 : toujours dans le sens Daily');
+  v(v3.petites.length <= v2.petites.length, 'V3 : jamais plus de petites flèches que V2');
+  const parTend = new Map(); for (const f of v3.petites) { const k = f.dir + '|' + cote0(f.t); parTend.set(k, (parTend.get(k) || 0) + 1); }
+  v(parTend.size > 0 && [...parTend.values()].every(n => n <= 2), 'V3 : au plus 2 petites flèches par tendance Daily (' + [...parTend.values()].join(',') + ')');
+  const g3 = sensJour(Jr, paramsDe('trois')), g1 = sensJour(Jr, paramsDe('atr1')), gb = sensJour(Jr, paramsDe('base'));
+  v(g3.gros.length <= gb.gros.length && g1.gros.length <= gb.gros.length, 'filtres anti-piège : jamais plus de croisements qu’avec 2 clôtures / 0,5 ATR (' + gb.gros.length + ' → 3 clôtures : ' + g3.gros.length + ', marge 1 ATR : ' + g1.gros.length + ')');
+  v(g3.gros.every(g => [0, 1, 2].every(x => (g.dir > 0 ? Jr[g.i - x].c > g3.M[g.i - x] + 0.5 * g3.A[g.i - x] : Jr[g.i - x].c < g3.M[g.i - x] - 0.5 * g3.A[g.i - x]))), '3 clôtures : la grosse flèche est sur la 3e clôture consécutive au-delà de la bande');
+  v(g1.gros.every(g => [0, 1].every(x => (g.dir > 0 ? Jr[g.i - x].c > g1.M[g.i - x] + 1 * g1.A[g.i - x] : Jr[g.i - x].c < g1.M[g.i - x] - 1 * g1.A[g.i - x]))), 'marge 1 ATR : la grosse flèche est sur la 2e clôture consécutive au-delà de MA200 ± 1 ATR');
+  v(g1.sens.every((x, i) => x === 0 || (x > 0 ? Jr[i].c > g1.M[i] + g1.A[i] : Jr[i].c < g1.M[i] - g1.A[i])), 'marge 1 ATR : la zone neutre est aussi MA200 ± 1 ATR');
+  v(VARIANTE_DEFAUT === 'V2' && FILTRE_DEFAUT === 'atr1' && VARIANTES[VARIANTE_DEFAUT] && FILTRES[FILTRE_DEFAUT], 'réglage par défaut : V2 + marge 1 ATR (choisi par le backtest, voir VERIFICATION-MA200.md)');
+  const d = analyserMA(Jr, H, { maintenant: FIN }), e = run('V2', 'atr1'); v(d.tout.map(x => x.id || x.t + x.type).join() === e.tout.map(x => x.id || x.t + x.type).join(), 'sans option : la variante par défaut');
+  v(d.petites.every(f => f.type === 'rebond') && d.tout.length < A.tout.length, 'par défaut : bien moins de flèches que la première version (' + d.tout.length + ' contre ' + A.tout.length + ')');
+}
+
+console.log('— walk-forward : aucune bougie future, aucun repaint —');
+for (const [variante, filtre] of [['V0', 'base'], ['V2', 'atr1'], ['V3', 'trois'], [undefined, undefined]]) {
+  const opt = variante ? { variante, filtre } : {}, plein = analyserMA(Jr, H, { maintenant: FIN, ...opt }), nom = variante ? variante + ' / ' + filtre : 'par défaut', coupes = [0.3, 0.45, 0.6, 0.75, 0.9].map(f => H[Math.floor(H.length * f)].t), cle = s => [s.type, s.t, s.dir, s.entree.toFixed(6), s.stop.toFixed(6), s.zone].join('|');
   for (const tc of coupes) {
-    const Hc = H.filter(b => b.t + H4 <= tc), Jc = Jr.filter(b => b.t + J <= tc), p = analyserMA(Jc, Hc, { maintenant: tc }).tout, f = A.tout.filter(s => s.tFin <= tc);
-    v(p.map(cle).join() === f.map(cle).join() && f.length > 0, 'données coupées au ' + new Date(tc).toISOString().slice(0, 10) + ' : les ' + f.length + ' flèches déjà confirmées sont identiques (aucune ne bouge, n’apparaît ni ne disparaît)');
+    const Hc = H.filter(b => b.t + H4 <= tc), Jc = Jr.filter(b => b.t + J <= tc), p = analyserMA(Jc, Hc, { maintenant: tc, ...opt }).tout, f = plein.tout.filter(s => s.tFin <= tc);
+    v(p.map(cle).join() === f.map(cle).join() && f.length > 0, nom + ' : données coupées au ' + new Date(tc).toISOString().slice(0, 10) + ' : les ' + f.length + ' flèches déjà confirmées sont identiques (aucune ne bouge, n’apparaît ni ne disparaît)');
   }
   const tc = H[Math.floor(H.length * 0.6)].t, mod = b => (b.t > tc ? { ...b, o: b.o * 0.4, h: b.h * 0.4, l: b.l * 0.4, c: b.c * 0.4 } : b);
-  const a = analyserMA(Jr.map(mod), H.map(mod), { maintenant: FIN }).tout.filter(s => s.tFin <= tc), b = A.tout.filter(s => s.tFin <= tc);
-  v(a.map(cle).join() === b.map(cle).join() && b.length > 5, 'un futur totalement différent ne change aucune flèche du passé (' + b.length + ' comparées)');
+  const a2 = analyserMA(Jr.map(mod), H.map(mod), { maintenant: FIN, ...opt }).tout.filter(s => s.tFin <= tc), b2 = plein.tout.filter(s => s.tFin <= tc);
+  v(a2.map(cle).join() === b2.map(cle).join() && b2.length > 3, nom + ' : un futur totalement différent ne change aucune flèche du passé (' + b2.length + ' comparées)');
 }
+
 
 console.log('— suivi, gain en R, sorties —');
 {

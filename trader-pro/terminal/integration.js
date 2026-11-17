@@ -135,9 +135,12 @@ export async function monterPro(T) {
       if (!x) { el.style.display = 'none'; return; }
       el.textContent = x.texte; el.style.display = 'block';
       try {
-        const cx = graph.chart().timeScale().timeToCoordinate(p.time), W = c.clientWidth, Hh = c.clientHeight, w = el.offsetWidth, h = el.offsetHeight, py = graph.serie().priceToCoordinate(x.f.entree);
-        const gauche = cx > W / 2 ? cx - w - 14 : cx + 14, bas = Number.isFinite(py) ? py : Hh / 2;   // à droite de la flèche si elle est dans la moitié gauche, sinon à gauche
-        el.style.left = Math.max(6, Math.min(W - w - 6, gauche)) + 'px'; el.style.top = Math.max(tactile ? 96 : 40, Math.min(Hh - h - 30, x.haut ? bas - h - 10 : bas - h / 2)) + 'px';
+        /* la zone utile est le graphique SANS l'échelle des prix (à droite) : l'info-bulle ne la recouvre jamais */
+        const ps = (() => { try { return graph.chart().priceScale('right').width() || 0; } catch (e) { return 0; } })(), W = c.clientWidth - ps, Hh = c.clientHeight, cx = graph.chart().timeScale().timeToCoordinate(p.time);
+        el.style.maxWidth = Math.max(120, W - 12) + 'px'; const w = el.offsetWidth, h = el.offsetHeight, py = graph.serie().priceToCoordinate(x.f.entree), bas = Number.isFinite(py) ? py : Hh / 2;
+        const gauche = cx - w - 14, droite = cx + 14; let left = cx > W / 2 ? gauche : droite;   // à droite de la flèche si elle est dans la moitié gauche, sinon à gauche
+        if (left < 6 || left + w > W - 6) left = gauche >= 6 ? gauche : (droite + w <= W - 6 ? droite : Math.max(6, Math.min(W - w - 6, left)));
+        el.style.left = Math.max(6, left) + 'px'; el.style.top = Math.max(tactile ? 96 : 40, Math.min(Hh - h - 30, x.haut ? bas - h - 10 : bas - h / 2)) + 'px';
       } catch (e) { /* position par défaut */ }
       minuteur = setTimeout(() => { el.style.display = 'none'; }, 6000);
     });

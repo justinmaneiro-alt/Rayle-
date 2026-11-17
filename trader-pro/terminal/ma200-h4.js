@@ -13,7 +13,17 @@
 import { atr, sma, niveauxCles } from '../commun/analyse.js';
 
 export const J = 86400e3, H4 = 4 * 3600e3;
-export const PARAMS = Object.freeze({ bande: 0.5, ATR_N: 14, MA_N: 200, espaceH4J: 3, cassureN: 20, repliATR: 1, stopATR: 1, zoneATR: 0.3, pivotH4: 2, remonteH4: 40, fenetreRebond: 30, pivotSortie: 3 });
+export const PARAMS = Object.freeze({ confirmations: 2, zoneJourATR: 0.5, bande: 0.5, ATR_N: 14, MA_N: 200, espaceH4J: 3, cassureN: 20, repliATR: 1, stopATR: 1, zoneATR: 0.3, pivotH4: 2, remonteH4: 40, fenetreRebond: 30, pivotSortie: 3 });
+/* variantes comparées par le backtest (VERIFICATION-MA200.md) ; filtres anti-piège des grosses flèches : 3 clôtures au lieu de 2, ou marge 1 ATR au lieu de 0,5 */
+export const VARIANTES = Object.freeze({
+  V0: { nom: 'Rebonds + cassures, toutes zones (première version)', petites: true, cassure: true, zonesJour: false, maxParTendance: null },
+  V1: { nom: 'Grosses flèches seules', petites: false },
+  V2: { nom: 'Grosses + rebonds sur zone Daily', petites: true, cassure: false, zonesJour: true, maxParTendance: null },
+  V3: { nom: 'V2, 2 petites flèches au plus par tendance Daily', petites: true, cassure: false, zonesJour: true, maxParTendance: 2 }
+});
+export const FILTRES = Object.freeze({ base: { nom: '2 clôtures, marge 0,5 ATR', confirmations: 2, bande: 0.5 }, trois: { nom: '3 clôtures, marge 0,5 ATR', confirmations: 3, bande: 0.5 }, atr1: { nom: '2 clôtures, marge 1 ATR', confirmations: 2, bande: 1 } });
+export const VARIANTE_DEFAUT = 'V2', FILTRE_DEFAUT = 'atr1';   // fixés par le backtest
+export const paramsDe = (filtre = FILTRE_DEFAUT) => ({ ...PARAMS, ...(FILTRES[filtre] || FILTRES[FILTRE_DEFAUT]), nom: undefined });
 export const cloturees = (B, maintenant = Date.now()) => (B || []).filter(b => b.t + J <= maintenant);
 
 /* ───── 1) sens Daily ───── */
@@ -23,7 +33,7 @@ export function sensJour(B, P = PARAMS) {
   for (let i = 0; i < n; i++) {
     if (A[i] == null || M[i] == null) { cote[i] = c0; continue; }
     haut[i] = B[i].c > M[i] + P.bande * A[i]; bas[i] = B[i].c < M[i] - P.bande * A[i];
-    const confH = haut[i] && i >= 1 && haut[i - 1], confB = bas[i] && i >= 1 && bas[i - 1];
+    const nc = P.confirmations || 2; let confH = i >= nc - 1, confB = i >= nc - 1; for (let x = 0; x < nc && (confH || confB); x++) { confH = confH && haut[i - x]; confB = confB && bas[i - x]; }
     if (confH && c0 !== 1) { if (c0 === -1) gros.push(grosse(B, i, 1, M[i], A[i], P)); c0 = 1; } else if (confB && c0 !== -1) { if (c0 === 1) gros.push(grosse(B, i, -1, M[i], A[i], P)); c0 = -1; }
     cote[i] = c0; sens[i] = haut[i] ? (c0 === 1 ? 1 : 0) : bas[i] ? (c0 === -1 ? -1 : 0) : 0;
   }
@@ -35,11 +45,12 @@ function grosse(B, i, dir, m, a, P) {
 }
 
 /* ───── 3) petites flèches H4 ───── */
-export function petitesFleches(Bj, Bh, S, { params = PARAMS, maintenant = Date.now() } = {}) {
+export function petitesFleches(Bj, Bh, S, { params = PARAMS, maintenant = Date.now(), variante = VARIANTE_DEFAUT } = {}) {
+  const V = VARIANTES[variante] || VARIANTES[VARIANTE_DEFAUT]; if (!V.petites) return [];
   const P = params, H = (Bh || []).filter(b => b.t + H4 <= maintenant), n = H.length, M4 = sma(H.map(b => b.c), P.MA_N), out = [], cacheN = new Map();
   const niv = k => { if (!cacheN.has(k)) cacheN.set(k, niveauxCles(Bj.slice(Math.max(0, k + 1 - 300), k + 1), { max: 2, fenetre: 300 })); return cacheN.get(k); };
   const neuf = (der = -1e18) => ({ arme: true, pic: null, derniere: der, attente: null });
-  const etat = { 1: neuf(), '-1': neuf() }; let k = -1, sensPrec = 0;
+  const etat = { 1: neuf(), '-1': neuf() }; let k = -1, sensPrec = 0, coteCourant = 0, nTend = { 1: 0, '-1': 0 };   // nTend : petites flèches déjà prises dans la tendance Daily (côté confirmé) en cours
   /* dernier sommet (creux) H4 du repli : pivot à `pivotH4` bougies de chaque côté, au-dessus (au-dessous) du dernier cours, parmi les `remonteH4` dernières bougies */
   const declencheur = (h, dir) => {
     for (let p = h - P.pivotH4, m = 0; p >= P.pivotH4 && m < P.remonteH4; p--, m++) {
@@ -53,20 +64,21 @@ export function petitesFleches(Bj, Bh, S, { params = PARAMS, maintenant = Date.n
     while (k + 1 < Bj.length && Bj[k + 1].t + J <= b.t) k++;
     if (k < 0) continue;
     const s = S.sens[k], a = S.A[k];
+    if (S.cote[k] !== coteCourant) { coteCourant = S.cote[k]; nTend = { 1: 0, '-1': 0 }; }
     if (s !== sensPrec) { etat[-1].attente = null; etat[1].attente = null; if (s !== 0) etat[s] = neuf(etat[s].derniere); sensPrec = s; }
     if (s === 0 || a == null) continue;
     const dir = s, e = etat[dir];
     /* repli : recul d'au moins 1 ATR Daily depuis le plus haut (plus bas) atteint depuis la dernière flèche */
     if (e.pic == null) e.pic = dir > 0 ? b.h : b.l; else e.pic = dir > 0 ? Math.max(e.pic, b.h) : Math.min(e.pic, b.l);
     if (dir > 0 ? b.l <= e.pic - P.repliATR * a : b.h >= e.pic + P.repliATR * a) e.arme = true;
-    const libre = e.arme && b.t - e.derniere >= P.espaceH4J * J;
+    const libre = e.arme && b.t - e.derniere >= P.espaceH4J * J && (V.maxParTendance == null || nTend[dir] < V.maxParTendance);
     let type = null, zone = null;
     if (e.attente) {
       const at = e.attente;
       if (h - at.h0 > P.fenetreRebond) e.attente = null;
       else if (dir > 0 ? b.c > at.trigger : b.c < at.trigger) { if (libre) { type = 'rebond'; zone = at.zone; } e.attente = null; }
     }
-    if (!type && h >= P.cassureN) {
+    if (!type && V.cassure !== false && h >= P.cassureN) {
       let ext = dir > 0 ? -Infinity : Infinity; for (let x = h - P.cassureN; x < h; x++) ext = dir > 0 ? Math.max(ext, H[x].h) : Math.min(ext, H[x].l);
       if (libre && (dir > 0 ? b.c > ext : b.c < ext)) { type = 'cassure'; zone = P.cassureN + ' dernières bougies H4'; }
     }
@@ -75,11 +87,11 @@ export function petitesFleches(Bj, Bh, S, { params = PARAMS, maintenant = Date.n
       let creux = dir > 0 ? Infinity : -Infinity; for (let x = pk; x <= h; x++) creux = dir > 0 ? Math.min(creux, H[x].l) : Math.max(creux, H[x].h);
       const stop = dir > 0 ? creux - P.stopATR * a : creux + P.stopATR * a;
       out.push({ type, dir, t: b.t, tFin: b.t + H4, iH4: h, entree: b.c, stop, R: Math.abs(b.c - stop), zone, creux, atr: a, sens: s });
-      e.arme = false; e.derniere = b.t; e.pic = dir > 0 ? b.h : b.l;
+      e.arme = false; e.derniere = b.t; e.pic = dir > 0 ? b.h : b.l; nTend[dir]++;
     }
     /* touch d'un support (résistance) : prépare le rebond */
-    if (!e.attente && h >= 1 && M4[h - 1] != null) {
-      const N = niv(k), tol = P.zoneATR * a, prev = H[h - 1].c, niveaux = [{ nom: 'MA200 H4', v: M4[h - 1] }, { nom: 'MA200 Daily', v: S.M[k] }].concat((dir > 0 ? N.supports : N.resistances).slice(0, 2).map((x, i) => ({ nom: (dir > 0 ? 'S' : 'R') + (i + 1) + ' Daily', v: x.prix })));
+    if (!e.attente && h >= 1 && (V.zonesJour || M4[h - 1] != null)) {
+      const N = niv(k), tol = (V.zonesJour ? P.zoneJourATR : P.zoneATR) * a, prev = H[h - 1].c, niveaux = (V.zonesJour ? [] : [{ nom: 'MA200 H4', v: M4[h - 1] }]).concat([{ nom: 'MA200 Daily', v: S.M[k] }]).concat((dir > 0 ? N.supports : N.resistances).slice(0, 2).map((x, i) => ({ nom: (dir > 0 ? 'S' : 'R') + (i + 1) + ' Daily', v: x.prix })));
       const touches = niveaux.filter(z => z.v != null && (dir > 0 ? (prev > z.v && b.l <= z.v + tol && b.c > z.v - tol) : (prev < z.v && b.h >= z.v - tol && b.c < z.v + tol)));
       if (touches.length) { const z = touches.reduce((u, v) => (dir > 0 ? (v.v > u.v ? v : u) : (v.v < u.v ? v : u))), trig = declencheur(h, dir); if (trig != null) e.attente = { zone: z.nom, trigger: trig, h0: h }; }
     }
@@ -88,8 +100,9 @@ export function petitesFleches(Bj, Bh, S, { params = PARAMS, maintenant = Date.n
 }
 
 /* ───── analyse complète : grosses + petites, triées par heure de confirmation, et le sens Daily bougie par bougie ───── */
-export function analyserMA(Bj, Bh, { params = PARAMS, maintenant = Date.now() } = {}) {
-  const S = sensJour(Bj, params), petites = Bh && Bh.length ? petitesFleches(Bj, Bh, S, { params, maintenant }) : [];
+export function analyserMA(Bj, Bh, { params = null, filtre = FILTRE_DEFAUT, variante = VARIANTE_DEFAUT, maintenant = Date.now() } = {}) {
+  params = params || paramsDe(filtre);
+  const S = sensJour(Bj, params), petites = Bh && Bh.length ? petitesFleches(Bj, Bh, S, { params, maintenant, variante }) : [];
   const tout = S.gros.concat(petites).sort((x, y) => x.tFin - y.tFin || (x.type === 'grosse' ? -1 : 1));
   return { S, grosses: S.gros, petites, tout, sens: Bj.map((b, i) => ({ t: b.t, tFin: b.t + J, sens: S.sens[i], cote: S.cote[i] })) };
 }
