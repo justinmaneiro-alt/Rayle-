@@ -1,8 +1,8 @@
-/* ═════════════ REGISTRE DES FLÈCHES « MA200 H4 + ZONES MAJEURES H4 » SUR L'APPAREIL ═════════════
-   Les flèches sont calculées (ma200-h4.js) sur les bougies H4 CLÔTURÉES de l'instantané « pro » du robot (au moins 1500), puis fusionnées avec le registre gardé sur l'appareil :
-   une flèche déjà confirmée n'est jamais modifiée, déplacée ni supprimée (aucun repaint) et n'est annoncée (voix, Telegram) qu'une seule fois.
-   Réglages (terminal > Affichage) : interrupteur « Flèches » (activé par défaut) et fond coloré selon la tendance MA200 H4 (activé par défaut). Seules des données publiques de marché sont stockées. */
-import { analyser, fusionnerRegistre, ALGO_ID, statistiques, ancrer } from './ma200-h4.js';
+/* ═════════════ REGISTRE DES FLÈCHES « CASSURE MA200 H4 » SUR L'APPAREIL ═════════════
+   Les flèches sont calculées (ma200-h4.js) sur les bougies H4 CLÔTURÉES de l'instantané « pro » du robot, puis fusionnées avec le registre gardé sur l'appareil :
+   une flèche déjà confirmée n'est jamais modifiée, déplacée ni supprimée et n'est annoncée (voix, Telegram) qu'une seule fois.
+   Réglage (terminal > Affichage) : interrupteur « Flèches » (activé par défaut). Seules des données publiques de marché sont stockées. */
+import { analyser, fusionnerRegistre, ALGO_ID } from './ma200-h4.js';
 
 export const CLE_REGLAGES = 'rayle_tp_ma200h4_reglages';
 /* la clé contient l'identifiant de l'algorithme : les flèches enregistrées par une ancienne variante (ex. 71 petites flèches de la première version) ne sont plus jamais relues */
@@ -28,16 +28,15 @@ export function ecrireRegistre(id, reg, st = stockageDefaut()) { return st ? ecr
 
 /* analyse complète de l'actif `id` à partir de son instantané pro `D` ({ h4 }) : le registre fusionné (trié par heure de confirmation), la tendance H4 bougie par bougie, les zones majeures, les statistiques et les bougies utilisées.
    Premier calcul sur cet appareil (registre vide) : tout l'historique disponible est enregistré comme déjà vu, rien n'est annoncé. */
-export const BOUGIES_MIN = 300;
+export const BOUGIES_MIN = 205;
 export function analyseDe(id, D, { maintenant = Date.now(), stockage = stockageDefaut() } = {}) {
   purgerAnciens(stockage);
   const Bh = ((D && D.h4) || []).filter(b => b.t + 4 * 3600e3 <= maintenant);
-  const A = Bh.length >= BOUGIES_MIN ? analyser(Bh, { maintenant }) : { B: Bh, S: null, M: [], tend: [], fleches: [], zones: [], sens: [], stats: null };
+  const A = Bh.length >= BOUGIES_MIN ? analyser(Bh, { maintenant }) : { B: Bh, M: [], fleches: [], sens: [] };
   const avant = lireRegistre(id, stockage), reg = fusionnerRegistre(id, avant, A.fleches);
   if (!avant.length) for (const f of reg) f.vueLe = maintenant;
   if (reg.length !== avant.length) ecrireRegistre(id, reg, stockage);
-  const ok = reg.map(f => ancrer(f, Bh)).filter(Boolean), stats = Bh.length >= BOUGIES_MIN ? statistiques(ok, Bh) : null;   // statistiques sur les flèches du registre (celles qui s'affichent)
-  return { reg, Bh, S: A.S, M: A.M, zones: A.zones, sens: A.sens, stats };
+  return { reg, Bh, M: A.M, sens: A.sens };
 }
 export const flechesDe = (id, D, opt = {}) => analyseDe(id, D, opt).reg;
 /* flèches pas encore annoncées (vueLe nul), confirmées il y a moins de `heures` heures ; toutes sont ensuite marquées comme vues : une flèche n'est jamais annoncée deux fois */

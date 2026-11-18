@@ -21,7 +21,7 @@
    RAYLE_OR_VERSION = version de cette page = celle de sw.js, precache.json, index.html et trader-pro/terminal/version.js (montée de version : node trader-pro/outils/precache.mjs <version>).
    Au démarrage, toutes les 3 minutes et à chaque retour au premier plan : si une version PLUS RÉCENTE est publiée (precache.json), ou si le code du terminal chargé n'est pas celui de cette page (cache ancien),
    on met le service worker à jour, on vide ses caches et on recharge. Au plus 2 tentatives par version et par onglet (jamais de boucle). */
-window.RAYLE_OR_VERSION = '2026.11.18.1';
+window.RAYLE_OR_VERSION = '2026.11.18.2';
 (function () {
   var V = window.RAYLE_OR_VERSION, enCours = false;
   var essais = function (v) { try { return +sessionStorage.getItem('rayle_maj_' + v) || 0; } catch (e) { return 0; } };
