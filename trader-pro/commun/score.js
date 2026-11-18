@@ -6,7 +6,7 @@ import { tendance, rsi, atr, sma, dernier, ecartType, moyenne } from './analyse.
 import { analyserCot } from '../marches/cot.js';
 
 export const COMPOSANTS = Object.freeze([
-  { id: 'tendance', nom: 'Tendance', poids: 30, regle: 'H1 (poids 20), H4 (30) et Jour (50) : tendance (prix et pente de la MA50 contre la MA200) et position du prix par rapport à la MA200 en ATR.' },
+  { id: 'tendance', nom: 'Tendance', poids: 30, regle: 'MA200 H4 (poids 40) et MA200 Jour (60) : tendance (prix et pente de la MA50 contre la MA200) et position du prix par rapport à la MA200 de l’unité, en ATR.' },
   { id: 'momentum', nom: 'Momentum', poids: 20, regle: 'RSI 14 du Jour (40), RSI 14 du H4 (20) et variation sur 20 jours rapportée à la volatilité (40).' },
   { id: 'cot', nom: 'Positionnement COT', poids: 15, regle: 'COT Index des fonds spéculatifs (0-100) autour de 50, variation de la semaine ; un extrême (≥ 80 ou ≤ 20) est amorti de moitié (position déjà très chargée).' },
   { id: 'macro', nom: 'Macro', poids: 15, regle: 'Or : taux réels 10 ans et dollar (DXY), sur 20 séances. Nasdaq 100 / S&P 500 : taux 10 ans. Bitcoin / Solana : dollar et taux 10 ans. Hausse des taux ou du dollar = négatif.' },
@@ -23,8 +23,8 @@ const indispo = (id, raison) => ({ ...c(id, null, [], raison), dispo: false });
 
 /* ── 1. tendance : B = { H1, H4, J } (bougies) ── */
 export function compTendance(B, prix) {
-  const W = { J: 0.5, H4: 0.3, H1: 0.2 }, NOM = { J: 'Jour', H4: 'H4', H1: 'H1' }, det = []; let s = 0, w = 0;
-  for (const u of ['J', 'H4', 'H1']) {
+  const W = { J: 0.6, H4: 0.4 }, NOM = { J: 'Jour', H4: 'H4', H1: 'H1' }, det = []; let s = 0, w = 0;
+  for (const u of ['J', 'H4']) {
     const X = B[u] || []; if (X.length < 60) { det.push(`${NOM[u]} : pas assez de bougies (${X.length})`); continue; }
     const T = tendance(X), sens = T.sens === 'haussière' ? 1 : T.sens === 'baissière' ? -1 : 0, M = dernier(sma(X.map(b => b.c), 200)), a = dernier(atr(X, 14)), px = Number.isFinite(prix) ? prix : X[X.length - 1].c;
     const pos = M != null && a ? th((px - M) / (2 * a)) : null, v = pos == null ? sens : 0.5 * sens + 0.5 * pos;
@@ -81,13 +81,20 @@ export function libelleScore(s) {
   if (s == null) return 'indéterminé';
   return s <= -60 ? 'très baissier' : s <= -25 ? 'baissier' : s <= -10 ? 'plutôt baissier' : s < 10 ? 'neutre' : s < 25 ? 'plutôt haussier' : s < 60 ? 'haussier' : 'très haussier';
 }
+/* ───── échelle 0 à 100 façon grands fonds : 0 = vendeur très fort, 50 = neutre, 100 = acheteur très fort ───── */
+export const score100 = s => (s == null ? null : Math.round((s + 100) / 2));
+export function verdictScore(s100) {
+  if (s100 == null) return 'Indéterminé';
+  return s100 >= 75 ? 'Acheteur fort' : s100 >= 58 ? 'Acheteur' : s100 > 42 ? 'Neutre' : s100 > 25 ? 'Vendeur' : 'Vendeur fort';
+}
 /* assemble : D = { id, B: {H1,H4,J}, prix, cot (analyserCot), macro, flux, ann } */
 export function scoreMarche(D) {
   const comps = [compTendance(D.B || {}, D.prix), compMomentum(D.B || {}), compCot(D.cot), compMacro(D.id, D.macro), compVolatilite((D.B || {}).J, D.ann || 252), compFlux(D.flux)];
   const dispo = comps.filter(x => x.dispo), W = dispo.reduce((s, x) => s + x.poidsEff, 0), total = comps.reduce((s, x) => s + x.poids, 0);
   for (const x of comps) { x.part = x.dispo && W ? x.poidsEff / W : 0; x.points = x.dispo && W ? 100 * x.part * x.valeur : null; }
   const score = W ? Math.round(dispo.reduce((s, x) => s + x.points, 0)) : null;
-  return { score, libelle: libelleScore(score), confiance: dispo.reduce((s, x) => s + x.poidsEff, 0) / total, composants: comps, manquants: comps.filter(x => !x.dispo).map(x => x.nom) };
+  const s100 = score100(score);
+  return { score, score100: s100, verdict: verdictScore(s100), libelle: libelleScore(score), confiance: dispo.reduce((s, x) => s + x.poidsEff, 0) / total, composants: comps, manquants: comps.filter(x => !x.dispo).map(x => x.nom) };
 }
 
 /* historique du score sur les `jours` derniers jours, SANS regard vers l'avenir : à chaque date, seules les données connues ce jour-là (Daily : tendance, momentum, volatilité ; COT publié ; macro).
@@ -109,7 +116,7 @@ export function historiqueScore(D, { jours = 120, pas = 2 } = {}) {
 export function phraseScore(nom, S) {
   if (!S || S.score == null) return `Je ne peux pas calculer de score de marché pour ${nom} : il manque trop de données.`;
   const dispo = S.composants.filter(x => x.dispo), haut = [...dispo].sort((a, b) => b.points - a.points), bas = [...dispo].sort((a, b) => a.points - b.points);
-  const pt = x => `${x.nom.toLowerCase()} (${sg(x.points, 0)} points)`, P = [`Le score de marché de ${nom} est de ${sg(S.score, 0)} sur 100 : ${S.libelle}.`];
+  const pt = x => `${x.nom.toLowerCase()} (${sg(x.points, 0)} points)`, P = [`Le score de marché de ${nom} est de ${S.score100} sur 100 : ${S.verdict}.`];
   const pos = haut.filter(x => x.points > 2).slice(0, 2), neg = bas.filter(x => x.points < -2).slice(0, 2);
   if (pos.length) P.push('Ce qui le soutient : ' + pos.map(pt).join(' et ') + '.'); if (neg.length) P.push('Ce qui le pèse : ' + neg.map(pt).join(' et ') + '.');
   if (!pos.length && !neg.length) P.push('Aucune composante ne domine : les signaux se compensent.');

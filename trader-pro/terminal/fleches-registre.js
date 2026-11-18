@@ -1,8 +1,8 @@
-/* ═════════════ REGISTRE DES FLÈCHES « CASSURE MA200 H4 » SUR L'APPAREIL ═════════════
-   Les flèches sont calculées (ma200-h4.js) sur les bougies H4 CLÔTURÉES de l'instantané « pro » du robot, puis fusionnées avec le registre gardé sur l'appareil :
+/* ═════════════ REGISTRE DES FLÈCHES « SUIVI DE TENDANCE MA200 » SUR L'APPAREIL ═════════════
+   Les flèches sont calculées (ma200-h4.js) pour DEUX unités, H4 et Jour, sur les bougies CLÔTURÉES de l'instantané « pro » du robot, puis fusionnées avec le registre gardé sur l'appareil :
    une flèche déjà confirmée n'est jamais modifiée, déplacée ni supprimée et n'est annoncée (voix, Telegram) qu'une seule fois.
-   Réglage (terminal > Affichage) : interrupteur « Flèches » (activé par défaut). Seules des données publiques de marché sont stockées. */
-import { analyser, fusionnerRegistre, ALGO_ID } from './ma200-h4.js';
+   Réglages (terminal > Affichage) : interrupteur « Flèches » et fond coloré (activés par défaut). Seules des données publiques de marché sont stockées. */
+import { analyserUnite, fusionnerRegistre, ALGO_ID } from './ma200-h4.js';
 
 export const CLE_REGLAGES = 'rayle_tp_ma200h4_reglages';
 /* la clé contient l'identifiant de l'algorithme : les flèches enregistrées par une ancienne variante (ex. 71 petites flèches de la première version) ne sont plus jamais relues */
@@ -26,17 +26,23 @@ export function ecrireReglages(r, st = stockageDefaut()) { return st ? ecrireJ(s
 export function lireRegistre(id, st = stockageDefaut()) { const v = st ? lireJ(st, CLE_REGISTRE(id), []) : []; return Array.isArray(v) ? v : []; }
 export function ecrireRegistre(id, reg, st = stockageDefaut()) { return st ? ecrireJ(st, CLE_REGISTRE(id), reg.slice(-400)) : false; }
 
-/* analyse complète de l'actif `id` à partir de son instantané pro `D` ({ h4 }) : le registre fusionné (trié par heure de confirmation), la tendance H4 bougie par bougie, les zones majeures, les statistiques et les bougies utilisées.
+/* or et indices : pas de bougie Daily le week-end (celles du samedi / dimanche viennent du perpétuel Kraken et ne font pas partie de la séance : elles sont écartées) */
+const SANS_WEEKEND = new Set(['or', 'us100', 'us500']);
+export const barresDaily = (id, j) => (SANS_WEEKEND.has(id) ? (j || []).filter(b => { const d = new Date(b.t).getUTCDay(); return d !== 0 && d !== 6; }) : (j || []));
+/* analyse complète de l'actif `id` à partir de son instantané pro `D` ({ h4, j }) : les deux analyses (H4 et Jour, chacune avec SA MA200), le registre fusionné (trié par heure de confirmation).
    Premier calcul sur cet appareil (registre vide) : tout l'historique disponible est enregistré comme déjà vu, rien n'est annoncé. */
 export const BOUGIES_MIN = 205;
 export function analyseDe(id, D, { maintenant = Date.now(), stockage = stockageDefaut() } = {}) {
   purgerAnciens(stockage);
-  const Bh = ((D && D.h4) || []).filter(b => b.t + 4 * 3600e3 <= maintenant);
-  const A = Bh.length >= BOUGIES_MIN ? analyser(Bh, { maintenant }) : { B: Bh, M: [], fleches: [], sens: [] };
-  const avant = lireRegistre(id, stockage), reg = fusionnerRegistre(id, avant, A.fleches);
+  const src = { H4: (D && D.h4) || [], J: barresDaily(id, D && D.j) }, A = {}, avant = lireRegistre(id, stockage); let reg = [];
+  for (const u of ['H4', 'J']) {
+    A[u] = src[u].length >= BOUGIES_MIN ? analyserUnite(src[u], u, { maintenant }) : { unite: u, B: [], M: [], A: [], tend: [], fleches: [], sens: [] };
+    reg = reg.concat(fusionnerRegistre(id, avant.filter(f => (f.unite || 'H4') === u), A[u].fleches));
+  }
+  reg.sort((x, y) => x.tFin - y.tFin);
   if (!avant.length) for (const f of reg) f.vueLe = maintenant;
   if (reg.length !== avant.length) ecrireRegistre(id, reg, stockage);
-  return { reg, Bh, M: A.M, sens: A.sens };
+  return { reg, H4: A.H4, J: A.J };
 }
 export const flechesDe = (id, D, opt = {}) => analyseDe(id, D, opt).reg;
 /* flèches pas encore annoncées (vueLe nul), confirmées il y a moins de `heures` heures ; toutes sont ensuite marquées comme vues : une flèche n'est jamais annoncée deux fois */

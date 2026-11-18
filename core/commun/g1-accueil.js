@@ -287,12 +287,13 @@
     espaces:'<svg viewBox="0 0 24 24"><rect x="4" y="4" width="7" height="7"/><rect x="13" y="4" width="7" height="7"/><rect x="4" y="13" width="7" height="7"/><rect x="13" y="13" width="7" height="7"/></svg>',
     reglages:'<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3.2"/><circle cx="12" cy="12" r="7.5"/><path d="M12 2.5v3M12 18.5v3M2.5 12h3M18.5 12h3"/></svg>'
   };
-  const ICONES=[['accueil','Accueil'],['terminal','Terminal','Term.'],['marches','Marchés','March.'],['couverture','Couverture','Couv.'],['portefeuille','Portefeuille','Portef.'],['anatomie','Anatomie','Anat.'],['terre','Terre'],['dev3d','3D'],['reglages','Réglages','Régl.']];
+  const ICONES=[['accueil','Accueil'],['terminal','Terminal','Term.'],['marches','Marchés','March.'],['couverture','Couverture','Couv.'],['portefeuille','Portefeuille','Portef.'],['invest','Investissement','Invest.'],['anatomie','Anatomie','Anat.'],['terre','Terre'],['dev3d','3D'],['reglages','Réglages','Régl.']];
   IC.terminal='<svg viewBox="0 0 24 24"><path d="M3 20h18M4 16l5-6 4 3 7-8"/><path d="M16 5h4v4"/></svg>';
   IC.anatomie='<svg viewBox="0 0 24 24"><circle cx="12" cy="5" r="2.6"/><path d="M12 8v8M7 10h10M9 10l-1.5 6M15 10l1.5 6M12 16l-3 5M12 16l3 5"/></svg>';
   IC.terre='<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c3 3 3 15 0 18M12 3c-3 3-3 15 0 18"/></svg>';
   IC.marches='<svg viewBox="0 0 24 24"><path d="M4 19V5M4 19h16"/><path d="M8 15l3-4 3 2 4-6"/><circle cx="8" cy="15" r="1"/><circle cx="11" cy="11" r="1"/><circle cx="14" cy="13" r="1"/><circle cx="18" cy="7" r="1"/></svg>';
   IC.couverture='<svg viewBox="0 0 24 24"><rect x="4" y="4" width="6" height="6" rx="1"/><rect x="14" y="4" width="6" height="6" rx="1"/><rect x="4" y="14" width="6" height="6" rx="1"/><rect x="14" y="14" width="6" height="6" rx="1"/><path d="M10 7h4M10 17h4M7 10v4M17 10v4"/></svg>';
+  IC.invest='<svg viewBox="0 0 24 24"><path d="M4 20V9M10 20V4M16 20v-7M22 20H2"/><path d="M13 14l3-3 3 2"/></svg>';
   IC.portefeuille='<svg viewBox="0 0 24 24"><path d="M3 7h15a3 3 0 013 3v8a2 2 0 01-2 2H5a2 2 0 01-2-2z"/><path d="M3 7l12-3v3"/><circle cx="17" cy="13.5" r="1.2"/></svg>';
   IC.dev3d='<svg viewBox="0 0 24 24"><path d="M12 3l8 4.5v9L12 21l-8-4.5v-9z"/><path d="M4 7.5l8 4.5 8-4.5M12 12v9"/></svg>';
   $('g1Icones').innerHTML=ICONES.map(i=>'<button type="button" class="g1-ic" data-i="'+i[0]+'" aria-label="'+i[1]+'" title="'+i[1]+'"><span class="g1-ic-r">'+IC[i[0]]+'</span><small><b class="l">'+i[1]+'</b><b class="c">'+(i[2]||i[1])+'</b></small></button>').join('');

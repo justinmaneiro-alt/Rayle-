@@ -189,6 +189,7 @@
   }
   const lsLire=(k)=>{ try{ return JSON.parse(localStorage.getItem(k)||'null'); }catch(e){ return null; } };
   const creerCouverture=carteTexte('COUVERTURE',()=>[{t:'Corrélations 30 / 90 / 250 jours',b:1,g:15},{t:'Or, argent, US100, S&P 500, BTC, SOL,',c:'#8497a1',g:12},{t:'dollar, EUR/USD, taux US, pétrole',c:'#8497a1',g:12},{t:'Outil : quel actif couvre ma position ?',c:'#e8a85a',g:13}]);
+  const creerInvest=carteTexte('INVESTISSEMENT LONG TERME',()=>[{t:'S&P 500 + CAC 40 au crible',b:1,g:15},{t:'Pas chère · prix juste · chère',c:'#5fb894',g:13},{t:'Valeur par DCF, multiples et Graham',c:'#8497a1',g:12},{t:'Qualité /10 · liste de suivi · alertes',c:'#8497a1',g:12}]);
   const creerPortefeuille=carteTexte('PORTEFEUILLE XTB',()=>{ const r=lsLire('rayle_pf_resume_v1'); if(!r) return [{t:'Importer mon historique XTB',b:1,g:15},{t:'Résultats, graphiques, erreurs à corriger',c:'#8497a1',g:12},{t:'Synchronisé sur PC, tablette, téléphone',c:'#8497a1',g:12}]; const j=Math.round((Date.now()-r.t)/864e5);
     return [{t:r.n+' transactions',b:1,g:16},{t:'Résultat total '+(r.pnl>=0?'+':'−')+Math.abs(r.pnl).toLocaleString('fr-FR',{maximumFractionDigits:2})+' €',c:r.pnl>=0?'#5fb894':'#d86a6a',b:1,g:18},{t:r.discipline!=null?'Discipline '+r.discipline+' / 100':'',c:'#8497a1',g:12},{t:'Import il y a '+(j<1?'moins d’un jour':j+' j'),c:'#6e8089',g:11}]; });
 
@@ -203,8 +204,8 @@
   }
 
   /* ───── cycle de vie ───── */
-  const LIBELLES={marches:'Annonces, actualité, cours · lecture seule',couverture:'Corrélations et couverture · lecture seule',portefeuille:'Suivi XTB · résultats et coach',terminal:'Or · H1 · Kraken · lecture seule',anatomie:'Squelette 3D complet',terre:'',dev3d:'Atelier de maquettes 3D',rayle:''};
-  const FABRIQUES={marches:creerMarches,couverture:creerCouverture,portefeuille:creerPortefeuille,terminal:creerTerminal,anatomie:creerAnatomie,terre:(window.RayleAppareil&&window.RayleAppareil.mode()!=='pc')?creerTerreLegere:creerTerre,dev3d:creerDev3d,rayle:creerRayle};
+  const LIBELLES={marches:'Annonces, actualité, cours · lecture seule',couverture:'Corrélations et couverture · lecture seule',portefeuille:'Suivi XTB · résultats et coach',invest:'Actions pas chères ou chères · long terme',terminal:'Or · H1 · Kraken · lecture seule',anatomie:'Squelette 3D complet',terre:'',dev3d:'Atelier de maquettes 3D',rayle:''};
+  const FABRIQUES={marches:creerMarches,couverture:creerCouverture,portefeuille:creerPortefeuille,invest:creerInvest,terminal:creerTerminal,anatomie:creerAnatomie,terre:(window.RayleAppareil&&window.RayleAppareil.mode()!=='pc')?creerTerreLegere:creerTerre,dev3d:creerDev3d,rayle:creerRayle};
   async function creer(id,canvas){
     if(minis.has(id)) return minis.get(id);
     if(!minis.size&&canvas.parentElement){ const bw=canvas.parentElement.offsetWidth, bh=canvas.parentElement.offsetHeight; if(bw>50&&bh>50){ H=260; W=Math.max(320,Math.min(720,Math.round(260*bw/bh))); } }

@@ -1,11 +1,11 @@
 /* ═════════════ TERMINAL « PRO » : branché sur le terminal existant (agent-trading/front/or.html) sans le réécrire ═════════════
-   Ajoute : UNE seule moyenne mobile, la MA200 H4 (bougies H4 clôturées, tracée sur H1, H4 et Jour) et les FLÈCHES de cassure : 2 clôtures H4 d'affilée de l'autre côté de la MA200 H4 →
-   flèche verte d'achat tout en bas du mouvement (sous le plus bas avant la cassure) ou rouge de vente tout en haut ; elles alternent toujours. Alerte vocale de Rayle + Telegram à la cassure validée.
-   Rien d'autre sur le graphique. Un bouton « MA200 H4 » (réglage, liste, alertes) et un bouton « Détails ». Lecture seule : aucun ordre n'est envoyé. */
+   Ajoute : UNE seule moyenne mobile par graphique (MA200 H4 sur H4 et sur H1, MA200 Jour sur Jour) et les FLÈCHES de suivi de tendance posées SUR LA BOUGIE DE CONFIRMATION :
+   cassure (clôture de l'autre côté de la MA200 avec 0,3 ATR de marge) et rebond sur la MA200 dans le sens de la tendance ; fond du graphique vert (tendance haussière) ou rouge (baissière) ;
+   alerte vocale de Rayle + Telegram à chaque flèche (H4 et Jour). Un bouton « MA200 » (réglages, liste, alertes), un bouton « Données » (score, volume net) et un bouton « Détails ». Lecture seule : aucun ordre n'est envoyé. */
 import { lireActifPro } from '../commun/donnees.js';
 import { parler } from '../../agent-trading/front/or/tableau-or.js';
 import { NOM_UNITE, PAS_UNITE } from '../commun/lecture-unite.js';
-import { indexSurUnite, styleFleche, phraseFleche, typeLibelle, typeNom, ma200PourBougies } from './ma200-h4.js';
+import { indexSurUnite, styleFleche, phraseFleche, typeLibelle, typeNom, ma200PourBougies, sensPourBougies, COULEURS, PAS, NOM_UNITE as NOM_U } from './ma200-h4.js';
 import { analyseDe, nouvellesFleches, lireReglages, ecrireReglages, lireRegistre } from './fleches-registre.js';
 import { monterDashboard } from '../commun/dashboard.js';
 import { VERSION } from './version.js';
@@ -18,7 +18,7 @@ const ecrire = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } c
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const nf = (v, d = 2) => (Number.isFinite(v) ? v.toLocaleString('fr-FR', { minimumFractionDigits: d, maximumFractionDigits: d }).replace(/[  ]/g, ' ') : '—');
 const dateJour = t => new Date(t).toLocaleDateString('fr-FR', { timeZone: 'UTC', weekday: 'short', day: '2-digit', month: '2-digit', year: 'numeric' });
-const COULEURS_UI = { ma: '#f1d34f', hausse: '#5fb894', baisse: '#d86a6a' };
+const COULEURS_UI = { ma: '#f1d34f', hausse: '#5fb894', baisse: '#d86a6a' }, COULEURS_FOND = COULEURS.fond;
 
 export async function monterPro(T) {
   window.__tpVersion = VERSION;   // or.html compare ce numéro à la version publiée et force la mise à jour si le code chargé n'est pas le bon
@@ -27,7 +27,7 @@ export async function monterPro(T) {
   const E = { id, D: null, fleches: [], reglages: lireReglages(), series: {}, lignes: [], marqueurs: null, cle: '', panneau: null, details: lire(LS.details, false) === true, seq: 0 };
   /* ───── boutons ───── */
   const bDet = document.createElement('button'); bDet.type = 'button'; bDet.className = 'tp-b-details'; bDet.textContent = 'Détails'; bDet.setAttribute('aria-pressed', String(E.details)); bDet.title = 'Afficher tous les calques, bandeaux et sources du terminal';
-  const bHJ = document.createElement('button'); bHJ.type = 'button'; bHJ.className = 'tp-b-hj'; bHJ.textContent = 'MA200 H4'; bHJ.title = 'cassures de la MA200 H4 : flèches, réglage et alertes'; bHJ.setAttribute('aria-expanded', 'false');
+  const bHJ = document.createElement('button'); bHJ.type = 'button'; bHJ.className = 'tp-b-hj'; bHJ.textContent = 'MA200'; bHJ.title = 'cassures de la MA200 H4 : flèches, réglage et alertes'; bHJ.setAttribute('aria-expanded', 'false');
   const bDon = document.createElement('button'); bDon.type = 'button'; bDon.className = 'tp-b-donnees'; bDon.textContent = 'Données'; bDon.title = 'Score de marché, tendance, volume net, données pro'; bDon.setAttribute('aria-expanded', 'false');
   /* PC : à la suite des unités de temps ; tactile : sur une ligne à part sous les unités de temps (la grille de 5 colonnes du mode tactile ne les accueille pas) */
   if (tactile || (barre && barre.classList.contains('tt-periodes'))) { const ligne = document.createElement('div'); ligne.className = 'tp-ligne-boutons'; ligne.append(bHJ, bDon, bDet); E.ligneTactile = ligne; } else if (barre) { barre.appendChild(bHJ); barre.appendChild(bDon); barre.appendChild(bDet); } else document.body.append(bHJ, bDon, bDet);
@@ -70,33 +70,54 @@ export async function monterPro(T) {
   const prixRef = B => (window.__tpPrixRef && Number.isFinite(window.__tpPrixRef.prix) ? window.__tpPrixRef.prix : B[B.length - 1].c);
   function dessiner(force = false) {
     const B = T.moteur.serie() || []; if (B.length < 5) return; recadrer(B); couperAnciennesMA();   // la MA200 H1 de la stratégie de Rayle ne doit JAMAIS s'afficher à côté de celle de l'unité
-    const u = uniteAffichee(), A4 = E.A, cle = `${u}|${B.length}|${B[B.length - 1].t}|${A4 ? A4.Bh.length : 0}`;
+    const u = uniteAffichee(), su = srcUnite(u), AU = E.A && E.A[su], cle = `${u}|${B.length}|${B[B.length - 1].t}|${AU ? AU.B.length : 0}`;
     if (force || cle !== E.cle) {
       E.cle = cle;
-      /* la MA200 H4 (bougies H4 clôturées), sur H1, H4 et Jour : la valeur connue à la clôture de chaque bougie affichée */
+      /* la MA200 de l'unité d'analyse (H4 sur H1 et H4, Jour sur Jour) : la valeur connue à la clôture de chaque bougie affichée */
       const m = new Map(); let derniere = null;
-      if (A4 && A4.M && A4.Bh) { const v = ma200PourBougies(B, A4.Bh, A4.M, PAS_UNITE[u]); B.forEach((b, i) => { const t = temps(b.t); if (t != null && Number.isFinite(v[i])) m.set(t, v[i]); }); for (let k = A4.M.length - 1; k >= 0; k--) if (A4.M[k] != null) { derniere = A4.M[k]; break; } }
-      ligneMA('MA200 H4').setData([...m.entries()].sort((a, b) => a[0] - b[0]).map(([time, value]) => ({ time, value })));
-      E.ma = { unite: u, source: 'bougies H4 clôturées', derniere };
-      legendeMA(B, u); if (!m.size && A4 && A4.M && A4.M.some(x => x != null)) E.cle = null;   // le graphique n'a pas encore placé ses bougies dans le temps : on recommence au passage suivant
+      if (AU && AU.M && AU.B) { const v = ma200PourBougies(B, AU.B, AU.M, PAS_UNITE[u], PAS[su]); B.forEach((b, i) => { const t = temps(b.t); if (t != null && Number.isFinite(v[i])) m.set(t, v[i]); }); for (let k = AU.M.length - 1; k >= 0; k--) if (AU.M[k] != null) { derniere = AU.M[k]; break; } }
+      ligneMA('MA200 ' + NOM_U[su]).setData([...m.entries()].sort((a, b) => a[0] - b[0]).map(([time, value]) => ({ time, value })));
+      E.ma = { unite: su, source: 'bougies ' + NOM_U[su] + ' clôturées', derniere };
+      legendeMA(B, u); if (!m.size && AU && AU.M && AU.M.some(x => x != null)) E.cle = null;   // le graphique n'a pas encore placé ses bougies dans le temps : on recommence au passage suivant
     }
     poserFleches(B, u);
   }
-  /* Cassure de la MA200 H4 : flèche verte ▲ (achat) sous le plus bas du mouvement, rouge ▼ (vente) au-dessus du plus haut ; sans texte ; elles alternent. Info-bulle : sens, clôture de confirmation, extrême du mouvement. */
+  const srcUnite = u => (u === 'J' ? 'J' : 'H4');   // unité d'analyse : le Jour a sa MA200 Jour, H4 et H1 utilisent la MA200 H4
+  /* flèches de l'unité d'analyse (H4 sur H1 et H4, Jour sur Jour), posées sur la bougie de confirmation ; petite flèche verte ▲ sous la bougie (achat), rouge ▼ au-dessus (vente), sans texte. */
   function poserFleches(B, u) {
-    const actives = E.reglages.actif !== false, cle = [u, B.length, B[B.length - 1].t, E.fleches.length, actives, E.A ? E.A.sens.length : 0].join('|'); if (cle === E.cleFleches) return; E.cleFleches = cle;
+    const su = srcUnite(u), actives = E.reglages.actif !== false, cle = [u, B.length, B[B.length - 1].t, E.fleches.length, actives, E.reglages.fond !== false, E.A && E.A[su] ? E.A[su].sens.length : 0].join('|'); if (cle === E.cleFleches) return; E.cleFleches = cle;
     const M = [], vus = new Set(), infos = new Map(), pas = PAS_UNITE[u];
-    if (actives) for (const f of E.fleches.slice().sort((x, y) => (x.grosse ? 0 : 1) - (y.grosse ? 0 : 1))) {
+    if (actives) for (const f of E.fleches.filter(f => (f.unite || 'H4') === su)) {
       const k = indexSurUnite(B, f, pas); if (k < 0) continue; const t = temps(B[k].t); if (t == null) { E.cleFleches = null; continue; } const cl = t + '|' + f.dir; if (vus.has(cl)) continue; vus.add(cl);
       const s = styleFleche(f); M.push({ time: t, position: s.position, color: s.couleur, shape: s.forme, size: s.taille * (tactile ? 1.25 : 1) });
       infos.set(t, { f, haut: f.dir < 0, texte: texteFleche(f) });
     }
-    M.sort((a, b) => a.time - b.time); E.marques = M.length; E.M = M; E.infos = infos; E.infoEl && (E.infoEl.style.display = 'none'); infoFleche();
+    M.sort((a, b) => a.time - b.time); E.marques = M.length; E.M = M; E.infos = infos; E.infoEl && (E.infoEl.style.display = 'none'); infoFleche(); poserFond(B, u, actives);
     if (LW.createSeriesMarkers) { const s = graph.serie(); if (!E.marqueurs) E.marqueurs = LW.createSeriesMarkers(s, M); else E.marqueurs.setMarkers(M); }
+  }
+  /* fond du graphique : bandes pleine hauteur, très transparentes, selon la tendance MA200 H4 en vigueur (une bande par période de même sens, dessinée DERRIÈRE les bougies par une « primitive » du graphique : continue, sans interstice) */
+  function primitiveFond() {
+    const o = { segs: [], req: null, chart: graph.chart(), attached(p) { this.req = p.requestUpdate; }, detached() { this.req = null; }, updateAllViews() { /* rien à préparer */ },
+      paneViews() { const me = this; return [{ zOrder: () => 'bottom', renderer: () => ({ draw() { /* tout est dans drawBackground */ }, drawBackground(cible) { cible.useBitmapCoordinateSpace(sc => {
+        const ts = me.chart.timeScale(), sp = ts.options().barSpacing, hr = sc.horizontalPixelRatio, ctx = sc.context;
+        for (const g of me.segs) { const x1 = ts.timeToCoordinate(g.t1), x2 = ts.timeToCoordinate(g.t2); if (x1 == null || x2 == null) continue; const a1 = Math.round((x1 - sp / 2) * hr), a2 = Math.round((x2 + sp / 2) * hr); ctx.fillStyle = g.couleur; ctx.fillRect(a1, 0, a2 - a1, sc.bitmapSize.height); }
+      }); } }) }]; } };
+    return o;
+  }
+  function poserFond(B, u, actives) {
+    const voulu = actives && E.reglages.fond !== false && E.A && E.A[srcUnite(u)] && E.A[srcUnite(u)].sens.length > 0;
+    try {
+      const serie = graph.serie();
+      if (!E.fondPrim || E.fondSerie !== serie) { if (E.fondPrim && E.fondSerie) { try { E.fondSerie.detachPrimitive(E.fondPrim); } catch (e) { /* */ } } E.fondPrim = primitiveFond(); E.fondSerie = serie; serie.attachPrimitive(E.fondPrim); }
+      if (!voulu) { E.fondPrim.segs = []; E.fondN = 0; E.fondSens = null; E.fondPrim.req && E.fondPrim.req(); return; }
+      const sens = sensPourBougies(B, E.A[srcUnite(u)].sens, PAS_UNITE[u]), segs = []; let cur = null, n = 0;
+      B.forEach((b, i) => { const t = temps(b.t); if (t == null) return; n++; const x = sens[i] || 0; if (cur && cur.sens === x) cur.t2 = t; else { cur = { sens: x, t1: t, t2: t, couleur: COULEURS_FOND[x] }; segs.push(cur); } });
+      E.fondPrim.segs = segs; E.fondN = n; E.fondSens = sens.length ? sens[sens.length - 1] : 0; E.fondSegs = segs.length; E.fondPrim.req && E.fondPrim.req();
+    } catch (e) { console.warn('[tp] fond :', e.message); }
   }
   /* texte de l'info-bulle : type, entrée, stop et gain en R (gain réalisé si la flèche est sortie, sinon gain latent) */
   function texteFleche(f) {
-    return `${f.dir > 0 ? '▲ Achat' : '▼ Vente'} · ${typeLibelle(f)}\nConfirmée à la 2e clôture H4 : ${nf(f.entree)}\n${f.dir > 0 ? 'Plus bas' : 'Plus haut'} du mouvement : ${nf(f.stop)}`;
+    return `${f.dir > 0 ? '▲ Achat' : '▼ Vente'} · ${typeLibelle(f)}\nConfirmée à la clôture ${NOM_U[f.unite || 'H4']} : ${nf(f.entree)}\nMA200 ${NOM_U[f.unite || 'H4']} : ${nf(f.ma200)}`;
   }
     /* info-bulle : petite, posée À CÔTÉ de la flèche, dans la zone des bougies (jamais sur l'échelle des prix ni en haut à gauche). Elle n'apparaît QUE sur une action de l'utilisateur (survol à la souris, toucher sur téléphone)
      et se referme seule au bout de 6 s : les mises à jour du graphique (nouveau cours, nouvelle bougie) ne la réaffichent JAMAIS (sur téléphone, le curseur reste posé après le toucher et le graphique le signale à chaque cours : l'ancienne info-bulle restait donc affichée en permanence). */
@@ -110,7 +131,7 @@ export async function monterPro(T) {
       try {
         /* la zone utile est le graphique SANS l'échelle des prix (à droite) : l'info-bulle ne la recouvre jamais */
         const ps = (() => { try { return graph.chart().priceScale('right').width() || 0; } catch (e) { return 0; } })(), W = c.clientWidth - ps, Hh = c.clientHeight, cx = graph.chart().timeScale().timeToCoordinate(time);
-        el.style.maxWidth = Math.max(120, W - 12) + 'px'; const w = el.offsetWidth, h = el.offsetHeight, py = graph.serie().priceToCoordinate(x.f.stop), bas = Number.isFinite(py) ? py : Hh / 2;
+        el.style.maxWidth = Math.max(120, W - 12) + 'px'; const w = el.offsetWidth, h = el.offsetHeight, py = graph.serie().priceToCoordinate(x.f.entree), bas = Number.isFinite(py) ? py : Hh / 2;
         const gauche = cx - w - 14, droite = cx + 14; let left = cx > W / 2 ? gauche : droite;   // à droite de la flèche si elle est dans la moitié gauche, sinon à gauche
         if (left < 6 || left + w > W - 6) left = gauche >= 6 ? gauche : (droite + w <= W - 6 ? droite : Math.max(6, Math.min(W - w - 6, left)));
         el.style.left = Math.max(6, left) + 'px'; el.style.top = Math.max(tactile ? 96 : 40, Math.min(Hh - h - 30, x.haut ? bas - h - 10 : bas - h / 2)) + 'px';
@@ -130,9 +151,9 @@ export async function monterPro(T) {
   const versionHtml = () => { const m = window.__majVersion; return `<span class="tp-version" title="Version du code affichée sur ce graphique">${m ? 'mise à jour → v' + esc(m.cible) + '…' : 'v' + esc(VERSION)}</span>`; };
   function legendeMA(B, u) {
     const c = graph.conteneur(); if (!c) return; let el = c.querySelector('.tp-ma-legende'); if (!el) { el = document.createElement('div'); el.className = 'tp-ma-legende'; c.appendChild(el); }
-    const v = E.ma && Number.isFinite(E.ma.derniere) ? E.ma.derniere : null, px = prixRef(B), dist = v ? (px / v - 1) * 100 : null;
-    el.innerHTML = (v ? `<span style="color:${COULEURS_UI.ma}">MA200 H4 ${nf(v, 0)} · prix ${nf(Math.abs(dist), 1)} % ${dist >= 0 ? 'au-dessus' : 'sous'}</span>` : `<span style="color:${COULEURS_UI.ma}">MA200 H4 : indisponible (moins de 200 bougies H4)</span>`) + versionHtml();
-    el.title = 'Moyenne mobile simple sur 200 clôtures H4, la même sur H1, H4 et Jour ; distance calculée avec le prix de référence de l’appli';
+    const su = srcUnite(u), nom = 'MA200 ' + NOM_U[su], v = E.ma && Number.isFinite(E.ma.derniere) ? E.ma.derniere : null, px = prixRef(B), dist = v ? (px / v - 1) * 100 : null, S = E.A && E.A[su] && E.A[su].sens, ten = S && S.length ? S[S.length - 1].sens : null;
+    el.innerHTML = (v ? `<span style="color:${COULEURS_UI.ma}">${nom} ${nf(v, 0)} · prix ${nf(Math.abs(dist), 1)} % ${dist >= 0 ? 'au-dessus' : 'sous'} · tendance ${ten === 1 ? 'haussière' : ten === -1 ? 'baissière' : 'neutre'}</span>` : `<span style="color:${COULEURS_UI.ma}">${nom} : indisponible (moins de 200 bougies)</span>`) + versionHtml();
+    el.title = 'Moyenne mobile simple sur 200 clôtures ' + NOM_U[su] + (u === 'H1' ? ' (sur H1 : la MA200 H4)' : '') + ' ; distance calculée avec le prix de référence de l’appli';
   }
 
   /* l'or a UN seul prix dans l'appli : le XAU/USD au comptant (celui de l'accueil et de XTB), ou son dernier cours de clôture avec la mention « marché fermé ».
@@ -149,27 +170,28 @@ export async function monterPro(T) {
 
   /* ───── données, alertes ───── */
   async function charger() {
-    if (!id) { E.raison = 'Les flèches MA200 H4 sont disponibles pour l’or, le Nasdaq 100, le S&P 500, le Bitcoin et Solana.'; rendrePanneau(); return; }
+    if (!id) { E.raison = 'Les flèches MA200 sont disponibles pour l’or, le Nasdaq 100, le S&P 500, le Bitcoin et Solana.'; rendrePanneau(); return; }
     const n = ++E.seq;
     try { const r = await lireActifPro(id, { delai: 8000 }); if (n !== E.seq) return; E.D = r.donnees; E.meta = r; E.raison = null; E.A = analyseDe(id, E.D); E.fleches = E.A.reg; }
-    catch (e) { E.raison = 'Données H4 indisponibles : ' + (e && e.message || e) + ' (le robot publie ces séries toutes les 30 minutes). Les flèches déjà confirmées restent affichées.'; E.A = null; try { E.fleches = lireRegistre(id); } catch (e2) { /* aucune */ } }
+    catch (e) { E.raison = 'Données H4 / Jour indisponibles : ' + (e && e.message || e) + ' (le robot publie ces séries toutes les 30 minutes). Les flèches déjà confirmées restent affichées.'; E.A = null; try { E.fleches = lireRegistre(id); } catch (e2) { /* aucune */ } }
     E.cleFleches = null; dessiner(true); rendrePanneau(); alerter();
   }
-  /* alertes : SEULEMENT les nouvelles flèches H4 confirmées : UNE annonce vocale de Rayle (« Or : achat, rebond haussier sur la MA200 H4, entrée vers 2 650, stop 2 620 ») + une notification + un message Telegram (pont du Worker existant).
+  /* alertes : SEULEMENT les nouvelles flèches confirmées (H4 et Jour) : UNE annonce vocale de Rayle (« Or : cassure MA200 H4 à la hausse », « Or : rebond MA200 Jour à l'achat ») + une notification + un message Telegram (pont du Worker existant).
      Une flèche n'est annoncée qu'une fois (registre de l'appareil : vueLe), et jamais si elle date de plus de 36 h. Interrupteur « Flèches » coupé : aucune annonce. */
   function alerter() {
     if (E.reglages.actif === false || !E.fleches.length) return; const att = lire(LS.alerte, {}), nouvelles = nouvellesFleches(id, E.fleches);
-    for (const f of nouvelles.slice(0, 2)) { const texte = phraseFleche(NOMS[id], f); parler(texte); try { if (T.notifier) T.notifier(texte, { niveau: 'info', dit: false, raison: 'cassure MA200 H4' }); } catch (e) { /* */ } try { if (att.telegram !== false && T.envoyerTelegram) T.envoyerTelegram(`${texte} · lecture seule, aucun ordre`); } catch (e) { /* */ } }
+    for (const f of nouvelles.slice(0, 2)) { const texte = phraseFleche(NOMS[id], f); parler(texte); try { if (T.notifier) T.notifier(texte, { niveau: 'info', dit: false, raison: 'flèche MA200' }); } catch (e) { /* */ } try { if (att.telegram !== false && T.envoyerTelegram) T.envoyerTelegram(`${texte} · lecture seule, aucun ordre`); } catch (e) { /* */ } }
   }
 
   /* ───── panneau « MA200 H4 » ───── */
   /* réglages : interrupteur « Flèches » (même bloc dans le panneau et dans « Affichage » du terminal) */
   function reglagesHtml() {
     const R = E.reglages;
-    return `<div class="tp-reg" data-tp-reg><label class="tp-case"><input type="checkbox" data-reg="actif"${R.actif !== false ? ' checked' : ''}> Flèches de cassure de la MA200 H4</label></div>`;
+    return `<div class="tp-reg" data-tp-reg><label class="tp-case"><input type="checkbox" data-reg="actif"${R.actif !== false ? ' checked' : ''}> Flèches MA200 (cassures et rebonds)</label>
+      <label class="tp-case"><input type="checkbox" data-reg="fond"${R.fond !== false ? ' checked' : ''}> Fond vert / rouge selon la tendance</label></div>`;
   }
     function appliquerReglage(el) {
-    const R = E.reglages; if (el.dataset.reg === 'actif') R.actif = el.checked;
+    const R = E.reglages; if (el.dataset.reg === 'actif') R.actif = el.checked; else if (el.dataset.reg === 'fond') R.fond = el.checked;
     ecrireReglages(R); majFleches();
   }
   /* recalcule les flèches, redessine et synchronise les deux blocs de réglages */
@@ -178,20 +200,20 @@ export async function monterPro(T) {
     E.cleFleches = null; dessiner(true); rendrePanneau(); synchroReglages(); alerter();
   }
   const zonesReglages = () => [...document.querySelectorAll('[data-tp-reg]')];
-  function synchroReglages() { for (const z of zonesReglages()) for (const k of ['actif']) { const c = z.querySelector('[data-reg="' + k + '"]'); if (c) c.checked = E.reglages[k] !== false; } }
+  function synchroReglages() { for (const z of zonesReglages()) for (const k of ['actif', 'fond']) { const c = z.querySelector('[data-reg="' + k + '"]'); if (c) c.checked = E.reglages[k] !== false; } }
   document.addEventListener('change', ev => { const el = ev.target.closest && ev.target.closest('[data-reg]'); if (el && el.closest('[data-tp-reg]')) appliquerReglage(el); });
   /* « Affichage » du terminal : le même bloc de réglages (s'il existe) */
   (function dansAffichage() { const pan = document.querySelector('.tor-ob-pan'); if (!pan || pan.querySelector('[data-tp-reg]')) return; const d = document.createElement('div'); d.innerHTML = reglagesHtml(); pan.insertBefore(d.firstElementChild, pan.querySelector('hr') || pan.firstChild); })();
   function rendrePanneau() {
     const p = E.panneau; if (!p) return; const att = lire(LS.alerte, {}), L = E.fleches.slice().reverse().slice(0, 10);
-    const sens = E.A && E.A.sens.length ? E.A.sens[E.A.sens.length - 1].sens : null, sensTxt = sens === 1 ? '<b class="tp-h">au-dessus de la MA200 H4</b>' : sens === -1 ? '<b class="tp-b">sous la MA200 H4</b>' : '<b>sur la MA200 H4</b>';
-    p.innerHTML = `<header><b>MA200 H4 · ${esc(NOMS[id] || actif)}</b><button type="button" data-fermer aria-label="Fermer">✕</button></header>
+    const ligne = u => { const S = E.A && E.A[u] && E.A[u].sens, t = S && S.length ? S[S.length - 1].sens : null; return `<p>MA200 ${NOM_U[u]} : tendance ${t === 1 ? '<b class="tp-h">haussière</b>' : t === -1 ? '<b class="tp-b">baissière</b>' : '<b>indéterminée</b>'}</p>`; };
+    p.innerHTML = `<header><b>MA200 · ${esc(NOMS[id] || actif)}</b><button type="button" data-fermer aria-label="Fermer">✕</button></header>
       ${E.raison ? `<p class="tp-doux">${esc(E.raison)}</p>` : ''}
-      ${sens === null ? '' : `<p>Dernière clôture H4 : ${sensTxt}</p>`}
-      <p class="tp-doux">Un seul indicateur : la <b>MA200 H4</b> (moyenne simple de 200 clôtures H4, tracée sur H1, H4 et Jour). <b>Cassure validée</b> = 2 clôtures H4 d’affilée du même côté. <b class="tp-h">Flèche verte ▲</b> = achat, posée sous le plus bas atteint avant la cassure ; <b class="tp-b">flèche rouge ▼</b> = vente, posée au-dessus du plus haut atteint avant la cassure. Les flèches alternent toujours (achat, vente, achat…). Touchez une flèche pour le détail.</p>
+      ${ligne('H4')}${ligne('J')}
+      <p class="tp-doux">Chaque unité a sa MA200 (H4 sur H4 et H1, Jour sur Jour). <b>Cassure</b> : une bougie clôture de l’autre côté de la MA200 avec au moins 0,3 ATR de marge, la tendance change. <b>Rebond</b> : dans le sens de la tendance, le prix revient toucher la MA200 et la bougie clôture du bon côté ; une seule flèche par retour (le prix doit s’éloigner d’au moins 1 ATR avant la suivante). Jamais de flèche contre la tendance. <b class="tp-h">Verte ▲</b> = achat, <b class="tp-b">rouge ▼</b> = vente, posées sur la bougie de confirmation. Le fond est vert en tendance haussière, rouge en baissière.</p>
       <h4>Réglages</h4>${reglagesHtml()}
-      <h4>Dernières flèches</h4>${L.length ? `<ul class="tp-sigs">${L.map(f => `<li class="${f.dir > 0 ? 'tp-h' : 'tp-b'}"><b>${f.dir > 0 ? '▲ achat' : '▼ vente'}</b> <span>${esc(dateJour(f.t))} · clôture ${nf(f.entree, f.entree >= 100 ? 0 : 2)}</span><small>${esc(typeLibelle(f))}</small></li>`).join('')}</ul>` : '<p class="tp-doux">Aucune flèche pour le moment.</p>'}
-      <h4>Alertes</h4><label class="tp-case"><input type="checkbox" data-al="telegram"${att.telegram !== false ? ' checked' : ''}> Telegram (pont du Worker de Rayle)</label><p class="tp-doux">À chaque nouvelle flèche confirmée : une seule annonce de Rayle (« ${esc(phraseFleche(NOMS[id] || actif, { dir: 1 }))} »), une notification et un message Telegram. Une flèche n’est annoncée qu’une fois. Aucun autre signal.</p>`;
+      <h4>Dernières flèches</h4>${L.length ? `<ul class="tp-sigs">${L.map(f => `<li class="${f.dir > 0 ? 'tp-h' : 'tp-b'}"><b>${f.dir > 0 ? '▲ achat' : '▼ vente'} · ${NOM_U[f.unite || 'H4']}</b> <span>${esc(dateJour(f.t))} · clôture ${nf(f.entree, f.entree >= 100 ? 0 : 2)}</span><small>${esc(typeLibelle(f))}</small></li>`).join('')}</ul>` : '<p class="tp-doux">Aucune flèche pour le moment.</p>'}
+      <h4>Alertes</h4><label class="tp-case"><input type="checkbox" data-al="telegram"${att.telegram !== false ? ' checked' : ''}> Telegram (pont du Worker de Rayle)</label><p class="tp-doux">À chaque nouvelle flèche confirmée : une seule annonce de Rayle (« ${esc(phraseFleche(NOMS[id] || actif, { type: 'rebond', unite: 'J', dir: 1 }))} »), une notification et un message Telegram. Une flèche n’est annoncée qu’une fois. Aucun autre signal.</p>`;
   }
   function ouvrirPanneau(o) {
     if (!E.panneau) { E.panneau = document.createElement('aside'); E.panneau.className = 'tp-panneau'; E.panneau.setAttribute('aria-label', 'MA200 H4'); document.body.appendChild(E.panneau); E.panneau.addEventListener('click', ev => { if (ev.target.closest('[data-fermer]')) ouvrirPanneau(false); });
@@ -214,5 +236,5 @@ export async function monterPro(T) {
   await charger(); majSpot(); const spot = setInterval(majSpot, 30000);
   const suivi = setInterval(() => dessiner(), 1500), maj = setInterval(() => { if (!document.hidden) charger(); }, 120000);
   window.addEventListener('pagehide', () => { clearInterval(suivi); clearInterval(maj); clearInterval(spot); });
-  return { charger, majSpot, dessiner: () => dessiner(true), fleches: () => E.fleches.slice(), sens: () => (E.A ? E.A.sens.map(x => ({ ...x })) : []), infos: () => [...(E.infos || new Map()).entries()].map(([t, x]) => ({ time: t, texte: x.texte })), marqueurs: () => (E.M || []).map(m => ({ ...m })), maPoints: () => (E.series.ma ? E.series.ma.data() : []), maInfo: () => (E.ma ? { ...E.ma } : null), reglages: () => JSON.parse(JSON.stringify(E.reglages)), etat: () => ({ id, details: E.details, fleches: E.fleches.length, marques: E.marques || 0, ma: Object.keys(E.series) }), ouvrirPanneau, ouvrirDonnees, dashboard: () => E.dash, appliquerDetails };
+  return { charger, majSpot, dessiner: () => dessiner(true), fleches: () => E.fleches.slice(), sens: () => (E.A && E.A[srcUnite(uniteAffichee())] ? E.A[srcUnite(uniteAffichee())].sens.map(x => ({ ...x })) : []), fond: () => ({ n: E.fondN || 0, segments: E.fondN ? (E.fondSegs || 0) : 0, sens: E.fondSens ?? null }), infos: () => [...(E.infos || new Map()).entries()].map(([t, x]) => ({ time: t, texte: x.texte })), marqueurs: () => (E.M || []).map(m => ({ ...m })), maPoints: () => (E.series.ma ? E.series.ma.data() : []), maInfo: () => (E.ma ? { ...E.ma } : null), reglages: () => JSON.parse(JSON.stringify(E.reglages)), etat: () => ({ id, details: E.details, fleches: E.fleches.length, marques: E.marques || 0, ma: Object.keys(E.series) }), ouvrirPanneau, ouvrirDonnees, dashboard: () => E.dash, appliquerDetails };
 }

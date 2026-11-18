@@ -28,7 +28,7 @@ export function depotD1(db) {
       const instr = decouper(lignes, LOT).map(L => { n += L.length; return db.prepare(`INSERT INTO ${table} (id, rev, data) VALUES ${L.map(() => '(?, ?, ?)').join(', ')} ON CONFLICT(id) DO UPDATE SET rev = excluded.rev, data = excluded.data`).bind(...L.flatMap(x => [x.id, rev, JSON.stringify(x)])); });
       for (const P of decouper(instr, PAQUET)) await db.batch(P); return n;
     },
-    async toutEffacer() { await init(); await db.batch([db.prepare('DELETE FROM fermees'), db.prepare('DELETE FROM tresorerie'), db.prepare('DELETE FROM kv')]); },
+    async toutEffacer() { await init(); await db.batch([db.prepare('DELETE FROM fermees'), db.prepare('DELETE FROM tresorerie'), db.prepare("DELETE FROM kv WHERE cle NOT LIKE 'lt:%'")]); },
     async supprimerLignes(table, ids) { await init(); for (const P of decouper(ids, 90)) await db.prepare(`DELETE FROM ${table} WHERE id IN (${P.map(() => '?').join(',')})`).bind(...P).run(); }
   };
 }

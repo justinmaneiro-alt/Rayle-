@@ -14,6 +14,7 @@
     {id:'marches',nom:'Marchés',alias:['marches','marche','les marches','bourse','cours','economie','annonces'],sous:'Marchés · annonces et actifs'},
     {id:'couverture',nom:'Couverture',alias:['couverture','couvrir','correlation','correlations','hedge','hedging','couvre ma position'],sous:'Corrélations et couverture'},
     {id:'portefeuille',nom:'Portefeuille',alias:['portefeuille','mon portefeuille','xtb','mes trades','mes positions','mes resultats','journal de trading'],sous:'Portefeuille XTB · suivi et coach'},
+    {id:'invest',nom:'Investissement',alias:['investissement','investissement long terme','long terme','valorisation','sp500','cac 40'],sous:'Investissement long terme · actions'},
     {id:'anatomie',nom:'Anatomie',alias:['anatomie','squelette','le corps','corps humain','muscles'],sous:'Anatomie 3D'},
     {id:'terre',nom:'Terre',alias:['terre','actualite','actualites','la terre','globe','planete','monde','news'],sous:'Terre · actualité'},
     {id:'dev3d',nom:'Développement 3D',alias:['developpement','developpement 3d','atelier','maquette','maquettes','neptune','3d','bim'],sous:'Développement 3D'}
@@ -195,9 +196,9 @@
     const m=await import(new URL('trader-pro/marches/fenetre.js',document.baseURI).href); await m.ouvrir({onFermer:()=>{ marchesOuvert=false; }}); marchesOuvert=true;
   }
   async function fermerMarches(){ try{ const m=await import(new URL('trader-pro/marches/fenetre.js',document.baseURI).href); m.fermer(); }catch(e){} marchesOuvert=false; }
-  /* fenêtres « pro » (Couverture, Portefeuille) : même principe que Marchés, un module trader-pro/<nom>/fenetre.js */
+  /* fenêtres « pro » (Couverture, Portefeuille, Investissement) : même principe que Marchés, un module trader-pro/<nom>/fenetre.js */
   let proOuvert=null;
-  const CHEMIN_PRO={couverture:'trader-pro/couverture/fenetre.js',portefeuille:'trader-pro/portefeuille/fenetre.js'};
+  const CHEMIN_PRO={couverture:'trader-pro/couverture/fenetre.js',portefeuille:'trader-pro/portefeuille/fenetre.js',invest:'trader-pro/invest/fenetre.js'};
   async function ouvrirPro(id){
     if(!document.querySelector('link[data-marches-fenetre]')){ const l=document.createElement('link'); l.rel='stylesheet'; l.dataset.marchesFenetre=''; l.href=new URL('trader-pro/commun/pro.css',document.baseURI).href; document.head.appendChild(l); }
     const m=await import(new URL(CHEMIN_PRO[id],document.baseURI).href); await m.ouvrir({onFermer:()=>{ proOuvert=null; }}); proOuvert=id;

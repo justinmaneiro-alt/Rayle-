@@ -1,6 +1,7 @@
 /* Test pur : score de marché (−100 … +100), composantes, historique sans regard vers l'avenir, phrase de Rayle. Usage : node trader-pro/tests/score-test.mjs */
 import assert from 'node:assert/strict';
-import { COMPOSANTS, scoreMarche, compTendance, compMomentum, compCot, compMacro, compVolatilite, compFlux, historiqueScore, libelleScore, phraseScore } from '../commun/score.js';
+import { COMPOSANTS, scoreMarche, compTendance, compMomentum, compCot, compMacro, compVolatilite, compFlux, historiqueScore, libelleScore, phraseScore, score100, verdictScore } from '../commun/score.js';
+const VERDICTS_100 = [0, 20, 40, 50, 60, 80, 100].map(verdictScore);
 let n = 0; const ok = (c, m) => { assert.ok(c, m); n++; }, egal = (a, b, m) => { assert.deepEqual(a, b, m); n++; };
 function graine(s) { return () => { s = (s * 1664525 + 1013904223) % 4294967296; return s / 4294967296; }; }
 const J = 86400e3, H = 3600e3;
@@ -10,7 +11,7 @@ const baissier = { H1: serie(700, H, { pente: -0.05, seed: 1, base: 500 }), H4: 
 /* poids */
 egal(COMPOSANTS.reduce((s, c) => s + c.poids, 0), 100, 'les poids font 100'); egal(COMPOSANTS.map(c => c.id), ['tendance', 'momentum', 'cot', 'macro', 'volatilite', 'flux'], 'six composantes dans l’ordre demandé');
 /* tendance, momentum */
-const tH = compTendance(haussier), tB = compTendance(baissier); ok(tH.valeur > 0.5, 'tendance haussière ' + tH.valeur); ok(tB.valeur < -0.5, 'tendance baissière ' + tB.valeur); ok(tH.detail.length === 3 && /Jour|H4|H1/.test(tH.detail.join()), 'détail par unité');
+const tH = compTendance(haussier), tB = compTendance(baissier); ok(tH.valeur > 0.5, 'tendance haussière ' + tH.valeur); ok(tB.valeur < -0.5, 'tendance baissière ' + tB.valeur); ok(tH.detail.length === 2 && /Jour|H4|H1/.test(tH.detail.join()), 'détail par unité');
 ok(compMomentum(haussier).valeur > 0.2 && compMomentum(baissier).valeur < -0.2, 'momentum dans le sens de la tendance'); ok(!compMomentum({ J: serie(30, J) }).dispo, 'pas assez de bougies : indisponible, jamais 0');
 /* COT */
 const cot = (idx, ext, varSpec = 0) => ({ dernier: { indexSpec: idx, extremeSpec: ext, varSpec, oi: 500000, date: '2026-11-10' } });
@@ -42,6 +43,7 @@ const k = long.B.J.length - 60, tr = historiqueScore({ ...long, B: { J: long.B.J
 egal(tr.find(p => p.t === t).score, full.find(p => p.t === t).score, 'CAUSAL : le score d’une date ne change pas si on retire les jours suivants');
 ok(full.some(p => p.score > 0) && full.some(p => p.score < 0) || full.length > 0, 'le score varie dans le temps');
 /* phrase */
-const ph = phraseScore('l’or', S); ok(/Le score de marché de l’or est de \+\d+ sur 100/.test(ph) && /haussier/.test(ph) && /Ce qui le soutient/.test(ph) && /pas une prévision ni un conseil/.test(ph) && !/NaN|undefined/.test(ph), 'phrase : ' + ph.slice(0, 160));
+const ph = phraseScore('l’or', S); ok(/Le score de marché de l’or est de \d+ sur 100 : (Acheteur|Neutre)/.test(ph) && /Ce qui le soutient/.test(ph) && /pas une prévision ni un conseil/.test(ph) && !/NaN|undefined/.test(ph), 'phrase : ' + ph.slice(0, 160));
 ok(/indisponibles?/.test(phraseScore('l’or', S2)) && /Confiance \d+ pour cent/.test(phraseScore('l’or', S2)), 'phrase avec composantes manquantes'); ok(/il manque trop de données/.test(phraseScore('l’or', { score: null })), 'phrase sans score');
 console.log(`score-test : ${n} vérifications, tout passe`);
+assert.deepEqual(VERDICTS_100, ['Vendeur fort', 'Vendeur fort', 'Vendeur', 'Neutre', 'Acheteur', 'Acheteur fort', 'Acheteur fort']); assert.deepEqual([-100, 0, 100, null].map(score100), [0, 50, 100, null]); assert.equal(verdictScore(null), 'Indéterminé'); console.log('verdicts 0-100 ok');

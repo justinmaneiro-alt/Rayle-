@@ -50,3 +50,18 @@ Ouvre la fenêtre **Portefeuille** → ⚙ Réglages → colle l'adresse du Work
 ## Ce que le Worker garde (et ne garde pas)
 Garde : positions fermées et ouvertes, opérations de trésorerie (type, date, montant), réglages (capital, risque, valeur du point), alertes, dernier rapport du coach.
 Ne garde **jamais** : numéro de compte, commentaires bancaires, clés d'API. Les champs inconnus envoyés au Worker sont ignorés.
+
+## 7. Investissement long terme (cron quotidien, gratuit)
+Le même Worker recalcule chaque jour le panier de la fenêtre **Investissement** (S&P 500 : fondamentaux SEC EDGAR + prix Yahoo, sans aucune clé) par petits lots : à chaque passage du cron (toutes les 5 minutes), `LT_LOT` entreprises (3 par défaut, dans `wrangler.toml`) sont recalculées, les moins récemment calculées d'abord ; tout le S&P 500 est revu en moins d'une journée. Aucune étape de plus : le cron existant s'en charge après `wrangler deploy`.
+
+**À faire une fois : le User-Agent de la SEC.** La SEC refuse les requêtes anonymes (erreur 403) et exige un nom + une adresse de contact. Mets les tiens dans un secret (jamais dans le dépôt) :
+```
+npx.cmd wrangler secret put SEC_USER_AGENT --config trader-pro/worker/wrangler.toml
+```
+(valeur du type `Rayle-Invest ton-nom ton-adresse@exemple.fr`). Sans ce secret, le calcul par le Worker échoue (la fenêtre affiche alors le dernier calcul embarqué dans l'appli).
+
+- Routes : `GET /lt/index`, `GET /lt/fiche/<SYMBOLE>`, `GET /lt/evenements` (publiques : ce sont des données de marché) ; `GET` et `PUT /lt/liste` (ta liste de suivi, protégée par le même code d'accès que le portefeuille).
+- Alertes : Telegram (mêmes secrets `TELEGRAM_BOT_TOKEN` / `TELEGRAM_CHAT_ID`) quand une entreprise déjà connue passe PAS CHÈRE avec une qualité ≥ 7/10, ou quand une action de ta liste change de verdict ; Rayle les annonce aussi à voix haute à l'ouverture de la fenêtre.
+- Si Cloudflare signale un dépassement de temps de calcul (plan gratuit), baisse `LT_LOT` à 1 ou 2 : le S&P 500 reste revu en une journée.
+- Calcul complet depuis ton PC (mise à jour du calcul embarqué) : `SEC_USER_AGENT="Rayle-Invest ton-nom ton-adresse@exemple.fr" node outils-donnees/lt-calcul.mjs`.
+- « Tout effacer » du portefeuille n'efface jamais les données long terme (clés `lt:…`).

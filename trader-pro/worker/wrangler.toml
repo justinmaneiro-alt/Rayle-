@@ -8,6 +8,7 @@ preview_urls = false
 
 [vars]
 WORKER_RAYLE = "https://rayle.justinmaneiro.workers.dev"
+LT_LOT = "3"   # entreprises recalculées à chaque passage du cron (investissement long terme) ; baisser à 1 ou 2 si Cloudflare signale un dépassement de temps de calcul
 ORIGINES = "https://justinmaneiro-alt.github.io,http://127.0.0.1:8000,http://localhost:8000"
 
 # Base D1 : créée par « npx.cmd wrangler d1 create rayle-portefeuille » ; coller ici l'identifiant affiché (database_id), puis redéployer.
