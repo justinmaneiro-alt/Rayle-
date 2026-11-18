@@ -41,3 +41,8 @@ html .tp-panneau .tp-doux, html .tp-donnees .tp-doux { display: block; margin-le
 
 .tp-fleche-info { position: absolute; left: 6px; top: 96px; z-index: 6; white-space: pre; padding: 4px 8px; border-radius: 6px; background: rgba(5,8,12,.92); border: 1px solid rgba(255,255,255,.14); color: #e8edf2; font: 600 11px/1.4 system-ui, sans-serif; pointer-events: none; max-width: 78%; box-sizing: border-box; overflow: hidden; }
 .tp-ma-legende .tp-version { color: rgba(200,210,222,.78); font: 600 10px system-ui, sans-serif; letter-spacing: .02em; margin-left: auto; }
+
+/* statistiques des flèches : sur le graphique seulement avec « Détails » (le graphique propre reste propre), toujours dans le panneau « MA200 H4 » */
+.tp-stats { display: none; position: absolute; left: 8px; bottom: 34px; z-index: 5; padding: 6px 10px; border-radius: 8px; background: rgba(5,8,12,.86); font: 11px system-ui, sans-serif; color: rgba(220,228,236,.92); max-width: calc(100% - 100px); pointer-events: none; }
+html.tp-details .tp-stats { display: block; }
+.tp-stat { border-collapse: collapse; margin: 4px 0; font: 11px system-ui, sans-serif; } .tp-stat th { text-align: left; font-weight: 600; opacity: .7; padding: 1px 10px 1px 0; } .tp-stat td { padding: 1px 10px 1px 0; }

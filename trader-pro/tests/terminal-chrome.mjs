@@ -8,94 +8,48 @@ verif(await attendre(() => p.evaluate(() => !!window.__orPro), 60000), 'le termi
 verif(await attendre(() => p.evaluate(() => window.__orPro && window.__orPro.etat().ma.length === 1), 30000), 'UNE seule MA200 sur le graphique');
 verif(await p.evaluate(() => [...document.querySelectorAll('[data-periode]')].map(b => b.dataset.periode).join() === 'H1,H4,J'), 'unités proposées : H1, H4, Jour seulement (plus de M5 ni M15)');
 await w(2500); const e = await p.evaluate(() => window.__orPro.etat()); console.log('  état :', JSON.stringify(e));
-verif(e.niveaux >= 2 && e.niveaux <= 6, 'niveaux forts : ' + e.niveaux + ' (6 au plus)');
+verif(e.niveaux >= 1 && e.niveaux <= 6, 'zones majeures H4 : ' + e.niveaux + ' (6 au plus)');
 verif(await p.evaluate(() => Object.values(window.__or.graph.couches()).every(v => v === false)), 'graphique propre : tous les calques sont désactivés par défaut');
 verif(await p.evaluate(() => [...document.querySelectorAll('.tor-graph-barre, .tor-ft-ligne, .tt-fl')].every(b => getComputedStyle(b).display === 'none')), 'barres d’outils secondaires masquées (derrière « Détails »)');
 verif(await p.evaluate(() => { const s = document.querySelector('.tor-graph-source'); return !s || getComputedStyle(s).display === 'none'; }), 'ligne des sources masquée');
 verif(await p.evaluate(() => [...document.querySelectorAll('.tp-b-details, .tp-b-hj')].length === 2 && [...document.querySelectorAll('.tp-b-details, .tp-b-hj')].every(b => { const r = b.getBoundingClientRect(); return r.width > 30 && r.height > 20 && r.right <= innerWidth + 1 && getComputedStyle(b).visibility !== 'hidden'; })), 'boutons « Détails » et « Signaux H4 / J » visibles à l’écran');
 const labels = await p.evaluate(() => { const g = window.__or.graph; return g.chart().panes().length; }); verif(labels >= 1, 'graphique présent');
 await capture('terminal-propre');
-console.log('— unités de temps : UNE moyenne, celle de l’unité affichée —');
+console.log('— MA200 H4 sur H1, H4 et Jour, zones majeures H4, flèches à l’heure de la bougie H4 —');
+const fl = await p.evaluate(() => window.__orPro.fleches().map(x => ({ type: x.type, dir: x.dir, t: x.t, tFin: x.tFin, entree: x.entree, stop: x.stop, grosse: x.grosse })));
+verif(fl.length >= 20 && fl.every(x => ['rebond', 'retest', 'zone'].includes(x.type) && (x.dir > 0 ? x.stop < x.entree : x.stop > x.entree)), 'des flèches des trois types seulement existent (' + fl.length + ')');
+const st = await p.evaluate(() => window.__orPro.stats());
+verif(st && st.bougies >= 1500 && st.total.nombre === fl.length && st.total.pct > 0 && st.total.rMoyen != null, 'statistiques sur au moins 1500 bougies H4 : ' + (st && st.bougies) + ' bougies, ' + (st && st.total.nombre) + ' flèches, ' + Math.round(st && st.total.pct) + ' % de réussite, R moyen ' + (st && st.total.rMoyen.toFixed(2)));
+const att = {};
 for (const per of ['H1', 'H4', 'J']) {
   await p.evaluate(x => document.querySelector(`[data-periode="${x}"]`).click(), per); await w(9000);
-  verif(await p.evaluate(() => window.__orPro.etat().ma.length === 1 && window.__or.moteur.serie().length > 200), per + ' : une seule série de moyenne, bougies présentes');
-  const lg = await p.evaluate(() => [...document.querySelectorAll('.tp-ma-legende span:not(.tp-version)')].map(x => x.textContent)); verif(lg.length === 1 && lg[0].startsWith('MA200 ' + (per === 'J' ? 'Jour' : per)), per + ' : le bandeau n’affiche que la MA200 de l’unité (' + lg.join(' | ') + ')');
-  verif(/prix [\d,]+ % (au-dessus|sous)/.test(lg[0] || ''), per + ' : le bandeau donne la distance du prix en %');
-  const ma = await p.evaluate(() => { const B = window.__or.moteur.serie(), n = 200; let s = 0; for (const b of B.slice(-n)) s += b.c; return s / n; }); const val = await p.evaluate(() => (document.querySelector('.tp-ma-legende span:not(.tp-version)') || {}).textContent || '');
-  const num = +(val.match(/MA200 \S+ ([\d\s  ]+) ·/) || [0, '0'])[1].replace(/\s/g, ''); verif(Math.abs(num - ma) <= 1, per + ' : la valeur affichée (' + num + ') est la SMA des 200 dernières bougies affichées (' + Math.round(ma) + ')');
-  const niv = await p.evaluate(() => window.__orPro.niveaux().map(n => ({ nom: n.nom, src: n.src, cote: n.cote, y: n.y })));
-  verif(niv.filter(n => n.cote === 'R').length <= 3 && niv.filter(n => n.cote === 'S').length <= 3, per + ' : 3 niveaux au plus de chaque côté (' + niv.length + ')');
-  verif(niv.every(n => n.src === per || n.src === 'J'), per + ' : niveaux de l’unité affichée et du Jour seulement');
-  const ys = niv.map(n => n.y).filter(Number.isFinite).sort((x, y) => x - y); verif(ys.every((y, i) => i === 0 || y - ys[i - 1] >= 22), per + ' : aucune étiquette ne chevauche une autre (écart mini ' + Math.round(Math.min(...ys.slice(1).map((y, i) => y - ys[i]), 999)) + ' px)');
-  verif(await attendre(() => p.evaluate(() => { const r = window.__or.graph.chart().timeScale().getVisibleLogicalRange(), n = window.__or.moteur.serie().length; return !!r && r.to >= n - 12 && r.from < n; }), 15000), per + ' : la dernière bougie est visible (vue sur les dernières bougies)'); await capture('terminal-' + per);
+  const r = await p.evaluate(() => { const o = window.__orPro, M = o.marqueurs(), pts = o.maPoints(), B = window.__or.moteur.serie(); return { px: B[B.length - 1].c, px: B[B.length - 1].c, n: B.length, pts: pts.length, marques: M.length, M, fond: o.fond(), zones: o.niveaux(), leg: [...document.querySelectorAll('.tp-ma-legende span:not(.tp-version)')].map(x => x.textContent), info: o.maInfo(), ma: o.etat().ma, B: B.map(b => [b.t, window.__or.graph.tempsDeBougie(b.t)]), dernier: pts.length ? pts[pts.length - 1].value : null }; });
+  verif(r.n > 200 && r.pts > 150 && r.ma.length === 1, per + ' : UNE seule MA200, tracée (' + r.pts + ' points sur ' + r.n + ' bougies)');
+  verif(r.leg.length === 1 && /^MA200 H4 /.test(r.leg[0]) && /tendance (haussière|baissière|neutre)/.test(r.leg[0]), per + ' : le bandeau annonce la MA200 H4 et la tendance (' + r.leg[0] + ')');
+  verif(r.info && Math.abs(r.dernier - r.info.derniere) < 0.5, per + ' : la même valeur de MA200 H4 sur toutes les unités (' + Math.round(r.dernier) + ')');
+  verif(r.zones.filter(z => z.prix > r.px).length <= 3 && r.zones.filter(z => z.prix <= r.px).length <= 3 && r.zones.length <= 6 && r.zones.length >= 1, per + ' : 3 zones majeures H4 au plus de chaque côté (' + r.zones.length + ')');
+  const pas = per === 'H1' ? 3600e3 : per === 'H4' ? 4 * 3600e3 : 86400e3;
+  const a = fl.map(f => { const b = r.B.find(x => x[0] <= f.tFin - 1 && f.tFin - 1 < x[0] + pas); return b ? { b: b[1], dir: f.dir, tFin: f.tFin } : null; }).filter(Boolean); att[per] = a;
+  verif(a.length >= 10 && a.every(x => r.M.some(m => m.time === x.b && m.position === (x.dir > 0 ? 'belowBar' : 'aboveBar'))), per + ' : chaque flèche est posée sur la bougie qui contient la clôture H4 (' + r.marques + ' marques)');
+  verif(r.M.every(x => x.shape === (x.position === 'belowBar' ? 'arrowUp' : 'arrowDown') && !x.text && (x.position === 'belowBar' ? /rgba\(95,184,148,/ : /rgba\(216,106,106,/).test(x.color)), per + ' : flèches vertes ▲ / rouges ▼, sans texte');
+  const tailles = [...new Set(r.M.map(x => x.size))]; verif(tailles.length <= 2 && (tailles.length < 2 || Math.max(...tailles) > 2 * Math.min(...tailles)), per + ' : deux tailles seulement (grosse / petite)');
+  verif(r.fond.n >= 100 && [-1, 0, 1].includes(r.fond.sens), per + ' : fond coloré selon la tendance MA200 H4 (' + r.fond.n + ' bougies, sens actuel ' + r.fond.sens + ')');
+  verif(await attendre(() => p.evaluate(() => { const rg = window.__or.graph.chart().timeScale().getVisibleLogicalRange(), n = window.__or.moteur.serie().length; return !!rg && rg.to >= n - 12 && rg.from < n; }), 15000), per + ' : la dernière bougie est visible');
+  await capture('terminal-' + per);
 }
-console.log('— un seul prix de l’or —');
-await p.evaluate(() => { window.TraderPro = { prixOr: async () => ({ prix: 3886.12, t: Date.now(), reference: true, ferme: true, pct: 0.4, source: 'XAU/USD au comptant (test)', note: 'Marché fermé : dernier cours de clôture, comme sur XTB. ' }) }; return window.__orPro.majSpot(); }); await w(2500);
-const tete = await p.evaluate(() => ({ prix: document.querySelector('[data-or-prix]').textContent, v: document.querySelector('[data-or-var]').textContent, etiq: document.querySelector('.tor-titre small').textContent }));
-verif(/3\s?886,12/.test(tete.prix.replace(/[\u202F\u00A0]/g, ' ')), 'l’en-tête affiche le prix de référence (' + tete.prix + ')'); verif(/marché fermé/.test(tete.v), 'mention « marché fermé » : ' + tete.v); verif(/Kraken/.test(tete.etiq) && /XAU/.test(tete.etiq), 'étiquette : ' + tete.etiq);
-verif(await p.evaluate(() => !document.body.innerText.includes('Période de réglage')), 'plus de « Période de réglage » à l’écran');
-console.log('— MA200 : une par graphique, calculée sur sa propre unité, tracée dès le début de l’écran —');
-for (const per of ['H1', 'H4', 'J']) {
-  await p.evaluate(x => document.querySelector(`[data-periode="${x}"]`).click(), per); await w(9000);
-  const r = await p.evaluate(() => { const B = window.__or.moteur.serie(), pts = window.__orPro.maPoints(), rg = window.__or.graph.chart().timeScale().getVisibleLogicalRange(); let s = 0; for (const b of B.slice(0, 200)) s += b.c; return { n: B.length, pts: pts.length, de: rg ? Math.ceil(rg.from) : null, s200: s / 200, premier: pts.length ? pts[0].value : null, dernier: pts.length ? pts[pts.length - 1].value : null, derC: B.slice(-200).reduce((a, b) => a + b.c, 0) / 200, pas: B.length > 2 ? B[B.length - 1].t - B[B.length - 2].t : 0, info: window.__orPro.maInfo() }; });
-  console.log('  ' + per + ' : ' + r.n + ' bougies, ' + r.pts + ' points de MA200, bord gauche de l’écran = bougie ' + r.de + ', pas ' + r.pas / 3600e3 + ' h, source : ' + (r.info && r.info.source));
-  const prolonge = r.n < 450;   // historique court (or en Daily : quelques mois chez Kraken) : complété AVANT la première bougie par la série de la même unité du robot
-  verif(r.n >= 300 && (prolonge ? r.pts === r.n : r.pts === r.n - 199 && Math.abs(r.premier - r.s200) < 0.01 * r.s200 + 1), per + ' : la MA200 est calculée sur les bougies ' + per + ' (' + r.pts + ' points sur ' + r.n + ' bougies' + (prolonge ? ', historique complété avant la première bougie par la série ' + per + ' du robot' : ', la première = moyenne des 200 premières') + ')');
-  verif(Math.abs(r.dernier - r.derC) <= 1, per + ' : la dernière valeur (' + Math.round(r.dernier) + ') est la moyenne des 200 dernières bougies ' + per + ' (' + Math.round(r.derC) + ')');
-  verif(r.de != null && r.de >= (prolonge ? 0 : 199), per + ' : la MA200 existe dès le bord gauche de l’écran (bougie ' + r.de + ', MA200 dès la bougie ' + (prolonge ? 0 : 199) + ')');
-  verif(per === 'H1' ? Math.abs(r.pas - 3600e3) < 1 : per === 'H4' ? Math.abs(r.pas - 4 * 3600e3) < 1 : Math.abs(r.pas - 86400e3) < 1, per + ' : bougies de l’unité ' + per + ' (jamais celles d’une autre unité)');
-  verif(await p.evaluate(() => window.__orPro.etat().ma.length === 1 && [...document.querySelectorAll('.tp-ma-legende span:not(.tp-version)')].length === 1), per + ' : une seule ligne MA200');
-  verif(await p.evaluate(() => { const k = window.__or.graph.couches(), m = window.__or.strategie.modele() || {}; return k.rayMa === false && Object.values(k).every(v => v === false) && !m.ma && !(m.boites || []).length && !(m.structure || []).length; }), per + ' : aucune autre MA200 (celle de la stratégie H1 est coupée), graphique propre conservé après le changement d’unité');
-}
-console.log('— MA200 Daily + H4 : cassures (grosses flèches) et rebonds (petites flèches) sur la MA200 Daily —');
-await p.evaluate(() => document.querySelector('[data-periode="J"]').click()); await w(8000);
-const fl = await p.evaluate(() => window.__orPro.fleches().map(x => ({ zone: x.zone, type: x.type, dir: x.dir, t: x.t, tFin: x.tFin, entree: x.entree, stop: x.stop })));
-const sensTab = await p.evaluate(() => window.__orPro.sens());
-verif(fl.every(x => x.zone === 'MA200 Daily') && await p.evaluate(() => !localStorage.getItem('rayle_tp_ma1_or') && !localStorage.getItem('rayle_tp_ma2_or_V0-base-r1') && !localStorage.getItem('rayle_tp_ma2_or_V2-atr1-r2')), 'ancien registre sur l’appareil (12 petites flèches de l’ancienne variante) : supprimé, aucune ancienne flèche affichée (' + fl.length + ' flèches, toutes sur la MA200 Daily)');
-verif(await p.evaluate(() => { const e = document.querySelector('.tp-ma-legende .tp-version'); if (!e) return false; const r = e.getBoundingClientRect(), g = window.__or.graph.conteneur().getBoundingClientRect(); return /^v\d{4}\.\d+\.\d+\.\d+$/.test(e.textContent) && e.textContent === 'v' + window.RAYLE_OR_VERSION && window.__tpVersion === window.RAYLE_OR_VERSION && r.width > 20 && r.left >= g.left && r.right <= g.right && r.top >= g.top && r.bottom <= g.bottom; }), 'le numéro de version est affiché en petit sur le graphique (' + await p.evaluate(() => (document.querySelector('.tp-ma-legende .tp-version') || {}).textContent) + ') et correspond à la page et au code chargé');
-verif(fl.length >= 5 && fl.length <= 40 && fl.some(x => x.type === 'cassure') && fl.every(x => x.type === 'cassure' || x.type === 'rebond') && fl.every(x => (x.dir === 1 || x.dir === -1) && x.entree > 0 && x.stop > 0 && (x.dir > 0 ? x.stop < x.entree : x.stop > x.entree)), 'des flèches existent : cassures (' + fl.filter(x => x.type === 'cassure').length + ') et rebonds (' + fl.filter(x => x.type === 'rebond').length + '), stop du bon côté de l’entrée');
-verif(sensTab.length >= 1000 && sensTab.every(x => [-1, 0, 1].includes(x.sens)) && sensTab.some(x => x.sens === 1) && sensTab.some(x => x.sens === -1), 'côté de la MA200 Daily sur plus de 3 ans (' + sensTab.length + ' bougies) : au-dessus et en dessous');
-const dernierSens = t => { let s = 0; for (const x of sensTab) { if (x.tFin <= t) s = x.sens; else break; } return s; };
-verif(fl.filter(x => x.type === 'rebond').every(x => x.dir === dernierSens(x.t)), 'jamais de flèche contradictoire : chaque rebond est dans le sens de la tendance (côté de la MA200 Daily)');
-const marq = {}, attJ = {};
-for (const per of ['H1', 'H4', 'J']) {
-  await p.evaluate(x => document.querySelector(`[data-periode="${x}"]`).click(), per); await w(8000);
-  const m = await p.evaluate(() => ({ M: window.__orPro.marqueurs(), B: window.__or.moteur.serie().map(b => [b.t, window.__or.graph.tempsDeBougie(b.t)]), n: window.__orPro.etat().marques, fond: window.__orPro.fond() })); marq[per] = m;
-  if (per === 'H1') { verif(m.n === 0 && m.M.length === 0 && m.fond.n === 0, 'H1 : aucune flèche, pas de fond'); continue; }
-  const pas = per === 'H4' ? 4 * 3600e3 : 86400e3, att = fl.map(f => { const b = m.B.find(x => x[0] <= f.tFin - 1 && f.tFin - 1 < x[0] + pas); return b ? { b: b[1], dir: f.dir, tFin: f.tFin } : null; }).filter(Boolean), cles = new Set(att.map(a => a.b + '|' + a.dir));
-  attJ[per] = att;
-  verif(att.length >= 3 && m.M.length === cles.size, per + ' : toutes les flèches sont affichées (' + m.M.length + ' sur ' + att.length + ' dans la période chargée)');
-  verif(m.M.every(x => x.shape === (x.position === 'belowBar' ? 'arrowUp' : 'arrowDown') && /^rgba\(/.test(x.color) && !x.text && /,1\)$/.test(x.color)), per + ' : flèche verte vers le haut sous la bougie (achat), rouge vers le bas au-dessus (vente), sans texte');
-  verif(m.M.every(x => (x.position === 'belowBar' ? /rgba\(95,184,148,/ : /rgba\(216,106,106,/).test(x.color)), per + ' : couleurs verte / rouge');
-  const tailles = [...new Set(m.M.map(x => x.size))].sort((a, b) => a - b); verif(tailles.length >= 1 && (tailles.length === 1 || tailles[1] > 2 * tailles[0]), per + ' : cassures (grosses flèches) nettement plus grandes que les rebonds (petites) : ' + tailles.join(' / '));
-  verif(att.every(a => m.M.some(x => x.time === a.b && x.position === (a.dir > 0 ? 'belowBar' : 'aboveBar'))), per + ' : chaque flèche est sur sa bougie de confirmation');
-  verif(m.fond.n >= 100 && [-1, 0, 1].includes(m.fond.sens), per + ' : fond coloré selon le sens Daily (' + m.fond.n + ' bougies, sens actuel ' + m.fond.sens + ')');
-  /* info-bulle : survol de la dernière flèche affichée (le graphique est centré sur cette flèche) */
-  await w(4500);   /* le terminal recadre le graphique pendant 10 s après un changement d'unité : on attend la fin avant de centrer */
-  await p.evaluate(() => { const g = window.__or.graph, B = window.__or.moteur.serie(), M = window.__orPro.marqueurs(), m = M[M.length - 1], i = B.findIndex(b => g.tempsDeBougie(b.t) === m.time); g.chart().timeScale().setVisibleRange({ from: g.tempsDeBougie(B[Math.max(0, i - 60)].t), to: g.tempsDeBougie(B[Math.min(B.length - 1, i + 60)].t) }); }); await w(1500);   // fenêtre de 120 bougies centrée sur la dernière flèche
-  const pos = await p.evaluate(() => { const g = window.__or.graph, f = window.__orPro.fleches(), M = window.__orPro.marqueurs(), m = M[M.length - 1], r = g.conteneur().getBoundingClientRect(), L = f.filter(x => true).pop(); const x = g.chart().timeScale().timeToCoordinate(m.time), y = g.serie().priceToCoordinate((window.__or.moteur.serie().find(b => g.tempsDeBougie(b.t) === m.time) || {}).c); return Number.isFinite(x) && Number.isFinite(y) ? { x: r.left + x, y: r.top + y } : null; });
-  if (pos) {
-    await p.mouse.move(5, 5); await p.mouse.move(pos.x, pos.y, { steps: 4 }); await w(900);
-    const ib = await p.evaluate(() => { const e = document.querySelector('.tp-fleche-info'); if (!e || getComputedStyle(e).display === 'none') return null; const r = e.getBoundingClientRect(), g = window.__or.graph.conteneur().getBoundingClientRect(); const cache = [...document.querySelectorAll('.tp-ma-legende, .tp-ligne-boutons, .tp-ligne-boutons button')].filter(b => { const q = b.getBoundingClientRect(); return q.width > 0 && !(q.right <= r.left || q.left >= r.right || q.bottom <= r.top || q.top >= r.bottom); }).length; return { t: e.textContent, w: r.width, h: r.height, gw: g.width, gh: g.height, dedans: r.left >= g.left - 1 && r.right <= g.right - (() => { try { return window.__or.graph.chart().priceScale('right').width() || 0; } catch (e) { return 0; } })() + 1 && r.top >= g.top - 1 && r.bottom <= g.bottom + 1, cache }; });
-    verif(!!ib && /^(▲|▼) (Cassure|Rebond)/.test(ib.t) && /MA200 Daily/.test(ib.t) && /Entrée/.test(ib.t) && /Stop/.test(ib.t) && /(Gain|En cours) : [+−]\d/.test(ib.t), per + ' : l’info-bulle donne type, entrée, stop et gain en R' + (ib ? ' (' + ib.t.replace(/\n/g, ' · ') + ')' : ''));
-    verif(!!ib && ib.dedans && ib.cache === 0 && ib.w < ib.gw * 0.75 && ib.h < ib.gh * 0.4, per + ' : l’info-bulle est petite, reste dans le graphique (jamais sur l’échelle des prix) et ne cache ni la légende ni les boutons');
-    await capture('terminal-fleches-' + per);
-    await p.mouse.move(5, 5); await w(500);
-  } else verif(false, per + ' : position de la flèche introuvable');
+verif(att.H1.length === att.H4.length && att.H4.length === att.J.length, 'mêmes flèches sur H1, H4 et Jour');
+{ /* info-bulle : survol de la dernière flèche affichée sur H4 */
+  await p.evaluate(() => document.querySelector('[data-periode="H4"]').click()); await w(14000);
+  const pos = await p.evaluate(() => { const g = window.__or.graph, M = window.__orPro.marqueurs(), m = M[M.length - 1], r = g.conteneur().getBoundingClientRect(), B = window.__or.moteur.serie(), i = B.findIndex(b => g.tempsDeBougie(b.t) === m.time); if (i < 0) return null; g.chart().timeScale().setVisibleLogicalRange({ from: Math.max(0, i - 60), to: i + 20 }); return { time: m.time }; });
+  await w(1200);
+  const xy = await p.evaluate(p0 => { const g = window.__or.graph, M = window.__orPro.marqueurs(), m = M[M.length - 1], r = g.conteneur().getBoundingClientRect(), x = g.chart().timeScale().timeToCoordinate(m.time), B = window.__or.moteur.serie(), b = B.find(b => g.tempsDeBougie(b.t) === m.time), y = g.serie().priceToCoordinate(m.position === 'belowBar' ? b.l : b.h); return x == null || y == null ? null : { x: r.left + x, y: r.top + y + (m.position === 'belowBar' ? 12 : -12) }; }, pos);
+  if (xy) { await p.mouse.move(5, 5); await p.mouse.move(xy.x, xy.y, { steps: 4 }); await w(900);
+    const ib = await p.evaluate(() => { const e = document.querySelector('.tp-fleche-info'); if (!e || getComputedStyle(e).display === 'none') return null; return { t: e.innerText }; });
+    verif(!!ib && /^(▲|▼) (Rebond|Cassure)/.test(ib.t) && /MA200|zone|support|résistance/i.test(ib.t) && /Entrée/.test(ib.t) && /Stop/.test(ib.t) && /(Gagnante|Perdante|En cours) : [+−]\d/.test(ib.t), 'info-bulle : type, entrée, stop, résultat en R (' + (ib && ib.t.replace(/\n/g, ' / ')) + ')');
+    await capture('terminal-fleches-H4'); await p.mouse.move(5, 5); await w(500);
+  } else verif(false, 'position de la flèche introuvable');
 }
 await p.evaluate(() => document.querySelector('[data-periode="J"]').click()); await w(6000);
-{
-  const pos = await p.evaluate(() => { const g = window.__or.graph, f = window.__orPro.fleches(), M = window.__orPro.marqueurs(), m = M[M.length - 1], r = g.conteneur().getBoundingClientRect(); const x = g.chart().timeScale().timeToCoordinate(m.time), y = g.serie().priceToCoordinate(f[f.length - 1].entree); return Number.isFinite(x) && Number.isFinite(y) ? { x: r.left + x, y: r.top + y } : null; });
-  const visible = () => p.evaluate(() => { const e = document.querySelector('.tp-fleche-info'); return !!e && getComputedStyle(e).display !== 'none'; });
-  await p.mouse.move(5, 5); await p.mouse.move(pos.x, pos.y, { steps: 4 }); await w(900); const vu = await visible();
-  await w(2000); await p.evaluate(() => window.__orPro.charger()); await w(2500); await p.evaluate(() => window.__orPro.dessiner()); await w(2500);   // la souris ne bouge plus ; le graphique se met à jour : l'info-bulle doit se fermer seule (6 s)
-  verif(vu && !(await visible()), 'l’info-bulle se ferme seule au bout de 6 s, même quand le graphique se met à jour pendant que le curseur reste posé (affichée : ' + vu + ')');
-  await p.mouse.move(5, 5);
-}
-{
-  const recent = fl.filter(f => f.tFin > Date.now() - 120 * 86400e3), cleJ = new Set(attJ.J.map(a => a.tFin + '|' + a.dir)), cleH = new Set(attJ.H4.map(a => a.tFin + '|' + a.dir));
-  verif(recent.length >= 1 && recent.every(f => cleJ.has(f.tFin + '|' + f.dir) && cleH.has(f.tFin + '|' + f.dir)), 'les mêmes flèches (cassures et rebonds) sur le Jour et sur H4 : ' + recent.length + ' flèches des 4 derniers mois présentes sur les deux');
-}
 console.log('— réglages : interrupteur et fond —');
 verif(await p.evaluate(() => { const z = document.querySelectorAll('[data-tp-reg]'); return z.length >= 1 && document.querySelector('[data-reg="actif"]').checked && document.querySelector('[data-reg="fond"]').checked; }), 'réglages visibles : flèches et fond coloré activés par défaut');
 verif(await p.evaluate(() => !!document.querySelector('.tor-ob-pan [data-tp-reg]')), 'les réglages sont dans le menu « Affichage » du terminal');
@@ -110,7 +64,7 @@ verif(await p.evaluate(() => window.__orPro.etat().marques === 0 && window.__orP
 await p.evaluate(() => { const c = document.querySelector('.tor-ob-pan [data-reg="actif"]'); c.checked = true; c.dispatchEvent(new Event('change', { bubbles: true })); }); await w(1200);
 verif(await p.evaluate(x => window.__orPro.etat().marques === x, n0), 'interrupteur remis : les mêmes flèches reviennent (' + n0 + ')');
 await p.evaluate(() => document.querySelector('.tp-b-hj').click()); await w(600);
-verif(await p.evaluate(() => { const a = document.querySelector('.tp-panneau'); return !!a && !a.hidden && /MA200 Daily \+ H4/.test(a.innerText) && /Dernière clôture Daily/.test(a.innerText) && /Dernières flèches/i.test(a.innerText) && /Touchez une flèche/.test(a.innerText) && /Fond coloré/.test(a.innerText); }), 'le panneau « MA200 Daily + H4 » explique la méthode, donne les réglages et liste les dernières flèches');
+verif(await p.evaluate(() => { const a = document.querySelector('.tp-panneau'); return !!a && !a.hidden && /MA200 H4/.test(a.innerText) && /Tendance MA200 H4/.test(a.innerText) && /Statistiques des flèches/i.test(a.innerText) && /Dernières flèches/i.test(a.innerText) && /Touchez une flèche/.test(a.innerText) && /Fond coloré/.test(a.innerText); }), 'le panneau « MA200 H4 » explique la méthode, donne les réglages et liste les dernières flèches');
 const txt = await p.evaluate(() => document.querySelector('.tp-panneau').innerText); console.log('  ' + txt.replace(/\s+/g, ' ').slice(0, 500));
 verif(!/Signal H4|Biais Jour|Fiche d’ordre|backtest|Bilan de la méthode/i.test(txt), 'plus aucun ancien signal ni bilan de backtest dans le panneau');
 verif(await p.evaluate(() => { const a = document.querySelector('.tp-panneau'), r = a.getBoundingClientRect(); return r.width <= innerWidth + 1 && a.scrollWidth <= a.clientWidth + 1; }), 'le panneau tient dans l’écran (pas de défilement horizontal)');

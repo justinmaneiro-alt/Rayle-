@@ -1,1 +1,269 @@
-{"actifs":{"or":{"nom":"Or (futures COMEX GC)","jours":2514,"h4":3614,"deJ":"2016-11-17","deH":"2024-06-27","a":"2026-11-17","anJ":9.995893223819301,"anH":2.3919689710244123,"matrice":{"h4|pente":{"dix":{"signaux":27,"parAn":2.7011092851273624,"gagnants":14.814814814814813,"gain":40.864675224493006,"perte":-0.7278712125456651,"esperance":5.433987518867472,"pireSerie":14,"total":146.71766300942173,"meilleur":160.0478160305,"sansMeilleur":-13.330153021078274,"ouvertes":0},"fenetre":{"signaux":1,"parAn":0.418065623807707,"gagnants":0,"gain":0,"perte":-0.6170418012303449,"esperance":-0.6170418012303449,"pireSerie":1,"total":-0.6170418012303449,"meilleur":-0.6170418012303449,"sansMeilleur":0,"ouvertes":0},"combine":{"signaux":29,"parAn":3.5372405327427763,"gagnants":13.793103448275861,"gain":40.864675224493006,"perte":-0.7189875823112244,"esperance":5.016690046213497,"pireSerie":14,"total":145.48401134019142,"meilleur":160.0478160305,"sansMeilleur":-14.563804690308586},"liste10":[{"t":"2020-03-18","dir":1,"r":-0.92,"etat":"sortie"},{"t":"2020-03-24","dir":1,"r":1.61,"etat":"sortie"},{"t":"2020-12-02","dir":1,"r":0.48,"etat":"sortie"},{"t":"2021-01-12","dir":1,"r":-0.63,"etat":"sortie"},{"t":"2021-01-21","dir":1,"r":-0.61,"etat":"sortie"},{"t":"2021-02-02","dir":1,"r":-1,"etat":"sortie"},{"t":"2021-06-18","dir":-1,"r":-0.67,"etat":"sortie"},{"t":"2021-08-02","dir":-1,"r":-1,"etat":"sortie"},{"t":"2021-09-08","dir":-1,"r":-0.01,"etat":"sortie"},{"t":"2021-11-01","dir":-1,"r":-0.53,"etat":"sortie"},{"t":"2021-11-03","dir":-1,"r":-0.29,"etat":"sortie"},{"t":"2021-11-24","dir":-1,"r":-1,"etat":"sortie"},{"t":"2021-12-17","dir":1,"r":-0.63,"etat":"sortie"},{"t":"2021-12-22","dir":-1,"r":-1,"etat":"sortie"},{"t":"2021-12-23","dir":1,"r":-0.75,"etat":"sortie"},{"t":"2022-01-12","dir":1,"r":-0.88,"etat":"sortie"},{"t":"2022-02-03","dir":1,"r":-1,"etat":"sortie"},{"t":"2022-02-07","dir":1,"r":1.32,"etat":"sortie"},{"t":"2022-05-20","dir":1,"r":-1,"etat":"sortie"},{"t":"2022-06-17","dir":1,"r":-0.59,"etat":"sortie"},{"t":"2022-12-06","dir":-1,"r":-0.58,"etat":"sortie"},{"t":"2022-12-13","dir":-1,"r":-1,"etat":"sortie"},{"t":"2022-12-16","dir":-1,"r":-0.55,"etat":"sortie"},{"t":"2023-10-16","dir":1,"r":-1,"etat":"sortie"},{"t":"2023-10-19","dir":1,"r":-0.69,"etat":"sortie"},{"t":"2023-11-14","dir":1,"r":160.05,"etat":"sortie"},{"t":"2026-08-20","dir":1,"r":-0.41,"etat":"sortie"}]},"h4|sanspente":{"dix":{"signaux":57,"parAn":5.702341824157765,"gagnants":14.035087719298245,"gain":24.22954571296333,"perte":-0.7827615499025663,"esperance":2.727737715061068,"pireSerie":26,"total":155.48104975848088,"meilleur":160.0478160305,"sansMeilleur":-4.566766272019123,"ouvertes":1},"fenetre":{"signaux":3,"parAn":1.254196871423121,"gagnants":0,"gain":0,"perte":-0.6368250431753589,"esperance":-0.6368250431753589,"pireSerie":3,"total":-1.9104751295260767,"meilleur":-0.2934333282957317,"sansMeilleur":-1.617041801230345,"ouvertes":1},"combine":{"signaux":59,"parAn":6.538473071773179,"gagnants":13.559322033898304,"gain":24.22954571296333,"perte":-0.7762542669501188,"esperance":2.6143626794788233,"pireSerie":26,"total":154.24739808925057,"meilleur":160.0478160305,"sansMeilleur":-5.800417941249435},"liste10":[{"t":"2017-12-06","dir":-1,"r":-0.42,"etat":"sortie"},{"t":"2018-05-16","dir":-1,"r":1.52,"etat":"sortie"},{"t":"2018-12-21","dir":1,"r":21.1,"etat":"sortie"},{"t":"2020-03-17","dir":-1,"r":-1,"etat":"sortie"},{"t":"2020-03-18","dir":1,"r":-0.92,"etat":"sortie"},{"t":"2020-03-19","dir":-1,"r":-1,"etat":"sortie"},{"t":"2020-03-24","dir":1,"r":1.61,"etat":"sortie"},{"t":"2020-11-30","dir":-1,"r":-0.94,"etat":"sortie"},{"t":"2020-12-02","dir":1,"r":0.48,"etat":"sortie"},{"t":"2021-01-12","dir":1,"r":-0.63,"etat":"sortie"},{"t":"2021-01-19","dir":-1,"r":-1,"etat":"sortie"},{"t":"2021-01-21","dir":1,"r":-0.61,"etat":"sortie"},{"t":"2021-01-28","dir":-1,"r":-1,"etat":"sortie"},{"t":"2021-02-02","dir":1,"r":-1,"etat":"sortie"},{"t":"2021-02-03","dir":-1,"r":-1,"etat":"sortie"},{"t":"2021-05-18","dir":1,"r":-1,"etat":"sortie"},{"t":"2021-06-18","dir":-1,"r":-0.67,"etat":"sortie"},{"t":"2021-07-30","dir":1,"r":-1,"etat":"sortie"},{"t":"2021-08-02","dir":-1,"r":-1,"etat":"sortie"},{"t":"2021-08-30","dir":1,"r":-1,"etat":"sortie"},{"t":"2021-09-08","dir":-1,"r":-0.01,"etat":"sortie"},{"t":"2021-10-28","dir":1,"r":-1,"etat":"sortie"},{"t":"2021-11-01","dir":-1,"r":-0.53,"etat":"sortie"},{"t":"2021-11-02","dir":1,"r":-0.42,"etat":"sortie"},{"t":"2021-11-03","dir":-1,"r":-0.29,"etat":"sortie"},{"t":"2021-11-05","dir":1,"r":-0.73,"etat":"sortie"},{"t":"2021-11-24","dir":-1,"r":-1,"etat":"sortie"},{"t":"2021-12-17","dir":1,"r":-0.63,"etat":"sortie"},{"t":"2021-12-22","dir":-1,"r":-1,"etat":"sortie"},{"t":"2021-12-23","dir":1,"r":-0.75,"etat":"sortie"},{"t":"2022-01-07","dir":-1,"r":-1,"etat":"sortie"},{"t":"2022-01-12","dir":1,"r":-0.88,"etat":"sortie"},{"t":"2022-01-28","dir":-1,"r":-0.67,"etat":"sortie"},{"t":"2022-02-03","dir":1,"r":-1,"etat":"sortie"},{"t":"2022-02-04","dir":-1,"r":-0.22,"etat":"sortie"},{"t":"2022-02-07","dir":1,"r":1.32,"etat":"sortie"},{"t":"2022-05-13","dir":-1,"r":-0.63,"etat":"sortie"},{"t":"2022-05-20","dir":1,"r":-1,"etat":"sortie"},{"t":"2022-06-14","dir":-1,"r":-1,"etat":"sortie"},{"t":"2022-06-17","dir":1,"r":-0.59,"etat":"sortie"},{"t":"2022-06-21","dir":-1,"r":1.44,"etat":"sortie"},{"t":"2022-12-02","dir":1,"r":-1,"etat":"sortie"},{"t":"2022-12-06","dir":-1,"r":-0.58,"etat":"sortie"},{"t":"2022-12-09","dir":1,"r":-0.62,"etat":"sortie"},{"t":"2022-12-13","dir":-1,"r":-1,"etat":"sortie"},{"t":"2022-12-14","dir":1,"r":-1,"etat":"sortie"},{"t":"2022-12-16","dir":-1,"r":-0.55,"etat":"sortie"},{"t":"2022-12-19","dir":1,"r":6.32,"etat":"sortie"},{"t":"2023-09-27","dir":-1,"r":-1,"etat":"sortie"},{"t":"2023-10-16","dir":1,"r":-1,"etat":"sortie"},{"t":"2023-10-17","dir":-1,"r":-1,"etat":"sortie"},{"t":"2023-10-19","dir":1,"r":-0.69,"etat":"sortie"},{"t":"2023-11-13","dir":-1,"r":-0.42,"etat":"sortie"},{"t":"2023-11-14","dir":1,"r":160.05,"etat":"sortie"},{"t":"2026-06-08","dir":-1,"r":-1,"etat":"sortie"},{"t":"2026-08-20","dir":1,"r":-0.41,"etat":"sortie"},{"t":"2026-08-31","dir":-1,"r":-0.55,"etat":"sortie"},{"t":"2026-09-08","dir":-1,"r":4.68,"etat":"en cours"}]},"daily2|pente":{"dix":{"signaux":19,"parAn":1.9007806080525884,"gagnants":26.31578947368421,"gain":15.609603694195252,"perte":-0.7693348490414983,"esperance":3.5409121360208053,"pireSerie":10,"total":67.2773305843953,"meilleur":76.11501218030519,"sansMeilleur":-8.837681595909885,"ouvertes":0},"fenetre":{"signaux":1,"parAn":0.418065623807707,"gagnants":0,"gain":0,"perte":-0.38058560429748584,"esperance":-0.38058560429748584,"pireSerie":1,"total":-0.38058560429748584,"meilleur":-0.38058560429748584,"sansMeilleur":0,"ouvertes":0},"combine":{"signaux":21,"parAn":2.7369118556680023,"gagnants":23.809523809523807,"gain":15.609603694195252,"perte":-0.7502712222382054,"esperance":3.144937091198333,"pireSerie":10,"total":66.04367891516499,"meilleur":76.11501218030519,"sansMeilleur":-10.071333265140197},"liste10":[{"t":"2017-12-22","dir":1,"r":1.05,"etat":"sortie"},{"t":"2020-03-24","dir":1,"r":0.65,"etat":"sortie"},{"t":"2020-12-02","dir":1,"r":0.12,"etat":"sortie"},{"t":"2021-01-12","dir":1,"r":-1,"etat":"sortie"},{"t":"2021-01-21","dir":1,"r":-1,"etat":"sortie"},{"t":"2021-06-18","dir":-1,"r":-0.7,"etat":"sortie"},{"t":"2021-08-02","dir":-1,"r":-1,"etat":"sortie"},{"t":"2021-09-08","dir":-1,"r":-0.1,"etat":"sortie"},{"t":"2021-11-03","dir":-1,"r":-0.74,"etat":"sortie"},{"t":"2021-11-24","dir":-1,"r":-1,"etat":"sortie"},{"t":"2021-12-17","dir":1,"r":-0.7,"etat":"sortie"},{"t":"2021-12-23","dir":1,"r":-0.83,"etat":"sortie"},{"t":"2022-01-12","dir":1,"r":-0.92,"etat":"sortie"},{"t":"2022-02-07","dir":1,"r":0.11,"etat":"sortie"},{"t":"2022-05-20","dir":1,"r":-1,"etat":"sortie"},{"t":"2022-12-06","dir":-1,"r":-0.58,"etat":"sortie"},{"t":"2023-10-19","dir":1,"r":-0.82,"etat":"sortie"},{"t":"2023-11-14","dir":1,"r":76.12,"etat":"sortie"},{"t":"2026-08-20","dir":1,"r":-0.38,"etat":"sortie"}]},"daily2|sanspente":{"dix":{"signaux":45,"parAn":4.5018488085456045,"gagnants":20,"gain":15.507654907827076,"perte":-0.8614624132927338,"esperance":2.4123610509312288,"pireSerie":20,"total":108.5562472919053,"meilleur":76.11501218030519,"sansMeilleur":32.44123511160011,"ouvertes":1},"fenetre":{"signaux":3,"parAn":1.254196871423121,"gagnants":0,"gain":0,"perte":-0.6428720584094856,"esperance":-0.6428720584094856,"pireSerie":3,"total":-1.9286161752284567,"meilleur":-0.38058560429748584,"sansMeilleur":-1.548030570930971,"ouvertes":1},"combine":{"signaux":47,"parAn":5.337980056161019,"gagnants":19.148936170212767,"gain":15.507654907827076,"perte":-0.8485868038886508,"esperance":2.28345948133351,"pireSerie":20,"total":107.32259562267498,"meilleur":76.11501218030519,"sansMeilleur":31.207583442369796},"liste10":[{"t":"2017-12-06","dir":-1,"r":-0.57,"etat":"sortie"},{"t":"2017-12-22","dir":1,"r":1.05,"etat":"sortie"},{"t":"2018-05-16","dir":-1,"r":1.42,"etat":"sortie"},{"t":"2018-12-21","dir":1,"r":50.85,"etat":"sortie"},{"t":"2020-03-19","dir":-1,"r":-1,"etat":"sortie"},{"t":"2020-03-24","dir":1,"r":0.65,"etat":"sortie"},{"t":"2020-11-30","dir":-1,"r":-0.94,"etat":"sortie"},{"t":"2020-12-02","dir":1,"r":0.12,"etat":"sortie"},{"t":"2021-01-12","dir":1,"r":-1,"etat":"sortie"},{"t":"2021-01-19","dir":-1,"r":-1,"etat":"sortie"},{"t":"2021-01-21","dir":1,"r":-1,"etat":"sortie"},{"t":"2021-01-28","dir":-1,"r":-1,"etat":"sortie"},{"t":"2021-02-03","dir":-1,"r":-1,"etat":"sortie"},{"t":"2021-05-18","dir":1,"r":-1,"etat":"sortie"},{"t":"2021-06-18","dir":-1,"r":-0.7,"etat":"sortie"},{"t":"2021-08-02","dir":-1,"r":-1,"etat":"sortie"},{"t":"2021-08-30","dir":1,"r":-1,"etat":"sortie"},{"t":"2021-09-08","dir":-1,"r":-0.1,"etat":"sortie"},{"t":"2021-10-25","dir":1,"r":-1,"etat":"sortie"},{"t":"2021-10-28","dir":1,"r":-1,"etat":"sortie"},{"t":"2021-11-03","dir":-1,"r":-0.74,"etat":"sortie"},{"t":"2021-11-05","dir":1,"r":-0.89,"etat":"sortie"},{"t":"2021-11-24","dir":-1,"r":-1,"etat":"sortie"},{"t":"2021-12-17","dir":1,"r":-0.7,"etat":"sortie"},{"t":"2021-12-23","dir":1,"r":-0.83,"etat":"sortie"},{"t":"2022-01-07","dir":-1,"r":-1,"etat":"sortie"},{"t":"2022-01-12","dir":1,"r":-0.92,"etat":"sortie"},{"t":"2022-01-28","dir":-1,"r":-0.8,"etat":"sortie"},{"t":"2022-02-07","dir":1,"r":0.11,"etat":"sortie"},{"t":"2022-05-13","dir":-1,"r":-0.74,"etat":"sortie"},{"t":"2022-05-20","dir":1,"r":-1,"etat":"sortie"},{"t":"2022-06-14","dir":-1,"r":-1,"etat":"sortie"},{"t":"2022-06-21","dir":-1,"r":1.24,"etat":"sortie"},{"t":"2022-12-02","dir":1,"r":-1,"etat":"sortie"},{"t":"2022-12-06","dir":-1,"r":-0.58,"etat":"sortie"},{"t":"2022-12-09","dir":1,"r":-0.75,"etat":"sortie"},{"t":"2022-12-14","dir":1,"r":-1,"etat":"sortie"},{"t":"2022-12-19","dir":1,"r":8.02,"etat":"sortie"},{"t":"2023-09-27","dir":-1,"r":-1,"etat":"sortie"},{"t":"2023-10-17","dir":-1,"r":-1,"etat":"sortie"},{"t":"2023-10-19","dir":1,"r":-0.82,"etat":"sortie"},{"t":"2023-11-14","dir":1,"r":76.12,"etat":"sortie"},{"t":"2026-06-08","dir":-1,"r":-1,"etat":"sortie"},{"t":"2026-08-20","dir":1,"r":-0.38,"etat":"sortie"},{"t":"2026-08-31","dir":-1,"r":-0.55,"etat":"sortie"},{"t":"2026-09-08","dir":-1,"r":3.65,"etat":"en cours"}]},"marge|pente":{"dix":{"signaux":7,"parAn":0.7002875924404273,"gagnants":14.285714285714285,"gain":2.3440531212685043,"perte":-0.7212493799883032,"esperance":-0.283349022665902,"pireSerie":5,"total":-1.9834431586613142,"meilleur":2.3440531212685043,"sansMeilleur":-4.327496279929818,"ouvertes":0},"fenetre":{"signaux":0,"parAn":0,"gagnants":0,"gain":0,"perte":0,"esperance":0,"pireSerie":0,"total":0,"meilleur":0,"sansMeilleur":0,"ouvertes":0},"combine":{"signaux":9,"parAn":1.5364188400558412,"gagnants":11.11111111111111,"gain":2.3440531212685043,"perte":-0.6951434936450163,"esperance":-0.35745498087684724,"pireSerie":7,"total":-3.2170948278916254,"meilleur":2.3440531212685043,"sansMeilleur":-5.56114794916013},"liste10":[{"t":"2020-03-17","dir":1,"r":-0.9,"etat":"sortie"},{"t":"2020-03-23","dir":1,"r":2.34,"etat":"sortie"},{"t":"2021-01-20","dir":1,"r":-0.56,"etat":"sortie"},{"t":"2021-06-17","dir":-1,"r":-0.67,"etat":"sortie"},{"t":"2022-01-11","dir":1,"r":-0.87,"etat":"sortie"},{"t":"2022-12-05","dir":-1,"r":-0.57,"etat":"sortie"},{"t":"2023-10-18","dir":1,"r":-0.76,"etat":"sortie"}]},"marge|sanspente":{"dix":{"signaux":15,"parAn":1.5006162695152014,"gagnants":20,"gain":6.498170730774966,"perte":-0.8337200271704505,"esperance":0.6326581244186329,"pireSerie":11,"total":9.489871866279493,"meilleur":15.885857427699364,"sansMeilleur":-6.39598556141987,"ouvertes":1},"fenetre":{"signaux":0,"parAn":0,"gagnants":0,"gain":0,"perte":0,"esperance":0,"pireSerie":0,"total":0,"meilleur":0,"sansMeilleur":0,"ouvertes":1},"combine":{"signaux":17,"parAn":2.3367475171306156,"gagnants":17.647058823529413,"gain":6.498170730774966,"perte":-0.802735142519694,"esperance":0.4856600115911284,"pireSerie":13,"total":8.256220197049183,"meilleur":15.885857427699364,"sansMeilleur":-7.6296372306501805},"liste10":[{"t":"2018-05-15","dir":-1,"r":1.26,"etat":"sortie"},{"t":"2018-12-20","dir":1,"r":15.89,"etat":"sortie"},{"t":"2020-03-17","dir":1,"r":-0.9,"etat":"sortie"},{"t":"2020-03-23","dir":1,"r":2.34,"etat":"sortie"},{"t":"2020-11-27","dir":-1,"r":-0.95,"etat":"sortie"},{"t":"2021-01-20","dir":1,"r":-0.56,"etat":"sortie"},{"t":"2021-02-02","dir":-1,"r":-1,"etat":"sortie"},{"t":"2021-05-17","dir":1,"r":-1,"etat":"sortie"},{"t":"2021-06-17","dir":-1,"r":-0.67,"etat":"sortie"},{"t":"2022-01-11","dir":1,"r":-0.87,"etat":"sortie"},{"t":"2022-01-27","dir":-1,"r":-0.73,"etat":"sortie"},{"t":"2022-12-05","dir":-1,"r":-0.57,"etat":"sortie"},{"t":"2022-12-13","dir":1,"r":-1,"etat":"sortie"},{"t":"2023-09-26","dir":-1,"r":-1,"etat":"sortie"},{"t":"2023-10-18","dir":1,"r":-0.76,"etat":"sortie"},{"t":"2026-09-04","dir":-1,"r":5.15,"etat":"en cours"}]}},"rebonds":{"signaux":2,"parAn":0.836131247615414,"gagnants":0,"gain":0,"perte":-0.6168258346151555,"esperance":-0.6168258346151555,"pireSerie":2,"total":-1.233651669230311,"meilleur":-0.23365166923031105,"sansMeilleur":-1,"ouvertes":0,"liste":[{"t":"2026-03-23T10:00","dir":1,"entree":4457.6,"stop":3995.37,"r":-0.23,"etat":"sortie"},{"t":"2026-05-28T10:00","dir":1,"entree":4460.6,"stop":4323.89,"r":-1,"etat":"sortie"}]}},"us100":{"nom":"Nasdaq 100","jours":2512,"h4":1953,"deJ":"2016-11-17","deH":"2023-12-20","a":"2026-11-17","anJ":9.995893223819301,"anH":2.910791695185946,"matrice":{"h4|pente":{"dix":{"signaux":11,"parAn":1.1004519309778142,"gagnants":27.27272727272727,"gain":10.458471928827576,"perte":-0.7533154832058748,"esperance":2.3044447200759755,"pireSerie":5,"total":25.34889192083573,"meilleur":23.806027368929527,"sansMeilleur":1.5428645519062023,"ouvertes":0},"fenetre":{"signaux":2,"parAn":0.6870982912682239,"gagnants":50,"gain":2.7091818618779917,"perte":-1,"esperance":0.8545909309389959,"pireSerie":1,"total":1.7091818618779917,"meilleur":2.7091818618779917,"sansMeilleur":-1,"ouvertes":0},"combine":{"signaux":17,"parAn":3.161746804782486,"gagnants":17.647058823529413,"gain":10.458471928827576,"perte":-1.0077155520186334,"esperance":1.015729297542462,"pireSerie":6,"total":17.267398058221858,"meilleur":23.806027368929527,"sansMeilleur":-6.53862931070767},"liste10":[{"t":"2018-10-15","dir":1,"r":-1,"etat":"sortie"},{"t":"2018-11-08","dir":1,"r":-0.71,"etat":"sortie"},{"t":"2019-02-25","dir":1,"r":-1,"etat":"sortie"},{"t":"2019-03-12","dir":1,"r":-0.32,"etat":"sortie"},{"t":"2019-06-03","dir":-1,"r":-0.58,"etat":"sortie"},{"t":"2019-06-05","dir":1,"r":5.01,"etat":"sortie"},{"t":"2020-04-09","dir":1,"r":23.81,"etat":"sortie"},{"t":"2022-03-30","dir":1,"r":-0.47,"etat":"sortie"},{"t":"2023-01-31","dir":-1,"r":-0.94,"etat":"sortie"},{"t":"2023-03-13","dir":-1,"r":-1,"etat":"sortie"},{"t":"2026-04-09","dir":1,"r":2.56,"etat":"sortie"}]},"h4|sanspente":{"dix":{"signaux":28,"parAn":2.801150369761709,"gagnants":21.428571428571427,"gain":10.791789672947091,"perte":-0.9246885147597184,"esperance":1.5859853826060273,"pireSerie":10,"total":44.40759071296876,"meilleur":26.76991230121543,"sansMeilleur":17.63767841175333,"ouvertes":1},"fenetre":{"signaux":5,"parAn":1.7177457281705595,"gagnants":40,"gain":2.5930945313201583,"perte":-1.448595189392476,"esperance":0.16808069889257773,"pireSerie":2,"total":0.8404034944628886,"meilleur":2.7091818618779917,"sansMeilleur":-1.868778367415103,"ouvertes":1},"combine":{"signaux":34,"parAn":4.8624452435663805,"gagnants":17.647058823529413,"gain":10.791789672947091,"perte":-1.015165756690274,"esperance":1.0684146132457322,"pireSerie":10,"total":36.326096850354894,"meilleur":26.76991230121543,"sansMeilleur":9.556184549139463},"liste10":[{"t":"2018-10-15","dir":1,"r":-1,"etat":"sortie"},{"t":"2018-10-25","dir":-1,"r":-0.71,"etat":"sortie"},{"t":"2018-11-05","dir":-1,"r":-1,"etat":"sortie"},{"t":"2018-11-08","dir":1,"r":-0.71,"etat":"sortie"},{"t":"2018-11-12","dir":-1,"r":-0.39,"etat":"sortie"},{"t":"2019-02-22","dir":-1,"r":-0.68,"etat":"sortie"},{"t":"2019-02-25","dir":1,"r":-1,"etat":"sortie"},{"t":"2019-03-08","dir":-1,"r":-1,"etat":"sortie"},{"t":"2019-03-12","dir":1,"r":-0.32,"etat":"sortie"},{"t":"2019-06-03","dir":-1,"r":-0.58,"etat":"sortie"},{"t":"2019-06-05","dir":1,"r":5.01,"etat":"sortie"},{"t":"2020-03-12","dir":-1,"r":-0.88,"etat":"sortie"},{"t":"2020-04-09","dir":1,"r":23.81,"etat":"sortie"},{"t":"2022-01-21","dir":-1,"r":-1.02,"etat":"sortie"},{"t":"2022-02-04","dir":-1,"r":-0.73,"etat":"sortie"},{"t":"2022-02-11","dir":-1,"r":-1,"etat":"sortie"},{"t":"2022-03-30","dir":1,"r":-0.47,"etat":"sortie"},{"t":"2022-03-31","dir":-1,"r":-0.36,"etat":"sortie"},{"t":"2022-04-06","dir":-1,"r":3.54,"etat":"sortie"},{"t":"2023-01-31","dir":-1,"r":-0.94,"etat":"sortie"},{"t":"2023-02-01","dir":1,"r":-1.14,"etat":"sortie"},{"t":"2023-03-13","dir":-1,"r":-1,"etat":"sortie"},{"t":"2023-03-14","dir":1,"r":26.77,"etat":"sortie"},{"t":"2025-03-07","dir":-1,"r":-1.81,"etat":"sortie"},{"t":"2025-05-13","dir":1,"r":3.07,"etat":"sortie"},{"t":"2026-03-23","dir":-1,"r":-2.59,"etat":"sortie"},{"t":"2026-04-09","dir":1,"r":2.56,"etat":"sortie"},{"t":"2026-11-06","dir":-1,"r":-1,"etat":"sortie"},{"t":"2026-11-16","dir":-1,"r":0.42,"etat":"en cours"}]},"daily2|pente":{"dix":{"signaux":10,"parAn":1.0004108463434676,"gagnants":30,"gain":12.513752473486685,"perte":-0.8926655281256697,"esperance":3.1292598723580367,"pireSerie":6,"total":31.29259872358037,"meilleur":30.158428784441103,"sansMeilleur":1.134169939139266,"ouvertes":0},"fenetre":{"signaux":2,"parAn":0.6870982912682239,"gagnants":50,"gain":1.9106372752009286,"perte":-1,"esperance":0.4553186376004643,"pireSerie":1,"total":0.9106372752009286,"meilleur":1.9106372752009286,"sansMeilleur":-1,"ouvertes":0},"combine":{"signaux":16,"parAn":3.0617057201481392,"gagnants":18.75,"gain":12.513752473486685,"perte":-1.1023194276533506,"esperance":1.450694053810406,"pireSerie":7,"total":23.211104860966497,"meilleur":30.158428784441103,"sansMeilleur":-6.947323923474606},"liste10":[{"t":"2018-10-15","dir":1,"r":-1,"etat":"sortie"},{"t":"2018-11-08","dir":1,"r":-1,"etat":"sortie"},{"t":"2019-02-19","dir":1,"r":-1,"etat":"sortie"},{"t":"2019-02-25","dir":1,"r":-1,"etat":"sortie"},{"t":"2019-03-12","dir":1,"r":-0.43,"etat":"sortie"},{"t":"2019-06-03","dir":-1,"r":-0.82,"etat":"sortie"},{"t":"2019-06-05","dir":1,"r":5.47,"etat":"sortie"},{"t":"2020-04-09","dir":1,"r":30.16,"etat":"sortie"},{"t":"2026-04-09","dir":1,"r":1.91,"etat":"sortie"},{"t":"2026-11-12","dir":1,"r":-1,"etat":"sortie"}]},"daily2|sanspente":{"dix":{"signaux":27,"parAn":2.7011092851273624,"gagnants":22.22222222222222,"gain":10.229686207873378,"perte":-0.9972712483349641,"esperance":1.4976081863780006,"pireSerie":10,"total":40.435421032206015,"meilleur":30.158428784441103,"sansMeilleur":10.276992247764912,"ouvertes":1},"fenetre":{"signaux":6,"parAn":2.0612948738046715,"gagnants":33.33333333333333,"gain":2.0359271675841493,"perte":-1.6120564307701044,"esperance":-0.39606189798535324,"pireSerie":2,"total":-2.3763713879121195,"meilleur":2.16121705996737,"sansMeilleur":-4.5375884478794895,"ouvertes":1},"combine":{"signaux":33,"parAn":4.762404158932034,"gagnants":18.181818181818183,"gain":10.229686207873378,"perte":-1.0749700028758562,"esperance":0.9804220354421863,"pireSerie":10,"total":32.35392716959215,"meilleur":30.158428784441103,"sansMeilleur":2.195498385151044},"liste10":[{"t":"2018-10-15","dir":1,"r":-1,"etat":"sortie"},{"t":"2018-10-25","dir":-1,"r":-0.4,"etat":"sortie"},{"t":"2018-11-05","dir":-1,"r":-1,"etat":"sortie"},{"t":"2018-11-08","dir":1,"r":-1,"etat":"sortie"},{"t":"2018-11-12","dir":-1,"r":-0.69,"etat":"sortie"},{"t":"2019-02-19","dir":1,"r":-1,"etat":"sortie"},{"t":"2019-02-25","dir":1,"r":-1,"etat":"sortie"},{"t":"2019-03-08","dir":-1,"r":-1,"etat":"sortie"},{"t":"2019-03-12","dir":1,"r":-0.43,"etat":"sortie"},{"t":"2019-06-03","dir":-1,"r":-0.82,"etat":"sortie"},{"t":"2019-06-05","dir":1,"r":5.47,"etat":"sortie"},{"t":"2020-03-12","dir":-1,"r":-0.89,"etat":"sortie"},{"t":"2020-04-09","dir":1,"r":30.16,"etat":"sortie"},{"t":"2022-01-21","dir":-1,"r":-1,"etat":"sortie"},{"t":"2022-02-04","dir":-1,"r":-0.66,"etat":"sortie"},{"t":"2022-02-11","dir":-1,"r":-1,"etat":"sortie"},{"t":"2022-03-31","dir":-1,"r":-0.68,"etat":"sortie"},{"t":"2022-04-06","dir":-1,"r":2.96,"etat":"sortie"},{"t":"2023-01-27","dir":1,"r":-0.89,"etat":"sortie"},{"t":"2023-02-01","dir":1,"r":-1.03,"etat":"sortie"},{"t":"2023-03-14","dir":1,"r":18.71,"etat":"sortie"},{"t":"2025-03-07","dir":-1,"r":-2.3,"etat":"sortie"},{"t":"2025-05-13","dir":1,"r":2.16,"etat":"sortie"},{"t":"2026-03-23","dir":-1,"r":-2.15,"etat":"sortie"},{"t":"2026-04-09","dir":1,"r":1.91,"etat":"sortie"},{"t":"2026-11-06","dir":-1,"r":-1,"etat":"sortie"},{"t":"2026-11-12","dir":1,"r":-1,"etat":"sortie"},{"t":"2026-11-16","dir":-1,"r":0,"etat":"en cours"}]},"marge|pente":{"dix":{"signaux":6,"parAn":0.6002465078060806,"gagnants":16.666666666666664,"gain":2.64286784413113,"perte":-0.801107055865405,"esperance":-0.22711123919931575,"pireSerie":4,"total":-1.3626674351958945,"meilleur":2.64286784413113,"sansMeilleur":-4.005535279327025,"ouvertes":0},"fenetre":{"signaux":2,"parAn":0.6870982912682239,"gagnants":50,"gain":2.64286784413113,"perte":-1,"esperance":0.8214339220655651,"pireSerie":1,"total":1.6428678441311302,"meilleur":2.64286784413113,"sansMeilleur":-1,"ouvertes":0},"combine":{"signaux":12,"parAn":2.661541381610752,"gagnants":8.333333333333332,"gain":2.64286784413113,"perte":-1.0988208310855359,"esperance":-0.787013441484147,"pireSerie":7,"total":-9.444161297809764,"meilleur":2.64286784413113,"sansMeilleur":-12.087029141940894},"liste10":[{"t":"2018-10-12","dir":1,"r":-1,"etat":"sortie"},{"t":"2018-11-07","dir":1,"r":-0.74,"etat":"sortie"},{"t":"2019-03-11","dir":1,"r":-0.26,"etat":"sortie"},{"t":"2020-03-10","dir":1,"r":-1,"etat":"sortie"},{"t":"2026-04-08","dir":1,"r":2.64,"etat":"sortie"},{"t":"2026-11-11","dir":1,"r":-1,"etat":"sortie"}]},"marge|sanspente":{"dix":{"signaux":19,"parAn":1.9007806080525884,"gagnants":15.789473684210526,"gain":3.805326448531378,"perte":-0.9659382168447416,"esperance":-0.2125806381011438,"pireSerie":12,"total":-4.039032123921732,"meilleur":5.537094298324715,"sansMeilleur":-9.576126422246446,"ouvertes":0},"fenetre":{"signaux":5,"parAn":1.7177457281705595,"gagnants":40,"gain":2.9394425236347095,"perte":-1.2357687207729742,"esperance":0.43431577699009905,"pireSerie":2,"total":2.1715788849504953,"meilleur":3.2360172031382883,"sansMeilleur":-1.064438318187793,"ouvertes":0},"combine":{"signaux":25,"parAn":3.96207548185726,"gagnants":12,"gain":3.805326448531378,"perte":-1.0698411514604427,"esperance":-0.4848210394614241,"pireSerie":12,"total":-12.120525986535602,"meilleur":5.537094298324715,"sansMeilleur":-17.657620284860318},"liste10":[{"t":"2018-10-11","dir":-1,"r":-1.38,"etat":"sortie"},{"t":"2018-10-12","dir":1,"r":-1,"etat":"sortie"},{"t":"2018-10-24","dir":-1,"r":-0.8,"etat":"sortie"},{"t":"2018-11-02","dir":-1,"r":-1,"etat":"sortie"},{"t":"2018-11-07","dir":1,"r":-0.74,"etat":"sortie"},{"t":"2019-03-07","dir":-1,"r":-1,"etat":"sortie"},{"t":"2019-03-11","dir":1,"r":-0.26,"etat":"sortie"},{"t":"2020-03-09","dir":-1,"r":-1,"etat":"sortie"},{"t":"2020-03-10","dir":1,"r":-1,"etat":"sortie"},{"t":"2020-03-11","dir":-1,"r":-0.68,"etat":"sortie"},{"t":"2022-02-03","dir":-1,"r":-0.75,"etat":"sortie"},{"t":"2022-02-10","dir":-1,"r":-1,"etat":"sortie"},{"t":"2022-04-05","dir":-1,"r":5.54,"etat":"sortie"},{"t":"2023-01-31","dir":1,"r":-1.13,"etat":"sortie"},{"t":"2025-05-12","dir":1,"r":3.24,"etat":"sortie"},{"t":"2026-03-20","dir":-1,"r":-1.71,"etat":"sortie"},{"t":"2026-04-08","dir":1,"r":2.64,"etat":"sortie"},{"t":"2026-11-05","dir":-1,"r":-1,"etat":"sortie"},{"t":"2026-11-11","dir":1,"r":-1,"etat":"sortie"}]}},"rebonds":{"signaux":6,"parAn":2.0612948738046715,"gagnants":0,"gain":0,"perte":-1.346915643768978,"esperance":-1.346915643768978,"pireSerie":6,"total":-8.081493862613868,"meilleur":-1,"sansMeilleur":-7.081493862613868,"ouvertes":0,"liste":[{"t":"2025-03-05T18:00","dir":1,"entree":20625.63,"stop":20014.12,"r":-1,"etat":"sortie"},{"t":"2025-05-01T18:00","dir":-1,"entree":19776.85,"stop":20487.08,"r":-1.46,"etat":"sortie"},{"t":"2025-05-05T10:00","dir":-1,"entree":19968.58,"stop":20469.35,"r":-1.68,"etat":"sortie"},{"t":"2025-05-09T10:00","dir":-1,"entree":20053.88,"stop":20443.1,"r":-1.94,"etat":"sortie"},{"t":"2026-03-09T14:00","dir":1,"entree":24620.71,"stop":23981.31,"r":-1,"etat":"sortie"},{"t":"2026-03-16T10:00","dir":1,"entree":24704.89,"stop":24068.68,"r":-1,"etat":"sortie"}]}}},"choix":"daily2|sanspente"}
+{
+ "methode": "MA200 H4 + zones majeures H4",
+ "parametres": {
+  "ATR_N": 14,
+  "MA_N": 200,
+  "pente": 20,
+  "pivot": 10,
+  "largeurZone": 0.5,
+  "touchesMin": 3,
+  "reactionATR": 3,
+  "reactionBougies": 10,
+  "espaceTouche": 6,
+  "cassureZoneATR": 1,
+  "maxZones": 3,
+  "contactATR": 0.25,
+  "contactRetest": 0.4,
+  "profondeurMA": 99,
+  "penteMinMA": 0.5,
+  "retraitMA": 0,
+  "rejet": 0.4,
+  "rejetMA": 0.4,
+  "rejetRetest": 0.5,
+  "cassureMA": 1,
+  "fenetreRetest": 10,
+  "memeSens": 12,
+  "sensOppose": 6,
+  "confluenceATR": 1,
+  "gainATR": 2,
+  "perteATR": 1
+ },
+ "regleGain": "+2 ATR avant -1 ATR",
+ "actifs": {
+  "or": {
+   "bougiesH4": 3600,
+   "jours": 826,
+   "parMois": 4.3117191283292975,
+   "total": {
+    "nombre": 117,
+    "resolues": 117,
+    "gagnantes": 47,
+    "pct": 40.17094017094017,
+    "rMoyen": 0.20512820512820512
+   },
+   "rebond": {
+    "nombre": 14,
+    "resolues": 14,
+    "gagnantes": 4,
+    "pct": 28.57142857142857,
+    "rMoyen": -0.14285714285714285
+   },
+   "retest": {
+    "nombre": 12,
+    "resolues": 12,
+    "gagnantes": 3,
+    "pct": 25,
+    "rMoyen": -0.25
+   },
+   "zone": {
+    "nombre": 91,
+    "resolues": 91,
+    "gagnantes": 40,
+    "pct": 43.956043956043956,
+    "rMoyen": 0.31868131868131866
+   },
+   "grosses": {
+    "nombre": 29,
+    "resolues": 29,
+    "gagnantes": 9,
+    "pct": 31.03448275862069,
+    "rMoyen": -0.06896551724137931
+   },
+   "petites": {
+    "nombre": 88,
+    "resolues": 88,
+    "gagnantes": 38,
+    "pct": 43.18181818181818,
+    "rMoyen": 0.29545454545454547
+   }
+  },
+  "us100": {
+   "bougiesH4": 1951,
+   "jours": 1063,
+   "parMois": 1.202520771280765,
+   "total": {
+    "nombre": 42,
+    "resolues": 42,
+    "gagnantes": 16,
+    "pct": 38.095238095238095,
+    "rMoyen": 0.14285714285714285
+   },
+   "rebond": {
+    "nombre": 6,
+    "resolues": 6,
+    "gagnantes": 1,
+    "pct": 16.666666666666664,
+    "rMoyen": -0.5
+   },
+   "retest": {
+    "nombre": 6,
+    "resolues": 6,
+    "gagnantes": 3,
+    "pct": 50,
+    "rMoyen": 0.5
+   },
+   "zone": {
+    "nombre": 30,
+    "resolues": 30,
+    "gagnantes": 12,
+    "pct": 40,
+    "rMoyen": 0.2
+   },
+   "grosses": {
+    "nombre": 13,
+    "resolues": 13,
+    "gagnantes": 4,
+    "pct": 30.76923076923077,
+    "rMoyen": -0.07692307692307693
+   },
+   "petites": {
+    "nombre": 29,
+    "resolues": 29,
+    "gagnantes": 12,
+    "pct": 41.37931034482759,
+    "rMoyen": 0.2413793103448276
+   }
+  },
+  "us500": {
+   "bougiesH4": 1951,
+   "jours": 1063,
+   "parMois": 1.3456780059570466,
+   "total": {
+    "nombre": 47,
+    "resolues": 46,
+    "gagnantes": 14,
+    "pct": 30.434782608695656,
+    "rMoyen": -0.08695652173913043
+   },
+   "rebond": {
+    "nombre": 7,
+    "resolues": 7,
+    "gagnantes": 2,
+    "pct": 28.57142857142857,
+    "rMoyen": -0.14285714285714285
+   },
+   "retest": {
+    "nombre": 7,
+    "resolues": 7,
+    "gagnantes": 1,
+    "pct": 14.285714285714285,
+    "rMoyen": -0.5714285714285714
+   },
+   "zone": {
+    "nombre": 33,
+    "resolues": 32,
+    "gagnantes": 11,
+    "pct": 34.375,
+    "rMoyen": 0.03125
+   },
+   "grosses": {
+    "nombre": 15,
+    "resolues": 15,
+    "gagnantes": 4,
+    "pct": 26.666666666666668,
+    "rMoyen": -0.2
+   },
+   "petites": {
+    "nombre": 32,
+    "resolues": 31,
+    "gagnantes": 10,
+    "pct": 32.25806451612903,
+    "rMoyen": -0.03225806451612903
+   }
+  },
+  "btc": {
+   "bougiesH4": 3600,
+   "jours": 601,
+   "parMois": 6.434196948682385,
+   "total": {
+    "nombre": 127,
+    "resolues": 126,
+    "gagnantes": 51,
+    "pct": 40.476190476190474,
+    "rMoyen": 0.21428571428571427
+   },
+   "rebond": {
+    "nombre": 10,
+    "resolues": 10,
+    "gagnantes": 6,
+    "pct": 60,
+    "rMoyen": 0.8
+   },
+   "retest": {
+    "nombre": 13,
+    "resolues": 13,
+    "gagnantes": 4,
+    "pct": 30.76923076923077,
+    "rMoyen": -0.07692307692307693
+   },
+   "zone": {
+    "nombre": 104,
+    "resolues": 103,
+    "gagnantes": 41,
+    "pct": 39.80582524271845,
+    "rMoyen": 0.1941747572815534
+   },
+   "grosses": {
+    "nombre": 36,
+    "resolues": 36,
+    "gagnantes": 12,
+    "pct": 33.33333333333333,
+    "rMoyen": 0
+   },
+   "petites": {
+    "nombre": 91,
+    "resolues": 90,
+    "gagnantes": 39,
+    "pct": 43.333333333333336,
+    "rMoyen": 0.3
+   }
+  },
+  "sol": {
+   "bougiesH4": 3600,
+   "jours": 601,
+   "parMois": 6.434196948682385,
+   "total": {
+    "nombre": 127,
+    "resolues": 127,
+    "gagnantes": 56,
+    "pct": 44.09448818897638,
+    "rMoyen": 0.3228346456692913
+   },
+   "rebond": {
+    "nombre": 10,
+    "resolues": 10,
+    "gagnantes": 4,
+    "pct": 40,
+    "rMoyen": 0.2
+   },
+   "retest": {
+    "nombre": 11,
+    "resolues": 11,
+    "gagnantes": 7,
+    "pct": 63.63636363636363,
+    "rMoyen": 0.9090909090909091
+   },
+   "zone": {
+    "nombre": 106,
+    "resolues": 106,
+    "gagnantes": 45,
+    "pct": 42.45283018867924,
+    "rMoyen": 0.27358490566037735
+   },
+   "grosses": {
+    "nombre": 31,
+    "resolues": 31,
+    "gagnantes": 14,
+    "pct": 45.16129032258064,
+    "rMoyen": 0.3548387096774194
+   },
+   "petites": {
+    "nombre": 96,
+    "resolues": 96,
+    "gagnantes": 42,
+    "pct": 43.75,
+    "rMoyen": 0.3125
+   }
+  }
+ }
+}
