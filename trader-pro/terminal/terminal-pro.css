@@ -41,3 +41,18 @@ html .tp-panneau .tp-doux, html .tp-donnees .tp-doux { display: block; margin-le
 
 .tp-fleche-info { position: absolute; left: 6px; top: 96px; z-index: 6; white-space: pre; padding: 4px 8px; border-radius: 6px; background: rgba(5,8,12,.92); border: 1px solid rgba(255,255,255,.14); color: #e8edf2; font: 600 11px/1.4 system-ui, sans-serif; pointer-events: none; max-width: 78%; box-sizing: border-box; overflow: hidden; }
 .tp-ma-legende .tp-version { color: rgba(200,210,222,.78); font: 600 10px system-ui, sans-serif; letter-spacing: .02em; margin-left: auto; }
+
+/* ───── Outils de dessin du Terminal (v3) : barre discrète sur le graphique ───── */
+.tp-dessin-barre { position: absolute; left: 8px; bottom: 34px; z-index: 6; display: flex; flex-wrap: wrap; align-items: center; gap: 4px; max-width: calc(100% - 90px); font: 12px ui-monospace, Consolas, monospace; color: #d7e3ea; pointer-events: auto; }
+.tp-dessin-barre button { min-width: 32px; height: 30px; padding: 0 8px; background: rgba(8, 14, 20, .86); color: #d7e3ea; border: 1px solid #22323c; border-radius: 6px; font: inherit; cursor: pointer; }
+.tp-dessin-barre button:hover { border-color: #8fd0e3; } .tp-dessin-barre button[aria-pressed="true"], .tp-dessin-barre .tp-d-bascule[aria-expanded="true"] { border-color: #8fd0e3; color: #8fd0e3; background: rgba(20, 40, 52, .92); }
+.tp-dessin-barre .tp-d-outils, .tp-dessin-barre .tp-d-sel { display: none; align-items: center; gap: 4px; }
+.tp-dessin-barre[data-ouvert="1"] .tp-d-outils, .tp-dessin-barre .tp-d-sel:not([hidden]) { display: inline-flex; }
+.tp-dessin-barre .tp-d-sel[hidden], .tp-dessin-barre .tp-d-auto[hidden] { display: none !important; }
+.tp-dessin-barre .tp-d-couleurs { display: inline-flex; gap: 4px; padding: 0 2px; } .tp-d-c { min-width: 22px !important; width: 22px; height: 22px !important; padding: 0 !important; border-radius: 50% !important; background: var(--c) !important; border: 2px solid #05080c !important; }
+.tp-d-c[aria-pressed="true"] { border-color: #fff !important; }
+.tp-dessin-barre .tp-d-aide { flex: 1 0 100%; color: #8497a1; font-size: 11px; min-height: 0; } .tp-dessin-barre .tp-d-aide:empty { display: none; }
+.tp-dessin-barre.tp-tactile { bottom: 44px; } .tp-dessin-barre.tp-tactile button { min-width: 40px; height: 40px; font-size: 15px; } .tp-tactile .tp-d-c { width: 30px; height: 30px !important; min-width: 30px !important; }
+/* l'ancienne barre « Ligne / Zone / Ligne de tendance / Rayon » du terminal est remplacée par ces outils ; « Position » reste */
+html.tp-terminal [data-outil="horizontale"], html.tp-terminal [data-outil="zone"], html.tp-terminal [data-outil="tendance"], html.tp-terminal [data-outil="rayon"] { display: none !important; }
+html.tp-terminal .tp-dessin-barre [data-outil] { display: inline-block !important; }

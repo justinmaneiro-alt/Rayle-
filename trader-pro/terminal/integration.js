@@ -9,6 +9,8 @@ import { indexSurUnite, styleFleche, phraseFleche, typeLibelle, typeNom, ma200Po
 import { analyseDe, nouvellesFleches, lireReglages, ecrireReglages, lireRegistre } from './fleches-registre.js';
 import { monterDashboard } from '../commun/dashboard.js';
 import { VERSION } from './version.js';
+import { monterDessins } from './dessins-ui.js';
+import { barresDaily } from './fleches-registre.js';
 
 const ID_PRO = { OR: 'or', NASDAQ: 'us100', SP500: 'us500', BTC: 'btc', SOL: 'sol', DOGE: 'doge' };
 const NOMS = { or: 'Or', us100: 'Nasdaq 100', us500: 'S&P 500', btc: 'Bitcoin', sol: 'Solana', doge: 'Dogecoin' };
@@ -85,13 +87,15 @@ export async function monterPro(T) {
   const srcUnite = u => (u === 'J' ? 'J' : 'H4');   // unité d'analyse : le Jour a sa MA200 Jour, H4 et H1 utilisent la MA200 H4
   /* flèches de l'unité d'analyse (H4 sur H1 et H4, Jour sur Jour), posées sur la bougie de confirmation ; petite flèche verte ▲ sous la bougie (achat), rouge ▼ au-dessus (vente), sans texte. */
   function poserFleches(B, u) {
-    const su = srcUnite(u), actives = E.reglages.actif !== false, cle = [u, B.length, B[B.length - 1].t, E.fleches.length, actives, E.reglages.fond !== false, E.A && E.A[su] ? E.A[su].sens.length : 0].join('|'); if (cle === E.cleFleches) return; E.cleFleches = cle;
+    const su = srcUnite(u), actives = E.reglages.actif !== false, cle = [u, B.length, B[B.length - 1].t, E.fleches.length, actives, E.reglages.fond !== false, E.A && E.A[su] ? E.A[su].sens.length : 0, E.dess ? E.dess.cle() : ''].join('|'); if (cle === E.cleFleches) return; E.cleFleches = cle;
     const M = [], vus = new Set(), infos = new Map(), pas = PAS_UNITE[u];
     if (actives) for (const f of E.fleches.filter(f => (f.unite || 'H4') === su)) {
       const k = indexSurUnite(B, f, pas); if (k < 0) continue; const t = temps(B[k].t); if (t == null) { E.cleFleches = null; continue; } const cl = t + '|' + f.dir; if (vus.has(cl)) continue; vus.add(cl);
       const s = styleFleche(f); M.push({ time: t, position: s.position, color: s.couleur, shape: s.forme, size: s.taille * (tactile ? 1.25 : 1) });
       infos.set(t, { f, haut: f.dir < 0, texte: texteFleche(f) });
     }
+    /* flèches des niveaux tracés à la main (rebond, cassure, retest) : même style, posées à la clôture de la bougie de confirmation */
+    if (E.dess) for (const m of E.dess.marqueurs(B, u, indexSurUnite)) { M.push({ time: m.time, position: m.position, color: m.color, shape: m.shape, size: m.size }); const ex = infos.get(m.time); infos.set(m.time, ex ? { ...ex, texte: ex.texte + '\n' + m.texte } : { f: { entree: m.prix }, haut: m.haut, texte: m.texte }); }
     M.sort((a, b) => a.time - b.time); E.marques = M.length; E.M = M; E.infos = infos; E.infoEl && (E.infoEl.style.display = 'none'); infoFleche(); poserFond(B, u, actives);
     if (LW.createSeriesMarkers) { const s = graph.serie(); if (!E.marqueurs) E.marqueurs = LW.createSeriesMarkers(s, M); else E.marqueurs.setMarkers(M); }
   }
@@ -174,7 +178,7 @@ export async function monterPro(T) {
     const n = ++E.seq;
     try { const r = await lireActifPro(id, { delai: 8000 }); if (n !== E.seq) return; E.D = r.donnees; E.meta = r; E.raison = null; E.A = analyseDe(id, E.D); E.fleches = E.A.reg; }
     catch (e) { E.raison = 'Données H4 / Jour indisponibles : ' + (e && e.message || e) + ' (le robot publie ces séries toutes les 30 minutes). Les flèches déjà confirmées restent affichées.'; E.A = null; try { E.fleches = lireRegistre(id); } catch (e2) { /* aucune */ } }
-    E.cleFleches = null; dessiner(true); rendrePanneau(); alerter();
+    E.cleFleches = null; dessiner(true); rendrePanneau(); alerter(); if (E.dess) E.dess.evaluer(true);
   }
   /* alertes : SEULEMENT les nouvelles flèches confirmées (H4 et Jour) : UNE annonce vocale de Rayle (« Or : cassure MA200 H4 à la hausse », « Or : rebond MA200 Jour à l'achat ») + une notification + un message Telegram (pont du Worker existant).
      Une flèche n'est annoncée qu'une fois (registre de l'appareil : vueLe), et jamais si elle date de plus de 36 h. Interrupteur « Flèches » coupé : aucune annonce. */
@@ -232,9 +236,16 @@ export async function monterPro(T) {
   }
   bDon.addEventListener('click', () => ouvrirDonnees(!(E.donnees && !E.donnees.hidden)));
 
+  /* ───── niveaux tracés à la main : barre d'outils, dessin, flèches à la clôture (dessins-ui.js) ───── */
+  const barresPour = u => { const aff = T.moteur.serie() || []; if (u === uniteAffichee() && aff.length >= 40) return aff; if (!E.D) return []; return u === 'H4' ? E.D.h4 : u === 'J' ? barresDaily(id, E.D.j) : E.D.h1; };
+  try {
+    E.dess = id ? monterDessins({ id, nomActif: NOMS[id] || actif, graph, LW, tactile, uniteAffichee, barresAffichees: () => T.moteur.serie() || [], barresOrigine: barresPour, analyse: () => E.A, temps, parler,
+      notifier: (t, o) => { if (T.notifier) T.notifier(t, o); }, telegramActif: () => lire(LS.alerte, {}).telegram !== false, envoyerTelegram: t => { if (T.envoyerTelegram) T.envoyerTelegram(t); } }) : null;
+  } catch (e) { console.warn('[tp] dessins :', e && e.message); E.dess = null; }
+
   /* ───── cycle ───── */
   await charger(); majSpot(); const spot = setInterval(majSpot, 30000);
   const suivi = setInterval(() => dessiner(), 1500), maj = setInterval(() => { if (!document.hidden) charger(); }, 120000);
   window.addEventListener('pagehide', () => { clearInterval(suivi); clearInterval(maj); clearInterval(spot); });
-  return { charger, majSpot, dessiner: () => dessiner(true), fleches: () => E.fleches.slice(), sens: () => (E.A && E.A[srcUnite(uniteAffichee())] ? E.A[srcUnite(uniteAffichee())].sens.map(x => ({ ...x })) : []), fond: () => ({ n: E.fondN || 0, segments: E.fondN ? (E.fondSegs || 0) : 0, sens: E.fondSens ?? null }), infos: () => [...(E.infos || new Map()).entries()].map(([t, x]) => ({ time: t, texte: x.texte })), marqueurs: () => (E.M || []).map(m => ({ ...m })), maPoints: () => (E.series.ma ? E.series.ma.data() : []), maInfo: () => (E.ma ? { ...E.ma } : null), reglages: () => JSON.parse(JSON.stringify(E.reglages)), etat: () => ({ id, details: E.details, fleches: E.fleches.length, marques: E.marques || 0, ma: Object.keys(E.series) }), ouvrirPanneau, ouvrirDonnees, dashboard: () => E.dash, appliquerDetails };
+  return { dessins: () => E.dess, charger, majSpot, dessiner: () => dessiner(true), fleches: () => E.fleches.slice(), sens: () => (E.A && E.A[srcUnite(uniteAffichee())] ? E.A[srcUnite(uniteAffichee())].sens.map(x => ({ ...x })) : []), fond: () => ({ n: E.fondN || 0, segments: E.fondN ? (E.fondSegs || 0) : 0, sens: E.fondSens ?? null }), infos: () => [...(E.infos || new Map()).entries()].map(([t, x]) => ({ time: t, texte: x.texte })), marqueurs: () => (E.M || []).map(m => ({ ...m })), maPoints: () => (E.series.ma ? E.series.ma.data() : []), maInfo: () => (E.ma ? { ...E.ma } : null), reglages: () => JSON.parse(JSON.stringify(E.reglages)), etat: () => ({ id, details: E.details, fleches: E.fleches.length, marques: E.marques || 0, ma: Object.keys(E.series) }), ouvrirPanneau, ouvrirDonnees, dashboard: () => E.dash, appliquerDetails };
 }
