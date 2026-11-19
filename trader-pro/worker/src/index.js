@@ -2,7 +2,7 @@
    Worker DÉDIÉ (le Worker principal « rayle » n'est jamais touché). Aucun secret dans ce fichier : PORTEFEUILLE_CODE, TELEGRAM_BOT_TOKEN, TELEGRAM_CHAT_ID sont des secrets Cloudflare.
    Déploiement : voir trader-pro/worker/LISEZMOI.md. */
 import { traiter, entetesCors, autoriser } from './coeur.js';
-import { traiterLT, lotLongTerme } from './long-terme.js';
+import { traiterLT, lotLongTerme, alertesInvest } from './long-terme.js';
 import { depotD1 } from './depot-d1.js';
 import { evaluerAlertes, texteAlerte } from '../../marches/alertes.js';
 
@@ -10,7 +10,7 @@ let depot = null;
 export default {
   async fetch(req, env) { if (!env.DB) return new Response(JSON.stringify({ error: 'base D1 non liée : voir LISEZMOI.md' }), { status: 503, headers: { 'Content-Type': 'application/json' } }); depot = depot || depotD1(env.DB); const lt = await traiterLT(req, env, depot, { cors: entetesCors(req, env), autoriser }); if (lt) return lt; return traiter(req, env, depot); },
   /* toutes les 5 minutes : prix des actifs concernés, alertes franchies → message Telegram (si les secrets existent), puis marquées « envoyées » */
-  async scheduled(event, env, ctx) { if (!env.DB) return; depot = depot || depotD1(env.DB); ctx.waitUntil(verifierAlertes(env, depot)); ctx.waitUntil(lotLongTerme(env, depot).catch(() => { /* ré-essai au prochain passage */ })); }
+  async scheduled(event, env, ctx) { if (!env.DB) return; depot = depot || depotD1(env.DB); ctx.waitUntil(verifierAlertes(env, depot)); ctx.waitUntil(alertesInvest(env, depot).catch(() => { /* ré-essai au prochain passage */ })); }
 };
 const nomActif = { or: 'Or', us100: 'Nasdaq 100', us500: 'S&P 500', btc: 'Bitcoin', sol: 'Solana', dxy: 'Dollar (DXY)' };
 async function prixServeur(actifs, fetchFn = fetch) {

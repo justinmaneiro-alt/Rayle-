@@ -2,7 +2,7 @@
 /* Chargeur léger (script classique) de la voix « trading » : window.TraderPro.commande(texte) → réponse parlée ou null.
    Le module complet (trader-pro/commun/voix-trader.js) n'est chargé que si la phrase ressemble à une demande de trading (détection par mots-clés, instantanée). */
 (function(){
-  const MOTS=/\b(portefeuille|resultats?|performances?|bilan|compte xtb|risques?|erreurs?|fautes?|defauts?|discipline|coach|couvr\w*|signaux?|cot|commitments|fonds speculatifs|managed money|que je fais mal|mes positions)\b/;
+  const MOTS=/\b(portefeuille|resultats?|performances?|bilan|compte xtb|risques?|erreurs?|fautes?|defauts?|discipline|coach|couvr\w*|signaux?|cot|commitments|fonds speculatifs|managed money|que je fais mal|mes positions|attractifs?|attractives?|saisonnalite|saisonnier|saisonniere|pepites?|mega caps?|a eviter|neutre|pourquoi)\b/;
   const norm=t=>String(t||'').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/[’'`]/g,' ');
   let mod=null;
   window.TraderPro={

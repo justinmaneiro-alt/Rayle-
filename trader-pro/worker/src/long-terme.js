@@ -6,10 +6,12 @@
 import { univers } from '../../invest/univers.js';
 import { calculerEntreprise } from '../../invest/calcul.js';
 import { UA_DEFAUT } from '../../invest/sources.js';
+import { detecterAlertes, phraseAlertes } from '../../invest/alertes.js';
 
 export const LOT_DEFAUT = 3, MAX_EVENEMENTS = 60, SEUIL_QUALITE = 7, MAX_LISTE = 100;
 const SYMBOLE = /^[A-Za-z0-9.\-]{1,12}$/;
-export const KV = Object.freeze({ index: 'lt:index', fiche: tk => 'lt:f:' + tk, liste: 'lt:liste', evenements: 'lt:evenements' });
+export const KV = Object.freeze({ index: 'lt:index', fiche: tk => 'lt:f:' + tk, liste: 'lt:liste', evenements: 'lt:evenements', horizon: 'lt:v2:horizon', etatV2: 'lt:v2:etat', tV2: 'lt:v2:t' });
+export const BASE_INVEST = 'https://raw.githubusercontent.com/justinmaneiro-alt/Rayle-/donnees/invest/';
 const repJ = (obj, code, h) => new Response(JSON.stringify(obj), { status: code || 200, headers: { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store', ...(h || {}) } });
 
 /* événements à signaler entre l'ancienne et la nouvelle ligne d'une entreprise */
@@ -62,10 +64,25 @@ export async function traiterLT(req, env, depot, { cors = {}, autoriser = null, 
     if (url.pathname === '/lt/evenements' && req.method === 'GET') return repJ({ evenements: (await depot.kvLire(KV.evenements)) || [] }, 200, cors);
     if (url.pathname === '/lt/liste') {
       const a = autoriser ? await autoriser(req, env, fetchFn) : { ok: false, code: 503, raison: 'accès non configuré' }; if (!a.ok) return repJ({ error: a.raison }, a.code, cors);
-      if (req.method === 'GET') return repJ({ liste: (await depot.kvLire(KV.liste)) || [] }, 200, cors);
+      if (req.method === 'GET') return repJ({ liste: (await depot.kvLire(KV.liste)) || [], horizon: (await depot.kvLire(KV.horizon)) || 'moyen' }, 200, cors);
       if (req.method === 'PUT') { const t = await req.text(); if (t.length > 20000) return repJ({ error: 'corps trop gros' }, 413, cors); let b; try { b = JSON.parse(t); } catch (e) { return repJ({ error: 'JSON illisible' }, 400, cors); }
-        const L = [...new Set((Array.isArray(b.liste) ? b.liste : []).map(x => String(x).toUpperCase()).filter(x => SYMBOLE.test(x)))].slice(0, MAX_LISTE); await depot.kvEcrire(KV.liste, L); return repJ({ liste: L }, 200, cors); }
+        const L = [...new Set((Array.isArray(b.liste) ? b.liste : []).map(x => String(x).trim()).map(x => (/[A-Z]/.test(x) ? x : x.toUpperCase())).filter(x => SYMBOLE.test(x)))].slice(0, MAX_LISTE); await depot.kvEcrire(KV.liste, L); if (['tactique', 'swing', 'moyen', 'long'].includes(b.horizon)) await depot.kvEcrire(KV.horizon, b.horizon); return repJ({ liste: L, horizon: (await depot.kvLire(KV.horizon)) || 'moyen' }, 200, cors); }
     }
     return repJ({ error: 'route inconnue' }, 404, cors);
   } catch (e) { return repJ({ error: String(e && e.message || e).slice(0, 200) }, 500, cors); }
+}
+
+/* ═════════════ ALERTES « MA LISTE » DE L'INVESTISSEMENT V2 (cron toutes les 5 minutes, mais ne travaille que quand une NOUVELLE publication nocturne existe) ═════════════
+   Le calcul lourd est fait par GitHub Actions (outils-donnees/invest/calcul-v2.mjs). Ici : lecture du manifeste (très petit) ; s'il est plus récent que la dernière lecture, on charge seulement les pages « lite » (une par première lettre des symboles de la liste),
+   on recalcule les verdicts de la liste (modele.js) et on envoie par Telegram : passage en Attractif / Très attractif sur l'horizon choisi, prix sur la MA200 Daily ou contre un support majeur Daily.
+   (La fenêtre saisonnière favorable est annoncée par l'application ouverte : elle demande 20 ans d'historique mensuel.) Aucune alerte n'est un ordre. */
+export async function alertesInvest(env, depot, { fetchFn = fetch, maintenant = Date.now(), base = BASE_INVEST } = {}) {
+  const liste = (await depot.kvLire(KV.liste)) || []; if (!liste.length) return { alertes: 0, raison: 'liste vide' };
+  const get = async p => { const r = await fetchFn(base + p, { headers: { Accept: 'application/json' } }); if (!r.ok) throw new Error(p + ' : ' + r.status); return r.json(); };
+  const man = await get('manifest.json'), deja = (await depot.kvLire(KV.tV2)) || 0; if (!(man.t > deja)) return { alertes: 0, raison: 'pas de nouvelle publication' };
+  const pages = [...new Set(liste.map(id => (/^[A-Z]/.test(id) ? id[0] : '0')))], lignes = []; for (const k of pages) { try { lignes.push(...(await get('lite/' + k + '.json')).lignes); } catch (e) { /* page absente : ses instruments sont ignorés cette fois */ } }
+  const horizon = (await depot.kvLire(KV.horizon)) || env.LT_HORIZON || 'moyen', prec = (await depot.kvLire(KV.etatV2)) || {}, r = detecterAlertes(liste, lignes, prec, { horizon, ajust: man.ajust || {}, maintenant });
+  await depot.kvEcrire(KV.etatV2, r.etat); await depot.kvEcrire(KV.tV2, man.t);
+  if (r.alertes.length && env.TELEGRAM_BOT_TOKEN && env.TELEGRAM_CHAT_ID) for (const a of r.alertes) { try { await fetchFn('https://api.telegram.org/bot' + env.TELEGRAM_BOT_TOKEN + '/sendMessage', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ chat_id: env.TELEGRAM_CHAT_ID, text: (a.type === 'attractif' ? '📈 ' : '🎯 ') + a.texte + ' Ce n’est pas un conseil.' }) }); } catch (e) { /* l'application l'annoncera à l'ouverture */ } }
+  return { alertes: r.alertes.length, horizon };
 }

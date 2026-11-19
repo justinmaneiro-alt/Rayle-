@@ -1,0 +1,50 @@
+/* Test Chrome de la fenêtre Investissement v2. Usage : node trader-pro/tests/invest-chrome.mjs [tel|tablette|pc]
+   Prérequis : node serveur.mjs 8000 ; node outils-donnees/serveur-snapshots.mjs <dossier contenant invest/> 8801 (le calcul nocturne simulé, voir outils-donnees/invest/calcul-v2.mjs). */
+import { lancer } from './aide-chrome.mjs';
+const mode = process.argv[2] || 'pc', T = await lancer(mode), { p, verif, attendre, texte, capture, w } = T;
+await p.evaluate(() => window.Application.ouvrir('invest'));
+verif(await attendre(() => p.evaluate(() => !!document.querySelector('#invest-fenetre [data-vt] .lt-r[data-id]')), 60000), 'la fenêtre Investissement s’ouvre et affiche des lignes');
+await capture('invest-liste');
+console.log('— barre d’horizon et liste virtualisée —');
+verif(await p.evaluate(() => document.querySelectorAll('#invest-fenetre [data-h]').length === 4), 'quatre horizons');
+const rows = await p.evaluate(() => document.querySelectorAll('#invest-fenetre [data-vt] .lt-r[data-id]').length); verif(rows > 5 && rows < 80, 'seules les lignes visibles sont dans le DOM (virtualisation) : ' + rows);
+const info = await texte('#invest-fenetre [data-compte]'); verif(/instrument\(s\)/.test(info), 'compteur : ' + info);
+verif(await p.evaluate(() => document.documentElement.scrollWidth <= visualViewport.width + 1), 'pas de défilement horizontal de la page');
+verif(await p.evaluate(() => !/NaN|undefined|\[object/.test(document.querySelector('#invest-fenetre').innerText)), 'aucun NaN ni undefined affiché');
+const totalAct = await p.evaluate(() => Math.round(parseFloat(document.querySelector('#invest-fenetre [data-pad]').style.height) / 46)); verif(totalAct > 1000, 'plus de 1 000 actions dans la liste : ' + totalAct);
+console.log('— défilement fluide —');
+const rap = await p.evaluate(async () => { const vt = document.querySelector('#invest-fenetre [data-vt]'), raf = () => new Promise(r => requestAnimationFrame(r)); let t0 = performance.now(); for (let i = 0; i < 20; i++) await raf(); const base = performance.now() - t0; t0 = performance.now(); for (let i = 0; i < 20; i++) { vt.scrollTop = i * 900; await raf(); } return (performance.now() - t0) / base; }); verif(rap < 6, `défilement : ${rap.toFixed(1)} × le coût d’une image vide (Chrome sans GPU)`);
+await p.evaluate(() => { document.querySelector('#invest-fenetre [data-vt]').scrollTop = 0; });
+console.log('— changement d’horizon —');
+for (const h of ['tactique', 'swing', 'moyen', 'long']) { await p.evaluate(h2 => document.querySelector(`#invest-fenetre [data-h="${h2}"]`).click(), h); await w(1200); const lib = await p.evaluate(() => document.querySelectorAll('#invest-fenetre [data-vt] .lt-badge').length); verif(lib > 3, `horizon ${h} : verdicts affichés (${lib})`); }
+console.log('— filtres, préréglage, recherche —');
+await p.evaluate(() => { const s = document.querySelector('#invest-fenetre [data-pre]'); s.value = 'pepites'; s.dispatchEvent(new Event('change', { bubbles: true })); }); await w(2500);
+verif(await p.evaluate(() => document.querySelector('#invest-fenetre [data-compte]').innerText.length > 5), 'préréglage appliqué');
+await capture('invest-pepites');
+await p.evaluate(() => document.querySelector('#invest-fenetre [data-raz]').click()); await w(2500);
+await p.evaluate(() => { const i = document.querySelector('#invest-fenetre [data-f="texte"]'); i.value = 'LVMH'; i.dispatchEvent(new Event('input', { bubbles: true })); }); await w(1800);
+const ids = await p.evaluate(() => [...document.querySelectorAll('#invest-fenetre [data-vt] .lt-r[data-id]')].map(r => r.dataset.id)); verif(ids.includes('MC.FR'), 'recherche « LVMH » → MC.FR parmi : ' + ids.join(','));
+console.log('— fiche —');
+await p.evaluate(() => document.querySelector('#invest-fenetre [data-vt] .lt-r[data-id="MC.FR"]').click());
+verif(await attendre(() => p.evaluate(() => !!document.querySelector('#invest-fenetre .lt-onglets-fiche')), 20000), 'la fiche s’ouvre avec ses onglets');
+verif(await p.evaluate(() => document.querySelectorAll('#invest-fenetre .lt-hcarte').length === 4 && !!document.querySelector('#invest-fenetre .lt-radar')), 'synthèse : quatre horizons côte à côte et radar');
+await capture('invest-fiche');
+for (const o of ['valo', 'qualite', 'saison', 'technique', 'xtb', 'sources']) { await p.evaluate(o2 => document.querySelector(`#invest-fenetre [data-fonglet="${o2}"]`).click(), o); await w(o === 'technique' ? 3000 : 800); const t = await p.evaluate(() => document.querySelector('#invest-fenetre [data-fcorps]').innerText); verif(t.length > 80 && !/NaN|undefined/.test(t), `onglet ${o} : ${t.length} caractères, sans NaN`); if (o === 'technique') { verif(await p.evaluate(() => !!document.querySelector('#invest-fenetre [data-graphe-tech] canvas')), 'graphique technique dessiné'); await capture('invest-technique'); } if (o === 'valo') await capture('invest-valo'); if (o === 'saison') await capture('invest-saison'); }
+await p.evaluate(() => document.querySelector('#invest-fenetre [data-fonglet="valo"]').click()); await w(600);
+const dcf0 = await texte('#invest-fenetre [data-dcf-out]'); await p.evaluate(() => { const i = document.querySelector('#invest-fenetre [data-d="g1"]'); i.value = '12'; i.dispatchEvent(new Event('input', { bubbles: true })); }); await w(300); const dcf1 = await texte('#invest-fenetre [data-dcf-out]'); verif(dcf0 !== dcf1 && /Valeur par action/.test(dcf1), 'DCF modifiable : la valeur change avec la croissance');
+await p.evaluate(() => document.querySelector('#invest-fenetre [data-retour]').click()); await w(1500);
+verif(await p.evaluate(() => !!document.querySelector('#invest-fenetre [data-vt]')), 'retour à la liste');
+console.log('— Méthode et Ma liste —');
+await p.evaluate(() => document.querySelector('#invest-fenetre [data-onglet="methode"]').click()); await w(1800);
+const m = await texte('#invest-fenetre [data-zone]'); verif(/Graham/.test(m) && /piège à valeur/i.test(m) && /validation honnête/i.test(m), 'l’onglet Méthode explique le modèle et affiche le backtest');
+await capture('invest-methode');
+await p.evaluate(() => document.querySelector('#invest-fenetre [data-onglet="maliste"]').click()); await w(1800);
+verif(await p.evaluate(() => !!document.querySelector('#invest-fenetre [data-ajout]')), 'Ma liste : champ d’ajout');
+console.log('— voix : pilotage —');
+const voix = t => p.evaluate(async t2 => { const m = await import(new URL('trader-pro/commun/voix-trader.js', document.baseURI).href); return m.commande(t2); }, t);
+const rep = await voix('montre-moi les actions européennes attractives sur 1 à 3 ans hors méga-caps'); verif(/J’affiche \d+ actions/.test(rep || ''), 'Rayle : « actions européennes attractives… » : ' + rep);
+await w(1500); const etat = await p.evaluate(async () => { const m = await import(new URL('trader-pro/invest/fenetre.js', document.baseURI).href); return m.etat(); }); verif(etat.filtre && etat.filtre.zone === 'Europe' && etat.filtre.exclureMega && etat.horizon === 'moyen', 'la fenêtre est pilotée : ' + JSON.stringify({ z: etat.filtre && etat.filtre.zone, mega: etat.filtre && etat.filtre.exclureMega, h: etat.horizon }));
+const rep2 = await voix('quelle est la saisonnalité de LVMH d’août à décembre ?'); verif(/LVMH/.test(rep2 || '') && /pour cent/.test(rep2 || ''), 'Rayle : saisonnalité de LVMH : ' + rep2);
+const rep3 = await voix('pourquoi Airbus est neutre ?'); verif(/Airbus/.test(rep3 || '') && /confiance/.test(rep3 || ''), 'Rayle : pourquoi Airbus : ' + rep3);
+await capture('invest-final');
+await T.fin();

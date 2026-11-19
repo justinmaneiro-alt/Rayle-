@@ -93,4 +93,17 @@ export function sourceNavigateur() {
     }
   };
 }
-export async function commande(texte) { if (!intention(texte)) return null; return repondre(texte, sourceNavigateur()); }
+/* Investissement (v2) : « montre-moi les actions européennes attractives sur 1 à 3 ans hors méga-caps », « saisonnalité de LVMH d'août à décembre », « pourquoi Airbus est neutre » */
+export function sourceInvest() {
+  let D = null; const donnees = async () => D || (D = (await import('../invest/donnees-invest.js')).creerDonnees());
+  return {
+    lignes: async c => (await donnees()).lignes(c), saison: async c => (await donnees()).saison(c),
+    horizon: () => { try { return (JSON.parse(localStorage.getItem('rayle_lt2_etat') || '{}')).horizon || 'moyen'; } catch (e) { return 'moyen'; } },
+    ajust: async () => { try { return (await (await donnees()).manifeste()).ajust || {}; } catch (e) { return {}; } },
+    async piloter(spec) { if (typeof window !== 'undefined' && window.Application && window.Application.ouvrir) await window.Application.ouvrir('invest'); const m = await import('../invest/fenetre.js'), inst = await m.ouvrir({}); return inst.piloter(spec); }
+  };
+}
+export async function commande(texte) {
+  if (!intention(texte)) { const I = await import('../invest/voix-invest.js'); return I.intentionInvest(texte) ? I.repondreInvest(texte, sourceInvest()) : null; }
+  return repondre(texte, sourceNavigateur());
+}
