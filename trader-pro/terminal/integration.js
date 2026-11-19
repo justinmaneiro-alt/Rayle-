@@ -10,6 +10,8 @@ import { analyseDe, nouvellesFleches, lireReglages, ecrireReglages, lireRegistre
 import { monterDashboard } from '../commun/dashboard.js';
 import { VERSION } from './version.js';
 import { monterDessins } from './dessins-ui.js';
+import { monterAides } from './aides-ui.js';
+import { contexteEvenement, libelleContexte } from './contexte.js';
 import { barresDaily } from './fleches-registre.js';
 
 const ID_PRO = { OR: 'or', NASDAQ: 'us100', SP500: 'us500', BTC: 'btc', SOL: 'sol', DOGE: 'doge' };
@@ -121,7 +123,9 @@ export async function monterPro(T) {
   }
   /* texte de l'info-bulle : type, entrée, stop et gain en R (gain réalisé si la flèche est sortie, sinon gain latent) */
   function texteFleche(f) {
-    return `${f.dir > 0 ? '▲ Achat' : '▼ Vente'} · ${typeLibelle(f)}\nConfirmée à la clôture ${NOM_U[f.unite || 'H4']} : ${nf(f.entree)}\nMA200 ${NOM_U[f.unite || 'H4']} : ${nf(f.ma200)}`;
+    /* contexte : « contre-tendance » (contraire à la tendance Daily) et « pendant annonce » (dans la bande de 1 h avant / après une annonce majeure) */
+    let cx = ''; try { const c = contexteEvenement(E.A, { dir: f.dir, entree: f.entree, tFin: f.tFin, unite: f.unite || 'H4', annonce: E.aides ? E.aides.dansAnnonce(f.tFin) : false }); if (c) { c.ma = null; cx = libelleContexte(c); } } catch (e) { cx = ''; }
+    return `${f.dir > 0 ? '▲ Achat' : '▼ Vente'} · ${typeLibelle(f)}\nConfirmée à la clôture ${NOM_U[f.unite || 'H4']} : ${nf(f.entree)}\nMA200 ${NOM_U[f.unite || 'H4']} : ${nf(f.ma200)}${cx ? '\n' + cx : ''}`;
   }
     /* info-bulle : petite, posée À CÔTÉ de la flèche, dans la zone des bougies (jamais sur l'échelle des prix ni en haut à gauche). Elle n'apparaît QUE sur une action de l'utilisateur (survol à la souris, toucher sur téléphone)
      et se referme seule au bout de 6 s : les mises à jour du graphique (nouveau cours, nouvelle bougie) ne la réaffichent JAMAIS (sur téléphone, le curseur reste posé après le toucher et le graphique le signale à chaque cours : l'ancienne info-bulle restait donc affichée en permanence). */
@@ -239,13 +243,19 @@ export async function monterPro(T) {
   /* ───── niveaux tracés à la main : barre d'outils, dessin, flèches à la clôture (dessins-ui.js) ───── */
   const barresPour = u => { const aff = T.moteur.serie() || []; if (u === uniteAffichee() && aff.length >= 40) return aff; if (!E.D) return []; return u === 'H4' ? E.D.h4 : u === 'J' ? barresDaily(id, E.D.j) : E.D.h1; };
   try {
-    E.dess = id ? monterDessins({ id, nomActif: NOMS[id] || actif, graph, LW, tactile, uniteAffichee, barresAffichees: () => T.moteur.serie() || [], barresOrigine: barresPour, analyse: () => E.A, temps, parler,
+    E.dess = id ? monterDessins({ id, nomActif: NOMS[id] || actif, graph, LW, tactile, uniteAffichee, barresAffichees: () => T.moteur.serie() || [], barresOrigine: barresPour, analyse: () => E.A, temps, parler, dansAnnonce: t => !!(E.aides && E.aides.dansAnnonce(t)),
       notifier: (t, o) => { if (T.notifier) T.notifier(t, o); }, telegramActif: () => lire(LS.alerte, {}).telegram !== false, envoyerTelegram: t => { if (T.envoyerTelegram) T.envoyerTelegram(t); } }) : null;
   } catch (e) { console.warn('[tp] dessins :', e && e.message); E.dess = null; }
+
+  /* ───── aides à la décision : régime, voyant d'alignement, annonces, taille de position XTB (aides-ui.js) ───── */
+  try {
+    E.aides = id ? monterAides({ id, graph, tactile, uniteAffichee, barresAffichees: () => T.moteur.serie() || [], barresJour: () => (E.D ? barresDaily(id, E.D.j) : null), analyse: () => E.A, temps }) : null;
+    if (E.aides) { T.tailleXtb = o => E.aides.tailleXtb(o); T.reglerTailleXtb = (k, v) => E.aides.reglerTaille(k, v); }
+  } catch (e) { console.warn('[tp] aides :', e && e.message); E.aides = null; }
 
   /* ───── cycle ───── */
   await charger(); majSpot(); const spot = setInterval(majSpot, 30000);
   const suivi = setInterval(() => dessiner(), 1500), maj = setInterval(() => { if (!document.hidden) charger(); }, 120000);
   window.addEventListener('pagehide', () => { clearInterval(suivi); clearInterval(maj); clearInterval(spot); });
-  return { dessins: () => E.dess, charger, majSpot, dessiner: () => dessiner(true), fleches: () => E.fleches.slice(), sens: () => (E.A && E.A[srcUnite(uniteAffichee())] ? E.A[srcUnite(uniteAffichee())].sens.map(x => ({ ...x })) : []), fond: () => ({ n: E.fondN || 0, segments: E.fondN ? (E.fondSegs || 0) : 0, sens: E.fondSens ?? null }), infos: () => [...(E.infos || new Map()).entries()].map(([t, x]) => ({ time: t, texte: x.texte })), marqueurs: () => (E.M || []).map(m => ({ ...m })), maPoints: () => (E.series.ma ? E.series.ma.data() : []), maInfo: () => (E.ma ? { ...E.ma } : null), reglages: () => JSON.parse(JSON.stringify(E.reglages)), etat: () => ({ id, details: E.details, fleches: E.fleches.length, marques: E.marques || 0, ma: Object.keys(E.series) }), ouvrirPanneau, ouvrirDonnees, dashboard: () => E.dash, appliquerDetails };
+  return { dessins: () => E.dess, aides: () => E.aides, charger, majSpot, dessiner: () => dessiner(true), fleches: () => E.fleches.slice(), sens: () => (E.A && E.A[srcUnite(uniteAffichee())] ? E.A[srcUnite(uniteAffichee())].sens.map(x => ({ ...x })) : []), fond: () => ({ n: E.fondN || 0, segments: E.fondN ? (E.fondSegs || 0) : 0, sens: E.fondSens ?? null }), infos: () => [...(E.infos || new Map()).entries()].map(([t, x]) => ({ time: t, texte: x.texte })), marqueurs: () => (E.M || []).map(m => ({ ...m })), maPoints: () => (E.series.ma ? E.series.ma.data() : []), maInfo: () => (E.ma ? { ...E.ma } : null), reglages: () => JSON.parse(JSON.stringify(E.reglages)), etat: () => ({ id, details: E.details, fleches: E.fleches.length, marques: E.marques || 0, ma: Object.keys(E.series) }), ouvrirPanneau, ouvrirDonnees, dashboard: () => E.dash, appliquerDetails };
 }

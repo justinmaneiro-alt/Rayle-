@@ -116,8 +116,8 @@ export function monterOutils(T, { stockage = null, fetchFn = fetch, maintenant =
     const o = E.objets.find(x => x.id === E.selection), ed = b('[data-mo-edition]');
     if (!o) { ed.innerHTML = ''; return; }
     const champ = (k, lab) => `<label>${lab} <input type="number" step="0.01" data-c="${k}" value="${o[k]}"></label>`;
-    const geo = o.type === 'horizontale' ? champ('p', 'Prix') : o.type === 'zone' ? champ('haut', 'Haut') + champ('bas', 'Bas') : o.type === 'position' ? champ('entree', 'Entrée') + champ('stop', 'Stop') + champ('objectif', 'Objectif') + `<label>Risque % <input type="number" step="0.05" min="0.05" max="5" data-c="risquePct" value="${o.risquePct}"></label><label>Compte $ <input type="number" step="100" min="100" data-c="capital" value="${o.capital}"></label>` : champ('p1', 'Prix 1') + champ('p2', 'Prix 2');
-    const c = o.type === 'position' ? calculPosition(o) : null;
+    const geo = o.type === 'horizontale' ? champ('p', 'Prix') : o.type === 'zone' ? champ('haut', 'Haut') + champ('bas', 'Bas') : o.type === 'position' ? champ('entree', 'Entrée') + champ('stop', 'Stop') + champ('objectif', 'Objectif') + `${T.tailleXtb ? '' : `<label>Risque % <input type="number" step="0.05" min="0.05" max="5" data-c="risquePct" value="${o.risquePct}"></label><label>Compte $ <input type="number" step="100" min="100" data-c="capital" value="${o.capital}"></label>`}` : champ('p1', 'Prix 1') + champ('p2', 'Prix 2');
+    const c = o.type === 'position' ? calculPosition(o) : null, xt = c && T.tailleXtb ? T.tailleXtb(o) : null;   /* calculateur de lots XTB (terminal pro) */
     ed.innerHTML = `<div class="tor-mo-ed" data-ed="${esc(o.id)}"><b>${esc(NOMS[o.type])}</b>${geo}
       <label>Étiquette <input type="text" maxlength="40" data-c="etiquette" value="${esc(o.etiquette)}"></label>
       <label>Couleur <input type="color" data-c="couleur" value="${esc(/^#[0-9a-f]{6}$/i.test(o.couleur) ? o.couleur : COULEURS[o.type])}"></label>
@@ -125,7 +125,7 @@ export function monterOutils(T, { stockage = null, fetchFn = fetch, maintenant =
       <label><input type="checkbox" data-c="alerte"${o.alerte ? ' checked' : ''}> M’alerter</label>
       <label><input type="checkbox" data-c="muet"${o.muet ? ' checked' : ''}> Muet (journal seulement)</label>
       <label><input type="checkbox" data-c="repete"${o.repete !== false ? ' checked' : ''}> Annoncer à chaque fois (sinon une seule fois)</label>
-      ${c ? `<p class="tor-doux">${c.sens === 'achat' ? 'Achat' : 'Vente'} (déduit du stop) · risque ${nb(c.risque, 0)} $ · taille ${nb(c.taille, 3)} contrats (1 oz) · risque réel ${nb(c.risqueReel, 0)} $</p><button type="button" data-mo="journal">Enregistrer dans mon journal</button>` : ''}
+      ${c ? (xt ? xt.html : `<p class="tor-doux">${c.sens === 'achat' ? 'Achat' : 'Vente'} (déduit du stop) · risque ${nb(c.risque, 0)} $ · taille ${nb(c.taille, 3)} contrats (1 oz) · risque réel ${nb(c.risqueReel, 0)} $</p>`) + '<button type="button" data-mo="journal">Enregistrer dans mon journal</button>' : ''}
       <button type="button" data-mo="fermer">Fermer</button> <small class="tor-doux">Pour supprimer : clique sur le trait, puis sur la corbeille.</small></div>`;
   }
   bloc.addEventListener('click', async e => {
@@ -138,6 +138,7 @@ export function monterOutils(T, { stockage = null, fetchFn = fetch, maintenant =
   bloc.addEventListener('change', e => {
     const i = e.target.closest('[data-c]'), ed = e.target.closest('[data-ed]'); if (!i || !ed) return; const k = i.dataset.c;
     const v = i.type === 'checkbox' ? i.checked : i.type === 'number' || k === 'epaisseur' ? +i.value : i.value;
+    if (k.startsWith('xtb-')) { if (T.reglerTailleXtb) T.reglerTailleXtb(k, v); rendreListe(); return; }
     if (k === 'risquePct' || k === 'capital') { regl[k] = v; ecrireJ(CLE_REGL, regl); }
     changer(ed.dataset.ed, { [k]: v });
   });

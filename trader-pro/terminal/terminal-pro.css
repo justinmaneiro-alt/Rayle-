@@ -56,3 +56,16 @@ html .tp-panneau .tp-doux, html .tp-donnees .tp-doux { display: block; margin-le
 /* l'ancienne barre « Ligne / Zone / Ligne de tendance / Rayon » du terminal est remplacée par ces outils ; « Position » reste */
 html.tp-terminal [data-outil="horizontale"], html.tp-terminal [data-outil="zone"], html.tp-terminal [data-outil="tendance"], html.tp-terminal [data-outil="rayon"] { display: none !important; }
 html.tp-terminal .tp-dessin-barre [data-outil] { display: inline-block !important; }
+
+/* ───── Aides à la décision : régime, voyant, taille XTB ───── */
+.tp-aides { position: absolute; left: 8px; top: 34px; z-index: 5; display: flex; flex-wrap: wrap; align-items: center; gap: 5px; max-width: calc(100% - 100px); pointer-events: none; font: 11px ui-monospace, Consolas, monospace; }
+.tp-chip { padding: 2px 8px; border-radius: 10px; background: rgba(8, 14, 20, .86); border: 1px solid #22323c; color: #aebcc4; white-space: nowrap; pointer-events: auto; }
+.tp-chip-tendance { color: #8fd0e3; border-color: rgba(143, 208, 227, .55); } .tp-chip-range { color: #c9b27a; border-color: rgba(201, 178, 122, .55); }
+.tp-chip-vol-haute { color: #e8a85a; border-color: rgba(232, 168, 90, .55); } .tp-chip-vol-basse { color: #8fd0e3; }
+.tp-voyant i { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 5px; background: #6b7a84; vertical-align: -1px; }
+.tp-voyant-vert i { background: #5fb894; box-shadow: 0 0 6px rgba(95, 184, 148, .8); } .tp-voyant-orange i { background: #e8a85a; box-shadow: 0 0 6px rgba(232, 168, 90, .8); }
+.tp-aides-phrase { flex: 1 0 100%; color: #7d8f99; font-size: 10.5px; text-shadow: 0 0 4px #05080c; }
+@media (max-width: 700px) { .tp-aides { top: 30px; max-width: calc(100% - 16px); } .tp-aides-phrase { display: none; } }
+.tp-taille { display: flex; flex-wrap: wrap; gap: 6px 10px; align-items: center; margin: 8px 0; padding: 8px 10px; border: 1px solid #22323c; border-radius: 8px; background: #080e14; }
+.tp-taille label { display: inline-flex; gap: 4px; align-items: center; } .tp-taille input { width: 84px; } .tp-taille-res { flex: 1 0 100%; } .tp-taille-res p { margin: 3px 0; }
+.tp-taille-lots { font: 700 18px ui-monospace, Consolas, monospace; color: #8fd0e3; } .tp-taille small { flex: 1 0 100%; }

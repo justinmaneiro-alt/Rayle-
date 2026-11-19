@@ -267,7 +267,7 @@ export function monterDessins(ctx) {
   /* ───── évaluation à la clôture, flèches, annonces ───── */
   E.evals = new Map();
   function annoncer(o, ev) {
-    if (o.alerte === false) return; const texte = phrase(ctx.nomActif, o, ev), c = contexteEvenement(ctx.analyse && ctx.analyse(), ev), cx = libelleContexte(c, ev);
+    if (o.alerte === false) return; const texte = phrase(ctx.nomActif, o, ev), c = contexteEvenement(ctx.analyse && ctx.analyse(), { ...ev, annonce: ctx.dansAnnonce ? ctx.dansAnnonce(ev.tFin) : false }), cx = libelleContexte(c, ev);
     try { ctx.parler(texte); } catch (e) { /* */ } try { ctx.notifier && ctx.notifier(texte + (cx ? ' · ' + cx : ''), { niveau: 'info', dit: false, raison: 'niveau tracé' }); } catch (e) { /* */ }
     try { if (ctx.telegramActif && ctx.telegramActif() && ctx.envoyerTelegram) ctx.envoyerTelegram(`${texte}${cx ? ' · ' + cx : ''} · lecture seule, aucun ordre`); } catch (e) { /* */ }
   }
@@ -293,7 +293,7 @@ export function monterDessins(ctx) {
     const out = [], pas = PAS[u];
     for (const o of vis()) for (const e of o.evenements || []) {
       const k = indexSur(B, e, pas); if (k < 0) continue; const t = ctx.temps(B[k].t); if (t == null) continue;
-      const dis = e.type === 'retest', bull = e.dir > 0, c = bull ? [95, 184, 148] : [216, 106, 106], cx = libelleContexte(contexteEvenement(ctx.analyse && ctx.analyse(), e), e);
+      const dis = e.type === 'retest', bull = e.dir > 0, c = bull ? [95, 184, 148] : [216, 106, 106], cx = libelleContexte(contexteEvenement(ctx.analyse && ctx.analyse(), { ...e, annonce: ctx.dansAnnonce ? ctx.dansAnnonce(e.tFin) : false }), e);
       out.push({ time: t, position: bull ? 'belowBar' : 'aboveBar', color: `rgba(${c[0]},${c[1]},${c[2]},${dis ? 0.6 : 1})`, shape: bull ? 'arrowUp' : 'arrowDown', size: (dis ? 0.9 : 1.3) * (tactile ? 1.25 : 1), haut: !bull, prix: e.entree, texte: `${bull ? '▲' : '▼'} ${libelle(e)}${cx ? '\n' + cx : ''}`, dir: e.dir });
     }
     return out;

@@ -46,6 +46,8 @@ export function calculPosition(o, { pas = KRAKEN.pasQuantite } = {}) {
 }
 const nbFr = (x, d = 0) => Number(x).toLocaleString('fr-FR', { minimumFractionDigits: d, maximumFractionDigits: d }).replace(/[  ]/g, ' ');
 export function libellePosition(o) {
+  /* terminal pro : taille en lots XTB (hook posé par trader-pro/terminal/aides-ui.js) à la place des contrats Kraken */
+  try { if (typeof globalThis.__tpLibellePosition === 'function') { const t = globalThis.__tpLibellePosition(o); if (t) return t; } } catch (e) { /* repli sur le libellé d'origine */ }
   const c = calculPosition(o); if (!c) return '';
   return `${c.sens === 'achat' ? 'Achat' : 'Vente'} · Entrée ${nbFr(o.entree)} · SL ${nbFr(o.stop)} · TP ${nbFr(o.objectif)} · R ${nbFr(c.R, 1)}${c.coherent ? '' : ' (TP du mauvais côté)'} · risque ${nbFr(c.risque)} $ · taille ${nbFr(c.taille, 3)} contrats (1 oz)`;
 }
