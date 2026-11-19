@@ -8,16 +8,15 @@
   "catalogue d’ETF UCITS écrit à la main (etf-liste.mjs)"
  ],
  "comptes": {
-  "actions": 2750,
-  "actions palier A": 1789,
-  "actions palier B": 961,
-  "actions vérifiées dans la table XTB": 2149,
-  "etf": 148,
+  "actions": 2594,
+  "etf": 304,
   "devises": 69,
   "indices": 33,
-  "matières premières": 24,
+  "matieres": 24,
   "crypto": 40,
-  "obligataire": 10
+  "obligataire": 10,
+  "analyses": 2748,
+  "sans_donnees": 325
  },
  "actionsParPays": {
   "UK": 435,
@@ -60,5 +59,6 @@
   "OMXC25": 25,
   "OMXH25": 25,
   "WIG20": 0
- }
+ },
+ "enrichi": 1795119685262
 }

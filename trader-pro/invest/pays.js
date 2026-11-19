@@ -4,3 +4,5 @@ export const DRAPEAU = Object.freeze({ US: '🇺🇸', FR: '🇫🇷', DE: '🇩
 const EUROPE = new Set(['FR', 'DE', 'UK', 'ES', 'IT', 'NL', 'BE', 'PT', 'CH', 'SE', 'NO', 'DK', 'FI', 'PL', 'CZ', 'AT', 'EU']);
 /* zone de comparaison (neutralité par secteur ET par zone) : États-Unis, Europe, Autres */
 export const zonePays = p => (p === 'US' ? 'US' : EUROPE.has(p) ? 'Europe' : 'Autres');
+/* nom de fichier sûr pour un symbole XTB : Windows réserve CON, PRN, AUX, NUL, COM1-9, LPT1-9 (« CON.DE » est Continental) */
+export const fichierDe = id => (/^(CON|PRN|AUX|NUL|COM\d|LPT\d)(\.|$)/i.test(id) ? '_' + id : id);

@@ -1,0 +1,47 @@
+name: invest
+# Calcul nocturne de l'Investissement v2 (prix chaque jour ; comptes chaque semaine grâce au cache fond/ conservé sur la branche).
+# Sortie : branche orpheline « donnees-invest » (JSON découpés, lus par l'application ; historique écrasé : le dépôt ne grossit pas). Branche séparée de « donnees » (publiée toutes les 15 minutes) pour ne pas retéléverser 90 Mo à chaque passage.
+# Dépôt public : minutes d'Actions gratuites. Aucune clé : Yahoo Finance, SEC EDGAR, FRED, Banque mondiale, Nasdaq (API publiques).
+on:
+  schedule:
+    - cron: '23 2 * * *'
+  workflow_dispatch:
+concurrency:
+  group: donnees-branche
+  cancel-in-progress: false
+permissions:
+  contents: write
+jobs:
+  invest:
+    runs-on: ubuntu-latest
+    timeout-minutes: 240
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Reprendre la branche donnees-invest (cache des comptes et enrichissements)
+        env:
+          JETON: ${{ github.token }}
+        run: |
+          git clone --depth 1 --branch donnees-invest "https://x-access-token:${JETON}@github.com/${GITHUB_REPOSITORY}.git" sortie 2>/dev/null || mkdir -p sortie
+          rm -rf sortie/.git
+      - name: Calculer (limitation de débit, nouvelles tentatives, reprise)
+        env:
+          SEC_USER_AGENT: ${{ secrets.SEC_USER_AGENT }}
+        run: node outils-donnees/invest/calcul-v2.mjs --sortie sortie --reprise --conc 6
+      - name: Contrôles automatiques
+        run: node outils-donnees/invest/controles.mjs sortie
+      - name: Vérifier qu'aucun secret ni donnée personnelle n'est publié
+        run: node outils-donnees/verifier-publication.mjs sortie
+      - name: Publier (branche orpheline, historique écrasé)
+        env:
+          JETON: ${{ github.token }}
+        run: |
+          cd sortie
+          git init -q -b donnees-invest
+          git config user.name "rayle-donnees"
+          git config user.email "rayle-donnees@users.noreply.github.com"
+          git add -A
+          git commit -q -m "invest $(date -u +%FT%TZ)"
+          git push -q --force "https://x-access-token:${JETON}@github.com/${GITHUB_REPOSITORY}.git" donnees-invest

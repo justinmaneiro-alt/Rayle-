@@ -13,6 +13,7 @@ import { mesuresPrix, setupTactique } from '../../trader-pro/invest/technique.js
 import { matriceMensuelle, encoder, decoder } from '../../trader-pro/invest/saison.js';
 import { normaliserSecteur } from '../../trader-pro/invest/secteurs.js';
 import { variantesYahoo } from './tables.mjs';
+import { fichierDe } from '../../trader-pro/invest/pays.js';
 import { backtest, enSerie, SIGNAUX, ajustement } from './backtest.mjs';
 
 const ici = path.dirname(fileURLToPath(import.meta.url)), racine = path.resolve(ici, '../..');
@@ -61,7 +62,7 @@ console.log('résultats américains annoncés (10 jours) :', resultats.size);
 /* ───── traitement d'un instrument ───── */
 async function chartAvecVariantes(sym, plage, pas) { for (const v of variantesYahoo(sym)) { const j = await obtenir(URL_CHART(v, plage, pas)); if (!j) continue; try { const ch = lireChart(j); if (ch.bougies.length > 5) return { ch, sym: v }; } catch (e) { /* variante suivante */ } } return null; }
 async function comptes(cat, type) {
-  const f = path.join(sortie, 'fond', cat.symbole_xtb + '.json'), c = lireJson(f);
+  const f = path.join(sortie, 'fond', fichierDe(cat.symbole_xtb) + '.json'), c = lireJson(f);
   if (c && maintenant - c.t < 7 * J && c.annuel && c.annuel.length) return c;
   let r = null;
   const cik = cat.cik || (secTickers && cat.pays === 'US' ? secTickers.get(cat.symbole_yahoo.toUpperCase()) : null);
@@ -77,7 +78,7 @@ async function enrichir(cat) {
 }
 const resultatsFiche = new Map(), Mmat = new Map(), lignes = [], fiches = new Map();
 async function traiter(cat0) {
-  const cat = { ...cat0 }, fiche0 = path.join(sortie, 'fiches', cat.symbole_xtb + '.json');
+  const cat = { ...cat0 }, fiche0 = path.join(sortie, 'fiches', fichierDe(cat.symbole_xtb) + '.json');
   if (reprise) { const e = lireJson(fiche0); if (e && e.ligne && maintenant - (e.ligne.t || 0) < 20 * 3600e3) { lignes.push(e.ligne); if (e.saison) Mmat.set(cat.symbole_xtb, decoder(e.saison)); return; } }
   if (cat.classe === 'obligataire' && !cat.symbole_yahoo) return;   // simples références : traitées avec les taux
   const D0 = await chartAvecVariantes(cat.symbole_yahoo, '5y', '1d'); if (!D0) { stats.echecs.push(cat.symbole_xtb + ' (' + cat.symbole_yahoo + ') : aucun cours Yahoo'); return; }

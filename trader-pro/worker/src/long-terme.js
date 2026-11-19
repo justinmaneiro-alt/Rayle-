@@ -11,7 +11,7 @@ import { detecterAlertes, phraseAlertes } from '../../invest/alertes.js';
 export const LOT_DEFAUT = 3, MAX_EVENEMENTS = 60, SEUIL_QUALITE = 7, MAX_LISTE = 100;
 const SYMBOLE = /^[A-Za-z0-9.\-]{1,12}$/;
 export const KV = Object.freeze({ index: 'lt:index', fiche: tk => 'lt:f:' + tk, liste: 'lt:liste', evenements: 'lt:evenements', horizon: 'lt:v2:horizon', etatV2: 'lt:v2:etat', tV2: 'lt:v2:t' });
-export const BASE_INVEST = 'https://raw.githubusercontent.com/justinmaneiro-alt/Rayle-/donnees/invest/';
+export const BASE_INVEST = 'https://raw.githubusercontent.com/justinmaneiro-alt/Rayle-/donnees-invest/';
 const repJ = (obj, code, h) => new Response(JSON.stringify(obj), { status: code || 200, headers: { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store', ...(h || {}) } });
 
 /* événements à signaler entre l'ancienne et la nouvelle ligne d'une entreprise */
