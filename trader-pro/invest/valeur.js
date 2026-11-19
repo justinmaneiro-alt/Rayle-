@@ -137,7 +137,7 @@ export function evaluer(annuel, ctx) {
 
   base.mcap = mcap; base.actions = S0; base.fin = L.fin; base.dernierExercice = L.fin;
   base.ratios = { per: Ln.epsA > 0 ? P / Ln.epsA : null, evEbitda: Ln.ebitda > 0 ? (mcap + dette - treso) / Ln.ebitda : null, rendementFcf: Ln.fcf != null && mcap ? Ln.fcf / mcap : null, margeOp: mOp, margeNette: mNet, roic, roe, detteNetteEbitda, detteFondsPropres: fin(L.eq) && L.eq > 0 ? dette / L.eq : null, croissanceCA: gCa, croissanceBPA: gBpa, croissanceFCF: gFcf, prixValeurComptable: bvps > 0 ? P / bvps : null };
-  base.piotroski = pk; base.altman = az;
+  base.piotroski = pk; base.altman = az; base.serie = An; base.ctxV = { S0, dette, treso, financiere, gCa, gFcf, gBpa };
   base.annees = An.map(x => ({ fin: x.fin, rev: sans(x.rev), ni: sans(x.ni), fcf: sans(x.fcf), eps: sans(x.epsA), ebitda: sans(x.ebitda), dette: sans(x.debt), tresorerie: sans(x.cash) }));
 
   /* historique : prix mensuel et valeur simplifiée de chaque fin d'exercice (Graham + PER médian × BPA ; jamais la valeur DCF, qui n'a pas d'historique fiable) */
@@ -148,7 +148,7 @@ export function evaluer(annuel, ctx) {
   if (financiere) base.hypotheses.push('Banque / assurance : seules les méthodes PER et Graham sont retenues.');
   return base;
 }
-export const sansFiche = f => { const { annees, histo, hypotheses, methodes, ...r } = f; return r; };
+export const sansFiche = f => { const { annees, histo, hypotheses, methodes, serie, ctxV, ...r } = f; return r; };
 /* ligne compacte de l'index (écran principal) */
 export function ligneIndex(f) {
   return { tk: f.tk, nom: f.nom, secteur: f.secteur, pays: f.pays, prix: sans(f.prix), devise: f.devise, badge: f.badge, mos: sans(f.mos), v: f.valeur ? Math.round(f.valeur.central * 100) / 100 : null, q: f.qualite ? f.qualite.note : null, pk: f.piotroski && f.piotroski.score != null ? f.piotroski.score : null,

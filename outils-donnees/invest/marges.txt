@@ -1,0 +1,455 @@
+TABLES DES MARGES POUR LES COMPTES STANDARD
+
+                      Client particulier             Client professionnel
+                    Valeur Nominale du
+     Instrument     Portefeuille en EUR   Valeur Nominale du   Valeur Nominale du     Nom de l'instrument dans
+                                          Portefeuille en EUR  Portefeuille en EUR    le système de Négociation
+Forex                  0 - 20 000 000
+       AUDCAD                                 0 - 5 000 000       0 - 20 000 000          AUDCAD, AUDCAD+
+       AUDCHF             5% (1:20)                                                        AUDCHF, AUDCHF+
+        AUDJPY            5% (1:20)       0.5% (1:200)         1% (1:100)                  AUDJPY, AUDJPY+
+       AUDNZD             5% (1:20)                                                       AUDNZD, AUDNZD+
+       AUDUSD             5% (1:20)       0.5% (1:200)         1% (1:100)                 AUDUSD, AUDUSD+
+        CADCHF            5% (1:20)                                                        CADCHF, CADCHF+
+        CADJPY          3.33% (1:30)      0.5% (1:200)         1% (1:100)                   CADJPY, CADJPY+
+       CADMXN           3.33% (1:30)
+        CHFHUF            5% (1:20)       0.5% (1:200)         1% (1:100)                        CADMXN
+        CHFJPY            5% (1:20)                                                        CHFHUF, CHFHUF+
+       CHFNOK           3.33% (1:30)      0.5% (1:200)         1% (1:100)                   CHFJPY, CHFJPY+
+        CHFPLN            5% (1:20)
+        CHFSEK            5% (1:20)       0.5% (1:200)         1% (1:100)                        CHFNOK
+       EURAUD             5% (1:20)                                                        CHFPLN, CHFPLN+
+       EURCAD             5% (1:20)       0.5% (1:200)         1% (1:100)
+        EURCHF          3.33% (1:30)                                                              CHFSEK
+       EURCNH           3.33% (1:30)      2.5% (1:40)                      5% (1:20)      EURAUD, EURAUD+
+        EURCZK            5% (1:20)                                                        EURCAD, EURCAD+
+       EURGBP             5% (1:20)       0.5% (1:200)         1% (1:100)                  EURCHF, EURCHF+
+       EURHUF           3.33% (1:30)                                                      EURCNH, EURCNH+
+        EURJPY            5% (1:20)       0.5% (1:200)         1% (1:100)                  EURCZK, EURCZK+
+       EURMXN           3.33% (1:30)                                                       EURGBP, EURGBP+
+       EURNOK             5% (1:20)       1% (1:100)                       2% (1:50)       EURHUF, EURHUF+
+       EURNZD             5% (1:20)                                                         EURJPY, EURJPY+
+        EURPLN            5% (1:20)       0.5% (1:200)         1% (1:100)                 EURMXN, EURMXN+
+       EURRON             5% (1:20)                                                       EURNOK, EURNOK+
+        EURSEK            5% (1:20)       1% (1:100)                       2% (1:50)       EURNZD, EURNZD+
+       EURSGD             5% (1:20)                                                        EURPLN, EURPLN+
+        EURTRY            5% (1:20)       0.5% (1:200)         1% (1:100)                 EURRON, EURRON+
+       EURUSD             5% (1:20)                                                        EURSEK, EURSEK+
+        EURZAR          3.33% (1:30)      0.5% (1:200)         1% (1:100)
+       GBPAUD             5% (1:20)                                                              EURSGD
+       GBPCAD             5% (1:20)       0.5% (1:200)         1% (1:100)                  EURTRY, EURTRY+
+        GBPCHF          3.33% (1:30)                                                       EURUSD, EURUSD+
+        GBPJPY          3.33% (1:30)      2.5% (1:40)                      5% (1:20)       EURZAR, EURZAR+
+       GBPMXN           3.33% (1:30)                                                      GBPAUD, GBPAUD+
+       GBPNOK             5% (1:20)       0.5% (1:200)         1% (1:100)                  GBPCAD, GBPCAD+
+                          5% (1:20)                                                        GBPCHF, GBPCHF+
+     Instrument       Client particulier  0.5% (1:200)         1% (1:100)                   GBPJPY, GBPJPY+
+                                                                                          GBPMXN, GBPMXN+
+       GBPNZD       Valeur Nominale du    0.5% (1:200)         1% (1:100)
+        GBPPLN      Portefeuille en EUR                                                          GBPNOK
+        GBPSEK                            0.5% (1:200)         1% (1:100)
+       GBPSGD          0 - 20 000 000                                                 Nom de l'instrument dans
+       GBPUSD             5% (1:20)       2.5% (1:40)                      5% (1:20)  le système de Négociation
+        GBPZAR            5% (1:20)
+        NOKSEK            5% (1:20)       0.5% (1:200)         1% (1:100)                 GBPNZD, GBPNZD+
+       NZDCAD             5% (1:20)                                                        GBPPLN, GBPPLN+
+        NZDCHF                            0.5% (1:200)         1% (1:100)
+        NZDJPY          3.33% (1:30)                                                              GBPSEK
+       NZDSGD             5% (1:20)       0.5% (1:200)         1% (1:100)                        GBPSGD
+       NZDUSD             5% (1:20)                                                        GBPUSD, GBPUSD+
+        USDBRL            5% (1:20)       0.5% (1:200)         1% (1:100)                  GBPZAR, GBPZAR+
+       USDCAD             5% (1:20)                                                              NOKSEK
+        USDCHF            5% (1:20)       0.5% (1:200)         1% (1:100)                  NZDCAD, NZDCAD+
+       USDCLP*            5% (1:20)                                                        NZDCHF, NZDCHF+
+       USDCNH             5% (1:20)       1.5% (1:67)                      3% (1:33)        NZDJPY, NZDJPY+
+        USDCZK            5% (1:20)                                                              NZDSGD
+       USDHUF                             2.5% (1:40)                      5% (1:20)       NZDUSD, NZDUSD+
+        USDILS          3.33% (1:30)                                                       USDBRL, USDBRL+
+        USDINR          3.33% (1:30)      0.5% (1:200)         1% (1:100)                  USDCAD, USDCAD+
+        USDJPY                                                                             USDCHF, USDCHF+
+       USDMXN             5% (1:20)       2.5% (1:40)                      5% (1:20)       USDCLP, USDCLP+
+       USDNOK             5% (1:20)                                                       USDCNH, USDCNH+
+        USDPLN            5% (1:20)       0.5% (1:200)         1% (1:100)                  USDCZK, USDCZK+
+       USDRON             5% (1:20)                                                        USDHUF, USDHUF+
+        USDSEK            5% (1:20)       0.5% (1:200)         1% (1:100)                         USDILS
+       USDSGD             5% (1:20)                                                               USDINR
+       USDTHB           3.33% (1:30)      0.5% (1:200)         1% (1:100)                   USDJPY, USDJPY+
+        USDTRY            5% (1:20)                                                       USDMXN, USDMXN+
+        USDZAR            5% (1:20)       0.5% (1:200)         1% (1:100)                 USDNOK, USDNOK+
+        ZARJPY            5% (1:20)                                                        USDPLN, USDPLN+
+                          5% (1:20)       2.5% (1:40)                      5% (1:20)      USDRON, USDRON+
+     Instrument           5% (1:20)                                                        USDSEK, USDSEK+
+                          5% (1:20)       1% (1:100)                       2% (1:50)             USDSGD
+Indices                   5% (1:20)                                                              USDTHB
+     AU200.cash           5% (1:20)                  Client professionnel                  USDTRY, USDTRY+
+        AUS200            5% (1:20)                                                        USDZAR, USDZAR+
+        AUT20             5% (1:20)       Valeur Nominale du   Valeur Nominale du                 ZARJPY
+      BRAComp         Client particulier  Portefeuille en EUR  Portefeuille en EUR
+      CH50cash                                                                        Nom de l'instrument dans
+       CHN.cash     Valeur Nominale du    0 - 5 000 000        0 - 20 000 000         le système de Négociation
+      CHNComp       Portefeuille en EUR
+       CZKCASH                            0.5% (1:200)         1% (1:100)                      AU200.cash
+         DE30          0 - 20 000 000                                                      AUS200, AUS200+
+         DE40                             0.5% (1:200)         1% (1:100)                    AUT20, AUT20+
+         EU50             5% (1:20)                                                      BRAComp, BRAComp+
+         FRA40            5% (1:20)       1% (1:100)                       2% (1:50)
+        HK.cash          10% (1:10)                                                             CH50cash
+       HKComp            10% (1:10)       1.5% (1:67)                      3% (1:33)             CHN.cash
+         ITA40           10% (1:10)                                                     CHNComp, CHNComp+
+        JAP225           10% (1:10)       0.5% (1:200)         1% (1:100)                 CZKCASH, CZKCASH+
+         JP225           10% (1:10)                                                           DE30, DE.30+
+       KOSP200           10% (1:10)       2.5% (1:40)                      5% (1:20)           DE40, DE40+
+      MEXComp             5% (1:20)                                                           EU50, EU.50+
+        NED25             5% (1:20)       1% (1:100)                       2% (1:50)         FRA40, FRA.40+
+       SG20cash           5% (1:20)                                                               HK.cash
+         SPA35            5% (1:20)       0.5% (1:200)         1% (1:100)                 HKComp, HKComp+
+         SUI20           10% (1:10)                                                           ITA40, ITA.40+
+        UK100            10% (1:10)       0.5% (1:200)         1% (1:100)                   JAP225, JAP225+
+        US100            10% (1:10)
+        US2000            5% (1:20)       0.5% (1:200)         1% (1:100)                          JP225
+         US30             5% (1:20)                                                       KOSP200, KOSP200+
+        US500            10% (1:10)       1.5% (1:67)                      3% (1:33)    MEXComp, MEXComp+
+        USDIDX           10% (1:10)
+        VIET30           10% (1:10)       0.5% (1:200)         1% (1:100)                   NED25, NED25+
+           VIX           10% (1:10)                                                             SG20cash
+        VSTOXX           10% (1:10)       1.5% (1:67)                      3% (1:33)
+          W20            10% (1:10)                                                          SPA35, SPA.35+
+                          5% (1:20)       0.5% (1:200)         1% (1:100)                     SUI20, SUI20+
+     Instrument           5% (1:20)                                                         UK100, UK.100+
+                         10% (1:10)       0.5% (1:200)         1% (1:100)                    US100, US.100+
+Matières Premières        5% (1:20)                                                        US2000, US2000+
+     ALUMINIUM            5% (1:20)       0.5% (1:200)         1% (1:100)                     US30, US.30+
+       BUND10Y            20% (1:5)                                                          US500, US.500+
+        CATTLE           10% (1:10)       2.5% (1:40)                      5% (1:20)        USDIDX, USDIDX+
+        COCOA             20% (1:5)
+        COFFEE            20% (1:5)       0.5% (1:200)         1% (1:100)                         VIET30
+        COPPER           10% (1:10)                                                              VIX, VIX+
+         CORN        Client particulier   0.5% (1:200)         1% (1:100)                         VSTOXX
+       COTTON                                                                                  W20, W.20+
+         EMISS      Valeur Nominale du    2.5% (1:40)                      5% (1:20)
+      GASOLINE      Portefeuille en EUR                                               Nom de l'instrument dans
+         GOLD                             2.5% (1:40)                      5% (1:20)  le système de Négociation
+      LEANHOGS         0 - 20 000 000
+       LSGASOIL                           0.5% (1:200)         1% (1:100)             ALUMINIUM, ALUMINIUM+
+        NATGAS           10% (1:10)                                                      BUND10Y, BUND10Y+
+        NICKEL            20% (1:5)       0.5% (1:200)         1% (1:100)                         CATTLE
+          OIL            10% (1:10)                                                         COCOA, COCOA+
+        OIL.WTI          10% (1:10)       0.5% (1:200)         1% (1:100)                   COFFEE, COFFEE+
+      PLATINUM           10% (1:10)                                                        COPPER, COPPER+
+     PALLADIUM           10% (1:10)       0.5% (1:200)         1% (1:100)                     CORN, CORN+
+      SCHATZ2Y           10% (1:10)                                                       COTTON, COTTONs+
+        SILVER           10% (1:10)       0.5% (1:200)         1% (1:100)                     EMISS, EMISS+
+       SOYBEAN            20% (1:5)                                                             GASOLINE
+        SOYOIL           10% (1:10)       0.5% (1:200)         1% (1:100)                    GOLD, GOLDs+
+        SUGAR             5% (1:20)                                                             LEANHOGS
+        TNOTE            10% (1:10)       1.5% (1:67)                      3% (1:33)             LSGASOIL
+        WHEAT            10% (1:10)                                                        NATGAS, NATGAS+
+          ZINC           10% (1:10)       2.5% (1:40)                      5% (1:20)        NICKEL, NICKEL+
+                         10% (1:10)                                                             OIL, OILs+
+                         10% (1:10)       2.5% (1:40)                      5% (1:20)       OIL.WTI, OIL.WTI+
+                         10% (1:10)                                                     PLATINUM, PLATINUM+
+                         10% (1:10)       0.5% (1:200)         1% (1:100)
+                         10% (1:10)                                                   PALLADIUM, PALLADIUM+
+                          20% (1:5)       2.5% (1:40)                      5% (1:20)    SCHATZ2Y, SCHATZ2Y+
+                         10% (1:10)                                                         SILVER, SILVERs+
+                         10% (1:10)                  Client professionnel                SOYBEAN, SOYBEAN+
+                         10% (1:10)                                                               SOYOIL
+                         10% (1:10)       Valeur Nominale du   Valeur Nominale du           SUGAR, SUGARs+
+                          20% (1:5)       Portefeuille en EUR  Portefeuille en EUR           TNOTE, TNOTE+
+                         10% (1:10)                                                         WHEAT, WHEAT+
+                         10% (1:10)           0 - 5 000 000       0 - 20 000 000               ZINC, ZINC+
+
+                                          1% (1:100)                       2% (1:50)  Nom de l'instrument dans
+                                                                                      le système de Négociation
+                                          1% (1:100)                       2% (1:50)
+                                                                                                   AAVE
+                                          1.5% (1:67)                      3% (1:33)           ALGORAND
+
+                                          1% (1:100)                       2% (1:50)             APECOIN
+                                                                                               AVALANCHE
+                                          1.5% (1:67)                      3% (1:33)          BINANCECOIN
+
+                                          1% (1:100)                       2% (1:50)             BITCOIN
+                                                                                              BITCOINCASH
+                                          1% (1:100)                       2% (1:50)
+                                                                                                CARDANO
+                                          1% (1:100)                       2% (1:50)            CHAINLINK
+
+                                          0.5% (1:200)         1% (1:100)
+
+                                          0.5% (1:200)         1% (1:100)
+
+                                          0.5% (1:200)         1% (1:100)
+
+                                          0.5% (1:200)         1% (1:100)
+
+                                          1% (1:100)                       2% (1:50)
+
+                                          1% (1:100)                       2% (1:50)
+
+                                          0.75% (1:133)        1.5% (1:67)
+
+                                          1% (1:100)                       2% (1:50)
+
+                                          1% (1:100)                       2% (1:50)
+
+                                          1% (1:100)                       2% (1:50)
+
+                                          1% (1:100)                       2% (1:50)
+
+                                          1% (1:100)                       2% (1:50)
+
+                                          1.5% (1:67)                      3% (1:33)
+
+                                          0.75% (1:133)        1.5% (1:67)
+
+                                          1% (1:100)                       2% (1:50)
+
+                                          0.5% (1:200)         1% (1:100)
+
+                                          0.5% (1:200)         1% (1:100)
+
+                                          1% (1:100)                       2% (1:50)
+
+                                          0.5% (1:200)         1% (1:100)
+
+                                          0.5% (1:200)         1% (1:100)
+
+                                          1% (1:100)                       2% (1:50)
+
+                                          1.5% (1:67)                      3% (1:33)
+
+                                          1.5% (1:67)                      3% (1:33)
+
+                                          1.5% (1:67)                      3% (1:33)
+
+                                          1.5% (1:67)                      3% (1:33)
+
+                                                     Client professionnel
+
+                                          Valeur Nominale du   Valeur Nominale du
+                                          Portefeuille en EUR  Portefeuille en EUR
+
+                                              0 - 5 000 000       0 - 20 000 000
+
+                                          1.5% (1:67)          3% (1:33)
+                                          0.5% (1:200)         1% (1:100)
+                                          1.5% (1:67)          3% (1:33)
+                                          1.5% (1:67)          3% (1:33)
+                                          1.5% (1:67)          3% (1:33)
+                                          1.5% (1:67)          3% (1:33)
+                                          1.5% (1:67)          3% (1:33)
+                                          1.5% (1:67)          3% (1:33)
+                                          1.5% (1:67)          3% (1:33)
+                                          1.5% (1:67)          3% (1:33)
+                                          0.5% (1:200)         1% (1:100)
+                                          1.5% (1:67)          3% (1:33)
+                                          1.5% (1:67)          3% (1:33)
+                                          1.5% (1:67)          3% (1:33)
+                                          1.5% (1:67)          3% (1:33)
+                                          1.5% (1:67)          3% (1:33)
+                                          1.5% (1:67)          3% (1:33)
+                                          1.5% (1:67)          3% (1:33)
+                                          1.5% (1:67)          3% (1:33)
+                                          0.5% (1:200)         1% (1:100)
+                                          1.5% (1:67)          3% (1:33)
+                                          1.5% (1:67)          3% (1:33)
+                                          1.5% (1:67)          3% (1:33)
+                                          1.5% (1:67)          3% (1:33)
+                                          0.5% (1:200)         1% (1:100)
+                                          1.5% (1:67)          3% (1:33)
+                                          1.5% (1:67)          3% (1:33)
+
+                      Client particulier             Client professionnel
+
+     Instrument     Valeur Nominale du    Valeur Nominale du   Valeur Nominale du
+                    Portefeuille en EUR   Portefeuille en EUR  Portefeuille en EUR
+Cryptomonnaies
+         AAVE          0 - 20 000 000         0 - 5 000 000       0 - 20 000 000
+
+     ALGORAND             50% (1:2)       25% (1:4)             50% (1:2)
+       APECOIN            50% (1:2)       25% (1:4)             50% (1:2)
+                          50% (1:2)       25% (1:4)             50% (1:2)
+     AVALANCHE            50% (1:2)       25% (1:4)             50% (1:2)
+    BINANCECOIN           50% (1:2)       25% (1:4)             50% (1:2)
+                          50% (1:2)       20% (1:5)            40% (1:2.5)
+       BITCOIN            50% (1:2)       20% (1:5)            40% (1:2.5)
+    BITCOINCASH           50% (1:2)       25% (1:4)             50% (1:2)
+                          50% (1:2)       25% (1:4)             50% (1:2)
+      CARDANO
+      CHAINLINK
+      CHILIZ        50% (1:2)      25% (1:4)                        50% (1:2)              CHILIZ
+    COSMOS          50% (1:2)                                                             COSMOS
+   CURVEDAO         50% (1:2)      25% (1:4)                        50% (1:2)           CURVEDAO
+DECENTRALAND        50% (1:2)                                                        DECENTRALAND
+   DOGECOIN         50% (1:2)      25% (1:4)                        50% (1:2)            DOGECOIN
+                    50% (1:2)
+      DYDX          50% (1:2)      25% (1:4)                        50% (1:2)               DYDX
+       EOS          50% (1:2)                                                                EOS
+   ETHEREUM         50% (1:2)      25% (1:4)                        50% (1:2)           ETHEREUM
+    FANTOM          50% (1:2)                                                             FANTOM
+    FILECOIN        50% (1:2)      25% (1:4)                        50% (1:2)             FILECOIN
+      GALA          50% (1:2)                                                               GALA
+     GRAPH          50% (1:2)      25% (1:4)                        50% (1:2)              GRAPH
+  INTERCOMP         50% (1:2)                                                           INTERCOMP
+    KUSAMA          50% (1:2)      20% (1:5)            40% (1:2.5)                       KUSAMA
+      KYBER         50% (1:2)                                                              KYBER
+    LITECOIN        50% (1:2)      25% (1:4)                        50% (1:2)             LITECOIN
+     MAKER          50% (1:2)                                                              MAKER
+ MOONBEAM           50% (1:2)      25% (1:4)                        50% (1:2)          MOONBEAM
+   POLKADOT         50% (1:2)                                                            POLKADOT
+   POLYGON          50% (1:2)      25% (1:4)                        50% (1:2)            POLYGON
+     RIPPLE    Client particulier                                                          RIPPLE
+                                   25% (1:4)                        50% (1:2)
+  Instrument  Valeur Nominale du                                               Nom de l'instrument dans
+              Portefeuille en EUR  25% (1:4)                        50% (1:2)  le système de Négociation
+   SANDBOX
+    SOLANA       0 - 20 000 000    25% (1:4)                        50% (1:2)            SANDBOX
+    STELLAR                                                                               SOLANA
+      STEPN         50% (1:2)      25% (1:4)                        50% (1:2)             STELLAR
+      SUSHI         50% (1:2)                                                              STEPN
+      TEZOS         50% (1:2)      20% (1:5)            40% (1:2.5)                         SUSHI
+      TRON          50% (1:2)                                                              TEZOS
+    UNISWAP         50% (1:2)      25% (1:4)                        50% (1:2)               TRON
+    VECHAIN         50% (1:2)                                                            UNISWAP
+     WAVES          50% (1:2)      25% (1:4)                        50% (1:2)             VECHAIN
+     ZCASH          50% (1:2)                                                              WAVES
+                    50% (1:2)      25% (1:4)                        50% (1:2)              ZCASH
+                    50% (1:2)
+                    50% (1:2)      25% (1:4)                        50% (1:2)
+
+                                   20% (1:5)            40% (1:2.5)
+
+                                              Client professionnel
+
+                                   Valeur Nominale du   Valeur Nominale du
+                                   Portefeuille en EUR  Portefeuille en EUR
+
+                                       0 - 5 000 000       0 - 20 000 000
+
+                                   25% (1:4)                        50% (1:2)
+                                   25% (1:4)                        50% (1:2)
+                                   25% (1:4)                        50% (1:2)
+                                   25% (1:4)                        50% (1:2)
+                                   25% (1:4)                        50% (1:2)
+                                   25% (1:4)                        50% (1:2)
+                                   25% (1:4)                        50% (1:2)
+                                   25% (1:4)                        50% (1:2)
+                                   25% (1:4)                        50% (1:2)
+                                   25% (1:4)                        50% (1:2)
+                                   25% (1:4)                        50% (1:2)
+
+Commentaires:
+
+1. Dans le cas de la plateforme Meta Trader, la valeur de la marge calculée pour les positions de couverture est une moyenne des valeurs des marges calculées de ces positions.
+
+2. Dans le cas de la plate-forme xStation, la valeur de la marge calculée pour les positions de couverture est la valeur de la marge calculée pour l'achat ou la vente de positions ouvertes, selon la valeur la plus élevée.
+
+3. La valeur nominale du portefeuille, telle que spécifiée dans les CG, s'applique à toutes les positions ouvertes détenues par le client dans tous ses comptes de négociation, à l'exception des positions sur les CFD sur actions, les CFD sur ETF et les actions synthétiques.
+
+4. Les valeurs nominales des positions individuelles, qui constituent le portefeuille du Client, sont converties en euros sur la base des taux XTB à intervalles réguliers tout au long de la durée de vie de chaque position.
+
+5. Le client peut choisir le groupe de valeur nominale du portefeuille tel que spécifié dans le tableau ci-dessus. Si l'ouverture de nouvelles positions entraîne un dépassement de la valeur nominale maximale du portefeuille, ces positions ne seront pas ouvertes.
+
+6. La valeur nominale des positions couvertes est la valeur nominale de la position d'achat ou de vente, selon la valeur la plus élevée.
+
+7. S'il existe un soupçon justifié que les comptes sont gérés par une personne ou le groupe de personnes liées les unes aux autres, ils seront affectés au même groupe de valeur nominale du portefeuille et ils auront des exigences de marge
+correspondant au groupe mentionné.
+
+8. Dans le cas de la plateforme Meta Trader, le changement du groupe de valeur nominale du portefeuille, qui entraîne un changement des exigences de marge, affectera toutes les positions ouvertes, y compris les positions ouvertes avant le changement.
+
+9. Dans le cas de la plate-forme xStation, le changement du groupe de valeur nominale du portefeuille, qui entraîne un changement des exigences de marge, n'affectera que les positions nouvellement ouvertes et la marge collectée pour les positions ouvertes plus tôt restera inchangée.
+
+10. Si le ratio de pourcentage des capitaux propres sur marge (le soi-disant niveau de marge) est inférieur à 100 % et qu'il y a au moins une position ouverte sur le compte du client, en fonction de la plate-forme de négociation qui dessert
+l'ordre du client : a) ouverture d'un nouvel ordre n'est pas possible - sur la plate-forme de trading xStation ; b) seule la conclusion d'une transaction inverse est possible si la marge libre devient positive lors de sa conclusion - sur la plateforme
+
+11. Marges collectées à l'ouverture des transactions relatives aux CFD sur actions, CFD sur ETF :
+
+           20%
+
+0RYA.UK*, 1COV.DE, 2B76.DE, A.US, AAL.UK, AAL.US, AAP.US, AAPL.US, AAXJ.US, ABB.SE, ABBN.CH, ABBV.US, ABC.US, ABDN.UK, ABF.UK, ABG.US, ABI.BE, ABNB.US, ABR.US, ABT.US, AC.FR, ACA.FR, ACKB.BE, ACM.US, ACN.US, ACS.ES, AD.NL, ADBE.US, ADC.US, ADEN.CH, ADI.US, ADM.UK, ADM.US,
+ADNT.US, ADP.US, ADS.DE, ADSK.US, AEE.US, AEM.US, AENA.ES, AEP.US, AER.US, AF.FR, AFL.US, AFX.DE, AGCO.US, AGN.NL, AGNC.US, AGS.BE, AHT.UK, AI.FR, AI.US, AIG.US, AIR.DE, AIR.ES, AIR.FR, AIZ.US, AJG.US, AKAM.US, AL.US, ALB.US, ALC.CH, ALD.FR, ALFA.SE, ALFEN.NL, ALGM.US, ALGN.US,
+ALK.US, ALL.US, ALLE.US, ALNY.US, ALO.FR, ALV.DE, AMAT.US, AMBA.US, AMCR.US, AMCX.US, AMD.US, AME.US, AMED.US, AMG.US, AMGN.US, AMKR.US, AMP.IT, AMP.US, AMS.ES, AMUN.FR, AMX.US, AMZN.US, AN.US, ANA.ES, ANSS.US, ANTM.US*, ANTO.UK, AON.US, AOS.US, APA.US, APAM.US,
+APD.US, APH.US, APO.US, APP.US, APPS.ES, APTV.US, AQN.US, AQUA.US, ARCAD.NL, ARCC.US, ARE.US, ARI.US, ARKG.US, ARKK.US, ARKQ.US, ARKW.US, ARM.US, ARW.US, ARWR.US, ASAN.US, ASM.NL, ASML.NL, ASML.US, ASRNL.NL, ASSAB.SE, AT1.DE, ATCOA.SE, ATCOB.SE, ATKR.US, AUTO.UK,
+AV.UK, AVB.US, AVGO.US, AVTA.US, AVTR.US, AVY.US, AWK.US*, AX.US, AXFO.SE, AXP.US, AY.US, AYI.US, AYX.US, AZA.SE, AZM.IT, AZN.SE, AZN.UK, AZN.US, AZO.US, AZTA.US, BA.UK, BA.US, BABA.US, BAC.US, BAER.CH, BAM.US*, BAMI.IT, BAP.US, BARC.UK, BARN.CH, BAS.DE, BATS.UK, BAX.US,
+BAYN.DE, BBOX.UK, BBVA.ES, BBWI.US, BBY.UK, BBY.US, BC.IT, BC.US, BC8.DE, BCP.PT, BDEV.UK, BDX.US, BEN.US, BEPC.US, BESI.NL, BEZ.UK, BFB.US, BFH.US, BG.US, BGS.US, BHF.US, BHP.UK, BHP.US, BILL.US, BIO.US, BIRG.UK, BK.US, BKG.UK, BKH.US, BKNG.US, BKR.US, BKT.ES, BL.US, BLK.US,
+BLND.UK, BLT.UK*, BMED.IT, BMO.US, BMRN.US, BMW.DE, BMW3.DE, BMY.US, BN.FR, BN.US, BNP.FR, BNZL.UK, BOL.SE, BOTZ.US, BOY.UK, BP.UK, BP.US, BPE.IT, BPMC.US, BPOST.BE, BR.US, BRBY.UK, BRE.IT, BRKB.US, BRKR.US, BRO.US, BSX.US, BTA.UK, BTI.US, BUD.US, BURL.US, BVIC.UK, BWA.US,
+BWY.UK, BXMT.US, BXP.US, BYG.UK, BZU.IT, C.US, CA.FR, CABK.ES, CACC.US, CAF.ES, CAG.US, CAH.US, CAKE.US, CALM.US, CAP.FR, CARLB.DK, CARR.US, CASY.US, CAT.US, CB.US, CBG.UK, CBOE.US, CBRE.US, CBRL.US, CC.US, CCEP.US, CCI.US, CCK.US, CCOI.US, CDAY.US, CDNS.US, CE.US, CEG.US,
+CELH.US, CES1.UK, CEU1.UK, CEVA.US, CEZ1.CZ, CF.US, CFR.CH, CGCBV.FI, CHD.US, CHKP.US, CHRD.US, CHRW.US, CHTR.US, CHWY.US, CI.US, CIB.US, CIEN.US, CIVI.US, CL.US, CLARI.FR, CLNX.ES, CLX.US, CM.US, CMA.US, CMC.US, CMCSA.US, CME.US, CMG.US, CMI.US, CMS.US, CNA.UK, CNC.US,
+CNHI.IT, CNI.US, CNO.US, CNP.US, COF.US, COFB.BE, COG.US*, COHR.US, COKE.US, COLM.US, COLOB.DK, COLR.BE, CON.DE, COO.US, COP.US, COPX.US, COR1.US, COST.US, COUR.US, COV.FR, CPA.US, CPB.US, CPG.UK, CPR.IT, CPRI.US, CPRT.US, CRH.UK, CRI.US, CROX.US, CRSP.US, CRSR.US, CS.FR,
+CSCO.US, CSGP.US, CSL.US, CSX.US, CTAS.US, CTRA.US, CTRE.US, CTSH.US, CTVA.US, CURY.UK, CVCO.US, CVE.US, CVS.US, CVX.US, CWEN.US, CWK.UK, D.US, DAI.DE*, DAL.US, DANSKE.DK, DAR.US, DASH.US, DB1.DE, DBK.DE, DBX.US, DD.US, DE.US, DEA.US, DECK.US, DEI.US, DELL.US, DEMANT.DK,
+DFS.US, DG.FR, DG.US, DGE.UK, DGRO.USDGTL.UK, DGX.US, DHI.US, DHR.US, DIA.US, DIE.BE, DIM.FR, DINO.US, DIS.US, DISCA.US*, DISCK.US*, DISH.US, DKNG.US, DKS.US, DLB.US, DLG.UK, DLN.UK, DLR.US, DLTR.US, DLX.US, DNB.NO, DOC.US, DOCS.US, DOCU.US, DOM.UK, DOV.US, DOW.US, DOX.US,
+DPW.DE, DPZ.US, DRI.US, DRX.UK, DSFIR.NL, DSV.DK, DSY.FR, DTE.DE, DTE.US, DUK.US, DVA.US, DXCM.US, EA.US, EAT.PL, EBAY.US, EBRO.ES, ECH.US, ECL.US, ECV.DE, ED.US, EDEN.FR, EEFT.US, EEM.US, EFA.US, EFGN.CH, EFX.US, EIX.US, EL.FR, EL.US, ELAN.US, ELE.ES, ELI.BE, ELIS.FR, ELISA.FI, ELUXB.SE,
+ELV.US, EMB.US, EMN.US, EMR.US, EN.FR, ENB.US, ENEL.IT, ENG.ES, ENGI.FR, ENI.IT, ENR.DE, ENS.US, ENVX.US, EO.FR, EOAN.DE, EOG.US, EPAM.US, EPRT.US, EQH.US, EQIX.US, EQNR.US, EQR.US, EQT.SE, ES.US, ESGU.US, ESSITYB.SE, ESTC.US, ETN.US, ETR.US, ETSY.US, EURN.BE, EVK.DE, EVO.SE,
+EW.US, EWG.US, EWH.US, EWJ.US, EWQ.US, EWT.US, EWU.US, EWW.US, EWY.US, EWZ.US, EXAS.US, EXC.US, EXEL.US, EXH4.DE, EXPD.US, EXPE.US, EXPI.US, EXPN.UK, EXPO.US, EXR.US, EZJ.UK, F.US, FAE.ES, FAF.US, FAST.US, FB.US*, FBIN.US, FBK.IT, FCA.IT*, FCC.ES, FCNCA.US, FDJ.FR, FDR.ES, FDS.US,
+FDX.US, FE.US, FER.ES, FERG.UK, FEVR.UK, FEZ.US, FFIV.US, FGR.FR, FHI.US, FI.US, FICO.US, FIS.US, FISV.US*, FIVE.US, FIZZ.US, FL.US, FLO.US, FLOW.NL, FLS.DK, FLS.US, FLT.US, FLYW.US, FMC.US, FME.DE, FMX.US, FND.US, FNF.US, FNV.US, FORTUM.FI, FOX.US, FP.FR*, FR.FR, FRC.US, FRE.DE, FRES.UK,
+FSLR.US, FSR.US, FTS.US, FTV.US, FUR.NL, FUTU.US, FWONA.US, FXI.US, G.IT, G1A.DE, GAS.ES, GBF.DE, GBLB.BE, GCO.ES, GD.US, GDDY.US, GDX.US, GDXJ.US, GEBN.CH, GEHC.US, GEN.UK, GEN.US, GETIB.SE, GGB.US, GGG.US, GH.US, GHC.US, GIB.US, GILD.US, GIS.US, GIVN.CH, GJF.NO, GL.US, GLDV.UK,
+GLE.FR, GLEN.UK, GLOB.US, GLPG.NL, GLW.US, GM.US, GMAB.DK, GMED.US, GMVM.DE, GN.DK, GOLD.US, GOOG.US*, GOOGC.US, GOOGL.US, GPC.US, GPE.UK, GPN.US, GRAB.US, GRF.ES, GRG.UK, GRI.UK, GRMN.US, GS.US, GSF.NO, GSK.UK, GTLS.US, GTN.US, GWW.US, GXO.US, H.US, HAG.DE,
+HAIN.US, HAS.UK, HAS.US, HASI.US, HBR.UK, HCA.US, HD.US, HDB.US, HDV.US, HEI.DE, HEIA.NL, HELE.US, HEN3.DE, HFC.US*, HHC.US, HIK.UK, HL.UK, HLAG.DE, HLMA.UK, HLN.UK, HLNE.US, HLT.US, HLUNB.DK, HMB.SE, HMC.US, HO.FR, HOG.US, HOLN.CH, HOLX.US, HOME.ES, HON.US, HPP.US, HPQ.US,
+HR.US, HRB.US, HRL.US, HSBA.UK, HSIC.US, HST.US, HSX.UK, HSY.US, HUBS.US, HUM.US, HUN.US, HWDN.UK, HXL.US, HZNP.US, IAC.US, IAG.ES, IAG.UK, IBB.US, IBE1.ES, IBM.US, IBN.US, ICE.US, ICLN.US, ICP.UK, IDNA.UK, IDS.UK, IDUP.UK, IEEM.DE*, IEF.US, IEI.US, IEV.US, IFF.US, IFFF.UK, IFX.DE, IG.IT,
+IGG.UK, IHG.UK, III.UK, IJH.US, IJR.US, ILMN.US, IMB.UK, IMCD.NL, IMEU.UK, INCY.US, INDA.US, INF.UK, INFY.US, INGA.NL, INTC.US, INVEB.SE, INVH.US, INW.IT, IOT.US, IP.US, IPG.US, IPGP.US, IQQH.DE, IQQW.DE, IR.US, IRDM.US, ISP.IT, ISRG.US, ISS.DK, ITA.US, ITB.US, ITOT.US, ITP.FR, ITRK.UK, ITV.UK,
+ITW.US, ITX.ES, IUHC.UK, IVE.US, IVG.IT, IVV.US, IWF.US, IWM.US, IWN.US, IWQU.UK, IWVL.UK, J.US, JBHT.US, JBL.US, JBLU.US*, JD.UK, JEF.US, JEN.DE, JEPI.US, JETS.US, JKHY.US, JMAT.UK, JMT.PT, JNJ.US, JNPR.US, JPM.US, JUP.UK, JWN.US, JXN.US, JYSK.DK, K.US, KBC.BE, KBH.US, KBR.US, KBX.DE,
+KD.US, KDP.US, KEMIRA.FI, KESKOB.FI, KEX.US, KFY.US, KGF.UK, KHC.US, KIM.US, KINVB.SE, KLAC.US, KMB.US, KMI.US, KMX.US, KNEBV.FI, KNX.US, KO.US, KOMB.CZ, KPN.NL, KR.US, KWEB.US*, L.US, LAD.US, LAND.UK, LB.US*, LDO.IT, LDOS.US, LEA.US, LECO.US, LEG.US, LEN.US, LGEN.UK, LGIH.US, LH.US,
+LHA.DE, LI.FR, LI.US, LIGHT.NL, LII.US, LIN.DE, LIN.US, LKQ.US, LLOY.UK, LLY.US, LMND.US, LMP.UK, LMT.US, LNC.US, LNG.US, LNT.US, LNW.US, LOB.US, LOCK.UK, LOGI.US, LOPE.US, LOW.US, LPLA.US, LPX.US, LR.FR, LRCX.US, LRE.UK, LSEG.UK, LSG.NO, LSTR.US, LTC.US, LTHM.US, LULU.US, LUV.US, LVS.US,
+LXS.DE, LYB.US, LYV.US, M.US*, MA.US, MAA.US, MAERSKA.DK, MAERSKB.DK, MAN.US, MANH.US, MAP.ES, MAR.US, MAS.US, MASI.US, MATX.US, MB.IT, MBG.DE, MBLY.US, MC.FR, MCD.US, MCG.UK, MCHI.US, MCHP.US, MCK.US, MCO.US, MDB.US, MDC.US, MDLZ.US, MDT.US, MDU.US, MDY.US,
+MED.US, MELI.US, MET.US, META.US, METSO.FI, MFC.US, MFEB.IT, MGA.US, MGM.US, MGY.US, MHK.US, MKC.US, MKL.US, ML.FR, MLCO.US, MLI.US, MLKN.US, MLM.US, MMC.US, MMM.US, MMS.US, MNG.UK, MONC.IT, MOS.US, MOWI.NO, MP.US, MPC.US, MPW.US, MPWR.US, MRK.DE, MRK.US,
+MRL.ES, MRNA.US, MRO.UK, MRVL.US, MS.IT*, MS.US, MSCI.US, MSFT.US, MSI.US, MSM.US, MT.NL, MTCH.US, MTD.US, MTG.US, MTH.US, MTN.US, MTS.ES, MTTR.US, MTZ.US, MU.US, MUV2.DE, NBIX.US, NCLH.US, NDA.DK, NDA.FI, NDA.SE, NDAQ.US, NDSN.US, NEE.US, NEM.DE, NEOEN.FR, NESN.CH,
+NESTE.FI, NEU.US, NFE.US, NFG.US, NFLX.US, NG.UK, NGG.US, NHI.US, NHY.NO, NJR.US, NKE.US, NLOK.US*, NLR.US, NN.NL, NOC.US, NOS.PT, NOV.US, NOVN.CH, NOVOB.DK, NOW.US, NRG.US, NSC.US, NTAP.US, NTES.US, NTGY.ES, NTR.US, NTRA.US, NTRS.US, NUE.US, NUMG.US, NVCR.US, NVDA.US,
+NVO.US, NVS.US, NVST.US, NWG.UK, NWL.US, NXPI.US, NXST.US, NXT.UK, NYT.US, NZYMB.DK, O.US, O2D.DE, OBDC.US, OC.US, OCI.NL, OEF.US, OERL.CH, OGN.US, OHI.US, OKE.US, OKTA.US, OLED.US, OLN.US, OMC.US, ON.US, OR.FR, ORA.FR, ORA.US, ORCL.US, ORI.US, ORK.NO, ORLY.US, ORNBV.FI,
+ORSTED.DK, OSK.US, OTIS.US, OTTR.US, OVH.FR, OXY.US, PAG.UK, PAGE.UK, PAH3.DE, PANW.US, PARA.US, PARR.US, PATH.US, PAYC.US, PAYX.US, PB.US, PBRA.US, PCAR.US, PCH.US, PCTY.US, PEAK.US, PEG.US, PEGA.US, PEP.US, PEUG.FR, PFE.US, PFG.US, PFGC.US, PFSI.US, PG.US, PGHN.CH, PGR.US,
+PH.US, PHIA.NL, PHM.US, PHNX.UK, PHP.UK, PII.US, PIN.US, PINS.US, PIRC.IT, PKG.US, PLD.US, PLNT.US, PLP.UK*, PLTR.US, PLUS.UK, PM.US, PMT.US, PNDORA.DK, PNN.UK, PNR.US, PNW.US, PODD.US, POST.US, PPBI.US, PPG.US, PPL.US, PR.US, PRGO.US, PRLB.US, PRO.US, PROX.BE, PRU.UK, PRU.US,
+PRX.NL, PRY.IT, PSA.US, PSM.DE, PSN.UK, PST.IT, PSX.US, PUB.FR, PUM.DE, PVH.US, PWR.US, PXD.US, PZC.UK, QCOM.US, QDEL.US, QLYS.US, QQ.UK, QQQ.US, QRVO.US, QYLD.US, RACE.IT, RBAG.CZ, RBLX.US, RBOT.UK, RDC.DE, RDN.US, RDSA.NL*, RDSB.UK*, RDW.UK, RECSI.NO, RED.ES, REE.ES*,
+REG.US, REGN.US, REL.UK, RENE.PT, REP1.ES, REY.IT, RGA.US, RGEN.US, RGLD.US, RGR.US, RH.US, RHI.US, RHP.US, RI.FR, RIO.UK, RIO.US, RITM.US, RJF.US, RKT.UK, RL.US, RLI.US, RMD.US, RMG.UK*, RMS.FR, ROBO.IT, ROCKB.DK, ROG.CH, ROK.US, ROKU.US, ROP.US, ROST.US, ROVI.ES, RPG.US,
+RPM.US, RPRX.US, RR.UK, RRR.US, RS.US, RS1.UK, RSG.US, RSP.US, RTO.UK, RTX.US, RUN.US, RVTY.US, RWE.DE, RY.US, RYAAY.US, SAB.ES, SAE.DE*, SAF.FR, SAM.US, SAMPO.FI, SAN.FR, SAN1.ES, SAND.SE, SAP.DE, SBAC.US, SBGI.US, SBNY.US, SBRA.US, SBRY.UK, SBUX.US, SCAB.SE, SCCO.US, SCHA.NO,
+SCHB.NO, SCHD.US, SCI.US, SCMN.CH, SCR.FR, SCYR.ES, SDF.DE, SDR.UK, SE1.US, SEBA.SE, SECUB.SE, SEE.US, SEIC.US, SFM.US, SGE.UK, SGEN.US, SGO.FR, SGRO.UK, SGSN.CH, SHA.DE, SHAK.US, SHBA.SE, SHC.UK, SHEL.UK, SHELL.NL, SHOP.US, SHW.US, SHY.US, SIE.DE, SILJ.US, SITE.US, SIVB.US, SIX.US,
+SJM.US, SKAB.SE, SKFB.SE, SKX.US, SLA.UK*, SLM.US, SLVM.US, SMH.US, SMIN.UK, SN.UK, SNA.US, SNAP.US, SNOW.US, SNY.US, SO.US, SOLB.BE, SON.PT, SON.US, SONO.US, SONY.US, SOON.CH, SOXX.US, SPGI.US, SPHD.US, SPIE.FR, SPLK.US, SPLV.US, SPOT.US, SPR.US, SPSN.CH, SPX.UK, SPY.US,
+SPYW.DE, SQ.US, SRCL.US, SRE.US, SREN.CH, SRG.IT, SRP.UK, SSE.UK, SSNC.US, SSPG.UK, SSTK.US, STAG.US, STAN.UK, STB.NO, STE.US, STJ.UK, STLA.IT*, STLAM.IT, STLD.US, STM.IT, STM.US, STMN.CH, STNE.US, STT.US, STWD.US, STX.US, STZ.US, SU.FR, SU.US, SUAS.UK, SVS.UK, SVT.UK, SW.FR,
+SWAV.US, SWEDA.SE, SWK.US, SWKS.US, SXRW.DE, SXS.UK, SXXPIEX.DE, SYDB.DK, SYF.US, SYK.US, SYNA.US, SYY.US, T.US, TAP.US, TATE.UK, TD.US, TDG.US, TDOC.US, TDS.US, TDY.US, TEAM.US, TECK.US, TEF1.ES, TEL.NO, TEL.US, TEL2B.SE, TELIA.SE, TELIA1.FI, TEMN.CH, TEN.IT, TER.US, TEVA.US*,
+TEX.US, TFI.FR, TFII.US, TGT.US, THC.US, THG.US, THO.US, THS.US, TIP.IT, TIP.US, TJX.US, TKA.DE, TLT.US, TM.US, TMO.US, TMUS.US, TNL.US, TOL.US, TOM.NO, TOT.US*, TPH.US, TPK.UK, TPR.US, TPX.US, TREX.US, TRMB.US, TRN.IT, TROW.US, TROX.US, TRV.US, TRYG.DK, TS.US, TSCO.UK, TSCO.US,
+TSLA.US, TSM.US, TSN.US, TT.US, TTD.US, TTE.FR, TTE.US, TTEK.US, TTWO.US, TWLO.US, TXN.US, TXRH.US, TXT.US, TYRES.FI, UAA.US, UAL.US, UBSG.CH, UBXN.CH, UCG.IT, UDR.US, UHR.CH, UHS.US, UI.US, UL.US, ULTA.US, ULVR.UK, UNA.NL, UNH.US, UNI.ES, UNM.US, UNP.US, UPBD.US, UPS.US,
+URBN.US, URI.US, URNM.US, URW.FR, URW.NL, US.IT, USNA.US, UST.FR, UTG.UK, UTHR.US, UTX.US*, UU.UK, V.US, VAC.US, VAL1.US, VALMT.FI, VC.US, VCT.UK, VEA.US, VEEV.US, VFC.US, VGWD.DE, VIAC.US*, VICI.US, VID.ES, VIE.FR, VIS.ES, VLO.US, VMC.US, VNA.DE, VNO.US, VNQI.US*, VOD.UK,
+VOD.US, VOLCARB.SE, VOLVB.SE, VOW1.DE, VOW3.DE, VRE.US, VRSK.US, VRSN.US, VRTX.US, VT.US, VTI.US, VTR.US, VTRS.US, VTSC.DE, VTY.UK, VUAA.UK, VWO.US*, VWS.DK, VZ.US, W.US, WAB.US, WAT.US, WBA.US, WBD.IT, WBD.US, WCN.US, WD.US, WDAY.US, WDC.US, WDP.BE, WEC.US, WEIR.UK,
+WFC.US, WHR.US, WIRE.US, WKC.US, WKP.UK, WLK.US, WLN.FR, WM.US, WMB.US, WMG.US, WMT.US, WOLF.US, WOOD.UK, WPM.US, WPP.UK, WRB.US, WRK.US, WRT1V.FI, WSM.US, WST.US, WTB.UK, WTRG.US, WU.US, WWD.US, WY.US, XEL.US, XHB.US, XLE.US, XLF.US, XLI.US, XLK.US, XLP.US,
+XLU.US, XLV.US, XLY.US, XME.US, XMJP.DE, XOM.US, XOP.US, XP.US, XPEL.US, XRAY.US, XRT.US, XRX.US, XYL.US, XYLD.US, YAR.NO, YUM.US, YUMC.US, YY.US, Z.US, ZAL.DE, ZBH.US, ZBRA.US, ZD.US, ZI.US, ZION.US, ZM.US, ZTO.US, ZTS.US, ZURN.CH
+
+           25%
+
+ADP.FR, AFG.US, AKE.FR, ALM.ES, AMT.US, ASH.US, ATO.US, ATR.US, AVT.US, BB.FR, BIM.FR, BNR.DE, BOL.FR, BVI.FR, CGNX.US, CINF.US, CNK.US, COFA.FR, COL.ES, CPT.US, CRL.US, CRM.US, CTLT.US, DCC.UK, DEC.FR, DIA.IT, DUE.DE, ENX.FR, ERF.FR, ERICB.SE, ESS.US, EWBC.US, EXP.US, FDR.FR*,
+FIE.DE, FPE3.DE, FRA.DE, FRT.US, FTNT.US, GET.FR, GFC.FR, GNTX.US, GXI.DE, HII.US, HNR.DE, HOOD.US, HOT.DE, ICAD.FR, IDXX.US, IEX.US, INGR.US, INTU.US, IONS.US, IPN.FR, IRM.US, IT.US, JLL.US, JUN3.DE, KER.FR, KMT.US, KRN.DE, LAMR.US, LEG.DE, LYFT.US, MANU.US, MEL.ES, MERY.FR, METSB.FI,
+MF.FR, MKTX.US, MNST.US, MOH.US, MTX.DE, NDA.DE, NI.US, NNN.US, NVR.US, NXI.FR, ODFL.US, P911.DE, PDCO.US, POM.FR, PSG.ES, PYPL.US, RACE.US, RAND.NL, RCO.FR, RE.US, RF.FR, RHM.DE, RMV.UK, RNR.US, RRTL.DE, RUI.FR, SK.FR, SMDS.UK, SMG.US, SNPS.US, SPG.US, STERV.FI, STM.FR,
+SY1.DE, SZU.DE, TECH.US, TEP.FR, TFX.US, TIE1V.FI, TKR.US, TLX.DE, TRIP.US, TRN.US, TTC.US, TYL.US, UBER.US, UBI.FR, UCB.BE, UGI.US, UMI.BE, UPM.FI, VCT.FR, VIG.CZ, VPK.NL, WCH.DE, WERN.US, WIZZ.UK, WKL.NL, WYNN.US
+
+           30%
+
+A3M.ES, AAD.DE, AALB.NL, ACC.NO, ACX1.ES, AFRM.US, AGIO.US, AGL.IT, AIXA.DE, AJRD.US, AKER.NO, AKERBP.NO, ALGT.US, ALKS.US, ALTR.PT, ALTR.US, AMR.US, AMS.CH, ANE.ES, APAM.NL, APLE.US, APLS.US, APPS.ES, APPS.US, ARL.DE, ARYN.CH, ATE.FR, ATHM.US, ATVI.US, AU.US, B4B.DE,
+BAKKA.NO, BALL.US, BAR.BE, BCC.US, BEAM.US, BEFB.BE, BEI.DE, BEKB.BE, BEN.FR, BGNE.US, BIDU.US, BIIB.US, BJRI.US, BLDP.US, BMBL.US, BNTX.US, BOOT.US, BOSS.DE, BPOP.US, BVB.DE, BWLPG.NO, BYD.US, CADE.US, CALX.US, CAR.US, CBD.US*, CBK.DE, CCL.US, CCU.US, CEC.DE, CEIX.US, CFG.US,
+CHGG.US, CHR.DK, CMCX.UK, COOP.US, COPA.UK*, CPI.UK, CPS.PL, CRON.US*, CRST.UK, CRTO.US, CSH.UK, CSIQ.US, CTT.PT, CVLT.US, DARK.UK, DBG.FR, DHER.DE, DIN.US, DK.US, DNP.PL, DPH.UK, DRW3.DE, DWNI.DE, DXC.US, DY.US, EAT.US, EB.US, ECMPA.NL, EDF.FR, EDIT.US, EDR.US, ELIOR.FR,
+ENC.ES, ENT.UK, EPC.US, EPU.US, ERA.FR, ERII.US, ESNT.UK, ESPO.US, ETL.FR, FANG.US, FGP.UK, FII.FR, FITB.US, FIVN.US, FNAC.FR, FOXA.US, FROG.US, FUBO.US, FVRR.US, FXPO.UK, GAIN.US, GALP.PT, GAW.UK, GDRX.US, GEO.US*, GERN.US, GFI.US, GLBE.US, GNC.UK, GOGL.NO, GTT.FR, HALO.US,
+HEIJM.NL, HIG.US, HMSO.UK, HOC.UK, HP.US, IDCC.US, IDR.ES, IMI.UK, INCH.UK, INSM.US, INSP.US, INT.US, INTRUM.SE, IPS.FR, IRTC.US, ITCI.US, ITRI.US, IWG.UK, JACK.US, JD.US, JUVE.IT, KCO.DE, KCR.FI, KGH.PL, KOF.FR, KSS.US, KTOS.US, LCII.US, LIVN.US, LNTH.US, LUMI.SE, MAG.US, MBK.PL,
+MBUU.US, MD.US, MDC.UK, MEDP.US, MGAM.UK, MGNI.US, MIPS.SE, MKS.UK, MMT.FR, MNDY.US, MO.US, MONET.CZ, MONY.UK, MTB.US, MXL.US, MYOV.US, NCNO.US, NCR.US, NDX1.DE, NEL.NO, NEM.US, NEO.US, NEX.FR, NEX.UK*, NICE.US, NK.FR, NOD.NO, NOEJ.DE, NOKIA.FI, NOKIASEK.SE,
+NTCT.US, NTNX.US, NU.US, OCDO.UK, OLLI.US, OPL.PL, OUT1V.FI, OZK.US, PAAS.US, PACB.US, PENN.US, PEO.PL, PETS.UK, PFG.UK*, PFLT.US, PGE.PL, PHM.ES, PKO.PL, PKX.US, PLAB.US, PNC.US, PNE3.DE, PNL.NL, PSON.UK, PTON.US, PZU.PL, QGEN.US, R.US, RCL.US, RCUS.US, RGNX.US, RHIM.UK,
+RIVN.US, RMBS.US, RNO.FR, ROR.UK, RXL.FR, S92.DE, SATS.US, SAVE.US, SBLK.US, SBMO.NL, SBS.DE, SESG.FR, SF.US, SFER.IT, SGRE.ES, SHB.UK, SID.US, SII.FR, SIM.DK, SIMO.US, SJR.US, SLP.US, SMCI.US, SMSN.UK, SMWH.UK, SNV.US, SOI.FR, SOP.FR, SPCE.US, SPL.PL, SPM.IT, SPTN.US, SPWR.US, SQM.US,
+SRPT.US, SSABA.SE, STAA.US, STORB.SE, SWBI.US, SWI.US, TEG.DE, TFC.US, TGYM.IT, TIT.IT, TKWY.NL, TL5.ES, TLGO.ES, TLK.US, TMV.DE, TNET.BE, TOD.IT, TOM2.NL, TRI.FR, TUI.DE, TUI.UK, TX.US, U.US, UFPI.US, UPST.US, USB.US, UTDI.DE, VANQ.UK, VAR1.DE, VBK.DE, VERV.US, VIPS.US, VIR.US, VK.FR,
+
+           35%
+
+INPST.NL
+
+           40%
+
+CGC.US*, EDP.PT, EDPR.PT, FXA.US, FXE.US, GLD.US, IAU.US, PSLV.US*, REC.IT, SLR.ES, SLV.US, USO.US*, UUP.US*
+
+           50%
+
+888.UK, ACP.PL, ADTN.US, ALE.PL, ALR.PL, AML.UK, AMRS.US*, ASC.UK, AZUL.US, BAB.UK, BAND.US, BAVA.DK, BIG.US, BIV.US, BLNK.US, BOO.UK, BROS.US, CCIV.US*, CCL.UK, CDLX.US, CDR.PL, CEY.UK, CGG.FR, CLDX.US, CLNE.US*, CO.FR, COIN.US, CSTL.US, CVAC.US, DDD.US, DDS.US, HCC.US, HES.US,
+HIMX.US, HYG.US, HYQ.DE, ICPT.US, INMD.US, INO.US*, INR.FR, IQ.US*, JKS.US,JMIA.US, JNK.US, KGX.DE, KRU.PL, LASR.US, LCID.US, LPP.PL, LQD.US, LTM.FR, MARA.US, MAXN.US, MIL.PL, MMYT.US, MOMO.US, NIO.US, NKTR.US, NSTG.US, NVAX.US, NVTA.US, PAC.US, PFC.UK, PKN.PL, QS.US, RCKT.US,
+REZI.US, SBSW.US, SFIX.US, SGH.US, SIGA.US, SKLZ.US, SLB.US, SSYS.US, SUBC.NO, SZG.DE, TDC.US, TGS.NO, TPE.PL, TRE.ES, TUR.FR, TUR.US*, UN01.DE, URA.US, VGT.US, VIV.FR, VNQ.US, XPEV.US
+
+          100%
+AAN.US, ABG.ES*, ACB.US*, ADEA.US, AGG.US, AKH.NO, AMC.US*, AMP.ES, AMWL.US*, AR4.DE*, ARKF.US, ATO.FR, ATT.PL, BDX.PL, BHC.US, BHW.PL, BILI.US, BLI.US*, BLUE.US*, BMA.US, BND.US, BNDX.US, BOI.FR, BSS.IT, BWO.NO, BYND.US, BZUN.US, CAR.PL, CARD.UK, CCC.PL, CCH.UK, CDR.ES,
+CELL.US, CIE.PL, CINE.UK*, CLA.FR, CMPS.US, CPS.US, CRI.FR, CSH.UK, CVNA.US*, DBB.US*, DBV.FR, DEQ.DE, DIA.ES, DIB.IT, DIDI.US*, DNO.NO, DOM.ES, DRW8.DE, DSM.NL, EBS.US, ECH.PL, ECR.ES, EGHT.US*, EGL.PT, EHTH.US, ELM.UK, ENA.PL, ENG.PL, ENTA.US, ETH.IT, EUR.PL, EVR.UK*, FARO.US,
+FAS.US, FATE.US, FINGB.SE, FIVE.UK*, FRO.NO, FSLY.US, FTCH.US, GFRD.UK, GIL.DE, GNFT.FR, GPW.PL, GRPN.US, HA.US, HFD.UK, HLF.US, HTG.UK, HUYA.US, HYLN.US*, HYUD.UK, ILPT.US, INDV.UK, ING.PL, INTU.UK*, JCQ.FR, JSW.PL, KC.US*, KIE.UK, KNSL.US, KORI.FR, LAZR.US, LEO.DE, LKOD.UK*,
+LNA.FR, LUNE.SE*, LWB.PL, MAIL.UK*, MARS.UK, MDM.FR, METV.US, MMB.FR, MNDI.UK, MNOD.UK*, MRC.PL, MSTR.US*, MTO.UK, MVC.ES, NAS.NO, NHH.ES, NKLA.US, NLS.US, NNOX.US, OGZD.UK*, OHL.ES*, OPEN.US, OPI.US, ORP.FR, ORRON.SE, OTLY.US, OZON.US, PALL.US, PDD.US, PHR.PT, PKP.PL,
+PLUG.US, PMO.UK*, PPLT.US, PSNL.US, PSQ.US, PTEC.UK, QID.US, QLD.US, REC.NO*, REMX.US, ROSN.UK*, RWM.US, SAGA.UK, SAS.SE, SBER.UK*, SDRY.UK, SEM.PT, SH.US, SHI.UK, SIL.US, SKB.DE, SMR.US, SNR.UK, SOXL.US, SPI.UK, SPXL.US, SRRK.US, SRTY.US, SSO.US, SVXY.US*, TABAK.CZ, TBT.US,
+TCH.FR*, TCMD.US, TKTT.FR, TLW.UK, TNA.US, TNO.FR, TQQQ.US, TREE.US, TSE.US, TUB.ES, TWM.US, TWOU.US, TZA.US, UDOW.US, UPRO.US, VANTI.FR, VIXM.US, VRM.US, VTBR.UK*, VXX.US, WDI.DE*, WDR.US, WISH.US*, WKHS.US, WPS.UK, YNDX.US*, YPF.US*, ZAP.PL, ZIL2.DE
+

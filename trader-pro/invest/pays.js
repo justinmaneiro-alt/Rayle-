@@ -1,0 +1,6 @@
+/* Noms, drapeaux et zones de comparaison des pays (module PUR, partagé par l'application et les scripts de calcul) */
+export const NOM_PAYS = Object.freeze({ US: 'États-Unis', FR: 'France', DE: 'Allemagne', UK: 'Royaume-Uni', ES: 'Espagne', IT: 'Italie', NL: 'Pays-Bas', BE: 'Belgique', PT: 'Portugal', CH: 'Suisse', SE: 'Suède', NO: 'Norvège', DK: 'Danemark', FI: 'Finlande', PL: 'Pologne', CZ: 'Tchéquie', AT: 'Autriche', AU: 'Australie', BR: 'Brésil', CN: 'Chine', HK: 'Hong Kong', JP: 'Japon', KR: 'Corée du Sud', MX: 'Mexique', SG: 'Singapour', VN: 'Vietnam', EU: 'Zone euro' });
+export const DRAPEAU = Object.freeze({ US: '🇺🇸', FR: '🇫🇷', DE: '🇩🇪', UK: '🇬🇧', ES: '🇪🇸', IT: '🇮🇹', NL: '🇳🇱', BE: '🇧🇪', PT: '🇵🇹', CH: '🇨🇭', SE: '🇸🇪', NO: '🇳🇴', DK: '🇩🇰', FI: '🇫🇮', PL: '🇵🇱', CZ: '🇨🇿', AT: '🇦🇹', AU: '🇦🇺', BR: '🇧🇷', CN: '🇨🇳', HK: '🇭🇰', JP: '🇯🇵', KR: '🇰🇷', MX: '🇲🇽', SG: '🇸🇬', VN: '🇻🇳', EU: '🇪🇺' });
+const EUROPE = new Set(['FR', 'DE', 'UK', 'ES', 'IT', 'NL', 'BE', 'PT', 'CH', 'SE', 'NO', 'DK', 'FI', 'PL', 'CZ', 'AT', 'EU']);
+/* zone de comparaison (neutralité par secteur ET par zone) : États-Unis, Europe, Autres */
+export const zonePays = p => (p === 'US' ? 'US' : EUROPE.has(p) ? 'Europe' : 'Autres');

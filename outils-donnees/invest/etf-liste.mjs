@@ -1,0 +1,44 @@
+/* Catalogue d'ETF UCITS « de référence » (symboles Yahoo) : grands indices, secteurs, dividendes, obligataires, or, immobilier.
+   Écrit à la main : AUCUN nom ni ISIN n'est inventé ici — le nom vient de Yahoo au moment du calcul (un symbole qui n'existe pas chez Yahoo est écarté et listé dans le rapport).
+   [symbole Yahoo, catégorie, PEA (1 = fonds éligible au PEA d'après son émetteur ; à confirmer chez XTB), durée approximative en années (obligataires), ISIN connu avec certitude (ou null)]
+   Les ETF cotés aux États-Unis proposés par XTB viennent, eux, de la table des marges officielle (voir univers-xtb.mjs). */
+export const ETF_UCITS = [
+  /* actions monde */
+  ['IWDA.AS', 'Actions monde', 0, null, 'IE00B4L5Y983'], ['EUNL.DE', 'Actions monde', 0, null, 'IE00B4L5Y983'], ['SWDA.L', 'Actions monde', 0, null, 'IE00B4L5Y983'], ['VWCE.DE', 'Actions monde', 0, null, 'IE00BK5BQT80'], ['VWRL.AS', 'Actions monde', 0, null, 'IE00B3RBWM25'],
+  ['VWRL.L', 'Actions monde', 0, null, 'IE00B3RBWM25'], ['VWRA.L', 'Actions monde', 0, null, 'IE00BK5BQT80'], ['SSAC.L', 'Actions monde', 0, null, 'IE00B6R52259'], ['IUSQ.DE', 'Actions monde', 0, null, 'IE00B6R52259'], ['XDWD.DE', 'Actions monde', 0, null, 'IE00BJ0KDQ92'],
+  ['HMWO.L', 'Actions monde', 0, null, null], ['CW8.PA', 'Actions monde', 1, null, 'LU1681043599'], ['EWLD.PA', 'Actions monde', 1, null, null], ['WSML.L', 'Actions monde petites capitalisations', 0, null, 'IE00BF4RFH31'], ['IUSN.DE', 'Actions monde petites capitalisations', 0, null, 'IE00BF4RFH31'],
+  ['MWRD.PA', 'Actions monde', 0, null, null], ['SPYY.DE', 'Actions monde', 0, null, null],
+  /* États-Unis */
+  ['CSPX.L', 'Actions États-Unis', 0, null, 'IE00B5BMR087'], ['SXR8.DE', 'Actions États-Unis', 0, null, 'IE00B5BMR087'], ['VUSA.AS', 'Actions États-Unis', 0, null, 'IE00B3XXRP09'], ['VUAA.L', 'Actions États-Unis', 0, null, 'IE00BFMXXD54'], ['VUAA.DE', 'Actions États-Unis', 0, null, 'IE00BFMXXD54'],
+  ['IUSA.AS', 'Actions États-Unis', 0, null, null], ['ESE.PA', 'Actions États-Unis', 1, null, null], ['PE500.PA', 'Actions États-Unis', 1, null, null], ['PSP5.PA', 'Actions États-Unis', 1, null, null], ['500.PA', 'Actions États-Unis', 0, null, null],
+  ['CNDX.L', 'Actions États-Unis Nasdaq', 0, null, 'IE00B53SZB19'], ['SXRV.DE', 'Actions États-Unis Nasdaq', 0, null, 'IE00B53SZB19'], ['EQQQ.L', 'Actions États-Unis Nasdaq', 0, null, 'IE0032077012'], ['PANX.PA', 'Actions États-Unis Nasdaq', 1, null, null], ['ANX.PA', 'Actions États-Unis Nasdaq', 0, null, null],
+  ['XDWT.DE', 'Actions États-Unis technologie', 0, null, null], ['XRS2.DE', 'Actions États-Unis petites capitalisations', 0, null, null], ['IUSM.DE', 'Actions États-Unis moyennes capitalisations', 0, null, null], ['XDEQ.DE', 'Actions États-Unis facteurs qualité', 0, null, null],
+  /* Europe */
+  ['IMEU.L', 'Actions Europe', 0, null, null], ['SMEA.MI', 'Actions Europe', 0, null, null], ['MEUD.PA', 'Actions Europe', 0, null, null], ['CAC.PA', 'Actions France CAC 40', 1, null, 'FR0007052782'], ['C40.PA', 'Actions France CAC 40', 1, null, null],
+  ['EXS1.DE', 'Actions Allemagne DAX', 0, null, 'DE0005933931'], ['SXRT.DE', 'Actions zone euro Euro Stoxx 50', 0, null, null], ['C50.PA', 'Actions zone euro Euro Stoxx 50', 1, null, null], ['MSE.PA', 'Actions zone euro', 1, null, null], ['EXSA.DE', 'Actions Europe Stoxx 600', 0, null, null],
+  ['LYP6.DE', 'Actions Europe Stoxx 600', 0, null, null], ['PCEU.PA', 'Actions Europe', 1, null, null], ['ISF.L', 'Actions Royaume-Uni FTSE 100', 0, null, 'IE0005042456'], ['VUKE.L', 'Actions Royaume-Uni FTSE 100', 0, null, null], ['CUKX.L', 'Actions Royaume-Uni FTSE 100', 0, null, null],
+  ['XMEU.DE', 'Actions Europe', 0, null, null], ['EXV1.DE', 'Actions Europe banques', 0, null, null], ['EXH1.DE', 'Actions Europe énergie', 0, null, null], ['EXV3.DE', 'Actions Europe technologie', 0, null, null], ['EXV4.DE', 'Actions Europe santé', 0, null, null], ['EXH7.DE', 'Actions Europe industrie', 0, null, null],
+  ['EXV6.DE', 'Actions Europe matériaux', 0, null, null], ['EXH9.DE', 'Actions Europe services publics', 0, null, null], ['EXH3.DE', 'Actions Europe alimentation', 0, null, null], ['EXH4.DE', 'Actions Europe industrie', 0, null, null],
+  /* émergents et Asie */
+  ['EIMI.L', 'Actions marchés émergents', 0, null, 'IE00BKM4GZ66'], ['EMIM.AS', 'Actions marchés émergents', 0, null, 'IE00BKM4GZ66'], ['IEMM.AS', 'Actions marchés émergents', 0, null, null], ['VFEM.L', 'Actions marchés émergents', 0, null, null], ['PAEEM.PA', 'Actions marchés émergents', 1, null, null],
+  ['AEEM.PA', 'Actions marchés émergents', 0, null, null], ['XMME.DE', 'Actions marchés émergents', 0, null, null], ['PAASI.PA', 'Actions Asie émergente', 1, null, null], ['IJPA.AS', 'Actions Japon', 0, null, null], ['SJPA.L', 'Actions Japon', 0, null, null], ['CJ1.PA', 'Actions Japon', 0, null, null],
+  ['CNYA.L', 'Actions Chine', 0, null, null], ['XCHA.DE', 'Actions Chine', 0, null, null], ['INR.PA', 'Actions Inde', 0, null, null], ['NDIA.L', 'Actions Inde', 0, null, null],
+  /* secteurs États-Unis (S&P 500) et thématiques */
+  ['QDVE.DE', 'Secteur technologie', 0, null, null], ['IUIT.L', 'Secteur technologie', 0, null, null], ['IUHC.L', 'Secteur santé', 0, null, null], ['QDVG.DE', 'Secteur santé', 0, null, null], ['IUFS.L', 'Secteur finance', 0, null, null], ['QDVH.DE', 'Secteur finance', 0, null, null],
+  ['IUES.L', 'Secteur énergie', 0, null, null], ['QDVF.DE', 'Secteur énergie', 0, null, null], ['IUCD.L', 'Secteur consommation cyclique', 0, null, null], ['IUCS.L', 'Secteur consommation de base', 0, null, null], ['IUIS.L', 'Secteur industrie', 0, null, null],
+  ['IUMS.L', 'Secteur matériaux', 0, null, null], ['IUUS.L', 'Secteur services publics', 0, null, null], ['IUCM.L', 'Secteur communication', 0, null, null], ['INRG.L', 'Thématique énergies propres', 0, null, null], ['RBOT.L', 'Thématique robotique', 0, null, null], ['HEAL.L', 'Thématique santé', 0, null, null],
+  ['DGTL.L', 'Thématique numérique', 0, null, null], ['SEMI.AS', 'Thématique semi-conducteurs', 0, null, null], ['CYBR.L', 'Thématique cybersécurité', 0, null, null], ['WTAI.L', 'Thématique intelligence artificielle', 0, null, null], ['ECAR.L', 'Thématique véhicules électriques', 0, null, null],
+  ['URNU.L', 'Thématique uranium', 0, null, null], ['GDX.L', 'Thématique mines d’or', 0, null, null], ['SGLN.L', 'Or', 0, null, null],
+  /* dividendes et facteurs */
+  ['VHYL.L', 'Dividendes monde', 0, null, 'IE00B8GKDB10'], ['VHYL.AS', 'Dividendes monde', 0, null, 'IE00B8GKDB10'], ['ISPA.DE', 'Dividendes monde', 0, null, null], ['IDVY.AS', 'Dividendes Europe', 0, null, null], ['TDIV.AS', 'Dividendes monde', 0, null, null],
+  ['SDEU.L', 'Dividendes Europe', 0, null, null], ['EXSH.DE', 'Dividendes Europe', 0, null, null], ['EUDV.L', 'Dividendes Europe', 0, null, null], ['MVOL.L', 'Faible volatilité monde', 0, null, null], ['IWMO.L', 'Momentum monde', 0, null, null], ['IWVL.L', 'Valeur monde', 0, null, null], ['IWQU.L', 'Qualité monde', 0, null, null],
+  /* obligataires (durée approximative en années, à titre indicatif) */
+  ['IBTS.L', 'Obligations État américain 1-3 ans', 0, 2, null], ['IBTM.L', 'Obligations État américain 7-10 ans', 0, 7.5, null], ['IDTL.L', 'Obligations État américain 20 ans et plus', 0, 17, null], ['IEAC.L', 'Obligations entreprises euro', 0, 5, null],
+  ['EUNH.DE', 'Obligations État euro', 0, 7.5, null], ['IEGA.AS', 'Obligations État euro', 0, 7.5, null], ['VGEA.DE', 'Obligations État euro', 0, 7.5, null], ['SEGA.L', 'Obligations État euro', 0, 7.5, null], ['IHYG.L', 'Obligations haut rendement euro', 0, 3.5, null],
+  ['IHYU.L', 'Obligations haut rendement dollar', 0, 3.5, null], ['LQDE.L', 'Obligations entreprises dollar', 0, 8, null], ['IBCI.DE', 'Obligations indexées inflation euro', 0, 8, null], ['AGGH.L', 'Obligations monde agrégé', 0, 6.5, null], ['EUNA.DE', 'Obligations monde agrégé', 0, 6.5, null],
+  ['VAGE.L', 'Obligations monde agrégé', 0, 6.5, null], ['AGGG.L', 'Obligations monde agrégé', 0, 6.5, null], ['SHYG.L', 'Obligations haut rendement court terme', 0, 2.5, null], ['EUN3.DE', 'Obligations État euro 1-3 ans', 0, 2, null], ['IBGS.L', 'Obligations État euro 1-3 ans', 0, 2, null],
+  ['IBGM.L', 'Obligations État euro 7-10 ans', 0, 8, null], ['IBGL.L', 'Obligations État euro 15-30 ans', 0, 17, null], ['LYXD.DE', 'Obligations État euro', 0, 7.5, null], ['MTE.PA', 'Obligations État euro', 1, 7.5, null], ['IGLT.L', 'Obligations État britannique', 0, 10, null],
+  /* matières premières et immobilier */
+  ['SGLD.L', 'Or', 0, null, null], ['IGLN.L', 'Or', 0, null, null], ['4GLD.DE', 'Or', 0, null, null], ['PHAU.L', 'Or', 0, null, null], ['SSLV.L', 'Argent', 0, null, null], ['PHAG.L', 'Argent', 0, null, null], ['PHPT.L', 'Platine', 0, null, null], ['CMCI.L', 'Matières premières diversifiées', 0, null, null],
+  ['IWDP.AS', 'Immobilier monde', 0, null, null], ['XDWR.DE', 'Immobilier monde', 0, null, null], ['IPRP.L', 'Immobilier Europe', 0, null, null]
+];
