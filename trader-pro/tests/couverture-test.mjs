@@ -3,9 +3,9 @@ import { corrPaire, matriceCorr, beta, stabilite, backtest, verdict, classerCouv
 let ok = 0, ko = 0; const v = (c, m) => { if (c) ok++; else { ko++; console.log('  ✗ ' + m); } };
 let graine = 12345; const alea = () => { graine = (graine * 1664525 + 1013904223) % 4294967296; return graine / 4294967296 - 0.5; };
 const N = 700, jours = i => new Date(Date.UTC(2024, 0, 1 + i)).toISOString().slice(0, 10);
-const bruit = Array.from({ length: N }, () => alea() * 0.02);   // rendements de X
+const bruit = Array.from({ length: N }, () => alea() * 0.04);   // rendements de X
 const serie = r => { let p = 100; return r.map((x, i) => ({ d: jours(i), t: Date.UTC(2024, 0, 1 + i), c: (p *= Math.exp(x)) })); };
-const X = bruit, Ypos = bruit.map(x => 0.8 * x + alea() * 0.004), Yneg = bruit.map(x => -1.2 * x + alea() * 0.004), Yind = Array.from({ length: N }, () => alea() * 0.02);
+const X = bruit, Ypos = bruit.map(x => 0.8 * x + alea() * 0.008), Yneg = bruit.map(x => -1.2 * x + alea() * 0.008), Yind = Array.from({ length: N }, () => alea() * 0.04);
 const S = { XAUUSD: serie(X), US100: serie(Ypos), BTC: serie(Yneg), SOL: serie(Yind), WTI: serie(Yind.map(x => x * 1.1)) };
 const A = { id: 'XAUUSD', serie: S.XAUUSD }, B = { id: 'US100', serie: S.US100 }, C = { id: 'BTC', serie: S.BTC };
 v(corrPaire(A, B, 250).r > 0.9, 'corrélation positive forte'); v(corrPaire(A, C, 250).r < -0.9, 'corrélation négative forte'); v(corrPaire(A, B, 30).n === 30, 'fenêtre de 30 jours');

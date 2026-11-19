@@ -5,22 +5,23 @@
    Le backtest est « sans regard vers l'avenir » : à chaque jour, β est estimé sur les jours AVANT (walk-forward). */
 import { rendementsCommuns, differencesCommunes, significativite } from '../commun/series.js';
 import { correlation, moyenne, ecartType } from '../commun/analyse.js';
+import { protectionComplete, niveauxCouverture } from './protection.js';
 
 export const FENETRES_CORR = [30, 90, 250];
 export const FENETRE_BETA = 120, JOURS_BACKTEST = 250, FENETRE_STABILITE = 60;
 
 /* actifs de l'univers « couverture » : id des instantanés jour-<id>.json, nom court, correspondance XTB (à vérifier dans xStation) et nature de la série */
 export const UNIVERS_COUV = Object.freeze([
-  { id: 'XAUUSD', court: 'OR', nom: 'Or', xtb: 'GOLD' },
-  { id: 'XAGUSD', court: 'ARG', nom: 'Argent', xtb: 'SILVER' },
-  { id: 'US100', court: 'N100', nom: 'Nasdaq 100', xtb: 'US100' },
-  { id: 'US500', court: 'S&P', nom: 'S&P 500', xtb: 'US500' },
-  { id: 'BTC', court: 'BTC', nom: 'Bitcoin', xtb: 'BITCOIN' },
-  { id: 'SOL', court: 'SOL', nom: 'Solana', xtb: 'SOLANA' },
-  { id: 'DXY', court: 'DXY', nom: 'Dollar (DXY)', xtb: 'USDX (à vérifier)' },
-  { id: 'EURUSD', court: 'EUR', nom: 'EUR/USD', xtb: 'EURUSD' },
+  { id: 'XAUUSD', court: 'OR', nom: 'Or', art: 'l’or', de: 'd’or', xtb: 'GOLD' },
+  { id: 'XAGUSD', court: 'ARG', nom: 'Argent', art: 'l’argent', de: 'd’argent', xtb: 'SILVER' },
+  { id: 'US100', court: 'N100', nom: 'Nasdaq 100', art: 'le Nasdaq 100', de: 'du Nasdaq 100', xtb: 'US100' },
+  { id: 'US500', court: 'S&P', nom: 'S&P 500', art: 'le S&P 500', de: 'du S&P 500', xtb: 'US500' },
+  { id: 'BTC', court: 'BTC', nom: 'Bitcoin', art: 'le Bitcoin', de: 'du Bitcoin', xtb: 'BITCOIN' },
+  { id: 'SOL', court: 'SOL', nom: 'Solana', art: 'Solana', de: 'de Solana', xtb: 'SOLANA' },
+  { id: 'DXY', court: 'DXY', nom: 'Dollar (DXY)', art: 'le dollar (DXY)', de: 'du dollar (DXY)', xtb: null },
+  { id: 'EURUSD', court: 'EUR', nom: 'EUR/USD', art: 'l’EUR/USD', de: 'd’EUR/USD', xtb: 'EURUSD' },
   { id: 'US10Y', court: 'T10', nom: 'Taux US 10 ans', xtb: null, taux: true },
-  { id: 'WTI', court: 'PÉT', nom: 'Pétrole WTI', xtb: 'OIL.WTI' }
+  { id: 'WTI', court: 'PÉT', nom: 'Pétrole WTI', art: 'le pétrole WTI', de: 'de pétrole WTI', xtb: 'OIL.WTI' }
 ]);
 export const parId = Object.freeze(Object.fromEntries(UNIVERS_COUV.map(a => [a.id, a])));
 export const tauxIds = UNIVERS_COUV.filter(a => a.taux).map(a => a.id);
@@ -45,12 +46,12 @@ export function maxDrawdown(courbe) { let pic = -Infinity, dd = 0; for (const v 
 const volAnn = r => ecartType(r) * Math.sqrt(252);
 
 /* backtest : la position seule contre la position couverte, β estimé sur les `fenBeta` jours précédents, coûts : spread (en % du notionnel de la couverture, payé à l'ouverture) et swap annuel (en % par an du notionnel de la couverture) */
-export function backtest(X, Y, sens, { jours = JOURS_BACKTEST, fenBeta = FENETRE_BETA, spreadPct = 0, swapAnPct = 0 } = {}) {
+export function backtest(X, Y, sens, { jours = JOURS_BACKTEST, fenBeta = FENETRE_BETA, spreadPct = 0, swapAnPct = 0, fraction = 1 } = {}) {
   const { ra, rb, dates } = paire(X, Y), n = ra.length; if (n < fenBeta + 30) return null;
   const debut = Math.max(fenBeta, n - jours), seule = [], couverte = [], d = [], betas = []; let cs = 0, cc = 0;
   for (let t = debut; t < n; t++) {
     const b = beta(ra.slice(t - fenBeta, t), rb.slice(t - fenBeta, t)); if (b == null) continue;
-    const r1 = sens * ra[t], r2 = sens * (ra[t] - b * rb[t]) * 100, cout = (t === debut ? spreadPct : 0) + Math.abs(b) * swapAnPct / 365;
+    const r1 = sens * ra[t], r2 = sens * (ra[t] - b * fraction * rb[t]) * 100, cout = (t === debut ? spreadPct : 0) + Math.abs(b) * fraction * swapAnPct / 365;
     cs += r1 * 100; cc += r2 - cout; seule.push(cs); couverte.push(cc); d.push(dates[t]); betas.push(b);
   }
   if (seule.length < 20) return null;
@@ -73,9 +74,11 @@ export function classerCouvertures(S, xId, sens, { notionnel = null, spreadPct =
     const Y = { id: a.id, serie: S[a.id] }, { ra, rb } = paire(X, Y); if (ra.length < FENETRE_BETA + 30) continue;
     const c30 = corrPaire(X, Y, 30), c90 = corrPaire(X, Y, 90), c250 = corrPaire(X, Y, 250), b = beta(ra.slice(-250), rb.slice(-250)), stab = stabilite(ra, rb);
     const bt = backtest(X, Y, sens, { spreadPct, swapAnPct }); if (b == null) continue;
-    const dirY = -Math.sign(b) * sens, v = verdict({ r250: c250.r, stab, p: c250.p, reductionVol: bt ? bt.reductionVol : null });
-    out.push({ id: a.id, nom: a.nom, xtb: a.xtb, c30: c30.r, c90: c90.r, c250: c250.r, n250: c250.n, p: c250.p, ic: c250.ic, beta: b, stabilite: stab, sensCouverture: dirY, tailleNotionnel: notionnel ? Math.abs(b) * notionnel : null, tailleRelative: Math.abs(b), backtest: bt, verdict: v,
-      score: (c250.r == null || stab == null ? 0 : Math.abs(c250.r) * stab) * (v.niveau === 'a-eviter' ? 0.3 : 1) });
+    const dirY = -Math.sign(b) * sens, vStat = verdict({ r250: c250.r, stab, p: c250.p, reductionVol: bt ? bt.reductionVol : null });
+    /* verdict v3 : taux de protection hebdomadaire mesuré (≥ 70 % et stable sur 30, 90, 250 jours) ; l'ancien verdict statistique reste disponible (verdictStat) */
+    const prot = protectionComplete(ra, rb, sens, b, 1), v = prot.verdict, niveaux = niveauxCouverture(backtest, X, Y, sens, b, ra, rb, { notionnel, spreadPct, swapAnPct });
+    out.push({ id: a.id, nom: a.nom, xtb: a.xtb, c30: c30.r, c90: c90.r, c250: c250.r, n250: c250.n, p: c250.p, ic: c250.ic, beta: b, stabilite: stab, sensCouverture: dirY, tailleNotionnel: notionnel ? Math.abs(b) * notionnel : null, tailleRelative: Math.abs(b), backtest: bt, verdict: v, verdictStat: vStat, protection: prot, niveaux, art: a.art, de: a.de,
+      score: (c250.r == null || stab == null ? 0 : Math.abs(c250.r) * stab) * (v.niveau === 'a-eviter' ? 0.3 : v.niveau === 'partielle' ? 0.8 : 1) * (1 + (prot.semaine.taux || 0)) });
   }
   return out.sort((p, q) => q.score - p.score);
 }

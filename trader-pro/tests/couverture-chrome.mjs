@@ -19,8 +19,8 @@ await p.evaluate(() => document.querySelector('#couverture-fenetre [data-onglet=
 await p.evaluate(() => { const f = document.querySelector('#couverture-fenetre [data-form]'); f.querySelector('[name=notionnel]').value = '10000'; f.requestSubmit(); });
 verif(await attendre(() => p.evaluate(() => document.querySelectorAll('#couverture-fenetre .tp-cand tr[data-cand]').length >= 3), 20000), 'plusieurs candidats classés');
 verif(await attendre(() => p.evaluate(() => !!document.querySelector('#couverture-fenetre [data-resultats] canvas')), 15000), 'courbes « seule » et « couverte » dessinées');
-const t = await texte('#couverture-fenetre [data-resultats]'); verif(/Taille conseillée/.test(t) && /fiable|fragile|éviter/.test(t), 'taille conseillée et verdict affichés');
-verif(/achat|vente/.test(await texte('#couverture-fenetre .tp-cand')), 'le sens de la couverture est affiché');
+const t = await texte('#couverture-fenetre [data-resultats]'); verif(/taux de protection/i.test(t) && /coût/i.test(t) && /Tu (ACHÈTES|VENDS)/.test(t) && /fiable|partielle|éviter/i.test(t) && /symbole XTB exact/i.test(t), 'phrase claire, taux de protection, coût, verdict et symbole XTB affichés');
+verif(/achat|vente/i.test(await texte('#couverture-fenetre .tp-cand')), 'le sens de la couverture est affiché');
 await p.evaluate(() => { const c = document.querySelector('#couverture-fenetre .tp-corps'); c.scrollTop = 250; }); await w(400); await capture('couverture-resultats');
 await p.evaluate(() => document.querySelectorAll('#couverture-fenetre [data-cand]')[1].click()); await w(800);
 verif(await p.evaluate(() => document.querySelectorAll('#couverture-fenetre .tp-cand tr.tp-sel').length === 1), 'un autre candidat peut être choisi');
