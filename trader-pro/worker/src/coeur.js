@@ -5,10 +5,12 @@
      POST /importer                   → { fermees[], tresorerie[], ouvertes[] } ; écrit les lignes reçues (upsert par identifiant) et remplace les positions ouvertes → { rev, ecrites }
      GET  /alertes ; PUT  /reglages | /alertes | /rapport
      GET  /dessins?actif=<id> ; PUT /dessins {actif, dessins[]} → dessins tracés sur le Terminal (fusion par date de modification, renvoie la liste fusionnée)
+     GET  /journal ; PUT /journal {journal[]} → trades notés (prises) et attributions de setup du journal par setup (fusion par date de modification)
      GET  /sauvegarde                 → export complet ;  POST /restaurer → remplace tout ;  DELETE /tout?confirmation=OUI → efface tout
    Accès : si le secret PORTEFEUILLE_CODE existe, l'en-tête X-Portefeuille-Code doit lui être égal (comparaison à temps constant). Sinon, le jeton Rayle (X-Rayle-Token) doit être accepté par le Worker principal
    ET le Worker principal doit refuser un faux jeton (sinon son verrou est absent et ce Worker refuse tout). Jamais de secret dans le code ni dans le dépôt. */
 import { nettoyerListe, fusionner as fusionnerDessins } from '../../terminal/dessins-fusion.js';
+import { nettoyerListe as nettoyerJournal, fusionner as fusionnerJournal } from '../../portefeuille/journal-setups.js';
 export const VERSION = '2026.11.19.2', LIMITE_CORPS = 3.5e6;
 const NOMBRES_F = ['volume', 'prixOuv', 'tOuv', 'prixFerm', 'tFerm', 'pnl', 'brut', 'commission', 'swap', 'rollover', 'marge', 'sl', 'tp'], TEXTES_F = ['instrument', 'ticker', 'categorie', 'sens', 'origine', 'commentaire'];
 const NOMBRES_T = ['t', 'montant'], TEXTES_T = ['type', 'idPosition', 'ticker'];
@@ -84,6 +86,10 @@ export async function traiter(req, env, depot, { fetchFn = fetch } = {}) {
       const b = req.method === 'PUT' ? await corps(req) : {}, actif = String(req.method === 'PUT' ? b.actif : url.searchParams.get('actif') || ''); if (!/^[a-z0-9]{2,12}$/.test(actif)) return rep({ error: 'actif invalide' }, 400, h);
       const cle = 'dessins:' + actif, ancien = nettoyerListe((await depot.kvLire(cle)) || []); if (req.method === 'GET') return rep({ dessins: ancien }, 200, h);
       const fusion = fusionnerDessins(ancien, nettoyerListe(b.dessins)); await depot.kvEcrire(cle, fusion); return rep({ dessins: fusion }, 200, h);
+    }
+    if (url.pathname === '/journal' && (req.method === 'GET' || req.method === 'PUT')) {
+      const ancien = nettoyerJournal((await depot.kvLire('journal')) || []); if (req.method === 'GET') return rep({ journal: ancien }, 200, h);
+      const b = await corps(req), fusion = fusionnerJournal(ancien, nettoyerJournal(b.journal)); await depot.kvEcrire('journal', fusion); return rep({ journal: fusion }, 200, h);
     }
     if (url.pathname === '/sauvegarde' && req.method === 'GET') return rep({ version: VERSION, t: Date.now(), rev: await depot.revision(), fermees: await depot.lireDepuis('fermees', 0), tresorerie: await depot.lireDepuis('tresorerie', 0), ouvertes: await depot.kvLire('ouvertes'), reglages: await depot.kvLire('reglages'), alertes: await depot.kvLire('alertes'), rapport: await depot.kvLire('rapport') }, 200, h);
     if (url.pathname === '/restaurer' && req.method === 'POST') {

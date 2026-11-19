@@ -76,3 +76,6 @@ html.tp-terminal .tp-dessin-barre [data-outil] { display: inline-block !importan
 .tp-stats-scroll { overflow-x: auto; margin: 8px 0; } .tp-stats-t { width: 100%; border-collapse: collapse; font-size: 12.5px; }
 .tp-stats-t th, .tp-stats-t td { padding: 6px 6px; border-bottom: 1px solid #14212b; text-align: right; vertical-align: top; } .tp-stats-t thead th { color: #8497a1; font-weight: 500; font-size: 11px; } .tp-stats-t th:first-child, .tp-stats-t tbody th { text-align: left; font-weight: 500; color: #d7e3ea; }
 .tp-stats-t td small { color: #e8a85a; } .tp-stats-t tr.tp-faible td, .tp-stats-t tr.tp-faible th { opacity: .65; } .tp-stats-t .tp-h { color: #5fb894; } .tp-stats-t .tp-b { color: #d86a6a; }
+
+/* ───── « Je l'ai pris » (journal par setup) ───── */
+.tp-pris { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin: 8px 0; } .tp-pris-chips { display: inline-flex; flex-wrap: wrap; gap: 4px; align-items: center; } .tp-pris button { min-height: 34px; }

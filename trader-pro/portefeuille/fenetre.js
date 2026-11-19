@@ -11,8 +11,11 @@ import { creerPortefeuille, lireConn, ecrireConn, CLE_RESUME } from './stockage.
 import { valeursDuPoint, enrichir, resume, courbes } from './calcul.js';
 import { rapportCalcule, texteRapport } from './coach.js';
 import * as V from './vues.js';
+import { vueSetups } from './vue-setups.js';
+import { lireJournal, ecrireJournal, synchroniser as synchroJournal, noterPrise, attribuer, retirer, noterImport } from './journal-stockage.js';
+import { creerPrise, fusionner as fusionnerJournal } from './journal-setups.js';
 
-const ONGLETS = [['globale', 'Vue globale'], ['trans', 'Transactions'], ['actif', 'Par actif'], ['ou', 'Gains / pertes'], ['pos', 'Positions'], ['coach', 'Coach'], ['reglages', 'Réglages']];
+const ONGLETS = [['globale', 'Vue globale'], ['trans', 'Transactions'], ['actif', 'Par actif'], ['ou', 'Gains / pertes'], ['pos', 'Positions'], ['coach', 'Coach'], ['setups', 'Setups'], ['reglages', 'Réglages']];
 let instance = null;
 export const etat = () => (instance ? instance.etat() : { actif: false });
 
@@ -55,8 +58,8 @@ export async function ouvrir({ racine = document.body, onFermer = () => {} } = {
   function afficher() {
     if (S.ferme) return; graphs.vider(); clearInterval(S.minuteurPos);
     el.querySelectorAll('[data-onglet]').forEach(b => b.setAttribute('aria-selected', String(b.dataset.onglet === S.onglet)));
-    if (!S.L.fermees.length && S.onglet !== 'reglages') { zone.innerHTML = `<article class="tp-carte tp-vide"><h3>Importer mon historique XTB</h3><p>Dans xStation : <b>Historique du compte → Exporter</b>, puis choisissez ici le fichier <b>.zip tel quel</b> (ou le .xlsx / .csv qu’il contient). Vous pouvez le refaire tous les un ou deux jours, depuis n’importe quel appareil : seules les nouvelles transactions sont ajoutées.</p><p><label class="tp-import"><input type="file" data-fichier accept=".zip,.xlsx,.xls,.csv,application/zip" multiple hidden><span class="tp-bouton">Choisir le fichier</span></label></p><p class="tp-doux">Le fichier est lu sur cet appareil ; seules les transactions (pas le numéro de compte) sont gardées.</p></article>`; return; }
-    const f = { globale: () => V.vueGlobale(S, zone, graphs), trans: () => V.vueTransactions(S, zone), actif: () => V.vueActif(S, zone, graphs), ou: () => V.vueOu(S, zone), pos: () => { V.vuePositions(S, zone, S.prix); chargerPrix(); S.minuteurPos = setInterval(chargerPrix, 30000); }, coach: () => V.vueCoach(S, zone, graphs), reglages: () => V.vueReglages(S, zone, lireConn()) }[S.onglet];
+    if (!S.L.fermees.length && S.onglet !== 'reglages' && S.onglet !== 'setups') { zone.innerHTML = `<article class="tp-carte tp-vide"><h3>Importer mon historique XTB</h3><p>Dans xStation : <b>Historique du compte → Exporter</b>, puis choisissez ici le fichier <b>.zip tel quel</b> (ou le .xlsx / .csv qu’il contient). Vous pouvez le refaire tous les un ou deux jours, depuis n’importe quel appareil : seules les nouvelles transactions sont ajoutées.</p><p><label class="tp-import"><input type="file" data-fichier accept=".zip,.xlsx,.xls,.csv,application/zip" multiple hidden><span class="tp-bouton">Choisir le fichier</span></label></p><p class="tp-doux">Le fichier est lu sur cet appareil ; seules les transactions (pas le numéro de compte) sont gardées.</p></article>`; return; }
+    const f = { setups: () => { S.J = lireJournal(); S.synthese = vueSetups(S, zone); }, globale: () => V.vueGlobale(S, zone, graphs), trans: () => V.vueTransactions(S, zone), actif: () => V.vueActif(S, zone, graphs), ou: () => V.vueOu(S, zone), pos: () => { V.vuePositions(S, zone, S.prix); chargerPrix(); S.minuteurPos = setInterval(chargerPrix, 30000); }, coach: () => V.vueCoach(S, zone, graphs), reglages: () => V.vueReglages(S, zone, lireConn()) }[S.onglet];
     try { const r = f(); if (r && r.catch) r.catch(e => { zone.innerHTML = `<p class="tp-panne" role="alert">Affichage impossible : ${esc(e && e.message || e)}</p>`; }); } catch (e) { zone.innerHTML = `<p class="tp-panne" role="alert">Affichage impossible : ${esc(e && e.message || e)}</p>`; console.warn('[pf]', e); }
   }
   /* prix en direct des positions ouvertes : l'or par le prix unique de l'appli, les autres par les instantanés du robot (différés) */
@@ -74,7 +77,7 @@ export async function ouvrir({ racine = document.body, onFermer = () => {} } = {
       const b = await P.importer(F), nF = b.nouvelles.fermees, nT = b.nouvelles.tresorerie, mF = b.modifiees.fermees;
       S.L = await P.charger(); recalculer(); S.page = 1;
       const synchro = b.synchro && b.synchro.ok ? ' Synchronisé avec les autres appareils.' : b.synchro && b.synchro.horsConfig ? ' (Enregistré sur cet appareil ; configurer le Worker dans Réglages pour synchroniser.)' : b.synchro ? ' Synchronisation impossible : ' + b.synchro.erreur + ' (réessayera tout seul).' : '';
-      dire(`Import terminé : ${nF} nouvelle(s) position(s), ${nT} opération(s) de trésorerie ajoutée(s)${mF ? ', ' + mF + ' mise(s) à jour' : ''} ; ${b.inchangees.fermees} déjà connue(s) (ignorées, aucun doublon). Total : ${b.totaux.fermees} positions.${synchro}${b.avertissements.length ? ' ' + b.avertissements.join(' ; ') : ''}`);
+      noterImport(); dire(`Import terminé : ${nF} nouvelle${nF > 1 ? 's' : ''} transaction${nF > 1 ? 's' : ''}, ${nT} opération(s) de trésorerie ajoutée(s)${mF ? ', ' + mF + ' mise(s) à jour' : ''} ; ${b.inchangees.fermees} déjà connue(s) (ignorées, aucun doublon). Total : ${b.totaux.fermees} positions.${synchro}${b.avertissements.length ? ' ' + b.avertissements.join(' ; ') : ''}`);
       majSync(); afficher(); if (S.coach) genererRapport({ silencieux: true });
     } catch (e) { dire('Import impossible : ' + (e && e.message || e), true); }
   }
@@ -116,6 +119,21 @@ export async function ouvrir({ racine = document.body, onFermer = () => {} } = {
     if (r) { const cap = lireNombre(d.get('capital')), risque = lireNombre(d.get('risquePct')); const n = {}; const si = lireNombre(d.get('soldeInitial')); if (Number.isFinite(cap) && cap > 0) n.capital = cap; if (Number.isFinite(si) && si >= 0) n.soldeInitial = si; if (Number.isFinite(risque) && risque > 0 && risque <= 100) n.risquePct = risque; await P.sauverReglages(n); S.L = await P.charger(); recalculer(); dire('Réglages enregistrés.'); return; }
     if (v) { const vp = {}; for (const [k, x] of d.entries()) { const n = lireNombre(x); if (Number.isFinite(n) && n > 0) vp[k] = n; } await P.sauverReglages({ valeursPoint: vp }); S.L = await P.charger(); recalculer(); dire('Valeurs du point enregistrées.'); }
   });
+  /* ───── journal par setup : saisie, attribution en un toucher, synthèse lue par Rayle ───── */
+  S.J = lireJournal();
+  const majJournal = () => { S.J = lireJournal(); if (S.onglet === 'setups' && !S.ferme) afficher(); };
+  const syncJournal = async () => { const r = await synchroJournal(lireJournal()); if (r.ok) { ecrireJournal(fusionnerJournal(lireJournal(), r.journal)); S.J = lireJournal(); if (S.onglet === 'setups' && !S.ferme) afficher(); } };
+  el.addEventListener('click', e => {
+    const a = e.target.closest('[data-setup-attrib]'); if (a) { attribuer(a.dataset.setupAttrib, a.dataset.setup); majJournal(); return; }
+    const s = e.target.closest('[data-prise-suppr]'); if (s) { retirer(s.dataset.priseSuppr); majJournal(); return; }
+    if (e.target.closest('[data-lire-setups]')) { parler(S.synthese || ''); return; }
+  });
+  el.addEventListener('submit', e => {
+    const f = e.target.closest('[data-prise-form]'); if (!f) return; e.preventDefault(); const d = new FormData(f), n = k => { const x = lireNombre(d.get(k)); return Number.isFinite(x) ? x : null; }, msg = el.querySelector('[data-prise-msg]');
+    const r = noterPrise({ ticker: d.get('actif'), sens: d.get('sens'), prix: n('prix'), stop: n('stop'), cible: n('cible'), unite: d.get('unite') || null, setup: d.get('setup'), source: 'manuel' });
+    if (!r) { if (msg) msg.textContent = 'Trade non noté : vérifie le prix d’entrée.'; return; } majJournal(); const m2 = el.querySelector('[data-prise-msg]'); if (m2) m2.textContent = 'Noté. Il sera rapproché de ton prochain import XTB.';
+  });
+  syncJournal();
   /* glisser-déposer du fichier sur la fenêtre (PC) */
   el.addEventListener('dragover', e => { e.preventDefault(); }); el.addEventListener('drop', e => { e.preventDefault(); if (e.dataTransfer && e.dataTransfer.files.length) importerFichiers([...e.dataTransfer.files]); });
 
@@ -123,7 +141,7 @@ export async function ouvrir({ racine = document.body, onFermer = () => {} } = {
   synchroniser(true);   // en arrière-plan : n'empêche jamais l'affichage de la copie locale
   S.minuteurSync = setInterval(() => { if (!document.hidden && lireConn()) synchroniser(true); }, 120000);
   function fermer() { if (S.ferme) return; S.ferme = true; clearInterval(S.minuteurPos); clearInterval(S.minuteurSync); clearTimeout(S.tFiltre); graphs.vider(); el.remove(); instance = null; try { onFermer(); } catch (e) { /* */ } }
-  instance = { fermer, etat: () => ({ actif: !S.ferme, onglet: S.onglet, positions: S.R.n || 0 }), el, importer: importerFichiers, lire: () => S.coach ? ((S.L.rapport && S.L.rapport.texte) || texteRapport(S.coach, S.R)) : '' };
+  instance = { fermer, etat: () => ({ actif: !S.ferme, onglet: S.onglet, positions: S.R.n || 0, journal: (S.J || []).length }), el, importer: importerFichiers, lire: () => S.coach ? ((S.L.rapport && S.L.rapport.texte) || texteRapport(S.coach, S.R)) : '' };
   return instance;
 }
 export function fermer() { if (instance) instance.fermer(); }

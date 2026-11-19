@@ -12,6 +12,9 @@ import { VERSION } from './version.js';
 import { monterDessins } from './dessins-ui.js';
 import { monterAides } from './aides-ui.js';
 import { chargerStats, phraseHistorique, typeStat, panneauHtml } from './stats-ui.js';
+import { noterPrise } from '../portefeuille/journal-stockage.js';
+import { SETUPS, NOM_SETUP } from '../portefeuille/journal-setups.js';
+import { CONTRATS_XTB } from './aides.js';
 import { contexteEvenement, libelleContexte } from './contexte.js';
 import { barresDaily } from './fleches-registre.js';
 
@@ -254,6 +257,8 @@ export async function monterPro(T) {
   /* ───── aides à la décision : régime, voyant d'alignement, annonces, taille de position XTB (aides-ui.js) ───── */
   try {
     E.aides = id ? monterAides({ id, graph, tactile, uniteAffichee, barresAffichees: () => T.moteur.serie() || [], barresJour: () => (E.D ? barresDaily(id, E.D.j) : null), analyse: () => E.A, temps }) : null;
+    /* bouton « Je l'ai pris » de l'outil Position : le trade est noté avec son setup et sera rapproché de l'import XTB */
+    if (id) T.jeLaiPris = { setups: () => SETUPS, noter: (o, setup) => { const stop = o.stop < o.entree, r = noterPrise({ t: Date.now(), ticker: (CONTRATS_XTB[id] || {}).xtb || id.toUpperCase(), sens: stop ? 'BUY' : 'SELL', prix: o.entree, stop: o.stop, cible: o.objectif, setup, unite: uniteAffichee(), source: 'terminal' }); return r ? { id: r.id, texte: `Noté : ${stop ? 'achat' : 'vente'} ${r.ticker} à ${nf(o.entree, o.entree >= 100 ? 0 : 2)}, setup ${NOM_SETUP[setup]} ${uniteAffichee() === 'J' ? 'Jour' : uniteAffichee()}.` } : null; } };
     if (E.aides) { T.tailleXtb = o => E.aides.tailleXtb(o); T.reglerTailleXtb = (k, v) => E.aides.reglerTaille(k, v); }
   } catch (e) { console.warn('[tp] aides :', e && e.message); E.aides = null; }
 

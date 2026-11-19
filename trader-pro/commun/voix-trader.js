@@ -3,12 +3,28 @@
    Réponses courtes, avec les chiffres mesurés ; jamais d'ordre, de prévision ni de conseil ; sans donnée, Rayle le dit. */
 import { phraseCouverture } from '../couverture/phrase.js';
 import { lectureCot } from '../marches/cot.js';
+import { setupDeTexte, NOM_SETUP, ACTIFS_XTB } from '../portefeuille/journal-setups.js';
 
 export const normaliser = t => String(t || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[’'`]/g, ' ').replace(/[^a-z0-9% ]+/g, ' ').replace(/\s+/g, ' ').trim();
 const ACTIFS = [['or', /\b(or|gold|xau|xauusd)\b/, 'l’or'], ['us100', /\b(nasdaq|us ?100|ndx)\b/, 'le Nasdaq 100'], ['us500', /\b(s ?p ?500|us ?500|sp500)\b/, 'le S&P 500'], ['btc', /\b(bitcoin|btc)\b/, 'le Bitcoin'], ['sol', /\b(solana|sol)\b/, 'Solana'], ['argent', /\b(argent|silver)\b/, 'l’argent'], ['petrole', /\b(petrole|wti|oil)\b/, 'le pétrole'], ['dxy', /\b(dollar|dxy)\b/, 'le dollar']];
 export const actifDe = n => { const a = ACTIFS.find(([, re]) => re.test(n)); return a ? { id: a[0], nom: a[2] } : null; };
+/* ───── saisie rapide d'un trade à la voix : « j'ai acheté l'or à 3 620, stop 3 600, setup rebond MA200 » (module pur, testé) ───── */
+const NOMBRE = '\\d{1,3}(?: \\d{3})+(?:[.,]\\d+)?|\\d+(?:[.,]\\d+)?';
+const versNombre = s => { const x = parseFloat(String(s).replace(/ /g, '').replace(',', '.')); return Number.isFinite(x) ? x : null; };
+export function analyserPrise(texte) {
+  const t = String(texte || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[’'`]/g, ' ').replace(/\bma ?200\b/g, 'ma200').replace(/\b(us|sp) ?(100|500)\b/g, 'idx').replace(/\bh ?([14])\b/g, ' h$1 ').replace(/[^a-z0-9.,% ]+/g, ' ').replace(/\s+/g, ' ');
+  if (!/\b(j ai|je viens de|je viens d|ca y est|je suis)\b/.test(t)) return null;
+  const achat = /\b(achete|acheter|long|pris un achat|pris un long)\b/.test(t), vente = /\b(vendu|vendre|short|pris un short|pris une vente)\b/.test(t); if (achat === vente) return null;
+  const n = normaliser(texte), actif = actifDe(n); if (!actif || !ACTIFS_XTB[actif.id]) return null;
+  const re = k => new RegExp('\\b(?:' + k + ')\\s*(?:loss|profit)?\\s*(?:a|de|vers|sur)?\\s*(' + NOMBRE + ')');
+  const tNum = t.replace(/ma200/g, 'ma'), mStop = re('stop|sl').exec(tNum), mCible = re('cible|objectif|tp|take profit').exec(tNum); let reste = tNum; for (const m of [mStop, mCible]) if (m) reste = reste.replace(m[0], ' ');
+  const mPrix = new RegExp('(' + NOMBRE + ')').exec(reste); if (!mPrix) return { incomplet: 'prix', actif: actif.id, sens: achat ? 'BUY' : 'SELL' };
+  const u = /\b(h1|h4|jour|daily|journalier)\b/.exec(t), setup = setupDeTexte(t.slice(Math.max(0, t.indexOf('setup')))) || setupDeTexte(t);
+  return { sens: achat ? 'BUY' : 'SELL', actif: actif.id, prix: versNombre(mPrix[1]), stop: mStop ? versNombre(mStop[1]) : null, cible: mCible ? versNombre(mCible[1]) : null, setup: setup || 'autre', setupDit: !!setup, unite: u ? (u[1] === 'h1' ? 'H1' : u[1] === 'h4' ? 'H4' : 'J') : null };
+}
 export function intention(texte) {
   const n = normaliser(texte); if (!n) return null;
+  { const p = analyserPrise(texte); if (p) return { type: 'prise', prise: p }; }
   if (/\bcouvr(e|ir|ez|ons|ant)\b/.test(n) && /\b(position|achat|vente|trade|or|gold|nasdaq|us100|bitcoin|btc|solana|sol|argent|petrole|s ?p ?500)\b/.test(n)) return { type: 'couverture', actif: actifDe(n) };
   if (/\b(fleches?|retournements?)\b/.test(n) || (/\bsignaux?\b/.test(n) && /\b(h4|h 4|jour|journalier|journaliers|aujourd hui|du jour|recents?|derniers?|y a t il)\b/.test(n))) return { type: 'fleches', actif: actifDe(n) };
   if (/\bscores?\b/.test(n) && /\b(marche|marches|or|gold|nasdaq|us100|bitcoin|btc|solana|sol|s ?p ?500|dollar)\b/.test(n)) return { type: 'score', actif: actifDe(n) || { id: 'or', nom: 'l’or' } };
@@ -53,6 +69,12 @@ export async function repondre(texte, S, { maintenant = Date.now() } = {}) {
       if (!recents.length) return 'Aucune flèche MA200 Daily + H4 dans les 7 derniers jours' + (i.actif ? ' sur ' + i.actif.nom : '') + '.' + (L.length === 1 && L[0].derniere ? ` La dernière, ${L[0].derniere.dir < 0 ? 'rouge, une vente' : 'verte, un achat'}, a été confirmée le ${jour(L[0].derniere.t)}.` : '');
       return recents.map(x => x.recentes.slice(-2).map(f => `Sur ${x.nom} : ${quoi(f)}${f.stopTxt ? `, stop ${f.stopTxt}` : ''}. Ce n’est pas un ordre.`).join(' ')).join(' ');
     }
+    if (i.type === 'prise') {
+      const p = i.prise, A = ACTIFS_XTB[p.actif]; if (p.incomplet) return 'Il me manque le prix d’entrée. Redis par exemple : j’ai acheté l’or à 3 620, stop 3 600, setup rebond MA200.';
+      if (!S.prise) return 'Je ne peux pas noter ce trade sur cet appareil.';
+      const r = await S.prise({ ticker: A.ticker, sens: p.sens, prix: p.prix, stop: p.stop, cible: p.cible, setup: p.setup, unite: p.unite, t: maintenant, source: 'voix' }); if (!r) return 'Je n’ai pas pu noter ce trade : vérifie le prix.';
+      return `C’est noté : ${p.sens === 'BUY' ? 'achat' : 'vente'} ${A.nom.startsWith('l’') ? 'd’' + A.nom.slice(2) : A.nom.startsWith('le ') ? 'du ' + A.nom.slice(3) : 'de ' + A.nom} à ${nf(p.prix, p.prix < 100 ? 2 : 0)}${p.stop ? ', stop ' + nf(p.stop, p.stop < 100 ? 2 : 0) : ''}${p.cible ? ', cible ' + nf(p.cible, p.cible < 100 ? 2 : 0) : ''}, setup ${NOM_SETUP[p.setup]}${p.unite ? ' ' + (p.unite === 'J' ? 'Jour' : p.unite) : ''}.${p.setupDit ? '' : ' Je l’ai classé « autre » : dis le setup pour le préciser, par exemple rebond MA200.'} Je le rapprocherai de ton import XTB.`;
+    }
     if (i.type === 'score') {
       const r = await S.score(i.actif.id); return r ? phraseScore(i.actif.nom, r) : `Je n’ai pas les données pour calculer le score de ${i.actif.nom}.`;
     }
@@ -87,6 +109,7 @@ export function sourceNavigateur() {
       const M = await charge(), { flechesDe } = await import('../terminal/fleches-registre.js'), { niveauParle, typeLibelle } = await import('../terminal/ma200-h4.js'), ids = id ? [id] : ['or', 'us100', 'us500', 'btc', 'sol', 'doge'], noms = { or: 'l’or', us100: 'le Nasdaq 100', us500: 'le S&P 500', btc: 'le Bitcoin', sol: 'Solana', doge: 'Dogecoin' };
       const out = []; for (const a of ids) { if (!noms[a]) continue; try { const r = await M.dn.lireActifPro(a, { delai: 8000 }), reg = flechesDe(a, r.donnees), maintenant = Date.now(); const avec = f => ({ ...f, niveauTxt: niveauParle(f.entree), stopTxt: niveauParle(f.stop), libelle: typeLibelle(f) }); out.push({ id: a, nom: noms[a], derniere: reg.length ? avec(reg[reg.length - 1]) : null, recentes: reg.filter(x => maintenant - x.tFin < 7 * 86400e3 && x.tFin <= maintenant).map(avec) }); } catch (e) { /* actif sans données */ } } return out;
     },
+    async prise(d) { const J = await import('../portefeuille/journal-stockage.js'), { creerPrise } = await import('../portefeuille/journal-setups.js'); return J.ajouter(creerPrise(d)); },
     async score(id) { const { calculerScoreActif } = await import('./dashboard.js'); return calculerScoreActif(id); },
     async cot(id) {
       const M = await charge(), { analyserCot } = await import('../marches/cot.js'), a = M.dn.parId[id] || null; if (!a) return null; const r = await M.dn.lireCot(a.cot, { delai: 8000 }); return analyserCot(r.donnees);
