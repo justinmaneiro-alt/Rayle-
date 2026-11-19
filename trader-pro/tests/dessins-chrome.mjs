@@ -71,6 +71,13 @@ console.log('— unités de temps : les dessins restent visibles, l’unité d�
 const unite0 = (await etat()).dessins[0].unite;
 for (const u of ['H4', 'J']) { await p.evaluate(x => document.querySelector(`[data-periode="${x}"]`).click(), u); await w(7000); const ee = await etat(); verif(ee.dessins.length >= 5 && ee.dessins.every(d => ['H1', 'H4', 'J'].includes(d.unite)), 'sur ' + u + ' : les ' + ee.dessins.length + ' dessins existent toujours'); const g = await p.evaluate(i => window.__orPro.dessins().pixels(i), tl.id); verif(!!g, 'sur ' + u + ' : la trendline a une position à l’écran'); }
 await capture('dessins-unite-jour');
+console.log('— Fibonacci : ancrage auto et niveaux affichés —');
+await p.evaluate(() => { const D = window.__orPro.dessins(); D.choisirMode('fibo'); }); await w(200);
+verif(await p.evaluate(() => !document.querySelector('.tp-dessin-barre [data-d="auto"]').hidden), 'le bouton « Auto » apparaît avec l’outil Fibonacci');
+const nFib0 = (await etat()).dessins.filter(d => d.type === 'fibo').length; await p.evaluate(() => document.querySelector('.tp-dessin-barre [data-d="auto"]').click()); await w(500);
+const eFib = await etat(), nFib1 = eFib.dessins.filter(d => d.type === 'fibo').length; verif(nFib1 === nFib0 + 1, 'ancrage auto : un Fibonacci posé sur la dernière impulsion majeure');
+const gF = await p.evaluate(() => { const D = window.__orPro.dessins(), o = D.liste().filter(d => d.type === 'fibo').pop(); const g = D.pixels(o.id); return { auto: o.auto, nObj: g && g.obj.length, cles: g && Object.keys(g).sort().join() }; }); verif(gF.auto === true && gF.nObj === 2, 'Fibonacci auto : deux objectifs (1,272 et 1,618)');
+verif(!!gF.cles && /zone/.test(gF.cles) && /premium/.test(gF.cles) && /y382/.test(gF.cles) && /yInv/.test(gF.cles), 'zone 0,5–0,705, premium, 0,382 et 100 % : rien d’autre');
 console.log('— suppression —');
 await p.evaluate(() => { const D = window.__orPro.dessins(); D.selectionner(D.etat().dessins.find(d => d.type === 'boite').id); }); await w(200);
 const nb0 = (await etat()).dessins.length; await p.evaluate(() => document.querySelector('.tp-dessin-barre [data-d="suppr"]').click()); await w(300); verif((await etat()).dessins.length === nb0 - 1, 'supprimer le dessin sélectionné');
