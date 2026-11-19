@@ -1,0 +1,35 @@
+/* Test Chrome du panneau « Statistiques » et de l'historique dans l'info-bulle des flèches. Usage : node trader-pro/tests/stats-chrome.mjs [pc|tablette|tel] */
+import { lancer, w } from './aide-chrome.mjs';
+const mode = process.argv[2] || 'pc', T = await lancer(mode), { p, verif, attendre, capture } = T;
+await p.goto('http://rayle.test:8000/agent-trading/front/or.html?hj=1', { waitUntil: 'domcontentloaded', timeout: 90000 });
+verif(await attendre(() => p.evaluate(() => !!(window.__orPro && window.__orPro.stats && window.__orPro.stats().charge)), 60000), 'les statistiques sont chargées');
+const st = await p.evaluate(() => window.__orPro.stats()); verif(['or', 'us100', 'us500', 'btc', 'sol', 'eurusd'].every(a => st.actifs.includes(a)), 'six actifs principaux : ' + st.actifs.join(', '));
+verif(await p.evaluate(() => !!document.querySelector('.tp-b-stats') && document.querySelector('.tp-b-stats').getBoundingClientRect().height >= 28), 'bouton « Stats » visible');
+await p.evaluate(() => document.querySelector('.tp-b-stats').click()); await w(500);
+verif(await p.evaluate(() => { const a = document.querySelector('.tp-stats'); return !!a && !a.hidden && getComputedStyle(a).display !== 'none'; }), 'le panneau s’ouvre');
+const t = await p.evaluate(() => document.querySelector('.tp-stats').innerText);
+verif(['Cassure de la MA200', 'Rebond sur la MA200', 'Rebond sur niveau', 'Cassure de niveau', 'Rebond Fibonacci'].every(x => t.includes(x)), 'les cinq types de flèches sont dans le tableau');
+verif(/Réussite/.test(t) && /R méd\. 10/.test(t) && /R méd\. 20/.test(t) && /Cas/.test(t) && /Espérance/.test(t), 'colonnes : réussite, R médian 10 et 20 bougies, nombre de cas, espérance');
+verif(/Repère du hasard : 33 %/.test(t), 'le repère du hasard (33 %) est affiché : un taux proche ne prouve rien');
+verif(/non significatif/.test(t) || (await p.evaluate(() => document.querySelectorAll('.tp-stats-t tbody tr').length)) === 5, 'moins de 30 cas : « non significatif »');
+const nbLignes = await p.evaluate(() => document.querySelectorAll('.tp-stats-t tbody tr').length); verif(nbLignes === 5, '5 lignes');
+verif(await p.evaluate(() => [...document.querySelectorAll('.tp-stats-t tbody tr')].every(r => /^\d+ %|^—/.test(r.cells[1].innerText) && /\d/.test(r.cells[5].innerText))), 'chaque ligne a un taux en % et un nombre de cas');
+await p.evaluate(() => document.querySelector('[data-stat-unite="J"]').click()); await w(300);
+verif(/Jour/.test(await p.evaluate(() => document.querySelector('.tp-stats').innerText)) && (await p.evaluate(() => document.querySelectorAll('.tp-stats-t tbody tr').length)) === 5, 'unité Jour');
+await p.evaluate(() => document.querySelector('[data-stat-actif="btc"]').click()); await w(300);
+verif(await p.evaluate(() => document.querySelector('[data-stat-actif="btc"]').getAttribute('aria-pressed') === 'true'), 'changer d’actif (Bitcoin)');
+verif(await p.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1), 'pas de défilement horizontal de la page');
+await capture('stats-panneau');
+await p.evaluate(() => document.querySelector('.tp-stats [data-fermer]').click()); await w(300);
+verif(await p.evaluate(() => document.querySelector('.tp-stats').hidden), 'le panneau se ferme');
+console.log('— info-bulle des flèches : historique de ce type de flèche —');
+await p.evaluate(() => document.querySelector('[data-periode="H4"]').click()); await w(12000);
+const pos = await p.evaluate(() => { const g = window.__or.graph, M = window.__orPro.marqueurs(), m = M[M.length - 1]; if (!m) return null; const r = g.conteneur().getBoundingClientRect(), x = g.chart().timeScale().timeToCoordinate(m.time), B = window.__or.moteur.serie(); const f = window.__orPro.fleches().slice(-1)[0]; let y = null; try { y = g.serie().priceToCoordinate(f.entree); } catch (e) { /* */ } return x == null || y == null ? null : { x: r.left + x, y: r.top + y }; });
+if (pos) {
+  await p.mouse.move(5, 5); await p.mouse.move(pos.x, pos.y, { steps: 4 }); await w(900);
+  const ib = await p.evaluate(() => { const e = document.querySelector('.tp-fleche-info'); return e && getComputedStyle(e).display !== 'none' ? e.innerText : null; });
+  console.log('  info-bulle :', JSON.stringify(ib));
+  verif(!!ib && /Historique de ce type de flèche sur l’or H4/.test(ib) && /(\d+ % · [+−]\d,\d R médian|non significatif)/.test(ib) && /cas/.test(ib), 'l’info-bulle contient « Historique de ce type de flèche sur l’or H4 : … % · … R médian · … cas »');
+  await capture('stats-infobulle');
+} else verif(false, 'position de la dernière flèche introuvable');
+await T.fin();

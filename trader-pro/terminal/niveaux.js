@@ -84,8 +84,9 @@ export const debutEvaluation = (o, pas) => (o.type === 'horizontale' ? o.cree - 
 export const cloturees = (B, pas, maintenant = Date.now()) => (B || []).filter(b => b.t + pas <= maintenant);
 function volMoyen(B, i, n = PARAMS.volN) { if (i < n) return 0; let s = 0; for (let j = i - n; j < i; j++) s += B[j].v || 0; return s / n; }
 /* o : dessin ; Bbrut : bougies de l'unité d'ORIGINE ; renvoie { etat, evenements, touches } — rejouable : même entrée, même sortie */
-export function evaluer(o, Bbrut, { maintenant = Date.now(), params = PARAMS } = {}) {
-  const pas = PAS[o.unite], B = cloturees(Bbrut, pas, maintenant), A = atr(B, params.atrN), t0 = debutEvaluation(o, pas), evs = [];
+export function evaluer(o, Bbrut, { maintenant = Date.now(), params = PARAMS, depuis = null } = {}) {
+  const pas = PAS[o.unite], B = cloturees(Bbrut, pas, maintenant), A = atr(B, params.atrN), t0 = depuis != null ? depuis : debutEvaluation(o, pas), evs = [];   // `depuis` : début d'évaluation imposé (simulations historiques)
+  
   const F = o.type === 'fibo' ? fibo(o) : null, sensFib = F ? F.dir : 0;
   let etat = 'actif', touches = 0, coteMem = 0, armRebond = true, armCass = true, cassure = null, retestFait = false, iRebond = -9, iCass = -9, invalide = false;
   const pousse = (type, dir, i, niveau, a, vr) => evs.push({ id: `${o.id}|${type}|${B[i].t}`, niveauId: o.id, type, dir, unite: o.unite, t: B[i].t, tFin: B[i].t + pas, entree: B[i].c, niveau, volRatio: vr, atr: a, vueLe: null });

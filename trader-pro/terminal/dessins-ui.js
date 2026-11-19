@@ -294,7 +294,7 @@ export function monterDessins(ctx) {
     for (const o of vis()) for (const e of o.evenements || []) {
       const k = indexSur(B, e, pas); if (k < 0) continue; const t = ctx.temps(B[k].t); if (t == null) continue;
       const dis = e.type === 'retest', bull = e.dir > 0, c = bull ? [95, 184, 148] : [216, 106, 106], cx = libelleContexte(contexteEvenement(ctx.analyse && ctx.analyse(), { ...e, annonce: ctx.dansAnnonce ? ctx.dansAnnonce(e.tFin) : false }), e);
-      out.push({ time: t, position: bull ? 'belowBar' : 'aboveBar', color: `rgba(${c[0]},${c[1]},${c[2]},${dis ? 0.6 : 1})`, shape: bull ? 'arrowUp' : 'arrowDown', size: (dis ? 0.9 : 1.3) * (tactile ? 1.25 : 1), haut: !bull, prix: e.entree, texte: `${bull ? '▲' : '▼'} ${libelle(e)}${cx ? '\n' + cx : ''}`, dir: e.dir });
+      out.push({ time: t, position: bull ? 'belowBar' : 'aboveBar', color: `rgba(${c[0]},${c[1]},${c[2]},${dis ? 0.6 : 1})`, shape: bull ? 'arrowUp' : 'arrowDown', size: (dis ? 0.9 : 1.3) * (tactile ? 1.25 : 1), haut: !bull, prix: e.entree, texte: `${bull ? '▲' : '▼'} ${libelle(e)}${cx ? '\n' + cx : ''}${ctx.historique ? '\n' + ctx.historique(o, e) : ''}`, dir: e.dir });
     }
     return out;
   }

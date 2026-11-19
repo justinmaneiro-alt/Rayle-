@@ -69,3 +69,10 @@ html.tp-terminal .tp-dessin-barre [data-outil] { display: inline-block !importan
 .tp-taille { display: flex; flex-wrap: wrap; gap: 6px 10px; align-items: center; margin: 8px 0; padding: 8px 10px; border: 1px solid #22323c; border-radius: 8px; background: #080e14; }
 .tp-taille label { display: inline-flex; gap: 4px; align-items: center; } .tp-taille input { width: 84px; } .tp-taille-res { flex: 1 0 100%; } .tp-taille-res p { margin: 3px 0; }
 .tp-taille-lots { font: 700 18px ui-monospace, Consolas, monospace; color: #8fd0e3; } .tp-taille small { flex: 1 0 100%; }
+
+/* ───── Statistiques des flèches ───── */
+.tp-stats { width: min(560px, 100vw); }
+.tp-stats-choix { display: flex; flex-wrap: wrap; gap: 6px; margin: 6px 0; } .tp-stats-choix button { min-height: 34px; padding: 3px 10px; border: 1px solid #22323c; border-radius: 6px; background: #0b1319; color: #d7e3ea; font: inherit; cursor: pointer; } .tp-stats-choix button[aria-pressed="true"] { border-color: #8fd0e3; color: #8fd0e3; background: #10222c; }
+.tp-stats-scroll { overflow-x: auto; margin: 8px 0; } .tp-stats-t { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+.tp-stats-t th, .tp-stats-t td { padding: 6px 6px; border-bottom: 1px solid #14212b; text-align: right; vertical-align: top; } .tp-stats-t thead th { color: #8497a1; font-weight: 500; font-size: 11px; } .tp-stats-t th:first-child, .tp-stats-t tbody th { text-align: left; font-weight: 500; color: #d7e3ea; }
+.tp-stats-t td small { color: #e8a85a; } .tp-stats-t tr.tp-faible td, .tp-stats-t tr.tp-faible th { opacity: .65; } .tp-stats-t .tp-h { color: #5fb894; } .tp-stats-t .tp-b { color: #d86a6a; }

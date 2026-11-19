@@ -11,6 +11,7 @@ import { monterDashboard } from '../commun/dashboard.js';
 import { VERSION } from './version.js';
 import { monterDessins } from './dessins-ui.js';
 import { monterAides } from './aides-ui.js';
+import { chargerStats, phraseHistorique, typeStat, panneauHtml } from './stats-ui.js';
 import { contexteEvenement, libelleContexte } from './contexte.js';
 import { barresDaily } from './fleches-registre.js';
 
@@ -28,13 +29,14 @@ export async function monterPro(T) {
   window.__tpVersion = VERSION;   // or.html compare ce numéro à la version publiée et force la mise à jour si le code chargé n'est pas le bon
   const actif = (document.body.dataset.actif || 'OR'), id = ID_PRO[actif], tactile = document.documentElement.classList.contains('tm-tactile'), barre = tactile ? document.querySelector('.tt-periodes') : document.querySelector('.tor-periodes') || document.querySelector('.tt-periodes');
   document.documentElement.classList.add('tp-terminal'); document.documentElement.classList.toggle('tp-details', lire(LS.details, false) === true);
-  const E = { id, D: null, fleches: [], reglages: lireReglages(), series: {}, lignes: [], marqueurs: null, cle: '', panneau: null, details: lire(LS.details, false) === true, seq: 0 };
+  const E = { statsData: null, statsActif: id, statsUnite: 'H4', id, D: null, fleches: [], reglages: lireReglages(), series: {}, lignes: [], marqueurs: null, cle: '', panneau: null, details: lire(LS.details, false) === true, seq: 0 };
   /* ───── boutons ───── */
   const bDet = document.createElement('button'); bDet.type = 'button'; bDet.className = 'tp-b-details'; bDet.textContent = 'Détails'; bDet.setAttribute('aria-pressed', String(E.details)); bDet.title = 'Afficher tous les calques, bandeaux et sources du terminal';
   const bHJ = document.createElement('button'); bHJ.type = 'button'; bHJ.className = 'tp-b-hj'; bHJ.textContent = 'MA200'; bHJ.title = 'cassures de la MA200 H4 : flèches, réglage et alertes'; bHJ.setAttribute('aria-expanded', 'false');
+  const bStats = document.createElement('button'); bStats.type = 'button'; bStats.className = 'tp-b-donnees tp-b-stats'; bStats.textContent = 'Stats'; bStats.title = 'Statistiques de chaque type de flèche (taux de réussite, R médian, nombre de cas)'; bStats.setAttribute('aria-expanded', 'false');
   const bDon = document.createElement('button'); bDon.type = 'button'; bDon.className = 'tp-b-donnees'; bDon.textContent = 'Données'; bDon.title = 'Score de marché, tendance, volume net, données pro'; bDon.setAttribute('aria-expanded', 'false');
   /* PC : à la suite des unités de temps ; tactile : sur une ligne à part sous les unités de temps (la grille de 5 colonnes du mode tactile ne les accueille pas) */
-  if (tactile || (barre && barre.classList.contains('tt-periodes'))) { const ligne = document.createElement('div'); ligne.className = 'tp-ligne-boutons'; ligne.append(bHJ, bDon, bDet); E.ligneTactile = ligne; } else if (barre) { barre.appendChild(bHJ); barre.appendChild(bDon); barre.appendChild(bDet); } else document.body.append(bHJ, bDon, bDet);
+  if (tactile || (barre && barre.classList.contains('tt-periodes'))) { const ligne = document.createElement('div'); ligne.className = 'tp-ligne-boutons'; ligne.append(bHJ, bDon, bStats, bDet); E.ligneTactile = ligne; } else if (barre) { barre.appendChild(bHJ); barre.appendChild(bDon); barre.appendChild(bStats); barre.appendChild(bDet); } else document.body.append(bHJ, bDon, bStats, bDet);
   const attendreGraphique = async () => { for (let i = 0; i < 200; i++) { const g = T.graph; if (g && g.chart && g.chart() && g.serie && g.serie() && T.moteur) return g; await new Promise(r => setTimeout(r, 250)); } return null; };
   const graph = await attendreGraphique(); if (!graph) return null;
   const LW = window.LightweightCharts;
@@ -125,7 +127,7 @@ export async function monterPro(T) {
   function texteFleche(f) {
     /* contexte : « contre-tendance » (contraire à la tendance Daily) et « pendant annonce » (dans la bande de 1 h avant / après une annonce majeure) */
     let cx = ''; try { const c = contexteEvenement(E.A, { dir: f.dir, entree: f.entree, tFin: f.tFin, unite: f.unite || 'H4', annonce: E.aides ? E.aides.dansAnnonce(f.tFin) : false }); if (c) { c.ma = null; cx = libelleContexte(c); } } catch (e) { cx = ''; }
-    return `${f.dir > 0 ? '▲ Achat' : '▼ Vente'} · ${typeLibelle(f)}\nConfirmée à la clôture ${NOM_U[f.unite || 'H4']} : ${nf(f.entree)}\nMA200 ${NOM_U[f.unite || 'H4']} : ${nf(f.ma200)}${cx ? '\n' + cx : ''}`;
+    return `${f.dir > 0 ? '▲ Achat' : '▼ Vente'} · ${typeLibelle(f)}\nConfirmée à la clôture ${NOM_U[f.unite || 'H4']} : ${nf(f.entree)}\nMA200 ${NOM_U[f.unite || 'H4']} : ${nf(f.ma200)}${cx ? '\n' + cx : ''}\n${phraseHistorique(E.statsData, id, f.unite || 'H4', typeStat({ source: 'ma200', type: f.type }))}`;
   }
     /* info-bulle : petite, posée À CÔTÉ de la flèche, dans la zone des bougies (jamais sur l'échelle des prix ni en haut à gauche). Elle n'apparaît QUE sur une action de l'utilisateur (survol à la souris, toucher sur téléphone)
      et se referme seule au bout de 6 s : les mises à jour du graphique (nouveau cours, nouvelle bougie) ne la réaffichent JAMAIS (sur téléphone, le curseur reste posé après le toucher et le graphique le signale à chaque cours : l'ancienne info-bulle restait donc affichée en permanence). */
@@ -224,6 +226,7 @@ export async function monterPro(T) {
       <h4>Alertes</h4><label class="tp-case"><input type="checkbox" data-al="telegram"${att.telegram !== false ? ' checked' : ''}> Telegram (pont du Worker de Rayle)</label><p class="tp-doux">À chaque nouvelle flèche confirmée : une seule annonce de Rayle (« ${esc(phraseFleche(NOMS[id] || actif, { type: 'rebond', unite: 'J', dir: 1 }))} »), une notification et un message Telegram. Une flèche n’est annoncée qu’une fois. Aucun autre signal.</p>`;
   }
   function ouvrirPanneau(o) {
+    if (o && E.stats && !E.stats.hidden) { E.stats.hidden = true; bStats.setAttribute('aria-expanded', 'false'); }
     if (!E.panneau) { E.panneau = document.createElement('aside'); E.panneau.className = 'tp-panneau'; E.panneau.setAttribute('aria-label', 'MA200 H4'); document.body.appendChild(E.panneau); E.panneau.addEventListener('click', ev => { if (ev.target.closest('[data-fermer]')) ouvrirPanneau(false); });
       E.panneau.addEventListener('change', ev => { const c = ev.target.closest('[data-al]'); if (c) { const a = lire(LS.alerte, {}); a[c.dataset.al] = c.checked; ecrire(LS.alerte, a); } }); }
     if (o && E.donnees && !E.donnees.hidden) ouvrirDonnees(false); E.panneau.hidden = !o; bHJ.setAttribute('aria-expanded', String(!!o)); document.documentElement.classList.toggle('tp-panneau-ouvert', !!o); if (o) rendrePanneau();
@@ -232,6 +235,7 @@ export async function monterPro(T) {
 
   /* ───── panneau « Données » : score de marché, tendance / RSI / MA200 (H1, H4, Jour), volume net USD, données pro (même module que Marchés > Actifs) ───── */
   function ouvrirDonnees(o) {
+    if (o && E.stats && !E.stats.hidden) { E.stats.hidden = true; bStats.setAttribute('aria-expanded', 'false'); }
     if (!id) return;
     if (!E.donnees) { E.donnees = document.createElement('aside'); E.donnees.className = 'tp-panneau tp-donnees'; E.donnees.setAttribute('aria-label', 'Données de marché'); E.donnees.hidden = true; E.donnees.innerHTML = '<header><b>Données · ' + esc(NOMS[id] || actif) + '</b><button type="button" data-fermer aria-label="Fermer">✕</button></header><div data-dash-zone></div>'; document.body.appendChild(E.donnees); E.donnees.addEventListener('click', ev => { if (ev.target.closest('[data-fermer]')) ouvrirDonnees(false); }); }
     E.donnees.hidden = !o; bDon.setAttribute('aria-expanded', String(!!o)); document.documentElement.classList.toggle('tp-panneau-ouvert', !!o || !!(E.panneau && !E.panneau.hidden));
@@ -243,7 +247,7 @@ export async function monterPro(T) {
   /* ───── niveaux tracés à la main : barre d'outils, dessin, flèches à la clôture (dessins-ui.js) ───── */
   const barresPour = u => { const aff = T.moteur.serie() || []; if (u === uniteAffichee() && aff.length >= 40) return aff; if (!E.D) return []; return u === 'H4' ? E.D.h4 : u === 'J' ? barresDaily(id, E.D.j) : E.D.h1; };
   try {
-    E.dess = id ? monterDessins({ id, nomActif: NOMS[id] || actif, graph, LW, tactile, uniteAffichee, barresAffichees: () => T.moteur.serie() || [], barresOrigine: barresPour, analyse: () => E.A, temps, parler, dansAnnonce: t => !!(E.aides && E.aides.dansAnnonce(t)),
+    E.dess = id ? monterDessins({ id, nomActif: NOMS[id] || actif, graph, LW, tactile, uniteAffichee, barresAffichees: () => T.moteur.serie() || [], barresOrigine: barresPour, analyse: () => E.A, temps, parler, historique: (o, e) => phraseHistorique(E.statsData, id, e.unite, typeStat({ source: 'niveau', type: e.type, niveau: o.type === 'fibo' ? 'fibo' : null })), dansAnnonce: t => !!(E.aides && E.aides.dansAnnonce(t)),
       notifier: (t, o) => { if (T.notifier) T.notifier(t, o); }, telegramActif: () => lire(LS.alerte, {}).telegram !== false, envoyerTelegram: t => { if (T.envoyerTelegram) T.envoyerTelegram(t); } }) : null;
   } catch (e) { console.warn('[tp] dessins :', e && e.message); E.dess = null; }
 
@@ -253,9 +257,20 @@ export async function monterPro(T) {
     if (E.aides) { T.tailleXtb = o => E.aides.tailleXtb(o); T.reglerTailleXtb = (k, v) => E.aides.reglerTaille(k, v); }
   } catch (e) { console.warn('[tp] aides :', e && e.message); E.aides = null; }
 
+  /* ───── panneau « Statistiques » : taux de réussite, espérance et R médian de chaque type de flèche ───── */
+  function rendreStats() { if (!E.stats) return; E.stats.innerHTML = panneauHtml(E.statsData, E.statsActif, E.statsUnite); }
+  function ouvrirStats(o) {
+    if (!E.stats) { E.stats = document.createElement('aside'); E.stats.className = 'tp-panneau tp-stats'; E.stats.setAttribute('aria-label', 'Statistiques des flèches'); E.stats.hidden = true; document.body.appendChild(E.stats);
+      E.stats.addEventListener('click', ev => { if (ev.target.closest('[data-fermer]')) { ouvrirStats(false); return; } const a = ev.target.closest('[data-stat-actif]'), u = ev.target.closest('[data-stat-unite]'); if (a) { E.statsActif = a.dataset.statActif; rendreStats(); } if (u) { E.statsUnite = u.dataset.statUnite; rendreStats(); } }); }
+    if (o) { ouvrirPanneau(false); ouvrirDonnees(false); }
+    E.stats.hidden = !o; bStats.setAttribute('aria-expanded', String(!!o)); document.documentElement.classList.toggle('tp-panneau-ouvert', !!o || !!(E.panneau && !E.panneau.hidden) || !!(E.donnees && !E.donnees.hidden)); if (o) rendreStats();
+  }
+  bStats.addEventListener('click', () => ouvrirStats(!(E.stats && !E.stats.hidden)));
+  chargerStats().then(S => { E.statsData = S; if (S && !S.actifs[E.statsActif]) E.statsActif = 'or'; E.cleFleches = null; dessiner(true); rendreStats(); });
+
   /* ───── cycle ───── */
   await charger(); majSpot(); const spot = setInterval(majSpot, 30000);
   const suivi = setInterval(() => dessiner(), 1500), maj = setInterval(() => { if (!document.hidden) charger(); }, 120000);
   window.addEventListener('pagehide', () => { clearInterval(suivi); clearInterval(maj); clearInterval(spot); });
-  return { dessins: () => E.dess, aides: () => E.aides, charger, majSpot, dessiner: () => dessiner(true), fleches: () => E.fleches.slice(), sens: () => (E.A && E.A[srcUnite(uniteAffichee())] ? E.A[srcUnite(uniteAffichee())].sens.map(x => ({ ...x })) : []), fond: () => ({ n: E.fondN || 0, segments: E.fondN ? (E.fondSegs || 0) : 0, sens: E.fondSens ?? null }), infos: () => [...(E.infos || new Map()).entries()].map(([t, x]) => ({ time: t, texte: x.texte })), marqueurs: () => (E.M || []).map(m => ({ ...m })), maPoints: () => (E.series.ma ? E.series.ma.data() : []), maInfo: () => (E.ma ? { ...E.ma } : null), reglages: () => JSON.parse(JSON.stringify(E.reglages)), etat: () => ({ id, details: E.details, fleches: E.fleches.length, marques: E.marques || 0, ma: Object.keys(E.series) }), ouvrirPanneau, ouvrirDonnees, dashboard: () => E.dash, appliquerDetails };
+  return { dessins: () => E.dess, aides: () => E.aides, stats: () => ({ charge: !!E.statsData, actifs: E.statsData ? Object.keys(E.statsData.actifs) : [], ouvert: !!(E.stats && !E.stats.hidden) }), ouvrirStats, charger, majSpot, dessiner: () => dessiner(true), fleches: () => E.fleches.slice(), sens: () => (E.A && E.A[srcUnite(uniteAffichee())] ? E.A[srcUnite(uniteAffichee())].sens.map(x => ({ ...x })) : []), fond: () => ({ n: E.fondN || 0, segments: E.fondN ? (E.fondSegs || 0) : 0, sens: E.fondSens ?? null }), infos: () => [...(E.infos || new Map()).entries()].map(([t, x]) => ({ time: t, texte: x.texte })), marqueurs: () => (E.M || []).map(m => ({ ...m })), maPoints: () => (E.series.ma ? E.series.ma.data() : []), maInfo: () => (E.ma ? { ...E.ma } : null), reglages: () => JSON.parse(JSON.stringify(E.reglages)), etat: () => ({ id, details: E.details, fleches: E.fleches.length, marques: E.marques || 0, ma: Object.keys(E.series) }), ouvrirPanneau, ouvrirDonnees, dashboard: () => E.dash, appliquerDetails };
 }
