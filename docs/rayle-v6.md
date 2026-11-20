@@ -165,3 +165,31 @@ Limites du plan gratuit : 100 000 requêtes Worker / jour, 10 ms de CPU par exé
 - **Revue du dimanche** (18 h Paris) : trades de la semaine en € et R (R = gain / risque par position), meilleur et moins bon setup (journal par setup), respect des limites, rappel d'import XTB si rien depuis 7 jours.
 - **Voix** : « Rayle, briefing » → version parlée construite dans l'appli (mouvements, annonces, état des données).
 - **Non fait / limites** : la **carte en tête du carrousel d'accueil** n'a pas été ajoutée (la commande vocale et Telegram sont là) ; le briefing vocal de l'appli n'inclut pas les niveaux tracés ni le risque (ils sont dans la version Telegram, qui lit D1) ; le niveau MA200 n'est pas dans les « niveaux proches » (absent de `signaux.json`) ; la revue lit les 300 dernières positions fermées de D1 (une fois par semaine, CPU à surveiller) ; « statistiques des flèches » de la revue : champ prévu, non alimenté.
+
+## Phase B7 — Contrôles et publication
+
+**Ce qui a été vérifié (tests automatiques, `npm test` : tout passe ; `node trader-pro/tests/...`)**
+- **PC éteint** : le Worker n'a besoin d'aucun PC — alertes de clôture (27 tests), briefing / revue (13), budget et cron (21), synchronisation (16 + 24) tournent sur SQLite réel avec Telegram et réseau simulés ; le robot de données tourne sur GitHub Actions. *Non vérifié en vrai* : aucun message Telegram réel, aucun appareil réel (voir « Déploiement »).
+- **Synchronisation** : un niveau tracé sur un appareil est lu par le Worker (`dessins:<actif>`) et déclenche l'alerte de clôture côté Worker (test `alertes-cloture-test`).
+- **Hors ligne** : le service worker et la couche IndexedDB existaient déjà (non modifiés) ; la page État des données dit l'âge de chaque donnée. Une source en panne simulée (fraîcheur-test) met sa ligne en rouge sans bloquer les autres.
+- **Risque global avec 3 positions corrélées** : testé (or + argent + EUR/USD = pari contre le dollar, 300 € de risque, alerte de corrélation). **Statistiques avec coûts** : testées + mesure réelle (B5). **Briefing** : texte parlé ≈ 1 min et Telegram (B6).
+- **Rendu PC / tablette / téléphone** : vérifié sur captures pour le mode Volume (partie A). Les nouvelles pages (État des données, onglet Risque global, section « Preuve avec les coûts ») **n'ont pas été vues dans un navigateur** : seulement vérifiées par tests de logique et contrôle de syntaxe — à regarder en premier.
+- Version **2026.11.20.4** (index.html, sw.js, precache.json, or.html, terminal/version.js ; `node build.mjs` construit `dist/` sans erreur).
+
+### Architecture finale
+```
+ Sources publiques ─► GitHub Actions ─► branches donnees (5 min) / historique / footprint / controle / donnees-invest ─► CDN GitHub ─► appareils (affichage)
+                       │  signaux.mjs (flèches + dernières bougies), controle-nuit, stats, maintien (anti-60 jours)
+                       └──────────────► signaux.json ─┐
+ Appareils ◄──► Worker Portefeuille (1 cron / 5 min, D1) ◄─┘  sync perso (45 s) · alertes de clôture · briefing 7 h 45 · revue dimanche · budget · Telegram
+```
+
+### Consommation des limites gratuites
+Prévision (3 appareils actifs) : ≈ 1 700 requêtes / jour (1,7 %), 0 KV, ≈ 3 600 lignes D1 lues (0,07 %), ≈ 620 écrites (0,6 %), 1 cron (+ celui du Worker principal : ≤ 2 sur 5). Mesure réelle : **impossible tant que le Worker n'est pas déployé** ; la page État des données l'affichera ensuite (compteurs vidés une fois par passage du cron).
+
+### Déploiement (réalisé / non réalisé)
+- **Site** : poussé sur `main` → GitHub Pages (déploiement automatique). Robots : `donnees` (relancé), `controle`, `maintien` — voir le résumé final pour leur état.
+- **Worker Portefeuille : NON déployé.** Raison vérifiée : `wrangler whoami` → « You are not authenticated » (aucune session Cloudflare sur cette machine) ; la base D1 n'est pas créée (`database_id = "REMPLACER-PAR-L-IDENTIFIANT-D1"`). `wrangler deploy --dry-run` : le paquet se construit (88 Ko, 26 Ko gzip) avec les liaisons attendues. À faire par l'utilisateur, une fois (voir `trader-pro/worker/LISEZMOI.md`) : `npx wrangler login`, `wrangler d1 create rayle-portefeuille` (coller l'identifiant dans `wrangler.toml`), `wrangler secret put PORTEFEUILLE_CODE / TELEGRAM_BOT_TOKEN / TELEGRAM_CHAT_ID --config trader-pro/worker/wrangler.toml`, puis `wrangler deploy --config trader-pro/worker/wrangler.toml` ; coller l'adresse et le code dans Portefeuille → Réglages sur chaque appareil. **Ne jamais lancer `wrangler deploy` à la racine.**
+
+### Ce qu'il faudrait avec un vrai serveur
+Un petit serveur permanent permettrait : volume Binance dans les flèches Volume des alertes (les serveurs de GitHub sont refusés par Binance), calculs à la minute au lieu de 5 minutes (le CDN GitHub est la limite), registre des flèches émises et suivi réel en continu (B5), historique des carnets (Binance depth) pour de vraies cartes de chaleur, compteurs exacts du budget, et suppression de la contrainte de 10 ms de CPU. Rien de cela n'est nécessaire pour le fonctionnement actuel.
