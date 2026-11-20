@@ -53,4 +53,8 @@ const H = 3600e3, T0 = Date.UTC(2026, 10, 20, 13, 30), ev = [{ t: T0, titre: 'No
 const bd = bandesAnnonces(ev); v(bd.length === 1 && bd[0].t1 === T0 - H && bd[0].t2 === T0 + 3 * H && /NFP/.test(bd[0].type) && /Fed/.test(bd[0].type), 'bandes de 1 h avant à 1 h après, fusionnées quand elles se touchent, impact faible ignoré : ' + JSON.stringify(bd.map(b => b.type)));
 v(dansBande(T0 - H / 2, bd) && dansBande(T0 + 3 * H, bd) && !dansBande(T0 - 2 * H, bd) && !dansBande(T0 + 4 * H, bd), 'une flèche dans la bande est « pendant annonce »');
 v(bandesAnnonces([]).length === 0 && bandesAnnonces(null).length === 0, 'calendrier vide : aucune bande');
+/* v4 : prix très en dessous d'une MA200 qui baisse, mais agité sur 20 bougies → « tendance », pas « range » */
+{ const c = Array.from({ length: 300 }, (_, i) => 3000 - i * 2 + (i % 2 ? 8 : -8)); c[299] = 2400; const B = barres(c); const R = regime(B, null, 'J');
+  v(R.type === 'tendance' && R.sens === 'baissière' && R.ecart && R.ecart.pct < -5 && /ma200/.test(R.voie), 'prix nettement sous une MA200 baissière : tendance baissière (voie ' + R.voie + ')');
+  const plat = barres(Array.from({ length: 300 }, (_, i) => 100 + (i % 2 ? 1.5 : -1.5))); v(regime(plat, null, 'J').type === 'range', 'marché plat autour de sa MA200 : range'); }
 console.log(ko ? `✗ ${ko} échec(s), ${ok} ok` : `tous les tests passent (${ok})`); process.exit(ko ? 1 : 0);

@@ -6,6 +6,7 @@
    coût = part du gain reprise par la couverture (somme de ses pertes / somme des gains de la position). Fenêtres glissantes qui se chevauchent (comme un trader qui regarde chaque jour la semaine écoulée).
    Aucune donnée inventée : en dessous de quelques cas, le taux n'est pas déclaré mesurable. */
 
+import { correlation } from '../commun/analyse.js';
 export const SEUIL = 0.01;                 // 1 % de mouvement « notable »
 export const H_JOUR = 1, H_SEMAINE = 5;
 export const FENETRES_STAB = Object.freeze([30, 90, 250]);
@@ -36,13 +37,17 @@ export function mesurerProtection(ra, rb, sens, beta, { h = H_SEMAINE, jours = 2
 export function protectionComplete(ra, rb, sens, beta, fraction = 1) {
   const jour = mesurerProtection(ra, rb, sens, beta, { h: H_JOUR, jours: 250, fraction }), semaine = mesurerProtection(ra, rb, sens, beta, { h: H_SEMAINE, jours: 250, fraction });
   const parFenetre = FENETRES_STAB.map(j => ({ jours: j, ...mesurerProtection(ra, rb, sens, beta, { h: H_SEMAINE, jours: j, fraction }) }));
-  return { jour, semaine, parFenetre, verdict: verdictProtection(parFenetre) };
+  const n = Math.min(250, ra.length, rb.length), corr250 = n >= 30 ? correlation(ra.slice(-n), rb.slice(-n)) : null;
+  return { jour, semaine, parFenetre, corr250, verdict: verdictProtection(parFenetre, corr250) };
 }
 /* « fiable » seulement si le taux hebdomadaire est ≥ 70 % sur 30, 90 ET 250 jours (chacun avec assez de cas) ; « partielle » si le taux sur 250 jours est ≥ 55 % ; sinon « à éviter » */
-export function verdictProtection(parFenetre) {
+export const SEUIL_CORR_FIABLE = 0.5;   // v4 : « fiable » exige aussi |corrélation sur 250 jours| ≥ 0,5 (un taux élevé avec une corrélation faible est de la chance)
+export function verdictProtection(parFenetre, corr250 = null) {
   const F = Object.fromEntries(parFenetre.map(x => [x.jours, x])), mesurable = j => F[j] && F[j].taux != null && F[j].cas >= MIN_CAS[j];
   if (!mesurable(250)) return { niveau: 'a-eviter', texte: 'à éviter : pas assez de périodes défavorables pour mesurer la protection' };
   const tous = FENETRES_STAB.every(j => mesurable(j) && F[j].taux >= SEUIL_FIABLE);
+  const corrOk = corr250 == null || Math.abs(corr250) >= SEUIL_CORR_FIABLE;
+  if (tous && !corrOk) return { niveau: 'partielle', texte: `partielle : le taux de protection est bon, mais la corrélation sur 250 jours n’est que de ${String(Math.abs(corr250).toFixed(2)).replace('.', ',')} (< ${String(SEUIL_CORR_FIABLE).replace('.', ',')}) : lien trop faible pour parler de couverture fiable` };
   if (tous) return { niveau: 'fiable', texte: `fiable : la couverture a gagné au moins ${Math.round(SEUIL_FIABLE * 100)} % des semaines défavorables sur 30, 90 et 250 jours` };
   if (F[250].taux >= 0.55) {
     const faible = FENETRES_STAB.filter(j => !mesurable(j) || F[j].taux < SEUIL_FIABLE).map(j => j + ' j').join(', ');
@@ -59,7 +64,8 @@ export function niveauxCouverture(backtestFn, X, Y, sens, beta, ra, rb, { notion
     return {
       ...nv, tailleRelative: Math.abs(beta) * nv.fraction, tailleNotionnel: notionnel ? Math.abs(beta) * nv.fraction * notionnel : null,
       reductionVol: bt ? bt.reductionVol : null, reductionDD: bt ? bt.reductionDD : null,
-      gainAbandonne: bt ? bt.finSeule - bt.finCouverte : null,          // points de % du notionnel, sur la période du backtest
+      gainAbandonne: bt ? bt.finSeule - bt.finCouverte : null,          // en % de la position (le backtest compte en % du notionnel), sur la période du backtest
+      gainAbandonneEur: bt && notionnel ? (bt.finSeule - bt.finCouverte) / 100 * notionnel : null,   // v4 : même chose en €, si la taille de position est connue
       finSeule: bt ? bt.finSeule : null, finCouverte: bt ? bt.finCouverte : null, jours: bt ? bt.dates.length : 0,
       compensation: p.compensation, cout: p.cout
     };

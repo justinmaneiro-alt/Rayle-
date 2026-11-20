@@ -38,6 +38,7 @@ v(mesurerProtection([0.02, 0.02], [0.01, 0.01], +1, 1, { h: 1 }).taux === null, 
 const w = (j, taux, cas) => ({ jours: j, taux, cas });
 v(verdictProtection([w(30, 0.8, 5), w(90, 0.75, 20), w(250, 0.72, 60)]).niveau === 'fiable', 'fiable : ≥ 70 % partout');
 v(verdictProtection([w(30, 0.6, 5), w(90, 0.75, 20), w(250, 0.72, 60)]).niveau === 'partielle', 'instable sur 30 jours : partielle');
+v(verdictProtection([w(30, 0.8, 5), w(90, 0.75, 20), w(250, 0.72, 60)], 0.29).niveau === 'partielle' && verdictProtection([w(30, 0.8, 5), w(90, 0.75, 20), w(250, 0.72, 60)], -0.62).niveau === 'fiable', 'v4 : corrélation 0,29 → jamais fiable ; |−0,62| → fiable');
 v(verdictProtection([w(30, 0.8, 1), w(90, 0.75, 20), w(250, 0.72, 60)]).niveau === 'partielle', '30 jours non mesurable (1 cas) : jamais fiable');
 v(verdictProtection([w(30, 0.8, 5), w(90, 0.75, 20), w(250, 0.69, 60)]).niveau === 'partielle', '69 % sur 250 jours : pas fiable');
 v(verdictProtection([w(30, 0.5, 5), w(90, 0.5, 20), w(250, 0.5, 60)]).niveau === 'a-eviter', '50 % : à éviter');

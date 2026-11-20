@@ -20,10 +20,10 @@ export function monterAides(ctx) {
   const el = document.createElement('div'); el.className = 'tp-aides'; el.setAttribute('aria-label', 'Régime de marché et alignement'); conteneur.appendChild(el);
   function majPastilles() {
     const B = ctx.barresAffichees() || [], u = ctx.uniteAffichee(), A = ctx.analyse && ctx.analyse(), R = regime(B, ctx.barresJour ? ctx.barresJour() : null, u), V = voyant(A);
-    const cle = [R.type, R.vol, R.baseVol, V.etat, V.daily, V.h4, B.length].join('|'); if (cle === E.cle) return; E.cle = cle;
+    const cle = [R.type, R.sens, R.vol, R.baseVol, V.etat, V.daily, V.h4, B.length].join('|'); if (cle === E.cle) return; E.cle = cle;
     const volTxt = R.vol ? `volatilité ${R.vol}${R.baseVol === 'J' && u !== 'J' ? ' (Jour)' : ''}` : 'volatilité : historique trop court';
-    const tip = (R.er != null ? `Efficacité de Kaufman sur 20 bougies : ${nf(R.er, 2)} (≥ 0,30 = tendance). ` : '') + (R.percentile != null ? `ATR(14) au ${Math.round(R.percentile * 100)}ᵉ percentile de l’année.` : '');
-    el.innerHTML = `<span class="tp-chip tp-chip-${R.type || 'nd'}" title="${esc(tip)}">${R.type === 'tendance' ? 'Tendance' : R.type === 'range' ? 'Range' : 'Régime ?'}</span><span class="tp-chip tp-chip-vol-${R.vol || 'nd'}" title="${esc(tip)}">${esc(volTxt)}</span><span class="tp-chip tp-voyant tp-voyant-${V.etat}" title="${esc(V.texte)}" role="img" aria-label="${esc(V.texte)}"><i></i>Daily / H4</span>${R.phrase ? `<span class="tp-aides-phrase">${esc(R.phrase)}</span>` : ''}`;
+    const tip = (R.type ? `Méthode : « tendance » si l’efficacité de Kaufman sur 20 bougies est ≥ 0,30${R.er != null ? ` (ici ${nf(R.er, 2)})` : ''}, OU si le prix est à plus de 3 ATR de sa MA200 avec une MA200 qui penche du même côté${R.ecart ? ` (ici ${nf(R.ecart.pct, 1)} % de la MA200, ${nf(R.ecart.atr, 1)} ATR)` : ''}. Sinon « range ». ` : '') + (R.percentile != null ? `ATR(14) au ${Math.round(R.percentile * 100)}ᵉ percentile de l’année. ` : '') + (R.phrase || '');
+    el.innerHTML = `<span class="tp-chip tp-chip-${R.type || 'nd'}" title="${esc(tip)}">${R.type === 'tendance' ? 'Tendance' + (R.sens ? ' ' + R.sens : '') : R.type === 'range' ? 'Range' : 'Régime ?'}</span><span class="tp-chip tp-chip-vol-${R.vol || 'nd'}" title="${esc(tip)}">${esc(volTxt)}</span><span class="tp-chip tp-voyant tp-voyant-${V.etat}" title="${esc(V.texte)}" role="img" aria-label="${esc(V.texte)}"><i></i>Daily / H4</span>`;
   }
 
   /* ───── bandes d'annonces (primitive derrière les bougies) ───── */

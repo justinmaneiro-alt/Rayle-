@@ -41,12 +41,27 @@ export function percentileAtr(B, unite = 'J') {
 }
 export const niveauVol = p => (p == null ? null : p < 0.25 ? 'basse' : p > 0.75 ? 'haute' : 'normale');
 /* B : bougies de l'unité affichée ; BJ : bougies Jour (repli pour la volatilité quand l'unité n'a pas un an d'historique, H1 notamment) */
+export const SEUIL_ECART_ATR = 3, FEN_MA = 200, FEN_PENTE = 20;
+/* Écart au prix de la MA200 de la série B : en % de la MA et en ATR(14) ; pente de la MA sur FEN_PENTE bougies. null si moins de 220 bougies. */
+export function ecartMa200(B) {
+  if (!B || B.length < FEN_MA + FEN_PENTE) return null;
+  const c = B.map(b => b.c), n = c.length, moy = fin => { let s = 0; for (let i = fin - FEN_MA + 1; i <= fin; i++) s += c[i]; return s / FEN_MA; };
+  const ma = moy(n - 1), maAvant = moy(n - 1 - FEN_PENTE), a = dernier(atr(B, 14)); if (!(ma > 0) || !(a > 0)) return null;
+  return { ma, pct: (c[n - 1] - ma) / ma * 100, atr: (c[n - 1] - ma) / a, pente: ma - maAvant };
+}
+/* B : bougies de l'unité affichée ; BJ : bougies Jour (repli pour la volatilité quand l'unité n'a pas un an d'historique, H1 notamment).
+   Tendance = (efficacité de Kaufman sur 20 bougies ≥ 0,30) OU (prix à plus de 3 ATR de la MA200 de l'unité ET MA200 qui penche du même côté). Sinon range.
+   Avant la v4 seule l'efficacité sur 20 bougies comptait : un marché 19 % sous sa MA200 pouvait s'afficher « Range ». */
 export function regime(B, BJ, unite = 'H4') {
-  const er = efficacite(B), type = er == null ? null : er >= SEUIL_TENDANCE ? 'tendance' : 'range';
+  const er = efficacite(B), ec = ecartMa200(B);
+  const voieMa = !!(ec && Math.abs(ec.atr) >= SEUIL_ECART_ATR && Math.sign(ec.pente) === Math.sign(ec.atr));
+  const voieEr = er != null && er >= SEUIL_TENDANCE;
+  const type = er == null && !ec ? null : voieEr || voieMa ? 'tendance' : 'range';
+  const sens = ec && (voieMa || voieEr) ? (ec.atr < 0 ? 'baissière' : 'haussière') : null;
   let p = percentileAtr(B, unite), base = unite; if (p == null && BJ) { p = percentileAtr(BJ, 'J'); base = 'J'; }
   const vol = niveauVol(p);
   const phrase = type === 'tendance' ? 'En tendance, privilégier les flèches MA200 ; en range, les rebonds sur niveaux tracés.' : type === 'range' ? 'En range, privilégier les rebonds sur niveaux tracés ; en tendance, les flèches MA200.' : '';
-  return { type, er, vol, percentile: p, baseVol: base, phrase };
+  return { type, er, vol, percentile: p, baseVol: base, phrase, ecart: ec, voie: voieMa ? (voieEr ? 'ma200+efficacité' : 'ma200') : voieEr ? 'efficacité' : null, sens };
 }
 
 /* ───── 3. Voyant d'alignement Daily / H4 ───── */
