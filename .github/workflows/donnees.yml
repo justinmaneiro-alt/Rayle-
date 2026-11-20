@@ -30,7 +30,7 @@ jobs:
         run: |
           git clone --depth 1 --branch donnees "https://x-access-token:${JETON}@github.com/${GITHUB_REPOSITORY}.git" sortie 2>/dev/null || mkdir -p sortie
           rm -rf sortie/.git
-      - name: Boucle de rafraîchissement (v4 : le déclencheur « schedule » de GitHub ne passe en pratique que toutes les 4 à 12 h ; on reste donc en vie ~5 h et on republie toutes les 5 minutes, puis on se relance soi-même)
+      - name: "Boucle de rafraîchissement (v4 : le déclencheur « schedule » de GitHub ne passe en pratique que toutes les 4 à 12 h ; on reste donc en vie ~5 h et on republie toutes les 5 minutes, puis on se relance soi-même)"
         env:
           JETON: ${{ github.token }}
         run: |

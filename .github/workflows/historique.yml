@@ -23,7 +23,7 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
-      - name: Installer dukascopy-node (hors du dépôt : rien n'est ajouté à package.json)
+      - name: "Installer dukascopy-node (hors du dépôt : rien n'est ajouté à package.json)"
         run: npm install --no-save --no-package-lock --omit=dev --ignore-scripts dukascopy-node@1
       - name: Reprendre la branche historique (années déjà écrites conservées)
         env:
