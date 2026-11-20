@@ -5,7 +5,7 @@
 .tp-mode button[aria-pressed="true"] { background: #14212b; color: #8fd0e3; }
 .tp-mode-flottant { position: absolute; top: 6px; right: 74px; z-index: 6; }
 
-.tpv { position: fixed; left: 0; right: 0; bottom: 0; top: var(--tpv-haut, 56px); z-index: 25; background: #000; color: #aebcc4; display: flex; flex-direction: column; font: 12px/1.4 ui-monospace, Consolas, monospace; }
+.tpv { position: fixed; left: 0; right: 0; bottom: 0; top: var(--tpv-haut, 56px); z-index: 60; background: #000; color: #aebcc4; display: flex; flex-direction: column; font: 12px/1.4 ui-monospace, Consolas, monospace; }
 .tpv[hidden] { display: none; }
 .tpv-barre { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; padding: 6px 10px; border-bottom: 1px solid #14202a; background: #05080c; }
 .tpv-barre select, .tpv-reglages select { background: #0b1117; color: #d7e3ea; border: 1px solid #22323c; border-radius: 4px; padding: 4px 6px; font: inherit; min-height: 28px; }

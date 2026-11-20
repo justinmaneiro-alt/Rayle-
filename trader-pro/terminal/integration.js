@@ -50,14 +50,14 @@ export async function monterPro(T) {
   /* ───── v4 : sélecteur « Classique | Volume » en haut à droite. Le mode Classique reste strictement inchangé ; le mode Volume est un terminal complet (trader-pro/volume/), chargé à la première ouverture. ───── */
   const MODE = 'rayle_tp_mode', VOL_DE_ACTIF = { OR: 'or', NASDAQ: 'us100', SP500: 'us500', BTC: 'btc', SOL: 'sol', EURUSD: 'eurusd' };
   (function selecteurMode() {
-    const tete = document.querySelector('.tor-tete'), sel = document.createElement('div'); sel.className = 'tp-mode'; sel.setAttribute('role', 'group'); sel.setAttribute('aria-label', 'Mode du terminal');
+    const teteBrute = document.querySelector('.tor-tete'), teteVisible = !!(teteBrute && teteBrute.getBoundingClientRect().width > 0 && getComputedStyle(teteBrute).display !== 'none'), tete = teteVisible ? teteBrute : null, sel = document.createElement('div'); sel.className = 'tp-mode'; sel.setAttribute('role', 'group'); sel.setAttribute('aria-label', 'Mode du terminal');
     sel.innerHTML = '<button type="button" data-mode="classique" aria-pressed="true">Classique</button><button type="button" data-mode="volume" aria-pressed="false">Volume</button>';
     if (tete) tete.appendChild(sel); else { sel.classList.add('tp-mode-flottant'); (graph.conteneur() || document.body).appendChild(sel); }
     let ctrl = null, charge = null;
     const uniteVolume = () => 'H4';   // le mode Volume s'ouvre en H4 (puis garde le dernier choix de l'utilisateur)
     const css = () => { if (!document.querySelector('link[data-tpv]')) { const l = document.createElement('link'); l.rel = 'stylesheet'; l.href = new URL('../volume/volume.css', import.meta.url).href; l.dataset.tpv = '1'; document.head.appendChild(l); } };
-    const assurer = async () => { if (ctrl) return ctrl; css(); charge = charge || import('../volume/volume-ui.js').then(m => m.monterVolume({ racine: document.body, T, parler, idDefaut: VOL_DE_ACTIF[actif] || 'or', unite0: uniteVolume() })); ctrl = await charge; return ctrl; };
-    const placerHaut = () => { const h = tete ? tete.getBoundingClientRect().bottom : 56; document.documentElement.style.setProperty('--tpv-haut', Math.max(0, Math.round(h)) + 'px'); };
+    const assurer = async () => { if (ctrl) return ctrl; css(); charge = charge || import('../volume/volume-ui.js').then(m => m.monterVolume({ racine: document.body, T, parler, surClassique: () => aller('classique'), idDefaut: VOL_DE_ACTIF[actif] || 'or', unite0: uniteVolume() })); ctrl = await charge; return ctrl; };
+    const placerHaut = () => { const h = tete ? tete.getBoundingClientRect().bottom : (graph.conteneur() ? graph.conteneur().getBoundingClientRect().top : 56); document.documentElement.style.setProperty('--tpv-haut', Math.max(0, Math.round(h)) + 'px'); };
     const maj = m => { sel.querySelectorAll('[data-mode]').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.mode === m))); };
     async function aller(m, o = {}) {
       ecrire(MODE, m); maj(m);

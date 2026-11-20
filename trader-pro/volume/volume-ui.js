@@ -24,7 +24,7 @@ const sgn = v => (v >= 0 ? '+' : '−') + compact(Math.abs(v));
 const dec = a => parId[a].decimales;
 const prix = (a, p) => nf(p, dec(a));
 
-export async function monterVolume({ racine, T = {}, parler = () => {}, idDefaut = 'or', unite0 = 'H4' } = {}) {
+export async function monterVolume({ racine, T = {}, parler = () => {}, idDefaut = 'or', unite0 = 'H4', surClassique = () => {} } = {}) {
   const LW = await chargerLib();
   const opts = { ...OPTS_DEFAUT, ...lireLS(CLE.opts, {}) };
   const types = { 'vol-absorption': true, 'vol-cassure': true, 'vol-faux': true, ...lireLS(CLE.types, {}) };
@@ -40,7 +40,8 @@ export async function monterVolume({ racine, T = {}, parler = () => {}, idDefaut
       <span class="tpv-vide"></span>
       <button type="button" data-ancrer title="Touche ensuite une bougie : un VWAP s’y ancre (bandes ±1 et ±2 écarts-types)">Ancrer VWAP</button>
       <button type="button" data-effacer-vwap title="Retire mes VWAP ancrés">Effacer</button>
-      <button type="button" data-reglages aria-expanded="false">Calques</button></div>
+      <button type="button" data-reglages aria-expanded="false">Calques</button>
+      <div class="tp-mode tpv-mode" role="group" aria-label="Mode du terminal"><button type="button" data-vers-classique>Classique</button><button type="button" aria-pressed="true">Volume</button></div></div>
     <div class="tpv-reglages" data-panneau-reglages hidden>${[['profil', 'Profil de volume'], ['vwap', 'VWAP semaine / mois'], ['nus', 'POC nus'], ['niveaux', 'Supports / résistances (volume)'], ['murs', 'Murs du carnet'], ['chaleur', 'Carte de chaleur du carnet'], ['empreinte', 'Volume / delta par bougie et empreinte'], ['dessins', 'Mes dessins'], ['fleches', 'Flèches Volume'], ['ma200', 'MA200 et flèches']].map(([k, n]) => `<label><input type="checkbox" data-opt="${k}"> ${n}</label>`).join('')}
       <label>Panneau du bas <select data-opt-select="mfiMode"><option value="mfi">MFI 14 (RSI du volume)</option><option value="rvol">Volume relatif (RVOL)</option></select></label>
       <label>Carnet et gros flux <select data-opt-select="carnetSource"><option>Binance</option><option>Kraken</option></select></label>
@@ -158,7 +159,7 @@ export async function monterVolume({ racine, T = {}, parler = () => {}, idDefaut
     if (opts.vwap) { ajouterVwap(indexAncrePeriode(B, 'semaine'), '#8fd0e3', [1], 'VWAP sem.'); ajouterVwap(indexAncrePeriode(B, 'mois'), '#c9b27a', [1], 'VWAP mois'); }
     for (const t of lireLS(CLE.ancres(S.actif, S.unite), [])) { const i = B.findIndex(b => b.t >= t); if (i >= 0) ajouterVwap(i, '#e8a85a', [1, 2], 'VWAP ancré'); }
     if (opts.nus) for (const periode of ['semaine', 'mois']) for (const n of pocsNus(B, periode, { max: 3 })) S.lignes.push(sBou.createPriceLine({ price: n.prix, color: periode === 'mois' ? 'rgba(201,178,122,.8)' : 'rgba(143,208,227,.75)', lineWidth: 1, lineStyle: 1, axisLabelVisible: false, title: 'POC nu ' + (periode === 'mois' ? 'mois' : 'sem.') + ' ' + prix(S.actif, n.prix) }));
-    S.niveaux = []; if (S.unite !== 'H1' || opts.niveaux) { const N = niveauxVolume(B, { max: 5 }); S.niveaux = N.niveaux; S.niveauxAtr = N.atr; if (opts.niveaux && S.unite !== 'H1') for (const n of N.niveaux) S.lignes.push(sBou.createPriceLine({ price: n.prix, color: n.cote === 'resistance' ? 'rgba(216,106,106,.75)' : 'rgba(95,184,148,.75)', lineWidth: 1, lineStyle: 0, axisLabelVisible: true, title: (n.cote === 'resistance' ? 'Rés. volume ' : 'Sup. volume ') + 'force ' + nf(n.force, 1) })); }
+    S.niveaux = []; if (S.unite !== 'H1' || opts.niveaux) { const N = niveauxVolume(B, { max: 5 }); S.niveaux = N.niveaux; S.niveauxAtr = N.atr; if (opts.niveaux && S.unite !== 'H1') for (const n of N.niveaux) S.lignes.push(sBou.createPriceLine({ price: n.prix, color: n.cote === 'resistance' ? 'rgba(216,106,106,.75)' : 'rgba(95,184,148,.75)', lineWidth: 1, lineStyle: 0, axisLabelVisible: false, title: (n.cote === 'resistance' ? 'Rés. ' : 'Sup. ') + prix(S.actif, n.prix) })); }
     if (opts.murs && S.book) for (const m of murs(S.book)) S.lignes.push(sBou.createPriceLine({ price: m.prix, color: m.cote === 'achat' ? 'rgba(95,184,148,.55)' : 'rgba(216,106,106,.55)', lineWidth: 1, lineStyle: 3, axisLabelVisible: false, title: 'Mur ' + (m.cote === 'achat' ? 'achat ' : 'vente ') + compact(m.qte) }));
     for (const s of S.seriesDessins) { try { chart.removeSeries(s); } catch (e) { /* déjà retirée */ } } S.seriesDessins = [];
     if (opts.dessins) tracerDessins();
@@ -280,6 +281,7 @@ export async function monterVolume({ racine, T = {}, parler = () => {}, idDefaut
   el.addEventListener('click', ev => {
     const u = ev.target.closest('[data-unite]'); if (u) { S.unite = u.dataset.unite; ecrireLS(CLE.unite, S.unite); synchroUI(); charger(); return; }
     if (ev.target.closest('[data-reessayer]')) { charger(); return; }
+    if (ev.target.closest('[data-vers-classique]')) { surClassique(); return; }
     if (ev.target.closest('[data-ancrer]')) { S.modeAncre = !S.modeAncre; ev.target.closest('[data-ancrer]').setAttribute('aria-pressed', String(S.modeAncre)); zoneGraph.classList.toggle('tpv-ancre', S.modeAncre); return; }
     if (ev.target.closest('[data-effacer-vwap]')) { ecrireLS(CLE.ancres(S.actif, S.unite), []); calculerAnnexes(); return; }
     const r = ev.target.closest('[data-reglages]'); if (r) { const p = $('[data-panneau-reglages]'); p.hidden = !p.hidden; r.setAttribute('aria-expanded', String(!p.hidden)); }

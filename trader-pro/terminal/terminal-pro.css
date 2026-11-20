@@ -86,3 +86,9 @@ html.tp-terminal .tor-graph .tv-lightweight-charts, html.tp-terminal .tor-graph 
 .tp-raccord { position: absolute; top: 0; bottom: 0; width: 13px; margin-left: -6px; z-index: 4; pointer-events: none; }
 .tp-raccord::before { content: ''; position: absolute; left: 6px; top: 0; bottom: 0; border-left: 1px dotted rgba(201, 178, 122, .55); }
 .tp-raccord i { pointer-events: auto; cursor: help; position: absolute; left: 1px; top: 26px; width: 11px; height: 11px; border: 1px solid rgba(201, 178, 122, .7); border-radius: 50%; font: 8px/10px system-ui; font-style: normal; text-align: center; color: #c9b27a; background: #000; opacity: .75; }
+
+/* ───── v4 : sélecteur « Classique | Volume » (présent dès le chargement du terminal ; le reste du mode Volume est dans trader-pro/volume/volume.css, chargé à la demande) ───── */
+.tp-mode { display: inline-flex; margin-left: auto; border: 1px solid #22323c; border-radius: 4px; overflow: hidden; align-self: center; flex: none; }
+.tp-mode button { background: #05080c; color: #8aa0aa; border: 0; padding: 4px 12px; font: 12px/1.2 system-ui, sans-serif; cursor: pointer; min-height: 28px; }
+.tp-mode button[aria-pressed="true"] { background: #14212b; color: #8fd0e3; }
+.tp-mode-flottant { position: absolute; top: 6px; right: 74px; z-index: 6; margin-left: 0; }

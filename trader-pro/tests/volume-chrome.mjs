@@ -5,7 +5,7 @@ const mode = process.argv[2] || 'pc', T = await lancer(mode), { p, verif, attend
 await p.goto('http://rayle.test:8000/agent-trading/front/or.html?hj=1', { waitUntil: 'domcontentloaded', timeout: 90000 });
 verif(await attendre(() => p.evaluate(() => !!window.__orPro && !!window.__tpVolume), 60000), 'le terminal pro est monté, avec le sélecteur de mode');
 verif(await p.evaluate(() => [...document.querySelectorAll('.tp-mode [data-mode]')].map(b => b.textContent).join() === 'Classique,Volume'), 'sélecteur « Classique | Volume »');
-const rep = await p.evaluate(() => { const r = document.querySelector('.tp-mode').getBoundingClientRect(); return { x: r.left, w: r.width, t: r.top, vw: innerWidth }; }); verif(rep.x + rep.w > rep.vw * 0.5 && rep.t < 120, 'le sélecteur est en haut à droite : x=' + Math.round(rep.x) + ' sur ' + rep.vw);
+const rep = await p.evaluate(() => { const r = document.querySelector('.tp-mode').getBoundingClientRect(); return { x: r.left, w: r.width, t: r.top, vw: innerWidth }; }); verif(rep.x + rep.w > rep.vw * 0.5 && rep.t < 200 && rep.w > 20, 'le sélecteur est en haut à droite : x=' + Math.round(rep.x) + ' sur ' + rep.vw);
 await w(1500); await capture('volume-0-classique');
 /* fond noir du classique */
 verif(await p.evaluate(() => { const g = document.querySelector('.tor-graph'); const c = g && getComputedStyle(g).backgroundColor; return c === 'rgb(0, 0, 0)'; }), 'classique : fond noir uni');
@@ -50,7 +50,7 @@ e = await p.evaluate(() => window.__tpVolume.etat()); console.log('  nasdaq :', 
 if (e.charge) { verif(/futures CME/.test(e.badge) && /delta estimé/.test(e.badge), 'Nasdaq : volume des futures NQ, delta estimé'); verif(await p.evaluate(() => /Carnet non disponible gratuitement/.test(document.querySelector('.tpv-droite').innerText)), 'Nasdaq : « carnet non disponible gratuitement » + volume par niveau de prix'); }
 else console.log('  (instantané NQ=F pas encore publié par le robot : vérification Nasdaq ignorée) ' + e.erreur);
 /* retour au classique */
-await p.evaluate(() => document.querySelector('.tp-mode [data-mode="classique"]').click()); await w(800);
+await p.evaluate(() => document.querySelector('.tpv [data-vers-classique]').click()); await w(800);
 verif(await p.evaluate(() => document.querySelector('.tpv').hidden === true && getComputedStyle(document.querySelector('.tor-graph')).visibility !== 'hidden'), 'retour au mode Classique : graphique classique de nouveau visible');
 await capture('volume-4-retour-classique');
 await fin();
