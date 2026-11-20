@@ -2,6 +2,7 @@
 import { phraseAge } from '../../agent-trading/front/donnees/couche.js';
 import { lectureProgressive } from './donnees.js';
 import { installerSaisieNombres } from './nombre.js';
+import { classePeremption, delaiPourSource } from './fraicheur.js';
 installerSaisieNombres();   // virgule ET point décimal acceptés dans tous les champs numériques des fenêtres pro
 
 export const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -14,7 +15,8 @@ export const lireLS = (k, d) => { try { const v = localStorage.getItem(k); retur
 export const ecrireLS = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) { /* stockage plein ou interdit */ } };
 
 /* pastille « source · âge » : toujours présente à côté d'un chiffre */
-export const pastille = (source, t, { garde = false } = {}) => `<span class="tp-src" title="${esc(source)}">${esc(String(source).split(' ; ')[0])} · ${esc(age(t))}${garde ? ' · copie locale' : ''}</span>`;
+/* v6 (B2) : une pastille orange (retard > 2 × le délai normal) ou rouge (> 5 ×) s'ajoute à CHAQUE chiffre périmé de toutes les fenêtres (le délai se déduit de la source) */
+export const pastille = (source, t, { garde = false, delai = delaiPourSource(source) } = {}) => `<span class="tp-src"${classePeremption(t, delai) ? ` data-peremption="${classePeremption(t, delai)}"` : ''} title="${esc(source)}">${esc(String(source).split(' ; ')[0])} · ${esc(age(t))}${garde ? ' · copie locale' : ''}</span>`;
 
 /* Une zone qui ne reste jamais sur « Chargement… » :
    vue.lire(cle, lecteur, rendre) → affiche la copie locale tout de suite, puis la donnée fraîche ; panne = message + bouton Réessayer (ou bandeau si une copie est affichée). */

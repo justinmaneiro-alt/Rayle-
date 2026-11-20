@@ -25,6 +25,7 @@ export async function synchroniser({ conn, st, fetchFn = (...a) => fetch(...a), 
     const meta = st.lireMeta() || { maj: {}, vu: {}, appareil: idAppareil() }; if (!meta.appareil) meta.appareil = idAppareil();
     const entetes = { 'Content-Type': 'application/json', ...(conn.code ? { 'X-Portefeuille-Code': conn.code } : {}) };
     const r1 = await fetchFn(conn.url + '/sync', { headers: entetes, signal: AbortSignal.timeout ? AbortSignal.timeout(12000) : undefined }); if (!r1.ok) return { ok: false, statut: r1.status };
+    const ralentir = Math.min(8, Math.max(1, Number(r1.headers && r1.headers.get && r1.headers.get('x-rayle-ralentir')) || 1)); synchroniser.ralentir = ralentir;   // à 70 % d'une limite gratuite, le Worker demande de ralentir
     const d = await r1.json(), valeurs = Object.fromEntries(CLES_SYNC.map(k => [k, st.lire(k)]));
     /* 1) horodater mes modifications locales (une valeur jamais synchronisée dont le serveur a déjà une copie n'est pas une modification : le serveur fait foi pour un nouvel appareil) */
     const vu0 = { ...(meta.vu || {}) }; for (const k of Object.keys(d.cles || {})) if (vu0[k] === undefined && CLES_SYNC.includes(k)) vu0[k] = valeurs[k] === undefined ? null : valeurs[k];
@@ -44,5 +45,5 @@ export function brancherSynchroPerso({ lireConn }) {
   const st = { lire: k => { try { const v = localStorage.getItem(k); return v == null ? undefined : JSON.parse(v); } catch (e) { return undefined; } }, ecrire: (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); document.dispatchEvent(new CustomEvent('tp:sync-recu', { detail: { cle: k } })); } catch (e) { /* plein */ } },
     lireMeta: () => { try { return JSON.parse(localStorage.getItem(CLE_META) || 'null'); } catch (e) { return null; } }, ecrireMeta: m => { try { localStorage.setItem(CLE_META, JSON.stringify(m)); } catch (e) { /* plein */ } } };
   let enCours = false; const passe = async () => { if (enCours || document.hidden) return; enCours = true; try { await synchroniser({ conn: lireConn(), st }); } finally { enCours = false; } };
-  setInterval(passe, INTERVALLE); document.addEventListener('visibilitychange', () => { if (!document.hidden) passe(); }); setTimeout(passe, 4000); window.addEventListener('storage', e => { if (e.key && CLES_SYNC.includes(e.key)) setTimeout(passe, 1500); });
+  (function boucle() { setTimeout(async () => { await passe(); boucle(); }, INTERVALLE * (synchroniser.ralentir || 1)); })(); document.addEventListener('visibilitychange', () => { if (!document.hidden) passe(); }); setTimeout(passe, 4000); window.addEventListener('storage', e => { if (e.key && CLES_SYNC.includes(e.key)) setTimeout(passe, 1500); });
 }

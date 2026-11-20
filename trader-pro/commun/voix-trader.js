@@ -38,6 +38,8 @@ export function intention(texte) {
   if (/\bscores?\b/.test(n) && /\b(marche|marches|or|gold|nasdaq|us100|bitcoin|btc|solana|sol|s ?p ?500|dollar)\b/.test(n)) return { type: 'score', actif: actifDe(n) || { id: 'or', nom: 'l’or' } };
   if (/\bcot\b|commitments|positions? des fonds|fonds speculatifs|managed money/.test(n)) return { type: 'cot', actif: actifDe(n) || { id: 'or', nom: 'l’or' } };
   if (/\b(quel|quels|combien|c est quoi)\b.*\brisques?\b|\bmon risque\b|\brisque (total|actuel|que j ai|de mes positions)\b|\bmes risques\b/.test(n)) return { type: 'risque' };
+  /* v6 : « Rayle, est-ce que mes données sont à jour ? » */
+  if (/\bdonnees\b/.test(n) && /\b(a jour|etat|fraiches?|perimees?|retard|panne|fiables?)\b/.test(n)) return { type: 'donnees' };
   if (/\b(mes erreurs|mes fautes|mes defauts|ma discipline|mon coach|que (est ce que )?je fais mal|quelles sont mes erreurs|mes points faibles)\b/.test(n)) return { type: 'erreurs' };
   if (/\b(portefeuille|mes resultats|mes performances|mon bilan|mon compte xtb|mes positions)\b/.test(n) && /\b(ou en est|etat|bilan|resume|comment|dis moi|donne moi|quel|quels|mes resultats|mes performances)\b|^(mon|mes|le) /.test(n)) return { type: 'portefeuille' };
   return null;
@@ -64,6 +66,7 @@ export async function repondre(texte, S, { maintenant = Date.now() } = {}) {
       const C = P.coach; if (!C || !C.erreurs.length) return 'Aucune erreur mesurée ne coûte de l’argent sur ton historique : continue comme ça.';
       return `Ta note de discipline est de ${C.note.note} sur 100. Tes plus grosses erreurs : ` + C.erreurs.map((e, k) => `${k + 1}, ${e.titre.toLowerCase()} : ${e.texte}`).join(' ') + (C.regles.length ? ' Pour corriger : ' + C.regles[0] : '');
     }
+    if (i.type === 'donnees') return S.donnees ? await S.donnees() : 'Je ne peux pas lire l’état des données ici.';
     if (i.type === 'volume') return S.volume ? await S.volume(i) : 'Le terminal Volume n’est pas disponible ici.';
     if (i.type === 'couverture') {
       if (!i.actif) return 'Sur quel actif veux-tu une couverture : l’or, le Nasdaq, le Bitcoin ?';
@@ -119,6 +122,7 @@ export function sourceNavigateur() {
       const out = []; for (const a of ids) { if (!noms[a]) continue; try { const r = await M.dn.lireActifPro(a, { delai: 8000 }), reg = flechesDe(a, r.donnees), maintenant = Date.now(); const avec = f => ({ ...f, niveauTxt: niveauParle(f.entree), stopTxt: niveauParle(f.stop), libelle: typeLibelle(f) }); out.push({ id: a, nom: noms[a], derniere: reg.length ? avec(reg[reg.length - 1]) : null, recentes: reg.filter(x => maintenant - x.tFin < 7 * 86400e3 && x.tFin <= maintenant).map(avec) }); } catch (e) { /* actif sans données */ } } return out;
     },
     /* v4 : pilote le terminal Volume (cherche le contrôleur dans cette page et dans ses cadres ; sinon ouvre le Terminal et attend) */
+    async donnees() { const { lireEtat, phraseDonnees } = await import('./fraicheur.js'); const E = await lireEtat(); return phraseDonnees(E.liste); },
     async volume(i) {
       const trouver = () => { try { if (window.__tpVolume) return window.__tpVolume; for (const f of document.querySelectorAll('iframe')) { try { if (f.contentWindow && f.contentWindow.__tpVolume) return f.contentWindow.__tpVolume; } catch (e) { /* autre origine */ } } } catch (e) { /* ignoré */ } return null; };
       let V = trouver(); if (!V && typeof window !== 'undefined' && window.Application && window.Application.ouvrir) { try { await window.Application.ouvrir('terminal'); } catch (e) { /* ignoré */ } for (let k = 0; k < 40 && !V; k++) { await new Promise(r => setTimeout(r, 250)); V = trouver(); } }

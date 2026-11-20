@@ -1,0 +1,53 @@
+name: controle
+# Contrôles qualité de la nuit (v6, B2) : prix aberrants, trous, doublons, valeurs nulles, incohérences entre fenêtres, un seul calendrier.
+# Lit la branche donnees (sans jamais y écrire : la boucle de 5 minutes la réécrit sans cesse) et publie le rapport sur la branche orpheline controle (lu par la page État des données).
+# Alerte Telegram SEULEMENT si un problème GRAVE persiste 2 nuits de suite (une alerte par épisode) ; sans secrets Telegram : le rapport est quand même publié.
+on:
+  schedule:
+    - cron: '10 2 * * *'
+  workflow_dispatch:
+concurrency:
+  group: controle-branche
+  cancel-in-progress: false
+permissions:
+  contents: write
+jobs:
+  controle:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Récupérer les données publiées et le rapport précédent
+        env:
+          JETON: ${{ github.token }}
+        run: |
+          git clone --depth 1 --branch donnees "https://x-access-token:${JETON}@github.com/${GITHUB_REPOSITORY}.git" entree
+          git clone --depth 1 --branch controle "https://x-access-token:${JETON}@github.com/${GITHUB_REPOSITORY}.git" precedent 2>/dev/null || mkdir -p precedent
+          rm -rf precedent/.git
+      - name: Contrôler
+        run: node outils-donnees/controle-nuit.mjs --entree entree --sortie sortie --precedent precedent/controle-nuit.json | tee controle.log
+      - name: Alerte Telegram si un problème grave persiste
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+        run: |
+          ALERTES=$(grep '^ALERTE' controle.log | head -3 | tr '\n' ' ')
+          if [ -n "$ALERTES" ] && [ -n "$TELEGRAM_BOT_TOKEN" ] && [ -n "$TELEGRAM_CHAT_ID" ]; then
+            curl -s -X POST "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage" --data-urlencode "chat_id=${TELEGRAM_CHAT_ID}" --data-urlencode "text=Rayle - problème de données grave et persistant : ${ALERTES}. Détail dans Réglages, État des données. Lecture seule, aucun ordre." > /dev/null && echo "alerte envoyée"
+          else
+            echo "pas d alerte à envoyer ou Telegram non configuré"
+          fi
+      - name: Publier le rapport (branche orpheline controle)
+        env:
+          JETON: ${{ github.token }}
+        run: |
+          cd sortie
+          git init -q -b controle
+          git config user.name "rayle-controle"
+          git config user.email "rayle-controle@users.noreply.github.com"
+          git add -A
+          git commit -q -m "controle $(date -u +%FT%TZ)"
+          git push -q --force "https://x-access-token:${JETON}@github.com/${GITHUB_REPOSITORY}.git" controle

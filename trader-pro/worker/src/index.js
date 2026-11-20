@@ -6,13 +6,36 @@ import { traiterLT, lotLongTerme, alertesInvest } from './long-terme.js';
 import { depotD1 } from './depot-d1.js';
 import { evaluerAlertes, texteAlerte } from '../../marches/alertes.js';
 import { rappelImport } from './rappel.js';
+import { compteur, compterDepot, viderBudget, alerterBudget, repondreBudget, facteurActuel } from './budget.js';
 
 let depot = null;
+import { tachesDuPassage, lancerTaches } from './cron.js';
 export default {
-  async fetch(req, env) { if (!env.DB) return new Response(JSON.stringify({ error: 'base D1 non liée : voir LISEZMOI.md' }), { status: 503, headers: { 'Content-Type': 'application/json' } }); depot = depot || depotD1(env.DB); const lt = await traiterLT(req, env, depot, { cors: entetesCors(req, env), autoriser }); if (lt) return lt; return traiter(req, env, depot); },
-  /* toutes les 5 minutes : prix des actifs concernés, alertes franchies → message Telegram (si les secrets existent), puis marquées « envoyées » */
-  async scheduled(event, env, ctx) { if (!env.DB) return; depot = depot || depotD1(env.DB); ctx.waitUntil(verifierAlertes(env, depot)); ctx.waitUntil(rappelImport(env, depot).catch(() => { /* ré-essai au prochain passage */ })); ctx.waitUntil(alertesInvest(env, depot).catch(() => { /* ré-essai au prochain passage */ })); }
+  async fetch(req, env) {
+    compteur.ajouter('requetes');
+    if (!env.DB) return new Response(JSON.stringify({ error: 'base D1 non liée : voir LISEZMOI.md' }), { status: 503, headers: { 'Content-Type': 'application/json' } });
+    depot = depot || depotD1(env.DB); const d = compterDepot(depot);
+    if (new URL(req.url).pathname === '/budget' && req.method === 'GET') {   // v6 : consommation du jour des limites gratuites (page État des données)
+      const h = entetesCors(req, env), aut = await autoriser(req, env); if (!aut.ok) return new Response(JSON.stringify({ error: aut.raison }), { status: aut.code, headers: { 'Content-Type': 'application/json', ...h } });
+      return new Response(JSON.stringify(await repondreBudget(d)), { headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store', ...h } });
+    }
+    const lt = await traiterLT(req, env, d, { cors: entetesCors(req, env), autoriser }); if (lt) return lt; const rep = await traiter(req, env, d), f = facteurActuel(); if (f > 1) { try { rep.headers.set('X-Rayle-Ralentir', String(f)); } catch (e) { /* en-têtes figés */ } } return rep;
+  },
+  /* UN SEUL déclencheur (toutes les 5 minutes) : cron.js choisit les tâches selon l'heure ; chaque tâche est isolée */
+  async scheduled(event, env, ctx) {
+    if (!env.DB) return; depot = depot || depotD1(env.DB); const d = compterDepot(depot), t = event && event.scheduledTime ? Number(event.scheduledTime) : Date.now();
+    ctx.waitUntil(lancerTaches(tachesDuPassage(t), tachesWorker(env, d, t)));
+  }
 };
+/* les tâches du Worker (les alertes de clôture, le briefing et la revue s'ajoutent ici : B3, B6) */
+export function tachesWorker(env, depot, t, fetchFn = fetch) {
+  return {
+    'budget': async () => { const r = await viderBudget(depot, compteur, t); await alerterBudget(env, depot, r.budget, r.niveau, fetchFn); return r.niveau.niveau; },
+    'alertes-prix': () => verifierAlertes(env, depot, fetchFn),
+    'rappel-import': () => rappelImport(env, depot).catch(() => 'ré-essai au prochain passage'),
+    'alertes-invest': () => alertesInvest(env, depot).catch(() => 'ré-essai au prochain passage')
+  };
+}
 const nomActif = { or: 'Or', us100: 'Nasdaq 100', us500: 'S&P 500', btc: 'Bitcoin', sol: 'Solana', dxy: 'Dollar (DXY)' };
 async function prixServeur(actifs, fetchFn = fetch) {
   const out = {};

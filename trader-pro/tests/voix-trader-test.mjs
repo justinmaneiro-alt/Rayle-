@@ -31,4 +31,5 @@ v(await repondre('quelle heure est-il', S) === null, 'phrase hors sujet : null (
   const appels = []; const S2 = { ...S, async volume(i) { appels.push(i.action); return 'ok ' + i.action; } };
   v(await repondre('analyse le volume du bitcoin en daily', S2) === 'ok analyse' && appels[0] === 'analyse', 'la voix appelle le terminal Volume');
   v(intention('quelle est la météo') === null && (intention('le volume net de l’or') === null || intention('le volume net de l’or').action !== 'analyse'), 'phrases voisines : pas de fausse détection'); }
+v(intention('Rayle, est-ce que mes données sont à jour ?') && intention('Rayle, est-ce que mes données sont à jour ?').type === 'donnees' && intention('état des données').type === 'donnees' && intention('mon risque').type === 'risque', 'v6 : « est-ce que mes données sont à jour ? » → état des données');
 console.log(ko ? `✗ ${ko} échec(s), ${ok} ok` : `tous les tests passent (${ok})`); process.exit(ko ? 1 : 0);

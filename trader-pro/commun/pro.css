@@ -106,3 +106,7 @@
 .tp-synthese { font-size: 15px; line-height: 1.5; margin: 4px 0 8px; }
 .tp-setups th, .tp-setups td { vertical-align: top; } .tp-setups tr.tp-faible { opacity: .75; } .tp-setups small { color: #e8a85a; }
 .tp-liste-setup li { flex-wrap: wrap; gap: 6px 10px; } .tp-chips-setup { display: inline-flex; flex-wrap: wrap; gap: 4px; } .tp-chips-setup button { min-height: 34px; padding: 3px 9px; border: 1px solid #22323c; border-radius: 6px; background: #0b1319; color: #d7e3ea; font: inherit; font-size: 12px; cursor: pointer; } .tp-chips-setup button:hover { border-color: #8fd0e3; color: #8fd0e3; }
+
+/* v6 (B2) : pastille « périmé » sur chaque chiffre (orange > 2 × le délai normal, rouge > 5 ×) */
+.tp-src[data-peremption]::after { content: ""; display: inline-block; width: 8px; height: 8px; margin-left: 5px; border-radius: 50%; background: #e0a43a; vertical-align: baseline; }
+.tp-src[data-peremption="rouge"]::after { background: #e0554a; }

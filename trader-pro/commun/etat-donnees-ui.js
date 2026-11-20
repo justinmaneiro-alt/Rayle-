@@ -1,0 +1,46 @@
+/* ═════════════ PAGE « ÉTAT DES DONNÉES » + VOYANT GLOBAL (v6, B2) ═════════════
+   Pour chaque source : dernière mise à jour, prochaine prévue, erreurs sur 24 h (sur cet appareil), état (vert / orange / rouge) ; rapport des contrôles de la nuit ; consommation du budget gratuit Cloudflare.
+   Le voyant (vert / orange / rouge) est affiché dans la barre du haut ; un toucher ouvre la page. Lecture seule. */
+import { lireEtat, erreurs24h, age, voyant as _v, MIN } from './fraicheur.js';
+import { niveau, pourcentages, phraseBudget, budgetPrevu, NOMS, LIMITES } from './budget-cf.js';
+
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const hFr = new Intl.DateTimeFormat('fr-FR', { timeZone: 'Europe/Paris', day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit', hour12: false });
+const NOM_STATUT = { vert: 'à jour', orange: 'en retard', rouge: 'en panne', inconnu: 'inconnu' };
+const CSS = `.ed-voyant{display:inline-block;width:10px;height:10px;border-radius:50%;margin:0 6px;vertical-align:middle;cursor:pointer;background:#6b7a84;box-shadow:0 0 0 2px rgba(255,255,255,.08)}.ed-voyant[data-v=vert]{background:#3fbf7f}.ed-voyant[data-v=orange]{background:#e0a43a}.ed-voyant[data-v=rouge]{background:#e0554a}
+.ed-fond{position:fixed;inset:0;z-index:100000;background:rgba(0,0,0,.72);display:flex;align-items:flex-start;justify-content:center;overflow:auto;padding:16px}.ed-page{width:min(780px,100%);background:#06090d;color:#d7e3ea;border:1px solid #22323c;border-radius:8px;padding:14px 16px;font:13px/1.45 system-ui,sans-serif}
+.ed-page h2{margin:0 0 4px;font-size:16px}.ed-page h3{margin:14px 0 6px;font-size:12px;letter-spacing:.12em;text-transform:uppercase;color:#8aa0aa;font-weight:500}.ed-doux{color:#7f8f99;font-size:12px}.ed-barre{display:flex;gap:8px;align-items:center;justify-content:space-between}
+.ed-page button{background:#0b1117;color:#d7e3ea;border:1px solid #22323c;border-radius:4px;padding:5px 12px;cursor:pointer;min-height:32px;font:inherit}.ed-t{width:100%;border-collapse:collapse}.ed-t th,.ed-t td{padding:5px 6px;border-bottom:1px solid #101a22;text-align:left;vertical-align:top}.ed-t th{color:#7f8f99;font-weight:500;font-size:11px}
+.ed-p{display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:6px;background:#6b7a84}.ed-p[data-v=vert]{background:#3fbf7f}.ed-p[data-v=orange]{background:#e0a43a}.ed-p[data-v=rouge]{background:#e0554a}.ed-bar{height:8px;background:#101a22;border-radius:4px;overflow:hidden;min-width:90px}.ed-bar i{display:block;height:100%;background:#3fbf7f}.ed-bar i[data-n=attention]{background:#e0a43a}.ed-bar i[data-n=alerte]{background:#e0554a}
+.ed-pb{display:inline-block;margin-left:4px;width:8px;height:8px;border-radius:50%;vertical-align:middle}.tp-src[data-peremption=orange]::after,.tp-src[data-peremption=rouge]::after{content:"";display:inline-block;width:8px;height:8px;border-radius:50%;margin-left:5px;vertical-align:baseline;background:#e0a43a}.tp-src[data-peremption=rouge]::after{background:#e0554a}`;
+function style() { if (typeof document === 'undefined' || document.getElementById('ed-css')) return; const s = document.createElement('style'); s.id = 'ed-css'; s.textContent = CSS; document.head.appendChild(s); }
+
+/* conso : { requetes, kvLectures, kvEcritures, d1Lues, d1Ecrites, crons, jour, source } si le Worker la fournit (GET /budget), sinon la prévision */
+export function htmlEtat(E, { conso = null, maintenant = Date.now() } = {}) {
+  const err = erreurs24h(), L = E.liste, ligne = x => `<tr><td><span class="ed-p" data-v="${x.statut}"></span>${esc(x.nom)}${x.essentiel ? '' : ' <span class="ed-doux">(secondaire)</span>'}</td><td>${x.t ? esc(hFr.format(new Date(x.t))) + ' <span class="ed-doux">(' + esc(age(x.t, maintenant)) + ')</span>' : '—'}</td><td>${x.prochaine ? esc(hFr.format(new Date(Math.max(x.prochaine, maintenant)))) : '—'}</td><td>${(err[x.id] || 0) + (x.echecs || 0)}</td><td>${esc(NOM_STATUT[x.statut] || x.statut)}${x.detail ? '<br><span class="ed-doux">' + esc(x.detail) + '</span>' : ''}</td></tr>`;
+  const c = E.controle, prev = !conso, C = conso || budgetPrevu(), N = niveau(C), P = N.pourcentages;
+  const lim = { requetes: LIMITES.requetes, kvLectures: LIMITES.kvLectures, kvEcritures: LIMITES.kvEcritures, d1Lues: LIMITES.d1Lues, d1Ecrites: LIMITES.d1Ecrites };
+  return `<div class="ed-barre"><h2>État des données</h2><span><button type="button" data-ed-actualiser>Actualiser</button> <button type="button" data-ed-fermer>Fermer</button></span></div>
+    <p class="ed-doux">Une donnée est <b>en retard</b> au-delà de 2 fois son délai normal et <b>en panne</b> au-delà de 5 fois. Voyant global : <span class="ed-voyant" data-v="${E.voyant}"></span> ${esc(NOM_STATUT[E.voyant === 'vert' ? 'vert' : E.voyant])}.</p>
+    <table class="ed-t"><thead><tr><th>Source</th><th>Dernière mise à jour</th><th>Prochaine prévue</th><th>Erreurs 24 h*</th><th>État</th></tr></thead><tbody>${L.map(ligne).join('')}</tbody></table>
+    <p class="ed-doux">* erreurs de lecture notées sur cet appareil (aucun serveur ne les compte ailleurs) + fichiers en échec côté robot.</p>
+    <h3>Contrôles de la nuit</h3>${c ? `<p>${esc(c.resume)} <span class="ed-doux">(${esc(hFr.format(new Date(c.t)))})</span></p>${c.problemes && c.problemes.length ? `<ul class="ed-doux">${c.problemes.slice(0, 8).map(p => `<li><b>${p.gravite === 'grave' ? 'grave' : 'info'}</b> · ${esc(p.fichier)} · ${esc(p.detail)}</li>`).join('')}</ul>` : ''}` : '<p class="ed-doux">Pas encore de rapport (le premier est publié la nuit suivant le déploiement).</p>'}
+    <h3>Budget gratuit Cloudflare ${prev ? '(prévision : aucune mesure du Worker disponible)' : '(consommation du jour)'}</h3><p class="ed-doux">${esc(phraseBudget(N))}</p>
+    <table class="ed-t"><tbody>${Object.entries(lim).map(([k, l]) => `<tr><td>${esc(NOMS[k])}</td><td>${Math.round(C[k] || 0).toLocaleString('fr-FR')} / ${l.toLocaleString('fr-FR')}</td><td><div class="ed-bar"><i data-n="${P[k] >= 0.7 ? 'alerte' : P[k] >= 0.3 ? 'attention' : 'ok'}" style="width:${Math.min(100, Math.round(P[k] * 100))}%"></i></div></td><td>${Math.round(P[k] * 100)} %</td></tr>`).join('')}</tbody></table>
+    <p class="ed-doux">Objectif : moins de 30 % de chaque limite. À 70 % : alerte Telegram et ralentissement des rafraîchissements non essentiels. Rayle n'écrit jamais dans KV.</p>`;
+}
+/* lit le budget mesuré par le Worker Portefeuille (si configuré), sinon null */
+async function lireBudget(conn, fetchFn = (...a) => fetch(...a)) { if (!conn) return null; try { const r = await fetchFn(conn.url + '/budget', { headers: conn.code ? { 'X-Portefeuille-Code': conn.code } : {}, signal: AbortSignal.timeout(8000) }); if (!r.ok) return null; const d = await r.json(); return d && d.conso ? d.conso : null; } catch (e) { return null; } }
+export async function ouvrirEtatDonnees({ lireConn = () => null } = {}) {
+  style(); let fond = document.querySelector('.ed-fond'); if (fond) fond.remove(); fond = document.createElement('div'); fond.className = 'ed-fond'; fond.innerHTML = '<div class="ed-page" role="dialog" aria-label="État des données"><p class="ed-doux">Lecture de l’état des sources…</p></div>'; document.body.appendChild(fond);
+  const page = fond.querySelector('.ed-page'), rendre = async () => { const [E, conso] = await Promise.all([lireEtat(), lireBudget(lireConn())]); page.innerHTML = htmlEtat(E, { conso }); majVoyant(E.voyant); };
+  fond.addEventListener('click', ev => { if (ev.target === fond || ev.target.closest('[data-ed-fermer]')) fond.remove(); else if (ev.target.closest('[data-ed-actualiser]')) { page.innerHTML = '<p class="ed-doux">Lecture…</p>'; rendre(); } });
+  document.addEventListener('keydown', function f(ev) { if (ev.key === 'Escape') { fond.remove(); document.removeEventListener('keydown', f); } }); await rendre();
+}
+let voyants = new Set(); const majVoyant = v => { for (const el of voyants) { el.dataset.v = v; el.title = 'Données : ' + (v === 'vert' ? 'tout est à jour' : v === 'orange' ? 'au moins une source est en retard' : 'une source importante est en panne') + ' — toucher pour le détail'; } };
+/* voyant dans une barre : un petit rond coloré, rafraîchi toutes les 5 minutes (page visible), cliquable */
+export function monterVoyant(hote, { lireConn = () => null, intervalle = 5 * MIN } = {}) {
+  style(); if (!hote || hote.querySelector('.ed-voyant')) return; const el = document.createElement('span'); el.className = 'ed-voyant'; el.setAttribute('role', 'button'); el.tabIndex = 0; el.dataset.v = 'inconnu'; el.title = 'État des données';
+  el.addEventListener('click', ev => { ev.stopPropagation(); ouvrirEtatDonnees({ lireConn }); }); el.addEventListener('keydown', ev => { if (ev.key === 'Enter' || ev.key === ' ') { ev.preventDefault(); ouvrirEtatDonnees({ lireConn }); } }); hote.appendChild(el); voyants.add(el);
+  const passe = async () => { if (document.hidden) return; try { const E = await lireEtat(); majVoyant(E.voyant); } catch (e) { majVoyant('rouge'); } }; passe(); setInterval(passe, intervalle); document.addEventListener('visibilitychange', () => { if (!document.hidden) passe(); });
+}
