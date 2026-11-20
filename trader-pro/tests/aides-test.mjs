@@ -1,6 +1,7 @@
 /* Tests purs des aides à la décision : taille XTB, régime, voyant, annonces. node trader-pro/tests/aides-test.mjs */
 import { calculerTaille, CONTRATS_XTB, efficacite, percentileAtr, niveauVol, regime, voyant, typeAnnonce, bandesAnnonces, dansBande, SEUIL_TENDANCE } from '../terminal/aides.js';
 import { contexteEvenement, libelleContexte } from '../terminal/contexte.js';
+import { classerEvenement, evenementsMajeurs } from '../marches/calendrier.js';
 let ok = 0, ko = 0; const v = (c, m) => { if (c) ok++; else { ko++; console.log('  ✗ ' + m); } };
 const proche = (a, b, e = 1e-6) => Math.abs(a - b) <= e;
 
@@ -57,4 +58,12 @@ v(bandesAnnonces([]).length === 0 && bandesAnnonces(null).length === 0, 'calendr
 { const c = Array.from({ length: 300 }, (_, i) => 3000 - i * 2 + (i % 2 ? 8 : -8)); c[299] = 2400; const B = barres(c); const R = regime(B, null, 'J');
   v(R.type === 'tendance' && R.sens === 'baissière' && R.ecart && R.ecart.pct < -5 && /ma200/.test(R.voie), 'prix nettement sous une MA200 baissière : tendance baissière (voie ' + R.voie + ')');
   const plat = barres(Array.from({ length: 300 }, (_, i) => 100 + (i % 2 ? 1.5 : -1.5))); v(regime(plat, null, 'J').type === 'range', 'marché plat autour de sa MA200 : range'); }
+/* v4 : calendrier unique — un discours n'est pas une décision de taux */
+{ const C = classerEvenement;
+  v(C('ECB President Lagarde Speaks', 'EUR').genre === 'Discours' && C('ECB President Lagarde Speaks', 'EUR').code === null, 'discours de la BCE : « Discours », pas une décision');
+  v(C('FOMC Member Williams Speaks', 'USD').genre === 'Discours' && typeAnnonce('FOMC Member Williams Speaks', 'USD') === null, 'discours d’un membre du FOMC : pas de bande « Fed »');
+  v(C('Federal Funds Rate', 'USD').genre === 'Décision de taux' && C('Federal Funds Rate', 'USD').code === 'FOMC' && C('Main Refinancing Rate', 'EUR').code === 'BCE', 'décisions de taux Fed et BCE');
+  v(C('FOMC Meeting Minutes', 'USD').genre === 'Compte rendu' && C('Retail Sales m/m', 'USD').genre === 'Statistique' && C('CPI m/m', 'USD').code === 'CPI', 'compte rendu, statistique, CPI');
+  const ev = [{ t: 1e12, titre: 'ECB President Lagarde Speaks', pays: 'EUR', impact: 'fort' }, { t: 1e12 + 1, titre: 'CPI m/m', pays: 'USD', impact: 'fort' }, { t: 1e12 + 2, titre: 'Retail Sales', pays: 'USD', impact: 'moyen' }];
+  const m = evenementsMajeurs(ev, 1e12 - 3600e3); v(m.length === 2 && m[0].etiquette === 'Discours' && m[1].etiquette === 'Statistique', 'annonces majeures : impact fort seulement, étiquette de genre'); }
 console.log(ko ? `✗ ${ko} échec(s), ${ok} ok` : `tous les tests passent (${ok})`); process.exit(ko ? 1 : 0);

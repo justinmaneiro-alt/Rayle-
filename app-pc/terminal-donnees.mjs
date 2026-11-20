@@ -41,7 +41,7 @@ export async function bougies(sym, interval = '1h', range = null) {
   const R = range && /^(\d{1,3}(d|mo|y)|max)$/.test(range) ? range : INTERVALLES[interval];
   return avecCache(`b|${sym}|${interval}|${R}`, interval === '1d' ? 600 : 45, async () => {
     const o = lireBougiesYahoo(await lireJson(`https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(sym)}?range=${R}&interval=${interval}&includePrePost=false`, { ms: 20000 }));
-    return { ...o, source: 'Yahoo Finance (lu par le PC)', intervalle: interval, t: Date.now() };
+    return { ...o, source: process.env.GITHUB_ACTIONS ? 'Yahoo Finance (robot GitHub, différé)' : 'Yahoo Finance (lu par le PC)', intervalle: interval, t: Date.now() };
   });
 }
 

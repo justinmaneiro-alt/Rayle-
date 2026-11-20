@@ -10,14 +10,15 @@ on:
     branches: [main]
     paths: ['outils-donnees/**', '.github/workflows/donnees.yml', 'app-pc/terminal-donnees.mjs', 'app-pc/terminal-sources.mjs', 'marches/donnees/**', 'trader-pro/commun/analyse.js']
 concurrency:
-  group: donnees-branche
+  group: donnees-boucle
   cancel-in-progress: false
 permissions:
   contents: write
+  actions: write   # v4 : relancer le workflow à la fin (boucle)
 jobs:
   snapshots:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 345   # v4 : boucle de ~5 h (voir l'étape « Boucle »)
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -29,29 +30,26 @@ jobs:
         run: |
           git clone --depth 1 --branch donnees "https://x-access-token:${JETON}@github.com/${GITHUB_REPOSITORY}.git" sortie 2>/dev/null || mkdir -p sortie
           rm -rf sortie/.git
-      - name: Choisir les lots
-        id: lots
-        run: |
-          M=$((10#$(date +%M)))
-          LOTS="rapide"
-          if [ "${{ github.event_name }}" != "schedule" ]; then LOTS="tout"; else
-            [ $(( M / 15 % 2 )) -eq 0 ] && LOTS="$LOTS bougies"
-            [ $M -lt 15 ] && LOTS="$LOTS horaire"
-          fi
-          echo "lots=$LOTS" >> "$GITHUB_OUTPUT"
-      - name: Télécharger, valider, écrire
-        run: |
-          for L in ${{ steps.lots.outputs.lots }}; do node outils-donnees/snapshots.mjs --sortie sortie --lot "$L"; done
-      - name: Vérifier qu'aucun secret ni donnée personnelle n'est publié
-        run: node outils-donnees/verifier-publication.mjs sortie
-      - name: Publier (branche orpheline, historique écrasé)
+      - name: Boucle de rafraîchissement (v4 : le déclencheur « schedule » de GitHub ne passe en pratique que toutes les 4 à 12 h ; on reste donc en vie ~5 h et on republie toutes les 5 minutes, puis on se relance soi-même)
         env:
           JETON: ${{ github.token }}
         run: |
-          cd sortie
-          git init -q -b donnees
-          git config user.name "rayle-donnees"
-          git config user.email "rayle-donnees@users.noreply.github.com"
-          git add -A
-          git commit -q -m "snapshots $(date -u +%FT%TZ)"
-          git push -q --force "https://x-access-token:${JETON}@github.com/${GITHUB_REPOSITORY}.git" donnees
+          DEBUT=$(date +%s); FIN=$((DEBUT + 17400)); N=0
+          while true; do
+            if [ "$N" -eq 0 ] && [ "${{ github.event_name }}" != "schedule" ]; then LOTS="tout"; else
+              LOTS="rapide"
+              [ $((N % 3)) -eq 0 ] && LOTS="$LOTS bougies"
+              [ $((N % 12)) -eq 0 ] && LOTS="$LOTS horaire"
+            fi
+            for L in $LOTS; do node outils-donnees/snapshots.mjs --sortie sortie --lot "$L" || true; done
+            if node outils-donnees/verifier-publication.mjs sortie; then
+              ( cd sortie && rm -rf .git && git init -q -b donnees && git config user.name "rayle-donnees" && git config user.email "rayle-donnees@users.noreply.github.com"                 && git add -A && git commit -q -m "snapshots $(date -u +%FT%TZ)"                 && git push -q --force "https://x-access-token:${JETON}@github.com/${GITHUB_REPOSITORY}.git" donnees ) || echo "publication échouée, on réessaie au prochain tour"
+            else echo "vérification de publication refusée : rien n'est publié ce tour"; fi
+            N=$((N + 1)); [ "$(date +%s)" -ge "$FIN" ] && break
+            sleep 300
+          done
+      - name: Se relancer (la boucle continue même si une étape a échoué)
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh workflow run donnees.yml --ref main || echo "relance impossible : le déclencheur schedule prendra le relais"

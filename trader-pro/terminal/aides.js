@@ -1,6 +1,7 @@
 /* ═════════════ AIDES À LA DÉCISION DU GRAPHIQUE (module PUR, testé) : taille de position XTB, régime de marché, voyant d'alignement, annonces ═════════════
    Lecture seule : aucun ordre. Chaque chiffre vient d'un calcul visible ; ce qui n'est pas vérifié est marqué comme tel et reste modifiable. */
 import { atr, dernier } from '../commun/analyse.js';
+import { classerEvenement } from '../marches/calendrier.js';
 
 /* ───── 1. Taille de position en lots XTB ───── */
 /* Contrat = unités de l'actif sous-jacent par lot XTB. `verifie: true` seulement quand la valeur est certaine ; sinon la valeur par défaut (1) n'est qu'un point de départ et le champ est à corriger
@@ -74,13 +75,8 @@ export function voyant(A) {
 
 /* ───── 4. Annonces majeures ───── */
 export function typeAnnonce(titre = '', pays = '', impact = '') {
-  const t = String(titre), usd = /USD|US/i.test(pays || 'USD');
-  if (/non-?farm|nfp/i.test(t) && usd) return 'NFP';
-  if (/\bcpi\b/i.test(t) && usd) return 'CPI';
-  if (/fomc|federal funds rate/i.test(t)) return 'Fed';
-  if (/\becb\b|main refinancing|deposit facility|european central bank/i.test(t) || (/EUR/i.test(pays) && /rate statement|press conference/i.test(t))) return 'BCE';
-  if (/\bgdp\b/i.test(t) && usd && /fort|high/i.test(impact || 'high') && !/price|deflator|prelim|final|annualized/i.test(t)) return 'PIB US';
-  return null;
+  const c = classerEvenement(titre, pays);   // v4 : classement unique du calendrier ; les discours ne font plus de bande « décision »
+  return c.code === 'FOMC' ? 'Fed' : c.code;
 }
 /* evenements : [{ t (ms), titre, pays, impact }] (lireEvenements du calendrier de Marchés) → bandes { t1, t2, type, titre } de 1 h avant à 1 h après */
 export function bandesAnnonces(evenements, { avantMs = 3600e3, apresMs = 3600e3 } = {}) {

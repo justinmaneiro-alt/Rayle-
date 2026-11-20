@@ -75,7 +75,7 @@ export async function yahoo(syms, range = '5d') {
       });
     } catch (e) { out[s] = { sym: s, erreur: String(e.message || e) }; }
   }));
-  return { t: Date.now(), source: 'Yahoo Finance (lu par le PC, différé possible)', cotes: out };
+  return { t: Date.now(), source: process.env.GITHUB_ACTIONS ? 'Yahoo Finance (robot GitHub, différé)' : 'Yahoo Finance (lu par le PC, différé possible)', cotes: out };
 }
 
 /* ── relais Kraken local : même liste blanche que le relais dédié ── */

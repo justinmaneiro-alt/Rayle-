@@ -4,7 +4,7 @@ import { creerVue, esc, nf, pct, cls, pastille, age, lireLS, ecrireLS } from '..
 import { ACTIFS, parId, lireActifPro, lireCalendrier, lireActus, lireCot, prixOr } from '../commun/donnees.js';
 import { monterGraphique, COULEURS } from '../commun/graph.js';
 import { rsi, tendance, niveauxCles, serieSma, projeter, fusionnerNiveaux, atr, dernier, H, J } from '../commun/analyse.js';
-import { lireEvenements, filtrer, compteARebours, heureParis } from './calendrier.js';
+import { lireEvenements, filtrer, compteARebours, heureParis, evenementsMajeurs, DEVISES_ACTIF } from './calendrier.js';
 import { analyserCot, lectureCot } from './cot.js';
 import { ma200Unite, bandeauMA, niveauxUniteEtJour, NOM_UNITE } from '../commun/lecture-unite.js';
 import { flechesDe, lireReglages } from '../terminal/fleches-registre.js';
@@ -55,8 +55,8 @@ export function monter(zone, ctx = {}) {
     v1.lire('pro|' + id, () => lireActifPro(id), (d, m) => { if (n !== E.seq) return; E.d = d; E.an = analyserActif(d); E.meta = m; majPrix(); tendanceHtml(q('[data-tendance]'), d, E.an, m); dessiner(n); });
     /* blocs 2, 3, 4 : indépendants du graphique */
     const v2 = creerVue(q('[data-annonces]')); E.vues.push(v2);
-    v2.lire('cal', () => lireCalendrier(), (d, m) => { if (n !== E.seq) return; const L = filtrer(lireEvenements(d), { impacts: ['fort'], actif: id, max: 5 }), now = Date.now();
-      q('[data-annonces]').innerHTML = L.length ? `<ul class="tp-liste">${L.map(x => `<li class="tp-evt-ligne"><span><b>${esc(x.titre)}</b> <small>${esc(x.pays)}</small></span><span class="tp-meta"><span class="tp-cr" data-cr="${x.t}">${esc(compteARebours(x.t, now))}</span> <small>${esc(heureParis(x.t))}</small></span></li>`).join('')}</ul>` : '<p class="tp-doux">Aucune annonce majeure à venir pour ce marché cette semaine.</p>'; });
+    v2.lire('cal', () => lireCalendrier(), (d, m) => { if (n !== E.seq) return; const now = Date.now(), L = evenementsMajeurs(lireEvenements(d), now, { max: 5, pays: DEVISES_ACTIF[id] });   // v4 : même source, même fenêtre et mêmes étiquettes que la Couverture
+      q('[data-annonces]').innerHTML = L.length ? `<ul class="tp-liste">${L.map(x => `<li class="tp-evt-ligne"><span><b>${esc(x.titre)}</b> <small>${esc(x.pays)} · ${esc(x.etiquette)}</small></span><span class="tp-meta"><span class="tp-cr" data-cr="${x.t}">${esc(compteARebours(x.t, now))}</span> <small>${esc(heureParis(x.t))}</small></span></li>`).join('')}</ul>` : '<p class="tp-doux">Aucune annonce majeure à venir pour ce marché cette semaine.</p>'; });
     const v3 = creerVue(q('[data-actus]')); E.vues.push(v3);
     v3.lire('actus', () => lireActus('marches'), (d, m) => { if (n !== E.seq) return; const L = (d.items || []).filter(x => a.mots.test(`${x.titre} ${x.resume || ''}`)).slice(0, 6);
       q('[data-actus]').innerHTML = (L.length ? `<ul class="tp-liste">${L.map(x => `<li><a href="${/^https?:\/\//.test(x.lien || '') ? esc(x.lien) : '#'}" target="_blank" rel="noopener noreferrer">${esc(x.titre)}</a> <small>${esc(x.source || '')}${x.date ? ' · ' + esc(age(x.date)) : ''}</small></li>`).join('')}</ul>` : '<p class="tp-doux">Aucune actualité récente sur cet actif dans les sources suivies.</p>') + `<p class="tp-doux">${pastille('flux publics (CNBC, Fed, BCE, WGC…)', m.t, { garde: m.copie })}</p>`; });

@@ -7,6 +7,7 @@
    Aucune donnée inventée : en dessous de quelques cas, le taux n'est pas déclaré mesurable. */
 
 import { correlation } from '../commun/analyse.js';
+import { classerEvenement } from '../marches/calendrier.js';
 export const SEUIL = 0.01;                 // 1 % de mouvement « notable »
 export const H_JOUR = 1, H_SEMAINE = 5;
 export const FENETRES_STAB = Object.freeze([30, 90, 250]);
@@ -122,12 +123,8 @@ export const TYPES_EVENEMENT = Object.freeze({
 });
 /* titre d'un événement du calendrier (flux Forex Factory) → type géré, sinon null */
 export function typeDeTitre(titre = '', pays = '') {
-  const t = String(titre);
-  if (/non-?farm|nfp|employment change/i.test(t) && /USD|US/i.test(pays || 'USD')) return 'NFP';
-  if (/\bcpi\b/i.test(t) && /USD|US/i.test(pays || 'USD')) return 'CPI';
-  if (/fomc|federal funds rate/i.test(t)) return 'FOMC';
-  if (/\becb\b|main refinancing|deposit facility|european central bank/i.test(t) || (/EUR/i.test(pays) && /rate statement|press conference/i.test(t))) return 'BCE';
-  return null;
+  const c = classerEvenement(titre, pays);   // v4 : classement unique (un discours de la BCE ou de la Fed n'est pas une décision de taux)
+  return c.code === 'FOMC' || c.code === 'BCE' || c.code === 'NFP' || c.code === 'CPI' ? c.code : null;
 }
 /* comportement de la paire autour du type d'annonce : jours d'annonce de la série commune (le jour J contient l'annonce ; poser à la clôture de J−1, retirer à la clôture de J) */
 export function comportementEvenement(dates, ra, rb, sens, beta, type, { fraction = 1 } = {}) {

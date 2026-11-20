@@ -3,7 +3,7 @@
    Lecture seule : aucun ordre. Les corrélations passées ne garantissent rien ; la fenêtre le dit. */
 import { creerVue, esc, nf, pct, cls, lireLS, ecrireLS, pastille } from '../commun/ui.js';
 import { lireJour, lireCalendrier } from '../commun/donnees.js';
-import { lireEvenements } from '../marches/calendrier.js';
+import { lireEvenements, evenementsMajeurs } from '../marches/calendrier.js';
 import { depuisSnapshotJour } from '../commun/series.js';
 import { monterGraphique, COULEURS } from '../commun/graph.js';
 import { parler } from '../commun/ia.js';
@@ -121,7 +121,7 @@ export async function ouvrir({ racine = document.body, onFermer = () => {} } = {
   }
   /* ───── couverture d'événement : quelle couverture poser avant une annonce, quand la retirer, comportement historique de la paire ───── */
   async function chargerCalendrier() { if (S.calendrier !== undefined) return; S.calendrier = null; try { const r = await lireCalendrier({ delai: 8000 }); S.calendrier = lireEvenements(r.donnees); } catch (e) { S.calendrier = []; } }
-  function evenementsProches() { const T = Date.now() - 6 * 3600e3, out = []; for (const e of S.calendrier || []) { if (e.t < T) continue; const type = typeDeTitre(e.titre, e.pays); if (type && !out.some(o => o.type === type && Math.abs(o.t - e.t) < 20 * 3600e3)) out.push({ ...e, type }); } return out.slice(0, 12); }
+  function evenementsProches() { const out = []; for (const e of evenementsMajeurs(S.calendrier || [], Date.now(), { max: 40 })) { const type = typeDeTitre(e.titre, e.pays); if (type && !out.some(o => o.type === type && Math.abs(o.t - e.t) < 20 * 3600e3)) out.push({ ...e, type }); } return out.slice(0, 12); }   // v4 : mêmes annonces, même fenêtre et même étiquette que la carte Marchés
   async function dessinerEvenement() {
     zone.innerHTML = '<p class="tp-att" role="status">Lecture du calendrier…</p>'; await chargerCalendrier(); if (S.ferme || S.onglet !== 'evenement') return;
     const choix = UNIVERS_COUV.filter(a => !a.taux && a.xtb && S.series[a.id]), f = S.formulaire || (S.formulaire = { actif: choix[0] && choix[0].id, sens: 1, notionnel: '', spread: '0', swap: '0' }), E = evenementsProches(), types = Object.keys(TYPES_EVENEMENT);

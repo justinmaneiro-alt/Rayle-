@@ -1,6 +1,7 @@
 /* Données de la fenêtre « Marchés » du carrousel (miniature et grande fenêtre) : annonces, actualités, cours rapides.
    Tout passe par la couche de données (instantanés, lecture directe, copie locale datée). Fonctions pures testées : agent-trading/tests/marches-fenetre-test.mjs. */
 import { lireRoute, lireBougies, krakenSpot } from '../donnees/routes.js';
+import { lireEvenements, evenementsMajeurs } from '../../../trader-pro/marches/calendrier.js';
 
 export const IMPACT = { High: 'fort', Medium: 'moyen', Low: 'faible', Holiday: 'férié' };
 export const ACTIFS = Object.freeze([
@@ -13,11 +14,8 @@ export const ACTIFS = Object.freeze([
 export const parId = Object.freeze(Object.fromEntries(ACTIFS.map(a => [a.id, a])));
 
 /* calendrier Forex Factory (JSON) → événements triés, heure en ms */
-export function lireCalendrier(d) {
-  const L = d && Array.isArray(d.evenements) ? d.evenements : [];
-  return L.map(x => ({ t: Date.parse(x.date), titre: String(x.title || ''), pays: String(x.country || ''), impact: IMPACT[x.impact] || String(x.impact || '').toLowerCase(), prevu: x.forecast || '', precedent: x.previous || '', actuel: x.actual || '' })).filter(x => Number.isFinite(x.t) && x.titre).sort((a, b) => a.t - b.t);
-}
-export function prochaines(liste, maintenant, { impacts = ['fort'], max = 6, pays = null } = {}) { return liste.filter(x => x.t > maintenant - 15 * 60e3 && impacts.includes(x.impact) && (!pays || !pays.length || pays.includes(x.pays))).slice(0, max); }
+export function lireCalendrier(d) { return lireEvenements(d); }   // v4 : une seule lecture du calendrier (trader-pro/marches/calendrier.js)
+export function prochaines(liste, maintenant, { impacts = ['fort'], max = 6, pays = null } = {}) { return evenementsMajeurs(liste, maintenant, { impacts, max, pays }); }   // v4 : même fenêtre et même classement que la Couverture et le Terminal
 export function compteARebours(t, maintenant) {
   const s = Math.round((t - maintenant) / 1000); if (s <= 0) return s > -900 ? 'publiée à l’instant' : 'passée';
   const j = Math.floor(s / 86400), h = Math.floor(s % 86400 / 3600), m = Math.floor(s % 3600 / 60), sec = s % 60;
