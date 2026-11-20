@@ -1,0 +1,40 @@
+name: maintien
+# Parade à la règle GitHub « les déclencheurs planifiés d'un dépôt public sont désactivés après 60 jours sans activité » (v6, B1).
+# 1) Chaque semaine : écrit un petit fichier daté sur une branche à part « maintien » (activité réelle du dépôt : un commit), 2) vérifie que chaque workflow de données est ACTIF (le réactive sinon),
+# 3) relance la boucle « donnees » si aucune exécution n'est en cours (la boucle se relance seule par workflow_dispatch, mais une panne l'arrêterait).
+# Aucun secret nécessaire : le jeton du workflow suffit (permissions ci-dessous).
+on:
+  schedule:
+    - cron: '23 5 * * 1'
+  workflow_dispatch:
+concurrency:
+  group: maintien
+  cancel-in-progress: false
+permissions:
+  contents: write
+  actions: write
+jobs:
+  maintien:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - name: Marquer une activité (commit sur la branche maintien)
+        env:
+          JETON: ${{ github.token }}
+        run: |
+          mkdir sortie && cd sortie && git init -q -b maintien
+          echo "maintien $(date -u +%FT%TZ)" > derniere-activite.txt
+          git config user.name "rayle-maintien" && git config user.email "rayle-maintien@users.noreply.github.com"
+          git add -A && git commit -q -m "maintien $(date -u +%F)"
+          git push -q --force "https://x-access-token:${JETON}@github.com/${GITHUB_REPOSITORY}.git" maintien
+      - name: Réactiver les workflows désactivés et relancer la boucle si elle est arrêtée
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          for W in donnees historique footprint invest; do
+            gh workflow enable "$W" 2>/dev/null || echo "workflow $W : activation impossible ou déjà active"
+          done
+          EN_COURS=$(gh run list --workflow donnees --status in_progress --json databaseId --jq 'length')
+          ATTENTE=$(gh run list --workflow donnees --status queued --json databaseId --jq 'length')
+          if [ "$EN_COURS" = "0" ] && [ "$ATTENTE" = "0" ]; then gh workflow run donnees; echo "boucle donnees relancée"; else echo "boucle donnees active ($EN_COURS en cours)"; fi

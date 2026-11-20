@@ -83,3 +83,33 @@ Module `volume/panneau-droite.js` ; calculs purs testés : `carnet-calcul.js` (4
 ## Phase A7 — Contrôles
 Tests Chrome (`trader-pro/tests/volume-v6-chrome.mjs`, blocs a1 à a6, PC) : or, BTC, SOL, US100, US500, EUR/USD, USD/CHF, DXY en H1, H4, Daily : tous chargés, aucun écran vide ni 404 ; historique BTC continu **de 2014 à aujourd'hui** (Daily), 2019 (H4), 2024 (H1) ; carnet sans prix en double ; trois onglets ; repères ICT cohérents (PDH/PDL/PWH/PWL de l'or vérifiés) ; préréglage Épuré épuré. Rendu vérifié sur capture PC, tablette (1024 × 768) et téléphone (412 × 915).
 Limites : le test automatique « double appui sur l'axe des prix » (tablette, `echelles-chrome.mjs`) est **instable** : réussi 31 / 31 sur une exécution, un échec sur une autre, sans lien établi avec la v6 ; les gestes tactiles n'ont pas été éprouvés sur un vrai appareil. Les sauts de plus de 30 % de l'historique SOL de 2020-2021 sont **réels** (le test ne regarde que depuis 2023).
+
+---
+# PARTIE B — Fiabilité sans serveur, risque global, preuve, briefing
+
+## Phase B1 — Architecture « sans serveur »
+
+### Inventaire des données (source → chemin → qui produit → dépendance au PC)
+| Donnée | Source | Chemin | Producteur | PC ? |
+|---|---|---|---|---|
+| Cours, bougies 5 m / 15 m / H1 / Daily (or, indices, BTC, SOL, forex, futures) | Yahoo Finance | branche `donnees` : `bougies-*.json`, `pro-*.json`, `jour-*.json` | GitHub Actions, boucle de 5 h (lot rapide toutes les 5 min, bougies toutes les 15 min) | non |
+| Historique long (Daily 20 ans, H4 8 ans, H1 3 ans) | Dukascopy, Yahoo, Binance | branche `historique` (gzip par année) | Actions, hebdomadaire | non |
+| Footprint (transactions par case de prix) | Binance (archives publiques) | branche `footprint` (gzip par mois) | Actions, chaque nuit | non |
+| Volume réel, carnet, transactions en direct | Binance, Kraken (WebSocket / REST publics) | directement depuis l'appareil | appareil | non |
+| Actualités, calendrier, COT, macro, santé du marché | flux publics | branche `donnees` : `actus-*`, `calendrier2`, `cot-*`, `marches-*`, `sante` | Actions | non |
+| Scores Investissement, fonds | SEC EDGAR + Yahoo | branche `donnees-invest` ; recalcul quotidien aussi par le Worker (cron, lots de 3) | Actions + Worker | non |
+| Corrélations (Couverture) | calculées | `marches-correlations.json` | Actions | non |
+| Données personnelles (dessins, niveaux, alertes, journal, import XTB, Ma liste, Mon plan, réglages, risque, positions) | l'utilisateur | appareil (localStorage) + **Worker Portefeuille / D1** (copie commune) | appareils + Worker | **non** |
+**Aucun chemin « lu par le PC » ne sert plus de source principale** : le serveur local (`serveur.mjs`, `app-pc/terminal-donnees.mjs`) n'est qu'un mode de développement et de secours ; l'application publiée sur GitHub Pages ne l'appelle jamais.
+
+### Répartition cible et justification
+- **GitHub Actions + branches de données (CDN GitHub)** = tout ce qui est volumineux ou calculé : instantanés, historiques, footprint, signaux, contrôles qualité. Choix « branche orpheline servie par `raw.githubusercontent.com` » plutôt que stockage Cloudflare : **aucune requête Worker, aucune écriture KV / D1**, pas de redéploiement du site, historique git écrasé à chaque publication (le dépôt ne grossit pas), gratuit sans limite pratique pour un dépôt public. Contrepartie : le CDN met ~5 min à propager et ne garantit pas l'horaire (d'où la boucle de 5 h qui se relance seule, car le déclencheur `schedule` de GitHub ne passe en pratique que toutes les 4 à 12 h).
+- **Worker Cloudflare (plan gratuit)** = léger et temps réel : synchronisation personnelle, évaluation des alertes à la clôture des bougies (comparaisons, pas d'analyse lourde), Telegram, briefing, revue du dimanche, budget. **Un seul déclencheur planifié** (`*/5 * * * *`) qui décide de la tâche selon l'heure (voir B3, B6).
+- **Appareils** = affichage. Si le Worker ne répond pas : lecture directe des sources publiques qui l'autorisent (Kraken, Binance, branches `donnees` / `historique` / `footprint`) en mode dégradé, avec une étiquette visible (« copie locale », âge de chaque donnée, voyant de la page État des données).
+- **Hors ligne** : le service worker (`sw.js`, déjà en place) garde la coque et le code, et la couche de données (`couche.js`, IndexedDB) garde la dernière copie de chaque donnée avec son âge : Rayle s'ouvre sans réseau et dit l'âge de chaque donnée (pastille « source · âge » sur chaque chiffre).
+- **Parade des 60 jours** (`.github/workflows/maintien.yml`) : chaque lundi, commit horodaté sur une branche `maintien` (activité réelle du dépôt), `gh workflow enable` sur chaque workflow de données, relance de la boucle `donnees` si aucune exécution n'est en cours. La boucle `donnees` se relance déjà seule (workflow_dispatch, qui n'est pas soumis à la règle des 60 jours). **Limite assumée** : GitHub ne documente pas précisément ce qui compte comme « activité » ; la combinaison commit + réactivation + relance couvre les cas connus, sans preuve définitive.
+
+### Synchronisation des données personnelles
+- Déjà en place (Worker Portefeuille + D1) : dessins, journal par setup, alertes de prix, import XTB, réglages du portefeuille.
+- **Nouveau (v6)** : route `GET / PUT /sync` (`worker/src/sync.js`) pour **Ma liste, Mon plan, réglages des flèches, risque, positions, heures de silence** ; **une seule ligne D1**, **dernière modification gagnante** (horodatage borné à « maintenant + 5 min », liste blanche de 7 clés, 60 ko maximum par clé), **trace des 30 derniers conflits**, **aucune écriture D1 quand rien n'a changé**. Client `commun/sync-perso.js` : interrogation **toutes les 45 s, page visible seulement** ; un appareil neuf prend la copie du serveur (aucun doublon) ; une modification locale est horodatée avant d'être comparée à celle du serveur. 16 tests (deux appareils, SQLite réel, conflit, hors ligne, mauvais code, valeurs géantes).
+- **Non déployé** : le Worker Portefeuille n'a jamais été déployé (base D1 à créer, `wrangler login` nécessaire) — voir « Déploiement » en fin de document.

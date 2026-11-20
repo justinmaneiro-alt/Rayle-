@@ -10,6 +10,7 @@
    Accès : si le secret PORTEFEUILLE_CODE existe, l'en-tête X-Portefeuille-Code doit lui être égal (comparaison à temps constant). Sinon, le jeton Rayle (X-Rayle-Token) doit être accepté par le Worker principal
    ET le Worker principal doit refuser un faux jeton (sinon son verrou est absent et ce Worker refuse tout). Jamais de secret dans le code ni dans le dépôt. */
 import { nettoyerListe, fusionner as fusionnerDessins } from '../../terminal/dessins-fusion.js';
+import { traiterSync } from './sync.js';
 import { nettoyerListe as nettoyerJournal, fusionner as fusionnerJournal } from '../../portefeuille/journal-setups.js';
 export const VERSION = '2026.11.19.2', LIMITE_CORPS = 3.5e6;
 const NOMBRES_F = ['volume', 'prixOuv', 'tOuv', 'prixFerm', 'tFerm', 'pnl', 'brut', 'commission', 'swap', 'rollover', 'marge', 'sl', 'tp'], TEXTES_F = ['instrument', 'ticker', 'categorie', 'sens', 'origine', 'commentaire'];
@@ -79,6 +80,7 @@ export async function traiter(req, env, depot, { fetchFn = fetch } = {}) {
       return rep({ rev, ecrites: { fermees: nF, tresorerie: nT, ouvertes: O.length } }, 200, h);
     }
     if (url.pathname === '/reglages' && req.method === 'PUT') { const r = nettoyerReglages(await corps(req)), ancien = (await depot.kvLire('reglages')) || {}, nouveau = { ...ancien, ...r }; await depot.kvEcrire('reglages', nouveau); return rep({ reglages: nouveau }, 200, h); }
+    if (url.pathname === '/sync' && (req.method === 'GET' || req.method === 'PUT')) return rep(await traiterSync(req, depot, corps), 200, h);   // v6 : Ma liste, Mon plan, réglages, risque, positions (dernière modification gagnante + trace)
     if (url.pathname === '/alertes' && req.method === 'GET') return rep({ alertes: (await depot.kvLire('alertes')) || [] }, 200, h);
     if (url.pathname === '/alertes' && req.method === 'PUT') { const b = await corps(req), A = nettoyerAlertes(b.alertes); await depot.kvEcrire('alertes', A); return rep({ alertes: A }, 200, h); }
     if (url.pathname === '/rapport' && req.method === 'PUT') { const b = await corps(req); const r = { t: Date.now(), texte: tx(b.texte, 6000), note: nb(b.note), sections: b.sections && typeof b.sections === 'object' && JSON.stringify(b.sections).length <= 12000 ? b.sections : null, ia: !!b.ia }; await depot.kvEcrire('rapport', r); return rep({ rapport: r }, 200, h); }

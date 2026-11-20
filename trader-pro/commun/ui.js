@@ -36,3 +36,6 @@ export function creerVue(zone, { delai } = {}) {
   zone.addEventListener('click', e => { if (e.target.closest('[data-reessayer]') && zone._relancer) { zone.innerHTML = ''; zone._relancer(); } });
   return { lire: lancer, detruire: () => { detruit = true; n++; } };
 }
+
+/* v6 (B1) : synchronisation personnelle (Ma liste, Mon plan, réglages, risque) PC / tablette / téléphone, toutes les 45 s quand la page est visible ; sans Worker configuré : rien */
+try { if (typeof document !== 'undefined') import('./sync-perso.js').then(m => import('../terminal/dessins-stockage.js').then(d => m.brancherSynchroPerso({ lireConn: () => d.lireConn() }))).catch(() => { /* synchro indisponible : l'appli marche en local */ }); } catch (e) { /* ignoré */ }
