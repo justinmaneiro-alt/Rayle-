@@ -84,3 +84,6 @@ Module commun **`trader-pro/commun/echelles.js`** (géométrie pure testée : `e
 - Worker Cloudflare : rien de nouveau (aucun KV, aucun appel Worker). Les données viennent de la branche `footprint` (CDN GitHub).
 - **Non vérifié** : taille réelle des fichiers de la première exécution complète (le robot `footprint` tournait encore au moment de la rédaction ; estimation 3 ans : Bitcoin ≈ 75 Mo, Solana ≈ 30 Mo, or ≈ 12 Mo) ; rendu téléphone (non lancé) ; classique : axe du temps non mesurable sur le banc.
 - Version 2026.11.20.3.
+
+### Première exécution complète du robot footprint (mesurée)
+Succès en 1 h 12. Branche `footprint` : **91 Mo** au total (or 7 Mo, Bitcoin 63 Mo, Solana 23 Mo). Couverture : **or du 2025-12-11 au 2026-11-19 (344 jours)**, **Bitcoin et Solana du 2023-11-21 au 2026-11-19 (1 095 jours)**, aucun jour manquant.
