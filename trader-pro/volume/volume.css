@@ -51,3 +51,9 @@ html.tpv-actif .tor-graph, html.tpv-actif .tor-outils { visibility: hidden; }
 .tpv-ligne.tpv-reac { box-shadow: inset 2px 0 0 #27d3e6; background: rgba(39, 211, 230, .10); } .tpv-ligne.tpv-reac span { color: #27d3e6; }
 .tpv-h4-reac { color: #27d3e6 !important; } .tpv-niv-reac li b { color: #27d3e6; font-weight: 600; }
 .tpv-aide { flex: 1 1 100%; margin: 0 0 2px; color: #8aa0aa; font: 11px/1.5 system-ui, sans-serif; } .tpv-aide b { color: #d7e3ea; } .tpv-aide u { text-decoration: none; color: #8fd0e3; }
+
+/* v6 (A1) : légende OHLC / volume / delta qui suit le curseur, bouton « » » (retour à la dernière bougie), attribution */
+.tpv-legende { position: absolute; left: 10px; top: 6px; z-index: 5; max-width: calc(100% - 120px); pointer-events: none; font: 11px/1.5 ui-monospace, Consolas, monospace; color: #aebcc4; text-shadow: 0 0 3px #000, 0 0 3px #000; }
+.tpv-legende b { color: #d7e3ea; font-weight: 600; margin-right: 6px; } .tpv-legende time { color: #6b7a84; margin-right: 6px; } .tpv-legende span { margin-right: 8px; white-space: nowrap; }
+.tpv-temps-reel { position: absolute; right: 64px; bottom: 40px; z-index: 6; width: 34px; height: 34px; border-radius: 50%; border: 1px solid #2b3a46; background: rgba(11, 17, 23, .92); color: #d7e3ea; font: 700 18px/1 system-ui, sans-serif; cursor: pointer; }
+.tpv-temps-reel:hover { background: #14212b; color: #8fd0e3; }

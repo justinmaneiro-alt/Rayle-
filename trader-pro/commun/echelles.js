@@ -19,6 +19,12 @@ export function facteursPincement(dx0, dy0, dx, dy, { minPx = 28, min = 0.2, max
   const fx = dx0 >= minPx ? borne(dx / dx0) : 1, fy = dy0 >= minPx ? borne(dy / dy0) : 1;
   return { fx: Number.isFinite(fx) ? fx : 1, fy: Number.isFinite(fy) ? fy : 1, horizontal: dx0 >= minPx, vertical: dy0 >= minPx };
 }
+/* v6 : plage de prix décalée par un glisser vertical. dy > 0 (le doigt descend) : le graphique descend avec lui, donc la plage visible monte. hauteur = pixels couvrant la plage. En log, le décalage se fait sur le logarithme. */
+export function decalerIntervalle(from, to, dy, hauteur, { log = false } = {}) {
+  if (!(hauteur > 0) || !Number.isFinite(dy) || !(to > from)) return { from, to };
+  if (log && from > 0) { const lf = Math.log(from), lt = Math.log(to), d = dy / hauteur * (lt - lf); return { from: Math.exp(lf + d), to: Math.exp(lt + d) }; }
+  const d = dy / hauteur * (to - from); return { from: from + d, to: to + d };
+}
 /* plage logique visible zoomée d'un facteur f autour de la position logique `centre` */
 export function zoomerLogique(from, to, centre, f) { if (!(f > 0)) return { from, to }; return { from: centre - (centre - from) / f, to: centre + (to - centre) / f }; }
 /* double appui : deux appuis proches dans le temps et dans l'espace */
@@ -84,6 +90,20 @@ export function creerEchelles({ chart, serie, hote, LW, panneau = 0, boutonLog =
   const surFin = ev => { if (etat.pinch && ev.touches.length < 2) etat.pinch = null; };
   hote.addEventListener('touchstart', surDebut, { capture: true, passive: false }); hote.addEventListener('touchmove', surMouvement, { capture: true, passive: false });
   hote.addEventListener('touchend', surFin, { capture: true }); hote.addEventListener('touchcancel', surFin, { capture: true });
+  /* ── glisser vertical dans le graphique (souris et un doigt), comme TradingView : déplace la plage de prix et coupe l'échelle auto. L'horizontal reste celui de la bibliothèque. ── */
+  const gl = { id: null, y0: 0, pr: null, pxParPlage: 0 };
+  const defile = () => { try { const h = chart.options().handleScroll; return h !== false && (h == null || h === true || h.pressedMouseMove !== false); } catch (e) { return true; } };
+  hote.addEventListener('pointerdown', ev => {
+    if (etat.navOff || etat.pinch || !defile() || (ev.pointerType === 'mouse' && ev.button !== 0) || dansAxe(ev.clientX, ev.clientY) !== 'graphique') return;
+    try { const r = ps().getVisibleRange(), yh = serie.priceToCoordinate(r.to), yb = serie.priceToCoordinate(r.from); if (yh == null || yb == null || !(yb > yh)) return; gl.id = ev.pointerId; gl.y0 = ev.clientY; gl.pr = r; gl.pxParPlage = yb - yh; } catch (e) { gl.id = null; }
+  }, { capture: true, passive: true });
+  hote.addEventListener('pointermove', ev => {
+    if (gl.id == null || ev.pointerId !== gl.id) return; if (etat.pinch) { gl.id = null; return; }
+    const dy = ev.clientY - gl.y0; if (Math.abs(dy) < 3 && !etat.manuel) return;
+    try { ps().setVisibleRange(decalerIntervalle(gl.pr.from, gl.pr.to, dy, gl.pxParPlage, { log: etat.log })); etat.manuel = true; majBoutons(); surChange({ auto: false }); } catch (e) { /* ignoré */ }
+  }, { capture: true, passive: true });
+  const finGl = ev => { if (gl.id != null && ev.pointerId === gl.id) gl.id = null; };
+  hote.addEventListener('pointerup', finGl, { capture: true }); hote.addEventListener('pointercancel', finGl, { capture: true });
   /* ── double appui / double clic sur un axe ── */
   const dansAxe = (cx, cy) => { const r = rect(); let lp = 0, ht = 0; try { lp = ps().width(); ht = ts().height(); } catch (e) { /* ignoré */ } return zoneDe(cx - r.left, cy - r.top, r.width, r.height, lp || 56, ht || 26); };
   const surRetour = (cx, cy) => { const z = dansAxe(cx, cy); if (z === 'prix') { auto(); return true; } if (z === 'temps') { try { ts().resetTimeScale(); } catch (e) { /* ignoré */ } surChange({ temps: true }); return true; } return false; };

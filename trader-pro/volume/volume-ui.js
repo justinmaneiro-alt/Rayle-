@@ -14,12 +14,14 @@ import { ACTIFS_VOLUME, parId, UNITES_VOLUME, PAS_UNITE, chargerBarres, badgeSou
 import { ouvrir as ouvrirFlux, parseBinance, creerCarnetKraken, parseKrakenTrade, creerChaleur, creerFlux, urlsBinance, abonnementKraken, KRAKEN_WS, SYMBOLES_LIVE } from './volume-live.js';
 import { niveauxReaction, etiquetteNiveau, niveauProche, phraseNiveaux } from './reaction-calcul.js';
 import { creerStoreFootprint, creerLive, creerRattrapage, TEXTE_ABSENT } from './footprint-donnees.js';
+import { histoLong } from '../terminal/histo-long.js';
+import { raccorder, controler, resume as resumeControle } from '../commun/serie-continue.js';
 import { dessiner as dessinerFootprint, infoCase, COULEUR_REACTION } from './footprint-rendu.js';
 
 const FIN_FOOTPRINT = { or: 0.5, btc: 5, sol: 0.05 };   // case la plus fine de l'archive (outils-donnees/footprint-historique.mjs) : le direct s'y aligne
 
-const CLE = { actif: 'rayle_tpv_actif', unite: 'rayle_tpv_unite', opts: 'rayle_tpv_opts', types: 'rayle_tpv_types', reg: (a, u) => `rayle_tpv_reg_${a}_${u}`, ancres: (a, u) => `rayle_tpv_ancres_${a}_${u}` };
-const OPTS_DEFAUT = { profil: true, vwap: true, nus: true, murs: true, chaleur: false, empreinte: true, empMode: 'bidask', log: false, reaction: true, niveaux: true, dessins: true, fleches: true, ma200: true, mfiMode: 'mfi', carnetSource: 'Binance', sourceVolume: 'reel' };
+const CLE = { actif: 'rayle_tpv_actif', unite: 'rayle_tpv_unite', opts: 'rayle_tpv_opts6', types: 'rayle_tpv_types', reg: (a, u) => `rayle_tpv_reg_${a}_${u}`, ancres: (a, u) => `rayle_tpv_ancres_${a}_${u}` };
+const OPTS_DEFAUT = { profil: true, vwap: true, nus: true, murs: true, chaleur: false, empreinte: true, empMode: 'bidask', log: false, reaction: false, niveaux: true, pVol: true, pCvd: true, pMfi: true, dessins: true, fleches: true, ma200: true, mfiMode: 'mfi', carnetSource: 'Binance', sourceVolume: 'reel' };
 const NOM_U = { H1: 'H1', H4: 'H4', J: 'Daily' };
 const NOM_PARLE = { or: 'l’or', btc: 'le Bitcoin', sol: 'Solana', us100: 'le Nasdaq 100', us500: 'le S&P 500', eurusd: 'l’EUR/USD' };
 const COUL = { haut: '#5fb894', bas: '#d86a6a', sable: '#c9b27a', bleu: '#8fd0e3', ma: '#f1d34f', texte: '#aebcc4', doux: '#6b7a84' };
@@ -49,13 +51,13 @@ export async function monterVolume({ racine, T = {}, parler = () => {}, idDefaut
       <button type="button" data-effacer-vwap title="Retire mes VWAP ancrés">Effacer</button>
       <button type="button" data-reglages aria-expanded="false">Calques</button>
       <div class="tp-mode tpv-mode" role="group" aria-label="Mode du terminal"><button type="button" data-vers-classique>Classique</button><button type="button" aria-pressed="true">Volume</button></div></div>
-    <div class="tpv-reglages" data-panneau-reglages hidden><p class="tpv-aide"><b>Aide.</b> <u>Empreinte</u> : zoome sur les bougies (≥ 70 px par bougie, ≥ 44 px en delta ou volume) ; chaque ligne est une case de prix : vendeurs agressifs à gauche × acheteurs à droite, POC de la bougie encadré en jaune, déséquilibres 3:1 en gras, déséquilibres empilés soulignés dans la marge, delta et volume sous la bougie ; toucher une case pour le détail. Sans transactions disponibles (Nasdaq, S&amp;P, EUR/USD, or avant le 11/12/2025) : « pas d’empreinte disponible ». <u>Cyan</u> : niveaux de réaction (au moins 2 rebonds ou rejets suivis d’un ATR). <u>Étirer</u> : glisser sur l’axe des prix (hauteur) ou du temps (largeur) ; pincement à deux doigts dans le sens voulu ; molette = largeur, Ctrl + molette = hauteur ; double clic ou double appui sur un axe, ou « Auto », pour revenir à l’échelle automatique ; la séparation entre panneaux se déplace en la glissant.</p>${[['profil', 'Profil de volume'], ['vwap', 'VWAP semaine / mois'], ['nus', 'POC nus'], ['reaction', 'Niveaux de réaction (cyan)'], ['log', 'Échelle logarithmique des prix'], ['niveaux', 'Supports / résistances (volume)'], ['murs', 'Murs du carnet'], ['chaleur', 'Carte de chaleur du carnet'], ['empreinte', 'Volume / delta par bougie et empreinte'], ['dessins', 'Mes dessins'], ['fleches', 'Flèches Volume'], ['ma200', 'MA200 et flèches']].map(([k, n]) => `<label><input type="checkbox" data-opt="${k}"> ${n}</label>`).join('')}
+    <div class="tpv-reglages" data-panneau-reglages hidden><p class="tpv-aide"><b>Aide.</b> <u>Empreinte</u> : zoome sur les bougies (≥ 70 px par bougie, ≥ 44 px en delta ou volume) ; chaque ligne est une case de prix : vendeurs agressifs à gauche × acheteurs à droite, POC de la bougie encadré en jaune, déséquilibres 3:1 en gras, déséquilibres empilés soulignés dans la marge, delta et volume sous la bougie ; toucher une case pour le détail. Sans transactions disponibles (Nasdaq, S&amp;P, EUR/USD, or avant le 11/12/2025) : « pas d’empreinte disponible ». <u>Cyan</u> : niveaux de réaction (au moins 2 rebonds ou rejets suivis d’un ATR). <u>Étirer</u> : glisser sur l’axe des prix (hauteur) ou du temps (largeur) ; pincement à deux doigts dans le sens voulu ; molette = largeur, Ctrl + molette = hauteur ; double clic ou double appui sur un axe, ou « Auto », pour revenir à l’échelle automatique ; la séparation entre panneaux se déplace en la glissant.</p>${[['profil', 'Profil de volume'], ['vwap', 'VWAP semaine / mois'], ['nus', 'POC nus'], ['reaction', 'Niveaux de réaction (cyan)'], ['log', 'Échelle logarithmique des prix'], ['niveaux', 'Supports / résistances (volume)'], ['murs', 'Murs du carnet'], ['chaleur', 'Carte de chaleur du carnet'], ['empreinte', 'Volume / delta par bougie et empreinte'], ['dessins', 'Mes dessins'], ['pVol', 'Panneau Volume'], ['pCvd', 'CVD'], ['pMfi', 'Panneau MFI / RVOL'], ['fleches', 'Flèches Volume'], ['ma200', 'MA200 et flèches']].map(([k, n]) => `<label><input type="checkbox" data-opt="${k}"> ${n}</label>`).join('')}
       <label>Empreinte (affichage au zoom) <select data-opt-select="empMode"><option value="bidask">Vendeurs × acheteurs (bid × ask)</option><option value="delta">Delta par niveau</option><option value="volume">Volume seul (profil dans la bougie)</option></select></label>
       <label>Panneau du bas <select data-opt-select="mfiMode"><option value="mfi">MFI 14 (RSI du volume)</option><option value="rvol">Volume relatif (RVOL)</option></select></label>
       <label>Carnet et gros flux <select data-opt-select="carnetSource"><option>Binance</option><option>Kraken</option></select></label>
       <label data-ligne-source-volume>Volume de l’or <select data-opt-select="sourceVolume"><option value="reel">Perpétuel Binance (réel)</option><option value="ref">Futures COMEX GC (institutionnel)</option></select></label>
       <fieldset><legend>Alertes des flèches Volume</legend>${TYPES_FLECHES_VOLUME.map(t => `<label><input type="checkbox" data-type="${t.id}"> ${esc(t.nom)}</label>`).join('')}</fieldset></div>
-    <div class="tpv-corps"><div class="tpv-graph" data-graph><div class="tpv-info" data-info hidden></div><p class="tpv-att" data-att role="status">Chargement…</p></div>
+    <div class="tpv-corps"><div class="tpv-graph" data-graph><div class="tpv-legende" data-legende aria-live="off"></div><button type="button" class="tpv-temps-reel" data-temps-reel title="Revenir à la dernière bougie" hidden>»</button><div class="tpv-info" data-info hidden></div><p class="tpv-att" data-att role="status">Chargement…</p></div>
       <aside class="tpv-droite" data-droite aria-label="Carnet d’ordres et flux"></aside></div>
     <p class="tpv-note" data-note></p>`;
   racine.appendChild(el);
@@ -73,7 +75,7 @@ export async function monterVolume({ racine, T = {}, parler = () => {}, idDefaut
     chart = LW.createChart(hote, { autoSize: true, layout: { background: { type: 'solid', color: '#000' }, textColor: COUL.texte, fontFamily: 'ui-monospace, Consolas, monospace', fontSize: 11, panes: { separatorColor: '#1a232b', separatorHoverColor: '#2b3a46' }, attributionLogo: true },
       grid: { vertLines: { color: '#0b1116' }, horzLines: { color: '#0b1116' } }, rightPriceScale: { borderColor: '#1a232b', scaleMargins: { top: 0.06, bottom: 0.06 } }, leftPriceScale: { visible: false, borderColor: '#1a232b' },
       timeScale: { borderColor: '#1a232b', rightOffset: 12, barSpacing: 9, minBarSpacing: 1.5, timeVisible: true, tickMarkFormatter: (t, type) => { const d = new Date(t * 1000); return type >= 3 ? tH.format(d) : tJ.format(d); } },
-      localization: { timeFormatter: t => tFr.format(new Date(t * 1000)) }, crosshair: { mode: 0 }, handleScroll: { mouseWheel: true, pressedMouseMove: true, horzTouchDrag: true, vertTouchDrag: false }, handleScale: { mouseWheel: true, pinch: true, axisPressedMouseMove: true } });
+      localization: { timeFormatter: t => tFr.format(new Date(t * 1000)) }, crosshair: { mode: 0 }, handleScroll: { mouseWheel: true, pressedMouseMove: true, horzTouchDrag: true, vertTouchDrag: true }, kineticScroll: { mouse: false, touch: true }, handleScale: { mouseWheel: true, pinch: true, axisPressedMouseMove: true } });
     sBou = chart.addSeries(LW.CandlestickSeries, { upColor: COUL.haut, downColor: COUL.bas, wickUpColor: COUL.haut, wickDownColor: COUL.bas, borderVisible: false, priceLineVisible: true }, 0);
     sMa = chart.addSeries(LW.LineSeries, { color: COUL.ma, lineWidth: 1, priceLineVisible: false, lastValueVisible: false, crosshairMarkerVisible: false, title: 'MA200', autoscaleInfoProvider: horsEchelleFp }, 0);
     sVol = chart.addSeries(LW.HistogramSeries, { priceFormat: { type: 'volume' }, priceLineVisible: false, lastValueVisible: false }, 1);
@@ -85,9 +87,25 @@ export async function monterVolume({ racine, T = {}, parler = () => {}, idDefaut
     try { const P = chart.panes(); P[0].setStretchFactor(6); P[1].setStretchFactor(2); P[2].setStretchFactor(2); } catch (e) { /* version sans panneaux ajustables */ }
     couche = creerCouche(); sBou.attachPrimitive(couche);
     try { S.ech = creerEchelles({ chart, serie: sBou, hote: zoneGraph, LW, panneau: 0, journalInitial: !!opts.log, surChange: () => { couche && couche.req && couche.req(); } }); } catch (e) { console.warn('[tpv] échelles indisponibles :', e && e.message || e); }
-    chart.timeScale().subscribeVisibleLogicalRangeChange(() => { if (sauteRange) return; clearTimeout(tempsProfil); tempsProfil = setTimeout(() => { calculerProfil(); couche && couche.req && couche.req(); }, 60); });
+    chart.timeScale().subscribeVisibleLogicalRangeChange(() => { majTempsReel(); if (sauteRange) return; clearTimeout(tempsProfil); tempsProfil = setTimeout(() => { calculerProfil(); couche && couche.req && couche.req(); }, 60); });
     chart.subscribeClick(p => { if (!p || p.time == null) return; if (S.modeAncre) { ancrerEn(p.time * 1000); return; } if (infoSurCase(p.point, p.time * 1000, true)) return; montrerInfoFleche(p.time * 1000, p.point); });
-    chart.subscribeCrosshairMove(p => { const boite = $('[data-info]'); if (!p || p.time == null || !p.point) { if (S.survol) { S.survol = false; boite.hidden = true; } return; } if (S.modeAncre) return; if (infoSurCase(p.point, p.time * 1000, false)) S.survol = true; else if (S.survol) { S.survol = false; boite.hidden = true; } });
+    chart.subscribeCrosshairMove(p => { legende(p && p.time != null ? p.time * 1000 : null); const boite = $('[data-info]'); if (!p || p.time == null || !p.point) { if (S.survol) { S.survol = false; boite.hidden = true; } return; } if (S.modeAncre) return; if (infoSurCase(p.point, p.time * 1000, false)) S.survol = true; else if (S.survol) { S.survol = false; boite.hidden = true; } });
+  }
+
+  /* ───── légende OHLC + volume + delta (suit le curseur, sinon dernière bougie) et bouton « » » (retour à la dernière bougie) ───── */
+  function legende(tMs) {
+    const L = $('[data-legende]'); if (!L || !S.bars.length) return; const B = S.bars; let i = B.length - 1;
+    if (tMs != null) { let lo = 0, hi = B.length - 1; while (lo < hi) { const m = (lo + hi + 1) >> 1; if (B[m].t <= tMs) lo = m; else hi = m - 1; } i = lo; }
+    const b = B[i], pr = i > 0 ? B[i - 1].c : b.o, v = (b.c - pr) / pr * 100, up = b.c >= b.o, d = deltaBarre(b), cl = up ? 'tpv-h' : 'tpv-b', a = S.actif;
+    L.innerHTML = `<b>${esc(parId[a].court)} · ${NOM_U[S.unite]}</b> <time>${tFr.format(new Date(b.t))}</time> <span class="${cl}">O ${prix(a, b.o)} H ${prix(a, b.h)} B ${prix(a, b.l)} C ${prix(a, b.c)} (${v >= 0 ? '+' : '−'}${nf(Math.abs(v), 2)} %)</span> <span>Vol ${compact(b.v || 0)}</span> <span class="${d >= 0 ? 'tpv-h' : 'tpv-b'}">Δ ${sgn(d)}${S.donnees && S.donnees.deltaReel ? '' : ' ~'}</span>`;
+  }
+  /* panneaux du bas : chacun peut être masqué ; un panneau sans série visible se réduit à un filet */
+  function appliquerPanneaux() {
+    if (!chart) return; const vol = opts.pVol !== false, cvdv = opts.pCvd !== false, mf = opts.pMfi !== false;
+    try { sVol.applyOptions({ visible: vol }); sMoy.applyOptions({ visible: vol }); sCvd.applyOptions({ visible: cvdv }); sMfi.applyOptions({ visible: mf }); sRv.applyOptions({ visible: mf }); const P = chart.panes(); P[1].setStretchFactor(vol || cvdv ? 2 : 0.001); P[2].setStretchFactor(mf ? 2 : 0.001); } catch (e) { /* version sans panneaux ajustables */ }
+  }
+  function majTempsReel() {
+    const bt = $('[data-temps-reel]'); if (!bt || !chart || !S.bars.length) return; const r = chart.timeScale().getVisibleLogicalRange(); bt.hidden = !r || r.to >= S.bars.length + 1;
   }
 
   /* ───── primitive : carte de chaleur (fond), profil, volume / delta par bougie, empreinte (premier plan) ───── */
@@ -177,7 +195,7 @@ export async function monterVolume({ racine, T = {}, parler = () => {}, idDefaut
     sMa.setData(opts.ma200 ? m200 : []);
     S.niveauxAtr = null; calculerAnnexes(); sauteRange = false;
     if (recadrer) { const n = B.length; chart.timeScale().setVisibleLogicalRange({ from: Math.max(0, n - 120), to: n + 10 }); }
-    calculerProfil(); couche && couche.req && couche.req(); majDroite();
+    appliquerPanneaux(); calculerProfil(); couche && couche.req && couche.req(); majDroite(); legende(null); majTempsReel();
   }
   /* VWAP, POC nus, niveaux, flèches, dessins : recalculés quand les bougies changent (pas à chaque transaction) */
   function calculerAnnexes() {
@@ -319,10 +337,21 @@ export async function monterVolume({ racine, T = {}, parler = () => {}, idDefaut
     const n = ++S.seq; S.charge = false; S.erreur = null; $('[data-att]').hidden = false; $('[data-att]').textContent = 'Chargement du volume ' + parId[S.actif].nom + ' ' + NOM_U[S.unite] + '…'; majBadge();
     try {
       const r = await chargerBarres(S.actif, S.unite, { source: S.actif === 'or' ? opts.sourceVolume : 'reel' }); if (n !== S.seq) return;
-      S.zonesEmp.clear(); S.donnees = r; S.bars = r.bougies; S.charge = true; $('[data-att]').hidden = true; creerGraphique(); peindre(recadrer); majBadge(); demarrerFlux();
+      S.zonesEmp.clear(); S.donnees = r; const C = controler(r.bougies, { unite: S.unite, actif: S.actif }); S.controle = C; S.bars = C.bougies.length >= 20 ? C.bougies : r.bougies; S.charge = true; $('[data-att]').hidden = true; creerGraphique(); peindre(recadrer); majBadge(); demarrerFlux(); etendreHistorique(n);
     } catch (e) {
       if (n !== S.seq) return; S.erreur = String(e && e.message || e); S.bars = []; $('[data-att]').hidden = false; $('[data-att]').innerHTML = `Données de volume indisponibles : ${esc(S.erreur)} <button type="button" data-reessayer>Réessayer</button>`; zoneDroite.innerHTML = ''; majBadge();
     }
+  }
+
+  /* A2 : historique long raccordé AVANT la source récente (recalé sur les bougies communes), puis contrôle (bougies isolées, trous). La vue ne bouge pas (on la conserve par le temps, pas par l'indice). */
+  async function etendreHistorique(n) {
+    const a = S.actif, u = S.unite, NB = { J: 40, H4: 8, H1: 3 }; if (!S.bars.length) return;
+    try {
+      const fin = S.bars[S.bars.length - 1].t + PAS_UNITE[u], fiche = await histoLong.fiche(a, u); if (fiche) await Promise.all(fiche.annees.slice(-(NB[u] || 3) - 1).map(y => histoLong.annee(a, u, y).catch(() => []))); const L = await histoLong.avant(a, u, fin, NB[u] || 3); if (n !== S.seq || !L.bougies.length) return;
+      const R = raccorder(L.bougies, S.bars), C = controler(R.bougies, { unite: u, actif: a }); if (n !== S.seq) return;
+      S.raccord = { ratio: R.ratio, methode: R.methode, n: R.n, longues: L.bougies.length }; S.controle = C; if (C.bougies.length <= S.bars.length) return;
+      const vue = chart.timeScale().getVisibleRange(); S.bars = C.bougies; peindre(false); try { if (vue) chart.timeScale().setVisibleRange(vue); } catch (e) { /* vue vide */ } majBadge();
+    } catch (e) { S.raccord = { erreur: String(e && e.message || e).slice(0, 100) }; majBadge(); }
   }
 
   /* ───── commandes et événements ───── */
@@ -333,6 +362,7 @@ export async function monterVolume({ racine, T = {}, parler = () => {}, idDefaut
   el.addEventListener('click', ev => {
     const u = ev.target.closest('[data-unite]'); if (u) { S.unite = u.dataset.unite; ecrireLS(CLE.unite, S.unite); synchroUI(); charger(); return; }
     if (ev.target.closest('[data-reessayer]')) { charger(); return; }
+    if (ev.target.closest('[data-temps-reel]')) { try { const r = chart.timeScale().getVisibleLogicalRange(), n = S.bars.length; if (r) { const larg = r.to - r.from; chart.timeScale().setVisibleLogicalRange({ from: n + 11 - larg, to: n + 11 }); } else chart.timeScale().scrollToRealTime(); } catch (e) { /* graphique fermé */ } return; }
     if (ev.target.closest('[data-vers-classique]')) { surClassique(); return; }
     if (ev.target.closest('[data-ancrer]')) { S.modeAncre = !S.modeAncre; ev.target.closest('[data-ancrer]').setAttribute('aria-pressed', String(S.modeAncre)); zoneGraph.classList.toggle('tpv-ancre', S.modeAncre); return; }
     if (ev.target.closest('[data-effacer-vwap]')) { ecrireLS(CLE.ancres(S.actif, S.unite), []); calculerAnnexes(); return; }
@@ -341,7 +371,7 @@ export async function monterVolume({ racine, T = {}, parler = () => {}, idDefaut
   el.addEventListener('change', ev => {
     const t = ev.target;
     if (t.matches('[data-actif]')) { S.actif = t.value; ecrireLS(CLE.actif, S.actif); charger(); return; }
-    if (t.matches('[data-opt]')) { opts[t.dataset.opt] = t.checked; ecrireLS(CLE.opts, opts); if (t.dataset.opt === 'log') { if (S.ech) S.ech.journal(t.checked); return; } if (t.dataset.opt === 'ma200' || t.dataset.opt === 'fleches' || t.dataset.opt === 'vwap' || t.dataset.opt === 'nus' || t.dataset.opt === 'niveaux' || t.dataset.opt === 'murs' || t.dataset.opt === 'dessins') peindre(false); else couche && couche.req && couche.req(); return; }
+    if (t.matches('[data-opt]')) { opts[t.dataset.opt] = t.checked; ecrireLS(CLE.opts, opts); if (/^p(Vol|Cvd|Mfi)$/.test(t.dataset.opt)) { appliquerPanneaux(); return; } if (t.dataset.opt === 'log') { if (S.ech) S.ech.journal(t.checked); return; } if (t.dataset.opt === 'ma200' || t.dataset.opt === 'fleches' || t.dataset.opt === 'vwap' || t.dataset.opt === 'nus' || t.dataset.opt === 'niveaux' || t.dataset.opt === 'murs' || t.dataset.opt === 'dessins') peindre(false); else couche && couche.req && couche.req(); return; }
     if (t.matches('[data-opt-select]')) { opts[t.dataset.optSelect] = t.value; ecrireLS(CLE.opts, opts); if (t.dataset.optSelect === 'carnetSource') { S.book = null; demarrerFlux(); majDroite(); } else if (t.dataset.optSelect === 'sourceVolume') charger(); else if (t.dataset.optSelect === 'empMode') couche && couche.req && couche.req(); else peindre(false); return; }
     if (t.matches('[data-type]')) { types[t.dataset.type] = t.checked; ecrireLS(CLE.types, types); }
   });
@@ -366,6 +396,7 @@ export async function monterVolume({ racine, T = {}, parler = () => {}, idDefaut
   synchroUI(); majBadge();
   return { ouvrir: ouvrirMode, fermer: () => ouvrirMode(false), estOuvert: () => S.ouvert, analyse, pocsNus: pocsNusTexte, ancrer: () => { S.modeAncre = true; $('[data-ancrer]').setAttribute('aria-pressed', 'true'); zoneGraph.classList.add('tpv-ancre'); return 'Touche la bougie où ancrer le VWAP.'; },
     reaction: () => (!S.charge || !S.bars.length ? `Le terminal Volume de ${parId[S.actif].nom} n’a pas encore de données.` : (calculerReaction(), phraseNiveaux(S.reaction, NOM_PARLE[S.actif] || parId[S.actif].nom, S.bars[S.bars.length - 1].c, v => prix(S.actif, v)))),
+    barres: () => S.bars.map(b => ({ t: b.t, o: b.o, h: b.h, l: b.l, c: b.c, v: b.v, long: !!b.long })), controle: () => ({ incidents: S.controle ? S.controle.incidents.length : null, trous: S.controle ? S.controle.trous : null, raccord: S.raccord || null, repli: S.donnees && S.donnees.repli || null, source: S.donnees && S.donnees.source }),
     echelle: () => (S.ech ? S.ech.etat() : null), echelleAuto: () => { if (S.ech) S.ech.auto(); }, echelleV: (f, y) => { if (S.ech) S.ech.zoomerV(f, y == null ? zoneGraph.clientHeight * 0.4 : y); },
     zoomer: (n = 8, decalage = 0) => { const L = S.bars.length; if (!chart || !L) return false; sauteRange = false; chart.timeScale().setVisibleLogicalRange({ from: L - n - decalage, to: L + 1 - decalage }); return true; },
     definirOpt: (k, v) => { opts[k] = v; ecrireLS(CLE.opts, opts); synchroUI(); peindre(false); },

@@ -30,3 +30,19 @@ Document de travail (2026-11-20, session autonome). Une section par phase : déc
 | `donnees-invest` | scores Investissement, fonds | 85 Mo (5 055 fichiers) | nightly (workflow `invest`) |
 
 ---
+
+## Phase A1 — Moteur graphique façon TradingView
+
+- **Moteur** : TradingView Lightweight Charts v5.2 (Apache 2.0) était déjà la base du Classique et du Volume ; réutilisé tel quel (un seul graphique pour toute la vie du mode). VWAP, profil, empreinte et niveaux restent dessinés par la primitive personnalisée. Attribution : logo TradingView natif (`attributionLogo`) + mention dans « Détails ».
+- **Glisser vertical** (manquait) : `commun/echelles.js` → `decalerIntervalle` (pur, testé) + écouteurs `pointer*` : un glisser dans le graphique (souris, ou un doigt) déplace aussi la plage de prix (en log : sur le logarithme) et **coupe l'échelle auto** ; l'horizontal reste celui de la bibliothèque. Désactivé quand `handleScroll` est coupé (outil de dessin actif) ou pendant un pincement. Vérifié dans Chrome : plage 3521 → déplacée, auto coupé.
+- **Déjà en place (v4.1)** : molette = zoom horizontal, Ctrl + molette = zoom vertical, pincement directionnel, glisser sur les axes, double clic / double appui sur un axe = auto, bouton Auto et Log.
+- **Ajouts v6** : bouton **« » »** (retour à la dernière bougie, visible seulement quand on s'en est éloigné ; marge de 12 bougies à droite), **légende** OHLC + variation + volume + delta en haut à gauche, qui suit le curseur (sinon dernière bougie), **panneaux du bas masquables** (Volume, CVD, MFI/RVOL, cases dans Calques ; séparateurs déjà déplaçables), échelles propres par panneau (v4.1).
+- Plus d'écran noir : l'état « Chargement… » est affiché, puis les bougies ; chaque couche annexe est protégée par `try/catch` dans la primitive.
+
+## Phase A2 — Données de prix propres et continues
+
+- **Module pur** `commun/serie-continue.js` (16 tests) : `fusionner` (la source la plus récente gagne), `raccorder` (historique long recalé par le **rapport médian mesuré sur les bougies communes**, sinon sur le saut de raccord s'il est < 5 %), `controler` (rejet des bougies incohérentes ; **bougie isolée** à plus de 30 % de ses deux voisines ; **trous** de plus de 2 bougies sur crypto 24/7, plus de 5 à 6 jours ailleurs).
+- **Branché dans le mode Volume** : la source récente (Binance / Yahoo) s'affiche tout de suite, puis l'historique long (branche `historique`, 40 ans en Daily, 8 ans en H4, 3 ans en H1) est raccordé en arrière-plan (années chargées en parallèle) sans bouger la vue (conservée par le temps, pas par l'indice).
+- **Mesuré dans Chrome** : BTC Daily **4 448 bougies du 2014-09-17 au 2026-11-20** (écart de raccord +0,02 %, 2 630 bougies communes), BTC H4 17 280 bougies (depuis 2019), or Daily 7 389 (depuis 2003), or H4 13 182 ; aucun saut de plus de 30 %, aucun trou sur BTC.
+- **Une seule source de vérité** : le Classique et le Volume lisent la même branche `historique` raccordée de la même façon (le Classique via `enrichirLong`) ; seule la source « récente » diffère (volume Binance contre instantané du robot), et l'écart est mesuré à chaque chargement.
+- Limites : le volume des bougies « longues » est celui de la source d'historique (Dukascopy : volume de ticks pour l'or et le forex) ; la légende ne le distingue pas encore bougie par bougie.
