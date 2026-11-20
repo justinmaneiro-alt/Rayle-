@@ -69,3 +69,30 @@ html .ar-lien,html .ar-btn{min-height:0}
 .ar-ph b{font:600 24px/1 system-ui,sans-serif;color:rgba(255,200,120,.85);letter-spacing:.02em}
 .ar-tampon{position:absolute;left:0;top:0;width:96px;height:68px;opacity:0;pointer-events:none;z-index:-1;overflow:hidden}
 .ar-tampon img{width:100%;height:100%;object-fit:cover}
+
+/* ───── v4 : actualité défilante (actus-defilantes.js) — même emplacement et même hauteur que l'ancien panneau de 3 sujets ───── */
+.ad-onglets{display:flex;gap:2px}
+.ad-onglets button{background:none;border:0;border-bottom:1px solid transparent;color:#7f98a3;font:inherit;font-size:11px;letter-spacing:.16em;text-transform:uppercase;padding:2px 7px 3px;cursor:pointer;min-height:0;min-width:0}
+.ad-onglets button[aria-selected=true]{color:#ffae3d;border-bottom-color:#ffae3d}
+.ad-onglets button:hover{color:#ffe08a}
+.ad-corps{position:relative;display:block!important}
+.ad-liste{height:262px;overflow-y:auto;overscroll-behavior:contain;-webkit-overflow-scrolling:touch;display:grid;align-content:start;gap:2px;scrollbar-width:thin;scrollbar-color:rgba(255,174,61,.35) transparent;touch-action:pan-y}
+.ad-art{display:grid;grid-template-columns:76px 1fr;gap:10px;align-items:center;text-decoration:none;color:inherit;padding:5px 6px;border:1px solid transparent;content-visibility:auto;contain-intrinsic-size:auto 64px}
+.ad-art:hover,.ad-art:focus-visible{border-color:rgba(255,174,61,.4);background:rgba(255,174,61,.06);outline:0}
+.ad-img{display:grid;place-items:center;width:76px;height:54px;overflow:hidden;position:relative;background:linear-gradient(135deg,rgba(255,174,61,.14),rgba(201,178,122,.1))}
+.ad-img b{position:absolute;color:#ffae3d;font-size:22px;font-weight:300}
+.ad-img img{position:relative;width:100%;height:100%;object-fit:cover;display:block}
+.ad-txt b{display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden;font-size:13px;line-height:1.28;font-weight:500;color:#fff}
+.ad-txt small{display:block;margin-top:2px;color:#7f98a3;font-size:11px}
+.ad-nouveaux{position:absolute;top:6px;left:50%;transform:translateX(-50%);z-index:2;background:rgba(6,11,16,.92);border:1px solid #ffae3d;color:#ffae3d;font:inherit;font-size:11.5px;padding:3px 12px;cursor:pointer;min-height:0;letter-spacing:.06em}
+.ad-pied{min-height:13px}
+.ad-lecture{max-width:520px}.ad-lec-img{width:100%;max-height:220px;object-fit:cover;display:block;margin-bottom:8px}
+.ad-lecture h3{margin:0 0 4px;font-size:17px;line-height:1.3;color:#fff}.ad-lec-meta{margin:0 0 8px;color:#7f98a3;font-size:12px}.ad-lec-ext{margin:0 0 8px;color:#cfdde3;line-height:1.5}
+.ad-lec-resume{white-space:pre-line;color:#ffe08a;line-height:1.5;margin-top:6px}
+@media (max-width:820px){
+  .ar-actus header{display:flex!important;margin:0 0 3px}.ar-actus header>span{display:none}
+  .ar-actus .ar-corps.ad-corps{display:block!important;overflow:visible}
+  .ad-liste{height:86px;scroll-snap-type:y proximity}.ad-art{grid-template-columns:70px 1fr;scroll-snap-align:start}.ad-img{width:70px;height:50px}.ad-txt b{-webkit-line-clamp:2;font-size:12.5px}
+  .ad-pied{display:none}
+}
+@media (prefers-reduced-motion:reduce){.ad-liste{scroll-behavior:auto}}

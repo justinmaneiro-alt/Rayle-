@@ -8,6 +8,7 @@ import { cot, actus, banques, institutions, sante, gld, calendrier2, bougies, MA
 import { yahoo } from '../app-pc/terminal-sources.mjs';
 import { listeUnivers, telechargerJour, nomFichierJour } from './univers-jours.mjs';
 import { construirePro } from './pro.mjs';
+import { actusAccueil } from './actus-accueil.mjs';
 
 export const SYMBOLES_BOUGIES = ['^NDX', '^GSPC', 'BTC-USD', 'SOL-USD', 'GC=F', 'DX-Y.NYB', 'EURUSD=X', 'CHF=X'];
 export const INTERVALLES_BOUGIES = [['5m', '14d'], ['15m', '60d'], ['1h', '730d'], ['1d', '10y']];
@@ -28,6 +29,7 @@ const ajoute = (nom, lots, f, valider = () => true) => taches.push({ nom, lots, 
 const aucuneErreur = d => (d && !d.erreur ? true : (d && d.erreur) || 'réponse vide');
 
 for (const q of ['or', 'marches', 'tout']) ajoute(`actus-${q}.json`, ['rapide'], () => actus(q, 60), d => (d && Array.isArray(d.items) && d.items.length ? true : 'aucune actualité'));
+for (const o of ['france', 'monde', 'marches']) ajoute(`actus-accueil-${o}.json`, ['rapide'], () => actusAccueil(o), d => (d && Array.isArray(d.items) && d.items.length >= 10 ? true : 'moins de 10 articles'));   // v4 : fil défilant de l'accueil
 ajoute('calendrier2.json', ['rapide'], () => calendrier2(), d => (d && Array.isArray(d.evenements) && d.evenements.length ? true : 'calendrier vide'));
 ajoute('yahoo-2y.json', ['rapide'], () => yahoo(SYMS_YAHOO.join(','), '2y'), d => (d && d.cotes && Object.values(d.cotes).some(c => !c.erreur && c.serie && c.serie.length) ? true : 'aucune cotation'));
 ajoute('banques.json', ['horaire'], () => banques(40), d => (d && Array.isArray(d.items) ? true : 'réponse invalide'));

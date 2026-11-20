@@ -207,10 +207,10 @@
   /* ───── cycle de vie ───── */
   function demarrer(){
     if(!T){ console.warn('[accueil] TableauBordContenu absent'); return; }
-    construire(); fond(); demarrerVille(); chargerJour(); chargerActus();
+    construire(); fond(); demarrerVille(); chargerJour(); if(window.ActusDefilantes) ActusDefilantes.monter(racine.querySelector('.ar-actus')); else chargerActus();   // v4 : actualité défilante (repli : 3 sujets du Worker)
     setInterval(()=>{ if(aLEcran()){ chargerMeteo(); } },10*60*1000);
-    setInterval(()=>{ if(aLEcran()){ chargerActus(); } },10*60*1000);
-    window.AccueilRayle={etat:()=>JSON.parse(JSON.stringify(etat)),recharger:()=>{ chargerMeteo(); chargerJour(); chargerActus(); },poserVille};
+    setInterval(()=>{ if(aLEcran()&&!window.ActusDefilantes){ chargerActus(); } },10*60*1000);
+    window.AccueilRayle={etat:()=>JSON.parse(JSON.stringify(etat)),recharger:()=>{ chargerMeteo(); chargerJour(); if(window.ActusDefilantes) ActusDefilantes.recharger(); else chargerActus(); },poserVille};
   }
   if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',demarrer); else demarrer();
 })();
