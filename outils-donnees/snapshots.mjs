@@ -13,7 +13,7 @@ import { actusAccueil } from './actus-accueil.mjs';
 export const SYMBOLES_BOUGIES = ['^NDX', '^GSPC', 'BTC-USD', 'SOL-USD', 'GC=F', 'DX-Y.NYB', 'EURUSD=X', 'CHF=X'];
 export const INTERVALLES_BOUGIES = [['5m', '14d'], ['15m', '60d'], ['1h', '730d'], ['1d', '10y']];
 /* v4 : futures CME (volume réel du mode Volume) : H1 sur 2 ans et Daily sur 10 ans suffisent */
-export const SYMBOLES_FUTURES = ['NQ=F', 'ES=F', '6E=F'];
+export const SYMBOLES_FUTURES = ['NQ=F', 'ES=F', '6E=F', 'DX=F', '6S=F'];   // v6 : indice dollar (DXY) et franc suisse (USD/CHF) pour le mode Volume
 export const SYMS_YAHOO = ['DX-Y.NYB', '^TNX', '^VIX', '^GSPC', '^NDX', 'GLD', 'GDX', 'GC=F', 'BTC-USD'];
 export const PANNEAUX_MARCHES = ['ensemble', 'or', 'us100', 'btc', 'usd', 'chf', 'macro', 'cot', 'calendrier', 'actualites', 'correlations'];
 export const ACTIFS_MARCHES = ['or', 'us100', 'btc', 'usd', 'chf'];

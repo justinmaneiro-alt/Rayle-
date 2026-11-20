@@ -19,6 +19,8 @@ export const ACTIFS_VOLUME = Object.freeze([
   { id: 'sol', nom: 'Solana', court: 'SOL/USD', binance: 'SOLUSDT', repli: 'SOL-USD', live: true, carnet: true, decimales: 2, badge: { reel: 'Volume réel · Binance + Kraken' }, typeVolume: 'reel', deltaReel: true },
   { id: 'us100', nom: 'Nasdaq 100', court: 'US100', yahoo: 'NQ=F', repli: '^NDX', yahooNom: 'CME NQ', live: false, carnet: false, decimales: 1, badge: { reel: 'Volume des futures CME · NQ (Yahoo, différé) · prix des futures' }, typeVolume: 'futures', deltaReel: false },
   { id: 'us500', nom: 'S&P 500', court: 'US500', yahoo: 'ES=F', repli: '^GSPC', yahooNom: 'CME ES', live: false, carnet: false, decimales: 1, badge: { reel: 'Volume des futures CME · ES (Yahoo, différé) · prix des futures' }, typeVolume: 'futures', deltaReel: false },
+  { id: 'usdchf', nom: 'USD/CHF', court: 'USD/CHF', prix: 'CHF=X', yahoo: '6S=F', volumeSeul: true, yahooNom: 'CME 6S', live: false, carnet: false, decimales: 4, badge: { reel: 'Prix USD/CHF au comptant · volume des futures CME 6S (franc suisse, différé)' }, typeVolume: 'futures', deltaReel: false },
+  { id: 'dxy', nom: 'Indice dollar (DXY)', court: 'DXY', yahoo: 'DX=F', repli: 'DX-Y.NYB', yahooNom: 'ICE DX', live: false, carnet: false, decimales: 3, badge: { reel: 'Volume des futures ICE DX (indice dollar, différé) · prix des futures' }, typeVolume: 'futures', deltaReel: false },
   { id: 'eurusd', nom: 'EUR/USD', court: 'EUR/USD', yahoo: '6E=F', repli: 'EURUSD=X', yahooNom: 'CME 6E', live: false, carnet: false, decimales: 5, badge: { reel: 'Volume des futures CME · 6E (Yahoo, différé) · prix des futures' }, typeVolume: 'futures', deltaReel: false }
 ]);
 export const parId = Object.freeze(Object.fromEntries(ACTIFS_VOLUME.map(a => [a.id, a])));
@@ -63,6 +65,11 @@ export async function chargerBarres(id, unite, { source = 'reel', fetchFn = (...
     const r2 = a.repli ? await bougiesYahoo(a.repli, unite, { fetchFn }).catch(() => null) : null;   // v6 : Binance injoignable → instantané du robot (prix et volume Yahoo, différés)
     if (r2) return { bougies: r2.bougies, source: 'repli', deltaReel: false, aVolume: r2.bougies.some(b => b.v > 0), note: 'Binance injoignable (' + erreur + ') : instantané du robot (différé), delta estimé.', t: r2.t, repli: erreur };
     throw new Error(erreur);
+  }
+  if (a.volumeSeul) {
+    const spot = await bougiesYahoo(a.prix, unite, { fetchFn }); const fut = await bougiesYahoo(a.yahoo, unite, { fetchFn }).catch(() => null); const V = new Map((fut ? fut.bougies : []).map(b => [b.t, b.v || 0]));
+    const B = spot.bougies.map(b => ({ ...b, v: V.get(b.t) || 0 })), n = B.filter(b => b.v > 0).length;
+    return { bougies: B, source: n ? 'reel' : 'repli', deltaReel: false, aVolume: n > 0, note: n ? null : 'Volume des futures 6S indisponible : bougies du comptant, sans volume.', t: spot.t, repli: n ? null : 'futures 6S absents' };
   }
   if (a.yahoo) {
     /* v6 (A0) : jamais d'écran vide. Si le fichier des futures manque (404, robot pas encore passé), on affiche quand même les bougies de l'indice ou de la paire au comptant (sans volume) avec un badge « volume indisponible » */
