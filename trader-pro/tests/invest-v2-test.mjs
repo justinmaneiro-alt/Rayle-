@@ -18,6 +18,7 @@ const J = 86400e3, T0 = Date.UTC(2026, 10, 19);
 console.log('— secteurs, pays —');
 v(normaliserSecteur('Consumer Cyclical') === 'Conso. cyclique' && normaliserSecteur('Financial Services') === 'Finance' && normaliserSecteur('Information Technology') === 'Technologie' && normaliserSecteur('Health Care') === 'Santé' && normaliserSecteur('Basic Materials') === 'Matériaux' && normaliserSecteur('Utilities') === 'Services publics' && normaliserSecteur('Consumer Staples') === 'Conso. de base' && normaliserSecteur('Communication Services') === 'Communication' && normaliserSecteur('Énergie') === 'Énergie' && normaliserSecteur('') === null, 'vocabulaire des secteurs');
 v(estFinanciere('Finance', null) && estFinanciere('X', 'Banks—Regional') && !estFinanciere('Technologie', 'Software'), 'financières reconnues');
+v(estFinanciere(null, null, 'AXA') && estFinanciere(null, null, 'BNP Paribas') && !estFinanciere(null, null, 'Edenred') && !estFinanciere('Industrie', 'Aerospace', 'Airbus'), 'v4 : AXA reconnue comme financière même sans secteur');
 v(zonePays('US') === 'US' && zonePays('FR') === 'Europe' && zonePays('UK') === 'Europe' && zonePays('JP') === 'Autres', 'zones États-Unis / Europe / Autres');
 
 console.log('— saisonnalité —');

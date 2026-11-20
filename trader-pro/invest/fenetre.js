@@ -58,7 +58,7 @@ export async function ouvrir({ racine = document.body, onFermer = () => {} } = {
   async function charger(classes) {
     const manques = classes.filter(c => !S.classesChargees.has(c)); if (!manques.length && S.lignes.length) return;
     S.manifeste = await S.D.manifeste(); S.ajust = S.manifeste.ajust || {}; S.lignes = await S.D.lignes(null === classes ? null : [...new Set([...S.classesChargees, ...classes])]); classes.forEach(c => S.classesChargees.add(c)); S.calc.init(S.lignes); S.saisonChargee = false;
-    $('[data-etat]').textContent = `${nf(S.lignes.length, 0).replace(/,/g, ' ')} instruments chargés · calcul ${age(S.manifeste.t)}`;
+    $('[data-etat]').textContent = `${nf(S.lignes.length, 0).replace(/,/g, ' ')} instruments chargés · calcul ${age(S.manifeste.t)} · prix : dernière clôture de chaque bourse (ouvrir une fiche pour l’âge exact)`;
   }
   async function chargerSaison() { if (S.saisonChargee) return; const { encodes, ref } = await S.D.saison([...S.classesChargees]); S.ref = ref; S.calc.saison(encodes, ref); S.saisonChargee = true; }
   const besoinSaison = () => S.horizon === 'swing' || S.tri === 'sai' || S.filtre.saisonSignificative;
@@ -161,7 +161,7 @@ export async function ouvrir({ racine = document.body, onFermer = () => {} } = {
     const F = S.fiche; if (!F) return; viderGraphs(); const l = F.l, V4 = {}; const sai = F.f.saison && S.ref ? statsSaison(F) : null;
     for (const h of HORIZONS) V4[h.id] = verdictLigne(l, h.id, { ajust: S.ajust, saison: sai && h.id === 'swing' ? sai : null });
     const pairs = l.c === 'action' ? S.lignes.filter(x => x.id !== l.id && x.c === 'action' && x.s === l.s && x.z === l.z && Number.isFinite(x.cap)).sort((a, b) => Math.abs(Math.log((a.cap || 1) / (l.cap || 1))) - Math.abs(Math.log((b.cap || 1) / (l.cap || 1)))).slice(0, 8) : [];
-    const n = S.seq; rendreFiche({ zone, l, f: F.f, V4, horizon: S.horizon, fenetre: S.fenetre, S: { ref: S.ref }, onglet: F.onglet, unite: F.unite, suivie: suivie(l.id), pairs, graphs: S.graphs, annule: () => n !== S.seq || S.ferme });
+    const n = S.seq; rendreFiche({ zone, l, tCalcul: S.manifeste && S.manifeste.t, f: F.f, V4, horizon: S.horizon, fenetre: S.fenetre, S: { ref: S.ref }, onglet: F.onglet, unite: F.unite, suivie: suivie(l.id), pairs, graphs: S.graphs, annule: () => n !== S.seq || S.ferme });
   }
   function statsSaison(F) { try { const i = S.lignes.indexOf(F.l), r = S.res && S.res.saison ? S.res.saison[i] : null; return r && Number.isFinite(r.score) ? { score: r.score } : null; } catch (e) { return null; } }
   const dire_fiche = () => { const F = S.fiche; if (!F) return; const l = F.l, v = verdictLigne(l, S.horizon, { ajust: S.ajust }); parler(`${l.n} : ${v.lib} sur l’horizon ${hz().nom}, score ${v.score == null ? 'non calculé' : Math.round(v.score)}, confiance ${v.confLib}. ${pourquoi(l, v).join(' ')} Ce n’est pas un conseil.`); };

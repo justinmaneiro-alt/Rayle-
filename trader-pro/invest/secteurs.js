@@ -22,5 +22,7 @@ export function normaliserSecteur(s) {
   if (/^communication services$/.test(t)) return 'Communication'; if (/^basic materials$/.test(t)) return 'Matériaux'; if (/^financial services$/.test(t)) return 'Finance';
   for (const [re, n] of R) if (re.test(t)) return n; return null;
 }
-export const estFinanciere = (secteur, industrie) => secteur === 'Finance' || /bank|insurance|assurance|asset manage|capital market|credit serv|mortgage|brokerage/i.test(industrie || '');
+/* v4 : secteur et industrie manquent pour beaucoup de valeurs européennes (AXA, par exemple, était traitée comme une industrielle) → repli sur le nom */
+export const NOM_FINANCIER = /\b(axa|bnp paribas|soci[eé]t[eé] g[eé]n[eé]rale|cr[eé]dit agricole|allianz|generali|santander|bbva|ing groep|unicredit|intesa|deutsche bank|commerzbank|hsbc|barclays|lloyds|natwest|munich re|hannover re|swiss re|zurich insurance|aegon|nn group|scor|credit suisse|ubs|bank|banque|banco|bancorp|assurance|insurance|assicurazioni|versicherung)\b/i;
+export const estFinanciere = (secteur, industrie, nom) => secteur === 'Finance' || /bank|insurance|assurance|asset manage|capital market|credit serv|mortgage|brokerage/i.test(industrie || '') || (!industrie && NOM_FINANCIER.test(nom || ''));
 export const estFonciere = (secteur, industrie) => secteur === 'Immobilier' || /reit|real estate/i.test(industrie || '');

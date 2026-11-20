@@ -39,7 +39,7 @@ export function construireLigne(e) {
 
   /* ───── fondamentaux ───── */
   const A = convertirAnnuel(annuel, kC), mensuel = M ? M.bougies.map(b => [b.t, b.c]) : [];
-  const fi = estFinanciere(secteur, industrie);
+  const fi = estFinanciere(secteur, industrie, ligne.n);
   const f = evaluer(A, { tk: ligne.id, nom: ligne.n, secteur: fi ? 'Finance' : secteur, prix: D.prix, devise: devQ, actions: e.actions, actionsT: e.actionsT, mensuel, splits: M ? M.splits : D.splits, maintenant });
   ligne.fon = estFonciere(secteur, industrie) ? 1 : 0;
   const val = f.serie ? valoriserV2(f, { pays: cat.pays, secteur }) : { valeur: null, methodes: [], info: [], avertissements: f.avertissements || [] }, br = f.serie ? mesuresBrutes(f, {}) : {};
