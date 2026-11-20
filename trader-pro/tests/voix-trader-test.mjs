@@ -27,6 +27,7 @@ v(await repondre('quelle heure est-il', S) === null, 'phrase hors sujet : null (
 { const i1 = intention('Rayle, analyse le volume de l’or en H4'), i2 = intention('passe en mode volume'), i3 = intention('ancre un VWAP ici'), i4 = intention('montre-moi les POC nus'), i5 = intention('reviens au mode classique');
   v(i1 && i1.type === 'volume' && i1.action === 'analyse' && i1.actif.id === 'or' && i1.unite === 'H4', 'analyse le volume de l’or en H4 : ' + JSON.stringify(i1));
   v(i2 && i2.action === 'ouvrir' && i3 && i3.action === 'vwap' && i4 && i4.action === 'poc-nus' && i5 && i5.action === 'classique', 'passe en mode volume / ancre un VWAP / POC nus / retour au classique');
+  { const r1 = intention('Rayle, quels sont les niveaux de réaction de l’or ?'), r2 = intention('niveaux de réaction du bitcoin en daily'); v(r1 && r1.type === 'volume' && r1.action === 'reaction' && r1.actif.id === 'or' && r2 && r2.action === 'reaction' && r2.actif.id === 'btc' && r2.unite === 'J', 'v4.1 : « quels sont les niveaux de réaction de l’or ? » → niveaux de réaction (or) ; bitcoin en daily'); }
   const appels = []; const S2 = { ...S, async volume(i) { appels.push(i.action); return 'ok ' + i.action; } };
   v(await repondre('analyse le volume du bitcoin en daily', S2) === 'ok analyse' && appels[0] === 'analyse', 'la voix appelle le terminal Volume');
   v(intention('quelle est la météo') === null && (intention('le volume net de l’or') === null || intention('le volume net de l’or').action !== 'analyse'), 'phrases voisines : pas de fausse détection'); }

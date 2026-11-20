@@ -1,5 +1,5 @@
 /* Tests purs des flux en direct du mode Volume et de ses données. node trader-pro/tests/volume-live-test.mjs */
-import { parseBinance, creerCarnetKraken, parseKrakenTrade, creerEmpreinte, pasEmpreinte, creerChaleur, creerFlux, urlBinance, abonnementKraken, ouvrir } from '../volume/volume-live.js';
+import { parseBinance, creerCarnetKraken, parseKrakenTrade, creerEmpreinte, pasEmpreinte, creerChaleur, creerFlux, urlBinance, urlsBinance, abonnementKraken, ouvrir } from '../volume/volume-live.js';
 import { chargerBarres, bougiesBinance, badgeSource, parId, ACTIFS_VOLUME, ageDonnee } from '../volume/volume-donnees.js';
 import { seuilGrosses } from '../volume/volume-calcul.js';
 let ok = 0, ko = 0; const v = (c, m) => { if (c) ok++; else { ko++; console.log('  ✗ ' + m); } };
@@ -41,4 +41,5 @@ v(/Binance XAUUSDT/.test(badgeSource('or')) && /delta réel/.test(badgeSource('o
 v(ACTIFS_VOLUME.length === 6 && ACTIFS_VOLUME.filter(a => a.carnet).map(a => a.id).join() === 'or,btc,sol' && !parId.us100.live, 'carnet seulement pour l’or, le Bitcoin et Solana');
 let e = null; try { await chargerBarres('doge', 'H1'); } catch (x) { e = x; } v(e && /inconnu/.test(e.message), 'actif inconnu : erreur claire');
 v(ageDonnee(0, 5 * 60000) === 'il y a 5 min' && ageDonnee(null) === 'âge inconnu', 'âge des données');
+const UB = urlsBinance('or', '1h'); v(UB.marche.endsWith('/market/stream?streams=xauusdt@aggTrade/xauusdt@kline_1h') && UB.public.endsWith('/public/stream?streams=xauusdt@depth20@100ms') && urlsBinance('us100', '1h') === null, 'adresses Binance actuelles : /market (transactions + bougie) et /public (carnet)');
 console.log(ko ? `✗ ${ko} échec(s), ${ok} ok` : `tous les tests passent (${ok})`); process.exit(ko ? 1 : 0);

@@ -5,16 +5,23 @@
    Lecture seule : aucun ordre. Chaque volume affiche sa source et son âge. Les calculs sont dans volume-calcul.js (pur, testé). */
 import { esc, nf, lireLS, ecrireLS } from '../commun/ui.js';
 import { chargerLib } from '../../agent-trading/front/graphique.js';
+import { creerEchelles } from '../commun/echelles.js';
 import { analyserUnite, styleFleche } from '../terminal/ma200-h4.js';
 import { lireDessins } from '../terminal/dessins-stockage.js';
 import { visibles } from '../terminal/dessins-fusion.js';
 import { profil, vwapAncre, indexAncrePeriode, pocsNus, mfi, divergencesMfi, serieDelta, cvd, deltaReel, volumeRelatif, niveauxVolume, flechesVolume, desequilibre, murs, seuilGrosses, deltaBarre, TYPES_FLECHES_VOLUME } from './volume-calcul.js';
 import { ACTIFS_VOLUME, parId, UNITES_VOLUME, PAS_UNITE, chargerBarres, badgeSource, ageDonnee } from './volume-donnees.js';
-import { ouvrir as ouvrirFlux, parseBinance, creerCarnetKraken, parseKrakenTrade, creerEmpreinte, pasEmpreinte, creerChaleur, creerFlux, urlBinance, abonnementKraken, KRAKEN_WS, SYMBOLES_LIVE } from './volume-live.js';
+import { ouvrir as ouvrirFlux, parseBinance, creerCarnetKraken, parseKrakenTrade, creerChaleur, creerFlux, urlsBinance, abonnementKraken, KRAKEN_WS, SYMBOLES_LIVE } from './volume-live.js';
+import { niveauxReaction, etiquetteNiveau, niveauProche, phraseNiveaux } from './reaction-calcul.js';
+import { creerStoreFootprint, creerLive, creerRattrapage, TEXTE_ABSENT } from './footprint-donnees.js';
+import { dessiner as dessinerFootprint, infoCase, COULEUR_REACTION } from './footprint-rendu.js';
+
+const FIN_FOOTPRINT = { or: 0.5, btc: 5, sol: 0.05 };   // case la plus fine de l'archive (outils-donnees/footprint-historique.mjs) : le direct s'y aligne
 
 const CLE = { actif: 'rayle_tpv_actif', unite: 'rayle_tpv_unite', opts: 'rayle_tpv_opts', types: 'rayle_tpv_types', reg: (a, u) => `rayle_tpv_reg_${a}_${u}`, ancres: (a, u) => `rayle_tpv_ancres_${a}_${u}` };
-const OPTS_DEFAUT = { profil: true, vwap: true, nus: true, murs: true, chaleur: false, empreinte: true, niveaux: true, dessins: true, fleches: true, ma200: true, mfiMode: 'mfi', carnetSource: 'Binance', sourceVolume: 'reel' };
+const OPTS_DEFAUT = { profil: true, vwap: true, nus: true, murs: true, chaleur: false, empreinte: true, empMode: 'bidask', log: false, reaction: true, niveaux: true, dessins: true, fleches: true, ma200: true, mfiMode: 'mfi', carnetSource: 'Binance', sourceVolume: 'reel' };
 const NOM_U = { H1: 'H1', H4: 'H4', J: 'Daily' };
+const NOM_PARLE = { or: 'l’or', btc: 'le Bitcoin', sol: 'Solana', us100: 'le Nasdaq 100', us500: 'le S&P 500', eurusd: 'l’EUR/USD' };
 const COUL = { haut: '#5fb894', bas: '#d86a6a', sable: '#c9b27a', bleu: '#8fd0e3', ma: '#f1d34f', texte: '#aebcc4', doux: '#6b7a84' };
 const tFr = new Intl.DateTimeFormat('fr-FR', { timeZone: 'Europe/Paris', day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit', hour12: false });
 const tJ = new Intl.DateTimeFormat('fr-FR', { timeZone: 'Europe/Paris', day: '2-digit', month: 'short' });
@@ -29,7 +36,7 @@ export async function monterVolume({ racine, T = {}, parler = () => {}, idDefaut
   const opts = { ...OPTS_DEFAUT, ...lireLS(CLE.opts, {}) };
   const types = { 'vol-absorption': true, 'vol-cassure': true, 'vol-faux': true, ...lireLS(CLE.types, {}) };
   const S = { actif: parId[lireLS(CLE.actif, idDefaut)] ? lireLS(CLE.actif, idDefaut) : idDefaut, unite: UNITES_VOLUME.includes(lireLS(CLE.unite, unite0)) ? lireLS(CLE.unite, unite0) : unite0, bars: [], donnees: null, erreur: null, charge: false, seq: 0,
-    prof: null, niveaux: [], fleches: [], flechesMA: [], book: null, gros: creerFlux(), emp: creerEmpreinte({ pas: 1 }), chaleur: creerChaleur(), etatFlux: {}, modeAncre: false, lignes: [], seriesVwap: [], seriesDessins: [], info: null, flux: [], krakenBook: creerCarnetKraken(), ouvert: false };
+    prof: null, niveaux: [], fleches: [], flechesMA: [], book: null, gros: creerFlux(), live: null, fp: null, reaction: [], reactionAtr: null, zonesEmp: new Map(), chaleur: creerChaleur(), etatFlux: {}, modeAncre: false, lignes: [], seriesVwap: [], seriesDessins: [], info: null, flux: [], krakenBook: creerCarnetKraken(), ouvert: false };
 
   /* ───── DOM ───── */
   const el = document.createElement('section'); el.className = 'tpv'; el.hidden = true; el.setAttribute('aria-label', 'Terminal Volume');
@@ -42,7 +49,8 @@ export async function monterVolume({ racine, T = {}, parler = () => {}, idDefaut
       <button type="button" data-effacer-vwap title="Retire mes VWAP ancrés">Effacer</button>
       <button type="button" data-reglages aria-expanded="false">Calques</button>
       <div class="tp-mode tpv-mode" role="group" aria-label="Mode du terminal"><button type="button" data-vers-classique>Classique</button><button type="button" aria-pressed="true">Volume</button></div></div>
-    <div class="tpv-reglages" data-panneau-reglages hidden>${[['profil', 'Profil de volume'], ['vwap', 'VWAP semaine / mois'], ['nus', 'POC nus'], ['niveaux', 'Supports / résistances (volume)'], ['murs', 'Murs du carnet'], ['chaleur', 'Carte de chaleur du carnet'], ['empreinte', 'Volume / delta par bougie et empreinte'], ['dessins', 'Mes dessins'], ['fleches', 'Flèches Volume'], ['ma200', 'MA200 et flèches']].map(([k, n]) => `<label><input type="checkbox" data-opt="${k}"> ${n}</label>`).join('')}
+    <div class="tpv-reglages" data-panneau-reglages hidden>${[['profil', 'Profil de volume'], ['vwap', 'VWAP semaine / mois'], ['nus', 'POC nus'], ['reaction', 'Niveaux de réaction (cyan)'], ['log', 'Échelle logarithmique des prix'], ['niveaux', 'Supports / résistances (volume)'], ['murs', 'Murs du carnet'], ['chaleur', 'Carte de chaleur du carnet'], ['empreinte', 'Volume / delta par bougie et empreinte'], ['dessins', 'Mes dessins'], ['fleches', 'Flèches Volume'], ['ma200', 'MA200 et flèches']].map(([k, n]) => `<label><input type="checkbox" data-opt="${k}"> ${n}</label>`).join('')}
+      <label>Empreinte (affichage au zoom) <select data-opt-select="empMode"><option value="bidask">Vendeurs × acheteurs (bid × ask)</option><option value="delta">Delta par niveau</option><option value="volume">Volume seul (profil dans la bougie)</option></select></label>
       <label>Panneau du bas <select data-opt-select="mfiMode"><option value="mfi">MFI 14 (RSI du volume)</option><option value="rvol">Volume relatif (RVOL)</option></select></label>
       <label>Carnet et gros flux <select data-opt-select="carnetSource"><option>Binance</option><option>Kraken</option></select></label>
       <label data-ligne-source-volume>Volume de l’or <select data-opt-select="sourceVolume"><option value="reel">Perpétuel Binance (réel)</option><option value="ref">Futures COMEX GC (institutionnel)</option></select></label>
@@ -57,6 +65,8 @@ export async function monterVolume({ racine, T = {}, parler = () => {}, idDefaut
   /* ───── graphique ───── */
   let chart = null, sBou = null, sVol = null, sMoy = null, sCvd = null, sMfi = null, sRv = null, sMa = null, marqueurs = null, couche = null, sauteRange = false, tempsProfil = 0;
   const temps = t => Math.floor(t / 1000);
+  /* pendant l'empreinte, l'échelle des prix suit les bougies seulement (MA200 et VWAP, souvent loin du prix, écraseraient les cases) */
+  const horsEchelleFp = original => (S.bougiesFp ? null : original());
   function creerGraphique() {
     if (chart) return;   // un seul graphique pour toute la vie du mode : le recréer à chaque changement d'actif ou d'unité provoque des erreurs « Object is disposed » de Lightweight Charts
     const hote = document.createElement('div'); hote.className = 'tpv-lw'; zoneGraph.appendChild(hote);
@@ -65,7 +75,7 @@ export async function monterVolume({ racine, T = {}, parler = () => {}, idDefaut
       timeScale: { borderColor: '#1a232b', rightOffset: 12, barSpacing: 9, minBarSpacing: 1.5, timeVisible: true, tickMarkFormatter: (t, type) => { const d = new Date(t * 1000); return type >= 3 ? tH.format(d) : tJ.format(d); } },
       localization: { timeFormatter: t => tFr.format(new Date(t * 1000)) }, crosshair: { mode: 0 }, handleScroll: { mouseWheel: true, pressedMouseMove: true, horzTouchDrag: true, vertTouchDrag: false }, handleScale: { mouseWheel: true, pinch: true, axisPressedMouseMove: true } });
     sBou = chart.addSeries(LW.CandlestickSeries, { upColor: COUL.haut, downColor: COUL.bas, wickUpColor: COUL.haut, wickDownColor: COUL.bas, borderVisible: false, priceLineVisible: true }, 0);
-    sMa = chart.addSeries(LW.LineSeries, { color: COUL.ma, lineWidth: 1, priceLineVisible: false, lastValueVisible: false, crosshairMarkerVisible: false, title: 'MA200' }, 0);
+    sMa = chart.addSeries(LW.LineSeries, { color: COUL.ma, lineWidth: 1, priceLineVisible: false, lastValueVisible: false, crosshairMarkerVisible: false, title: 'MA200', autoscaleInfoProvider: horsEchelleFp }, 0);
     sVol = chart.addSeries(LW.HistogramSeries, { priceFormat: { type: 'volume' }, priceLineVisible: false, lastValueVisible: false }, 1);
     sMoy = chart.addSeries(LW.LineSeries, { color: 'rgba(241,211,79,.7)', lineWidth: 1, priceLineVisible: false, lastValueVisible: false, crosshairMarkerVisible: false }, 1);
     sCvd = chart.addSeries(LW.LineSeries, { color: COUL.bleu, lineWidth: 1, priceScaleId: 'left', priceLineVisible: false, lastValueVisible: true, title: 'CVD' }, 1);
@@ -74,16 +84,17 @@ export async function monterVolume({ racine, T = {}, parler = () => {}, idDefaut
     sRv = chart.addSeries(LW.HistogramSeries, { priceFormat: { type: 'price', precision: 1, minMove: 0.1 }, priceLineVisible: false, lastValueVisible: false, title: 'RVOL' }, 2);
     try { const P = chart.panes(); P[0].setStretchFactor(6); P[1].setStretchFactor(2); P[2].setStretchFactor(2); } catch (e) { /* version sans panneaux ajustables */ }
     couche = creerCouche(); sBou.attachPrimitive(couche);
+    try { S.ech = creerEchelles({ chart, serie: sBou, hote: zoneGraph, LW, panneau: 0, journalInitial: !!opts.log, surChange: () => { couche && couche.req && couche.req(); } }); } catch (e) { console.warn('[tpv] échelles indisponibles :', e && e.message || e); }
     chart.timeScale().subscribeVisibleLogicalRangeChange(() => { if (sauteRange) return; clearTimeout(tempsProfil); tempsProfil = setTimeout(() => { calculerProfil(); couche && couche.req && couche.req(); }, 60); });
-    chart.subscribeClick(p => { if (!p || p.time == null) return; if (S.modeAncre) { ancrerEn(p.time * 1000); return; } montrerInfoFleche(p.time * 1000, p.point); });
-    chart.subscribeCrosshairMove(p => { if (!p || p.time == null) { if (S.info && !S.infoFixe) $('[data-info]').hidden = true; return; } });
+    chart.subscribeClick(p => { if (!p || p.time == null) return; if (S.modeAncre) { ancrerEn(p.time * 1000); return; } if (infoSurCase(p.point, p.time * 1000, true)) return; montrerInfoFleche(p.time * 1000, p.point); });
+    chart.subscribeCrosshairMove(p => { const boite = $('[data-info]'); if (!p || p.time == null || !p.point) { if (S.survol) { S.survol = false; boite.hidden = true; } return; } if (S.modeAncre) return; if (infoSurCase(p.point, p.time * 1000, false)) S.survol = true; else if (S.survol) { S.survol = false; boite.hidden = true; } });
   }
 
   /* ───── primitive : carte de chaleur (fond), profil, volume / delta par bougie, empreinte (premier plan) ───── */
   function creerCouche() {
     const o = { req: null, attached(p) { this.req = p.requestUpdate; }, detached() { this.req = null; }, updateAllViews() { /* tout est lu au dessin */ },
       paneViews() { return [{ zOrder: () => 'bottom', renderer: () => ({ draw() { /* rien */ }, drawBackground: cible => cible.useBitmapCoordinateSpace(sc => { try { dessinerChaleur(sc); } catch (e) { /* ne casse pas le graphique */ } }) }) },
-        { zOrder: () => 'top', renderer: () => ({ draw: cible => cible.useBitmapCoordinateSpace(sc => { try { dessinerProfil(sc); dessinerBougies(sc); } catch (e) { /* idem */ } }) }) }]; } };
+        { zOrder: () => 'top', renderer: () => ({ draw: cible => cible.useBitmapCoordinateSpace(sc => { try { dessinerProfil(sc); dessinerReaction(sc); dessinerBougies(sc); } catch (e) { /* idem */ } }) }) }]; } };
     return o;
   }
   const yDe = p => sBou.priceToCoordinate(p), xDe = t => chart.timeScale().timeToCoordinate(temps(t));
@@ -93,6 +104,18 @@ export async function monterVolume({ racine, T = {}, parler = () => {}, idDefaut
       const x0 = xDe(L[i].t), x1 = i + 1 < L.length ? xDe(L[i + 1].t) : xDe(L[i].t) + 4; if (x0 == null || x1 == null) continue;
       for (const [cote, lst] of [['b', L[i].bids], ['a', L[i].asks]]) for (const [p, q] of lst) { const y = yDe(p); if (y == null) continue; c.fillStyle = (cote === 'b' ? 'rgba(95,184,148,' : 'rgba(216,106,106,') + Math.min(0.5, 0.55 * q / max).toFixed(3) + ')'; c.fillRect(x0 * hr, (y - 2) * vr, Math.max(2, (x1 - x0) * hr), 4 * vr); }
     }
+  }
+  /* niveaux de réaction : lignes ou bandes fines cyan, épaisseur et opacité selon la force ; étiquette « Réaction ×4 · 3 612 · Daily » */
+  function dessinerReaction(sc) {
+    if (opts.reaction === false || !S.reaction.length) return; const c = sc.context, hr = sc.horizontalPixelRatio, vr = sc.verticalPixelRatio, W = sc.bitmapSize.width;
+    c.font = `${10 * hr}px ui-monospace, Consolas, monospace`; c.textAlign = 'left';
+    for (const n of S.reaction) {
+      const y = yDe(n.prix), yh = yDe(n.haut), yb = yDe(n.bas); if (y == null) continue; const fr = n.forceRel || 0.5, epais = Math.max(1, (1 + 0.9 * fr) * hr), bande = yh != null && yb != null ? Math.max(0, (yb - yh) * vr) : 0;
+      if (bande > 2 * vr) { c.fillStyle = `rgba(39,211,230,${(0.05 + 0.09 * fr).toFixed(3)})`; c.fillRect(0, yh * vr, W, bande); }
+      c.strokeStyle = `rgba(39,211,230,${(0.3 + 0.6 * fr).toFixed(3)})`; c.lineWidth = epais; c.beginPath(); c.moveTo(0, y * vr); c.lineTo(W, y * vr); c.stroke();
+      const txt = etiquetteNiveau(n, v => nf(v, dec(S.actif))); c.fillStyle = `rgba(39,211,230,${(0.65 + 0.3 * fr).toFixed(3)})`; c.fillText(txt, 8 * hr, y * vr - 4 * vr);
+    }
+    c.textAlign = 'start';
   }
   function dessinerProfil(sc) {
     const P = S.prof; if (!opts.profil || !P) return; const c = sc.context, hr = sc.horizontalPixelRatio, vr = sc.verticalPixelRatio, W = sc.bitmapSize.width, maxL = Math.min(W * 0.22, 190 * hr); let mv = 0; for (const b of P.bins) mv = Math.max(mv, b.v); if (!(mv > 0)) return;
@@ -107,20 +130,29 @@ export async function monterVolume({ racine, T = {}, parler = () => {}, idDefaut
     for (const h of P.hvn.slice(0, 5)) { const y = yDe(h.prix); if (y == null) continue; c.fillStyle = 'rgba(241,211,79,.9)'; c.beginPath(); c.moveTo(xFin - maxL - 2 * hr, y * vr); c.lineTo(xFin - maxL - 9 * hr, (y - 4) * vr); c.lineTo(xFin - maxL - 9 * hr, (y + 4) * vr); c.fill(); }
     for (const l of P.lvn.slice(0, 5)) { const y = yDe(l.prix); if (y == null) continue; c.strokeStyle = 'rgba(160,170,180,.45)'; c.setLineDash([2 * hr, 4 * hr]); c.beginPath(); c.moveTo(xFin - maxL, y * vr); c.lineTo(xFin, y * vr); c.stroke(); c.setLineDash([]); }
   }
+
+  /* empreinte dans les bougies (v4.1) : le dessin est dans footprint-rendu.js ; ici l'environnement et la bascule du style des bougies natives (transparentes quand l'empreinte est affichée : corps et mèches sont redessinés en fin contour) */
+  const envFootprint = () => ({ chart, opts, bars: S.bars, actif: S.actif, unite: S.unite, store: S.fp, live: S.live, reaction: S.reaction, xDe, yDe, rendu: S.rendu, demanderHeures: hs => { if (S.ratt) S.ratt.demander(hs); }, rattrapageEnCours: () => !!(S.ratt && (S.ratt.etat.enCours || S.ratt.fileLongueur())) });
   function dessinerBougies(sc) {
-    if (!opts.empreinte || !S.bars.length) return; const ts = chart.timeScale(), esp = ts.options().barSpacing; if (esp < 30) return;
-    const c = sc.context, hr = sc.horizontalPixelRatio, vr = sc.verticalPixelRatio, r = ts.getVisibleRange(); if (!r) return; const a = parId[S.actif], peutEmpreinte = a.live && S.unite === 'H1' && esp >= 70;
-    c.textAlign = 'center'; c.font = `${(esp >= 60 ? 11 : 10) * hr}px ui-monospace, monospace`;
-    for (const b of S.bars) {
-      const tt = temps(b.t); if (tt < r.from - 2 || tt > r.to + 2) continue; const x = xDe(b.t), yH = yDe(b.h), yL = yDe(b.l); if (x == null || yH == null) continue;
-      const d = deltaBarre(b);
-      if (peutEmpreinte && S.emp.a(b.t)) {
-        for (const n of S.emp.niveaux(b.t)) { const y = yDe(n.prix); if (y == null) continue; c.fillStyle = n.achat >= n.vente ? 'rgba(95,184,148,.9)' : 'rgba(216,106,106,.9)'; c.fillText(`${compact(n.vente)}×${compact(n.achat)}`, x * hr, y * vr + 3 * vr); }
-      } else {
-        c.fillStyle = 'rgba(190,200,208,.85)'; c.fillText('V ' + compact(b.v || 0), x * hr, (yH - 14) * vr); c.fillStyle = d >= 0 ? 'rgba(95,184,148,.95)' : 'rgba(216,106,106,.95)'; c.fillText('Δ ' + sgn(d), x * hr, (yH - 3) * vr);
-      }
-    }
-    c.textAlign = 'start';
+    if (!opts.empreinte || !S.bars.length || !S.fp) { basculerBougies(false); return; }
+    const env = envFootprint(); dessinerFootprint(sc, env); S.rendu = env.rendu; S.envRendu = env; collecterEmpiles(env.rendu); basculerBougies(!!(env.rendu && env.rendu.actif));
+  }
+  function collecterEmpiles(r) {
+    if (!r || !r.lignes) return; let neuf = 0;
+    for (const [t, L] of r.lignes) if (L.A && L.pas && !(L.res && L.res.partielle)) for (const z of L.A.zones) { const k = t + '|' + z.prixBas + '|' + L.pas; if (!S.zonesEmp.has(k)) { S.zonesEmp.set(k, { prixBas: z.prixBas, prixHaut: z.prixHaut + L.pas, cote: z.cote, t }); neuf++; } }
+    if (S.zonesEmp.size > 500) for (const k of [...S.zonesEmp.keys()].slice(0, S.zonesEmp.size - 500)) S.zonesEmp.delete(k);
+    if (neuf && opts.reaction !== false) { clearTimeout(S.tReac); S.tReac = setTimeout(() => { calculerReaction(); couche && couche.req && couche.req(); majDroite(); }, 800); }
+  }
+  function basculerBougies(fp) {
+    if (S.bougiesFp === fp) return; S.bougiesFp = fp;
+    setTimeout(() => { try { sBou.applyOptions(fp ? { upColor: 'rgba(0,0,0,0)', downColor: 'rgba(0,0,0,0)', wickUpColor: 'rgba(0,0,0,0)', wickDownColor: 'rgba(0,0,0,0)', borderVisible: false } : { upColor: COUL.haut, downColor: COUL.bas, wickUpColor: COUL.haut, wickDownColor: COUL.bas, borderVisible: false }); if (!S.ech || S.ech.estAuto()) chart.priceScale('right').applyOptions({ autoScale: true }); } catch (e) { /* graphique fermé */ } }, 0);
+  }
+  /* survol (souris) ou toucher d'une case : prix, acheteurs, vendeurs, delta, transactions */
+  function infoSurCase(point, tMs, persister) {
+    if (!S.envRendu || !S.envRendu.rendu || !S.envRendu.rendu.actif || !point) return false;
+    const prixPt = sBou.coordinateToPrice(point.y); if (prixPt == null) return false; const html = infoCase(S.envRendu, tMs, prixPt, v => prix(S.actif, v)); if (!html) return false;
+    const boite = $('[data-info]'); boite.innerHTML = html; boite.hidden = false; boite.style.left = Math.min(Math.max(8, point.x + 16), Math.max(8, zoneGraph.clientWidth - 280)) + 'px'; boite.style.top = Math.max(8, point.y + 16) + 'px';
+    clearTimeout(S.infoT); if (persister) S.infoT = setTimeout(() => { boite.hidden = true; }, 7000); return true;
   }
 
   /* ───── calculs affichés ───── */
@@ -153,7 +185,7 @@ export async function monterVolume({ racine, T = {}, parler = () => {}, idDefaut
     for (const s of S.seriesVwap) { try { chart.removeSeries(s); } catch (e) { /* déjà retirée */ } } S.seriesVwap = [];
     for (const l of S.lignes) { try { sBou.removePriceLine(l); } catch (e) { /* déjà retirée */ } } S.lignes = [];
     const ajouterVwap = (i0, couleur, bandes, titre) => {
-      if (i0 < 0 || i0 >= B.length) return; const V = vwapAncre(B, i0, { bandes }), mk = (cle, coul, ep, st) => { const s = chart.addSeries(LW.LineSeries, { color: coul, lineWidth: ep, lineStyle: st, priceLineVisible: false, lastValueVisible: false, crosshairMarkerVisible: false, title: cle === 'v' ? titre : '' }, 0); s.setData(V.map((x, k) => ({ time: temps(B[i0 + k].t), value: cle === 'v' ? x.vwap : x.bandes[cle] })).filter(p => p.value != null)); S.seriesVwap.push(s); };
+      if (i0 < 0 || i0 >= B.length) return; const V = vwapAncre(B, i0, { bandes }), mk = (cle, coul, ep, st) => { const s = chart.addSeries(LW.LineSeries, { color: coul, lineWidth: ep, lineStyle: st, priceLineVisible: false, lastValueVisible: false, crosshairMarkerVisible: false, title: cle === 'v' ? titre : '', autoscaleInfoProvider: horsEchelleFp }, 0); s.setData(V.map((x, k) => ({ time: temps(B[i0 + k].t), value: cle === 'v' ? x.vwap : x.bandes[cle] })).filter(p => p.value != null)); S.seriesVwap.push(s); };
       mk('v', couleur, 2, 0); for (const k of bandes) { mk('+' + k, couleur + (k === 1 ? '99' : '55'), 1, 2); mk('-' + k, couleur + (k === 1 ? '99' : '55'), 1, 2); }
     };
     if (opts.vwap) { ajouterVwap(indexAncrePeriode(B, 'semaine'), '#8fd0e3', [1], 'VWAP sem.'); ajouterVwap(indexAncrePeriode(B, 'mois'), '#c9b27a', [1], 'VWAP mois'); }
@@ -176,9 +208,16 @@ export async function monterVolume({ racine, T = {}, parler = () => {}, idDefaut
     }
   }
   /* flèches : Volume (à la clôture) + MA200 ; la dernière bougie n'est jamais évaluée tant qu'elle n'est pas close */
+  /* niveaux de réaction (v4.1) : pivots suivis d'un mouvement ≥ 1 ATR, confluence avec HVN, POC nus, déséquilibres empilés de l'empreinte et absorptions */
+  function calculerReaction() {
+    S.reaction = []; S.reactionAtr = null; const B = S.bars; if (opts.reaction === false || B.length < 60) return;
+    const clos = B.filter(b => b.t + PAS_UNITE[S.unite] <= Date.now()); let hvn = []; try { const P = profil(clos.slice(-250)); hvn = P ? P.hvn.map(h => h.prix) : []; } catch (e) { hvn = []; }
+    const nus = ['semaine', 'mois'].flatMap(p => pocsNus(B, p, { max: 3 }).map(n => n.prix)), absorptions = (S.fleches || []).filter(f => f.type === 'vol-absorption' && !/^Réaction/.test(f.nomNiveau || '')).map(f => f.niveau);   // les absorptions repérées SUR un niveau de réaction ne le renforcent pas (pas de cercle vicieux)
+    try { const r = niveauxReaction(clos, { unite: S.unite, volume: { hvn, nus, empiles: [...S.zonesEmp.values()], absorptions } }); S.reaction = r.niveaux; S.reactionAtr = r.atr; } catch (e) { S.reaction = []; }
+  }
   function calculerFleches() {
-    const B = S.bars, now = Date.now(), pas = PAS_UNITE[S.unite], closes = B.filter(b => b.t + pas <= now);
-    S.fleches = closes.length >= 80 ? flechesVolume(closes, { unite: S.unite }) : [];
+    const B = S.bars, now = Date.now(), pas = PAS_UNITE[S.unite], closes = B.filter(b => b.t + pas <= now); calculerReaction();
+    S.fleches = closes.length >= 80 ? flechesVolume(closes, { unite: S.unite, niveauxReac: S.reaction }) : [];
     let ma = []; try { if (closes.length >= 205 && opts.ma200) ma = analyserUnite(closes, S.unite === 'H1' ? 'H1' : S.unite, { maintenant: now }).fleches; } catch (e) { ma = []; } S.flechesMA = ma;
     const M = [];
     if (opts.fleches) for (const f of S.fleches) if (types[f.type] !== false || true) M.push({ time: temps(f.t), position: f.dir > 0 ? 'belowBar' : 'aboveBar', color: f.dir > 0 ? '#4fd18b' : '#ef5f5f', shape: f.dir > 0 ? 'arrowUp' : 'arrowDown', size: 1, id: 'v' + f.type + f.t });
@@ -208,23 +247,25 @@ export async function monterVolume({ racine, T = {}, parler = () => {}, idDefaut
   }
 
   /* ───── panneau de droite : carnet, déséquilibre, murs, gros flux ───── */
+  let tDessin = 0; const demanderDessin = () => { if (!tDessin) tDessin = setTimeout(() => { tDessin = 0; couche && couche.req && couche.req(); }, 350); };
   let rafDroite = 0; const majDroite = () => { if (!rafDroite) rafDroite = requestAnimationFrame(() => { rafDroite = 0; dessinerDroite(); }); };
   function dessinerDroite() {
     const a = parId[S.actif]; let h = '';
     if (!a.carnet) {
       const P = S.prof, rows = P ? [...P.bins].sort((x, y) => y.v - x.v).slice(0, 12).sort((x, y) => y.p - x.p) : [], mx = rows.length ? Math.max(...rows.map(r => r.v)) : 1;
-      h = `<h4>Carnet</h4><p class="tpv-doux">Carnet non disponible gratuitement pour cet actif (${esc(a.nom)}). À la place : le volume par niveau de prix de la zone visible.</p><h4>Volume par niveau de prix</h4><div class="tpv-lad">${rows.map(r => `<div class="tpv-ligne"><i style="width:${Math.round(100 * r.v / mx)}%"></i><span>${prix(S.actif, r.p)}</span><b>${compact(r.v)}</b></div>`).join('') || '<p class="tpv-doux">—</p>'}</div>`;
+      h = `<h4>Carnet</h4><p class="tpv-doux">Carnet non disponible gratuitement pour cet actif (${esc(a.nom)}). À la place : le volume par niveau de prix de la zone visible.</p><h4>Volume par niveau de prix</h4><div class="tpv-lad">${rows.map(r => `<div class="tpv-ligne${niveauProche(S.reaction, r.p, S.reactionAtr, 0.1) ? ' tpv-reac' : ''}"><i style="width:${Math.round(100 * r.v / mx)}%"></i><span>${prix(S.actif, r.p)}</span><b>${compact(r.v)}</b></div>`).join('') || '<p class="tpv-doux">—</p>'}</div>`;
     } else {
       const bk = S.book, e = S.etatFlux[S.parSource || opts.carnetSource] || S.etatFlux.Binance || {};
       if (!bk) h = `<h4>Carnet ${esc(opts.carnetSource)}</h4><p class="tpv-doux">${e.etat === 'erreur' ? 'Flux injoignable : ' + esc(e.raison || '') : 'Connexion au carnet…'}</p>`;
       else {
         const n = 12, A = bk.asks.slice(0, n).reverse(), Bd = bk.bids.slice(0, n), mx = Math.max(...A.map(x => x[1]), ...Bd.map(x => x[1]), 1), M = new Map(murs(bk).map(m => [m.prix, m])), d10 = desequilibre(bk, 10), d25 = desequilibre(bk, 25);
-        const li = (x, c) => `<div class="tpv-ligne ${c}${M.has(x[0]) ? ' tpv-mur' : ''}"><i style="width:${Math.round(100 * x[1] / mx)}%"></i><span>${prix(S.actif, x[0])}</span><b>${compact(x[1])}</b></div>`;
+        const li = (x, c) => `<div class="tpv-ligne ${c}${M.has(x[0]) ? ' tpv-mur' : ''}${niveauProche(S.reaction, x[0], S.reactionAtr, 0.1) ? ' tpv-reac' : ''}"><i style="width:${Math.round(100 * x[1] / mx)}%"></i><span>${prix(S.actif, x[0])}</span><b>${compact(x[1])}</b></div>`;
         const jauge = (d, nom) => d ? `<div class="tpv-jauge" title="${nom} niveaux : acheteurs ${compact(d.acheteurs)} · vendeurs ${compact(d.vendeurs)}"><span>${nom}</span><i><u style="width:${Math.round(d.part * 100)}%"></u></i><b class="${d.ratio >= 0 ? 'tpv-h' : 'tpv-b'}">${d.ratio >= 0 ? '+' : '−'}${nf(Math.abs(d.ratio) * 100, 0)} %</b></div>` : '';
         h = `<h4>Carnet ${esc(opts.carnetSource)} <small>${esc(ageDonnee(bk.t))}</small></h4>${jauge(d10, '10')}${jauge(d25, '25')}<div class="tpv-lad">${A.map(x => li(x, 'tpv-ask')).join('')}<div class="tpv-mid">${prix(S.actif, (bk.asks[0][0] + bk.bids[0][0]) / 2)}</div>${Bd.map(x => li(x, 'tpv-bid')).join('')}</div>${M.size ? `<p class="tpv-doux">Murs (≥ 4 × la médiane) : ${[...M.values()].slice(0, 4).map(m => `${m.cote === 'achat' ? 'achat' : 'vente'} ${prix(S.actif, m.prix)} (${compact(m.qte)})`).join(' · ')}</p>` : ''}`;
       }
       const g = S.gros.liste().slice(0, 10); h += `<h4>Gros flux <small>${g.length ? 'seuil ≈ ' + compact(g[0].seuil) : 'en attente'}</small></h4><div class="tpv-flux">${g.map(x => `<div class="${x.cote === 'achat' ? 'tpv-h' : 'tpv-b'}"><span>${tH.format(new Date(x.t))}</span><b>${x.cote === 'achat' ? 'ACHAT' : 'VENTE'}</b><span>${compact(x.qte)} @ ${prix(S.actif, x.prix)}</span></div>`).join('') || '<p class="tpv-doux">Aucune grosse transaction pour le moment.</p>'}</div>`;
     }
+    const RN = S.reaction; h += `<h4 class="tpv-h4-reac">Niveaux de réaction</h4>${RN.length ? `<ul class="tpv-niv tpv-niv-reac">${RN.map(n => `<li><b>${prix(S.actif, n.prix)}</b> <small>${n.cote === 'resistance' ? 'résistance' : 'support'} · ×${n.reactions} réactions · force ${nf(n.forceRel * 100, 0)} % · ${NOM_U[n.unite] || n.unite}${n.sources.length ? ' · ' + esc(n.sources.join(', ')) : ''}</small></li>`).join('')}</ul>` : '<p class="tpv-doux">Aucun niveau net (au moins 2 rebonds suivis d’un ATR).</p>'}`;
     const N = S.niveaux; h += `<h4>Supports / résistances (volume)</h4>${N.length ? `<ul class="tpv-niv">${N.map(n => `<li class="${n.cote === 'resistance' ? 'tpv-b' : 'tpv-h'}"><b>${prix(S.actif, n.prix)}</b> <small>${n.cote === 'resistance' ? 'résistance' : 'support'} · force ${nf(n.force, 1)} · ${n.reactions} réactions · ${esc(n.sources.slice(0, 3).join(', '))}</small></li>`).join('')}</ul>` : '<p class="tpv-doux">Pas assez de bougies.</p>'}`;
     const F = S.fleches.slice(-4).reverse(); h += `<h4>Dernières flèches</h4>${F.length ? `<ul class="tpv-niv">${F.map(f => `<li class="${f.dir > 0 ? 'tpv-h' : 'tpv-b'}">${f.dir > 0 ? '▲' : '▼'} ${esc(f.libelle)} <small>${tFr.format(new Date(f.t))}</small></li>`).join('')}</ul>` : '<p class="tpv-doux">Aucune flèche Volume pour le moment (clôtures seulement).</p>'}`;
     zoneDroite.innerHTML = h;
@@ -232,26 +273,37 @@ export async function monterVolume({ racine, T = {}, parler = () => {}, idDefaut
   const majPanneauNiveauxTexte = () => { if (!S.charge) return; majDroite(); };
 
   /* ───── badge, note, état ───── */
+  function texteEmpreinte() {
+    const a = parId[S.actif]; if (!a.live) return 'Empreinte : ' + TEXTE_ABSENT + ' (pas de transactions gratuites avec le côté de l’agresseur pour ' + a.nom + ') ; seul le volume par bougie est affiché.';
+    const I = S.fp && S.fp.info(S.actif); if (!I) return 'Empreinte : ' + (S.fp && S.fp.erreurIndex() ? 'archive injoignable (' + S.fp.erreurIndex() + ')' : 'archive en cours de chargement') + '.';
+    const live = S.live && S.live.depuis() != null ? ' Jour en cours : en direct' + (S.live.partielle('H1', Math.floor(Date.now() / 3600e3) * 3600e3) ? ' depuis ' + tH.format(new Date(S.live.depuis())) + ' (partielle avant)' : ' (heure complète)') : '';
+    return 'Empreinte : archive Binance du ' + I.debut + ' au ' + I.dernier + ' (' + I.jours + ' jours' + (I.trous ? ', ' + I.trous + ' manquants' : '') + ') ; avant : ' + TEXTE_ABSENT + '.' + live;
+  }
   function majBadge() {
     const a = parId[S.actif], d = S.donnees; $('[data-badge]').textContent = badgeSource(a, S.donnees ? S.donnees.source : 'reel') + (d ? ' · ' + ageDonnee(d.t) : '');
     const flux = Object.entries(S.etatFlux).map(([n, e]) => `${n} : ${e.etat === 'connecte' ? 'en direct' : e.etat === 'erreur' ? 'injoignable' : e.etat}`).join(' · ');
-    $('[data-note]').innerHTML = esc(`${NOM_U[S.unite]} · ${S.bars.length} bougies. ${a.live ? '' : 'Pas de flux direct gratuit pour cet actif : données différées (' + ageDonnee(d && d.t) + '). '}${flux ? 'Flux : ' + flux + '. ' : ''}`) + 'Delta ' + (d && d.deltaReel ? 'réel (côté de l’agresseur).' : 'estimé depuis la bougie (le volume de cette source n’a pas de côté).') + ' Lecture seule : aucun ordre. L’historique de transactions gratuit est court : l’empreinte n’existe que pour les bougies vues en direct.';
+    $('[data-note]').innerHTML = esc(`${NOM_U[S.unite]} · ${S.bars.length} bougies. ${a.live ? '' : 'Pas de flux direct gratuit pour cet actif : données différées (' + ageDonnee(d && d.t) + '). '}${flux ? 'Flux : ' + flux + '. ' : ''}`) + 'Delta ' + (d && d.deltaReel ? 'réel (côté de l’agresseur).' : 'estimé depuis la bougie (le volume de cette source n’a pas de côté).') + ' Lecture seule : aucun ordre. ' + texteEmpreinte();
     $('[data-ligne-source-volume]').hidden = S.actif !== 'or';
   }
 
   /* ───── flux en direct ───── */
-  let fluxB = null, fluxK = null, kline = null;
-  function arreterFlux() { for (const f of [fluxB, fluxK]) try { f && f.fermer(); } catch (e) { /* déjà fermé */ } fluxB = fluxK = null; S.etatFlux = {}; S.book = null; S.chaleur.vider(); S.gros = creerFlux(); S.emp.effacer(); }
+  let fluxB = null, fluxP = null, fluxK = null, kline = null;
+  function arreterFlux() { for (const f of [fluxB, fluxP, fluxK]) try { f && f.fermer(); } catch (e) { /* déjà fermé */ } fluxB = fluxP = fluxK = null; S.etatFlux = {}; S.book = null; S.chaleur.vider(); S.gros = creerFlux(); S.live = null; if (S.ratt) S.ratt.arreter(); S.ratt = null; }
   function demarrerFlux() {
     arreterFlux(); const a = parId[S.actif]; if (!a.live || !S.ouvert) { majBadge(); return; }
-    const pas = pasEmpreinte(S.bars.length ? S.bars[S.bars.length - 1].c : 1); S.emp = creerEmpreinte({ pas }); const iv = { H1: '1h', H4: '4h', J: '1d' }[S.unite], durable = opts.carnetSource, sur = (src, m) => {
+    S.live = creerLive(FIN_FOOTPRINT[S.actif] || 1); const iv = { H1: '1h', H4: '4h', J: '1d' }[S.unite], durable = opts.carnetSource, sur = (src, m) => {
       if (!m) return;
       if (m.type === 'carnet') { if (src !== opts.carnetSource) return; S.book = m; S.chaleur.ajouter(m); majDroite(); couche && couche.req && couche.req(); }
       else if (m.type === 'trade') {
-        if (src !== opts.carnetSource) return; const pasB = PAS_UNITE[S.unite], tb = Math.floor(m.t / PAS_UNITE.H1) * PAS_UNITE.H1; S.emp.ajouter(tb, m.prix, m.qte, m.cote); if (S.gros.ajouter(m, seuilGrosses)) majDroite();
+        if (src === 'Binance' && S.live) {   // l'empreinte suit TOUJOURS Binance (même volume que l'archive), quel que soit le carnet choisi
+          S.live.ajouterTrade(m); demanderDessin();
+          if (!S.ratt && a.binance) { S.ratt = creerRattrapage(S.live, a.binance, { surChange: demanderDessin }); S.ratt.demander([Math.floor(m.t / 3600e3) * 3600e3]); }
+        }
+        if (src !== opts.carnetSource) return; if (S.gros.ajouter(m, seuilGrosses)) majDroite();
       } else if (m.type === 'bougie' && src === 'Binance' && m.intervalle === iv) mettreAJourBougie(m.bougie, m.close);
     };
-    const u = urlBinance(S.actif, iv); if (u) fluxB = ouvrirFlux(u, { surMessage: msg => sur('Binance', parseBinance(msg)), surEtat: e => { S.etatFlux.Binance = e; majBadge(); } });
+    const u = urlsBinance(S.actif, iv);
+    if (u) { fluxB = ouvrirFlux(u.marche, { surMessage: msg => sur('Binance', parseBinance(msg)), surEtat: e => { S.etatFlux.Binance = e; majBadge(); } }); fluxP = ouvrirFlux(u.public, { surMessage: msg => sur('Binance', parseBinance(msg)), surEtat: e => { S.etatFlux['Binance carnet'] = e; majBadge(); } }); }
     const abo = abonnementKraken(S.actif); if (abo.length && durable === 'Kraken') { S.krakenBook = creerCarnetKraken(); fluxK = ouvrirFlux(KRAKEN_WS, { abonner: ws => abo.forEach(x => ws.send(JSON.stringify(x))), surMessage: msg => { sur('Kraken', S.krakenBook.appliquer(msg)); sur('Kraken', parseKrakenTrade(msg)); }, surEtat: e => { S.etatFlux.Kraken = e; majBadge(); } }); }
   }
   function mettreAJourBougie(b, close) {
@@ -267,7 +319,7 @@ export async function monterVolume({ racine, T = {}, parler = () => {}, idDefaut
     const n = ++S.seq; S.charge = false; S.erreur = null; $('[data-att]').hidden = false; $('[data-att]').textContent = 'Chargement du volume ' + parId[S.actif].nom + ' ' + NOM_U[S.unite] + '…'; majBadge();
     try {
       const r = await chargerBarres(S.actif, S.unite, { source: S.actif === 'or' ? opts.sourceVolume : 'reel' }); if (n !== S.seq) return;
-      S.donnees = r; S.bars = r.bougies; S.charge = true; $('[data-att]').hidden = true; creerGraphique(); peindre(recadrer); majBadge(); demarrerFlux();
+      S.zonesEmp.clear(); S.donnees = r; S.bars = r.bougies; S.charge = true; $('[data-att]').hidden = true; creerGraphique(); peindre(recadrer); majBadge(); demarrerFlux();
     } catch (e) {
       if (n !== S.seq) return; S.erreur = String(e && e.message || e); S.bars = []; $('[data-att]').hidden = false; $('[data-att]').innerHTML = `Données de volume indisponibles : ${esc(S.erreur)} <button type="button" data-reessayer>Réessayer</button>`; zoneDroite.innerHTML = ''; majBadge();
     }
@@ -289,8 +341,8 @@ export async function monterVolume({ racine, T = {}, parler = () => {}, idDefaut
   el.addEventListener('change', ev => {
     const t = ev.target;
     if (t.matches('[data-actif]')) { S.actif = t.value; ecrireLS(CLE.actif, S.actif); charger(); return; }
-    if (t.matches('[data-opt]')) { opts[t.dataset.opt] = t.checked; ecrireLS(CLE.opts, opts); if (t.dataset.opt === 'ma200' || t.dataset.opt === 'fleches' || t.dataset.opt === 'vwap' || t.dataset.opt === 'nus' || t.dataset.opt === 'niveaux' || t.dataset.opt === 'murs' || t.dataset.opt === 'dessins') peindre(false); else couche && couche.req && couche.req(); return; }
-    if (t.matches('[data-opt-select]')) { opts[t.dataset.optSelect] = t.value; ecrireLS(CLE.opts, opts); if (t.dataset.optSelect === 'carnetSource') { S.book = null; demarrerFlux(); majDroite(); } else if (t.dataset.optSelect === 'sourceVolume') charger(); else peindre(false); return; }
+    if (t.matches('[data-opt]')) { opts[t.dataset.opt] = t.checked; ecrireLS(CLE.opts, opts); if (t.dataset.opt === 'log') { if (S.ech) S.ech.journal(t.checked); return; } if (t.dataset.opt === 'ma200' || t.dataset.opt === 'fleches' || t.dataset.opt === 'vwap' || t.dataset.opt === 'nus' || t.dataset.opt === 'niveaux' || t.dataset.opt === 'murs' || t.dataset.opt === 'dessins') peindre(false); else couche && couche.req && couche.req(); return; }
+    if (t.matches('[data-opt-select]')) { opts[t.dataset.optSelect] = t.value; ecrireLS(CLE.opts, opts); if (t.dataset.optSelect === 'carnetSource') { S.book = null; demarrerFlux(); majDroite(); } else if (t.dataset.optSelect === 'sourceVolume') charger(); else if (t.dataset.optSelect === 'empMode') couche && couche.req && couche.req(); else peindre(false); return; }
     if (t.matches('[data-type]')) { types[t.dataset.type] = t.checked; ecrireLS(CLE.types, types); }
   });
   /* analyse parlée : 4 à 5 phrases (POC, zone de valeur, carnet, murs proches, dernière flèche) */
@@ -310,9 +362,14 @@ export async function monterVolume({ racine, T = {}, parler = () => {}, idDefaut
     if (o) { if (actif && parId[actif]) { S.actif = actif; ecrireLS(CLE.actif, actif); } if (unite && UNITES_VOLUME.includes(unite)) { S.unite = unite; ecrireLS(CLE.unite, unite); } synchroUI(); if (!S.charge || (actif && S.donnees == null)) charger(); else { demarrerFlux(); majBadge(); peindre(false); } }
     else arreterFlux();
   }
+  S.fp = creerStoreFootprint({ surChange: () => { couche && couche.req && couche.req(); majBadge(); } }); S.fp.chargerIndex();
   synchroUI(); majBadge();
   return { ouvrir: ouvrirMode, fermer: () => ouvrirMode(false), estOuvert: () => S.ouvert, analyse, pocsNus: pocsNusTexte, ancrer: () => { S.modeAncre = true; $('[data-ancrer]').setAttribute('aria-pressed', 'true'); zoneGraph.classList.add('tpv-ancre'); return 'Touche la bougie où ancrer le VWAP.'; },
+    reaction: () => (!S.charge || !S.bars.length ? `Le terminal Volume de ${parId[S.actif].nom} n’a pas encore de données.` : (calculerReaction(), phraseNiveaux(S.reaction, NOM_PARLE[S.actif] || parId[S.actif].nom, S.bars[S.bars.length - 1].c, v => prix(S.actif, v)))),
+    echelle: () => (S.ech ? S.ech.etat() : null), echelleAuto: () => { if (S.ech) S.ech.auto(); }, echelleV: (f, y) => { if (S.ech) S.ech.zoomerV(f, y == null ? zoneGraph.clientHeight * 0.4 : y); },
+    zoomer: (n = 8, decalage = 0) => { const L = S.bars.length; if (!chart || !L) return false; sauteRange = false; chart.timeScale().setVisibleLogicalRange({ from: L - n - decalage, to: L + 1 - decalage }); return true; },
+    definirOpt: (k, v) => { opts[k] = v; ecrireLS(CLE.opts, opts); synchroUI(); peindre(false); },
     ancrerDerniere: () => { if (S.bars.length) ancrerEn(S.bars[S.bars.length - 1].t); return 'VWAP ancré sur la dernière bougie.'; }, definir: ({ actif, unite }) => { if (actif && parId[actif]) { S.actif = actif; ecrireLS(CLE.actif, actif); } if (unite && UNITES_VOLUME.includes(unite)) { S.unite = unite; ecrireLS(CLE.unite, unite); } synchroUI(); return charger(); },
-    etat: () => ({ ouvert: S.ouvert, actif: S.actif, unite: S.unite, bougies: S.bars.length, charge: S.charge, erreur: S.erreur, poc: S.prof && S.prof.poc.prix, val: S.prof && S.prof.val, vah: S.prof && S.prof.vah, hvn: S.prof ? S.prof.hvn.length : 0, niveaux: S.niveaux.length, fleches: S.fleches.length, flechesMA: S.flechesMA.length, deltaReel: S.donnees && S.donnees.deltaReel, source: S.donnees && S.donnees.source,
-      flux: Object.fromEntries(Object.entries(S.etatFlux).map(([k, v]) => [k, v.etat])), carnet: !!S.book, murs: S.book ? murs(S.book).length : 0, gros: S.gros.liste().length, badge: $('[data-badge]').textContent, empreintes: S.emp.nBougies(), panneaux: chart ? chart.panes().length : 0, lignes: S.lignes.length, series: S.seriesVwap.length }) };
+    etat: () => ({ ouvert: S.ouvert, actif: S.actif, unite: S.unite, bougies: S.bars.length, charge: S.charge, erreur: S.erreur, poc: S.prof && S.prof.poc.prix, val: S.prof && S.prof.val, vah: S.prof && S.prof.vah, hvn: S.prof ? S.prof.hvn.length : 0, niveaux: S.niveaux.length, reaction: S.reaction.map(n => ({ prix: n.prix, reactions: n.reactions, force: n.force, forceRel: n.forceRel, sources: n.sources, unite: n.unite })), empiles: S.zonesEmp.size, fleches: S.fleches.length, flechesMA: S.flechesMA.length, deltaReel: S.donnees && S.donnees.deltaReel, source: S.donnees && S.donnees.source,
+      flux: Object.fromEntries(Object.entries(S.etatFlux).map(([k, v]) => [k, v.etat])), carnet: !!S.book, murs: S.book ? murs(S.book).length : 0, gros: S.gros.liste().length, badge: $('[data-badge]').textContent, empreintes: S.live ? S.live.nHeures() : 0, fp: { index: !!(S.fp && S.fp.indexPret()), erreur: S.fp && S.fp.erreurIndex(), info: S.fp && S.fp.info(S.actif) && { debut: S.fp.info(S.actif).debut, dernier: S.fp.info(S.actif).dernier }, rendu: S.rendu ? { actif: S.rendu.actif, esp: Math.round(S.rendu.esp), pas: S.rendu.pas, px: S.rendu.px, bougies: S.rendu.lignes ? [...S.rendu.lignes.values()].filter(x => x.A).length : 0, sansEmpreinte: S.rendu.lignes ? [...S.rendu.lignes.values()].filter(x => !x.A).length : 0, partielles: S.rendu.lignes ? [...S.rendu.lignes.values()].filter(x => x.res && x.res.partielle).length : 0 } : null, chargement: S.fp ? S.fp.chargement() : 0, rattrapage: S.ratt ? { ...S.ratt.etat, file: S.ratt.fileLongueur(), heures: S.live ? S.live.nCompletes() : 0 } : null }, panneaux: chart ? chart.panes().length : 0, lignes: S.lignes.length, series: S.seriesVwap.length }) };
 }

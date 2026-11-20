@@ -46,3 +46,7 @@ html.tpv-actif .tor-graph, html.tpv-actif .tor-outils { visibility: hidden; }
   .tpv-reglages { gap: 4px 10px; padding: 6px; } .tpv-barre button, .tpv-barre select { min-height: 32px; }
 }
 .tpv-reglages[hidden], .tpv [hidden] { display: none !important; }
+
+/* v4.1 : niveaux de réaction en cyan (carnet de droite, liste) */
+.tpv-ligne.tpv-reac { box-shadow: inset 2px 0 0 #27d3e6; background: rgba(39, 211, 230, .10); } .tpv-ligne.tpv-reac span { color: #27d3e6; }
+.tpv-h4-reac { color: #27d3e6 !important; } .tpv-niv-reac li b { color: #27d3e6; font-weight: 600; }

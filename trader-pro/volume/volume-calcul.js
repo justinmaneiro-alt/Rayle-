@@ -151,7 +151,8 @@ export const TYPES_FLECHES_VOLUME = Object.freeze([
 const fmtNb = (x, d = 0) => Number(x).toLocaleString('fr-FR', { minimumFractionDigits: d, maximumFractionDigits: d }).replace(/[  ]/g, ' ');
 const decimales = p => (p >= 1000 ? 0 : p >= 100 ? 1 : p >= 10 ? 2 : 4);
 /* Toutes les flèches sur la série B (la bougie i n'utilise que les bougies ≤ i) ; unite : 'H1' | 'H4' | 'J' pour le libellé ; renvoie une liste triée par bougie. */
-export function flechesVolume(B, { unite = 'H4', fenetre = 60, minBarres = 80, cooldown = 8 } = {}) {
+/* niveauxReac (v4.1) : niveaux de réaction { prix, bas, haut, reactions, actifDepuis (ms) } ; ils passent EN PREMIER dans les candidats d'absorption et de cassure, et seulement à partir de l'instant où ils existaient (2e réaction confirmée) : pas de regard vers l'avenir */
+export function flechesVolume(B, { unite = 'H4', fenetre = 60, minBarres = 80, cooldown = 8, niveauxReac = [] } = {}) {
   if (!B || B.length < minBarres) return [];
   const A = atr(B, 14), D = serieDelta(B), R = volumeRelatif(B), nusS = tousPocsPeriode(B, 'semaine'), nusM = tousPocsPeriode(B, 'mois'), out = [], dernier_ = new Map();
   const U = unite === 'J' ? 'Jour' : unite;
@@ -167,7 +168,8 @@ export function flechesVolume(B, { unite = 'H4', fenetre = 60, minBarres = 80, c
     const a = A[i]; if (!(a > 0) || R[i] == null) continue;
     const P = profil(B.slice(i - fenetre, i)); if (!P) continue;                       // profil des bougies PRÉCÉDENTES : rien de futur
     const b = B[i], rng = b.h - b.l, corps = Math.abs(b.c - b.o), tol = 0.25 * a, fort = R[i] > PARAMS_VOLUME.volumeFort;
-    const niveaux = [{ p: P.val, n: 'VAL' }, { p: P.vah, n: 'VAH' }, { p: P.poc.prix, n: 'POC' }, ...P.hvn.map(h => ({ p: h.prix, n: 'HVN' })), ...pocsNusA(nusS, i).map(x => ({ p: x.prix, n: 'POC nu sem.' })), ...pocsNusA(nusM, i).map(x => ({ p: x.prix, n: 'POC nu mois' }))];
+    const reac = (niveauxReac || []).filter(n => n.actifDepuis == null || n.actifDepuis <= b.t).map(n => ({ p: n.prix, n: 'Réaction ×' + n.reactions }));
+    const niveaux = [...reac, { p: P.val, n: 'VAL' }, { p: P.vah, n: 'VAH' }, { p: P.poc.prix, n: 'POC' }, ...P.hvn.map(h => ({ p: h.prix, n: 'HVN' })), ...pocsNusA(nusS, i).map(x => ({ p: x.prix, n: 'POC nu sem.' })), ...pocsNusA(nusM, i).map(x => ({ p: x.prix, n: 'POC nu mois' }))];
     /* absorption : volume fort sur un niveau, petit corps, longue mèche du côté du niveau, delta qui se retourne */
     if (fort && rng > 0 && corps <= 0.4 * rng) {
       const dPrec = D[i - 1] + (D[i - 2] || 0);
@@ -180,7 +182,7 @@ export function flechesVolume(B, { unite = 'H4', fenetre = 60, minBarres = 80, c
     }
     /* cassure validée : clôture au-delà de la VAH / VAL / d'un HVN, venant de l'autre côté, volume fort, delta dans le sens */
     if (fort) {
-      const prev = B[i - 1].c, cas = [{ p: P.vah, n: 'VAH', dir: +1 }, { p: P.val, n: 'VAL', dir: -1 }, ...P.hvn.map(h => ({ p: h.prix, n: 'HVN', dir: h.prix >= prev ? +1 : -1 }))];
+      const prev = B[i - 1].c, cas = [...reac.map(r => ({ p: r.p, n: r.n, dir: r.p >= prev ? +1 : -1 })), { p: P.vah, n: 'VAH', dir: +1 }, { p: P.val, n: 'VAL', dir: -1 }, ...P.hvn.map(h => ({ p: h.prix, n: 'HVN', dir: h.prix >= prev ? +1 : -1 }))];
       for (const c of cas) {
         const ok = c.dir > 0 ? prev <= c.p && b.c > c.p + 0.1 * a && D[i] > 0 : prev >= c.p && b.c < c.p - 0.1 * a && D[i] < 0;
         if (ok && Math.abs(D[i]) >= 0.1 * (b.v || 1)) { pousser(i, 'vol-cassure', c.dir, c.p, c.n); break; }

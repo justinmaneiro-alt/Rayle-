@@ -3,14 +3,16 @@
    Binance (perpétuels) : transactions agrégées (aggTrade : côté de l'AGRESSEUR), carnet 20 niveaux toutes les 100 ms, bougie en cours (kline : volume et volume acheteur).
    Kraken Futures : transactions (feed « trade » : côté), carnet (« book_snapshot » puis « book » par niveau).
    Un côté « m: true » (maker = acheteur) signifie que l'agresseur est le VENDEUR (convention Binance). */
-export const BINANCE_WS = 'wss://fstream.binance.com/stream?streams=';
+export const BINANCE_WS = 'wss://fstream.binance.com/stream?streams=';   // ancienne adresse unique : ne livre plus les transactions (aggTrade) ni les bougies (constaté le 20/11/2026), seulement le carnet
+export const BINANCE_WS_MARCHE = 'wss://fstream.binance.com/market/stream?streams=';   // transactions agrégées et bougies
+export const BINANCE_WS_PUBLIC = 'wss://fstream.binance.com/public/stream?streams=';   // carnet
 export const KRAKEN_WS = 'wss://futures.kraken.com/ws/v1';
 export const SYMBOLES_LIVE = Object.freeze({ or: { binance: 'xauusdt', kraken: 'PF_XAUUSD' }, btc: { binance: 'btcusdt', kraken: 'PF_XBTUSD' }, sol: { binance: 'solusdt', kraken: 'PF_SOLUSD' } });
 
 /* ───── analyseurs ───── */
 export function parseBinance(msg) {
   const d = msg && msg.data, s = msg && msg.stream; if (!d || !s) return null;
-  if (d.e === 'aggTrade') return { type: 'trade', source: 'Binance', t: d.T, prix: +d.p, qte: +d.q, cote: d.m ? 'vente' : 'achat' };
+  if (d.e === 'aggTrade') return { type: 'trade', source: 'Binance', t: d.T, prix: +d.p, qte: +d.q, cote: d.m ? 'vente' : 'achat', id: d.a };
   if (/@depth/.test(s) && (d.b || d.bids)) { const b = (d.b || d.bids).map(x => [+x[0], +x[1]]).filter(x => x[1] > 0), a = (d.a || d.asks).map(x => [+x[0], +x[1]]).filter(x => x[1] > 0); return { type: 'carnet', source: 'Binance', t: d.T || d.E || Date.now(), bids: b.sort((x, y) => y[0] - x[0]), asks: a.sort((x, y) => x[0] - y[0]) }; }
   if (d.e === 'kline' && d.k) { const k = d.k; return { type: 'bougie', source: 'Binance', intervalle: k.i, bougie: { t: k.t, o: +k.o, h: +k.h, l: +k.l, c: +k.c, v: +k.v, bv: +k.V }, close: !!k.x }; }
   return null;
@@ -71,3 +73,5 @@ export function ouvrir(url, { surMessage, surEtat = () => {}, abonner = null, de
 }
 export function urlBinance(actif, intervalle) { const s = SYMBOLES_LIVE[actif]; if (!s) return null; return BINANCE_WS + [`${s.binance}@aggTrade`, `${s.binance}@depth20@100ms`, `${s.binance}@kline_${intervalle}`].join('/'); }
 export function abonnementKraken(actif) { const s = SYMBOLES_LIVE[actif]; return s ? [{ event: 'subscribe', feed: 'book', product_ids: [s.kraken] }, { event: 'subscribe', feed: 'trade', product_ids: [s.kraken] }] : []; }
+/* adresses actuelles des perpétuels Binance : deux connexions (marché : transactions + bougie ; public : carnet) */
+export function urlsBinance(actif, intervalle) { const s = SYMBOLES_LIVE[actif]; if (!s) return null; return { marche: BINANCE_WS_MARCHE + [`${s.binance}@aggTrade`, `${s.binance}@kline_${intervalle}`].join('/'), public: BINANCE_WS_PUBLIC + `${s.binance}@depth20@100ms` }; }

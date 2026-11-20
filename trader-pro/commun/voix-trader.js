@@ -30,6 +30,7 @@ export function intention(texte) {
   if (/\b(mode|terminal) volume\b/.test(n)) return { type: 'volume', action: /\b(quitte|quitter|sors|sortir|ferme|retour|reviens|revenir|classique)\b/.test(n) ? 'classique' : 'ouvrir', actif: actifDe(n), unite: uniteDe(n) };
   if (/\bmode classique\b/.test(n)) return { type: 'volume', action: 'classique' };
   if (/\bvwap\b/.test(n) && /\b(ancre|ancrer|ancres|pose|poser|mets|mettre|place|placer)\b/.test(n)) return { type: 'volume', action: 'vwap' };
+  if (/\breactions?\b/.test(n) && /\b(niveaux?|zones?)\b/.test(n)) return { type: 'volume', action: 'reaction', actif: actifDe(n), unite: uniteDe(n) };
   if (/\bpoc\b/.test(n) && /\b(nus?|non touches?)\b/.test(n)) return { type: 'volume', action: 'poc-nus', actif: actifDe(n) };
   if (/\bvolume\b/.test(n) && /\b(analyse|analyser|lis|lire|explique|expliquer|que dit|dis moi|decris|resume|regarde)\b/.test(n)) return { type: 'volume', action: 'analyse', actif: actifDe(n) || { id: 'or', nom: 'l’or' }, unite: uniteDe(n) };
   if (/\bcouvr(e|ir|ez|ons|ant)\b/.test(n) && /\b(position|achat|vente|trade|or|gold|nasdaq|us100|bitcoin|btc|solana|sol|argent|petrole|s ?p ?500)\b/.test(n)) return { type: 'couverture', actif: actifDe(n) };
@@ -128,6 +129,7 @@ export function sourceNavigateur() {
       await V.ouvrirMode({ actif: i.actif && A.includes(i.actif.id) ? i.actif.id : undefined, unite: i.unite || undefined });
       if (i.action === 'vwap') return V.ancrer();
       if (i.action === 'poc-nus') return V.pocsNus();
+      if (i.action === 'reaction') { await V.attendre(); return V.reaction(); }
       await V.attendre(); return V.analyse();
     },
     async prise(d) { const J = await import('../portefeuille/journal-stockage.js'), { creerPrise } = await import('../portefeuille/journal-setups.js'); return J.ajouter(creerPrise(d)); },

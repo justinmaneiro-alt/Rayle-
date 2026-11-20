@@ -45,6 +45,8 @@ export async function monterPro(T) {
   const attendreGraphique = async () => { for (let i = 0; i < 200; i++) { const g = T.graph; if (g && g.chart && g.chart() && g.serie && g.serie() && T.moteur) return g; await new Promise(r => setTimeout(r, 250)); } return null; };
   const graph = await attendreGraphique(); if (!graph) return null;
   const LW = window.LightweightCharts;
+  /* v4.1 : étirer le graphique dans tous les sens (axes, Ctrl + molette, pincement, double appui, Auto, Log) */
+  try { const LOGK = 'rayle_tp_log_' + id, m = await import('../commun/echelles.js'); E.ech = m.creerEchelles({ chart: graph.chart(), serie: graph.serie(), hote: graph.conteneur(), LW, boutonLog: true, journalInitial: lire(LOGK, false) === true, surChange: ev => { if (ev && ev.log !== undefined) ecrire(LOGK, ev.log); } }); } catch (e) { console.warn('[tp] échelles indisponibles :', e && e.message || e); }
   if (E.ligneTactile) (graph.conteneur() || document.body).appendChild(E.ligneTactile);   // tactile : sur le graphique, sous la légende des MA200
 
   /* ───── v4 : sélecteur « Classique | Volume » en haut à droite. Le mode Classique reste strictement inchangé ; le mode Volume est un terminal complet (trader-pro/volume/), chargé à la première ouverture. ───── */
@@ -66,7 +68,7 @@ export async function monterPro(T) {
     }
     sel.addEventListener('click', ev => { const b = ev.target.closest('[data-mode]'); if (b) aller(b.dataset.mode); });
     window.addEventListener('resize', () => { if (ctrl && ctrl.estOuvert()) placerHaut(); });
-    window.__tpVolume = { ouvrirMode: o => aller('volume', o || {}), fermerMode: () => aller('classique'), attendre: async () => { for (let k = 0; k < 60; k++) { const e = ctrl && ctrl.etat(); if (e && (e.charge || e.erreur)) return; await new Promise(r => setTimeout(r, 250)); } }, analyse: () => (ctrl ? ctrl.analyse() : ''), ancrer: () => (ctrl ? ctrl.ancrer() : ''), pocsNus: () => (ctrl ? ctrl.pocsNus() : ''), etat: () => (ctrl ? ctrl.etat() : null) };
+    window.__tpVolume = { ouvrirMode: o => aller('volume', o || {}), fermerMode: () => aller('classique'), attendre: async () => { for (let k = 0; k < 60; k++) { const e = ctrl && ctrl.etat(); if (e && (e.charge || e.erreur)) return; await new Promise(r => setTimeout(r, 250)); } }, analyse: () => (ctrl ? ctrl.analyse() : ''), ancrer: () => (ctrl ? ctrl.ancrer() : ''), pocsNus: () => (ctrl ? ctrl.pocsNus() : ''), etat: () => (ctrl ? ctrl.etat() : null), zoomer: (...x) => (ctrl ? ctrl.zoomer(...x) : false), reaction: () => (ctrl ? ctrl.reaction() : ''), definir: o => (ctrl ? ctrl.definir(o) : null), definirOpt: (k, v) => (ctrl ? ctrl.definirOpt(k, v) : null), echelle: () => (ctrl && ctrl.echelle ? ctrl.echelle() : null), echelleAuto: () => (ctrl ? ctrl.echelleAuto() : null), echelleV: (...x) => (ctrl ? ctrl.echelleV(...x) : null), classique: () => ({ echelle: E.ech ? E.ech.etat() : null, auto: () => (E.ech ? E.ech.auto() : null), zoomerV: (f, y) => (E.ech ? E.ech.zoomerV(f, y) : null) }) };
     if (lire(MODE, 'classique') === 'volume') aller('volume');
   })();
 
