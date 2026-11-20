@@ -16,6 +16,26 @@
   let racine=null, nMeteo=null, nJour=null, nActus=null;
   const etat={ville:null,meteo:null,jour:null,actus:null};
 
+  /* ───── v4 : rien ne recouvre jamais la barre du bas (dock) ─────
+     Chaque colonne est limitée à l'espace entre son haut et le haut de la barre ; si le panneau « Ce jour-là » ne tient pas, il est masqué avant que la météo ne défile. */
+  let attenteAjuste=0;
+  function ajuster(){
+    attenteAjuste=0; if(!racine) return;
+    const b=document.getElementById('barre'), r=b?b.getBoundingClientRect():null, lim=r&&r.height>0&&r.top>0?r.top:window.innerHeight;
+    racine.querySelectorAll('.ar-col').forEach(function(c){
+      const jour=c.querySelector('.ar-jour'); if(jour) jour.style.display='';
+      const place=lim-c.getBoundingClientRect().top-12; c.style.maxHeight=Math.max(0,Math.floor(place))+'px'; c.style.overflowY='auto'; c.style.scrollbarWidth='none';
+      if(jour&&c.scrollHeight>c.clientHeight+1) jour.style.display='none';
+    });
+  }
+  const planifierAjuste=()=>{ if(!attenteAjuste) attenteAjuste=requestAnimationFrame(ajuster); };
+  function brancherLimite(){
+    window.addEventListener('resize',planifierAjuste); window.addEventListener('orientationchange',planifierAjuste);
+    try{ const b=document.getElementById('barre'); if(b&&window.ResizeObserver) new ResizeObserver(planifierAjuste).observe(b); }catch(e){}
+    try{ if(window.MutationObserver) new MutationObserver(planifierAjuste).observe(racine,{childList:true,subtree:true,characterData:true}); }catch(e){}
+    planifierAjuste(); setTimeout(planifierAjuste,600); setTimeout(planifierAjuste,2500);
+  }
+
   /* ───── construction ───── */
   function construire(){
     racine=document.createElement('div'); racine.className='ar-racine'; racine.id='ar-racine';
@@ -24,6 +44,7 @@
       +'<article class="ar-fen ar-jour" aria-label="Ce jour-là"><header><span>Ce jour-là</span></header><div class="ar-corps" data-z="jour"><p class="ar-vide">Chargement…</p></div></article></aside>'
       +'<aside class="ar-col ar-d"><article class="ar-fen ar-actus" aria-label="L’actualité en France"><header><span>À la une · France</span><button type="button" class="ar-btn" data-a="actus" title="Toute l’actualité">↗</button></header><div class="ar-corps" data-z="actus"><p class="ar-vide">Chargement…</p></div></article></aside>';
     document.body.appendChild(racine);
+    brancherLimite();
     nMeteo=racine.querySelector('[data-z=meteo]'); nJour=racine.querySelector('[data-z=jour]'); nActus=racine.querySelector('[data-z=actus]');
     racine.addEventListener('click',e=>{
       const b=e.target.closest('[data-a]'); if(!b) return;
