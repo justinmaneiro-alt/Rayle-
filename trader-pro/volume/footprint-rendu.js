@@ -83,7 +83,7 @@ export function dessiner(sc, env) {
       if (res.partielle) { c.fillStyle = 'rgba(241,211,79,.85)'; c.fillText(env.rattrapageEnCours && env.rattrapageEnCours() ? 'partielle · rattrapage…' : 'empreinte partielle', xc, yBas + 24 * vr); }
     } else {
       const d = deltaEtVolume(b); c.fillStyle = 'rgba(190,200,208,.85)'; c.fillText('V ' + kfmt(b.v || 0), xc, yBas); c.fillStyle = d >= 0 ? 'rgba(95,184,148,.8)' : 'rgba(216,106,106,.8)'; c.fillText('Δ ' + sk(d) + (Number.isFinite(b.bv) ? '' : ' (estimé)'), xc, yBas + 12 * vr);
-      c.fillStyle = 'rgba(140,155,165,.9)'; c.font = `${9 * hr}px system-ui, sans-serif`; const t = res.raison && res.code === 'index' ? res.raison : res.code === 'direct' ? (env.rattrapageEnCours && env.rattrapageEnCours() ? 'rattrapage en cours…' : 'jour en cours : pas encore reçu') : 'pas d’empreinte'; c.fillText(t, xc, Math.max(yH, yL) * vr + 36 * vr);
+      c.fillStyle = 'rgba(140,155,165,.9)'; c.font = `${9 * hr}px system-ui, sans-serif`; const t = res.raison && res.code === 'index' ? res.raison : res.code === 'direct' ? (env.rattrapageEnCours && env.rattrapageEnCours() ? 'rattrapage en cours…' : 'jour en cours : pas encore reçu') : res.code === 'archive' ? (env.store.chargement() ? 'chargement…' : 'jour absent de l’archive') : 'pas d’empreinte'; c.fillText(t, xc, Math.max(yH, yL) * vr + 36 * vr);
     }
   }
   c.textAlign = 'start'; c.textBaseline = 'alphabetic';

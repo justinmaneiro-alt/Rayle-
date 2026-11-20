@@ -57,3 +57,24 @@ En testant le direct (mesuré depuis Node et depuis Chrome, le 20/11/2026) : l'a
 - **Flèches Volume** : les niveaux de réaction passent **en premier** dans les candidats d'absorption et de cassure (libellé « Réaction ×N »). **Pas de regard vers l'avenir** : un niveau n'existe pour une flèche qu'à partir de l'instant où sa 2e réaction est confirmée (`actifDepuis`) ; testé (niveaux pas encore actifs ⇒ flèches identiques à la v4). Limite assumée : le prix du niveau est la moyenne finale de ses réactions (écart de moins de 0,35 ATR avec celui qu'il avait à ce moment).
 - **Vérifié à l'œil** (captures `donnees-privees/captures-test/reaction-or-*.png`, hors dépôt) : or Daily 6 niveaux (4 779 ×3, 4 595 ×5, 4 374 ×3, 4 219 ×4, 4 081 ×3, 3 959 ×3) ; or H4 6 niveaux de 7 à 10 réactions. Les niveaux tombent sur des pivots visibles (4 595 : sommet de l'été ; 4 219 / 4 081 : creux et sommets d'octobre). **Limite** : le prix de l'or ayant chuté de ~25 % sous ses supports, la plupart des niveaux affichés sont des résistances loin au-dessus du prix actuel ; ils sont fidèles à l'historique mais pas tous utiles à l'écran par défaut.
 - Les statistiques de flèches de la v4 restent proches du hasard (33 % à 2 R / stop 1 R) ; rien n'indique que les niveaux de réaction changent cela : ce sont des repères de lecture, pas des signaux.
+
+## Phase 4 — Étirer le graphique dans tous les sens (Classique et Volume)
+
+Module commun **`trader-pro/commun/echelles.js`** (géométrie pure testée : `echelles-test.mjs`, 15 tests ; branchement DOM testé dans Chrome : `echelles-chrome.mjs`, PC et tablette tactile), branché sur le graphique du mode Volume **et** sur celui du Classique (`integration.js`, via `graph.chart()` / `graph.serie()`).
+
+| Geste | Comportement |
+|---|---|
+| Glisser sur l'**axe des prix** (à droite) | étire / écrase les bougies en hauteur (natif Lightweight Charts, conservé et réglé explicitement) |
+| Glisser sur l'**axe du temps** (en bas) | bougies plus larges / plus serrées (natif) |
+| Pincement à deux doigts | **dans la direction du geste** : horizontal = largeur seule, vertical = hauteur seule, diagonal = les deux (un sens n'est pris en compte que si les doigts y étaient écartés d'au moins 28 px au départ) ; facteurs bornés (0,2 à 6) |
+| Molette | zoom horizontal (natif) |
+| **Ctrl + molette** | zoom **vertical** autour du curseur (le prix sous le curseur ne bouge pas) |
+| Double clic / double appui sur l'axe des prix | retour à l'échelle automatique ; sur l'axe du temps : retour à l'espacement initial |
+| Bouton **Auto** (coin de l'axe des prix) | allumé quand l'échelle est automatique ; un appui y revient |
+| **Log** | Volume : case « Échelle logarithmique des prix » dans **Calques** ; Classique (qui n'a pas de menu Calques) : petit bouton « Log » à côté d'« Auto » ; le choix est gardé (Classique : par actif) |
+
+- **Décision technique** : le pincement natif (horizontal seulement) est coupé, car il redimensionnait aussi la largeur lors d'un pincement vertical. Comme le code du Classique (tactile, outils de dessin) ré-applique `handleScale` plusieurs fois (même chaque seconde), `applyOptions` est **enveloppé** : tout `handleScale` appliqué ensuite est normalisé (pincement natif toujours coupé) ; `handleScale: false` (outil de dessin actif) coupe aussi mon pincement et ma molette Ctrl. Aucun fichier du Classique n'a été modifié pour cela.
+- **Panneaux du bas** (volume, CVD, MFI ; volume et RSI dans le Classique) : **chacun a sa propre échelle** (panneaux distincts de Lightweight Charts) ; **la séparation entre panneaux se déplace en glissant** (réglage natif de la bibliothèque, laissé actif) pour agrandir le graphique principal.
+- **L'échelle suit les bougies seulement quand l'empreinte est affichée** (MA200 et VWAP, souvent loin du prix, sont exclus de l'échelle automatique pendant l'empreinte : sinon les cases étaient écrasées).
+- **Le footprint profite de l'étirement** : la taille de case est recalculée à chaque image à partir du nombre de pixels par dollar ; mesuré dans le test : un étirement vertical ×3 fait passer la case de 2 $ à 1 $ (taille précalculée plus fine) ; au-delà de la plus fine, les cases ne descendent pas sous le pas d'archive (0,5 $ pour l'or, 5 $ Bitcoin, 0,05 $ Solana).
+- Résultats des tests Chrome : PC et tablette tactile (pincements vertical, horizontal, diagonal, double appui sur l'axe) : tout passe. **Limite du banc** : dans le Classique, le Chrome sans GPU du banc n'affiche pas les bougies du graphique classique ; le glisser sur l'axe du temps n'y est donc pas mesurable (il l'est dans le Volume).

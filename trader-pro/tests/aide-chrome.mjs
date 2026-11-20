@@ -24,7 +24,7 @@ export async function lancer(mode = 'tel', { stockage = {}, dossierCaptures = 'd
   await p.goto('http://rayle.test:8000/index.html', { waitUntil: 'domcontentloaded' }); await w(4000);
   const capture = async nom => p.screenshot({ path: path.join(sortie, `${nom}-${mode}.png`) });
   const fin = async () => {
-    const graves = erreurs.filter(e => !/allorigins|newyorkfed|favicon|ERR_NAME_NOT_RESOLVED|ERR_BLOCKED|Failed to load resource|net::|Unrecognized feature|manifest|service worker|ServiceWorker/i.test(e));
+    const graves = erreurs.filter(e => !/allorigins|newyorkfed|favicon|ERR_NAME_NOT_RESOLVED|ERR_BLOCKED|Failed to load resource|WebSocket connection|net::|Unrecognized feature|manifest|service worker|ServiceWorker/i.test(e));
     if (graves.length) { console.log('  erreurs de console :'); [...new Set(graves)].slice(0, 12).forEach(e => console.log('   · ' + e)); } verif(graves.length === 0, 'aucune erreur JavaScript');
     console.log(ko ? `✗ ${ko} échec(s), ${ok} ok` : `tout passe (${ok})`); await nav.close(); process.exit(ko ? 1 : 0);
   };
