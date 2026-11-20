@@ -52,4 +52,5 @@ jobs:
         if: always()
         env:
           GH_TOKEN: ${{ github.token }}
-        run: gh workflow run donnees.yml --ref main || echo "relance impossible : le déclencheur schedule prendra le relais"
+        run: |
+          gh workflow run donnees.yml --ref main || echo "relance impossible, le déclencheur schedule prendra le relais"
