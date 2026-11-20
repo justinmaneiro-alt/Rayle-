@@ -1,0 +1,45 @@
+name: footprint
+# Footprint historique (v4.1) : volume acheteur / vendeur agressif par case de prix, dans chaque bougie H1, H4 et Daily (or, Bitcoin, Solana).
+# Source gratuite : archives quotidiennes Binance (data.binance.vision, futures um, aggTrades). Écrit des fichiers gzip par actif, unité, taille de case et mois
+# dans la branche orpheline footprint (servie par le CDN de GitHub : rien ne passe par le Worker Cloudflare ni par KV). Voir outils-donnees/footprint-historique.mjs.
+# Chaque nuit (les archives du jour J-1 sont publiées dans la nuit), à la demande, et quand le script change. Les jours déjà traités sont conservés : reprise automatique.
+on:
+  schedule:
+    - cron: '40 3 * * *'
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths: ['outils-donnees/footprint-historique.mjs', '.github/workflows/footprint.yml']
+concurrency:
+  group: footprint-branche
+  cancel-in-progress: false
+permissions:
+  contents: write
+jobs:
+  footprint:
+    runs-on: ubuntu-latest
+    timeout-minutes: 150
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Reprendre la branche footprint (jours déjà traités conservés)
+        env:
+          JETON: ${{ github.token }}
+        run: |
+          git clone --depth 1 --branch footprint "https://x-access-token:${JETON}@github.com/${GITHUB_REPOSITORY}.git" sortie 2>/dev/null || mkdir -p sortie
+          rm -rf sortie/.git
+      - name: Télécharger les archives, agréger par case de prix, mesurer la taille
+        run: node outils-donnees/footprint-historique.mjs --sortie sortie --minutes 120
+      - name: Publier (branche orpheline, historique git écrasé)
+        env:
+          JETON: ${{ github.token }}
+        run: |
+          cd sortie
+          git init -q -b footprint
+          git config user.name "rayle-footprint"
+          git config user.email "rayle-footprint@users.noreply.github.com"
+          git add -A
+          git commit -q -m "footprint $(date -u +%FT%TZ)"
+          git push -q --force "https://x-access-token:${JETON}@github.com/${GITHUB_REPOSITORY}.git" footprint
