@@ -31,7 +31,7 @@ export function tableauHtml(S, actifId, unite) {
   const A = S.actifs && S.actifs[actifId]; if (!A) return '<p class="tp-doux">Pas de statistiques pour cet actif.</p>';
   const U = A[unite]; if (!U) return `<p class="tp-doux">Pas assez de bougies ${unite === 'J' ? 'Jour' : unite} pour calculer des statistiques.</p>`;
   const lignes = TYPES_STATS.map(t => {
-    const s = U.types[t.id], faible = !s.significatif, cls = s.taux == null ? '' : s.taux > REPERE_HASARD + 0.05 ? 'tp-h' : s.taux < REPERE_HASARD - 0.05 ? 'tp-b' : '';
+    const s = U.types[t.id] || { n: 0, resolus: 0, taux: null, esperance: null, rMed10: null, rMed20: null, significatif: false }, faible = !s.significatif, cls = s.taux == null ? '' : s.taux > REPERE_HASARD + 0.05 ? 'tp-h' : s.taux < REPERE_HASARD - 0.05 ? 'tp-b' : '';
     return `<tr class="${faible ? 'tp-faible' : ''}"><th scope="row">${esc(t.nom)}</th><td class="${faible ? '' : cls}">${s.taux == null ? '—' : Math.round(s.taux * 100) + ' %'}</td><td>${signe(s.esperance)}</td><td>${signe(s.rMed10)}</td><td>${signe(s.rMed20)}</td><td>${s.n}${faible ? '<br><small>non significatif</small>' : ''}</td></tr>`;
   }).join('');
   return `<div class="tp-stats-scroll"><table class="tp-stats-t"><thead><tr><th>Type de flèche</th><th title="cible à 2 R atteinte avant le stop">Réussite</th><th title="(gagnés × 2 − perdus) / cas résolus">Espérance (R)</th><th title="R médian après 10 bougies, stop maintenu">R méd. 10</th><th title="R médian après 20 bougies, stop maintenu">R méd. 20</th><th>Cas</th></tr></thead><tbody>${lignes}</tbody></table></div>

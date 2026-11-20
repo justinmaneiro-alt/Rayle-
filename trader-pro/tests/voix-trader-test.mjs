@@ -23,4 +23,11 @@ r = await repondre('que disent les COT sur l’or', S); v(/extrême acheteur|pas
 r = await repondre('où en est mon portefeuille', { portefeuille: async () => null }); v(/importe ton fichier/.test(r), 'sans historique : explique comment l’importer');
 r = await repondre('où en est mon portefeuille', { portefeuille: async () => { throw new Error('IndexedDB indisponible'); } }); v(/Je n’ai pas pu lire les données/.test(r), 'panne : message clair, pas d’exception');
 v(await repondre('quelle heure est-il', S) === null, 'phrase hors sujet : null (les autres modules répondent)');
+/* v4 : commandes vocales du mode Volume */
+{ const i1 = intention('Rayle, analyse le volume de l’or en H4'), i2 = intention('passe en mode volume'), i3 = intention('ancre un VWAP ici'), i4 = intention('montre-moi les POC nus'), i5 = intention('reviens au mode classique');
+  v(i1 && i1.type === 'volume' && i1.action === 'analyse' && i1.actif.id === 'or' && i1.unite === 'H4', 'analyse le volume de l’or en H4 : ' + JSON.stringify(i1));
+  v(i2 && i2.action === 'ouvrir' && i3 && i3.action === 'vwap' && i4 && i4.action === 'poc-nus' && i5 && i5.action === 'classique', 'passe en mode volume / ancre un VWAP / POC nus / retour au classique');
+  const appels = []; const S2 = { ...S, async volume(i) { appels.push(i.action); return 'ok ' + i.action; } };
+  v(await repondre('analyse le volume du bitcoin en daily', S2) === 'ok analyse' && appels[0] === 'analyse', 'la voix appelle le terminal Volume');
+  v(intention('quelle est la météo') === null && (intention('le volume net de l’or') === null || intention('le volume net de l’or').action !== 'analyse'), 'phrases voisines : pas de fausse détection'); }
 console.log(ko ? `✗ ${ko} échec(s), ${ok} ok` : `tous les tests passent (${ok})`); process.exit(ko ? 1 : 0);

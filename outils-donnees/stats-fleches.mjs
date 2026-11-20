@@ -6,6 +6,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { statsUnite, PARAMS_STATS, TYPES_STATS } from '../trader-pro/terminal/stats-fleches.js';
 import { barresDaily } from '../trader-pro/terminal/fleches-registre.js';
+import { creerHistoLong } from '../trader-pro/terminal/histo-long.js';   // v4 : historique long (branche « historique »), recalé sur le cours direct
 
 const ACTIFS = [['or', 'l’or'], ['us100', 'le Nasdaq 100'], ['us500', 'le S&P 500'], ['btc', 'le Bitcoin'], ['sol', 'Solana'], ['eurusd', 'l’EUR/USD']];
 const source = process.argv[2] || 'https://raw.githubusercontent.com/justinmaneiro-alt/Rayle-/donnees/', sortie = process.argv[3] || 'trader-pro/terminal/stats-fleches.json';
@@ -14,10 +15,13 @@ async function lire(id) {
   const f = `pro-${id}.json`; if (/^https?:/.test(source)) { const r = await fetch(source.replace(/\/?$/, '/') + f); if (!r.ok) throw new Error(f + ' : ' + r.status); return r.json(); }
   return JSON.parse(fs.readFileSync(path.join(source, f), 'utf8'));
 }
+const histo = creerHistoLong();
 const out = { genere: new Date().toISOString(), regles: { cible: PARAMS_STATS.cible + ' R', stop: 'derrière la mèche de la bougie de confirmation, au moins ' + PARAMS_STATS.stopMinAtr + ' ATR', maxBarres: PARAMS_STATS.maxBarres, horizons: PARAMS_STATS.horizons, minSignificatif: PARAMS_STATS.minSignificatif, pivotsNiveaux: PARAMS_STATS.pivotK }, types: TYPES_STATS, actifs: {} };
 for (const [id, nom] of ACTIFS) {
   let d; try { d = await lire(id); } catch (e) { console.log('  ✗ ' + id + ' : ' + e.message); continue; }
-  const A = { nom }; const jeux = { H4: bougies(d.h4), J: barresDaily(id, bougies(d.j)) };
+  /* v4 : on ajoute AVANT l'instantané (5 ans de Daily, 2,3 ans de H4) l'historique long : Daily jusqu'à 40 ans, H4 8 ans. Sans lui (branche absente) : instantané seul, comme avant. */
+  const avecLong = async (u, brut) => { if (process.env.SANS_HISTORIQUE_LONG) return brut; try { const L = await histo.avant(id, u, brut.length ? brut[0].t : Date.now(), u === 'J' ? 40 : 8); return L.bougies.map(b => ({ t: b.t, o: b.o, h: b.h, l: b.l, c: b.c, v: b.v })).concat(brut); } catch (e) { console.log('  (historique long indisponible pour ' + id + ' ' + u + ' : ' + e.message + ')'); return brut; } };
+  const A = { nom }; const jeux = { H4: await avecLong('H4', bougies(d.h4)), J: barresDaily(id, await avecLong('J', bougies(d.j))) };
   for (const u of ['H4', 'J']) { const s = statsUnite(jeux[u], u); if (s) A[u] = s; }
   out.actifs[id] = A;
   console.log(id.padEnd(7), ['H4', 'J'].map(u => A[u] ? `${u} ${A[u].bougies} bougies · ` + TYPES_STATS.map(t => `${t.id.replace('-', ' ')}=${A[u].types[t.id].n}`).join(' ') : u + ' —').join('  |  '));

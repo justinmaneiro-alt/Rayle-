@@ -47,6 +47,29 @@ export async function monterPro(T) {
   const LW = window.LightweightCharts;
   if (E.ligneTactile) (graph.conteneur() || document.body).appendChild(E.ligneTactile);   // tactile : sur le graphique, sous la légende des MA200
 
+  /* ───── v4 : sélecteur « Classique | Volume » en haut à droite. Le mode Classique reste strictement inchangé ; le mode Volume est un terminal complet (trader-pro/volume/), chargé à la première ouverture. ───── */
+  const MODE = 'rayle_tp_mode', VOL_DE_ACTIF = { OR: 'or', NASDAQ: 'us100', SP500: 'us500', BTC: 'btc', SOL: 'sol', EURUSD: 'eurusd' };
+  (function selecteurMode() {
+    const tete = document.querySelector('.tor-tete'), sel = document.createElement('div'); sel.className = 'tp-mode'; sel.setAttribute('role', 'group'); sel.setAttribute('aria-label', 'Mode du terminal');
+    sel.innerHTML = '<button type="button" data-mode="classique" aria-pressed="true">Classique</button><button type="button" data-mode="volume" aria-pressed="false">Volume</button>';
+    if (tete) tete.appendChild(sel); else { sel.classList.add('tp-mode-flottant'); (graph.conteneur() || document.body).appendChild(sel); }
+    let ctrl = null, charge = null;
+    const uniteVolume = () => 'H4';   // le mode Volume s'ouvre en H4 (puis garde le dernier choix de l'utilisateur)
+    const css = () => { if (!document.querySelector('link[data-tpv]')) { const l = document.createElement('link'); l.rel = 'stylesheet'; l.href = new URL('../volume/volume.css', import.meta.url).href; l.dataset.tpv = '1'; document.head.appendChild(l); } };
+    const assurer = async () => { if (ctrl) return ctrl; css(); charge = charge || import('../volume/volume-ui.js').then(m => m.monterVolume({ racine: document.body, T, parler, idDefaut: VOL_DE_ACTIF[actif] || 'or', unite0: uniteVolume() })); ctrl = await charge; return ctrl; };
+    const placerHaut = () => { const h = tete ? tete.getBoundingClientRect().bottom : 56; document.documentElement.style.setProperty('--tpv-haut', Math.max(0, Math.round(h)) + 'px'); };
+    const maj = m => { sel.querySelectorAll('[data-mode]').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.mode === m))); };
+    async function aller(m, o = {}) {
+      ecrire(MODE, m); maj(m);
+      if (m === 'volume') { placerHaut(); try { const c = await assurer(); c.ouvrir(true, { actif: o.actif || VOL_DE_ACTIF[actif], unite: o.unite }); } catch (e) { maj('classique'); ecrire(MODE, 'classique'); console.warn('[tp] mode Volume indisponible :', e && e.message || e); } }
+      else if (ctrl) ctrl.fermer();
+    }
+    sel.addEventListener('click', ev => { const b = ev.target.closest('[data-mode]'); if (b) aller(b.dataset.mode); });
+    window.addEventListener('resize', () => { if (ctrl && ctrl.estOuvert()) placerHaut(); });
+    window.__tpVolume = { ouvrirMode: o => aller('volume', o || {}), fermerMode: () => aller('classique'), attendre: async () => { for (let k = 0; k < 60; k++) { const e = ctrl && ctrl.etat(); if (e && (e.charge || e.erreur)) return; await new Promise(r => setTimeout(r, 250)); } }, analyse: () => (ctrl ? ctrl.analyse() : ''), ancrer: () => (ctrl ? ctrl.ancrer() : ''), pocsNus: () => (ctrl ? ctrl.pocsNus() : ''), etat: () => (ctrl ? ctrl.etat() : null) };
+    if (lire(MODE, 'classique') === 'volume') aller('volume');
+  })();
+
   /* ───── graphique propre / détails ───── */
   const COUCHES_PROPRES = () => ({ ...Object.fromEntries(Object.keys(graph.couches()).map(k => [k, false])), rayMa: false, rayBoites: false, rayGolden: false, rayNiveaux: false, rayScenarios: false });
   /* calques de la stratégie de Rayle (MA200 H1 colorée, boîtes, golden zone, BOS / MSS…) : leur modèle ne se recalcule que sur l'événement « change » de leur case (ou maj(true)) ; changer les calques du graphique ne suffit pas */

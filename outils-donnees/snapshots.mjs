@@ -12,6 +12,8 @@ import { actusAccueil } from './actus-accueil.mjs';
 
 export const SYMBOLES_BOUGIES = ['^NDX', '^GSPC', 'BTC-USD', 'SOL-USD', 'GC=F', 'DX-Y.NYB', 'EURUSD=X', 'CHF=X'];
 export const INTERVALLES_BOUGIES = [['5m', '14d'], ['15m', '60d'], ['1h', '730d'], ['1d', '10y']];
+/* v4 : futures CME (volume réel du mode Volume) : H1 sur 2 ans et Daily sur 10 ans suffisent */
+export const SYMBOLES_FUTURES = ['NQ=F', 'ES=F', '6E=F'];
 export const SYMS_YAHOO = ['DX-Y.NYB', '^TNX', '^VIX', '^GSPC', '^NDX', 'GLD', 'GDX', 'GC=F', 'BTC-USD'];
 export const PANNEAUX_MARCHES = ['ensemble', 'or', 'us100', 'btc', 'usd', 'chf', 'macro', 'cot', 'calendrier', 'actualites', 'correlations'];
 export const ACTIFS_MARCHES = ['or', 'us100', 'btc', 'usd', 'chf'];
@@ -38,6 +40,7 @@ ajoute('sante.json', ['horaire', 'rapide'], () => sante(), d => (d && (d.reels |
 ajoute('gld.json', ['horaire'], () => gld(), d => (d && d.serie && d.serie.length > 10 ? true : 'série GLD vide'));
 for (const k of Object.keys(MARCHES_COT)) ajoute(`cot-${k}.json`, ['horaire'], () => cot(k, 300), d => (d && d.serie && d.serie.length ? true : aucuneErreur(d)));
 for (const sym of SYMBOLES_BOUGIES) for (const [iv, rg] of INTERVALLES_BOUGIES) ajoute(nomBougies(sym, iv), ['bougies'], async () => compacter(await bougies(sym, iv, rg)), d => (d && d.b && d.b.length > 30 ? true : 'trop peu de bougies'));
+for (const sym of SYMBOLES_FUTURES) for (const [iv, rg] of INTERVALLES_BOUGIES.filter(x => x[0] === '1h' || x[0] === '1d')) ajoute(nomBougies(sym, iv), ['bougies'], async () => compacter(await bougies(sym, iv, rg)), d => (d && d.b && d.b.length > 20 ? true : 'trop peu de bougies'));
 /* Phase 6 : séries journalières ajustées de l'univers (couverture et performances) */
 for (const u of listeUnivers()) ajoute(nomFichierJour(u.id), ['horaire'], () => telechargerJour(u), d => (d && d.b && d.b.length > 30 ? true : 'trop peu de points'));
 /* panneaux de Rayle Marchés (hub de données portable) */

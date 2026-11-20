@@ -11,11 +11,13 @@
 import { atr, pivots } from '../commun/analyse.js';
 import { analyserUnite } from './ma200-h4.js';
 import { creer, evaluer, PAS } from './niveaux.js';
+import { evenementsVolume, TYPES_FLECHES_VOLUME } from '../volume/volume-calcul.js';   // v4 : flèches du mode Volume
 
 export const PARAMS_STATS = Object.freeze({ cible: 2, maxBarres: 100, horizons: [10, 20], pivotK: 8, dureeNiveau: 250, dureeFibo: 150, amplitudeFiboAtr: 3, minSignificatif: 30, stopMinAtr: 1 });
 export const TYPES_STATS = Object.freeze([
   { id: 'ma200-cassure', nom: 'Cassure de la MA200' }, { id: 'ma200-rebond', nom: 'Rebond sur la MA200' },
-  { id: 'niveau-rebond', nom: 'Rebond sur niveau' }, { id: 'niveau-cassure', nom: 'Cassure de niveau' }, { id: 'fibo-rebond', nom: 'Rebond Fibonacci' }
+  { id: 'niveau-rebond', nom: 'Rebond sur niveau' }, { id: 'niveau-cassure', nom: 'Cassure de niveau' }, { id: 'fibo-rebond', nom: 'Rebond Fibonacci' },
+  ...TYPES_FLECHES_VOLUME.map(t => ({ id: t.id, nom: t.nom, volume: true }))   // v4 : absorption, cassure validée par le volume, faux breakout (delta ESTIMÉ depuis la bougie dans cet historique)
 ]);
 export const mediane = a => { const v = a.filter(Number.isFinite).sort((x, y) => x - y); if (!v.length) return null; const m = v.length >> 1; return v.length % 2 ? v[m] : (v[m - 1] + v[m]) / 2; };
 
@@ -76,7 +78,9 @@ export function evenementsFibo(B, unite, P = PARAMS_STATS) {
 /* tous les types pour un jeu de bougies d'une unité ; renvoie { types: { id: stats }, bougies, debut, fin } */
 export function statsUnite(B, unite, P = PARAMS_STATS) {
   if (!B || B.length < 260) return null;
-  const E = { ...evenementsMA200(B, unite), ...evenementsNiveaux(B, unite, P), ...evenementsFibo(B, unite, P) }, types = {};
+  /* flèches Volume : seulement si la série a du volume sur au moins 80 % des bougies (sinon : aucun cas, jamais de volume inventé) */
+  let EV = {}; if (B.filter(b => b.v > 0).length >= 0.8 * B.length) { try { EV = evenementsVolume(B, unite); } catch (e) { EV = {}; } }
+  const E = { ...evenementsMA200(B, unite), ...evenementsNiveaux(B, unite, P), ...evenementsFibo(B, unite, P), ...EV }, types = {};
   for (const t of TYPES_STATS) types[t.id] = agreger(B, E[t.id] || [], P);
   return { bougies: B.length, debut: B[0].t, fin: B[B.length - 1].t, types };
 }

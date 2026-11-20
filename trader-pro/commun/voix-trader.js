@@ -6,7 +6,8 @@ import { lectureCot } from '../marches/cot.js';
 import { setupDeTexte, NOM_SETUP, ACTIFS_XTB } from '../portefeuille/journal-setups.js';
 
 export const normaliser = t => String(t || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[’'`]/g, ' ').replace(/[^a-z0-9% ]+/g, ' ').replace(/\s+/g, ' ').trim();
-const ACTIFS = [['or', /\b(or|gold|xau|xauusd)\b/, 'l’or'], ['us100', /\b(nasdaq|us ?100|ndx)\b/, 'le Nasdaq 100'], ['us500', /\b(s ?p ?500|us ?500|sp500)\b/, 'le S&P 500'], ['btc', /\b(bitcoin|btc)\b/, 'le Bitcoin'], ['sol', /\b(solana|sol)\b/, 'Solana'], ['argent', /\b(argent|silver)\b/, 'l’argent'], ['petrole', /\b(petrole|wti|oil)\b/, 'le pétrole'], ['dxy', /\b(dollar|dxy)\b/, 'le dollar']];
+const ACTIFS = [['or', /\b(or|gold|xau|xauusd)\b/, 'l’or'], ['us100', /\b(nasdaq|us ?100|ndx)\b/, 'le Nasdaq 100'], ['us500', /\b(s ?p ?500|us ?500|sp500)\b/, 'le S&P 500'], ['btc', /\b(bitcoin|btc)\b/, 'le Bitcoin'], ['sol', /\b(solana|sol)\b/, 'Solana'], ['argent', /\b(argent|silver)\b/, 'l’argent'], ['petrole', /\b(petrole|wti|oil)\b/, 'le pétrole'], ['dxy', /\b(dollar|dxy)\b/, 'le dollar'], ['eurusd', /\b(euro dollar|eur ?usd|euro)\b/, 'l’EUR/USD']];
+export const uniteDe = n => (/\b(h ?1|1 ?h|une heure)\b/.test(n) ? 'H1' : /\b(h ?4|4 ?h|quatre heures)\b/.test(n) ? 'H4' : /\b(daily|jour|journalier|d ?1)\b/.test(n) ? 'J' : null);
 export const actifDe = n => { const a = ACTIFS.find(([, re]) => re.test(n)); return a ? { id: a[0], nom: a[2] } : null; };
 /* ───── saisie rapide d'un trade à la voix : « j'ai acheté l'or à 3 620, stop 3 600, setup rebond MA200 » (module pur, testé) ───── */
 const NOMBRE = '\\d{1,3}(?: \\d{3})+(?:[.,]\\d+)?|\\d+(?:[.,]\\d+)?';
@@ -25,6 +26,12 @@ export function analyserPrise(texte) {
 export function intention(texte) {
   const n = normaliser(texte); if (!n) return null;
   { const p = analyserPrise(texte); if (p) return { type: 'prise', prise: p }; }
+  /* v4 : mode Volume du Terminal */
+  if (/\b(mode|terminal) volume\b/.test(n)) return { type: 'volume', action: /\b(quitte|quitter|sors|sortir|ferme|retour|reviens|revenir|classique)\b/.test(n) ? 'classique' : 'ouvrir', actif: actifDe(n), unite: uniteDe(n) };
+  if (/\bmode classique\b/.test(n)) return { type: 'volume', action: 'classique' };
+  if (/\bvwap\b/.test(n) && /\b(ancre|ancrer|ancres|pose|poser|mets|mettre|place|placer)\b/.test(n)) return { type: 'volume', action: 'vwap' };
+  if (/\bpoc\b/.test(n) && /\b(nus?|non touches?)\b/.test(n)) return { type: 'volume', action: 'poc-nus', actif: actifDe(n) };
+  if (/\bvolume\b/.test(n) && /\b(analyse|analyser|lis|lire|explique|expliquer|que dit|dis moi|decris|resume|regarde)\b/.test(n)) return { type: 'volume', action: 'analyse', actif: actifDe(n) || { id: 'or', nom: 'l’or' }, unite: uniteDe(n) };
   if (/\bcouvr(e|ir|ez|ons|ant)\b/.test(n) && /\b(position|achat|vente|trade|or|gold|nasdaq|us100|bitcoin|btc|solana|sol|argent|petrole|s ?p ?500)\b/.test(n)) return { type: 'couverture', actif: actifDe(n) };
   if (/\b(fleches?|retournements?)\b/.test(n) || (/\bsignaux?\b/.test(n) && /\b(h4|h 4|jour|journalier|journaliers|aujourd hui|du jour|recents?|derniers?|y a t il)\b/.test(n))) return { type: 'fleches', actif: actifDe(n) };
   if (/\bscores?\b/.test(n) && /\b(marche|marches|or|gold|nasdaq|us100|bitcoin|btc|solana|sol|s ?p ?500|dollar)\b/.test(n)) return { type: 'score', actif: actifDe(n) || { id: 'or', nom: 'l’or' } };
@@ -56,6 +63,7 @@ export async function repondre(texte, S, { maintenant = Date.now() } = {}) {
       const C = P.coach; if (!C || !C.erreurs.length) return 'Aucune erreur mesurée ne coûte de l’argent sur ton historique : continue comme ça.';
       return `Ta note de discipline est de ${C.note.note} sur 100. Tes plus grosses erreurs : ` + C.erreurs.map((e, k) => `${k + 1}, ${e.titre.toLowerCase()} : ${e.texte}`).join(' ') + (C.regles.length ? ' Pour corriger : ' + C.regles[0] : '');
     }
+    if (i.type === 'volume') return S.volume ? await S.volume(i) : 'Le terminal Volume n’est pas disponible ici.';
     if (i.type === 'couverture') {
       if (!i.actif) return 'Sur quel actif veux-tu une couverture : l’or, le Nasdaq, le Bitcoin ?';
       const r = await S.couverture(i.actif.id); if (!r) return `Je n’ai pas les séries nécessaires pour couvrir ${i.actif.nom} (le robot les publie chaque heure).`;
@@ -108,6 +116,19 @@ export function sourceNavigateur() {
     async fleches(id) {
       const M = await charge(), { flechesDe } = await import('../terminal/fleches-registre.js'), { niveauParle, typeLibelle } = await import('../terminal/ma200-h4.js'), ids = id ? [id] : ['or', 'us100', 'us500', 'btc', 'sol', 'doge'], noms = { or: 'l’or', us100: 'le Nasdaq 100', us500: 'le S&P 500', btc: 'le Bitcoin', sol: 'Solana', doge: 'Dogecoin' };
       const out = []; for (const a of ids) { if (!noms[a]) continue; try { const r = await M.dn.lireActifPro(a, { delai: 8000 }), reg = flechesDe(a, r.donnees), maintenant = Date.now(); const avec = f => ({ ...f, niveauTxt: niveauParle(f.entree), stopTxt: niveauParle(f.stop), libelle: typeLibelle(f) }); out.push({ id: a, nom: noms[a], derniere: reg.length ? avec(reg[reg.length - 1]) : null, recentes: reg.filter(x => maintenant - x.tFin < 7 * 86400e3 && x.tFin <= maintenant).map(avec) }); } catch (e) { /* actif sans données */ } } return out;
+    },
+    /* v4 : pilote le terminal Volume (cherche le contrôleur dans cette page et dans ses cadres ; sinon ouvre le Terminal et attend) */
+    async volume(i) {
+      const trouver = () => { try { if (window.__tpVolume) return window.__tpVolume; for (const f of document.querySelectorAll('iframe')) { try { if (f.contentWindow && f.contentWindow.__tpVolume) return f.contentWindow.__tpVolume; } catch (e) { /* autre origine */ } } } catch (e) { /* ignoré */ } return null; };
+      let V = trouver(); if (!V && typeof window !== 'undefined' && window.Application && window.Application.ouvrir) { try { await window.Application.ouvrir('terminal'); } catch (e) { /* ignoré */ } for (let k = 0; k < 40 && !V; k++) { await new Promise(r => setTimeout(r, 250)); V = trouver(); } }
+      if (!V) return 'Je n’arrive pas à joindre le terminal Volume : ouvre le Terminal puis redis ta demande.';
+      const A = ['or', 'us100', 'us500', 'btc', 'sol', 'eurusd'];
+      if (i.action === 'classique') { V.fermerMode(); return 'Retour au mode classique.'; }
+      if (i.action === 'ouvrir') { await V.ouvrirMode({ actif: i.actif && A.includes(i.actif.id) ? i.actif.id : undefined, unite: i.unite || undefined }); return 'Mode Volume ouvert.'; }
+      await V.ouvrirMode({ actif: i.actif && A.includes(i.actif.id) ? i.actif.id : undefined, unite: i.unite || undefined });
+      if (i.action === 'vwap') return V.ancrer();
+      if (i.action === 'poc-nus') return V.pocsNus();
+      await V.attendre(); return V.analyse();
     },
     async prise(d) { const J = await import('../portefeuille/journal-stockage.js'), { creerPrise } = await import('../portefeuille/journal-setups.js'); return J.ajouter(creerPrise(d)); },
     async score(id) { const { calculerScoreActif } = await import('./dashboard.js'); return calculerScoreActif(id); },
