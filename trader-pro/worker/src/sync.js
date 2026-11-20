@@ -2,7 +2,7 @@
    Complète les routes déjà en place (dessins, journal, alertes, XTB, réglages du portefeuille) : Ma liste, Mon plan, réglages des flèches, risque et positions, heures de silence.
    Règle de conflit : LA DERNIÈRE MODIFICATION GAGNE (horodatage `maj` choisi par l'appareil, borné à « maintenant + 5 min »), avec une TRACE de chaque conflit (30 dernières).
    Budget : une lecture D1 par interrogation d'appareil (toutes les 45 s, appli visible seulement) ; une écriture seulement quand quelque chose a vraiment changé. Jamais de KV. */
-export const CLES_SYNC = Object.freeze(['rayle_lt_liste_v1', 'rayle_invest_plan_v1', 'rayle_tp_ma200h4_reglages', 'rayle_tp_fleches_alertes', 'rayle_pf_risque_v1', 'rayle_pf_positions_v1', 'rayle_alertes_silence_v1']);
+export const CLES_SYNC = Object.freeze(['rayle_lt_liste_v1', 'rayle_invest_plan_v1', 'rayle_tp_ma200h4_reglages', 'rayle_tp_fleches_alertes', 'rayle_pf_risque_v1', 'rayle_pf_positions_v1', 'rayle_alertes_silence_v1', 'rayle_briefing_reglage_v1']);
 export const TAILLE_MAX_CLE = 60000;
 
 export function nettoyerSync(corps, maintenant = Date.now()) {

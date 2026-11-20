@@ -21,6 +21,7 @@ export function depotD1(db) {
     async revision() { return (await kvLire('rev')) || 0; },
     async prochaineRevision() { const r = (await kvLire('rev') || 0) + 1; await kvEcrire('rev', r); return r; },
     async lireDepuis(table, depuis) { await init(); if (!TABLES.includes(table)) throw new Error('table inconnue'); const { results } = await db.prepare(`SELECT id, data FROM ${table} WHERE rev > ? ORDER BY rev, id`).bind(depuis).all(); return results.map(r => JSON.parse(r.data)); },
+    async lireDernieres(table, n = 300) { await init(); if (!TABLES.includes(table)) throw new Error('table inconnue'); const { results } = await db.prepare(`SELECT data FROM ${table} ORDER BY rev DESC LIMIT ?`).bind(n).all(); return results.map(r => JSON.parse(r.data)); },
     async compter(table) { await init(); if (!TABLES.includes(table)) throw new Error('table inconnue'); const r = await db.prepare(`SELECT COUNT(*) AS n FROM ${table}`).first(); return r ? r.n : 0; },
     /* upsert de lignes { id, ... } ; renvoie le nombre de lignes écrites */
     async ecrireLignes(table, lignes, rev) {

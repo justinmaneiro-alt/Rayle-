@@ -39,6 +39,7 @@ export function intention(texte) {
   if (/\bcot\b|commitments|positions? des fonds|fonds speculatifs|managed money/.test(n)) return { type: 'cot', actif: actifDe(n) || { id: 'or', nom: 'l’or' } };
   if (/\b(quel|quels|combien|c est quoi)\b.*\brisques?\b|\bmon risque\b|\brisque (total|actuel|que j ai|de mes positions)\b|\bmes risques\b/.test(n)) return { type: 'risque' };
   /* v6 : « Rayle, est-ce que mes données sont à jour ? » */
+  if (/\bbriefing\b/.test(n)) return { type: 'briefing' };
   if (/\bdonnees\b/.test(n) && /\b(a jour|etat|fraiches?|perimees?|retard|panne|fiables?)\b/.test(n)) return { type: 'donnees' };
   if (/\b(mes erreurs|mes fautes|mes defauts|ma discipline|mon coach|que (est ce que )?je fais mal|quelles sont mes erreurs|mes points faibles)\b/.test(n)) return { type: 'erreurs' };
   if (/\b(portefeuille|mes resultats|mes performances|mon bilan|mon compte xtb|mes positions)\b/.test(n) && /\b(ou en est|etat|bilan|resume|comment|dis moi|donne moi|quel|quels|mes resultats|mes performances)\b|^(mon|mes|le) /.test(n)) return { type: 'portefeuille' };
@@ -66,6 +67,7 @@ export async function repondre(texte, S, { maintenant = Date.now() } = {}) {
       const C = P.coach; if (!C || !C.erreurs.length) return 'Aucune erreur mesurée ne coûte de l’argent sur ton historique : continue comme ça.';
       return `Ta note de discipline est de ${C.note.note} sur 100. Tes plus grosses erreurs : ` + C.erreurs.map((e, k) => `${k + 1}, ${e.titre.toLowerCase()} : ${e.texte}`).join(' ') + (C.regles.length ? ' Pour corriger : ' + C.regles[0] : '');
     }
+    if (i.type === 'briefing') return S.briefing ? await S.briefing() : 'Je ne peux pas préparer le briefing ici.';
     if (i.type === 'donnees') return S.donnees ? await S.donnees() : 'Je ne peux pas lire l’état des données ici.';
     if (i.type === 'volume') return S.volume ? await S.volume(i) : 'Le terminal Volume n’est pas disponible ici.';
     if (i.type === 'couverture') {
@@ -122,6 +124,13 @@ export function sourceNavigateur() {
       const out = []; for (const a of ids) { if (!noms[a]) continue; try { const r = await M.dn.lireActifPro(a, { delai: 8000 }), reg = flechesDe(a, r.donnees), maintenant = Date.now(); const avec = f => ({ ...f, niveauTxt: niveauParle(f.entree), stopTxt: niveauParle(f.stop), libelle: typeLibelle(f) }); out.push({ id: a, nom: noms[a], derniere: reg.length ? avec(reg[reg.length - 1]) : null, recentes: reg.filter(x => maintenant - x.tFin < 7 * 86400e3 && x.tFin <= maintenant).map(avec) }); } catch (e) { /* actif sans données */ } } return out;
     },
     /* v4 : pilote le terminal Volume (cherche le contrôleur dans cette page et dans ses cadres ; sinon ouvre le Terminal et attend) */
+    async briefing() {
+      const { construireBriefing } = await import('./briefing.js'), { lireEtat, phraseDonnees } = await import('./fraicheur.js'), B = 'https://raw.githubusercontent.com/justinmaneiro-alt/Rayle-/donnees/', j = async f => { try { const r = await fetch(B + f, { signal: AbortSignal.timeout(8000) }); return r.ok ? await r.json() : null; } catch (e) { return null; } };
+      const [sig, cal, E] = await Promise.all([j('signaux.json'), j('calendrier2.json'), lireEtat()]), mouvements = [], fr = new Intl.DateTimeFormat('fr-CA', { timeZone: 'Europe/Paris' }), auj = fr.format(new Date());
+      for (const [a, x] of Object.entries((sig && sig.actifs) || {})) { const J = x.derniere && x.derniere.J, H = x.derniere && x.derniere.H1; if (J && J.derniere && H && H.derniere) mouvements.push({ actif: a, prix: H.derniere.c, variationPct: (H.derniere.c / J.derniere.c - 1) * 100 }); }
+      const annonces = ((cal && cal.evenements) || []).filter(e => /^(High|Medium)$/i.test(e.impact || '') && fr.format(new Date(e.date)) === auj).slice(0, 6).map(e => ({ heure: new Intl.DateTimeFormat('fr-FR', { timeZone: 'Europe/Paris', hour: '2-digit', minute: '2-digit', hour12: false }).format(new Date(e.date)), titre: e.title }));
+      return construireBriefing({ date: new Intl.DateTimeFormat('fr-FR', { timeZone: 'Europe/Paris', weekday: 'long', day: 'numeric', month: 'long' }).format(new Date()), mouvements, niveaux: [], annonces, alertes: { actives: 0, recentes: [] }, risque: null, donnees: { voyant: E.voyant, phrase: phraseDonnees(E.liste) } }).voix;
+    },
     async donnees() { const { lireEtat, phraseDonnees } = await import('./fraicheur.js'); const E = await lireEtat(); return phraseDonnees(E.liste); },
     async volume(i) {
       const trouver = () => { try { if (window.__tpVolume) return window.__tpVolume; for (const f of document.querySelectorAll('iframe')) { try { if (f.contentWindow && f.contentWindow.__tpVolume) return f.contentWindow.__tpVolume; } catch (e) { /* autre origine */ } } } catch (e) { /* ignoré */ } return null; };
