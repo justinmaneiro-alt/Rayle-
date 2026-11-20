@@ -3,7 +3,7 @@
    mes dessins), volume et delta au zoom (empreinte à fort zoom en H1 sur l'or et les cryptos quand les transactions sont disponibles), panneau Volume + delta + CVD, panneau MFI (ou RVOL),
    carnet d'ordres vivant (échelle, déséquilibre, murs, carte de chaleur, gros flux), supports / résistances par le volume (3 à 5), flèches Volume à la clôture.
    Lecture seule : aucun ordre. Chaque volume affiche sa source et son âge. Les calculs sont dans volume-calcul.js (pur, testé). */
-import { esc, nf, lireLS, ecrireLS } from '../commun/ui.js';
+import { esc, nf, lireLS, ecrireLS, alertesParWorker } from '../commun/ui.js';
 import { chargerLib } from '../../agent-trading/front/graphique.js';
 import { creerEchelles } from '../commun/echelles.js';
 import { analyserUnite, styleFleche } from '../terminal/ma200-h4.js';
@@ -275,7 +275,7 @@ export async function monterVolume({ racine, T = {}, parler = () => {}, idDefaut
     for (const f of neuves.slice(0, 2)) {
       if (types[f.type] === false) continue; const txt = `${parId[S.actif].nom} : ${f.libelle}`;
       try { parler(txt); } catch (e) { /* voix absente */ } try { if (T.notifier) T.notifier(txt, { niveau: 'info', dit: false, raison: 'flèche Volume' }); } catch (e) { /* ignoré */ }
-      try { if (T.envoyerTelegram) T.envoyerTelegram(`${txt} · lecture seule, aucun ordre n’est passé`); } catch (e) { /* ignoré */ }
+      try { if (T.envoyerTelegram && !alertesParWorker()) T.envoyerTelegram(`${txt} · lecture seule, aucun ordre n’est passé`); } catch (e) { /* ignoré */ }
     }
   }
   function montrerInfoFleche(tMs, point) {

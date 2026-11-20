@@ -3,6 +3,7 @@
    cassure (clôture de l'autre côté de la MA200 avec 0,3 ATR de marge) et rebond sur la MA200 dans le sens de la tendance ; fond du graphique vert (tendance haussière) ou rouge (baissière) ;
    alerte vocale de Rayle + Telegram à chaque flèche (H4 et Jour). Un bouton « MA200 » (réglages, liste, alertes), un bouton « Données » (score, volume net) et un bouton « Détails ». Lecture seule : aucun ordre n'est envoyé. */
 import { lireActifPro } from '../commun/donnees.js';
+import { alertesParWorker } from '../commun/ui.js';
 import { histoLong, phraseEcart } from './histo-long.js';
 import { niveauxHistoriques } from './niveaux-historiques.js';
 import { parler } from '../../agent-trading/front/or/tableau-or.js';
@@ -253,7 +254,7 @@ export async function monterPro(T) {
      Une flèche n'est annoncée qu'une fois (registre de l'appareil : vueLe), et jamais si elle date de plus de 36 h. Interrupteur « Flèches » coupé : aucune annonce. */
   function alerter() {
     if (E.reglages.actif === false || !E.fleches.length) return; const att = lire(LS.alerte, {}), nouvelles = nouvellesFleches(id, E.fleches);
-    for (const f of nouvelles.slice(0, 2)) { const texte = phraseFleche(NOMS[id], f); parler(texte); try { if (T.notifier) T.notifier(texte, { niveau: 'info', dit: false, raison: 'flèche MA200' }); } catch (e) { /* */ } try { if (att.telegram !== false && T.envoyerTelegram) T.envoyerTelegram(`${texte} · lecture seule, aucun ordre`); } catch (e) { /* */ } }
+    for (const f of nouvelles.slice(0, 2)) { const texte = phraseFleche(NOMS[id], f); parler(texte); try { if (T.notifier) T.notifier(texte, { niveau: 'info', dit: false, raison: 'flèche MA200' }); } catch (e) { /* */ } try { if (att.telegram !== false && T.envoyerTelegram && !alertesParWorker()) T.envoyerTelegram(`${texte} · lecture seule, aucun ordre`); } catch (e) { /* */ } }
   }
 
   /* ───── panneau « MA200 H4 » ───── */

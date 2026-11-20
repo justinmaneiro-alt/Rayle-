@@ -1,0 +1,46 @@
+/* Tests des alertes de clôture 100 % Worker (v6, B3). node trader-pro/tests/alertes-cloture-test.mjs */
+import { DatabaseSync } from 'node:sqlite';
+import { evaluerNiveaux, choisirFleches, dansSilence, composerMessage, traiterClotures, historiqueAlertes } from '../worker/src/alertes-cloture.js';
+import { heureParis, tachesDuPassage } from '../worker/src/cron.js';
+import { depotD1, d1DepuisSqlite } from '../worker/src/depot-d1.js';
+let ok = 0, ko = 0; const v = (c, m) => { if (c) ok++; else { ko++; console.log('  ✗ ' + m); } };
+const H = 3600e3, T = Date.UTC(2026, 10, 23, 12, 2);   // lundi 23/11/2026 12 h 02 UTC = 13 h 02 Paris : clôture H4 de 12 h
+const bar = (t, o, h, l, c) => ({ t, o, h, l, c }), prec = bar(T - 8 * H, 3590, 3600, 3580, 3595), der = bar(T - 4 * H, 3596, 3630, 3590, 3625);   // H4 : clôture 3 625, précédente 3 595
+/* niveaux : lignes, boîtes, tendances, Fibonacci */
+let E = evaluerNiveaux('or', 'H4', [{ id: 'd1', type: 'horizontale', p: 3612 }], { derniere: der, precedente: prec }); v(E.length === 1 && /clôture au-dessus de ta ligne \(3\s?612\)/.test(E[0].texte) && E[0].dir === 1, 'ligne traversée : « ' + (E[0] && E[0].texte) + ' »');
+E = evaluerNiveaux('or', 'H4', [{ id: 'd1', type: 'horizontale', p: 3700 }], { derniere: der, precedente: prec }); v(E.length === 0, 'ligne loin : aucune alerte');
+E = evaluerNiveaux('or', 'H4', [{ id: 'd2', type: 'horizontale', p: 3620 }], { derniere: bar(T - 4 * H, 3596, 3630, 3590, 3612), precedente: prec }); v(E.length === 1 && E[0].id.endsWith('rejet') && E[0].dir === -1 && !E.some(e => /cassure/.test(e.id)), 'mèche au-dessus de la ligne mais clôture dessous : « rejet » (pas de cassure)');
+E = evaluerNiveaux('or', 'H4', [{ id: 'd3', type: 'horizontale', p: 3600 }], { derniere: bar(T - 4 * H, 3610, 3640, 3598, 3630), precedente: bar(T - 8 * H, 3605, 3620, 3601, 3615) }); v(E.length === 1 && /rejet/.test(E[0].id), 'mèche sous la ligne puis clôture au-dessus du même côté : « rejet »');
+E = evaluerNiveaux('or', 'H4', [{ id: 'b1', type: 'boite', haut: 3610, bas: 3550 }], { derniere: der, precedente: prec }); v(E.length === 1 && /boîte/.test(E[0].texte) && E[0].dir === 1, 'boîte : clôture hors de la boîte par le haut');
+E = evaluerNiveaux('or', 'H4', [{ id: 't1', type: 'tendance', t1: T - 100 * H, p1: 3500, t2: T - 20 * H, p2: 3600 }], { derniere: bar(T - 4 * H, 3596, 3650, 3590, 3640), precedente: bar(T - 8 * H, 3600, 3620, 3590, 3600) }); v(E.length === 1 && /tendance/.test(E[0].texte), 'tendance : niveau de la droite recalculé à l\'heure de la bougie');
+E = evaluerNiveaux('or', 'H4', [{ id: 'f1', type: 'fibo', p1: 3500, p2: 3700 }], { derniere: bar(T - 4 * H, 3596, 3630, 3560, 3605), precedente: bar(T - 8 * H, 3610, 3620, 3590, 3595) }); v(E.some(e => /Fibonacci 0,5/.test(e.texte)), 'Fibonacci 0,5 (3 600) traversé : ' + E.map(e => e.texte).join(' / '));
+E = evaluerNiveaux('or', 'H4', [{ id: 'd9', type: 'horizontale', p: 3612, supprime: true, maj: 5 }], { derniere: der, precedente: prec }); v(E.length === 0, 'dessin supprimé : ignoré');
+/* flèches : réglages, ancienneté */
+const sig = { actifs: { or: { fleches: [{ id: 'or|H4|1|1|cassure', source: 'ma200', unite: 'H4', t: T - 8 * H, tFin: T - 4 * H, dir: 1, texte: 'Or : cassure MA200 H4 à la hausse', niveau: 3600 }, { id: 'or|H1|2|1|x', source: 'volume', unite: 'H1', t: T - 2 * H, tFin: T - H, dir: 1, texte: 'Or : Cassure H1', niveau: 3 }, { id: 'vieux', source: 'ma200', unite: 'J', t: T - 90 * H, tFin: T - 66 * H, dir: 1, texte: 'vieux' }, { id: 'futur', source: 'ma200', unite: 'H4', t: T, tFin: T + 4 * H, dir: 1, texte: 'futur' }] } } };
+let F = choisirFleches(sig, {}, T); v(F.length === 1 && F[0].id === 'fl|or|H4|1|1|cassure', 'flèches : MA200 H4 récente seulement (le Volume H1 est coupé par défaut, l\'ancienne et celle du futur aussi)');
+F = choisirFleches(sig, { volumeH1: true }, T); v(F.length === 2, 'Volume H1 activé : 2 flèches'); v(choisirFleches(sig, { actif: false }, T).length === 0, 'flèches MA200 coupées : aucune');
+/* silence (heure de Paris) */
+const sil = { actif: true, debut: '22:00', fin: '07:00' }; v(dansSilence(Date.UTC(2026, 10, 23, 22, 30), sil, heureParis) && dansSilence(Date.UTC(2026, 10, 23, 3, 0), sil, heureParis) && !dansSilence(Date.UTC(2026, 10, 23, 12, 0), sil, heureParis), 'silence de 22 h à 7 h Paris (traverse minuit)'); v(!dansSilence(T, { actif: false, debut: '22:00', fin: '07:00' }, heureParis) && !dansSilence(T, null, heureParis), 'silence désactivé ou absent');
+/* message groupé */
+const m1 = composerMessage([{ texte: 'Or : A' }]), m8 = composerMessage(Array.from({ length: 9 }, (_, i) => ({ texte: 'Ligne ' + i }))); v(!/événements/.test(m1) && /aucun ordre/.test(m1), 'un événement : message simple'); v(/9 événements/.test(m8) && /… et 3 autres/.test(m8) && m8.split('\n').filter(l => l.startsWith('•')).length === 6, 'regroupement : 6 lignes + « … et 3 autres »');
+/* passe complète : D1 réel, signaux et Telegram simulés */
+const depot = depotD1(d1DepuisSqlite(new DatabaseSync(':memory:'))); let ecritures = 0; const kvE = depot.kvEcrire; depot.kvEcrire = async (...a) => { if (a[0] === 'alertes-cloture') ecritures++; return kvE(...a); };
+await depot.kvEcrire('dessins:or', [{ id: 'd1', type: 'horizontale', p: 3612 }]); const signaux = { t: T, actifs: { or: { ...sig.actifs.or, derniere: { H4: { derniere: der, precedente: prec }, H1: { derniere: bar(T - H, 3620, 3630, 3615, 3625), precedente: bar(T - 2 * H, 3620, 3625, 3610, 3620) } } } } };
+const envoyes = []; const fetchSim = async (u, o) => { if (/signaux\.json/.test(u)) return { ok: true, json: async () => signaux }; if (/telegram/.test(u)) { envoyes.push(JSON.parse(o.body).text); return { ok: true }; } throw new Error('inconnu ' + u); };
+const env = { TELEGRAM_BOT_TOKEN: 't', TELEGRAM_CHAT_ID: 'c' }; let r = await traiterClotures(env, depot, T, { fetchFn: fetchSim, heureParis });
+v(r.nouveaux === 2 && r.envoyes === 2 && envoyes.length === 1, 'passe 1 : 1 flèche + 1 niveau tracé = UN message groupé (' + r.nouveaux + ' nouveaux)'); v(/flèche|MA200/.test(envoyes[0]) && /ta ligne/.test(envoyes[0]), 'le message contient la flèche MA200 et le niveau tracé sur un autre appareil');
+const e0 = ecritures; r = await traiterClotures(env, depot, T + 5 * 60e3, { fetchFn: fetchSim, heureParis }); v(r.nouveaux === 0 && envoyes.length === 1 && ecritures === e0, 'passe 2 (5 min plus tard) : aucune alerte en double, aucune écriture D1');
+const H1 = await historiqueAlertes(depot); v(H1.historique.length === 2 && H1.historique[0].envoye === 'telegram', 'historique des alertes envoyées consultable (' + H1.historique.length + ')');
+/* heures de silence : retenues puis résumé */
+const depot2 = depotD1(d1DepuisSqlite(new DatabaseSync(':memory:'))); await depot2.kvEcrire('dessins:or', [{ id: 'd1', type: 'horizontale', p: 3612 }]); await depot2.kvEcrire('sync', { cles: { rayle_alertes_silence_v1: { valeur: { actif: true, debut: '12:00', fin: '14:00' }, maj: 1, appareil: 'x' } } });
+envoyes.length = 0; r = await traiterClotures(env, depot2, T, { fetchFn: fetchSim, heureParis }); v(r.nouveaux === 2 && envoyes.length === 0 && r.retenus === 2, 'en heures de silence : rien n\'est envoyé, 2 événements retenus');
+r = await traiterClotures(env, depot2, T + 2 * H, { fetchFn: fetchSim, heureParis }); v(envoyes.length === 1 && /résumé/.test(envoyes[0]) && r.retenus === 0, 'fin du silence : un seul résumé'); r = await traiterClotures(env, depot2, T + 2 * H + 5 * 60e3, { fetchFn: fetchSim, heureParis }); v(envoyes.length === 1, 'pas de renvoi ensuite');
+/* Telegram en panne : on retente, sans doublon ; sans Telegram : noté une fois */
+const depot3 = depotD1(d1DepuisSqlite(new DatabaseSync(':memory:'))); await depot3.kvEcrire('dessins:or', [{ id: 'd1', type: 'horizontale', p: 3612 }]); let panne = true, n3 = 0; const fetchPanne = async (u, o) => { if (/signaux/.test(u)) return { ok: true, json: async () => signaux }; if (panne) return { ok: false }; n3++; return { ok: true }; };
+r = await traiterClotures(env, depot3, T, { fetchFn: fetchPanne, heureParis }); v(r.envoyes === 0 && r.retenus === 2, 'Telegram refuse : événements gardés pour le prochain passage'); panne = false; r = await traiterClotures(env, depot3, T + 5 * 60e3, { fetchFn: fetchPanne, heureParis }); v(n3 === 1 && r.envoyes === 2, 'Telegram revenu : un seul message, aucun doublon');
+const depot4 = depotD1(d1DepuisSqlite(new DatabaseSync(':memory:'))); await depot4.kvEcrire('dessins:or', [{ id: 'd1', type: 'horizontale', p: 3612 }]); r = await traiterClotures({}, depot4, T, { fetchFn: fetchSim, heureParis }); const h4 = await historiqueAlertes(depot4); v(h4.historique.length === 2 && h4.historique[0].envoye === 'non configuré', 'sans secrets Telegram : événements notés dans l\'historique, jamais renvoyés');
+/* signaux indisponibles : pas d'exception */
+r = await traiterClotures(env, depot4, T + 10 * 60e3, { fetchFn: async () => { throw new Error('réseau'); }, heureParis }); v(r.nouveaux === 0, 'signaux.json injoignable : aucune exception');
+/* le routeur lance bien les clôtures */
+v(tachesDuPassage(T).includes('cloture-h4'), 'le cron lance les clôtures H4 à 12 h 02 UTC');
+console.log(ko ? `✗ ${ko} échec(s), ${ok} ok` : `alertes-cloture-test : tout passe (${ok})`); process.exit(ko ? 1 : 0);

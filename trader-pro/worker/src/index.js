@@ -9,7 +9,8 @@ import { rappelImport } from './rappel.js';
 import { compteur, compterDepot, viderBudget, alerterBudget, repondreBudget, facteurActuel } from './budget.js';
 
 let depot = null;
-import { tachesDuPassage, lancerTaches } from './cron.js';
+import { tachesDuPassage, lancerTaches, heureParis } from './cron.js';
+import { traiterClotures } from './alertes-cloture.js';
 export default {
   async fetch(req, env) {
     compteur.ajouter('requetes');
@@ -31,6 +32,8 @@ export default {
 export function tachesWorker(env, depot, t, fetchFn = fetch) {
   return {
     'budget': async () => { const r = await viderBudget(depot, compteur, t); await alerterBudget(env, depot, r.budget, r.niveau, fetchFn); return r.niveau.niveau; },
+    'cloture-h1': () => traiterClotures(env, depot, t, { fetchFn, heureParis }),   // une seule évaluation par passage (H4 et Daily l'incluent)
+    'cloture-h4': () => 'inclus', 'cloture-jour': () => 'inclus',
     'alertes-prix': () => verifierAlertes(env, depot, fetchFn),
     'rappel-import': () => rappelImport(env, depot).catch(() => 'ré-essai au prochain passage'),
     'alertes-invest': () => alertesInvest(env, depot).catch(() => 'ré-essai au prochain passage')

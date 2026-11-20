@@ -41,3 +41,6 @@ export function creerVue(zone, { delai } = {}) {
 
 /* v6 (B1) : synchronisation personnelle (Ma liste, Mon plan, réglages, risque) PC / tablette / téléphone, toutes les 45 s quand la page est visible ; sans Worker configuré : rien */
 try { if (typeof document !== 'undefined') import('./sync-perso.js').then(m => import('../terminal/dessins-stockage.js').then(d => m.brancherSynchroPerso({ lireConn: () => d.lireConn() }))).catch(() => { /* synchro indisponible : l'appli marche en local */ }); } catch (e) { /* ignoré */ }
+
+/* v6 (B3) : quand le Worker est configuré, c'est LUI qui envoie les alertes Telegram (PC éteint ou non) : l'appli ouverte n'annonce que par la voix, sans doublon Telegram */
+export const alertesParWorker = () => { try { const c = JSON.parse(localStorage.getItem('rayle_pf_conn_v1') || 'null'); return !!(c && c.url); } catch (e) { return false; } };
