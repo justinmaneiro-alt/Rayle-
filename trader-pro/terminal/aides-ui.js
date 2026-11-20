@@ -50,6 +50,8 @@ export function monterAides(ctx) {
     try { const { lireJour } = await import('../commun/donnees.js'), r = await lireJour('EURUSD', { delai: 8000 }), b = r && r.donnees && r.donnees.b, d = b && b[b.length - 1], c = d && (d[1] || d[2]); if (c > 0.5 && c < 2.5) { E.eurUsd = c; E.eurUsdSource = 'dernière clôture Yahoo Finance'; } } catch (e) { /* champ modifiable */ }
   }
   /* o : objet « position » (entree, stop, objectif) du terminal ; renvoie { html } affiché dans l'édition de la position */
+  /* v6 (B4) : le calculateur tient compte du risque déjà engagé et du budget restant (jour / semaine) ; alerte, jamais blocage */
+  function avertRisque(t, voulu) { try { const c = JSON.parse(localStorage.getItem("rayle_pf_risque_cache") || "null"); if (!c || !c.b || !(c.b.capital > 0) || Date.now() - c.t > 6 * 3600e3) return ""; const reste = Math.min(c.b.jour.reste, c.b.semaine.reste), tag = c.b.jour.etat === "atteinte" ? "limite du jour atteinte : nouvelle position déconseillée" : c.b.semaine.etat === "atteinte" ? "limite de la semaine atteinte : nouvelle position déconseillée" : (t.risqueReel > reste + 1e-9 ? "il ne te reste que " + Math.max(0, Math.round(reste)) + " € de budget de risque (jour / semaine)" : ""); return tag ? `<p class="tp-baisse">⚠ ${tag}. Ce n’est pas un blocage : la décision reste la tienne.</p>` : ""; } catch (e) { return ""; } }
   function tailleXtb(o) {
     const C = CONTRATS_XTB[id] || { xtb: id.toUpperCase(), contrat: 1, devise: 'USD', verifie: false, note: 'taille du lot à vérifier dans xStation' }, S = cfg(), contrat = S.contrat[id] > 0 ? S.contrat[id] : C.contrat, eur = S.eurUsd || E.eurUsd;
     const t = calculerTaille({ entree: o.entree, stop: o.stop, objectif: o.objectif, risqueEur: S.risque, contrat, eurUsd: eur, devise: C.devise });
@@ -59,7 +61,7 @@ export function monterAides(ctx) {
     else if (t.sansTaux) res = '<p class="tor-doux">Taux EUR/USD indisponible : saisis-le ci-dessus pour obtenir les lots.</p>';
     else res = `<div class="tp-taille-res"><p><b>${t.sens === 'achat' ? 'Achat' : 'Vente'}</b> · <span class="tp-taille-lots">${nf(t.lots, 2)} lot${t.lots >= 2 ? 's' : ''}</span> XTB (<code>${esc(C.xtb)}</code>) pour risquer ${nf(S.risque, 0)} € au stop</p>
       <p>Risque réel au stop : <b>${nf(t.risqueReel, 2)} €</b> · Gain à la cible : <b class="${t.gainCible >= 0 ? 'tp-hausse' : 'tp-baisse'}">${t.gainCible == null ? '—' : nf(t.gainCible, 2) + ' €'}</b> · <b>${t.R == null ? '—' : nf(t.R, 2) + ' R'}</b>${t.coherent === false ? ' <span class="tp-baisse">(objectif du mauvais côté)</span>' : ''}</p>
-      ${t.trop_petit ? `<p class="tp-baisse">Risque trop faible : le minimum (0,01 lot) risque ${nf(t.risqueMinimal, 2)} € sur ce stop.</p>` : ''}</div>`;
+      ${avertRisque(t, S.risque)}${t.trop_petit ? `<p class="tp-baisse">Risque trop faible : le minimum (0,01 lot) risque ${nf(t.risqueMinimal, 2)} € sur ce stop.</p>` : ''}</div>`;
     return { html: `<div class="tp-taille"><b>Taille XTB</b> ${champ('risque', 'Risque €', S.risque, ' step="10" min="1"')}${champ('contrat', 'Contrat (unités par lot)', contrat)}${champ('eurusd', 'EUR/USD', eur ? nf(eur, 4).replace(/ /g, '').replace(',', '.') : '')}
       <small class="tor-doux">${C.verifie ? esc(C.note) : '⚠ ' + esc(C.note) + ' (champ modifiable)'}${E.eurUsdSource && !S.eurUsd ? ' · EUR/USD : ' + esc(E.eurUsdSource) : ''}</small>${res}</div>` };
   }

@@ -11,11 +11,12 @@ import { creerPortefeuille, lireConn, ecrireConn, lienAppairage, CLE_RESUME } fr
 import { valeursDuPoint, enrichir, resume, courbes } from './calcul.js';
 import { rapportCalcule, texteRapport } from './coach.js';
 import * as V from './vues.js';
+import { vueRisque } from './vue-risque.js';
 import { vueSetups } from './vue-setups.js';
 import { lireJournal, ecrireJournal, synchroniser as synchroJournal, noterPrise, attribuer, retirer, noterImport } from './journal-stockage.js';
 import { creerPrise, fusionner as fusionnerJournal } from './journal-setups.js';
 
-const ONGLETS = [['globale', 'Vue globale'], ['trans', 'Transactions'], ['actif', 'Par actif'], ['ou', 'Gains / pertes'], ['pos', 'Positions'], ['coach', 'Coach'], ['setups', 'Setups'], ['reglages', 'Réglages']];
+const ONGLETS = [['globale', 'Vue globale'], ['trans', 'Transactions'], ['actif', 'Par actif'], ['ou', 'Gains / pertes'], ['pos', 'Positions'], ['coach', 'Coach'], ['risque', 'Risque global'], ['setups', 'Setups'], ['reglages', 'Réglages']];
 let instance = null;
 export const etat = () => (instance ? instance.etat() : { actif: false });
 
@@ -58,8 +59,8 @@ export async function ouvrir({ racine = document.body, onFermer = () => {} } = {
   function afficher() {
     if (S.ferme) return; graphs.vider(); clearInterval(S.minuteurPos);
     el.querySelectorAll('[data-onglet]').forEach(b => b.setAttribute('aria-selected', String(b.dataset.onglet === S.onglet)));
-    if (!S.L.fermees.length && S.onglet !== 'reglages' && S.onglet !== 'setups') { zone.innerHTML = `<article class="tp-carte tp-vide"><h3>Importer mon historique XTB</h3><p>Dans xStation : <b>Historique du compte → Exporter</b>, puis choisissez ici le fichier <b>.zip tel quel</b> (ou le .xlsx / .csv qu’il contient). Vous pouvez le refaire tous les un ou deux jours, depuis n’importe quel appareil : seules les nouvelles transactions sont ajoutées.</p><p><label class="tp-import"><input type="file" data-fichier accept=".zip,.xlsx,.xls,.csv,application/zip" multiple hidden><span class="tp-bouton">Choisir le fichier</span></label></p><p class="tp-doux">Le fichier est lu sur cet appareil ; seules les transactions (pas le numéro de compte) sont gardées.</p></article>`; return; }
-    const f = { setups: () => { S.J = lireJournal(); S.synthese = vueSetups(S, zone); }, globale: () => V.vueGlobale(S, zone, graphs), trans: () => V.vueTransactions(S, zone), actif: () => V.vueActif(S, zone, graphs), ou: () => V.vueOu(S, zone), pos: () => { V.vuePositions(S, zone, S.prix); chargerPrix(); S.minuteurPos = setInterval(chargerPrix, 30000); }, coach: () => V.vueCoach(S, zone, graphs), reglages: () => V.vueReglages(S, zone, lireConn()) }[S.onglet];
+    if (!S.L.fermees.length && S.onglet !== 'reglages' && S.onglet !== 'setups' && S.onglet !== 'risque') { zone.innerHTML = `<article class="tp-carte tp-vide"><h3>Importer mon historique XTB</h3><p>Dans xStation : <b>Historique du compte → Exporter</b>, puis choisissez ici le fichier <b>.zip tel quel</b> (ou le .xlsx / .csv qu’il contient). Vous pouvez le refaire tous les un ou deux jours, depuis n’importe quel appareil : seules les nouvelles transactions sont ajoutées.</p><p><label class="tp-import"><input type="file" data-fichier accept=".zip,.xlsx,.xls,.csv,application/zip" multiple hidden><span class="tp-bouton">Choisir le fichier</span></label></p><p class="tp-doux">Le fichier est lu sur cet appareil ; seules les transactions (pas le numéro de compte) sont gardées.</p></article>`; return; }
+    const f = { setups: () => { S.J = lireJournal(); S.synthese = vueSetups(S, zone); }, globale: () => V.vueGlobale(S, zone, graphs), trans: () => V.vueTransactions(S, zone), actif: () => V.vueActif(S, zone, graphs), ou: () => V.vueOu(S, zone), pos: () => { V.vuePositions(S, zone, S.prix); chargerPrix(); S.minuteurPos = setInterval(chargerPrix, 30000); }, coach: () => V.vueCoach(S, zone, graphs), risque: () => vueRisque(S, zone), reglages: () => V.vueReglages(S, zone, lireConn()) }[S.onglet];
     try { const r = f(); if (r && r.catch) r.catch(e => { zone.innerHTML = `<p class="tp-panne" role="alert">Affichage impossible : ${esc(e && e.message || e)}</p>`; }); } catch (e) { zone.innerHTML = `<p class="tp-panne" role="alert">Affichage impossible : ${esc(e && e.message || e)}</p>`; console.warn('[pf]', e); }
   }
   /* prix en direct des positions ouvertes : l'or par le prix unique de l'appli, les autres par les instantanés du robot (différés) */
