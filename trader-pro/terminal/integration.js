@@ -14,7 +14,7 @@ import { monterDashboard } from '../commun/dashboard.js';
 import { VERSION } from './version.js';
 import { monterDessins } from './dessins-ui.js';
 import { monterAides } from './aides-ui.js';
-import { chargerStats, phraseHistorique, typeStat, panneauHtml } from './stats-ui.js';
+import { chargerStats, phraseHistorique, typeStat, panneauHtml, chargerHonnetes, honnetesHtml } from './stats-ui.js';
 import { noterPrise } from '../portefeuille/journal-stockage.js';
 import { SETUPS, NOM_SETUP } from '../portefeuille/journal-setups.js';
 import { CONTRATS_XTB } from './aides.js';
@@ -326,7 +326,7 @@ export async function monterPro(T) {
   } catch (e) { console.warn('[tp] aides :', e && e.message); E.aides = null; }
 
   /* ───── panneau « Statistiques » : taux de réussite, espérance et R médian de chaque type de flèche ───── */
-  function rendreStats() { if (!E.stats) return; E.stats.innerHTML = panneauHtml(E.statsData, E.statsActif, E.statsUnite); }
+  function rendreStats() { if (!E.stats) return; E.stats.innerHTML = panneauHtml(E.statsData, E.statsActif, E.statsUnite) + "<div data-honnetes></div>"; chargerHonnetes().then(H => { const z = E.stats && E.stats.querySelector("[data-honnetes]"); if (z) z.innerHTML = honnetesHtml(H, E.statsActif, E.statsUnite); }); }
   function ouvrirStats(o) {
     if (!E.stats) { E.stats = document.createElement('aside'); E.stats.className = 'tp-panneau tp-stats'; E.stats.setAttribute('aria-label', 'Statistiques des flèches'); E.stats.hidden = true; document.body.appendChild(E.stats);
       E.stats.addEventListener('click', ev => { if (ev.target.closest('[data-fermer]')) { ouvrirStats(false); return; } const a = ev.target.closest('[data-stat-actif]'), u = ev.target.closest('[data-stat-unite]'); if (a) { E.statsActif = a.dataset.statActif; rendreStats(); } if (u) { E.statsUnite = u.dataset.statUnite; rendreStats(); } }); }

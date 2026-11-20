@@ -46,3 +46,13 @@ export function panneauHtml(S, actifId, unite) {
     <h4>Comment lire</h4><p class="tp-doux">Chaque flèche simulée est « prise » à la clôture de la bougie de confirmation ; le stop est placé derrière la mèche de cette bougie (au moins 1 ATR) ; la cible est à 2 R. Les flèches de niveau et de Fibonacci sont simulées sur des niveaux <b>objectifs</b> (plus hauts et plus bas de swing majeurs) : les niveaux tracés à la main ne peuvent pas être rejoués à l’identique dans le passé. Frais, spread et glissement ne sont pas comptés. Passé ≠ futur.</p>
     <p class="tp-doux">Calcul du ${esc(S && S.genere ? new Date(S.genere).toLocaleDateString('fr-FR') : '—')} (outils-donnees/stats-fleches.mjs).</p>`;
 }
+
+/* v6 (B5) : « preuve » avec les coûts XTB — apprentissage et période jamais vue côte à côte, statut par type (fiable / fragile / non significatif / en dégradation) */
+let honnetes = null, honnetesP = null;
+export function chargerHonnetes(fetchFn = (...a) => fetch(...a)) { if (honnetes) return Promise.resolve(honnetes); if (!honnetesP) honnetesP = fetchFn(new URL('./stats-honnetes.json', import.meta.url).href).then(r => (r.ok ? r.json() : null)).then(j => (honnetes = j)).catch(() => null); return honnetesP; }
+export function honnetesHtml(H, actifId, unite) {
+  const A = H && H.actifs && H.actifs[actifId], s = A && A[unite]; if (!s) return '<p class="tp-doux">Preuve avec coûts : pas de données pour cet actif et cette unité.</p>';
+  const pc = v => (v == null ? '—' : Math.round(v * 100) + ' %'), r = v => (v == null ? '—' : (v >= 0 ? '+' : '−') + Math.abs(v).toFixed(2).replace('.', ',') + ' R');
+  const L = Object.entries(s.types).filter(([, x]) => x.apprentissage.n > 0).map(([id, x]) => `<tr><td>${esc(id)}</td><td>${pc(x.apprentissage.taux)} · ${r(x.apprentissage.net)} · ${x.apprentissage.n}</td><td>${pc(x.jamaisVu.taux)} · ${r(x.jamaisVu.net)} · ${x.jamaisVu.n}</td><td><b>${esc(x.verdict)}</b></td></tr>`).join('');
+  return `<h4>Preuve avec les coûts XTB</h4><table class="tp-stats-tab"><thead><tr><th>Type</th><th>Apprentissage (70 % anciens) : réussite · espérance nette · cas</th><th>Jamais vu (30 % récents)</th><th>Statut</th></tr></thead><tbody>${L}</tbody></table><p class="tp-doux">${esc(H.note || '')} Règles figées avant mesure ; résultats en R après spread et swap. « Fragile » = la période jamais vue est nettement moins bonne.</p>`;
+}
