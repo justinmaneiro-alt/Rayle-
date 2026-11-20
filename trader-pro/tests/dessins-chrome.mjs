@@ -49,27 +49,30 @@ console.log('— sélection, poignées, déplacement —');
 await clic(zone.x + zone.w * 0.02, zone.y + zone.h * 0.05); e = await etat(); verif(e.selection === null, 'un toucher dans le vide désélectionne');
 const px0 = await p.evaluate(() => window.__orPro.dessins().pixels(window.__orPro.dessins().etat().dessins.find(d => d.type === 'tendance').id));
 const r0 = await p.evaluate(() => { const r = window.__or.graph.conteneur().getBoundingClientRect(); return { x: r.left, y: r.top }; });
-const milieu = { x: r0.x + (px0.a.x + px0.b.x) / 2, y: r0.y + (px0.a.y + px0.b.y) / 2 };
+/* point de la trendline où un toucher la désigne bien, elle et pas un autre dessin qui la croise (écrans étroits : tout se chevauche) */
+const pointSur = id => p.evaluate(i => { const D = window.__orPro.dessins(), g = D.pixels(i), r = window.__or.graph.conteneur().getBoundingClientRect(); for (const k of [0.5, 0.4, 0.6, 0.3, 0.7, 0.2, 0.8, 0.15, 0.85]) { const x = g.a.x + (g.b.x - g.a.x) * k, y = g.a.y + (g.b.y - g.a.y) * k, h = D.toucher(x, y); if (h && h.id === i && !h.poignee) return { x: r.left + x, y: r.top + y }; } return { x: r.left + (g.a.x + g.b.x) / 2, y: r.top + (g.a.y + g.b.y) / 2 }; }, id);
+const milieu = await pointSur(tl.id);
 await clic(milieu.x, milieu.y); e = await etat(); verif(e.selection === tl.id, 'toucher la trendline la sélectionne');
 const avant = (await etat()).dessins.find(d => d.id === tl.id);
 await glisser({ x: r0.x + px0.b.x, y: r0.y + px0.b.y }, { x: r0.x + px0.b.x + 60, y: r0.y + px0.b.y - 40 });
 let ap = (await etat()).dessins.find(d => d.id === tl.id); verif(ap.t2 > avant.t2 && ap.p2 > avant.p2 && ap.t1 === avant.t1 && ap.p1 === avant.p1, 'étirer par la poignée : seule l’extrémité B bouge');
-const px1 = await p.evaluate(i => window.__orPro.dessins().pixels(i), tl.id); const m2 = { x: r0.x + (px1.a.x + px1.b.x) / 2, y: r0.y + (px1.a.y + px1.b.y) / 2 };
+const m2 = await pointSur(tl.id);
 await glisser(m2, { x: m2.x + 50, y: m2.y + 30 }); const ap2 = (await etat()).dessins.find(d => d.id === tl.id); verif(ap2.t1 > ap.t1 && ap2.t2 > ap.t2 && ap2.p1 < ap.p1, 'déplacer par le corps : les deux extrémités suivent');
-verif((await etat()).claim === false, 'aucune capture de pointeur ne reste active'); const nChart = await p.evaluate(() => window.__or.graph.chart().timeScale().getVisibleLogicalRange().from); await glisser({ x: zone.x + zone.w * 0.05, y: zone.y + zone.h * 0.3 }, { x: zone.x + zone.w * 0.2, y: zone.y + zone.h * 0.3 });
-const nChart2 = await p.evaluate(() => window.__or.graph.chart().timeScale().getVisibleLogicalRange().from); verif(Math.abs(nChart2 - nChart) > 1, 'hors dessin : le graphique défile normalement (le dessin ne bloque pas le défilement)');
+verif((await etat()).claim === false, 'aucune capture de pointeur ne reste active'); const nChart = await p.evaluate(() => window.__or.graph.chart().timeScale().getVisibleLogicalRange().from); /* départ du glissé : un point libre (aucun dessin dessous), au milieu du graphique */
+  const libre = await p.evaluate(() => { const D = window.__orPro.dessins(), r = window.__or.graph.conteneur().getBoundingClientRect(); for (const fy of [0.25, 0.15, 0.35, 0.5, 0.6]) for (const fx of [0.05, 0.1, 0.5, 0.35, 0.65, 0.8, 0.9]) { const x = r.width * fx, y = r.height * fy; if (!D.toucher(x, y) && !D.toucher(x + 60, y)) return { x: r.left + x, y: r.top + y }; } return { x: r.left + r.width * 0.05, y: r.top + r.height * 0.3 }; });
+  let nChart2 = nChart; for (let essai = 0; essai < 4 && Math.abs(nChart2 - nChart) <= 1; essai++) { await w(500); await glisser({ x: libre.x, y: libre.y }, { x: libre.x + Math.min(120, zone.w * 0.25), y: libre.y }); await w(500); nChart2 = await p.evaluate(() => window.__or.graph.chart().timeScale().getVisibleLogicalRange().from); }   // (le glissé tactile émulé est parfois pris pour un toucher : jusqu'à 4 essais)
+verif(Math.abs(nChart2 - nChart) > 1, 'hors dessin : le graphique défile normalement (le dessin ne bloque pas le défilement)');
 console.log('— couleur, verrou, alertes —');
-await clic(milieu.x + 50, milieu.y + 30); e = await etat();
-if (e.selection !== tl.id) { const px2 = await p.evaluate(i => window.__orPro.dessins().pixels(i), tl.id); await clic(r0.x + (px2.a.x + px2.b.x) / 2, r0.y + (px2.a.y + px2.b.y) / 2); }
+const mm = await pointSur(tl.id); await clic(mm.x, mm.y); e = await etat();
 await p.evaluate(() => document.querySelectorAll('.tp-dessin-barre [data-couleur]')[2].click()); await w(200); e = await etat(); verif(e.dessins.find(d => d.id === tl.id).couleur === '#5fb894', 'changer la couleur (vert sobre)');
 await p.evaluate(() => document.querySelector('.tp-dessin-barre [data-d="verrou"]').click()); await w(200); verif((await etat()).dessins.find(d => d.id === tl.id).verrou === true, 'verrouiller');
-const pv = await p.evaluate(i => window.__orPro.dessins().pixels(i), tl.id), av2 = (await etat()).dessins.find(d => d.id === tl.id);
-await glisser({ x: r0.x + (pv.a.x + pv.b.x) / 2, y: r0.y + (pv.a.y + pv.b.y) / 2 }, { x: r0.x + (pv.a.x + pv.b.x) / 2 + 80, y: r0.y + (pv.a.y + pv.b.y) / 2 }); const ap3 = (await etat()).dessins.find(d => d.id === tl.id); verif(ap3.t1 === av2.t1 && ap3.p1 === av2.p1, 'verrouillé : ne bouge plus');
+const pv = await pointSur(tl.id), av2 = (await etat()).dessins.find(d => d.id === tl.id);
+await glisser({ x: pv.x, y: pv.y }, { x: pv.x + 80, y: pv.y }); const ap3 = (await etat()).dessins.find(d => d.id === tl.id); verif(ap3.t1 === av2.t1 && ap3.p1 === av2.p1, 'verrouillé : ne bouge plus');
 await p.evaluate(() => document.querySelector('.tp-dessin-barre [data-d="alerte"]').click()); await w(200); verif((await etat()).dessins.find(d => d.id === tl.id).alerte === false, 'couper les alertes de ce niveau');
 await p.evaluate(() => document.querySelector('.tp-dessin-barre [data-d="verrou"]').click()); await w(200);
 console.log('— unités de temps : les dessins restent visibles, l’unité d’origine est gardée —');
 const unite0 = (await etat()).dessins[0].unite;
-for (const u of ['H4', 'J']) { await p.evaluate(x => document.querySelector(`[data-periode="${x}"]`).click(), u); await w(7000); const ee = await etat(); verif(ee.dessins.length >= 5 && ee.dessins.every(d => ['H1', 'H4', 'J'].includes(d.unite)), 'sur ' + u + ' : les ' + ee.dessins.length + ' dessins existent toujours'); const g = await p.evaluate(i => window.__orPro.dessins().pixels(i), tl.id); verif(!!g, 'sur ' + u + ' : la trendline a une position à l’écran'); }
+for (const u of ['H4', 'J']) { await p.evaluate(x => document.querySelector(`[data-periode="${x}"]`).click(), u); await w(7000); const ee = await etat(); verif(ee.dessins.length >= 5 && ee.dessins.every(d => ['H1', 'H4', 'J'].includes(d.unite)), 'sur ' + u + ' : les ' + ee.dessins.length + ' dessins existent toujours'); const g = await p.evaluate(i => window.__orPro.dessins().pixels(i), tl.id); verif(await attendre(() => p.evaluate(i => !!window.__orPro.dessins().pixels(i), tl.id), 25000), 'sur ' + u + ' : la trendline a une position à l’écran'); }
 await capture('dessins-unite-jour');
 console.log('— Fibonacci : ancrage auto et niveaux affichés —');
 await p.evaluate(() => { const D = window.__orPro.dessins(); D.choisirMode('fibo'); }); await w(200);

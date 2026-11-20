@@ -309,6 +309,7 @@ export function monterDessins(ctx) {
     etat: () => ({ dessins: vis().map(o => ({ id: o.id, type: o.type, unite: o.unite, couleur: o.couleur, verrou: !!o.verrou, alerte: o.alerte !== false, etat: (E.evals.get(o.id) || {}).etat || 'actif', evenements: (o.evenements || []).length, p: o.p, p1: o.p1, p2: o.p2, t1: o.t1, t2: o.t2, bas: o.bas, haut: o.haut })), selection: E.sel, mode: E.mode, ouvert: E.ouvert, syncFait: E.syncFait, claim: E.claim }),
     /* pour les tests : pixels d'un dessin */
     pixels: i => { const o = parId(i); return o ? ecran(o) : null; },
+    toucher: (x, y) => { const h = sous({ x, y }); return h ? { id: h.o.id, poignee: h.poignee } : null; },
     px: { X, Y, T, P }, ajouter, supprimer, selectionner, choisirMode, liste: () => vis(), toutesLesDonnees: () => E.liste, evaluations: () => [...E.evals.entries()]
   };
 }

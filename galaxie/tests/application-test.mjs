@@ -9,7 +9,7 @@ new Function(...Object.keys(sandbox), fs.readFileSync('core/commun/application.j
 const A = fen.Application;
 let ok = 0, ko = 0; const v = (n, c, d = '') => { c ? ok++ : ko++; if (!c) console.log('KO  ' + n + (d ? ' — ' + d : '')); };
 v('Application exposée', !!A && typeof A.commande === 'function');
-v('huit fenêtres dans l’ordre (Marchés, Couverture et Portefeuille au niveau des autres)', JSON.stringify(A.fenetres.map(f => f.id)) === JSON.stringify(['rayle', 'terminal', 'marches', 'couverture', 'portefeuille', 'anatomie', 'terre', 'dev3d']));
+v('neuf fenêtres dans l’ordre (Marchés, Couverture, Portefeuille et Investissement au niveau des autres)', JSON.stringify(A.fenetres.map(f => f.id)) === JSON.stringify(['rayle', 'terminal', 'marches', 'couverture', 'portefeuille', 'invest', 'anatomie', 'terre', 'dev3d']));
 v('« les marchés » → marches', (A._trouver('les marches') || {}).id === 'marches');
 const trouve = t => { const f = A._trouver(t); return f && f.id; };
 v('« le terminal » → terminal', trouve('le terminal') === 'terminal');

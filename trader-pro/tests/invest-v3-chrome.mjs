@@ -12,7 +12,8 @@ verif(!actions.includes('FEML.UK'), 'FEML (Fidelity Emerging Markets) n’est pl
 await p.evaluate(() => { const s = document.querySelector('#invest-fenetre [data-f="classe"]'); s.value = 'fonds coté'; s.dispatchEvent(new Event('change', { bubbles: true })); }); await w(5000);
 await p.evaluate(() => { const i = document.querySelector('#invest-fenetre [data-f="texte"]'); i.value = ''; i.dispatchEvent(new Event('input', { bubbles: true })); }); await w(2500);
 const fonds = await p.evaluate(() => [...document.querySelectorAll('#invest-fenetre [data-vt] .lt-r[data-id]')].map(r => r.dataset.id));
-const nbFonds = await p.evaluate(() => +(/(\d[\d  ]*)\s+instrument/.exec(document.querySelector('#invest-fenetre [data-compte]').innerText) || [0, '0'])[1].replace(/\s/g, '')); verif(nbFonds >= 50 && nbFonds <= 200 && fonds.length > 5, 'la classe « Fonds cotés » contient des véhicules : ' + nbFonds + ' instruments');
+const lireNb = () => p.evaluate(() => +(/(\d[\d  ]*)\s+instrument/.exec(document.querySelector('#invest-fenetre [data-compte]').innerText) || [0, '0'])[1].replace(/\s/g, ''));
+await attendre(async () => (await lireNb()) >= 50, 30000); const nbFonds = await lireNb(); verif(nbFonds >= 50 && nbFonds <= 200 && fonds.length > 5, 'la classe « Fonds cotés » contient des véhicules : ' + nbFonds + ' instruments');
 for (const id of ['FEML.UK', 'BGFD.UK', 'UEM.UK', 'MNKS.UK']) {
   await p.evaluate(x => { const i = document.querySelector('#invest-fenetre [data-f="texte"]'); i.value = x; i.dispatchEvent(new Event('input', { bubbles: true })); }, id.split('.')[0]); await w(1500);
   verif(await p.evaluate(x => !!document.querySelector(`#invest-fenetre [data-vt] .lt-r[data-id="${x}"]`), id), id + ' est dans « Fonds cotés »');
