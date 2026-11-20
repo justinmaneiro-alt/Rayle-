@@ -78,3 +78,9 @@ Module commun **`trader-pro/commun/echelles.js`** (géométrie pure testée : `e
 - **L'échelle suit les bougies seulement quand l'empreinte est affichée** (MA200 et VWAP, souvent loin du prix, sont exclus de l'échelle automatique pendant l'empreinte : sinon les cases étaient écrasées).
 - **Le footprint profite de l'étirement** : la taille de case est recalculée à chaque image à partir du nombre de pixels par dollar ; mesuré dans le test : un étirement vertical ×3 fait passer la case de 2 $ à 1 $ (taille précalculée plus fine) ; au-delà de la plus fine, les cases ne descendent pas sous le pas d'archive (0,5 $ pour l'or, 5 $ Bitcoin, 0,05 $ Solana).
 - Résultats des tests Chrome : PC et tablette tactile (pincements vertical, horizontal, diagonal, double appui sur l'axe) : tout passe. **Limite du banc** : dans le Classique, le Chrome sans GPU du banc n'affiche pas les bougies du graphique classique ; le glisser sur l'axe du temps n'y est donc pas mesurable (il l'est dans le Volume).
+
+## Phase 5 — Contrôles et publication
+- Tests Chrome (PC, tablette) : footprint H1/H4/Daily or et Bitcoin (archive locale de 25 jours), mention « pas d'empreinte » sur bougies anciennes, niveaux de réaction or Daily/H4, étirement souris et doigt, retour Auto : tout passe. Dessin de l'empreinte ≈ 6 ms en moyenne (rendu logiciel du banc), 4 500 bougies chargées, seules les visibles dessinées ; 400 bougies visibles : affichage léger.
+- Worker Cloudflare : rien de nouveau (aucun KV, aucun appel Worker). Les données viennent de la branche `footprint` (CDN GitHub).
+- **Non vérifié** : taille réelle des fichiers de la première exécution complète (le robot `footprint` tournait encore au moment de la rédaction ; estimation 3 ans : Bitcoin ≈ 75 Mo, Solana ≈ 30 Mo, or ≈ 12 Mo) ; rendu téléphone (non lancé) ; classique : axe du temps non mesurable sur le banc.
+- Version 2026.11.20.3.
