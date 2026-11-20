@@ -75,3 +75,36 @@ Le robot publie désormais `bougies-NQ_F|ES_F|6E_F-1h|1d.json` (lot « bougies �
 - **Statistiques** : les trois types sont dans le panneau Stats (taux de réussite, R médian, cas, « non significatif » sous 30 cas) ; `stats-fleches.json` régénéré **avec l'historique long** (or H4 12 763 bougies, Daily 6 086, etc.). **Limites** : delta **estimé** dans l'historique (pas de côté disponible), volume de ticks (Dukascopy) pour l'or / les indices / EUR/USD ; ces statistiques sont proches du hasard (repère 33 % à 2 R / stop 1 R) : ne pas les lire comme un avantage.
 - **Voix** : « Rayle, analyse le volume de l'or en H4 » (POC, position par rapport à la zone de valeur, déséquilibre du carnet, murs proches, niveau le plus fort, dernière flèche) ; « passe en mode volume » ; « reviens au mode classique » ; « ancre un VWAP ici » ; « montre-moi les POC nus ». Les commandes retrouvent le terminal même dans un cadre de l'application, ou l'ouvrent.
 - Tests : `volume-test.mjs` (31 : profil, VA, HVN/LVN, VWAP, POC nus, MFI, RVOL, carnet, flèches, absence de futur), `volume-live-test.mjs` (23 : flux, carnet Kraken, empreinte, reconnexion, données), `volume-chrome.mjs` (PC, tablette, téléphone sur l'or et le Bitcoin en H4 : carnet vivant, 3 panneaux, profil, S/R, VWAP).
+
+## Phase 5 — Contrôles et publication (faite)
+Version **2026.11.20.2** (`precache.mjs`, `sw.js`, `index.html`, `or.html`, `version.js`). `npm test` : « tous les tests passent ».
+
+| Contrôle | Résultat |
+|---|---|
+| Accueil sans chevauchement, **5 tailles** (PC 1600×900, tablette paysage, tablette portrait, téléphone, petit PC 1280×640) | Chrome : panneaux au-dessus du dock partout (`accueil-chrome.mjs`, 21 vérifications) |
+| Actualité défilante avec 30 articles | 60 articles par onglet, sans doublon, images, source et âge ; panneau de la même taille sur les 3 onglets ; lecture + « Rayle me le résume » |
+| Fond noir ; Daily ≥ 15 ans sur l'or ; MA200 recalculée | Chrome : fond noir uni, **19,9 ans** de Daily après défilement, MA200 sur 5 771 bougies Daily de plus + 9 163 H4 (`historique-chrome.mjs`, 15 vérifications) |
+| Marchés frais PC éteint | Cause (cron GitHub 4-12 h) corrigée par la boucle de 5 min ; constaté : instantanés vieux de 2 à 13 minutes ; les pages hors du PC (hôte ≠ 127.0.0.1) lisent déjà les instantanés d'abord (`couche.js`) |
+| Calendrier unique et cohérent | tests purs (discours ≠ décision) ; les 5 usages passent par `classerEvenement` |
+| Verdict de couverture | test : corrélation 0,29 → jamais « Fiable » |
+| Fiche AXA sans EV/EBITDA | `estFinanciere` reconnaît AXA par le nom ; fiche masque EV/EBITDA, FCF, DCF, Altman, ROIC |
+| Portefeuille synchronisé | lien d'appairage testé (aller-retour) ; **dépend du déploiement du Worker Portefeuille, non fait depuis ce poste** |
+| Mode Volume complet or et BTC en H4, carnet vivant, flèches à la clôture | Chrome PC, tablette, téléphone : 23 vérifications chacun (carnet Binance connecté, 3 panneaux, profil, S/R, VWAP, analyse parlée, retour au classique) |
+| Fluidité tablette | rendu logiciel du test : coût indépendant du nombre de bougies ; **à confirmer sur l'appareil** |
+
+### Autres bugs trouvés (point 10) et corrigés
+- Libellés « Yahoo Finance (lu par le PC) » sur des données produites par le robot GitHub → « robot GitHub, différé ».
+- Deux lecteurs de calendrier dupliqués (`marches-donnees.js` et `trader-pro/marches/calendrier.js`) → un seul.
+- Couverture d'événement et bandes du Terminal : discours pris pour des décisions de taux (voir point 5).
+- Réglage « fond » enregistré avec l'ancienne clé : une ancienne préférence rendait le coloriage obligatoire → nouvelle clé `fondTend`.
+- Mode Volume au premier essai : graphique recréé à chaque changement d'actif → erreurs « Object is disposed » ; un seul graphique réutilisé.
+- Sélecteur de mode : CSS dans un fichier chargé seulement à l'ouverture du mode → déplacé dans `terminal-pro.css` (sinon invisible en tablette) ; bouton « Classique » aussi dans la barre du mode Volume (le calque couvre le terminal).
+- Workflows : noms d'étapes et `run:` contenant « : » invalides en YAML (deux pushes échoués avant correction).
+- **Incident** : un script de patch resté dans le dossier temporaire d'une ancienne session (`p32.mjs`, ciblant `Documents/Projets/Rayle-/trader-pro/commun/dashboard.js`, une ancienne copie du projet) a été exécuté par erreur deux fois. Le contenu du fichier est identique à son HEAD (`git diff --ignore-space-at-eol` vide) ; seuls les fins de ligne ont changé (CRLF → LF). Je n'ai pas pu le restaurer (action refusée) : `git checkout -- trader-pro/commun/dashboard.js` dans cette copie suffit, ou rien n'est à faire.
+
+### Limites connues
+- **Worker Portefeuille / dessins / journal** : jamais déployés depuis ce poste (`wrangler login` indisponible) → pas de synchro entre appareils tant que ce n'est pas fait (`trader-pro/worker/LISEZMOI.md`).
+- **Volume** : voir le tableau des sources ; delta estimé hors Binance ; pas de carnet gratuit pour les indices et l'EUR/USD ; empreinte limitée aux bougies vues en direct ; Binance / Kraken en WebSocket public (indisponibles dans certaines régions ou derrière certains réseaux : l'état du flux est affiché).
+- **Historique long** : H4 de l'or construit depuis le H1 Dukascopy (volume de ticks) ; EUR/USD et indices : volume de ticks, pas de volume réel centralisé ; données Dukascopy « bid ».
+- Les dates BCE / Fed codées pour l'historique de couverture ne sont pas revérifiées (voir point 5).
+- Les statistiques de flèches (MA200, niveaux, Volume) restent proches du hasard : ce sont des repères, pas un avantage démontré.
