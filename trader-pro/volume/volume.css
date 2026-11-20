@@ -55,5 +55,31 @@ html.tpv-actif .tor-graph, html.tpv-actif .tor-outils { visibility: hidden; }
 /* v6 (A1) : légende OHLC / volume / delta qui suit le curseur, bouton « » » (retour à la dernière bougie), attribution */
 .tpv-legende { position: absolute; left: 10px; top: 6px; z-index: 5; max-width: calc(100% - 120px); pointer-events: none; font: 11px/1.5 ui-monospace, Consolas, monospace; color: #aebcc4; text-shadow: 0 0 3px #000, 0 0 3px #000; }
 .tpv-legende b { color: #d7e3ea; font-weight: 600; margin-right: 6px; } .tpv-legende time { color: #6b7a84; margin-right: 6px; } .tpv-legende span { margin-right: 8px; white-space: nowrap; }
-.tpv-temps-reel { position: absolute; right: 64px; bottom: 40px; z-index: 6; width: 34px; height: 34px; border-radius: 50%; border: 1px solid #2b3a46; background: rgba(11, 17, 23, .92); color: #d7e3ea; font: 700 18px/1 system-ui, sans-serif; cursor: pointer; }
+.tpv-temps-reel { position: absolute; right: 70px; top: 300px; z-index: 6; width: 34px; height: 34px; border-radius: 50%; border: 1px solid #2b3a46; background: rgba(11, 17, 23, .92); color: #d7e3ea; font: 700 18px/1 system-ui, sans-serif; cursor: pointer; }
 .tpv-temps-reel:hover { background: #14212b; color: #8fd0e3; }
+
+/* v6 (A4, A6) : panneau de droite à onglets, mini-graphique ICT, bougie du jour, détails, profil, palette (une teinte discrète pour les niveaux) */
+.tpv-droite { display: flex; flex-direction: column; gap: 0; padding: 0 0 14px; }
+.tpv-onglets { display: flex; position: sticky; top: 0; z-index: 3; background: #04070a; border-bottom: 1px solid #14202a; }
+.tpv-onglets button { flex: 1 1 0; min-height: 34px; padding: 4px 3px; background: transparent; color: #8aa0aa; border: 0; border-bottom: 2px solid transparent; font: 11px/1.2 system-ui, sans-serif; cursor: pointer; }
+.tpv-onglets button[aria-selected="true"] { color: #e6edf2; border-bottom-color: #8aa0aa; background: #0a1118; }
+.tpv-pan { padding: 6px 10px 4px; } .tpv-pan[hidden] { display: none !important; }
+.tpv-carnet-barre, .tpv-ict-barre, .tpv-jour-barre { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 10px; margin-bottom: 4px; font-size: 11px; color: #8aa0aa; }
+.tpv-carnet-barre select, .tpv-carnet-barre input[type="number"], .tpv-ict-barre select, .tpv-jour-barre select { background: #0b1117; color: #d7e3ea; border: 1px solid #22323c; border-radius: 4px; padding: 2px 4px; font: inherit; min-height: 26px; }
+.tpv-carnet-barre input[type="number"] { width: 64px; } .tpv-carnet-barre button, .tpv-ict-barre button { background: #0b1117; color: #aebcc4; border: 1px solid #22323c; border-radius: 4px; padding: 2px 8px; font: inherit; cursor: pointer; min-height: 26px; }
+.tpv-ict-barre button[aria-pressed="true"] { background: #14212b; color: #e6edf2; border-color: #8aa0aa; }
+.tpv-ligne.tpv-gros { box-shadow: inset 0 0 0 1px rgba(230, 237, 242, .7); } .tpv-ligne.tpv-gros b { color: #e6edf2; font-weight: 700; }
+.tpv-ligne.tpv-reac { box-shadow: inset 2px 0 0 #7fb3c2; background: rgba(127, 179, 194, .08); } .tpv-ligne.tpv-reac span { color: #7fb3c2; }
+.tpv-mid small { color: #6b7a84; margin-left: 6px; }
+.tpv-spark { display: block; width: 100%; height: 26px; margin-top: 2px; background: #060a0e; border: 1px solid #101a22; border-radius: 3px; } .tpv-spark line { stroke: #22323c; stroke-width: 1; } .tpv-spark polyline { fill: none; stroke: #8aa0aa; stroke-width: 1.3; vector-effect: non-scaling-stroke; }
+.tpv-lecture { margin: 2px 0 6px; padding: 6px 8px; background: #0a1118; border-left: 2px solid #7fb3c2; color: #d7e3ea; font: 12px/1.45 system-ui, sans-serif; }
+.tpv-mini { height: 210px; border: 1px solid #101a22; margin: 4px 0 6px; position: relative; }
+.tpv-ict-liste { display: grid; gap: 2px; font-size: 11px; color: #aebcc4; } .tpv-ict-liste label { display: flex; gap: 6px; align-items: center; min-height: 22px; }
+.tpv-jour { display: block; width: 100%; height: 300px; background: #000; border: 1px solid #101a22; }
+.tpv-jour-texte { display: grid; gap: 2px; margin-top: 6px; font-size: 11px; } .tpv-jour-texte > div { display: flex; justify-content: space-between; gap: 8px; } .tpv-jour-texte span { color: #6b7a84; } .tpv-jour-texte b { font-weight: 500; color: #d7e3ea; text-align: right; } .tpv-jour-texte em { font-style: normal; } .tpv-jour-texte small { color: #6b7a84; }
+.tpv-details { margin: 8px 10px 0; border-top: 1px solid #14202a; padding-top: 6px; } .tpv-details summary { cursor: pointer; color: #8aa0aa; font-size: 11px; letter-spacing: .12em; text-transform: uppercase; }
+.tpv-profil { padding: 2px 8px; border: 1px solid #22323c; border-radius: 10px; color: #aebcc4; font: 11px/1.4 system-ui, sans-serif; white-space: nowrap; }
+.tpv-badge { cursor: pointer; color: #8a9aa4; }
+.tpv-h4-reac { color: #7fb3c2 !important; } .tpv-niv-reac li b { color: #7fb3c2; }
+.tpv-reglages .tpv-preset { flex: 1 1 100%; font-weight: 600; }
+@media (max-width: 900px) { .tpv-droite { max-height: 44%; } .tpv-mini { height: 180px; } .tpv-jour { height: 260px; } .tpv-legende { font-size: 10px; } .tpv-onglets button { min-height: 38px; } }

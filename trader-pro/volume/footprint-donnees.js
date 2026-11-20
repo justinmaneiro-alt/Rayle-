@@ -19,10 +19,11 @@ export async function gunzipJson(buf) {
 
 export function creerStoreFootprint({ base = BASE_FOOTPRINT, fetchFn = (...a) => fetch(...a), surChange = () => {} } = {}) {
   let index = null, indexPromesse = null, indexErreur = null; const mois = new Map(), enCours = new Map(), erreurs = new Map();
-  const lire = async url => { const r = await fetchFn(url); if (r.status === 404) return null; if (!r.ok) throw new Error(`${new URL(url).host} a répondu ${r.status}`); return r; };
+  const lire = async url => { const r = await fetchFn(url, { signal: globalThis.AbortSignal && AbortSignal.timeout ? AbortSignal.timeout(12000) : undefined });   // v6 : délai maximum 12 s, jamais « en cours de chargement » indéfiniment
+     if (r.status === 404) return null; if (!r.ok) throw new Error(`${new URL(url).host} a répondu ${r.status}`); return r; };
   function chargerIndex() {
     if (index) return Promise.resolve(index); if (indexPromesse) return indexPromesse;
-    indexPromesse = (async () => { try { const r = await lire(base + 'index.json?v=' + Math.floor(Date.now() / 600000)); index = r ? await r.json() : { actifs: {} }; indexErreur = null; } catch (e) { indexErreur = String(e && e.message || e); index = null; } finally { indexPromesse = null; } surChange(); return index; })();
+    indexPromesse = (async () => { try { const r = await lire(base + 'index.json?v=' + Math.floor(Date.now() / 600000)); if (r) { index = await r.json(); indexErreur = null; } else { index = null; indexErreur = 'index.json absent (404 : la tâche « footprint » n’a pas encore publié)'; } } catch (e) { indexErreur = /timed out|timeout|abort/i.test(String(e && (e.name + e.message))) ? 'délai de 12 s dépassé' : String(e && e.message || e); index = null; } finally { indexPromesse = null; } if (!index) setTimeout(() => chargerIndex(), 60000); surChange(); return index; })();
     return indexPromesse;
   }
   const info = id => (index && index.actifs && index.actifs[id]) || null;

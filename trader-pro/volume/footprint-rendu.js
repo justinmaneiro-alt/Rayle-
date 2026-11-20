@@ -5,7 +5,7 @@
 import { PARAMS_FOOTPRINT as P, regrouperPrix, tailleCible, analyserBougie, intensite, surNiveau, ligneDuPrix } from './footprint-calcul.js';
 import { TEXTE_ABSENT } from './footprint-donnees.js';
 
-export const COULEUR_REACTION = '#27d3e6';
+export const COULEUR_REACTION = '#7fb3c2';   // teinte discrète des niveaux (palette v6)
 const VERT = [95, 184, 148], ROUGE = [216, 106, 106], rgba = (c, a) => `rgba(${c[0]},${c[1]},${c[2]},${Math.max(0, Math.min(1, a)).toFixed(3)})`;
 const kfmt = v => { const a = Math.abs(v); const d = (x, n) => (+x.toFixed(n)).toString().replace('.', ','); return a >= 1e6 ? d(v / 1e6, 1) + 'M' : a >= 1e3 ? d(v / 1e3, a >= 1e4 ? 0 : 1) + 'k' : a >= 100 ? d(v, 0) : a >= 10 ? d(v, 1) : d(v, 2); };
 const sk = v => (v >= 0 ? '+' : '−') + kfmt(Math.abs(v));
@@ -29,14 +29,15 @@ export function dessiner(sc, env) {
   const { chart, opts, bars } = env, mode = opts.empMode || 'bidask', c = sc.context, hr = sc.horizontalPixelRatio, vr = sc.verticalPixelRatio;
   const esp = espacement(env), r = chart.timeScale().getVisibleRange(); env.rendu = { actif: false, esp, lignes: new Map() };
   if (!r || !bars.length || esp < 30) return;
-  const modeFP = esp >= seuilMode(mode), I = env.store.info(env.actif);
-  if (!modeFP) { env.rendu.actif = false; return dessinerVD(sc, env, r); }
+  const I = env.store.info(env.actif), sansSource = !I && !(env.live && env.live.nHeures && env.live.nHeures() > 0);   // archive absente ou injoignable et rien en direct : jamais de cases grises, on retombe sur les bougies normales
+  const modeFP = env.footprint !== false && env.opts.empreinte && esp >= seuilMode(mode) && !sansSource;
+  if (!modeFP) { env.rendu.actif = false; return env.opts.vd ? dessinerVD(sc, env, r) : undefined; }
   env.rendu.actif = true;
   /* pixels par unité de prix, mesuré autour du dernier cours */
   const ref = bars[bars.length - 1].c, dref = Math.max(ref * 1e-4, 1e-9), y0 = env.yDe(ref), y1 = env.yDe(ref + dref); if (y0 == null || y1 == null) return; const pxParPrix = Math.abs(y1 - y0) / dref; env.rendu.px = pxParPrix;
-  const tailles = I ? I.tailles[env.unite] : null, ligneMin = mode === 'volume' ? P.hauteurLigneProfil : P.hauteurLigneMin;
-  const cible = tailles ? tailleCible(tailles, pxParPrix, ligneMin) : env.live ? tailleCible([env.live.fin], pxParPrix, ligneMin) : null;
   const aRattraper = new Set(), visibles = []; for (const b of bars) { const tt = Math.floor(b.t / 1000); if (tt >= r.from - 2 && tt <= r.to + 2) visibles.push(b); }
+  const tailles = I ? I.tailles[env.unite] : null, ligneMin = mode === 'volume' ? P.hauteurLigneProfil : P.hauteurLigneMin, minPas = (visibles.length ? Math.max(...visibles.map(b => b.h - b.l)) : 0) / P.maxCases;
+  const cible = tailles ? tailleCible(tailles, pxParPrix, ligneMin, minPas) : env.live ? tailleCible([env.live.fin], pxParPrix, ligneMin, minPas) : null;
   if (cible && I && visibles.length) env.store.assurer(env.actif, env.unite, cible.source, visibles[0].t, visibles[visibles.length - 1].t);
   const w = Math.max(20, esp * 0.84), demi = w / 2;
   c.textBaseline = 'middle'; env.rendu.cible = cible; env.rendu.pas = cible ? cible.pas : null;
@@ -58,32 +59,29 @@ export function dessiner(sc, env) {
         } else {
           const L = (xd - xg) * intensite(q.volume, maxV), part = q.volume > 0 ? q.vente / q.volume : 0.5; c.fillStyle = rgba(ROUGE, 0.55); c.fillRect(xg, top, L * part, hp); c.fillStyle = rgba(VERT, 0.55); c.fillRect(xg + L * part, top, L * (1 - part), hp);
         }
-        if (q.poc) { c.strokeStyle = '#f1d34f'; c.lineWidth = Math.max(1, hr); c.strokeRect(xg + 0.5 * hr, top + 0.5 * vr, xd - xg - hr, hp - vr); }
-        const niv = env.reaction && env.opts.reaction !== false ? surNiveau(q.prix, pas, env.reaction) : null;
-        if (niv) { c.fillStyle = COULEUR_REACTION; c.fillRect(xg - 2 * hr, top, 2 * hr, hp); c.fillRect(xd, top, 2 * hr, hp); c.strokeStyle = 'rgba(39,211,230,.9)'; c.lineWidth = Math.max(1, hr); c.beginPath(); c.moveTo(xg, top + hp / 2); c.lineTo(xd, top + hp / 2); c.stroke(); }
+        if (q.poc) { c.strokeStyle = '#e6edf2'; c.lineWidth = Math.max(1, hr); c.strokeRect(xg + 0.5 * hr, top + 0.5 * vr, xd - xg - hr, hp - vr); }
+        const niv = env.reaction && env.opts.reaction ? surNiveau(q.prix, pas, env.reaction) : null;
+        if (niv) { c.fillStyle = COULEUR_REACTION; c.fillRect(xg - 2 * hr, top, 2 * hr, hp); c.fillRect(xd, top, 2 * hr, hp); c.strokeStyle = 'rgba(127,179,194,.9)'; c.lineWidth = Math.max(1, hr); c.beginPath(); c.moveTo(xg, top + hp / 2); c.lineTo(xd, top + hp / 2); c.stroke(); }
         if (q.empile) { c.fillStyle = q.deseq === 'achat' ? 'rgba(95,184,148,1)' : 'rgba(216,106,106,1)'; const mx = q.deseq === 'achat' ? xd + 3 * hr : xg - 5 * hr; c.fillRect(mx, top, 2 * hr, hp); }
-        if (h >= 9) {
-          const taille = Math.min(11, Math.max(8, h - 2)); c.font = `${taille * hr}px ui-monospace, Consolas, monospace`;
+        if (h >= 11) {
+          const taille = Math.min(12, Math.max(10, h - 2)); c.font = `${taille * hr}px ui-monospace, Consolas, monospace`;
           if (mode === 'bidask') {
             const ds = q.deseq; c.textAlign = 'right'; c.font = `${ds === 'vente' ? '700 ' : ''}${taille * hr}px ui-monospace, Consolas, monospace`; c.fillStyle = ds === 'vente' ? '#ff9a9a' : 'rgba(232,170,170,.92)'; c.fillText(q.vente > 0 ? kfmt(q.vente) : '·', xc - 3 * hr, top + hp / 2);
             c.textAlign = 'left'; c.font = `${ds === 'achat' ? '700 ' : ''}${taille * hr}px ui-monospace, Consolas, monospace`; c.fillStyle = ds === 'achat' ? '#8cf0bf' : 'rgba(170,222,196,.92)'; c.fillText(q.achat > 0 ? kfmt(q.achat) : '·', xc + 3 * hr, top + hp / 2);
           } else if (mode === 'delta') { c.textAlign = 'center'; c.fillStyle = q.delta >= 0 ? '#9be8c2' : '#f0a4a4'; c.fillText(sk(q.delta), xc, top + hp / 2); }
-          else if (h >= 10) { c.textAlign = 'left'; c.fillStyle = 'rgba(225,235,240,.9)'; c.fillText(kfmt(q.volume), xg + 3 * hr, top + hp / 2); }
+          else if (h >= 11) { c.textAlign = 'left'; c.fillStyle = 'rgba(225,235,240,.9)'; c.fillText(kfmt(q.volume), xg + 3 * hr, top + hp / 2); }
         }
       }
     }
     /* corps et mèche en fin contour (par-dessus les cases) */
-    c.strokeStyle = rgba(coul, 0.95); c.lineWidth = Math.max(1, hr); c.beginPath(); c.moveTo(xc, yH * vr); c.lineTo(xc, Math.min(yO, yC) * vr); c.moveTo(xc, Math.max(yO, yC) * vr); c.lineTo(xc, yL * vr); c.stroke();
+    c.strokeStyle = A ? rgba(coul, 0.95) : 'rgba(150,160,170,.85)'; c.lineWidth = Math.max(1, hr); c.beginPath(); c.moveTo(xc, yH * vr); c.lineTo(xc, Math.min(yO, yC) * vr); c.moveTo(xc, Math.max(yO, yC) * vr); c.lineTo(xc, yL * vr); c.stroke();
     const yt = Math.min(yO, yC) * vr, hh = Math.max(1, Math.abs(yC - yO) * vr); c.strokeRect(xg, yt, xd - xg, hh);
-    if (!A) { c.fillStyle = rgba(coul, 0.1); c.fillRect(xg, yt, xd - xg, hh); }
+
     /* totaux sous la bougie : delta et volume ; ou la raison de l'absence d'empreinte */
     c.textAlign = 'center'; c.font = `${10 * hr}px ui-monospace, Consolas, monospace`; const yBas = yL * vr + 11 * vr;
     if (A) {
       c.fillStyle = A.total.delta >= 0 ? 'rgba(95,184,148,.95)' : 'rgba(216,106,106,.95)'; c.fillText('Δ ' + sk(A.total.delta), xc, yBas); c.fillStyle = 'rgba(190,200,208,.85)'; c.fillText('V ' + kfmt(A.total.volume), xc, yBas + 12 * vr);
       if (res.partielle) { c.fillStyle = 'rgba(241,211,79,.85)'; c.fillText(env.rattrapageEnCours && env.rattrapageEnCours() ? 'partielle · rattrapage…' : 'empreinte partielle', xc, yBas + 24 * vr); }
-    } else {
-      const d = deltaEtVolume(b); c.fillStyle = 'rgba(190,200,208,.85)'; c.fillText('V ' + kfmt(b.v || 0), xc, yBas); c.fillStyle = d >= 0 ? 'rgba(95,184,148,.8)' : 'rgba(216,106,106,.8)'; c.fillText('Δ ' + sk(d) + (Number.isFinite(b.bv) ? '' : ' (estimé)'), xc, yBas + 12 * vr);
-      c.fillStyle = 'rgba(140,155,165,.9)'; c.font = `${9 * hr}px system-ui, sans-serif`; const t = res.raison && res.code === 'index' ? res.raison : res.code === 'direct' ? (env.rattrapageEnCours && env.rattrapageEnCours() ? 'rattrapage en cours…' : 'jour en cours : pas encore reçu') : res.code === 'archive' ? (env.store.chargement() ? 'chargement…' : 'jour absent de l’archive') : 'pas d’empreinte'; c.fillText(t, xc, Math.max(yH, yL) * vr + 36 * vr);
     }
   }
   c.textAlign = 'start'; c.textBaseline = 'alphabetic';

@@ -3,7 +3,7 @@
    Aucune donnée n'est inventée : une bougie sans cases n'a pas d'empreinte (null), jamais une empreinte estimée.
    Déséquilibre (diagonal, comme sur les logiciels d'order flow) : à la case k, les acheteurs agressifs (ask) sont comparés aux vendeurs agressifs (bid) de la case du dessous (k − 1) ;
    les vendeurs de la case k aux acheteurs de la case du dessus (k + 1). Rapport ≥ 3 : déséquilibre. 3 cases consécutives ou plus du même côté : déséquilibre EMPILÉ (zone de support / résistance fréquente). */
-export const PARAMS_FOOTPRINT = Object.freeze({ ratio: 3, empile: 3, partMin: 0.04, seuilDeltaPx: 70, seuilVolumePx: 44, hauteurLigneMin: 12, hauteurLigneProfil: 6 });
+export const PARAMS_FOOTPRINT = Object.freeze({ ratio: 3, empile: 3, partMin: 0.04, seuilDeltaPx: 70, seuilVolumePx: 44, hauteurLigneMin: 12, hauteurLigneProfil: 6, maxCases: 25 });   // v6 : jamais plus de 25 cases visibles par bougie (la taille s'adapte au zoom en regroupant les cases trop fines)
 
 const EPS = 1e-9;
 /* cases d'archive (pas source) → niveaux au pas cible (multiple entier du pas source) : [{ k, prix, vente, achat, n }] triés du bas vers le haut */
@@ -20,10 +20,12 @@ export function fusionnerCases(listes) {
 }
 /* taille de case à afficher : la plus petite taille précalculée dont la ligne fait au moins `ligneMin` pixels ; sinon un multiple entier de la plus grande.
    pxParPrix = pixels par unité de prix (positif). Retourne { source, pas } (source = taille précalculée à charger, pas = taille affichée, multiple entier de source). */
-export function tailleCible(tailles, pxParPrix, ligneMin = PARAMS_FOOTPRINT.hauteurLigneMin) {
-  const L = [...tailles].sort((a, b) => a - b); if (!L.length || !(pxParPrix > 0)) return null;
-  for (const s of L) if (s * pxParPrix >= ligneMin - EPS) return { source: s, pas: s, ratio: 1 };
-  const s = L[L.length - 1], m = Math.max(1, Math.ceil(ligneMin / (s * pxParPrix) - EPS)); return { source: s, pas: +(s * m).toFixed(8), ratio: m };
+export function tailleCible(tailles, pxParPrix, ligneMin = PARAMS_FOOTPRINT.hauteurLigneMin, minPas = 0) {
+  const L = [...tailles].sort((a, b) => a - b); if (!L.length || !(pxParPrix > 0)) return null; let r = null;
+  for (const s of L) if (s * pxParPrix >= ligneMin - EPS) { r = { source: s, pas: s, ratio: 1 }; break; }
+  if (!r) { const s = L[L.length - 1], m = Math.max(1, Math.ceil(ligneMin / (s * pxParPrix) - EPS)); r = { source: s, pas: +(s * m).toFixed(8), ratio: m }; }
+  if (r.pas < minPas - EPS) { const m = Math.max(1, Math.ceil(minPas / r.source - EPS)); r = { source: r.source, pas: +(r.source * m).toFixed(8), ratio: m }; }   // v6 : au plus maxCases cases par bougie
+  return r;
 }
 /* analyse d'une bougie : lignes du haut vers le bas, POC, déséquilibres, empilés, totaux */
 export function analyserBougie(niveaux, { ratio = PARAMS_FOOTPRINT.ratio, empile = PARAMS_FOOTPRINT.empile, partMin = PARAMS_FOOTPRINT.partMin } = {}) {

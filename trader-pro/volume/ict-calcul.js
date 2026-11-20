@@ -109,6 +109,6 @@ export function lecture({ B, fmt = v => String(Math.round(v)), maintenant = Date
 }
 /* volume relatif du jour : volume de la séance comparé à la moyenne de 20 jours (bougies Daily terminées) ; fraction de séance écoulée pour une comparaison au même moment */
 export function volumeRelatifJour(B, { maintenant = Date.now() } = {}) {
-  if (B.length < 22) return null; const cour = B[B.length - 1]; const hist = B.slice(-21, -1); const moy = hist.reduce((s, b) => s + (b.v || 0), 0) / hist.length; if (!(moy > 0)) return null;
-  const ecoule = Math.min(1, Math.max(0.05, ((maintenant + 6 * H) % J) / J)), attendu = moy * ecoule; return { volume: cour.v || 0, moyenne: moy, ratio: (cour.v || 0) / attendu - 1, ecoule };
+  if (B.length < 22) return null; const cour = B[B.length - 1]; const hist = B.slice(-21, -1); const moy = hist.reduce((s, b) => s + (b.v || 0), 0) / hist.length; if (!(moy > 0) || !(cour.v > 0)) return null;   // pas de volume sur la bougie en cours (source différée) : pas de rapport trompeur
+  const ecoule = Math.min(1, Math.max(0.05, (maintenant - cour.t) / J)), attendu = moy * ecoule; return { volume: cour.v || 0, moyenne: moy, ratio: (cour.v || 0) / attendu - 1, ecoule };
 }

@@ -1,4 +1,5 @@
 /* Tests purs des repères ICT (v6, A4). Usage : node trader-pro/tests/ict-test.mjs */
+import { construire, etiquettesAxe, ICT_DEFAUT } from '../volume/ict-affichage.js';
 import { jourDe, semaineDe, moisDe, agreger, reperes, premiumDiscount, fairValueGaps, orderBlocks, egaux, balayages, sessions, lecture, volumeRelatifJour, atrDaily, J, H } from '../volume/ict-calcul.js';
 let ok = 0, ko = 0; const v = (c, m) => { if (c) ok++; else { ko++; console.log('  ✗ ' + m); } };
 const D = (s, h = 0) => Date.parse(s + 'T00:00:00Z') + h * H;
@@ -47,4 +48,9 @@ const L = lecture({ B: F0.concat(F0.slice(0, 5).map((b, i) => ({ ...b, t: F0[39]
 /* volume relatif */
 const VR = Array.from({ length: 30 }, (_, i) => ({ t: D('2026-10-22') + i * J, o: 1, h: 2, l: 0.5, c: 1, v: 100 })); VR[29].v = 70; const vr = volumeRelatifJour(VR, { maintenant: VR[29].t + 12 * H - 6 * H + 6 * H }); v(vr && Math.abs(vr.moyenne - 100) < 1e-9 && vr.ratio > -0.5 && vr.ratio < 0.5, 'volume relatif : jour à mi-séance comparé à la moyenne de 20 jours (' + (vr && vr.ratio.toFixed(2)) + ')');
 v(atrDaily(Array.from({ length: 100 }, (_, i) => ({ t: D('2026-09-01') + i * H * 4, o: 1, h: 3, l: 1, c: 2 })), 'H4') > 0, 'ATR Daily calculé depuis des bougies H4');
+/* affichage : choix par repère, étiquettes d'axe */
+const AF = construire(B, ICT_DEFAUT, { maintenant: now }); v(['PDH', 'PDL', 'PWH', 'PWL', 'OJ'].every(id => AF.lignes.some(l => l.id === id)) && !AF.lignes.some(l => l.id === 'PMH'), 'affichage : PDH PDL PWH PWL et ouverture du jour par défaut, PMH masqué');
+v(AF.zones.some(z => z.id === 'pd-haut') && AF.zones.some(z => z.id === 'pd-bas') && /^Prix en/.test(AF.lecture), 'affichage : zones premium (rouge) et discount (vert) + lecture');
+const AF2 = construire(B, { ...Object.fromEntries(Object.keys(ICT_DEFAUT).map(k => [k, false])), PDH: true }, { maintenant: now }); v(AF2.lignes.length === 1 && AF2.zones.length === 0, 'affichage : un seul repère activé = une seule ligne, aucune zone');
+v(etiquettesAxe(AF).length >= AF.lignes.length, 'étiquettes de l axe : une par ligne au moins');
 console.log(ko ? `✗ ${ko} échec(s), ${ok} ok` : `ict-test : tout passe (${ok})`); process.exit(ko ? 1 : 0);
