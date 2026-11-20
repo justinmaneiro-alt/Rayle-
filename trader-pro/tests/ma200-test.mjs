@@ -89,7 +89,7 @@ console.log('— alertes, registre —');
   v(n1.length === 1 && n1[0].t === dern.t && n2.length === 0, 'une nouvelle flèche est annoncée une seule fois (voix + Telegram)');
   v(fusionnerRegistre('btc', c.reg, [...a.H4.fleches, ...a.J.fleches]).length >= c.reg.length && c.reg.every(x => x.id === idFleche('btc', x)), 'fusion : identifiant stable');
   v(flechesDe('btc', D, { maintenant: t, stockage: memoire() }).length === a.reg.length && analyseDe('btc', { h4: H.slice(0, 100), j: [] }, { maintenant: t, stockage: memoire() }).reg.length === 0, 'moins de 205 bougies : aucune flèche, aucune erreur');
-  const s3 = memoire(); v(lireReglages(s3).actif === true && lireReglages(s3).fond === true, 'réglages par défaut : flèches et fond activés'); ecrireReglages({ actif: true, fond: false }, s3); v(lireReglages(s3).fond === false && s3.m.has(CLE_REGLAGES), 'réglages enregistrés');
+  const s3 = memoire(); v(lireReglages(s3).actif === true && lireReglages(s3).fondTend === false && lireReglages(s3).niveauxHist === true, 'réglages par défaut (v4) : flèches et niveaux historiques activés, fond coloré désactivé'); ecrireReglages({ actif: true, fondTend: true }, s3); v(lireReglages(s3).fondTend === true && s3.m.has(CLE_REGLAGES), 'réglages enregistrés');
   v(PARAMS.margeCassure === 0.3 && PARAMS.eloignement === 1 && PARAMS.ATR_N === 14 && PARAMS.MA_N === 200, 'paramètres : 0,3 ATR14, 1 ATR, MA 200');
 }
 

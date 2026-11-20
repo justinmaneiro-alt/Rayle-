@@ -20,8 +20,8 @@ const lireJ = (st, k, d) => { try { const v = JSON.parse(st.getItem(k)); return 
 const ecrireJ = (st, k, v) => { try { st.setItem(k, JSON.stringify(v)); return true; } catch (e) { return false; } };
 
 /* réglages : { actif: true, fond: true } */
-export function lireReglages(st = stockageDefaut()) { const r = st ? lireJ(st, CLE_REGLAGES, {}) : {}; return { actif: !r || r.actif !== false, fond: !r || r.fond !== false }; }
-export function ecrireReglages(r, st = stockageDefaut()) { return st ? ecrireJ(st, CLE_REGLAGES, { actif: r.actif !== false, fond: r.fond !== false }) : false; }
+export function lireReglages(st = stockageDefaut()) { const r = st ? lireJ(st, CLE_REGLAGES, {}) : {}; return { actif: !r || r.actif !== false, fondTend: !!r && r.fondTend === true, niveauxHist: !r || r.niveauxHist !== false }; }   // v4 : fond coloré désactivé par défaut (clé fondTend, l'ancienne clé « fond » est ignorée) ; niveaux historiques activés par défaut
+export function ecrireReglages(r, st = stockageDefaut()) { return st ? ecrireJ(st, CLE_REGLAGES, { actif: r.actif !== false, fondTend: r.fondTend === true, niveauxHist: r.niveauxHist !== false }) : false; }
 
 export function lireRegistre(id, st = stockageDefaut()) { const v = st ? lireJ(st, CLE_REGISTRE(id), []) : []; return Array.isArray(v) ? v : []; }
 export function ecrireRegistre(id, reg, st = stockageDefaut()) { return st ? ecrireJ(st, CLE_REGISTRE(id), reg.slice(-400)) : false; }

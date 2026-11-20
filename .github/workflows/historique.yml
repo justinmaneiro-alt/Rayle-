@@ -1,0 +1,46 @@
+name: historique
+# Historique long du Terminal (v4) : Daily 15-20 ans, H4 8 ans, H1 3 ans, par année, compressé (gzip) → branche orpheline « historique ».
+# Sources gratuites sans clé : Dukascopy (dukascopy-node), Yahoo Finance, Binance (miroir public). Voir outils-donnees/historique-long.mjs.
+# Hebdomadaire (le long historique bouge peu) + à la demande + quand le script change. Dépôt public : minutes gratuites.
+on:
+  schedule:
+    - cron: '17 3 * * 0'
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths: ['outils-donnees/historique-long.mjs', '.github/workflows/historique.yml']
+concurrency:
+  group: historique-branche
+  cancel-in-progress: false
+permissions:
+  contents: write
+jobs:
+  historique:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Installer dukascopy-node (hors du dépôt : rien n'est ajouté à package.json)
+        run: npm install --no-save --no-package-lock --omit=dev --ignore-scripts dukascopy-node@1
+      - name: Reprendre la branche historique (années déjà écrites conservées)
+        env:
+          JETON: ${{ github.token }}
+        run: |
+          git clone --depth 1 --branch historique "https://x-access-token:${JETON}@github.com/${GITHUB_REPOSITORY}.git" sortie 2>/dev/null || mkdir -p sortie
+          rm -rf sortie/.git
+      - name: Télécharger, découper par année, mesurer l'écart avec le Terminal
+        run: node outils-donnees/historique-long.mjs --sortie sortie
+      - name: Publier (branche orpheline, historique git écrasé)
+        env:
+          JETON: ${{ github.token }}
+        run: |
+          cd sortie
+          git init -q -b historique
+          git config user.name "rayle-historique"
+          git config user.email "rayle-historique@users.noreply.github.com"
+          git add -A
+          git commit -q -m "historique $(date -u +%FT%TZ)"
+          git push -q --force "https://x-access-token:${JETON}@github.com/${GITHUB_REPOSITORY}.git" historique

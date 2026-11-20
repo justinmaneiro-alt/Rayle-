@@ -5,6 +5,7 @@
    Volume : Binance sur toute la période affichée (référence liquide). Aucune bougie inventée : un trou reste un trou. */
 import { PERIODES, RELAIS, BINANCE } from './config-or.js';
 import { depuisKraken, depuisBinance, fusionner } from './bougies-or.js';
+import { histoLong, UNITE_HISTO } from '../../../trader-pro/terminal/histo-long.js';   // v4 : historique long par année (Dukascopy / Yahoo / Binance), à la demande
 
 const JOUR = 86400e3;
 /* profondeur visée au premier affichage (jours) : au moins 30 j en M5, 6 mois en M15, 2 ans en H1 ; H4 et Jour : 3 et 5 ans (référence si besoin) */
@@ -59,14 +60,21 @@ export async function chargerBinance(periode, debut, fin, opts = {}) {
 
 /* état d'historique d'une période : { periode, k (Kraken), ref (Binance avant le 1er Kraken, NON décalé), vol (Binance, toute la période),
    debutKraken, krakenEpuise, refEpuise, debut (plus ancienne bougie affichable) } */
-export async function chargerHistorique(periode, { maintenant = Date.now(), jours = PROFONDEUR[periode], ...opts } = {}) {
+/* v4 : années d'historique long chargées au premier affichage, par unité */
+export const ANNEES_LONG = Object.freeze({ J: 6, H4: 3, H1: 2 });
+export async function chargerHistorique(periode, { maintenant = Date.now(), jours = PROFONDEUR[periode], actifLong = null, ...opts } = {}) {
   const P = PERIODES[periode], fin = Math.floor(maintenant / P.ms) * P.ms + P.ms, debut = fin - jours * JOUR;
   const [K, B] = await Promise.all([chargerKraken(periode, debut, fin, opts), chargerBinance(periode, debut, fin, opts).catch(e => ({ bougies: [], epuise: false, erreur: e }))]);
-  const debutKraken = K.bougies.length ? K.bougies[0].t : null;
-  return construire(periode, { k: K.bougies, vol: B.bougies, krakenEpuise: K.epuise, refEpuise: B.epuise, debutKraken, erreurRef: B.erreur || null });
+  const debutKraken = K.bougies.length ? K.bougies[0].t : null, uL = UNITE_HISTO[periode];
+  /* v4 : historique long avant le premier cours « direct » (Kraken ou Yahoo) ; sans lui (hors ligne, actif sans historique, M5/M15) : comportement d'avant */
+  let long = null, longEpuise = true, longFiche = null, erreurLong = null;
+  if (actifLong && uL) { try { const L = await histoLong.avant(actifLong, uL, debutKraken != null ? debutKraken : fin, ANNEES_LONG[uL]); if (L.bougies.length) { long = L.bougies; longEpuise = L.epuise; longFiche = L.fiche; } } catch (e) { erreurLong = e; } }
+  return construire(periode, { k: K.bougies, vol: B.bougies, krakenEpuise: K.epuise, refEpuise: long ? longEpuise : B.epuise, debutKraken, erreurRef: B.erreur || null, actifLong, long, longEpuise, longFiche, erreurLong });
 }
 function construire(periode, H) {
-  const ref = H.debutKraken == null ? H.vol.slice() : H.vol.filter(b => b.t < H.debutKraken);
+  /* référence avant le premier cours direct : historique long recalé s'il existe (puis, entre sa dernière bougie et le raccord, la référence Binance), sinon la référence Binance seule */
+  const avantK = b => H.debutKraken == null || b.t < H.debutKraken, longAvant = (H.long || []).filter(avantK), finLong = longAvant.length ? longAvant[longAvant.length - 1].t : -Infinity;
+  const ref = longAvant.length ? [...longAvant, ...H.vol.filter(b => avantK(b) && b.t > finLong)] : H.debutKraken == null ? H.vol.slice() : H.vol.filter(b => b.t < H.debutKraken);
   const debut = Math.min(ref.length ? ref[0].t : Infinity, H.k.length ? H.k[0].t : Infinity);
   return { periode, ...H, ref, debut: Number.isFinite(debut) ? debut : null };
 }
@@ -78,6 +86,12 @@ export async function chargerPlusAncien(H, opts = {}) {
     const [K, B] = await Promise.all([chargerKraken(H.periode, de, a, opts), chargerBinance(H.periode, de, a, opts).catch(() => ({ bougies: [], epuise: false }))]);
     const k = fusionner(K.bougies, H.k), vol = fusionner(B.bougies, H.vol);
     return construire(H.periode, { ...H, k, vol, krakenEpuise: K.epuise || !K.bougies.length, debutKraken: k.length ? k[0].t : H.debutKraken });
+  }
+  const uL = UNITE_HISTO[H.periode];
+  if (H.actifLong && uL && H.long && H.long.length) {   // v4 : au-delà de Kraken / du direct, on remonte dans l'historique long (une année de plus par passage)
+    if (H.longEpuise) return H;
+    const L = await histoLong.avant(H.actifLong, uL, H.debut ?? H.debutKraken ?? Date.now(), 1);
+    return construire(H.periode, { ...H, long: [...L.bougies, ...H.long], longEpuise: L.epuise || !L.bougies.length, refEpuise: L.epuise || !L.bougies.length });
   }
   if (H.refEpuise) return H;
   const a = H.debut ?? H.debutKraken, de = a - n * P.ms;
@@ -92,7 +106,7 @@ export async function rafraichirVolume(H, { maintenant = Date.now(), ...opts } =
   return { ...H, vol: fusionner(H.vol, L) };
 }
 /* bougies de référence décalées de l'écart Kraken − Binance (pour l'affichage), marquées ref: true */
-export const decalerBougies = (L, e) => { const d = Number.isFinite(e) ? e : 0; return L.map(b => ({ t: b.t, o: b.o + d, h: b.h + d, l: b.l + d, c: b.c + d, v: b.v, ref: true })); };
+export const decalerBougies = (L, e) => { const d0 = Number.isFinite(e) ? e : 0; return L.map(b => { const d = b.long ? 0 : d0; return { t: b.t, o: b.o + d, h: b.h + d, l: b.l + d, c: b.c + d, v: b.v, ref: true, ...(b.long ? { long: true } : {}) }; }); };   // v4 : l'historique long est déjà recalé (rapport mesuré), le décalage additif Kraken − Binance ne s'applique pas à lui
 /* série affichée : référence décalée avant le premier Kraken, puis Kraken (k peut contenir la bougie en cours, mise à jour par le WebSocket) */
 export function serieAffichee(H, k, ecart) {
   const debutK = k.length ? k[0].t : Infinity;

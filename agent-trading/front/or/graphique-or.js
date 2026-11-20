@@ -54,7 +54,7 @@ export function creerGraphiqueOr(el, { surClicPrix, mobile = false } = {}) {
     const c = mouv.cadres.find(q => x >= q.x0 && x <= q.x1 && y >= q.y0 && y <= q.y1); if (!c) return null;
     const L = ficheMouv(c.m); return { p: c.m.depart, texte: L[0] + ' · ' + etiquetteMouv(c.m), detail: L.slice(1), mouvement: true };
   };
-  const C = { liquidite: '#c39be0', flecheHaut: '#4fd18b', flecheBas: '#ef5f5f', refHaut: 'rgba(160,170,150,.55)', refBas: 'rgba(170,140,140,.55)', bande: 'rgba(201,178,122,.07)', sable: '#c9b27a', haut: '#5fb894', bas: '#d86a6a', volZone: '143,136,204', support: '#86c3e8', resistance: '#e2ae62', retour: '#e8e2cf', texte: '#cfd8dc', doux: '#7d8a90', fond: 'rgba(8,12,16,.86)' };
+  const C = { liquidite: '#c39be0', flecheHaut: '#4fd18b', flecheBas: '#ef5f5f', refHaut: '#5fb894', refBas: '#d86a6a', bande: 'rgba(201,178,122,.07)', sable: '#c9b27a', haut: '#5fb894', bas: '#d86a6a', volZone: '143,136,204', support: '#86c3e8', resistance: '#e2ae62', retour: '#e8e2cf', texte: '#cfd8dc', doux: '#7d8a90', fond: 'rgba(8,12,16,.86)' };
   const yDe = p => serie ? serie.priceToCoordinate(p) : null;
 
   /* graphique propre (terminal pro, trader-pro/terminal) : ni bande « historique de référence », ni niveaux proposés tant que « Détails » n'est pas ouvert */
@@ -66,20 +66,18 @@ export function creerGraphiqueOr(el, { surClicPrix, mobile = false } = {}) {
     const r = ts.getVisibleRange(); if (!r) return null;
     return tempsGraphique(etat.debutKraken) <= r.from ? -1 : T.width;   // perpétuel à gauche de la vue : pas de bande ; à droite : toute la largeur
   }
-  const primBande = new Primitive((ctx, T) => {
-    if (propre()) return; const x = xDebutKraken(T); if (x == null || x <= 0) return;
-    const fs = mobile ? 10 : 11; ctx.fillStyle = C.bande; ctx.fillRect(0, 0, x, T.height);
-    ctx.strokeStyle = 'rgba(201,178,122,.55)'; ctx.setLineDash([4, 4]); ctx.beginPath(); ctx.moveTo(Math.round(x) + 0.5, 0); ctx.lineTo(Math.round(x) + 0.5, T.height); ctx.stroke(); ctx.setLineDash([]);
-    ctx.font = `600 ${fs}px system-ui, sans-serif`; ctx.fillStyle = C.sable;
-    const e = etat.ecart == null ? 'non mesuré' : `${etat.ecart >= 0 ? '+' : '−'}${nb(Math.abs(etat.ecart))} $`;
-    const L = [['Historique de référence', `Binance XAUUSDT décalé de ${e}`], ['Kraken PF_XAUUSD →', 'mise en ligne du perpétuel']];
-    const d = fs + 10;   // la première ligne reste aux repères des niveaux hors champ (▲)
-    const w0 = Math.max(...L[0].map(t => ctx.measureText(t).width)) + 12;
-    if (x > w0 + 6) { ctx.fillStyle = 'rgba(8,12,16,.86)'; ctx.fillRect(6, 6 + d, w0, fs * 2 + 12); ctx.fillStyle = C.sable; ctx.fillText(L[0][0], 12, 8 + fs + d); ctx.font = `${fs}px system-ui, sans-serif`; ctx.fillText(L[0][1], 12, 12 + fs * 2 + d); }
-    ctx.font = `${fs}px system-ui, sans-serif`; const w1 = Math.max(...L[1].map(t => ctx.measureText(t).width)) + 12;
-    if (x + w1 + 6 < T.width * (mobile ? 0.34 : 0.55)) {   // jamais dans la colonne des étiquettes de niveaux (à droite)
-      ctx.fillStyle = 'rgba(8,12,16,.86)'; ctx.fillRect(x + 6, 6 + d, w1, fs * 2 + 12); ctx.fillStyle = C.sable; ctx.fillText(L[1][0], x + 12, 8 + fs + d); ctx.fillText(L[1][1], x + 12, 12 + fs * 2 + d); }
-  }, 'bottom');
+  /* v4 : « raccord de source » = une fine ligne pointillée verticale (plus de bande ni d'étiquette) là où l'historique de référence rejoint le cours direct ; info-bulle sur la pastille « i » */
+  let elRaccord = null;
+  function poserRaccord() {
+    const x = etat.xRaccord;
+    if (x == null) { if (elRaccord) elRaccord.style.display = 'none'; return; }
+    if (!elRaccord) { elRaccord = document.createElement('div'); elRaccord.className = 'tp-raccord'; elRaccord.innerHTML = '<i role="img" tabindex="0">i</i>'; el.appendChild(elRaccord); }
+    elRaccord.style.display = 'block'; elRaccord.style.left = Math.round(x) + 'px';
+    let extra = ''; try { extra = typeof window.RayleRaccordTexte === 'function' ? window.RayleRaccordTexte() || '' : ''; } catch (e) { /* info-bulle facultative */ }
+    const t = 'Raccord de source : à gauche, l’historique de référence (recalé sur le cours direct) ; à droite, le cours direct. ' + (extra || (etat.ecart != null ? 'Écart mesuré à ce raccord : ' + (etat.ecart >= 0 ? '+' : '−') + nb(Math.abs(etat.ecart)) + '.' : 'Écart non mesuré.'));
+    const i = elRaccord.firstChild; if (i.getAttribute('aria-label') !== t) { i.title = t; i.setAttribute('aria-label', t); }
+  }
+  const primBande = new Primitive((ctx, T) => { const x = xDebutKraken(T); etat.xRaccord = x == null || x <= 0 || x >= T.width ? null : x; poserRaccord(); }, 'bottom');
   /* zones-affichage-v1 : calcul à chaque jeu de données (jamais dans le dessin) */
   const FMT_F = (lo, hi) => (nb(lo) === nb(hi) ? nb((lo + hi) / 2) : nb(lo) + '–' + nb(hi));
   const zoneTexte = z => z.elements.length === 1 ? z.elements[0].nom + (z.retournee ? ' · retournée' : '') : `${z.cote === 'resistance' ? 'Résistance' : 'Support'} ${FMT_F(z.bas, z.haut)} · ${z.elements.length} niveaux fusionnés${z.retournee ? ' · retournée' : ''}`;

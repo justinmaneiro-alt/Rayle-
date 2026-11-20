@@ -79,3 +79,10 @@ html.tp-terminal .tp-dessin-barre [data-outil] { display: inline-block !importan
 
 /* ───── « Je l'ai pris » (journal par setup) ───── */
 .tp-pris { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin: 8px 0; } .tp-pris-chips { display: inline-flex; flex-wrap: wrap; gap: 4px; align-items: center; } .tp-pris button { min-height: 34px; }
+
+/* ───── v4 : fond noir uni, style terminal classique (le coloriage vert / rouge selon la tendance reste en option dans Détails, désactivé par défaut) ───── */
+html.tp-terminal .tor-graph, html.tp-terminal .tor-graph-lw { background: #000 !important; }
+html.tp-terminal .tor-graph .tv-lightweight-charts, html.tp-terminal .tor-graph canvas { background-color: transparent; }
+.tp-raccord { position: absolute; top: 0; bottom: 0; width: 13px; margin-left: -6px; z-index: 4; pointer-events: none; }
+.tp-raccord::before { content: ''; position: absolute; left: 6px; top: 0; bottom: 0; border-left: 1px dotted rgba(201, 178, 122, .55); }
+.tp-raccord i { pointer-events: auto; cursor: help; position: absolute; left: 1px; top: 26px; width: 11px; height: 11px; border: 1px solid rgba(201, 178, 122, .7); border-radius: 50%; font: 8px/10px system-ui; font-style: normal; text-align: center; color: #c9b27a; background: #000; opacity: .75; }

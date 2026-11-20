@@ -17,6 +17,7 @@ import { niveauxPeriode, liquidite } from './niveaux-periode.js';
 import { lireCacheBougies, ecrireCacheBougies } from './cache-bougies.js';
 import { selectionV6, REGLES_NIVEAUX_H1_V6 } from './niveaux-h1.js';
 import { chargerHistorique, chargerPlusAncien, rafraichirVolume, serieAffichee } from './historique-or.js';
+import { ID_HISTO } from '../../../trader-pro/terminal/histo-long.js';
 import { analyser as analyserStructure, CLE_REGISTRE_STRUCTURE, lireRegistre as lireRegStructure, ajouter as ajouterStructure, prefixeDe as prefixeStructure, bilan as bilanStructure } from './structure-alerte.js';
 
 const lireJ = (k, d) => { try { const v = globalThis.localStorage && localStorage.getItem(k); return v ? JSON.parse(v) : d; } catch (e) { return d; } };
@@ -39,7 +40,7 @@ export function creerMoteurOr({ fetchFn = (...a) => fetch(...a), horloge = () =>
     /* 2026-11-15 : la dernière copie des bougies s'affiche tout de suite (le réseau la remplace ensuite) : plus d'attente devant un graphique vide */
     if (!S.k.length) { try { const c = await lireCacheBougies(clePeriode); if (c && p === S.periode && !S.k.length && Array.isArray(c.k) && c.k.length > 50) { S.hist = c; S.k = c.k.slice(); S.refP = c.vol || []; try { calculer(); } catch (e) { /* les références arrivent avec le réseau */ } surMaj(S); } } catch (e) { /* pas de copie : on attend le réseau */ } }
     try {
-      const H = await chargerHistorique(p, { fetchFn, maintenant: horloge() }); if (p !== S.periode) return;
+      const H = await chargerHistorique(p, { fetchFn, maintenant: horloge(), actifLong: ID_HISTO[INSTR.id] || null }); if (p !== S.periode) return;
       S.hist = H; S.k = H.k.slice(); S.refP = H.vol; err('kraken', null); err('binanceP', H.erreurRef); ecrireCacheBougies(clePeriode, H);
     } catch (e) {
       err('kraken', e);   // secours : les 1500 dernières bougies, comme avant
