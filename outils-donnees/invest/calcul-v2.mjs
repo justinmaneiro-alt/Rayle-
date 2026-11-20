@@ -9,6 +9,7 @@ import { URL_CHART, lireChart, URL_SERIES, lireSeriesAnnuelles, URL_RECHERCHE, l
 import { lireFaits, UA_DEFAUT } from '../../trader-pro/invest/sources.js';
 import { construireLigne } from '../../trader-pro/invest/ligne.js';
 import { calculerFacteurs } from '../../trader-pro/invest/modele.js';
+import { appliquerFondsCotes } from '../../trader-pro/invest/fonds-cotes.js';
 import { mesuresPrix, setupTactique } from '../../trader-pro/invest/technique.js';
 import { matriceMensuelle, encoder, decoder } from '../../trader-pro/invest/saison.js';
 import { normaliserSecteur } from '../../trader-pro/invest/secteurs.js';
@@ -105,11 +106,13 @@ console.log('traités :', lignes.length, '— échecs :', stats.echecs.length);
 
 /* ───── mesures croisées : force relative contre le secteur, facteurs, spécificités par classe ───── */
 const med = L => { const A = L.filter(Number.isFinite).sort((a, b) => a - b); return A.length ? A[A.length >> 1] : null; };
+/* fonds fermés, investment trusts, holdings, SPAC, trackers : classe « fonds coté », jugés à part (ni DCF ni multiples ; décote / prime sur la valeur liquidative quand elle existe) */
+for (let i = 0; i < lignes.length; i++) lignes[i] = appliquerFondsCotes([lignes[i]])[0];
 const actions = lignes.filter(l => l.c === 'action'), cles = l => (l.z || '') + '|' + (l.s || '');
 const medSect = {}; for (const l of actions) (medSect[cles(l)] = medSect[cles(l)] || []).push(l.r.m12_1);
 for (const l of actions) { const m = med(medSect[cles(l)] || []), x = l.r.m12_1; if (Number.isFinite(x) && Number.isFinite(m) && (medSect[cles(l)] || []).length >= 8) l.r.rsSec = Math.round((x - m) * 1e4) / 1e4; }
 const GROUPES = { action: l => l.s || '—' };
-for (const classe of ['action', 'ETF', 'devise', 'indice', 'matière première', 'crypto', 'obligataire']) { const L = lignes.filter(l => l.c === classe); if (!L.length) continue; calculerFacteurs(L, classe === 'action' ? {} : { secteur: l => (classe === 'ETF' ? l.cat || '—' : '—'), zone: l => classe === 'ETF' ? 'ETF' : classe }); }
+for (const classe of ['action', 'fonds coté', 'ETF', 'devise', 'indice', 'matière première', 'crypto', 'obligataire']) { const L = lignes.filter(l => l.c === classe); if (!L.length) continue; calculerFacteurs(L, classe === 'action' ? {} : { secteur: l => (classe === 'ETF' ? l.cat || '—' : '—'), zone: l => classe === 'ETF' ? 'ETF' : classe }); }
 for (const l of lignes) { const f = fiches.get(l.id); if (l.c === 'action' || true) { /* le setup tactique est un score absolu 0-100 */ if (l.r && Number.isFinite(l.r.setup)) l.f.set = l.r.setup; } if (l.c === 'action' && l.evtConnu) l.f.evt = Number.isFinite(l.evt) && l.evt <= 10 ? 25 : 100; }
 
 /* ───── taux (FRED), PPA (Banque mondiale) ───── */
@@ -159,14 +162,14 @@ const ajust = { mom: ajustement(bt.momentum), sai: ajustement(bt.saison), ma: aj
 console.log('backtest :', JSON.stringify({ mom: bt.momentum && bt.momentum.tstat, sai: bt.saison && bt.saison.tstat, ma: bt.tendance && bt.tendance.tstat }), 'ajustements', JSON.stringify(ajust));
 
 /* ───── écriture : index découpé par classe et zone, saisonnalité, manifeste ───── */
-const parFichier = {}; const nomFichier = l => (l.c === 'action' ? 'actions-' + ({ US: 'US', Europe: 'Europe' }[l.z] || 'Autres') : ({ ETF: 'etf', devise: 'devises', indice: 'indices', 'matière première': 'matieres', crypto: 'crypto', obligataire: 'obligataire' })[l.c] || 'autres');
+const parFichier = {}; const nomFichier = l => (l.c === 'action' || l.c === 'fonds coté' ? 'actions-' + ({ US: 'US', Europe: 'Europe' }[l.z] || 'Autres') : ({ ETF: 'etf', devise: 'devises', indice: 'indices', 'matière première': 'matieres', crypto: 'crypto', obligataire: 'obligataire' })[l.c] || 'autres');
 const arrondiF = f => { const o = {}; for (const [k, v] of Object.entries(f || {})) if (Number.isFinite(v)) o[k] = Math.round(v * 10) / 10; return o; };
 for (const l of lignes) { l.f = arrondiF(l.f); delete l.evtConnu; (parFichier[nomFichier(l)] = parFichier[nomFichier(l)] || []).push(l); }
 const shards = [];
-for (const [nom, L] of Object.entries(parFichier)) { L.sort((a, b) => a.id.localeCompare(b.id)); ecrire(path.join(sortie, 'index', nom + '.json'), { t: maintenant, lignes: L }); const S = {}; for (const l of L) { const M = Mmat.get(l.id); if (M && Object.keys(M).length) S[l.id] = encoder(M); } ecrire(path.join(sortie, 'saison', nom + '.json'), S); shards.push({ id: nom, n: L.length, classe: L[0].c }); }
+for (const [nom, L] of Object.entries(parFichier)) { L.sort((a, b) => a.id.localeCompare(b.id)); ecrire(path.join(sortie, 'index', nom + '.json'), { t: maintenant, lignes: L }); const S = {}; for (const l of L) { const M = Mmat.get(l.id); if (M && Object.keys(M).length) S[l.id] = encoder(M); } ecrire(path.join(sortie, 'saison', nom + '.json'), S); shards.push({ id: nom, n: L.length, classe: L[0].c === 'fonds coté' ? 'action' : L[0].c }); }
 /* fichiers « lite » (une page par première lettre) : de quoi recalculer les verdicts d'une liste de suivi dans le Worker Cloudflare (alertes Telegram) sans charger tout l'index */
 fs.mkdirSync(path.join(sortie, 'lite'), { recursive: true }); const lite = {};
-for (const l of lignes) { const k = /^[A-Z]/.test(l.id) ? l.id[0] : '0'; (lite[k] = lite[k] || []).push({ id: l.id, n: l.n, c: l.c, p: l.p, z: l.z, pal: l.pal, f: l.f, comp: l.comp, evt: l.evt, dma: l.dma, dsup: l.dsup, hyp: l.hyp, fon: l.fon, disp: l.disp, r: { z: l.r.z, nde: l.r.nde, m12: l.r.m12, financiere: l.r.financiere } }); }
+for (const l of lignes) { const k = /^[A-Z]/.test(l.id) ? l.id[0] : '0'; (lite[k] = lite[k] || []).push({ id: l.id, n: l.n, c: l.c, p: l.p, z: l.z, pal: l.pal, f: l.f, comp: l.comp, evt: l.evt, dma: l.dma, dsup: l.dsup, hyp: l.hyp, fon: l.fon, disp: l.disp, r: { z: l.r.z, nde: l.r.nde, m12: l.r.m12, financiere: l.r.financiere, vs200w: l.r.vs200w, m1: l.r.m1, decote: l.r.decote }, fc: l.fc }); }
 for (const [k, L] of Object.entries(lite)) ecrire(path.join(sortie, 'lite', k + '.json'), { t: maintenant, lignes: L });
 const saisonRef = {}; for (const [pays, sym] of Object.entries(BENCH)) if (benchM[sym]) { const M = matriceMensuelle(benchM[sym], maintenant); if (Object.keys(M).length) saisonRef[pays] = { y: sym, ...encoder(M) }; } ecrire(path.join(sortie, 'saison', 'indices-reference.json'), saisonRef);
 const compte = {}; for (const l of lignes) compte[l.c] = (compte[l.c] || 0) + 1; const comptePays = {}; for (const l of lignes.filter(x => x.c === 'action')) comptePays[l.p] = (comptePays[l.p] || 0) + 1;

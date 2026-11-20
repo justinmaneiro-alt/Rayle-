@@ -12,7 +12,7 @@ const aEcrire = [];
 const exclure = [/(^|\/)tests?(-navigateur)?\//i, /\.md$/i, /\.log$/i, /(^|\/)node_modules\//, /(^|\/)captures[^/]*\//, /(^|\/)package(-lock)?\.json$/, /\.test\.|-test\.m?js$/, /(^|\/)outils\//, /(^|\/)_sources\//];
 const INCLURE_DOSSIERS = ['core', 'skins', 'terminal', 'galaxie', 'planetes', 'marches', 'agent-trading/front', 'icones'];
 const INCLURE_FICHIERS = ['index.html', 'offline.html', 'config.js', 'manifest.webmanifest', 'sw.js', 'favicon.svg', 'terminal.html', 'galaxie.html', 'connecter-telephone.html'];
-const INCLURE_PLUS = ['data/anatomie_fr.json', 'assets-lourds/manifeste.json', 'assets-lourds/anatomie'];
+const INCLURE_PLUS = ['data/snapshots/suivi.json', 'data/anatomie_fr.json', 'assets-lourds/manifeste.json', 'assets-lourds/anatomie'];
 
 function lister(dossier, sortie = []) {
   if (!fs.existsSync(dossier)) return sortie;

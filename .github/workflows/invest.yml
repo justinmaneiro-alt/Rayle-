@@ -30,6 +30,20 @@ jobs:
         env:
           SEC_USER_AGENT: ${{ secrets.SEC_USER_AGENT }}
         run: node outils-donnees/invest/calcul-v2.mjs --sortie sortie --reprise --conc 6
+      - name: Instantané mensuel du modèle et suivi de sa performance (data/snapshots)
+        # Le 1er du mois (ou au premier calcul du mois) : tous les scores et verdicts de chaque horizon sont enregistrés dans data/snapshots/AAAA-MM.json ;
+        # la performance réelle depuis chaque instantané (1, 3, 6, 12 mois ; « Très attractif » contre « Neutre » contre « À éviter », et contre l'indice) est recalculée dans data/snapshots/suivi.json.
+        run: node outils-donnees/invest/snapshot.mjs sortie
+      - name: Versionner les instantanés dans le dépôt principal
+        run: |
+          if [ -n "$(git status --porcelain data/snapshots)" ]; then
+            git config user.name "rayle-donnees"
+            git config user.email "rayle-donnees@users.noreply.github.com"
+            git add data/snapshots
+            git commit -q -m "Instantané du modèle d'investissement $(date -u +%Y-%m)"
+            git pull -q --rebase origin main || true
+            git push -q origin HEAD:main
+          fi
       - name: Contrôles automatiques
         run: node outils-donnees/invest/controles.mjs sortie
       - name: Vérifier qu'aucun secret ni donnée personnelle n'est publié

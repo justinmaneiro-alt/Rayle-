@@ -3,8 +3,9 @@
    manifest.json · index/<classe>.json · saison/<classe>.json · fiches/<symbole>.json · backtest.json. Les fichiers sont chargés à la demande et gardés en mémoire. */
 import { urlSnapshot } from '../../agent-trading/front/donnees/couche.js';
 import { fichierDe } from './pays.js';
+import { appliquerFondsCotes } from './fonds-cotes.js';
 
-export const CLASSES = Object.freeze([['action', 'Actions'], ['ETF', 'ETF'], ['devise', 'Devises'], ['indice', 'Indices'], ['matière première', 'Matières premières'], ['crypto', 'Cryptos'], ['obligataire', 'Obligataire']]);
+export const CLASSES = Object.freeze([['action', 'Actions'], ['fonds coté', 'Fonds cotés'], ['ETF', 'ETF'], ['devise', 'Devises'], ['indice', 'Indices'], ['matière première', 'Matières premières'], ['crypto', 'Cryptos'], ['obligataire', 'Obligataire']]);
 const sans = s => String(s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/[’']/g, ' ').replace(/[^a-z0-9 .&-]/g, ' ').replace(/\s+/g, ' ').trim();
 /* production : branche orpheline « donnees-invest » ; essais locaux : le réglage rayle_donnees_base (dossier de snapshots contenant invest/) prime */
 export const BASE_INVEST = 'https://raw.githubusercontent.com/justinmaneiro-alt/Rayle-/donnees-invest/';
@@ -17,9 +18,9 @@ export function creerDonnees({ base = baseParDefaut, fetchFn = (u, o) => fetch(u
     async backtest() { return bt || (bt = await json('backtest.json').catch(() => null)); },
     /* charge les fichiers d'index des classes demandées (ou de tous) ; renvoie toutes les lignes chargées */
     async lignes(classes = null) {
-      const m = await D.manifeste(), voulus = m.shards.filter(s => !classes || classes.includes(s.classe));
+      const m = await D.manifeste(), shardsClasses = classes && classes.map(c => (c === 'fonds coté' ? 'action' : c)), voulus = m.shards.filter(s => !shardsClasses || shardsClasses.includes(s.classe));
       await Promise.all(voulus.map(async s => { if (!caches.shards.has(s.id)) caches.shards.set(s.id, json('index/' + s.id + '.json').then(j => j.lignes).catch(e => { caches.shards.delete(s.id); throw e; })); }));
-      const out = []; for (const s of voulus) out.push(...await caches.shards.get(s.id)); return out;
+      const out = []; for (const s of voulus) out.push(...appliquerFondsCotes(await caches.shards.get(s.id))); return out;   // fonds fermés, trusts, holdings, SPAC, trackers : classe « fonds coté »
     },
     /* encodages saisonniers de {id → { y0, r }} des shards déjà chargés + indices de référence */
     async saison(classes = null) {

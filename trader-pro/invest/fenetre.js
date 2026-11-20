@@ -7,13 +7,16 @@ import { lireConn } from '../portefeuille/stockage.js';
 import { parler } from '../commun/ia.js';
 import { creerDonnees, CLASSES } from './donnees-invest.js';
 import { HORIZONS, verdictLigne, pourquoi, LIBELLES, POIDS, NOM_FACTEUR } from './modele.js';
+import { contactTechnique, estBon } from './plan.js';
+import { vuePlan } from './plan-ui.js';
+import { suiviHtml } from './suivi-ui.js';
 import { calculerListe, PREREGLAGES, CAPS } from './calcul-liste.js';
 import { fenetreDefaut, libelleFenetre, MOIS, meilleuresFenetres, decoder } from './saison.js';
 import { rendreFiche, badgeLib, drapeau, CLASSE_LIB } from './fiche.js';
 import { detecterAlertes, phraseAlertes } from './alertes.js';
 import { NOM_PAYS } from './pays.js';
 
-const LS = { etat: 'rayle_lt2_etat', liste: 'rayle_lt_liste_v1', alertes: 'rayle_lt2_alertes' }, HAUT = 46;
+const LS = { etat: 'rayle_lt2_etat', liste: 'rayle_lt_liste_v1', alertes: 'rayle_lt2_alertes', resume: 'rayle_invest_resume_v1' }, HAUT = 46;
 const sg = (v, d = 0) => (Number.isFinite(v) ? (v >= 0 ? '+' : '−') + nf(Math.abs(v) * 100, d) + ' %' : '—'), pc = (v, d = 0) => (Number.isFinite(v) ? nf(v * 100, d) + ' %' : '—');
 let instance = null; export const etat = () => (instance ? instance.etat() : { actif: false });
 const FILTRE0 = { classe: 'action', zone: '', pays: '', secteur: '', caps: [], exclureMega: false, pea: false, dispo: '', qMin: 0, liqMin: 0, texte: '', palier: '' };
@@ -38,7 +41,7 @@ export async function ouvrir({ racine = document.body, onFermer = () => {} } = {
   const el = document.createElement('section'); el.id = 'invest-fenetre'; el.className = 'tp tp-invest'; el.setAttribute('aria-label', 'Investissement');
   el.innerHTML = `<header class="tp-tete"><b>Investissement</b><span class="tp-sync" data-etat role="status">chargement…</span></header>
     <div class="lt-barre" data-barre></div>
-    <nav class="tp-nav" role="tablist" aria-label="Sections">${[['liste', 'Instruments'], ['maliste', 'Ma liste'], ['methode', 'Méthode']].map(([k, n]) => `<button type="button" role="tab" data-onglet="${k}" aria-selected="false">${n}</button>`).join('')}</nav>
+    <nav class="tp-nav" role="tablist" aria-label="Sections">${[['liste', 'Instruments'], ['maliste', 'Ma liste'], ['plan', 'Mon plan'], ['methode', 'Méthode']].map(([k, n]) => `<button type="button" role="tab" data-onglet="${k}" aria-selected="false">${n}</button>`).join('')}</nav>
     <p class="tp-bandeau" data-bandeau hidden role="status"></p><main class="tp-corps" data-corps><div class="tp-onglet" data-zone></div></main>
     <footer class="tp-pied">Estimations chiffrées avec leurs hypothèses visibles : ni prévision ni conseil en investissement. Prix : Yahoo Finance ; comptes : SEC EDGAR (États-Unis) et séries publiques Yahoo ailleurs ; liste des instruments : table des marges XTB.</footer>`;
   racine.appendChild(el);
@@ -62,8 +65,17 @@ export async function ouvrir({ racine = document.body, onFermer = () => {} } = {
   async function recalculer() {
     const n = ++S.seq; if (besoinSaison()) { try { await chargerSaison(); } catch (e) { dire('Saisonnalité indisponible : ' + e.message, true); } }
     const F = { ...S.filtre, ...(S.onglet === 'maliste' ? { classe: '', zone: '', pays: '', secteur: '', caps: [], exclureMega: false, pea: false, dispo: '', qMin: 0, liqMin: 0, texte: S.filtre.texte } : {}), liste: S.onglet === 'maliste' ? S.liste : null }, p = { horizon: S.horizon, fenetre: S.fenetre, filtres: F, tri: S.tri, sens: S.sens, ajust: S.ajust, verdict: S.verdict };
-    const r = await S.calc.calcul(p); if (n !== S.seq || S.ferme) return; S.res = r; S.ordreRes = r.ordre; majTuiles(); majLignes(true);
+    const r = await S.calc.calcul(p); if (n !== S.seq || S.ferme) return; S.res = r; S.ordreRes = r.ordre; majTuiles(); majLignes(true); ecrireResume();
   }
+  /* résumé vivant pour la carte d'accueil du carrousel : nombre d'instruments, top 3 de l'horizon choisi, nombre d'alertes du jour */
+  function ecrireResume() {
+    try {
+      if (!S.res || !S.manifeste || S.onglet === 'maliste' || S.tri !== 'score' || (S.filtre.classe && S.filtre.classe !== 'action')) return;
+      const top = S.res.ordre.filter(i => S.lignes[i].c === 'action' && S.res.verdicts[i].score != null).slice(0, 3).map(i => ({ id: S.lignes[i].id, n: S.lignes[i].n, score: S.res.verdicts[i].score, lib: S.res.verdicts[i].lib })), ancien = lireLS(LS.resume, {}), j = new Date().toISOString().slice(0, 10);
+      ecrireLS(LS.resume, { t: Date.now(), calcul: S.manifeste.t, n: (S.manifeste.shards || []).reduce((s, x) => s + (x.n || 0), 0), horizon: S.horizon, horizonNom: hz() ? hz().nom : S.horizon, top, alertes: ancien.jour === j ? ancien.alertes || 0 : 0, jour: j });
+    } catch (e) { /* carte facultative */ }
+  }
+  function compterAlertes(k) { try { const a = lireLS(LS.resume, {}), j = new Date().toISOString().slice(0, 10); ecrireLS(LS.resume, { ...a, jour: j, alertes: (a.jour === j ? a.alertes || 0 : 0) + k }); } catch (e) { /* */ } }
   const rafraichir = () => { sauver(); return recalculer(); };
 
   /* ───── barre du haut ───── */
@@ -109,7 +121,7 @@ export async function ouvrir({ racine = document.body, onFermer = () => {} } = {
     s: { nom: 'Secteur', w: 'minmax(100px, 1.2fr)', tri: 's', opt: 1, cell: l => esc(l.s || (l.c === 'ETF' ? l.cat || 'ETF' : l.c)) },
     px: { nom: 'Prix', w: '84px', tri: 'px', num: 1, opt: 1, cell: l => prixTxt(l) },
     score: { nom: 'Score', w: '52px', tri: 'score', num: 1, cell: (l, v) => (v.score == null ? '—' : nf(v.score, 0)) },
-    lib: { nom: 'Verdict', w: 'minmax(112px, 132px)', tri: 'lib', cell: (l, v) => badgeLib(v.lib) + (v.b.includes('piege') ? ' <span class="lt-pastille" title="risque de piège à valeur">⚠</span>' : '') + (v.b.includes('resultats') ? ' <span class="lt-pastille" title="résultats dans les 10 jours">📅</span>' : '') + (v.b.includes('hypothese') ? ' <span class="lt-pastille" title="hypothèse à vérifier">?</span>' : '') },
+    lib: { nom: 'Verdict', w: 'minmax(112px, 132px)', tri: 'lib', cell: (l, v) => badgeLib(v.lib) + (estBon(v.lib) && contactTechnique(l).length ? ' <span class="lt-zone" title="en zone d’achat : ' + contactTechnique(l).join(' + ') + '">zone d’achat</span>' : '') + (v.b.includes('piege') ? ' <span class="lt-pastille" title="risque de piège à valeur">⚠</span>' : '') + (v.b.includes('resultats') ? ' <span class="lt-pastille" title="résultats dans les 10 jours">📅</span>' : '') + (v.b.includes('hypothese') ? ' <span class="lt-pastille" title="hypothèse à vérifier">?</span>' : '') },
     mos: { nom: 'Marge', w: '58px', tri: 'mos', num: 1, opt: 1, cell: l => (l.r && Number.isFinite(l.r.mos) ? `<span class="${l.r.mos > 0 ? 'tp-hausse' : 'tp-baisse'}">${sg(l.r.mos)}</span>` : '—') },
     mom: { nom: 'Momentum', w: '70px', tri: 'mom', num: 1, opt: 1, cell: l => (l.r && Number.isFinite(l.r.m12_1) ? `<span class="${l.r.m12_1 > 0 ? 'tp-hausse' : 'tp-baisse'}">${sg(l.r.m12_1)}</span>` : '—') },
     sai: { nom: 'Saisonnalité', w: '104px', tri: 'sai', num: 1, opt: 1, cell: (l, v, s) => (s ? (s.significatif ? `${sg(s.median, 1)} · ${pc(s.pctPositif)}` : 'non signif.') : '—') },
@@ -171,7 +183,15 @@ export async function ouvrir({ racine = document.body, onFermer = () => {} } = {
       <article class="tp-carte"><h3>Validation honnête : les facteurs fondés sur les prix</h3>${bt && (bt.momentum || bt.saison || bt.tendance) ? `<p class="tp-doux">Chaque mois, on classe ${bt.univers} actions du Palier A selon le facteur et on compare le cinquième supérieur au cinquième inférieur (rendement du mois suivant). Un facteur dont l’écart n’est pas significatif (t &lt; 1) voit son poids divisé par deux dans le modèle.</p><div class="tp-tableau-defil"><table class="tp-t"><tr><th>Facteur</th><th class="lt-num">Écart / mois</th><th class="lt-num">Écart / an</th><th class="lt-num">t-stat</th><th class="lt-num">Mois positifs</th><th class="lt-num">Mois</th><th>Décision</th></tr>${ligneBt('Momentum 12-1', bt.momentum, (M.ajust || {}).mom == null ? 1 : M.ajust.mom)}${ligneBt('Saisonnalité (moyenne du mois, 10 ans)', bt.saison, (M.ajust || {}).sai == null ? 1 : M.ajust.sai)}${ligneBt('Tendance (équivalent MA200 mensuel)', bt.tendance, (M.ajust || {}).ma == null ? 1 : M.ajust.ma)}</table></div><h4>Limites</h4><ul class="tp-liste">${(bt.limites || []).map(x => `<li>${esc(x)}</li>`).join('')}</ul>` : '<p class="tp-doux">Backtest non disponible dans la dernière publication.</p>'}</article>
       <article class="tp-carte"><h3>Données, rythme et limites</h3><ul class="tp-liste"><li><b>Sources, toutes gratuites et sans clé</b> : ${(M.sources || []).map(esc).join(' ; ') || '—'}.</li><li><b>Rythme</b> : prix chaque nuit ; comptes chaque semaine (ils changent chaque trimestre). Dernier calcul ${S.manifeste ? esc(age(S.manifeste.t)) : '—'}.</li>
       <li><b>XTB</b> : l’API xAPI est fermée depuis le 14 mars 2025 ; l’univers est un catalogue construit à partir de la table des marges officielle. Les actions au comptant hors de cette table ne peuvent pas être vérifiées (« réel probable »).</li><li><b>Hors États-Unis</b> : environ 4 exercices annuels seulement (Yahoo), contre plus de 10 ans pour la SEC ; comptes convertis au taux du jour quand la devise des comptes diffère de celle de cotation.</li>
-      <li><b>Pas disponible</b> : révisions d’analystes et surprises de résultats (aucune source gratuite fiable), graphiques H4 historiques, CAPE des indices, COT dans cette fenêtre (voir Marchés), calendrier des résultats hors États-Unis.</li></ul></article>`;
+      <li><b>Pas disponible</b> : révisions d’analystes et surprises de résultats (aucune source gratuite fiable), graphiques H4 historiques, CAPE des indices, COT dans cette fenêtre (voir Marchés), calendrier des résultats hors États-Unis.</li></ul></article>
+      <article class="tp-carte" data-suivi><h3>Suivi du modèle</h3><p class="tp-att" role="status">Lecture du suivi…</p></article>`;
+    chargerSuivi();
+  }
+  /* suivi du modèle par lui-même : instantané mensuel (data/snapshots/AAAA-MM.json) et performance réelle à 1, 3, 6 et 12 mois (data/snapshots/suivi.json, recalculé par la tâche planifiée) */
+  async function chargerSuivi() {
+    const boite = zone.querySelector('[data-suivi]'); if (!boite) return; let su = null;
+    try { const r = await fetch(new URL('../../data/snapshots/suivi.json', import.meta.url).href, { signal: AbortSignal.timeout(10000) }); if (r.ok) su = await r.json(); } catch (e) { su = null; }
+    if (S.onglet !== 'methode' || !boite.isConnected) return; boite.innerHTML = '<h3>Suivi du modèle</h3>' + suiviHtml(su);
   }
 
   /* ───── alertes de la liste ───── */
@@ -181,7 +201,7 @@ export async function ouvrir({ racine = document.body, onFermer = () => {} } = {
       await charger(['action', 'ETF', 'devise', 'indice', 'matière première', 'crypto', 'obligataire']); const prec = lireLS(LS.alertes, {}); let fenetres = null;
       try { await chargerSaison(); fenetres = {}; const { encodes } = await S.D.saison([...S.classesChargees]); for (const id of S.liste) { const e = encodes[id]; if (!e) continue; const M = decoder(e), l = S.lignes.find(x => x.id === id), ref = S.ref && l && S.ref[l.p] ? decoder(S.ref[l.p]) : null, b = meilleuresFenetres(M, ref, 1)[0]; if (b) fenetres[id] = b; } } catch (e) { fenetres = null; }
       const r = detecterAlertes(S.liste, S.lignes, prec, { horizon: S.horizon, ajust: S.ajust, fenetres }); ecrireLS(LS.alertes, r.etat);
-      if (r.alertes.length) { dire(r.alertes.length + ' alerte(s) Investissement : ' + r.alertes.map(a => a.nom).slice(0, 3).join(', ')); parler(phraseAlertes(r.alertes)); }
+      if (r.alertes.length) { compterAlertes(r.alertes.length); dire(r.alertes.length + ' alerte(s) Investissement : ' + r.alertes.map(a => a.nom).slice(0, 3).join(', ')); parler(phraseAlertes(r.alertes)); }
     } catch (e) { /* alertes facultatives */ }
   }
   const conn = () => lireConn(), enteteAcces = c => (c && c.code ? { 'X-Portefeuille-Code': c.code } : {});
@@ -192,6 +212,7 @@ export async function ouvrir({ racine = document.body, onFermer = () => {} } = {
   async function rendre() {
     viderGraphs(); S.seq++; S.fiche = null; sauver(); el.querySelectorAll('[data-onglet]').forEach(b => b.setAttribute('aria-selected', String(b.dataset.onglet === S.onglet)));
     if (S.onglet === 'methode') { await vueMethode(); return; }
+    if (S.onglet === 'plan') { await vuePlan({ S: { ...S, horizonNom: hz().nom }, zone, chargerTout: () => charger(CLASSES.map(x => x[0])), parler, badgeLib }); return; }
     cadreListe(); majTuiles(); await recalculer();
   }
   async function appliquerFiltreClasse() { const c = S.filtre.classe ? [S.filtre.classe] : CLASSES.map(x => x[0]); await charger(c); }

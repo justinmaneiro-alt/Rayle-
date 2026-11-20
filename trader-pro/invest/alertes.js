@@ -6,6 +6,7 @@
    L'état précédent est conservé par l'appelant (localStorage ou base du Worker). La première lecture d'un instrument n'envoie jamais d'alerte « passage » (pas d'état précédent). Aucune alerte n'est un ordre. */
 import { verdictLigne, LIBELLES } from './modele.js';
 import { libelleFenetre } from './saison.js';
+import { zoneAchat } from './plan.js';
 
 const BONS = new Set([LIBELLES.TRES, LIBELLES.ATTR]), fin = x => typeof x === 'number' && Number.isFinite(x);
 const jour = t => new Date(t).toISOString().slice(0, 10), mois = t => new Date(t).toISOString().slice(0, 7);
@@ -21,6 +22,8 @@ export function detecterAlertes(liste, lignes, prec = {}, { horizon = 'moyen', a
       if (fin(l.dma) && Math.abs(l.dma) <= 0.5) { alertes.push({ type: 'ma200', id, nom: l.n, texte: `${l.n} est sur sa MA200 Daily (à ${Math.abs(l.dma).toFixed(1).replace('.', ',')} ATR).` }); e.niveau = j; }
       else if (fin(l.dsup) && l.dsup >= 0 && l.dsup <= 0.5) { alertes.push({ type: 'support', id, nom: l.n, texte: `${l.n} touche un support majeur Daily.` }); e.niveau = j; }
     }
+    /* entrée en zone d'achat : verdict Attractif+ ET prix sur un support Daily / la MA200 / rebond sur la MA200 Weekly ; une alerte à chaque ENTRÉE (la première lecture n'en envoie jamais) */
+    const zn = zoneAchat(l, horizon, { ajust, verdict: v }); if (zn.ok && e.zone === false) alertes.push({ type: 'zone', id, nom: l.n, lib: v.lib, horizon, texte: `${l.n} entre en zone d’achat : ${zn.raisons.join(' et ')}, verdict ${v.lib}.` }); e.zone = zn.ok;
     etat[id] = e;
   }
   return { alertes, etat };

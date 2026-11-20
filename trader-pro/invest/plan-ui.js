@@ -1,0 +1,45 @@
+/* ═════════════ ONGLET « MON PLAN » (interface) : lignes choisies dans Ma liste, montant mensuel, plafonds de diversification, DCA du mois, zones d'achat, rééquilibrage ═════════════
+   Lecture seule : aucun ordre, pas un conseil. Les règles sont les tiennes (modifiables) ; le plan les applique mécaniquement. */
+import { verdictLigne } from './modele.js';
+import { zoneAchat, portefeuilleCible, repartitionDca, ecartsCible, pairesCorrelees, phrasePlan, REGLES_DEFAUT, estBon } from './plan.js';
+
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const nf = (v, d = 0) => (Number.isFinite(v) ? v.toLocaleString('fr-FR', { minimumFractionDigits: d, maximumFractionDigits: d }).replace(/[  ]/g, ' ') : '—');
+const lire = (k, d) => { try { const v = localStorage.getItem(k); return v ? JSON.parse(v) : d; } catch (e) { return d; } };
+const ecrire = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) { /* stockage refusé */ } };
+export const LS_PLAN = 'rayle_invest_plan_v1', LS_OUVERTES = 'rayle_pf_ouvertes_v1';
+const num = v => { const x = parseFloat(String(v ?? '').replace(/ /g, '').replace(',', '.')); return Number.isFinite(x) ? x : null; };
+
+/* ctx : { S (état de la fenêtre), zone, chargerTout(), parler, badgeLib(lib) } */
+export async function vuePlan(ctx) {
+  const { S, zone } = ctx; zone.innerHTML = '<p class="tp-att" role="status">Lecture des instruments…</p>'; await ctx.chargerTout();
+  const sauve = lire(LS_PLAN, {}), P = { montant: sauve.montant > 0 ? sauve.montant : 300, regles: { ...REGLES_DEFAUT, ...(sauve.regles || {}) }, exclus: Array.isArray(sauve.exclus) ? sauve.exclus : [] };
+  const par = new Map(S.lignes.map(l => [l.id, l])), choisies = S.liste.map(id => par.get(id)).filter(Boolean).filter(l => !P.exclus.includes(l.id));
+  const ouvertes = lire(LS_OUVERTES, []), detenu = Array.isArray(ouvertes) && ouvertes.length ? ouvertes.reduce((o, p) => { if (p && p.ticker && par.has(p.ticker) && Number.isFinite(p.valeur)) o[p.ticker] = (o[p.ticker] || 0) + p.valeur; return o; }, {}) : null;
+  const rows = choisies.map(l => { const v = verdictLigne(l, S.horizon, { ajust: S.ajust }), z = zoneAchat(l, S.horizon, { verdict: v }); return { id: l.id, n: l.n, s: l.s, p: l.p, c: l.c, cat: l.cat, z: l.z, lib: v.lib, score: v.score, zone: z.ok, raisons: z.raisons }; });
+  const cible = portefeuilleCible(rows, P.regles), rep = repartitionDca(cible, P.montant, detenu && Object.keys(detenu).length ? detenu : null), ecarts = detenu ? ecartsCible(cible, detenu) : [], mRep = new Map(rep.map(x => [x.id, x]));
+  const noms = Object.fromEntries(S.lignes.map(l => [l.id, l.n])), phrase = phrasePlan(cible, rep, noms), eur = v => nf(v, 0) + ' €';
+  const ligneHtml = l => { const r = rows.find(x => x.id === l.id), c = cible.poids[l.id], d = mRep.get(l.id), e = ecarts.find(x => x.id === l.id);
+    return `<tr class="${r && cible.poids[l.id] ? '' : 'tp-faible'}"><td><label class="tp-case"><input type="checkbox" data-plan-ligne="${esc(l.id)}" checked aria-label="Garder ${esc(l.n)} dans le plan"> <b>${esc(l.n)}</b></label><br><small>${esc(l.id)}${l.s ? ' · ' + esc(l.s) : ''}${l.p ? ' · ' + esc(l.p) : ''}</small></td><td>${ctx.badgeLib(r.lib)}</td><td>${r.zone ? '<span class="lt-zone" title="' + esc(r.raisons.join(' + ')) + '">en zone d’achat</span>' : r.raisons.length ? '<small>sur ' + esc(r.raisons.join(' + ')) + ' (verdict insuffisant)</small>' : '—'}</td><td class="lt-num">${c ? nf(c * 100, 1) + ' %' : 'hors plan'}</td><td class="lt-num"><b>${d ? eur(d.montant) : '—'}</b></td>${detenu ? `<td class="lt-num">${e ? nf(e.actuel * 100, 1) + ' %' : '—'}</td><td class="lt-num ${e && Math.abs(e.ecart) > 0.02 ? (e.ecart > 0 ? 'tp-baisse' : 'tp-hausse') : ''}">${e ? (e.ecart >= 0 ? '+' : '−') + nf(Math.abs(e.ecart) * 100, 1) + ' pts' : '—'}</td>` : ''}</tr>`; };
+  const exclusHtml = P.exclus.length ? `<p class="tp-doux">Retirées du plan : ${P.exclus.map(id => `<button type="button" class="tp-lien" data-plan-remettre="${esc(id)}">${esc(noms[id] || id)} ↩</button>`).join(' ')}</p>` : '';
+  zone.innerHTML = `<article class="tp-carte" data-plan><h3>Mon plan d’investissement</h3><p class="tp-doux">Choisis tes lignes dans <b>Ma liste</b> (☆ Suivre) puis règle le montant mensuel et tes plafonds : le plan répartit le DCA du mois en privilégiant les lignes « Attractif » ou « Très attractif » qui sont dans une <b>zone d’achat</b> (sur un support Daily majeur, sur la MA200 ou en rebond sur la MA200 Weekly). Horizon : <b>${esc((S.horizonNom || S.horizon))}</b>. Ce n’est pas un conseil.</p>
+    <form class="tp-form" data-plan-form><label>Montant mensuel (€)<input name="montant" inputmode="decimal" value="${P.montant}" autocomplete="off"></label><label>Max par ligne (%)<input name="maxLigne" inputmode="decimal" value="${Math.round(P.regles.maxLigne * 100)}" autocomplete="off"></label><label>Max par secteur (%)<input name="maxSecteur" inputmode="decimal" value="${Math.round(P.regles.maxSecteur * 100)}" autocomplete="off"></label><label>Max par pays hors ETF monde (%)<input name="maxPays" inputmode="decimal" value="${Math.round(P.regles.maxPays * 100)}" autocomplete="off"></label><label>Corrélation max<input name="correlation" inputmode="decimal" value="${String(P.regles.correlation).replace('.', ',')}" autocomplete="off"></label><button type="submit">Recalculer</button></form></article>
+    ${choisies.length || P.exclus.length ? `<article class="tp-carte"><h3>DCA du mois : ${eur(P.montant)}</h3>${cible.avertissements.map(a => `<p class="tp-bandeau tp-avert" role="status">${esc(a)}</p>`).join('')}<div data-plan-corr></div>
+      <div class="tp-scroll"><table class="tp-t lt-plan"><tr><th>Ligne</th><th>Verdict</th><th>Zone d’achat</th><th>Cible</th><th>DCA du mois</th>${detenu ? '<th>Actuel (XTB)</th><th>Écart à la cible</th>' : ''}</tr>${choisies.map(ligneHtml).join('')}</table></div>${exclusHtml}
+      ${detenu ? '<p class="tp-doux">« Actuel » vient de ton dernier import XTB (positions ouvertes) ; un écart au-dessus de la cible est un constat, jamais une consigne de vente : le DCA n’achète que ce qui est sous la cible.</p>' : '<p class="tp-doux">Importe ton historique XTB dans Portefeuille pour voir tes écarts à la cible.</p>'}
+      <p><button type="button" data-plan-lire>🔊 Rayle lit le plan</button></p></article>` : '<article class="tp-carte tp-vide"><p>Ta liste de suivi est vide : ouvre une fiche et touche « ☆ Suivre » (ou l’étoile d’une ligne) pour construire ton plan.</p></article>'}`;
+  const sauver = () => ecrire(LS_PLAN, { montant: P.montant, regles: P.regles, exclus: P.exclus });
+  zone.onchange = e => { const c = e.target.closest('[data-plan-ligne]'); if (c && !c.checked) { P.exclus = [...new Set([...P.exclus, c.dataset.planLigne])]; sauver(); vuePlan(ctx); } };
+  zone.onsubmit = e => { const f = e.target.closest('[data-plan-form]'); if (!f) return; e.preventDefault(); const d = new FormData(f), n = (k, def, a, b) => { const x = num(d.get(k)); return x != null && x >= a && x <= b ? x : def; };
+    P.montant = n('montant', P.montant, 1, 1e7); P.regles = { maxLigne: n('maxLigne', 10, 1, 100) / 100, maxSecteur: n('maxSecteur', 25, 1, 100) / 100, maxPays: n('maxPays', 40, 1, 100) / 100, correlation: n('correlation', 0.8, 0.1, 1) }; sauver(); vuePlan(ctx); };
+  zone.onclick = e => { const r = e.target.closest('[data-plan-remettre]'); if (r) { P.exclus = P.exclus.filter(x => x !== r.dataset.planRemettre); sauver(); vuePlan(ctx); } if (e.target.closest('[data-plan-lire]')) ctx.parler(phrase + (zonesTexte(rows) ? ' ' + zonesTexte(rows) : '')); };
+  /* corrélations hebdomadaires entre les lignes du plan (fiches chargées à la demande) */
+  const ids = Object.keys(cible.poids).slice(0, 25);
+  if (ids.length >= 2) { const boite = zone.querySelector('[data-plan-corr]'); if (boite) boite.innerHTML = '<p class="tp-doux" role="status">Mesure des corrélations…</p>';
+    Promise.all(ids.map(async id => { try { const f = await S.D.fiche(id); return [id, (f.tech && f.tech.w || []).map(p => p[1]).filter(x => x > 0)]; } catch (e) { return [id, []]; } })).then(R => {
+      const series = Object.fromEntries(R.filter(([, w]) => w.length >= 60)), paires = pairesCorrelees(series, P.regles.correlation), b = zone.querySelector('[data-plan-corr]'); if (!b) return;
+      b.innerHTML = paires.length ? paires.slice(0, 6).map(x => `<p class="tp-bandeau tp-avert" role="status">${esc(noms[x.a] || x.a)} et ${esc(noms[x.b] || x.b)} évoluent presque ensemble (corrélation hebdomadaire ${nf(x.r, 2)} > ${nf(P.regles.correlation, 2)}) : les deux ensemble concentrent le risque.</p>`).join('') : `<p class="tp-doux">Aucune paire de lignes corrélée au-dessus de ${nf(P.regles.correlation, 2)} (rendements hebdomadaires, ${Object.keys(series).length} lignes mesurées).</p>`; });
+  }
+  return { rows, cible, rep, ecarts, phrase };
+}
+const zonesTexte = rows => { const Z = rows.filter(r => r.zone); return Z.length ? `En zone d’achat : ${Z.slice(0, 4).map(r => r.n).join(', ')}.` : 'Aucune de tes lignes n’est en zone d’achat pour le moment.'; };

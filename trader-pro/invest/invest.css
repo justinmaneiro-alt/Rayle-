@@ -62,3 +62,11 @@
   .lt-resume { grid-template-columns: repeat(3, 1fr); } .lt-r { height: 46px; gap: 4px; padding: 0 6px; font-size: 12px; } .lt-c small.lt-mob { display: block; } .lt-c .lt-nom { font-size: 12px; } .lt-barre { gap: 6px; } .tp .lt-horizons-barre button { padding: 6px 9px; } .lt-horizons-barre button small { display: none; }
   .lt-vt { height: clamp(320px, 60vh, 760px); } .lt-filtres-d:not([open]) .lt-filtres { display: none; }
 }
+
+/* ───── Mon plan, zone d'achat, suivi du modèle ───── */
+.lt-zone { display: inline-block; margin-left: 4px; padding: 1px 7px; border-radius: 8px; font: 600 10.5px system-ui, sans-serif; color: #5fb894; border: 1px solid rgba(95, 184, 148, .55); background: rgba(95, 184, 148, .12); white-space: nowrap; }
+.lt-zone-legende { color: #5fb894; margin: 4px 0 0; }
+.tp-avert { background: #1a1409; border-color: #5a4a1e; color: #e8c37a; }
+.lt-plan td, .lt-plan th { vertical-align: top; } .lt-plan tr.tp-faible { opacity: .6; } .tp-lien { background: none; border: 0; color: #8fd0e3; cursor: pointer; text-decoration: underline; padding: 0 4px; font: inherit; }
+.lt-suivi-msg { margin: 4px 0 8px; color: #e8a85a; }
+.lt-plan .tp-case { display: inline-flex !important; flex-direction: row !important; align-items: center; gap: 6px; min-height: 0 !important; } .lt-plan td { padding-top: 6px; padding-bottom: 6px; } .lt-plan small { display: block; }

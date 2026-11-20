@@ -13,10 +13,12 @@ export const HORIZONS = Object.freeze([
   { id: 'moyen', nom: '1–3 ans', duree: '1 à 3 ans', usage: 'horizon principal', valorisation: true },
   { id: 'long', nom: '5–10 ans', duree: '5 à 10 ans', usage: 'long terme, achats réguliers', valorisation: true }
 ]);
-export const NOM_FACTEUR = Object.freeze({ mc: 'Tendance court terme', set: 'Setup MA200 et supports', ris: 'Risque', evt: 'Événements', mom: 'Momentum', sai: 'Saisonnalité', gro: 'Croissance', qua: 'Qualité', val: 'Valeur relative', iv: 'Valeur intrinsèque', moat: 'Avantage durable', bil: 'Solidité du bilan', ma: 'Tendance MA200', ppp: 'Parité de pouvoir d’achat', carry: 'Portage (taux)', erp: 'Rendement des bénéfices − taux 10 ans', reel: 'Taux réels', niv: 'Niveau des taux', pente: 'Pente de courbe' });
+export const NOM_FACTEUR = Object.freeze({ decote: 'Décote / prime sur la valeur liquidative', mc: 'Tendance court terme', set: 'Setup MA200 et supports', ris: 'Risque', evt: 'Événements', mom: 'Momentum', sai: 'Saisonnalité', gro: 'Croissance', qua: 'Qualité', val: 'Valeur relative', iv: 'Valeur intrinsèque', moat: 'Avantage durable', bil: 'Solidité du bilan', ma: 'Tendance MA200', ppp: 'Parité de pouvoir d’achat', carry: 'Portage (taux)', erp: 'Rendement des bénéfices − taux 10 ans', reel: 'Taux réels', niv: 'Niveau des taux', pente: 'Pente de courbe' });
 /* pondérations par classe d'actif et horizon (actions : celles du cahier des charges) */
 export const POIDS = Object.freeze({
   action: { tactique: { mc: 40, set: 30, ris: 15, evt: 15 }, swing: { mom: 35, sai: 25, gro: 20, qua: 10, val: 10 }, moyen: { val: 35, qua: 25, mom: 20, gro: 10, ris: 10 }, long: { iv: 35, moat: 35, bil: 15, val: 15 } },
+  /* fonds coté (investment trust, holding, SPAC, tracker) : ni DCF ni multiples ; jugé sur la décote / prime sur la valeur liquidative quand elle existe (sinon aucun verdict de valorisation) */
+  'fonds coté': { tactique: { mc: 45, set: 35, ris: 20 }, swing: { mom: 40, sai: 30, ma: 30 }, moyen: { decote: 40, mom: 25, ma: 20, ris: 15 }, long: { decote: 40, ris: 30, ma: 30 } },
   etf: { tactique: { mc: 45, set: 35, ris: 20 }, swing: { mom: 40, sai: 30, ma: 30 }, moyen: { mom: 45, ma: 25, ris: 30 }, long: { ris: 40, ma: 30, mom: 30 } },
   devise: { tactique: { mc: 45, set: 35, ris: 20 }, swing: { mom: 35, sai: 30, carry: 20, ppp: 15 }, moyen: { ppp: 35, carry: 25, mom: 25, sai: 15 }, long: { ppp: 60, carry: 40 } },
   indice: { tactique: { mc: 45, set: 35, ris: 20 }, swing: { mom: 40, sai: 30, erp: 20, ma: 10 }, moyen: { erp: 40, mom: 30, ma: 15, ris: 15 }, long: { erp: 70, ma: 15, ris: 15 } },
@@ -36,7 +38,7 @@ export const MESURES = Object.freeze({
   moat: [['roicOk', 1], ['stabMarge', 1], ['dil', 1], ['roic', 1]],
   mc: [['m1', 1], ['m3', 1], ['vs20', 1]],
   iv: [['mos', 1]],
-  ma: [['vs200w', 1], ['vs200d', 1]],
+  ma: [['vs200w', 1], ['vs200d', 1]], decote: [['decote', -1]],
   ppp: [['ppp', 1]], carry: [['carry', 1]], erp: [['erp', 1]], reel: [['reel', 1]], niv: [['niv', 1]], pente: [['pente', 1]]
 });
 /* classes sans liquidité : ris ne retient que la volatilité et le drawdown */
@@ -95,6 +97,10 @@ export function verdictLigne(ligne, horizon, opts = {}) {
   const base = scoreHorizon(ajustF, classe, horizon, opts), insuffisant = classe === 'action' && fin(ligne.comp) && ligne.comp < 0.6 && horizon !== 'tactique';
   let lib = insuffisant ? LIBELLES.ND : libelleDe(base.score), score = insuffisant ? null : base.score, plafonne = false;
   if (insuffisant) badges.push({ id: 'insuffisant', texte: 'données insuffisantes : aucun verdict' });
+  if (classe === 'fonds coté') {
+    badges.push({ id: 'fonds', texte: 'fonds coté : ce n’est pas une entreprise (pas de DCF ni de multiples)' });
+    if (H && H.valorisation && !fin(ligne.r && ligne.r.decote)) { lib = LIBELLES.ND; score = null; badges.push({ id: 'sans-nav', texte: 'valeur liquidative indisponible : aucun verdict de valorisation' }); }
+  }
   const piege = classe === 'action' && horizon !== 'tactique' ? piegeAValeur(ligne.r) : null;
   if (piege) { badges.push({ id: 'piege', texte: 'risque de piège à valeur : ' + piege.join(' ; ') }); if ((ORDRE_LIBELLE[lib] ?? 5) < ORDRE_LIBELLE[LIBELLES.NEUTRE]) { lib = LIBELLES.NEUTRE; plafonne = true; } }
   if (classe === 'action' && ligne.hyp && H && H.valorisation) badges.push({ id: 'hypothese', texte: 'valeur estimée supérieure à 4 × le prix : hypothèse à vérifier' });
@@ -121,6 +127,7 @@ const FRASE = {
   set: (r, f) => `setup technique ${f >= 50 ? 'favorable' : 'défavorable'} : ${(r.setupWhy || []).slice(0, 2).join(', ') || 'lecture MA200 et supports Daily'}`,
   sai: (r, f) => `saisonnalité ${f >= 50 ? 'favorable' : 'défavorable'} sur la fenêtre choisie`,
   evt: (r, f) => (f < 50 ? 'résultats attendus dans les 10 jours : risque d’écart de cours' : 'pas de résultats annoncés dans les 10 jours'),
+  decote: (r, f) => `${fin(r.decote) ? (r.decote < 0 ? 'décote' : 'prime') + ' de ' + Math.round(Math.abs(r.decote) * 100) + ' % sur la valeur liquidative' : 'décote / prime indisponible'}`,
   ma: (r, f) => `tendance de fond ${f >= 50 ? 'haussière' : 'baissière'} : ${sg(r.vs200w)} par rapport à la MA200 Weekly`,
   ppp: (r, f) => `valorisation contre la parité de pouvoir d’achat ${f >= 50 ? 'favorable' : 'défavorable'}`, carry: (r, f) => `portage (différentiel de taux) ${f >= 50 ? 'favorable' : 'défavorable'}`,
   erp: (r, f) => `rendement des bénéfices moins taux 10 ans ${f >= 50 ? 'attractif' : 'faible'}`, reel: (r, f) => `taux réels ${f >= 50 ? 'favorables' : 'défavorables'}`, niv: (r, f) => `niveau des taux ${f >= 50 ? 'élevé' : 'bas'} contre son historique`, pente: (r, f) => `pente de courbe ${f >= 50 ? 'favorable' : 'défavorable'}`

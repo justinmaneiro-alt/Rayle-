@@ -2,6 +2,8 @@
    Rendu pur en HTML + montage des graphiques. Tout chiffre affiché garde sa source et sa date (onglet « Données et sources »). Ni prévision ni conseil. */
 import { esc, nf, pct, age } from '../commun/ui.js';
 import { monterGraphique, COULEURS } from '../commun/graph.js';
+import { bandeAchat, estBon } from './plan.js';
+import { atr as atrDe } from '../commun/analyse.js';
 import { sma } from '../commun/analyse.js';
 import { analyserUnite, styleFleche } from '../terminal/ma200-h4.js';
 import { HORIZONS, NOM_FACTEUR, verdictLigne, pourquoi, LIBELLES } from './modele.js';
@@ -132,6 +134,11 @@ function brancherDcf(c) {
   };
   boite.addEventListener('input', maj); maj();
 }
+/* bande verte translucide entre deux prix, derrière les bougies (primitive de Lightweight Charts) */
+function bandeVerte(serie, bas, haut) {
+  const o = { req: null, attached(p) { this.req = p.requestUpdate; }, detached() { /* */ }, updateAllViews() { /* */ }, paneViews() { return [{ zOrder: () => 'bottom', renderer: () => ({ draw() { /* fond seulement */ }, drawBackground(cible) { cible.useBitmapCoordinateSpace(sc => { const y1 = serie.priceToCoordinate(haut), y2 = serie.priceToCoordinate(bas); if (y1 == null || y2 == null) return; const c = sc.context; c.fillStyle = 'rgba(95,184,148,0.16)'; c.fillRect(0, Math.round(Math.min(y1, y2) * sc.verticalPixelRatio), sc.bitmapSize.width, Math.max(1, Math.round(Math.abs(y2 - y1) * sc.verticalPixelRatio))); c.fillStyle = 'rgba(95,184,148,0.55)'; c.fillRect(0, Math.round(Math.min(y1, y2) * sc.verticalPixelRatio), sc.bitmapSize.width, 1); }); } }) }]; } };
+  try { serie.attachPrimitive(o); } catch (e) { /* version sans primitives */ }
+}
 async function montrerTechnique(c) {
   const box = c.zone.querySelector('[data-graphe-tech]'); if (!box) return; const T = c.f.tech; if (!T || !T.d || T.d.length < 30) { box.innerHTML = '<p class="tp-panne">Historique indisponible.</p>'; return; }
   try {
@@ -141,6 +148,8 @@ async function montrerTechnique(c) {
       const B = T.d.map(p => ({ t: p[0] * J, o: p[1], h: p[2], l: p[3], c: p[4], v: p[5] * 1000 })), a = analyserUnite(B, 'J', { maintenant: Date.now() + J }), s = G.bougies(a.B);
       G.ligne(a.B.map((b, i) => ({ t: b.t, v: a.M[i] })).filter(p => p.v != null), { couleur: COULEURS.or, titre: 'MA200' });
       G.marqueurs(s, a.fleches.map(fl => { const st = styleFleche(fl); return { time: Math.floor(fl.t / 1000), position: st.position, color: st.couleur, shape: st.forme, size: fl.type === 'cassure' ? 2 : 1 }; }));
+      /* zone d'achat : verdict Attractif+ sur l'horizon choisi ET prix sur un support Daily majeur, la MA200 Daily ou la MA200 Weekly → bande verte */
+      try { const vz = c.V4 && c.V4[c.horizon], A = atrDe(a.B, 14), at = A[A.length - 1], band = vz && estBon(vz.lib) ? bandeAchat({ B: a.B, W: (T.w || []).map(p => ({ c: p[1] })), support: T.setup && T.setup.support, ma200d: a.M[a.M.length - 1], atr: at }) : null; if (band) { bandeVerte(s, band.bas, band.haut); const l = box.parentNode && box.parentNode.querySelector('[data-zone-achat]'); if (l) l.textContent = 'Zone d’achat (' + band.raison + ') : ' + band.bas.toFixed(2) + ' – ' + band.haut.toFixed(2); else box.insertAdjacentHTML('afterend', '<p class="tp-doux lt-zone-legende" data-zone-achat>Zone d’achat (' + band.raison + ') : ' + band.bas.toFixed(2) + ' – ' + band.haut.toFixed(2) + ' · verdict ' + vz.lib + '</p>'); } } catch (e) { /* bande facultative */ }
       const su = T.setup; if (su && fin(su.support)) G.niveau(s, su.support, { couleur: COULEURS.hausse, titre: 'support' }); if (su && fin(su.resistance)) G.niveau(s, su.resistance, { couleur: COULEURS.baisse, titre: 'résistance' });
     }
     G.ajuster();
