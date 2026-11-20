@@ -13,13 +13,13 @@ export const PAS_UNITE = Object.freeze({ H1: 3600e3, H4: 4 * 3600e3, J: 86400e3 
 const BINANCE_INTERVALLE = { H1: '1h', H4: '4h', J: '1d' };
 
 export const ACTIFS_VOLUME = Object.freeze([
-  { id: 'or', nom: 'Or', court: 'XAU/USD', binance: 'XAUUSDT', yahoo: 'GC=F', yahooNom: 'COMEX GC', live: true, carnet: true, decimales: 2,
+  { id: 'or', nom: 'Or', court: 'XAU/USD', binance: 'XAUUSDT', repli: 'GC=F', yahoo: 'GC=F', yahooNom: 'COMEX GC', live: true, carnet: true, decimales: 2,
     badge: { reel: 'Volume réel · Binance XAUUSDT (perpétuel) + Kraken PF_XAUUSD', ref: 'Volume institutionnel · futures COMEX GC (Yahoo, différé) · prix des futures, pas du comptant' }, typeVolume: 'reel', deltaReel: true },
-  { id: 'btc', nom: 'Bitcoin', court: 'BTC/USD', binance: 'BTCUSDT', live: true, carnet: true, decimales: 0, badge: { reel: 'Volume réel · Binance + Kraken' }, typeVolume: 'reel', deltaReel: true },
-  { id: 'sol', nom: 'Solana', court: 'SOL/USD', binance: 'SOLUSDT', live: true, carnet: true, decimales: 2, badge: { reel: 'Volume réel · Binance + Kraken' }, typeVolume: 'reel', deltaReel: true },
-  { id: 'us100', nom: 'Nasdaq 100', court: 'US100', yahoo: 'NQ=F', yahooNom: 'CME NQ', live: false, carnet: false, decimales: 1, badge: { reel: 'Volume des futures CME · NQ (Yahoo, différé) · prix des futures' }, typeVolume: 'futures', deltaReel: false },
-  { id: 'us500', nom: 'S&P 500', court: 'US500', yahoo: 'ES=F', yahooNom: 'CME ES', live: false, carnet: false, decimales: 1, badge: { reel: 'Volume des futures CME · ES (Yahoo, différé) · prix des futures' }, typeVolume: 'futures', deltaReel: false },
-  { id: 'eurusd', nom: 'EUR/USD', court: 'EUR/USD', yahoo: '6E=F', yahooNom: 'CME 6E', live: false, carnet: false, decimales: 5, badge: { reel: 'Volume des futures CME · 6E (Yahoo, différé) · prix des futures' }, typeVolume: 'futures', deltaReel: false }
+  { id: 'btc', nom: 'Bitcoin', court: 'BTC/USD', binance: 'BTCUSDT', repli: 'BTC-USD', live: true, carnet: true, decimales: 0, badge: { reel: 'Volume réel · Binance + Kraken' }, typeVolume: 'reel', deltaReel: true },
+  { id: 'sol', nom: 'Solana', court: 'SOL/USD', binance: 'SOLUSDT', repli: 'SOL-USD', live: true, carnet: true, decimales: 2, badge: { reel: 'Volume réel · Binance + Kraken' }, typeVolume: 'reel', deltaReel: true },
+  { id: 'us100', nom: 'Nasdaq 100', court: 'US100', yahoo: 'NQ=F', repli: '^NDX', yahooNom: 'CME NQ', live: false, carnet: false, decimales: 1, badge: { reel: 'Volume des futures CME · NQ (Yahoo, différé) · prix des futures' }, typeVolume: 'futures', deltaReel: false },
+  { id: 'us500', nom: 'S&P 500', court: 'US500', yahoo: 'ES=F', repli: '^GSPC', yahooNom: 'CME ES', live: false, carnet: false, decimales: 1, badge: { reel: 'Volume des futures CME · ES (Yahoo, différé) · prix des futures' }, typeVolume: 'futures', deltaReel: false },
+  { id: 'eurusd', nom: 'EUR/USD', court: 'EUR/USD', yahoo: '6E=F', repli: 'EURUSD=X', yahooNom: 'CME 6E', live: false, carnet: false, decimales: 5, badge: { reel: 'Volume des futures CME · 6E (Yahoo, différé) · prix des futures' }, typeVolume: 'futures', deltaReel: false }
 ]);
 export const parId = Object.freeze(Object.fromEntries(ACTIFS_VOLUME.map(a => [a.id, a])));
 export const nomFichierBougies = (sym, iv) => `bougies-${String(sym).replace(/[^A-Za-z0-9]/g, '_')}-${iv}.json`;
@@ -27,6 +27,7 @@ export const nomFichierBougies = (sym, iv) => `bougies-${String(sym).replace(/[^
 /* texte du badge sous le titre : source et type de volume, et si le delta est réel ou estimé */
 export function badgeSource(actif, source = 'reel') {
   const a = typeof actif === 'string' ? parId[actif] : actif; if (!a) return '';
+  if (source === 'repli') return 'Volume indisponible · bougies de secours · delta estimé';
   const t = (a.badge && (a.badge[source] || a.badge.reel)) || '';
   const d = source === 'ref' || !a.deltaReel ? ' · delta estimé (pas de côté dans ce volume)' : ' · delta réel (côté de l’agresseur)';
   return t + d;
@@ -57,13 +58,19 @@ export async function bougiesYahoo(sym, unite, { fetchFn = (...a) => fetch(...a)
 export async function chargerBarres(id, unite, { source = 'reel', fetchFn = (...a) => fetch(...a), maintenant = Date.now() } = {}) {
   const a = parId[id]; if (!a) throw new Error('actif inconnu : ' + id);
   if (a.binance && source !== 'ref') {
-    const B = await bougiesBinance(a.binance, unite, { fetchFn, maintenant });
-    if (B.length < 50) throw new Error('Binance ' + a.binance + ' : moins de 50 bougies');
-    return { bougies: B, source: 'reel', deltaReel: true, aVolume: B.some(b => b.v > 0), note: null, t: maintenant };
+    let B = [], erreur = null; try { B = await bougiesBinance(a.binance, unite, { fetchFn, maintenant }); if (B.length < 50) erreur = 'Binance ' + a.binance + ' : moins de 50 bougies'; } catch (e) { erreur = String(e && e.message || e); }
+    if (!erreur) return { bougies: B, source: 'reel', deltaReel: true, aVolume: B.some(b => b.v > 0), note: null, t: maintenant };
+    const r2 = a.repli ? await bougiesYahoo(a.repli, unite, { fetchFn }).catch(() => null) : null;   // v6 : Binance injoignable → instantané du robot (prix et volume Yahoo, différés)
+    if (r2) return { bougies: r2.bougies, source: 'repli', deltaReel: false, aVolume: r2.bougies.some(b => b.v > 0), note: 'Binance injoignable (' + erreur + ') : instantané du robot (différé), delta estimé.', t: r2.t, repli: erreur };
+    throw new Error(erreur);
   }
   if (a.yahoo) {
-    const r = await bougiesYahoo(a.yahoo, unite, { fetchFn });
-    return { bougies: r.bougies, source: a.binance ? 'ref' : 'reel', deltaReel: false, aVolume: r.bougies.some(b => b.v > 0), note: r.bougies.some(b => b.v > 0) ? null : 'Cette source ne fournit pas de volume sur cette unité.', t: r.t };
+    /* v6 (A0) : jamais d'écran vide. Si le fichier des futures manque (404, robot pas encore passé), on affiche quand même les bougies de l'indice ou de la paire au comptant (sans volume) avec un badge « volume indisponible » */
+    let r, erreur = null; try { r = await bougiesYahoo(a.yahoo, unite, { fetchFn }); } catch (e) { erreur = String(e && e.message || e); }
+    if (r) return { bougies: r.bougies, source: a.binance ? 'ref' : 'reel', deltaReel: false, aVolume: r.bougies.some(b => b.v > 0), note: r.bougies.some(b => b.v > 0) ? null : 'Cette source ne fournit pas de volume sur cette unité.', t: r.t, repli: null };
+    if (a.repli) { const r2 = await bougiesYahoo(a.repli, unite, { fetchFn }).catch(() => null); if (r2) return { bougies: r2.bougies, source: 'repli', deltaReel: false, aVolume: false, note: 'Volume indisponible (' + erreur + ') : bougies de l’indice au comptant, sans volume.', t: r2.t, repli: erreur }; }
+    if (a.binance) { const B = await bougiesBinance(a.binance, unite, { fetchFn, maintenant }); if (B.length >= 50) return { bougies: B, source: 'reel', deltaReel: true, aVolume: true, note: null, t: maintenant, repli: erreur }; }
+    throw new Error(erreur || 'aucune bougie disponible pour ' + id);
   }
   throw new Error('aucune source de volume pour ' + id);
 }
