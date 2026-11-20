@@ -7,7 +7,7 @@ import { lireActifPro, prixOr, parId as actifsPro } from '../commun/donnees.js';
 import { demanderIA, parler } from '../commun/ia.js';
 import { lireNombre } from '../commun/nombre.js';
 import { idDepuisTicker, CLE_POSITIONS_OUVERTES } from '../commun/xtb.js';
-import { creerPortefeuille, lireConn, ecrireConn, CLE_RESUME } from './stockage.js';
+import { creerPortefeuille, lireConn, ecrireConn, lienAppairage, CLE_RESUME } from './stockage.js';
 import { valeursDuPoint, enrichir, resume, courbes } from './calcul.js';
 import { rapportCalcule, texteRapport } from './coach.js';
 import * as V from './vues.js';
@@ -44,7 +44,7 @@ export async function ouvrir({ racine = document.body, onFermer = () => {} } = {
   }
   function majSync() {
     const e = $('[data-sync-etat]'), c = lireConn(), s = S.L && S.L.sync;
-    if (!c) { e.textContent = 'sur cet appareil seulement'; e.className = 'tp-sync tp-sync-local'; e.title = 'Worker Portefeuille non configuré (Réglages)'; return; }
+    if (!c) { e.textContent = 'non synchronisé · Réglages'; e.className = 'tp-sync tp-sync-local'; e.title = 'Cet appareil n’est pas relié au Worker Portefeuille : Réglages → Synchronisation (ou ouvre le lien d’appairage copié depuis un autre appareil)'; return; }
     if (S.sync.ok === false) { e.textContent = 'synchro : erreur'; e.className = 'tp-sync tp-sync-ko'; e.title = S.sync.texte; return; }
     const att = s && s.enAttente ? s.enAttente.fermees.length + s.enAttente.tresorerie.length : 0;
     e.textContent = att ? att + ' ligne(s) à envoyer' : s && s.dernier ? 'synchronisé ' + age(s.dernier) : 'synchro en cours…'; e.className = 'tp-sync ' + (att ? 'tp-sync-att' : 'tp-sync-ok'); e.title = S.sync.texte || '';
@@ -109,6 +109,7 @@ export async function ouvrir({ racine = document.body, onFermer = () => {} } = {
     if (e.target.closest('[data-lire-rapport]')) { parler((S.L.rapport && S.L.rapport.texte) || texteRapport(S.coach, S.R)); return; }
     if (e.target.closest('[data-lire]')) { parler(S.coach ? ((S.L.rapport && S.L.rapport.texte) || texteRapport(S.coach, S.R)) : 'Importez d’abord votre historique XTB.'); return; }
     if (e.target.closest('[data-couvrir-pos]')) { try { window.Application && window.Application.ouvrir('couverture'); } catch (er) { /* */ } return; }
+    if (e.target.closest('[data-appairer]')) { const m = el.querySelector('[data-conn-msg]'), l = lienAppairage(lireConn(), location.href); if (!l) return; try { if (navigator.share && /Android|iPhone|iPad/i.test(navigator.userAgent)) await navigator.share({ title: 'Rayle : appairage Portefeuille', url: l }); else { await navigator.clipboard.writeText(l); m.textContent = 'Lien copié : ouvre-le sur l’autre appareil.'; } } catch (er) { m.textContent = 'Copie impossible : ' + (er && er.message || er); } return; }
     if (e.target.closest('[data-sync]')) { const m = el.querySelector('[data-sauv-msg]'); m.textContent = 'Synchronisation…'; await synchroniser(false); m.textContent = S.sync.ok ? 'Synchronisé.' : S.sync.texte || 'Worker non configuré.'; return; }
     if (e.target.closest('[data-sauvegarder]')) { const b = new Blob([JSON.stringify(await P.exporter())], { type: 'application/json' }), a = document.createElement('a'); a.href = URL.createObjectURL(b); a.download = 'rayle-portefeuille-' + new Date().toISOString().slice(0, 10) + '.json'; document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 4000); return; }
   });

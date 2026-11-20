@@ -1,6 +1,6 @@
 /* Test de la synchronisation entre deux appareils à travers le Worker (SQLite réel, fetch simulé). node trader-pro/tests/sync-test.mjs */
 import fs from 'node:fs'; import path from 'node:path'; import { DatabaseSync } from 'node:sqlite';
-import { creerPortefeuille, diff, fusionner } from '../portefeuille/stockage.js';
+import { creerPortefeuille, diff, fusionner, lienAppairage, lireAppairage } from '../portefeuille/stockage.js';
 import { traiter } from '../worker/src/coeur.js';
 import { depotD1, d1DepuisSqlite } from '../worker/src/depot-d1.js';
 let ok = 0, ko = 0; const v = (c, m) => { if (c) ok++; else { ko++; console.log('  ✗ ' + m); } };
@@ -45,4 +45,5 @@ if (zip) {
   const s2 = await P2.synchroniser(); v(s2.ok && s2.fermees.length === rr.totaux.fermees && s2.tresorerie.length === rr.totaux.tresorerie, 'réel : le 2e appareil retrouve tout'); const rr2 = await P2.importer([{ nom: path.basename(zip), octets: oct }]); v(rr2.nouvelles.fermees === 0 && rr2.nouvelles.tresorerie === 0, 'réel : réimporter le même fichier = 0 nouvelle ligne');
   const brut = JSON.stringify(await (await f2('https://w.test/sauvegarde', { headers: { 'X-Portefeuille-Code': env.PORTEFEUILLE_CODE } })).json()); const compte = (path.basename(zip).match(/^(\d+)_/) || [])[1]; v(compte && !brut.includes(compte), 'réel : le numéro de compte (lu dans le nom du fichier privé) n’est jamais stocké sur le Worker');
 }
+{ const l = lienAppairage({ url: 'https://pf.exemple.workers.dev/', code: 'été-é1' }, 'https://x.github.io/Rayle-/index.html?a=1#vieux'); const h = l.slice(l.indexOf('#')); const c = lireAppairage(h); v(l.startsWith('https://x.github.io/Rayle-/index.html#pf=') && c.url === 'https://pf.exemple.workers.dev' && c.code === 'été-é1', 'v4 : lien d’appairage aller-retour (accents compris)'); v(lireAppairage('#pf=@@@') === null && lireAppairage('') === null && lienAppairage(null, 'x') === null, 'lien invalide ignoré'); }
 console.log(ko ? `✗ ${ko} échec(s), ${ok} ok` : `tous les tests passent (${ok})`); process.exit(ko ? 1 : 0);

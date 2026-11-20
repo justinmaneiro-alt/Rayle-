@@ -10,3 +10,13 @@ window.RAYLE_CONFIG = (function () {
   var distant = 'https://rayle.justinmaneiro.workers.dev';   // /*URL*/
   return { workerUrl: local ? location.origin : distant, workerDistant: distant, local: local, sansJeton: local };
 })();
+
+/* v4 : appairage du Portefeuille. Lien « …/#pf=… » copié depuis un autre appareil : enregistre l'adresse et le code du Worker Portefeuille (clé identique à trader-pro/portefeuille/stockage.js), puis efface le lien de la barre d'adresse. */
+(function () {
+  try {
+    var m = /(?:^|[#&])pf=([A-Za-z0-9+/=_-]+)/.exec(location.hash || ''); if (!m) return;
+    var o = JSON.parse(decodeURIComponent(escape(atob(m[1].replace(/-/g, '+').replace(/_/g, '/')))));
+    if (o && /^https:\/\//.test(o.url || '')) { localStorage.setItem('rayle_pf_conn_v1', JSON.stringify({ url: String(o.url).replace(/\/+$/, ''), code: String(o.code || '') })); window.RAYLE_PF_APPAIRE = true; }
+    history.replaceState(null, '', location.pathname + location.search);
+  } catch (e) { /* lien invalide : ignoré */ }
+})();

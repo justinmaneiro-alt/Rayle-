@@ -11,6 +11,13 @@ const stable = o => JSON.stringify(o, Object.keys(o).sort());
 export const lireConn = (ls = globalThis.localStorage) => { try { const c = JSON.parse(ls.getItem(CLE_CONN) || 'null'); return c && c.url ? { url: String(c.url).replace(/\/+$/, ''), code: String(c.code || '') } : null; } catch (e) { return null; } };
 export const ecrireConn = (c, ls = globalThis.localStorage) => { try { if (!c || !c.url) ls.removeItem(CLE_CONN); else ls.setItem(CLE_CONN, JSON.stringify({ url: String(c.url).trim().replace(/\/+$/, ''), code: String(c.code || '').trim() })); } catch (e) { /* stockage refusé */ } };
 
+/* v4 : appairage en un geste. Le PC copie un lien « …/#pf=<base64 de {url,code}> » ; ouvert sur la tablette ou le téléphone, il enregistre la connexion (config.js le fait au chargement, sans ouvrir le Portefeuille). */
+export const lienAppairage = (c, origine) => (c && c.url ? String(origine || '').replace(/[#?].*$/, '') + '#pf=' + btoa(unescape(encodeURIComponent(JSON.stringify({ url: c.url, code: c.code || '' })))) : null);
+export function lireAppairage(hash) {
+  const m = /(?:^|[#&])pf=([A-Za-z0-9+/=_-]+)/.exec(String(hash || '')); if (!m) return null;
+  try { const o = JSON.parse(decodeURIComponent(escape(atob(m[1].replace(/-/g, '+').replace(/_/g, '/'))))); return o && /^https:\/\//.test(o.url || '') ? { url: String(o.url).replace(/\/+$/, ''), code: String(o.code || '') } : null; } catch (e) { return null; }
+}
+
 /* différence entre des lignes reçues et celles qu'on a déjà : { nouvelles, modifiees, inchangees } */
 export function diff(existantes, recues) {
   const m = new Map(existantes.map(x => [x.id, stable(x)])), nouvelles = [], modifiees = []; let inchangees = 0;
