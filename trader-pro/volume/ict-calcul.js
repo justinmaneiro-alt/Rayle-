@@ -20,12 +20,19 @@ export const atrJournalier = (B, n = 14) => atr(B, n);
 /* ATR « Daily » à partir de bougies de n'importe quelle unité (H1 / H4 : regroupées par jour UTC) */
 export function atrDaily(B, unite) { if (unite === 'J') return atr(B, 14); const m = new Map(); for (const b of B) { const k = jourDe(b.t); const g = m.get(k); if (!g) m.set(k, { t: b.t, o: b.o, h: b.h, l: b.l, c: b.c }); else { g.h = Math.max(g.h, b.h); g.l = Math.min(g.l, b.l); g.c = b.c; } } return atr([...m.values()], 14); }
 
+/* la dernière bougie / période est-elle terminée ? Jour : la bougie a duré 24 h. Semaine, mois : la date réelle (UTC, sans décalage) est dans une période suivante, ou la semaine est finie (samedi, dimanche).
+   Le décalage de 6 h sert à classer les bougies qui ouvrent la veille au soir ; il ne doit pas servir à dater « maintenant » (un bougie Binance de 00 h UTC serait jugée terminée dès 18 h). */
+function periodeFinie(tf, dern, maintenant) {
+  if (tf === 'J') return dern.t + J <= maintenant; const d = new Date(maintenant);
+  if (tf === 'S') { const sNow = Math.floor((Math.floor(maintenant / J) + 3) / 7); return sNow > semaineDe(dern.t) || (sNow === semaineDe(dern.t) && (d.getUTCDay() + 6) % 7 >= 5 && dern.n != null); }
+  return d.getUTCFullYear() * 12 + d.getUTCMonth() > moisDe(dern.t);
+}
 /* repères : plus haut / plus bas de la période précédente TERMINÉE, ouverture de la période en cours */
 export function reperes(B, maintenant = Date.now()) {
   if (B.length < 3) return null; const R = { niveaux: [], ouvertures: [] };
   for (const [tf, p, nomH, nomL, nomO] of [['J', 'J', 'PDH', 'PDL', 'Ouverture jour'], ['S', 'S', 'PWH', 'PWL', 'Ouverture semaine'], ['M', 'M', 'PMH', 'PML', 'Ouverture mois']]) {
     const G = agreger(B, p); if (G.length < 2) continue;
-    const dern = G[G.length - 1], clos = cle[tf](dern.t) < cle[tf](maintenant) ? dern : G[G.length - 2];   // la dernière période est-elle déjà terminée ?
+    const dern = G[G.length - 1], clos = periodeFinie(tf, dern, maintenant) ? dern : G[G.length - 2];   // la dernière période est-elle déjà terminée ?
     const courante = clos === dern ? null : dern, prec = clos;
     R.niveaux.push({ id: nomH, prix: prec.h, type: 'haut', tf, depuis: prec.t, nom: nomH }, { id: nomL, prix: prec.l, type: 'bas', tf, depuis: prec.t, nom: nomL });
     if (courante) R.ouvertures.push({ id: 'O' + tf, prix: courante.o, nom: nomO, tf });

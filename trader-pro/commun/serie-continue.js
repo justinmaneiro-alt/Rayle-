@@ -1,7 +1,7 @@
 /* ═════════════ SÉRIE CONTINUE (v6, phase A2) — une seule série de bougies par actif et par unité, sans trou ni saut d'échelle ═════════════
    Ordre de fusion : historique long (recalé) → source récente → temps réel ; en cas de bougie commune, la source la PLUS RÉCENTE gagne.
    Contrôles automatiques (module pur, testé) :
-     · bougie isolée : une bougie dont l'ouverture ou la clôture s'écarte de plus de 30 % des deux voisines (qui, elles, se suivent) est rejetée et notée ;
+     · bougie isolée : une bougie dont l'ouverture ET la clôture s'écartent de plus de 30 % des deux voisines (qui, elles, se suivent) est rejetée et notée ;
      · trou : plus de 2 bougies manquantes de suite sur un marché ouvert 24/7 (crypto) — sur les autres marchés on ne signale que les trous de plus de 5 jours (week-ends, fériés) ;
      · bougie incohérente : h < l, valeur nulle ou non finie, bougie hors grille ;
    Les incidents sont rendus (liste lisible) et jamais silencieux. */
@@ -40,7 +40,7 @@ export function controler(B, { unite = 'J', actif = '', seuilSaut = 0.3, maxTrou
   const gardees = [];
   for (let i = 0; i < v.length; i++) {
     const b = v[i], p = v[i - 1], s = v[i + 1];
-    if (p && s) { const dev = x => Math.max(Math.abs(b.o / x.c - 1), Math.abs(b.c / x.c - 1), Math.abs(b.h / x.c - 1), Math.abs(b.l / x.c - 1)); if (dev(p) > seuilSaut && dev(s) > seuilSaut && Math.abs(p.c / s.c - 1) < seuilSaut) { incidents.push({ type: 'isolee', t: b.t, c: b.c, voisines: [p.c, s.c] }); continue; } }
+    if (p && s) { const dev = x => Math.min(Math.abs(b.o / x.c - 1), Math.abs(b.c / x.c - 1)); /* ouverture ET clôture hors de portée : une mèche profonde (krach éclair réel) n'est pas une bougie fausse */ if (dev(p) > seuilSaut && dev(s) > seuilSaut && Math.abs(p.c / s.c - 1) < seuilSaut) { incidents.push({ type: 'isolee', t: b.t, c: b.c, voisines: [p.c, s.c] }); continue; } }
     gardees.push(b);
   }
   /* trous */

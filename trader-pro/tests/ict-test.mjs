@@ -17,6 +17,8 @@ const moisP = B.filter(b => moisDe(b.t) === moisDe(now) - 1); v(R.niveaux.find(n
 v(R.ouvertures.find(o => o.id === 'OJ').prix === B[59].o && R.ouvertures.find(o => o.id === 'OS').prix === semC[0].o && R.ouvertures.find(o => o.id === 'OM').prix === B.find(b => moisDe(b.t) === moisDe(now)).o, 'ouvertures du jour, de la semaine et du mois');
 /* si la dernière bougie est déjà terminée (lendemain), c'est elle la veille */
 const R2 = reperes(B, D('2026-11-21', 3)); v(R2.niveaux.find(n => n.id === 'PDH').prix === B[59].h && !R2.ouvertures.find(o => o.id === 'OJ'), 'bougie terminée → c\'est la veille, pas d\'ouverture du jour');
+/* régression : en fin de journée UTC (18 h → 24 h), la bougie de 00 h du jour est ENCORE la bougie en cours : la veille reste la bougie précédente */
+for (const h of [1, 12, 17, 18, 20, 23]) { const Rx = reperes(B, D('2026-11-20', h)); v(Rx.niveaux.find(n => n.id === 'PDH').prix === B[58].h && Rx.niveaux.find(n => n.id === 'PDL').prix === B[58].l, 'PDH / PDL stables à ' + h + ' h UTC (veille = bougie du 19)'); }
 /* premium / discount */
 const pd = premiumDiscount(B, { maintenant: now }); v(pd && Math.abs(pd.equilibre - (pd.haut + pd.bas) / 2) < 1e-9 && pd.zone === 'premium', 'premium : prix au-dessus de 50 % de la semaine précédente');
 const bas = premiumDiscount([...B.slice(0, 59), { ...B[59], o: 100, h: 101, l: 90, c: 92 }], { maintenant: now }); v(bas.zone === 'discount', 'discount : prix sous 50 % du range');

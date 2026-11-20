@@ -112,11 +112,11 @@ export async function monterVolume({ racine, T = {}, parler = () => {}, idDefaut
     const L = $('[data-legende]'); if (!L || !S.bars.length) return; const B = S.bars; let i = B.length - 1;
     if (tMs != null) { let lo = 0, hi = B.length - 1; while (lo < hi) { const m = (lo + hi + 1) >> 1; if (B[m].t <= tMs) lo = m; else hi = m - 1; } i = lo; }
     const b = B[i], pr = i > 0 ? B[i - 1].c : b.o, v = (b.c - pr) / pr * 100, up = b.c >= b.o, d = deltaBarre(b), cl = up ? 'tpv-h' : 'tpv-b', a = S.actif;
-    L.innerHTML = `<b>${esc(parId[a].court)} · ${NOM_U[S.unite]}</b> <time>${tFr.format(new Date(b.t))}</time> <span class="${cl}">O ${prix(a, b.o)} H ${prix(a, b.h)} B ${prix(a, b.l)} C ${prix(a, b.c)} (${v >= 0 ? '+' : '−'}${nf(Math.abs(v), 2)} %)</span> <span>Vol ${compact(b.v || 0)}</span> <span class="${d >= 0 ? 'tpv-h' : 'tpv-b'}">Δ ${sgn(d)}${S.donnees && S.donnees.deltaReel ? '' : ' ~'}</span>`;
+    L.innerHTML = `<b>${esc(parId[a].court)} · ${NOM_U[S.unite]}</b> <time>${tFr.format(new Date(b.t))}</time> <span class="${cl}">O ${prix(a, b.o)} H ${prix(a, b.h)} B ${prix(a, b.l)} C ${prix(a, b.c)} (${v >= 0 ? '+' : '−'}${nf(Math.abs(v), 2)} %)</span> ${S.donnees && S.donnees.aVolume === false ? '' : `<span>Vol ${compact(b.v || 0)}</span> <span class="${d >= 0 ? 'tpv-h' : 'tpv-b'}">Δ ${sgn(d)}${S.donnees && S.donnees.deltaReel ? '' : ' ~'}</span>`}`;
   }
   /* panneaux du bas : chacun peut être masqué ; un panneau sans série visible se réduit à un filet */
   function appliquerPanneaux() {
-    if (!chart) return; const vol = opts.pVol !== false, cvdv = opts.pCvd !== false, mf = opts.pMfi !== false;
+    if (!chart) return; const sansVol = !!(S.donnees && S.donnees.aVolume === false), vol = opts.pVol !== false && !sansVol, cvdv = opts.pCvd !== false && !sansVol, mf = opts.pMfi !== false && !sansVol;   // v6 : sans volume (DXY, secours), les panneaux de volume sont masqués, pas affichés vides
     try { sVol.applyOptions({ visible: vol }); sMoy.applyOptions({ visible: vol }); sCvd.applyOptions({ visible: cvdv }); sMfi.applyOptions({ visible: mf }); sRv.applyOptions({ visible: mf }); const P = chart.panes(); P[1].setStretchFactor(vol || cvdv ? 2 : 0.001); P[2].setStretchFactor(mf ? 2 : 0.001); } catch (e) { /* version sans panneaux ajustables */ }
   }
   function majTempsReel() {
@@ -310,7 +310,7 @@ export async function monterVolume({ racine, T = {}, parler = () => {}, idDefaut
       <p class="tpv-doux">${esc(NOM_U[S.unite])} · ${S.bars.length} bougies. ${S.controle ? esc(resumeControle(S.controle)) + '. ' : ''}${S.raccord && S.raccord.methode ? `Historique long raccordé (${esc(S.raccord.methode)}, écart ${nf((S.raccord.ratio - 1) * 100, 3)} %, ${S.raccord.longues} bougies). ` : ''}${d && d.repli ? 'Repli : ' + esc(d.repli) + '. ' : ''}${d && d.note ? esc(d.note) : ''}</p>
       <p class="tpv-doux">${flux ? 'Flux : ' + esc(flux) + '. ' : (a.live ? '' : 'Pas de flux direct gratuit pour cet actif : données différées. ')}Delta ${d && d.deltaReel ? 'réel (côté de l’agresseur)' : 'estimé depuis la bougie'}.</p>
       <p class="tpv-doux">${esc(texteEmpreinte())}</p>
-      ${p.masques.length ? `<p class="tpv-doux"><b>Masqué pour ce profil</b><br>${p.masques.map(esc).join('<br>')}</p>` : ''}
+      ${p.masques.length || (d && d.aVolume === false) ? `<p class="tpv-doux"><b>Masqué</b><br>${[...p.masques, ...(d && d.aVolume === false ? ['Panneaux Volume, CVD et MFI : cette source ne fournit aucun volume pour ' + a.nom + '.'] : [])].map(esc).join('<br>')}</p>` : ''}
       <h4>Niveaux de réaction</h4>${liste(R.map(n => `<li><b>${prix(S.actif, n.prix)}</b> <small>${n.cote === 'resistance' ? 'résistance' : 'support'} · ×${n.reactions} réactions · force ${nf(n.forceRel * 100, 0)} % · ${NOM_U[n.unite] || n.unite}${n.sources.length ? ' · ' + esc(n.sources.join(', ')) : ''}</small></li>`))}
       <h4>Supports / résistances (volume)</h4>${liste(N.map(n => `<li class="${n.cote === 'resistance' ? 'tpv-b' : 'tpv-h'}"><b>${prix(S.actif, n.prix)}</b> <small>${n.cote === 'resistance' ? 'résistance' : 'support'} · force ${nf(n.force, 1)} · ${n.reactions} réactions · ${esc(n.sources.slice(0, 3).join(', '))}</small></li>`))}
       <h4>Dernières flèches</h4>${liste(F.map(f => `<li class="${f.dir > 0 ? 'tpv-h' : 'tpv-b'}">${f.dir > 0 ? '▲' : '▼'} ${esc(f.libelle)} <small>${tFr.format(new Date(f.t))}</small></li>`))}
@@ -329,6 +329,7 @@ export async function monterVolume({ racine, T = {}, parler = () => {}, idDefaut
   function badgeCourt() {
     const a = parId[S.actif], d = S.donnees, direct = Object.values(S.etatFlux).some(e => e.etat === 'connecte'), age = d ? ageDonnee(d.t) : '…';
     if (d && d.source === 'repli') return 'Volume indisponible · bougies de secours · ' + age;
+    if (a.typeVolume === 'aucun' || (d && !d.aVolume && d.source !== 'repli')) return 'Volume indisponible pour cet actif · prix ' + a.court + ' · ' + age;
     if (a.typeVolume === 'futures') return 'Futures ' + (a.yahooNom || 'CME') + ' · différé · ' + age;
     if (d && d.source === 'ref') return 'Futures ' + (a.yahooNom || 'COMEX') + ' · différé · ' + age;
     return 'Volume réel · Binance + Kraken · ' + (direct ? 'direct' : age);
