@@ -132,6 +132,8 @@
       <div id="vxGemini" class="vx-liste"></div>
       <div class="row vx-gem-reglages"><label for="vxGemVit">Vitesse <span id="vxGemVitVal">normale</span></label><input id="vxGemVit" type="range" min="-20" max="20" step="2"><label for="vxGemTon">Ton</label><select id="vxGemTon"><option value="naturel">Naturel</option><option value="chaleureux">Chaleureux</option><option value="pose">Posé</option><option value="dynamique">Dynamique</option></select></div>
       <p class="hint" id="vxGemQuota"></p>
+      <div class="row"><button type="button" class="ghost" id="vxGemDiag">Diagnostiquer rayle-voix</button></div>
+      <pre class="hint" id="vxGemDiagSortie" style="white-space:pre-wrap;user-select:text"></pre>
       <h4 class="vx-tit">Autres voix</h4>
       <div id="vxListe" class="vx-liste"></div>
       <label for="vxHauteur">Hauteur de la voix : <span id="vxHauteurVal">normale</span></label>
@@ -295,7 +297,7 @@
   <div id="chargement"><div id="chargement-texte">Chargement des mondes…</div><div class="g-barre"><div id="chargement-barre"></div></div></div>
 </div>
 
-<script>window.RAYLE_VERSION='2026.11.21.2';</script>
+<script>window.RAYLE_VERSION='2026.11.21.3';</script>
 <script src="config.js"></script>
 <script src="core/commun/maj-pc.js"></script>
 <script src="core/commun/bascule-worker.js"></script>

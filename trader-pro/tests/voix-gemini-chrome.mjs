@@ -3,12 +3,13 @@ import { lancer, w } from './aide-chrome.mjs';
 const mode = process.argv[2] || 'pc';
 const pcm = Buffer.alloc(24000 * 2); for (let i = 0; i < 24000; i++) pcm.writeInt16LE(Math.round(6000 * Math.sin(i / 10)), i * 2);
 const wav = Buffer.concat([Buffer.from('RIFF'), (() => { const b = Buffer.alloc(4); b.writeUInt32LE(36 + pcm.length); return b; })(), Buffer.from('WAVEfmt '), Buffer.from([16, 0, 0, 0, 1, 0, 1, 0]), (() => { const b = Buffer.alloc(8); b.writeUInt32LE(24000, 0); b.writeUInt32LE(48000, 4); return b; })(), Buffer.from([2, 0, 16, 0]), Buffer.from('data'), (() => { const b = Buffer.alloc(4); b.writeUInt32LE(pcm.length); return b; })(), pcm]);
-let appels = [], mode429 = false;
+let appels = [], mode429 = false, mode401 = false;
 const CORS = { 'access-control-allow-origin': '*', 'access-control-expose-headers': 'X-Rayle-Voix, X-Rayle-Cache' };
 const T = await lancer(mode, { dossierCaptures: 'donnees-privees/captures-v7', stockage: { rayle_worker_url: 'https://faux-worker.test', rayle_worker_token: 'jeton' }, interception: async (r, u) => {
   if (!u.startsWith('https://faux-worker.test/') && !u.includes('rayle-voix')) return false;
   if (r.method() === 'OPTIONS') { await r.respond({ status: 204, headers: { ...CORS, 'access-control-allow-headers': '*', 'access-control-allow-methods': 'POST, GET, OPTIONS' } }); return true; }
-  if (u.endsWith('/tts')) { const b = JSON.parse(r.postData() || '{}'); appels.push(b); if (mode429) { await r.respond({ status: 429, headers: { ...CORS, 'content-type': 'application/json' }, body: JSON.stringify({ error: 'quota', quota: true }) }); return true; } await r.respond({ status: 200, headers: { ...CORS, 'content-type': 'audio/wav', 'X-Rayle-Voix': 'gemini/Algieba (gemini-2.5-flash-preview-tts)', 'X-Rayle-Cache': 'miss' }, body: wav }); return true; }
+  if (u.endsWith('/sante')) { await r.respond({ status: 200, headers: { ...CORS, 'content-type': 'application/json' }, body: '{"ok":true,"cle":true}' }); return true; }
+  if (u.endsWith('/tts')) { if (mode401) { await r.respond({ status: 401, headers: { ...CORS, 'content-type': 'application/json' }, body: JSON.stringify({ error: 'jeton refusé' }) }); return true; } const b = JSON.parse(r.postData() || '{}'); appels.push(b); if (mode429) { await r.respond({ status: 429, headers: { ...CORS, 'content-type': 'application/json' }, body: JSON.stringify({ error: 'quota', quota: true }) }); return true; } await r.respond({ status: 200, headers: { ...CORS, 'content-type': 'audio/wav', 'X-Rayle-Voix': 'gemini/Algieba (gemini-2.5-flash-preview-tts)', 'X-Rayle-Cache': 'miss' }, body: wav }); return true; }
   await r.respond({ status: 404, headers: CORS, body: '{}' }); return true;
 } }), { p, verif, attendre, capture, fin } = T;
 await p.evaluate(() => { const b = document.querySelector('#vxGemini'); if (b) b.scrollIntoView(); });
@@ -33,5 +34,13 @@ mode429 = true; appels = []; await p.evaluate(() => speak('Une phrase nouvelle p
 verif(appels.length === 1, 'Gemini est appelé une fois'); verif(await p.evaluate(() => VoixMoteurs.pauseGem() > Date.now()), 'après le 429 : pause de 15 minutes');
 await p.evaluate(() => speak('Encore une autre phrase.')); await w(2500); verif(appels.length === 1, 'pendant la pause : plus d appel à Gemini');
 verif(await p.evaluate(() => /secours/.test(VoixMoteurs.dernier())), 'indicateur : moteur de secours (' + await p.evaluate(() => VoixMoteurs.dernier()) + ')');
+/* échec visible : plus de silence, erreur exacte (code HTTP + message) + diagnostic */
+mode429 = false; mode401 = true; await p.evaluate(() => { localStorage.removeItem('rayle_voix_gemini_pause'); document.querySelector('#vxGemini [data-ecouter="gemini-f3"]').click(); }); await w(3500);
+const msgErr = await p.evaluate(() => document.querySelector('#vxMsg, #vxMessage, .vx-msg') ? document.querySelector('#vxMsg, #vxMessage, .vx-msg').innerText : '') + ' | ' + await p.evaluate(() => document.querySelector('#vxMoteur').innerText);
+verif(/HTTP 401/.test(msgErr) && /jeton refus/.test(msgErr), 'échec affiché avec code HTTP et message : ' + msgErr.slice(0, 200));
+await p.evaluate(() => document.querySelector('#vxGemDiag').click()); await w(2500);
+const diag = await p.evaluate(() => document.querySelector('#vxGemDiagSortie').innerText);
+verif(/GET \/sante : HTTP 200/.test(diag) && /POST \/tts : HTTP 401/.test(diag) && /Code d.accès enregistré dans Rayle : oui/.test(diag), 'diagnostic pas à pas : ' + diag.replace(/\n/g, ' / ').slice(0, 300));
+mode401 = false;
 await p.evaluate(() => { const b = [...document.querySelectorAll('button,a,div')].find(e => e.children.length < 3 && /^Réglages$/.test((e.innerText || '').trim())); if (b) b.click(); }); await w(1200); await p.evaluate(() => { document.querySelector('#vxGemini').scrollIntoView({ block: 'center' }); }); await w(600); await capture('voix-gemini');
 await fin();

@@ -183,6 +183,7 @@
         }catch(e){
           if(token!==speakToken) return;
           enLigne=false; try{ ctrl.abort(); }catch(x){}
+          try{ VoixMoteurs.noterEchec(moteurId,(e&&e.message)||errMsg(e)); }catch(x){}
           const m='Voix « '+(VoixMoteurs.NOMS[moteurId]||{nom:moteurId}).nom+' » indisponible ('+errMsg(e)+') : voix du système';
           if(m!==lastVoiceInfo){ addLine('sys',m); lastVoiceInfo=m; }
         }
