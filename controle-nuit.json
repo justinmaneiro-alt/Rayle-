@@ -1,0 +1,148 @@
+{
+ "t": 1795254087059,
+ "version": 1,
+ "resume": "aucun problème grave, 23 information(s)",
+ "graves": 0,
+ "problemes": [
+  {
+   "gravite": "info",
+   "fichier": "bougies-6E_F-1h.json",
+   "type": "aberrant",
+   "detail": "1 saut(s) de plus de 12 ATR ; le plus fort : 12.8 ATR le 2025-08-01T12:00 (1.14375 → 1.15785) ; le plus récent : 2025-08-01T12:00"
+  },
+  {
+   "gravite": "info",
+   "fichier": "bougies-6S_F-1h.json",
+   "type": "aberrant",
+   "detail": "3 saut(s) de plus de 12 ATR ; le plus fort : 14.3 ATR le 2026-02-02T18:00 (1.3058 → 1.28655) ; le plus récent : 2026-02-02T18:00"
+  },
+  {
+   "gravite": "info",
+   "fichier": "bougies-BTC_USD-1h.json",
+   "type": "aberrant",
+   "detail": "1 saut(s) de plus de 12 ATR ; le plus fort : 12.7 ATR le 2025-01-20T06:00 (102232.5 → 107157.2) ; le plus récent : 2025-01-20T06:00"
+  },
+  {
+   "gravite": "info",
+   "fichier": "bougies-BTC_USD-1h.json",
+   "type": "trous",
+   "detail": "2 trou(s) de plus de 2 bougies sur un marché 24/7 (le plus long : 20 ; le dernier finit le 2025-11-29T19:00)"
+  },
+  {
+   "gravite": "info",
+   "fichier": "bougies-CHF_X-1d.json",
+   "type": "incoherentes",
+   "detail": "67 bougie(s) incohérente(s) (haut < bas ou corps hors mèches)"
+  },
+  {
+   "gravite": "info",
+   "fichier": "bougies-CHF_X-1h.json",
+   "type": "aberrant",
+   "detail": "1 saut(s) de plus de 12 ATR ; le plus fort : 13.1 ATR le 2025-04-09T17:00 (0.84173 → 0.85461) ; le plus récent : 2025-04-09T17:00"
+  },
+  {
+   "gravite": "info",
+   "fichier": "bougies-DX_Y_NYB-15m.json",
+   "type": "aberrant",
+   "detail": "1 saut(s) de plus de 12 ATR ; le plus fort : 13.2 ATR le 2026-10-14T12:30 (102.196 → 102.683) ; le plus récent : 2026-10-14T12:30"
+  },
+  {
+   "gravite": "info",
+   "fichier": "bougies-DX_Y_NYB-1h.json",
+   "type": "aberrant",
+   "detail": "2 saut(s) de plus de 12 ATR ; le plus fort : 13.4 ATR le 2025-08-01T12:00 (100.167 → 99.024) ; le plus récent : 2025-08-01T12:00"
+  },
+  {
+   "gravite": "info",
+   "fichier": "bougies-DX_Y_NYB-5m.json",
+   "type": "aberrant",
+   "detail": "1 saut(s) de plus de 12 ATR ; le plus fort : 12.4 ATR le 2026-11-10T13:30 (101.765 → 102.014) ; le plus récent : 2026-11-10T13:30"
+  },
+  {
+   "gravite": "info",
+   "fichier": "bougies-ES_F-1h.json",
+   "type": "aberrant",
+   "detail": "3 saut(s) de plus de 12 ATR ; le plus fort : 29.0 ATR le 2025-04-09T17:00 (5062.75 → 5403.5) ; le plus récent : 2025-04-09T17:00"
+  },
+  {
+   "gravite": "info",
+   "fichier": "bougies-EURUSD_X-15m.json",
+   "type": "aberrant",
+   "detail": "1 saut(s) de plus de 12 ATR ; le plus fort : 16.2 ATR le 2026-10-14T12:30 (1.119946 → 1.113834) ; le plus récent : 2026-10-14T12:30"
+  },
+  {
+   "gravite": "info",
+   "fichier": "bougies-EURUSD_X-1d.json",
+   "type": "incoherentes",
+   "detail": "68 bougie(s) incohérente(s) (haut < bas ou corps hors mèches)"
+  },
+  {
+   "gravite": "info",
+   "fichier": "bougies-EURUSD_X-1h.json",
+   "type": "aberrant",
+   "detail": "4 saut(s) de plus de 12 ATR ; le plus fort : 14.6 ATR le 2025-08-01T12:00 (1.140901 → 1.154601) ; le plus récent : 2025-08-22T14:00"
+  },
+  {
+   "gravite": "info",
+   "fichier": "bougies-EURUSD_X-5m.json",
+   "type": "aberrant",
+   "detail": "1 saut(s) de plus de 12 ATR ; le plus fort : 12.5 ATR le 2026-11-10T13:30 (1.121579 → 1.118568) ; le plus récent : 2026-11-10T13:30"
+  },
+  {
+   "gravite": "info",
+   "fichier": "bougies-GC_F-1d.json",
+   "type": "aberrant",
+   "detail": "3 saut(s) de plus de 12 ATR ; le plus fort : 25.1 ATR le 2026-01-30T05:00 (5318.4 → 4745.1) ; le plus récent : 2026-03-19T04:00"
+  },
+  {
+   "gravite": "info",
+   "fichier": "bougies-GC_F-1h.json",
+   "type": "aberrant",
+   "detail": "4 saut(s) de plus de 12 ATR ; le plus fort : 33.2 ATR le 2026-02-02T18:00 (5067.5 → 4679.5) ; le plus récent : 2026-03-01T23:00"
+  },
+  {
+   "gravite": "info",
+   "fichier": "bougies-NQ_F-1h.json",
+   "type": "aberrant",
+   "detail": "4 saut(s) de plus de 12 ATR ; le plus fort : 21.5 ATR le 2025-04-09T17:00 (17530.25 → 18878.25) ; le plus récent : 2026-11-05T14:00"
+  },
+  {
+   "gravite": "info",
+   "fichier": "bougies-SOL_USD-1h.json",
+   "type": "aberrant",
+   "detail": "13 saut(s) de plus de 12 ATR ; le plus fort : 21.7 ATR le 2025-01-19T21:00 (277.0674 → 256.178) ; le plus récent : 2025-10-10T15:00"
+  },
+  {
+   "gravite": "info",
+   "fichier": "bougies-SOL_USD-1h.json",
+   "type": "trous",
+   "detail": "2 trou(s) de plus de 2 bougies sur un marché 24/7 (le plus long : 20 ; le dernier finit le 2025-11-29T19:00)"
+  },
+  {
+   "gravite": "info",
+   "fichier": "bougies-_GSPC-15m.json",
+   "type": "aberrant",
+   "detail": "2 saut(s) de plus de 12 ATR ; le plus fort : 13.8 ATR le 2026-11-04T14:30 (7568.58 → 7701.84) ; le plus récent : 2026-11-09T14:30"
+  },
+  {
+   "gravite": "info",
+   "fichier": "bougies-_GSPC-1h.json",
+   "type": "aberrant",
+   "detail": "3 saut(s) de plus de 12 ATR ; le plus fort : 14.2 ATR le 2025-04-09T16:30 (5009.69 → 5256.32) ; le plus récent : 2025-04-09T16:30"
+  },
+  {
+   "gravite": "info",
+   "fichier": "bougies-_NDX-15m.json",
+   "type": "aberrant",
+   "detail": "2 saut(s) de plus de 12 ATR ; le plus fort : 15.4 ATR le 2026-11-05T14:30 (28437.72 → 27585.96) ; le plus récent : 2026-11-05T14:30"
+  },
+  {
+   "gravite": "info",
+   "fichier": "bougies-_NDX-1h.json",
+   "type": "aberrant",
+   "detail": "1 saut(s) de plus de 12 ATR ; le plus fort : 15.6 ATR le 2026-11-05T14:30 (28437.72 → 27108.38) ; le plus récent : 2026-11-05T14:30"
+  }
+ ],
+ "consecutif": {},
+ "aAlerter": []
+}
