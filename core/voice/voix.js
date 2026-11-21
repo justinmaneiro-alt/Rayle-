@@ -157,6 +157,7 @@
     let parts=segs&&segs.length?segs.map(s=>s.texte):(window.NormFr?NormFr.phrases(NormFr.normaliser(text)):regroup(t,260));
     if(!parts.length){ parts=regroup(t,260); segs=null; }
     const reglage=i=>segs&&segs[i]?segs[i]:{vitesse:1,hauteur:0,pause:0};
+    if(!opts.moteur?/^gemini-/.test(VoixMoteurs.actif()):/^gemini-/.test(opts.moteur)){ try{ parts=VoixCalcul.regrouperPourGemini(parts,550); segs=null; }catch(e){} }   // v7 : une seule requête Gemini par réponse (quota gratuit d'environ 3 par minute)
     const baseHauteur=window.VoixMoteurs?VoixMoteurs.hauteur():0;
     const choisiId=opts.moteur||VoixMoteurs.choisi();
     const moteurId=opts.moteur||VoixMoteurs.actif();   // « systeme » tant que le modèle local n'est pas prêt : Raylé n'est jamais muette

@@ -76,6 +76,19 @@
 
   const PHRASE_ESSAI="Bonjour, je suis Rayle. L'or est à quatre mille soixante-dix dollars, au-dessus de sa moyenne mobile.";
 
-  const api={ORDRE_DEFAUT,PHRASE_ESSAI,scoreVoixSysteme,classerVoixSysteme,familleVoixSysteme,facteursLecture,analyserWav,choisirParDefaut};
+  /* v7 : Gemini gratuit = environ 3 requêtes par minute. Les phrases d'une réponse sont regroupées en UNE requête (le Worker accepte 600 caractères) ; au-delà, on découpe aux fins de phrase, puis aux virgules, puis aux espaces. */
+  function regrouperPourGemini(parts,max){
+    max=max||550; const out=[]; let cur='';
+    const morceaux=t=>{ if(t.length<=max) return [t]; const r=[]; let reste=t;
+      while(reste.length>max){ const tete=reste.slice(0,max); let k=Math.max(tete.lastIndexOf('. '),tete.lastIndexOf('! '),tete.lastIndexOf('? '),tete.lastIndexOf('; ')); if(k<max*0.4) k=Math.max(k,tete.lastIndexOf(', ')); if(k<max*0.4) k=Math.max(k,tete.lastIndexOf(' ')); if(k<1) k=max-1; r.push(reste.slice(0,k+1).trim()); reste=reste.slice(k+1).trim(); }
+      if(reste) r.push(reste); return r; };
+    for(const p0 of parts||[]){ const p=String(p0||'').trim(); if(!p) continue; for(const m of morceaux(p)){ if(cur&&(cur+' '+m).length>max){ out.push(cur); cur=m; } else cur=cur?cur+' '+m:m; } }
+    if(cur) out.push(cur); return out;
+  }
+  /* Limiteur : au plus `max` départs par fenêtre glissante (défaut 3 par 62 s) ; `creneau()` renvoie le délai (ms) à attendre avant de partir, 0 si on peut partir tout de suite (et réserve alors le créneau). */
+  function creerLimiteur(o){ o=o||{}; const max=o.max||3, fenetre=o.fenetre||62000, now=o.maintenant||Date.now; let departs=[];
+    return { creneau(){ const t=now(); departs=departs.filter(x=>t-x<fenetre); if(departs.length<max){ departs.push(t); return 0; } return Math.max(1,departs[0]+fenetre-t); }, n(){ const t=now(); return departs.filter(x=>t-x<fenetre).length; } }; }
+
+  const api={regrouperPourGemini,creerLimiteur,ORDRE_DEFAUT,PHRASE_ESSAI,scoreVoixSysteme,classerVoixSysteme,familleVoixSysteme,facteursLecture,analyserWav,choisirParDefaut};
   if(typeof module!=='undefined'&&module.exports) module.exports=api; else racine.VoixCalcul=api;
 })(typeof window!=='undefined'?window:globalThis);

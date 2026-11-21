@@ -17,8 +17,8 @@ export const ACTIFS_VOLUME = Object.freeze([
     badge: { reel: 'Volume réel · Binance XAUUSDT (perpétuel) + Kraken PF_XAUUSD', ref: 'Volume institutionnel · futures COMEX GC (Yahoo, différé) · prix des futures, pas du comptant' }, typeVolume: 'reel', deltaReel: true },
   { id: 'btc', nom: 'Bitcoin', court: 'BTC/USD', binance: 'BTCUSDT', repli: 'BTC-USD', live: true, carnet: true, decimales: 0, badge: { reel: 'Volume réel · Binance + Kraken' }, typeVolume: 'reel', deltaReel: true },
   { id: 'sol', nom: 'Solana', court: 'SOL/USD', binance: 'SOLUSDT', repli: 'SOL-USD', live: true, carnet: true, decimales: 2, badge: { reel: 'Volume réel · Binance + Kraken' }, typeVolume: 'reel', deltaReel: true },
-  { id: 'us100', nom: 'Nasdaq 100', court: 'US100', yahoo: 'NQ=F', repli: '^NDX', yahooNom: 'CME NQ', live: false, carnet: false, decimales: 1, badge: { reel: 'Volume des futures CME · NQ (Yahoo, différé) · prix des futures' }, typeVolume: 'futures', deltaReel: false },
-  { id: 'us500', nom: 'S&P 500', court: 'US500', yahoo: 'ES=F', repli: '^GSPC', yahooNom: 'CME ES', live: false, carnet: false, decimales: 1, badge: { reel: 'Volume des futures CME · ES (Yahoo, différé) · prix des futures' }, typeVolume: 'futures', deltaReel: false },
+  { id: 'us100', nom: 'Nasdaq 100', court: 'US100', prix: '^NDX', yahoo: 'NQ=F', volumeSeul: true, yahooNom: 'CME NQ', live: false, carnet: false, decimales: 1, badge: { reel: 'Prix US100 (indice au comptant, comme XTB) · volume des futures CME NQ (Yahoo, différé)' }, typeVolume: 'futures', deltaReel: false },
+  { id: 'us500', nom: 'S&P 500', court: 'US500', prix: '^GSPC', yahoo: 'ES=F', volumeSeul: true, yahooNom: 'CME ES', live: false, carnet: false, decimales: 1, badge: { reel: 'Prix US500 (indice au comptant, comme XTB) · volume des futures CME ES (Yahoo, différé)' }, typeVolume: 'futures', deltaReel: false },
   { id: 'usdchf', nom: 'USD/CHF', court: 'USD/CHF', prix: 'CHF=X', yahoo: '6S=F', volumeSeul: true, yahooNom: 'CME 6S', live: false, carnet: false, decimales: 4, badge: { reel: 'Prix USD/CHF au comptant · volume des futures CME 6S (franc suisse, différé)' }, typeVolume: 'futures', deltaReel: false },
   { id: 'dxy', nom: 'Indice dollar (DXY)', court: 'DXY', yahoo: 'DX-Y.NYB', yahooNom: 'ICE DXY', live: false, carnet: false, decimales: 3, badge: { reel: 'Indice dollar ICE (DXY, différé) · volume indisponible : Yahoo ne publie aucun volume pour cet indice' }, typeVolume: 'aucun', deltaReel: false },
   { id: 'eurusd', nom: 'EUR/USD', court: 'EUR/USD', yahoo: '6E=F', repli: 'EURUSD=X', yahooNom: 'CME 6E', live: false, carnet: false, decimales: 5, badge: { reel: 'Volume des futures CME · 6E (Yahoo, différé) · prix des futures' }, typeVolume: 'futures', deltaReel: false }
@@ -68,8 +68,10 @@ export async function chargerBarres(id, unite, { source = 'reel', fetchFn = (...
   }
   if (a.volumeSeul) {
     const spot = await bougiesYahoo(a.prix, unite, { fetchFn }); const fut = await bougiesYahoo(a.yahoo, unite, { fetchFn }).catch(() => null); const V = new Map((fut ? fut.bougies : []).map(b => [b.t, b.v || 0]));
-    const B = spot.bougies.map(b => ({ ...b, v: V.get(b.t) || 0 })), n = B.filter(b => b.v > 0).length;
-    return { bougies: B, source: n ? 'reel' : 'repli', deltaReel: false, aVolume: n > 0, note: n ? null : 'Volume des futures 6S indisponible : bougies du comptant, sans volume.', t: spot.t, repli: n ? null : 'futures 6S absents' };
+    const pas = PAS_UNITE[unite], F = fut ? fut.bougies : [];   /* v7 : le volume des futures est rattaché à la bougie du comptant qui contient le milieu de la bougie des futures (les grilles horaires diffèrent : indice à :30, futures à :00) */
+    const V2 = new Map(); for (const f of F) { const m = f.t + pas / 2; let k = V.has(f.t) ? f.t : null; if (k == null) { const i = Math.floor((m - spot.bougies[0].t) / pas); const cand = spot.bougies.find(b => m >= b.t && m < b.t + pas); k = cand ? cand.t : null; } if (k != null) V2.set(k, (V2.get(k) || 0) + (f.v || 0)); }
+    const B = spot.bougies.map(b => ({ ...b, v: V.has(b.t) ? V.get(b.t) : (V2.get(b.t) || 0) })), n = B.filter(b => b.v > 0).length;
+    return { bougies: B, source: n ? 'reel' : 'repli', deltaReel: false, aVolume: n > 0, note: n ? null : 'Volume des futures ' + (a.yahooNom || '') + ' indisponible : bougies du comptant, sans volume.', t: spot.t, repli: n ? null : 'futures absents' };
   }
   if (a.yahoo) {
     /* v6 (A0) : jamais d'écran vide. Si le fichier des futures manque (404, robot pas encore passé), on affiche quand même les bougies de l'indice ou de la paire au comptant (sans volume) avec un badge « volume indisponible » */
@@ -81,5 +83,13 @@ export async function chargerBarres(id, unite, { source = 'reel', fetchFn = (...
   }
   throw new Error('aucune source de volume pour ' + id);
 }
+/* v7 : écart réel entre les futures et l'indice au comptant (derniers prix publiés par le robot) : { spot, futures, ecart (fraction), t } ou null */
+export async function ecartFutures(id, { fetchFn = (...a) => fetch(...a), base = BASE_SNAPSHOTS } = {}) {
+  const a = parId[id]; if (!a || !a.volumeSeul || !a.prix || !a.yahoo) return null;
+  const lire = async sym => { const d = await json(base + nomFichierBougies(sym, '1h'), fetchFn); return { p: Number(d.prix), t: Number(d.tPrix) || d.t || null }; };
+  const [s, f] = await Promise.all([lire(a.prix), lire(a.yahoo)]); if (!(s.p > 0) || !(f.p > 0)) return null;
+  return { spot: s.p, futures: f.p, ecart: f.p / s.p - 1, t: Math.max(s.t || 0, f.t || 0) || null, nom: a.yahooNom || a.yahoo };
+}
+export const texteEcart = (e, nf = x => String(x)) => e ? 'futures ' + e.nom.replace('CME ', '') + ' ' + nf(e.futures) + ' : ' + (e.ecart >= 0 ? '+' : '−') + Math.abs(e.ecart * 100).toFixed(2).replace('.', ',') + ' % vs comptant' : '';
 /* âge lisible d'une donnée */
 export function ageDonnee(t, maintenant = Date.now()) { if (!Number.isFinite(t)) return 'âge inconnu'; const m = Math.max(0, Math.round((maintenant - t) / 60000)); if (m < 1) return 'à l’instant'; if (m < 60) return 'il y a ' + m + ' min'; const h = Math.round(m / 60); return h < 48 ? 'il y a ' + h + ' h' : 'il y a ' + Math.round(h / 24) + ' j'; }

@@ -52,4 +52,16 @@ v('Kokoro en échec → Piper', C.choisirParDefaut({ 'kokoro-siwis': { ok: false
 v('locales en échec, Edge OK → Edge', C.choisirParDefaut({ 'kokoro-siwis': { ok: false }, 'piper-siwis': { ok: false }, edge: { ok: true } }) === 'edge');
 v('tout en échec → voix du système (jamais muette)', C.choisirParDefaut({ 'kokoro-siwis': { ok: false } }) === 'systeme' && C.choisirParDefaut({}) === 'systeme' && C.choisirParDefaut(null) === 'systeme');
 v('phrase d\'essai demandée', /Bonjour, je suis Rayle/.test(C.PHRASE_ESSAI) && /quatre mille soixante-dix dollars/.test(C.PHRASE_ESSAI) && /moyenne mobile/.test(C.PHRASE_ESSAI));
+// v7 : regroupement des phrases pour Gemini (une requête par réponse) et limiteur de départs (3 par minute)
+const R = C.regrouperPourGemini;
+v('4 phrases courtes → 1 seule requête', R(['Un.', 'Deux.', 'Trois.', 'Quatre.']).length === 1 && R(['Un.', 'Deux.', 'Trois.', 'Quatre.'])[0] === 'Un. Deux. Trois. Quatre.');
+const longue = Array.from({ length: 30 }, (_, i) => 'Ceci est la phrase numéro ' + i + ', assez longue pour remplir.');
+const L = R(longue, 550); v('réponse trop longue : découpée sous 550 caractères', L.length >= 3 && L.every(x => x.length <= 550), L.map(x => x.length).join(','));
+v('aucun texte perdu au découpage', L.join(' ').replace(/\s+/g, ' ') === longue.join(' '));
+v('une phrase unique démesurée est coupée aux espaces', R(['mot '.repeat(400)], 550).every(x => x.length <= 550) && R(['mot '.repeat(400)], 550).length >= 3);
+v('entrée vide', R([]).length === 0 && R(['', '  ']).length === 0);
+{ let t = 0; const lim = C.creerLimiteur({ max: 3, fenetre: 62000, maintenant: () => t });
+  v('3 départs immédiats', lim.creneau() === 0 && lim.creneau() === 0 && lim.creneau() === 0);
+  t = 10000; const d = lim.creneau(); v('le 4e attend la fin de la fenêtre du 1er (≈ 52 s)', d === 52000, String(d));
+  t = 62001; v('après la fenêtre : de nouveau libre', lim.creneau() === 0); }
 console.log(`${ok} ok, ${ko} KO`); process.exit(ko ? 1 : 0);

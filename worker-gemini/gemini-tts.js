@@ -43,7 +43,7 @@ export async function appelerGemini({ cle, texte, voix, style, ton, vitesse, fet
       /* le message de Google dit quelle limite est touchée (par minute ou par jour, modèle, valeur) : on le garde pour l'afficher et le noter */
       const brut = await r.text().catch(() => ''); let detail = ''; try { const j = JSON.parse(brut), e = j.error || {}; const viol = ((e.details || []).find(d => d.violations) || {}).violations || []; detail = [e.message, ...viol.map(v => (v.quotaMetric || '') + ' ' + (v.quotaId || '') + (v.quotaValue ? ' limite=' + v.quotaValue : ''))].filter(Boolean).join(' | '); } catch (x) { detail = brut; }
       detail = String(detail).replace(/s+/g, ' ').slice(0, 500); const parJour = /PerDay|per day|daily/i.test(detail);
-      bloqueJusqua = maintenant + (parJour ? 3 * 3600e3 : 90e3); try { console.log('gemini 429 ' + m + ' : ' + detail); } catch (x) { /* */ }
+      bloqueJusqua = maintenant + (parJour ? 3 * 3600e3 : 20e3); try { console.log('gemini 429 ' + m + ' : ' + detail); } catch (x) { /* */ }
       const er = new ErreurGemini('quota Gemini atteint (429) [' + m + '] ' + detail, 429, true); er.parJour = parJour; throw er; }
     if (r.status === 404 || r.status === 400) { erreurs.push(m + ' : HTTP ' + r.status); continue; }   // modèle absent ou refusé : on essaie le suivant
     if (!r.ok) { erreurs.push(m + ' : HTTP ' + r.status); continue; }

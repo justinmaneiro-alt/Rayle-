@@ -36,16 +36,21 @@
     async function empreinte(t){ try{ const d=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(t)); return Array.from(new Uint8Array(d)).map(x=>x.toString(16).padStart(2,'0')).join(''); }catch(e){ let h=5381; for(let i=0;i<t.length;i++) h=((h<<5)+h+t.charCodeAt(i))|0; return 'h'+(h>>>0).toString(16); } }
     const cacheGem=async()=>{ try{ return ('caches' in window)?await caches.open('rayle-voix-gemini-v1'):null; }catch(e){ return null; } };
     const memGem=new Map();   // repli quand le Cache Storage n'existe pas (page en http hors localhost) : copie en mémoire pour la session
+    let limiteurGem=C.creerLimiteur({max:3,fenetre:62000});
+    const dormir=(ms,signal)=>new Promise((ok,ko)=>{ const t=setTimeout(ok,ms); if(signal) signal.addEventListener('abort',()=>{ clearTimeout(t); ko(new DOMException('abandon','AbortError')); },{once:true}); });
+    async function attendreCreneauGem(signal){ for(;;){ const d=limiteurGem.creneau(); if(!d) return; await dormir(Math.min(d,5000),signal); } }
     async function synthGemini(id,texte,opts){
       const g=gemini(), vit=Math.round(((opts.vitesse!=null?opts.vitesse:1)-1)*100)+g.vitesse, cle='https://rayle.local/tts-gemini/'+await empreinte([id,g.ton,vit,texte].join('\u0001'));
       const cache=await cacheGem(); if(memGem.has(cle)){ noterUtilise('gemini (copie sur l’appareil)'); return {blob:memGem.get(cle),vitesseLecture:1,src:'gemini/'+id+' (cache)'}; }
       if(cache){ try{ const hit=await cache.match(cle); if(hit){ noterUtilise('gemini (copie sur l’appareil)'); return {blob:await hit.blob(),vitesseLecture:1,src:'gemini/'+id+' (cache)'}; } }catch(e){} }
       if(Date.now()<pauseGem()) throw new Error('Gemini en pause (quota atteint) : moteur de secours');
+      await attendreCreneauGem(opts.signal);   // v7 : au plus 3 requêtes par minute : on espace les départs au lieu de basculer sur la voix du système
       if(nGemJour()>=LIMITE_JOUR_GEM) throw new Error('quota Gemini du jour atteint ('+LIMITE_JOUR_GEM+' phrases nouvelles) : moteur de secours');
       if(!W.token()) throw new Error('aucun code d’accès enregistré dans Rayle (Réglages)');
       /* Worker séparé « rayle-voix » (Gemini TTS seulement) : même jeton que le Worker principal, qui le vérifie */
       const base=(lire('rayle_voix_url')||'https://rayle-voix.justinmaneiro.workers.dev').replace(/\/+$/,'');
-      const res=await fetchT(base+'/tts',{method:'POST',headers:{'Content-Type':'application/json','X-Rayle-Token':W.token()||'','X-Rayle-Worker':W.url()||''},body:JSON.stringify({text:texte,id,ton:g.ton,vitesse:vit}),signal:opts.signal},30000).catch(e=>{ throw new Error('rayle-voix injoignable ('+(e&&e.name==='AbortError'?'délai dépassé':((e&&e.message)||e))+') : '+base+'/tts — réseau ou CORS'); });
+      let res=await fetchT(base+'/tts',{method:'POST',headers:{'Content-Type':'application/json','X-Rayle-Token':W.token()||'','X-Rayle-Worker':W.url()||''},body:JSON.stringify({text:texte,id,ton:g.ton,vitesse:vit}),signal:opts.signal},30000).catch(e=>{ throw new Error('rayle-voix injoignable ('+(e&&e.name==='AbortError'?'délai dépassé':((e&&e.message)||e))+') : '+base+'/tts — réseau ou CORS'); });
+      if(res.status===429&&!opts.relance){ let jj={}; try{ jj=await res.clone().json(); }catch(e){} if(!jj.jour){ await dormir(22000,opts.signal); return synthGemini(id,texte,Object.assign({},opts,{relance:true})); } }
       if(res.status===429){ let j={}; try{ j=await res.json(); }catch(e){} const jour=!!j.jour; ecrire(CLE_GEM_PAUSE,String(Date.now()+(jour?3*3600e3:2*60e3))); throw new Error('HTTP 429 · '+(j.error||'quota Gemini atteint')+' — moteur de secours '+(jour?'pendant 3 heures (limite du jour)':'pendant 2 minutes (limite par minute)')); }
       if(!res.ok) throw await workerError(res);
       const blob=await res.blob(), etat=res.headers.get('X-Rayle-Cache'); memGem.set(cle,blob); if(memGem.size>60) memGem.delete(memGem.keys().next().value);
@@ -196,7 +201,7 @@
 
     /* v7 : Sulafat devient la voix de tous les appareils (une seule fois par appareil ; la clé rayle_voix_gemini_v1 est synchronisée) */
     setTimeout(()=>{ try{ if(!lire('rayle_voix_v7_sulafat')){ ecrire('rayle_voix_v7_sulafat','1'); if(lire(CLE_MOTEUR)) ecrire(CLE_MOTEUR,''); if(gemini().moteur!=='gemini-f1') definirGemini({moteur:'gemini-f1'}); } }catch(e){} },0);
-    return {NOMS,noterEchec,echec,diagnostic,gemini,definirGemini,TONS_GEM,nGemJour,LIMITE_JOUR_GEM,pauseGem,noterUtilise,dernier,candidats,choisi,actif,auto,choisir,hauteur,definirHauteur,synth,tester,testerAuto,demarrer,rafraichirLocal,pret,dico,definirDico,voixSystemeChoisie,choisirVoixSysteme,
+    return {NOMS,razLimiteurGem:()=>{ limiteurGem=C.creerLimiteur({max:3,fenetre:62000}); },noterEchec,echec,diagnostic,gemini,definirGemini,TONS_GEM,nGemJour,LIMITE_JOUR_GEM,pauseGem,noterUtilise,dernier,candidats,choisi,actif,auto,choisir,hauteur,definirHauteur,synth,tester,testerAuto,demarrer,rafraichirLocal,pret,dico,definirDico,voixSystemeChoisie,choisirVoixSysteme,
       resultats:()=>resultats,local:()=>local,surChangement:f=>ecouteurs.push(f),peutLocal};
   })();
 
