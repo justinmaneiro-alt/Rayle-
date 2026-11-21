@@ -59,15 +59,16 @@
         const parts=r.parts||[]; contents.push({role:'model',parts});
         const appels=parts.filter(p=>p.functionCall);
         if(!appels.length){ final=parts.filter(p=>p.text&&!p.thought).map(p=>p.text).join('').trim(); break; }
-        const reponses=[];
-        for(const p of appels){
-          const nom=p.functionCall.name, args=p.functionCall.args||{}; let resultat;
+        /* les outils de LECTURE d'abord (les données se chargent avant que la fenêtre demandée ne se mette à charger les siennes), les actions d'ouverture ensuite ; les réponses repartent dans l'ordre d'origine des appels */
+        const ordre=appels.map((p,i)=>i).sort((i,j)=>(EST(A,appels[i].functionCall.name)?1:0)-(EST(A,appels[j].functionCall.name)?1:0)||i-j), fait=[];
+        for(const i of ordre){
+          const p=appels[i], nom=p.functionCall.name, args=p.functionCall.args||{}; let resultat;
           if(A&&A.EST_ACTION(nom)){ resultat=await A.executerAction(nom,args,{signal:opts.signal}); }
           else resultat=await O.executer(nom,args);
-          tour.push({nom,args,resultat});
+          fait[i]={nom,args,resultat};
           if(args.actif) sujet={actif:String(args.actif),unite:args.unite||(sujet&&sujet.actif===args.actif?sujet.unite:null)};
-          reponses.push({functionResponse:{name:nom,response:{resultat}}});
         }
+        const reponses=fait.map(x=>{ tour.push(x); return {functionResponse:{name:x.nom,response:{resultat:x.resultat}}}; });
         contents.push({role:'user',parts:reponses});
         if(n===MAX_TOURS-1) final='';
       }

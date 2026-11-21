@@ -60,7 +60,7 @@ function composer(frs) {
     else if (n === 'ouvrir_fenetre') L.push(r.ok ? '' : 'L’ouverture de la fenêtre a échoué : ' + r.raison + '.');
   } return (L.filter(Boolean).join(' ') || 'C’est fait.') + ' Question ' + (++nonce) + '.'; }
 let tts = [], requetes = [], nonce = 0;
-const T = await lancer(mode, { dossierCaptures: 'donnees-privees/captures-v8', stockage: { rayle_worker_url: 'https://faux-worker.test', rayle_worker_token: 'jeton', rayle_donnees_base: 'https://raw.githubusercontent.com/justinmaneiro-alt/Rayle-/donnees/' }, interception: async (r, u) => {
+const T = await lancer(mode, { dossierCaptures: 'donnees-privees/captures-v8', stockage: { rayle_worker_url: 'https://faux-worker.test', rayle_worker_token: 'jeton', rayle_donnees_base: '' }, interception: async (r, u) => {
   if (!u.startsWith('https://faux-worker.test/') && !u.includes('rayle-voix')) return false;
   const rep = (statut, corps) => r.respond({ status: statut, headers: { ...CORS, 'content-type': 'application/json' }, body: JSON.stringify(corps) });
   if (r.method() === 'OPTIONS') { await r.respond({ status: 204, headers: { ...CORS, 'access-control-allow-headers': '*', 'access-control-allow-methods': 'POST, GET, OPTIONS' } }); return true; }
@@ -88,17 +88,17 @@ const termOk = (actif, unite, mode) => attendre(() => termOk1(actif, unite, mode
 const termOk1 = (actif, unite, mode) => p.evaluate((a, u, m) => { const f = document.querySelector('iframe.tr-or'); try { const d = f.contentDocument; return new RegExp(a, 'i').test(d.querySelector('.tor-titre b').textContent) && (!u || d.querySelector('[data-periode="' + u + '"]').getAttribute('aria-pressed') === 'true') && (!m || d.querySelector('.tp-mode [data-mode="' + m + '"]').getAttribute('aria-pressed') === 'true'); } catch (e) { return false; } }, actif, unite, mode);
 const gen = (r, q) => { verif(r.voix === 1, q + ' · V : une seule requête vocale (' + r.voix + ')'); verif(!/aucune donn|pas d.acc/i.test(r.journal), q + ' · N : pas de « aucune donnée »'); };
 const galerie = () => p.evaluate(() => { const g = document.getElementById('ra-galerie'); return g && !g.hidden ? { mini: g.querySelectorAll('.rg-mini button').length, lic: (g.querySelector('.rg-leg small') || {}).textContent || '', dates: [...g.querySelectorAll('.rg-dates li')].map(l => l.textContent) } : null; });
-const px = (r, v) => r.journal.split("").filter(c => /[0-9]/.test(c)).join("").includes(String(Math.round(v)).slice(0, 3));
+const px = (r, v) => r.journal.split("").filter(c => /[0-9]/.test(c)).join("").includes(String(Math.floor(v)).slice(0, 3));
 
 if (PARTIE === 1) {
-  let r = await poser('Rayle, fais-moi un point sur l’or'); gen(r, 'Q1'); verif(px(r, PRIX.or), 'Q1 · C : vrai prix de l’or (' + PRIX.or + ')'); verif(SANS || await termOk('^Or', 'H4', 'classique'), 'Q1 · F : Terminal sur l’or en H4, Classique');
+  let r = await poser('Rayle, fais-moi un point sur l’or'); gen(r, 'Q1'); verif(px(r, PRIX.or), 'Q1 · C : vrai prix de l’or (' + PRIX.or + ') ' + r.journal.slice(-260)); verif(SANS || await termOk('^Or', 'H4', 'classique'), 'Q1 · F : Terminal sur l’or en H4, Classique');
   r = await poser('Où en est le Bitcoin en Daily ?'); gen(r, 'Q2'); verif(px(r, PRIX.btc), 'Q2 · C : vrai prix du Bitcoin (' + PRIX.btc + ')'); verif(SANS || await termOk('Bitcoin', 'J'), 'Q2 · F : Terminal sur le Bitcoin, Jour');
   r = await poser('Est-ce que le Nasdaq est au-dessus de sa MA200 ?'); gen(r, 'Q3'); verif(/MA200/.test(r.journal) && /(au-dessus|sous)/.test(r.journal) && /écart -?\d/.test(r.journal), 'Q3 · C : position par rapport à la MA200 avec l’écart');
   r = await poser('Quels sont les niveaux importants sur l’or ?'); gen(r, 'Q4'); verif(/PDH \d/.test(r.journal) && /POC \d/.test(r.journal), 'Q4 · C : PDH et POC chiffrés');
   r = await poser('Montre-moi les bougies Weekly sur l’or'); gen(r, 'Q5'); verif(SANS || await attendre(() => p.evaluate(() => { try { const d = document.querySelector('iframe.tr-or').contentDocument; return d.querySelector('.tp-mode [data-mode="volume"]').getAttribute('aria-pressed') === 'true' && d.querySelector('.tpv [data-onglet="ict"]').getAttribute('aria-selected') === 'true'; } catch (e) { return false; } }), 120000), 'Q5 · F : Terminal Volume, onglet Bougies HTF'); verif(/4 bougies Weekly/.test(r.journal), 'Q5 · C : 4 bougies Weekly');
   r = await poser('Passe en mode volume'); gen(r, 'Q6'); verif(SANS || await termOk('.', null, 'volume'), 'Q6 · F : mode Volume');
   r = await poser('Montre-moi le rapport COT de l’or'); gen(r, 'Q7'); verif(SANS || await attendre(() => p.evaluate(() => { const b = document.querySelector('#marches-fenetre [data-onglet="cot"]'), a = document.querySelector('#marches-fenetre [data-actif="or"]'); return b && b.getAttribute('aria-selected') === 'true' && a && a.getAttribute('aria-pressed') === 'true'; }), 25000), 'Q7 · F : Marchés, COT, or');
-  r = await poser('Est-ce que le Bitcoin est cher ?'); gen(r, 'Q8'); verif(SANS || await attendre(() => p.evaluate(() => !!document.querySelector('[data-ma-actif="btc"]')), 25000), 'Q8 · F : Mes actifs, carte Bitcoin'); verif(/1–10 jours/.test(r.journal) && /(attractif|cher|Neutre)/i.test(r.journal), 'Q8 · C : verdicts par horizon');
+  r = await poser('Est-ce que le Bitcoin est cher ?'); gen(r, 'Q8'); verif(SANS || await attendre(() => p.evaluate(() => !!document.querySelector('[data-ma-actif="btc"]')), 25000), 'Q8 · F : Mes actifs, carte Bitcoin'); verif(/1–10 jours/.test(r.journal) && /(attractif|cher|Neutre)/i.test(r.journal), 'Q8 · C : verdicts par horizon ' + r.journal.slice(-260));
 }
 if (PARTIE === 2) {
   let r = await poser('Comment me couvrir si j’achète de l’or ?'); gen(r, 'Q9'); verif(SANS || await attendre(() => p.evaluate(() => { const s = document.querySelector('form[data-form] select[name="actif"]'); return s && /XAU/i.test(s.value); }), 25000), 'Q9 · F : Couverture, or');

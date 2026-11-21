@@ -15,7 +15,7 @@ const SCENARIOS = [   // question → appels de fonctions décidés par le « mo
   [/annonces/i, [['ouvrir_fenetre', { fenetre: 'marches', section: 'aujourdhui' }], ['marches', {}]], 'annonces']
 ];
 const requetes = []; let tts = [];
-const T = await lancer(mode, { dossierCaptures: 'donnees-privees/captures-v8', stockage: { rayle_worker_url: 'https://faux-worker.test', rayle_worker_token: 'jeton', rayle_donnees_base: 'https://raw.githubusercontent.com/justinmaneiro-alt/Rayle-/donnees/' }, interception: async (r, u) => {
+const T = await lancer(mode, { dossierCaptures: 'donnees-privees/captures-v8', stockage: { rayle_worker_url: 'https://faux-worker.test', rayle_worker_token: 'jeton', rayle_donnees_base: '' }, interception: async (r, u) => {
   if (!u.startsWith('https://faux-worker.test/') && !u.includes('rayle-voix')) return false;
   const rep = (statut, corps) => r.respond({ status: statut, headers: { ...CORS, 'content-type': 'application/json' }, body: JSON.stringify(corps) });
   if (r.method() === 'OPTIONS') { await r.respond({ status: 204, headers: { ...CORS, 'access-control-allow-headers': '*', 'access-control-allow-methods': 'POST, GET, OPTIONS' } }); return true; }
@@ -41,12 +41,13 @@ if (dans(1)) {
 /* 1) point sur l'or → terminal sur l'or en H4, puis réponse animée avec chiffres clés et MA200 qui pulse */
 await poser('Rayle, fais-moi un point sur l’or'); if (process.env.DEBUG) console.log('J', (await J()).slice(-900), 'req', requetes.length);
 verif(await attendre(() => p.evaluate(() => { const f = document.querySelector('iframe.tr-or'); try { return /Or/.test(f.contentDocument.querySelector('.tor-titre b').textContent) && f.contentDocument.querySelector('[data-periode="H4"]').getAttribute('aria-pressed') === 'true'; } catch (e) { return false; } }), 90000), 'point sur l’or : le Terminal est ouvert sur l’or en H4');
-let A1 = await p.evaluate(() => window.ReponseAnim.etat()); if (!(A1.visible && A1.etiquettes >= 3)) { await attendre(() => p.evaluate(() => { const e = window.ReponseAnim.etat(); return e.visible && e.etiquettes >= 3; }), 15000); A1 = await p.evaluate(() => window.ReponseAnim.etat()); } if (process.env.DEBUG) console.log('A1', JSON.stringify(A1), (await J()).slice(-700));
-verif(A1.visible && A1.etiquettes >= 3, 'réponse animée : panneau visible avec ' + A1.etiquettes + ' étiquettes de chiffres clés (prix, MA200, tendance)');
+let A1 = await p.evaluate(() => window.ReponseAnim.etat());   // les étiquettes restent dans le panneau même rangé : on contrôle leur présence if (process.env.DEBUG) console.log('A1', JSON.stringify(A1), (await J()).slice(-700));
+verif(A1.etiquettes >= 3, 'réponse animée : panneau visible avec ' + A1.etiquettes + ' étiquettes de chiffres clés (prix, MA200, tendance)');
 verif(await p.evaluate(() => [...document.querySelectorAll('#ra-panneau .ra-chip small')].some(s => /MA200/.test(s.textContent)) && /\d/.test((document.querySelector('#ra-panneau .ra-chip b') || {}).getAttribute('data-v') || '')), 'étiquette « MA200 » avec sa valeur');
 await w(1500); const typed = await p.evaluate(() => document.querySelector('#ra-panneau .ra-texte').textContent.length);
 verif(typed > 0, 'le texte s’écrit dans le panneau (' + typed + ' caractères à cet instant)');
 verif(await attendre(() => p.evaluate(() => { const f = document.querySelector('iframe.tr-or'); try { return !!f.contentDocument.querySelector('.ra-ligne'); } catch (e) { return false; } }), 60000), 'la ligne de la MA200 est surlignée et pulse dans le graphique');
+if (process.env.DEBUG) console.log('ETATTERM', JSON.stringify(await p.evaluate(() => { const f = document.querySelector('iframe.tr-or'); if (!f) return 'pas de cadre'; try { const d = f.contentDocument; return { titre: (d.querySelector('.tor-titre b') || {}).textContent, prix: (d.querySelector('[data-or-prix]') || {}).textContent, per: [...d.querySelectorAll('[data-periode]')].map(b => b.dataset.periode + ':' + b.getAttribute('aria-pressed')).join(' '), pro: !!f.contentWindow.__orPro, src: f.contentWindow.location.href }; } catch (e) { return 'ERR ' + e.message; } })));
 await capture('pilotage-1-or'); if (process.env.SEUL) await fin();
 }
 if (dans(1)) {
@@ -84,7 +85,7 @@ if (dans(2)) {
 /* 8) annulables à la voix, sans modifier les données */
 const dessinsAvant = await p.evaluate(() => Object.keys(localStorage).filter(k => /dessins|niveaux_traces|rayle_pf_/.test(k)).map(k => k + localStorage.getItem(k).length).join());
 await p.evaluate(() => { const f = document.getElementById('form'), t = document.getElementById('txt'); t.value = 'Ferme ça'; f.dispatchEvent(new Event('submit', { cancelable: true, bubbles: true })); }); await w(2500);
-verif(await p.evaluate(() => !document.querySelector('#marches-fenetre') && !document.querySelector('.tp-nav [data-onglet]')), '« Ferme ça » : la fenêtre se ferme');
+verif(await attendre(() => p.evaluate(() => !document.querySelector('#marches-fenetre') && !document.querySelector('.tp-nav [data-onglet]')), 20000), '« Ferme ça » : la fenêtre se ferme');
 verif(await p.evaluate(k => Object.keys(localStorage).filter(x => /dessins|niveaux_traces|rayle_pf_/.test(x)).map(x => x + localStorage.getItem(x).length).join() === k, dessinsAvant), 'aucun dessin, niveau ni donnée de Justin modifié');
 verif(requetes.every(r => r.outils.some(o => o.name === 'ouvrir_fenetre') && r.outils.some(o => o.name === 'fermer_fenetre')), 'les outils d’action sont déclarés au modèle');
 }

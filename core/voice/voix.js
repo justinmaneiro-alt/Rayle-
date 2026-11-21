@@ -87,7 +87,7 @@
         const el=audioEl; curAudio=el; audioStop=resolve;
         let demarre=false, fini=false;
         const fin=(ok,err)=>{ if(fini) return; fini=true; clearTimeout(gardeDemarrage); clearInterval(gardeBlocage); ok?resolve():reject(err); };
-        const gardeDemarrage=setTimeout(()=>fin(false,new Error('la lecture audio ne démarre pas (son bloqué par le navigateur ?)')),7000);
+        const gardeDemarrage=setTimeout(()=>fin(false,new Error('la lecture audio ne démarre pas (son bloqué par le navigateur ?)')),15000);   // 15 s : un appareil chargé (fenêtre lourde qui s'ouvre) peut mettre plus de 7 s à démarrer le son
         let dernier=-1, figes=0;
         const gardeBlocage=setInterval(()=>{ if(!demarre) return; if(el.currentTime===dernier && !el.paused) figes++; else figes=0; dernier=el.currentTime; if(figes>=6){ if(isFinite(el.duration)&&el.duration>0&&el.currentTime>=el.duration-0.6) fin(true); else fin(false,new Error('lecture audio bloquée')); } else if(isFinite(el.duration)&&el.duration>0&&el.ended) fin(true); },500);
         el.onplaying=()=>{ demarre=true; };

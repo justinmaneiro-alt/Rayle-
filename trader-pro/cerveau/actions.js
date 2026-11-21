@@ -29,7 +29,8 @@ async function terminal({ actif, unite, mode, onglet }) {
   await attendre(() => pretTerminal(f), 25000);
   if (id) {
     const titre = () => norm((f.contentDocument.querySelector('.tor-titre b') || {}).textContent || '');
-    if (titre() !== NOM_TERMINAL[id]) { try { localStorage.setItem('rayle_terminal_actif', id); } catch (e) { /* */ } try { f.contentWindow.location.replace(new URL('or.html?vue=1&actif=' + id, f.contentWindow.location.href).href); } catch (e) { return { ok: false, raison: 'changement d’actif impossible' }; } await ATT(600); await attendre(() => { try { return pretTerminal(f) && titre() === NOM_TERMINAL[id]; } catch (e) { return false; } }, 30000); }
+    const t0 = await attendre(() => titre(), 60000);   // jamais de rechargement tant que le cadre n'a pas affiché son actif (un cadre en cours de chargement serait recommencé pour rien)
+    if (t0 && t0 !== NOM_TERMINAL[id]) { try { localStorage.setItem('rayle_terminal_actif', id); } catch (e) { /* */ } try { f.contentWindow.location.replace(new URL('or.html?vue=1&actif=' + id, f.contentWindow.location.href).href); } catch (e) { return { ok: false, raison: 'changement d’actif impossible' }; } await ATT(600); await attendre(() => { try { return pretTerminal(f) && titre() === NOM_TERMINAL[id]; } catch (e) { return false; } }, 30000); }
   }
   const D = f.contentDocument, clic = s => { const b = D.querySelector(s); if (b) { b.click(); return true; } return false; };
   await attendre(() => D.querySelector('[data-periode][aria-pressed="true"]'), 40000);   // le graphique a dessiné sa barre de périodes (données chargées)
@@ -107,8 +108,8 @@ export async function surligner(liste, { duree = 9000 } = {}) {
         const D = f.contentDocument; styleSurbrillance(D); const y = await attendre(() => { const v = g.serie().priceToCoordinate(s.prix); return v != null && Number.isFinite(v) ? v : null; }, 45000, 500); if (y == null) continue;   // le graphique doit avoir ses données et son échelle
         const hote = g.conteneur(); if (getComputedStyle(hote).position === 'static') hote.style.position = 'relative';
         const l = D.createElement('div'); l.className = 'ra-ligne'; l.style.top = Math.round(y) + 'px'; l.innerHTML = '<span></span>'; l.firstChild.textContent = s.texte + ' · ' + Math.round(s.prix * 100) / 100; hote.appendChild(l); setTimeout(() => l.remove(), duree); fait.push(s.texte);
-      } else if (s.type === 'cot') { const b = document.querySelector('#marches-fenetre [data-actif][aria-pressed="true"]'); if (b) { styleSurbrillance(document); b.classList.add('ra-surligne'); setTimeout(() => b.classList.remove('ra-surligne'), duree); fait.push('cot'); } }
-      else if (s.type === 'carte') { const c = document.querySelector('[data-ma-actif="' + s.actif + '"]'); if (c) { styleSurbrillance(document); c.classList.add('ra-surligne'); setTimeout(() => c.classList.remove('ra-surligne'), duree); fait.push('carte ' + s.actif); } }
+      } else if (s.type === 'cot') { const b = await attendre(() => document.querySelector('#marches-fenetre [data-actif][aria-pressed="true"]'), 30000); if (b) { styleSurbrillance(document); b.classList.add('ra-surligne'); setTimeout(() => b.classList.remove('ra-surligne'), duree); fait.push('cot'); } }
+      else if (s.type === 'carte') { const c = await attendre(() => document.querySelector('[data-ma-actif="' + s.actif + '"]'), 30000); if (c) { styleSurbrillance(document); c.classList.add('ra-surligne'); setTimeout(() => c.classList.remove('ra-surligne'), duree); fait.push('carte ' + s.actif); } }
     } catch (e) { /* un repère visuel qui échoue ne gêne jamais la réponse */ }
   }
   return fait;

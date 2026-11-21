@@ -43,5 +43,5 @@
 .rg-dates{list-style:none;display:flex;gap:8px;flex-wrap:wrap;margin:8px 0 0;padding:0}.rg-dates li{padding:5px 9px;border:1px solid rgba(255,174,61,.22);background:rgba(6,11,16,.55);display:grid;gap:0;animation:raChip .5s both}
 .rg-dates small{font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:#7f98a3}.rg-dates b{font-weight:500;color:#fff;font-size:13px}
 .rg-src{margin:8px 0 0;font-size:10.5px;color:#587079}
-@media (max-width:900px){#ra-galerie{right:auto;left:50%;transform:translateX(-50%);top:calc(56px + env(safe-area-inset-top,0px));width:min(94vw,520px);max-height:46vh}#ra-galerie.rg-entre{animation-name:rgEntreM}@keyframes rgEntreM{from{opacity:0;transform:translate(-50%,-10px) scale(.96)}to{opacity:1;transform:translate(-50%,0)}}.rg-grande{height:clamp(120px,20vh,200px)}}
+@media (max-width:900px){#ra-galerie{z-index:70;right:auto;left:50%;transform:translateX(-50%);top:calc(56px + env(safe-area-inset-top,0px));width:min(94vw,520px);max-height:calc(100vh - 270px)}#ra-galerie.rg-entre{animation-name:rgEntreM}@keyframes rgEntreM{from{opacity:0;transform:translate(-50%,-10px) scale(.96)}to{opacity:1;transform:translate(-50%,0)}}.rg-grande{height:clamp(120px,20vh,200px)}}
 @media (prefers-reduced-motion:reduce){#ra-galerie.rg-entre,.rg-grande.rg-in img,.rg-dates li{animation:none}}
