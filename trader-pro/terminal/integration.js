@@ -12,6 +12,7 @@ import { indexSurUnite, styleFleche, phraseFleche, typeLibelle, typeNom, ma200Po
 import { analyseDe, nouvellesFleches, lireReglages, ecrireReglages, lireRegistre } from './fleches-registre.js';
 import { monterDashboard } from '../commun/dashboard.js';
 import { VERSION } from './version.js';
+import { noterPrix, controlerCoherence } from '../commun/incidents-donnees.js';
 import { monterDessins } from './dessins-ui.js';
 import { monterAides } from './aides-ui.js';
 import { chargerStats, phraseHistorique, typeStat, panneauHtml, chargerHonnetes, honnetesHtml } from './stats-ui.js';
@@ -51,7 +52,11 @@ export async function monterPro(T) {
   if (E.ligneTactile) (graph.conteneur() || document.body).appendChild(E.ligneTactile);   // tactile : sur le graphique, sous la légende des MA200
 
   /* ───── v4 : sélecteur « Classique | Volume » en haut à droite. Le mode Classique reste strictement inchangé ; le mode Volume est un terminal complet (trader-pro/volume/), chargé à la première ouverture. ───── */
-  const MODE = 'rayle_tp_mode', VOL_DE_ACTIF = { OR: 'or', NASDAQ: 'us100', SP500: 'us500', BTC: 'btc', SOL: 'sol', EURUSD: 'eurusd' };
+  const MODE = 'rayle_tp_mode', VOL_DE_ACTIF = { OR: 'or', NASDAQ: 'us100', SP500: 'us500', BTC: 'btc', SOL: 'sol', EURUSD: 'eurusd', DXY: 'dxy', USDCHF: 'usdchf' };
+  /* v7 : le dernier prix du Classique est noté (échelle d'affichage retirée) ; le contrôle de cohérence compare toutes les surfaces à 0,5 % près */
+  { const ECH = { DXY: 100, EURUSD: 10000, USDCHF: 10000 }; const noter = () => { try { if (document.hidden) return; const d = graph.serie().data(), b = d && d[d.length - 1]; const v = b ? (b.close != null ? b.close : b.value) : null; if (Number.isFinite(v)) noterPrix(actif, 'classique', v / (ECH[actif] || 1)); controlerCoherence(); } catch (e) { /* graphique vide */ } }; setTimeout(noter, 8000); setInterval(noter, 30000); }
+  /* v7 : UN SEUL sélecteur d'actif et d'unité, celui du Classique (barre du haut) ; le mode Volume les lit, il n'a plus les siens */
+  const uniteClassique = () => { const b = document.querySelector('[data-periode][aria-pressed="true"]'); const p = b && b.dataset.periode; return p === 'H1' || p === 'H4' || p === 'J' ? p : null; };
   (function selecteurMode() {
     const teteBrute = document.querySelector('.tor-tete'), teteVisible = !!(teteBrute && teteBrute.getBoundingClientRect().width > 0 && getComputedStyle(teteBrute).display !== 'none'), tete = teteVisible ? teteBrute : null, sel = document.createElement('div'); sel.className = 'tp-mode'; sel.setAttribute('role', 'group'); sel.setAttribute('aria-label', 'Mode du terminal');
     sel.innerHTML = '<button type="button" data-mode="classique" aria-pressed="true">Classique</button><button type="button" data-mode="volume" aria-pressed="false">Volume</button>';
@@ -64,11 +69,13 @@ export async function monterPro(T) {
     const maj = m => { sel.querySelectorAll('[data-mode]').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.mode === m))); };
     async function aller(m, o = {}) {
       ecrire(MODE, m); maj(m);
-      if (m === 'volume') { placerHaut(); try { const c = await assurer(); c.ouvrir(true, { actif: o.actif || VOL_DE_ACTIF[actif], unite: o.unite }); } catch (e) { maj('classique'); ecrire(MODE, 'classique'); console.warn('[tp] mode Volume indisponible :', e && e.message || e); } }
+      if (m === 'volume') { placerHaut(); try { const c = await assurer(); c.ouvrir(true, { actif: o.actif || VOL_DE_ACTIF[actif], unite: o.unite || uniteClassique() }); } catch (e) { maj('classique'); ecrire(MODE, 'classique'); console.warn('[tp] mode Volume indisponible :', e && e.message || e); } }
       else if (ctrl) ctrl.fermer();
     }
     sel.addEventListener('click', ev => { const b = ev.target.closest('[data-mode]'); if (b) aller(b.dataset.mode); });
     window.addEventListener('resize', () => { if (ctrl && ctrl.estOuvert()) placerHaut(); });
+    /* l'unité du Classique pilote le Volume (un toucher sur H1 / H4 / Jour de la barre du haut) */
+    document.addEventListener('click', ev => { if (!ctrl || !ctrl.estOuvert() || !ev.target.closest('[data-periode],[data-tt-periode]')) return; setTimeout(() => { const u = uniteClassique(); if (u && ctrl.etat().unite !== u) ctrl.definir({ unite: u }); }, 60); });
     window.__tpVolume = { appel: (n, ...x) => (ctrl && typeof ctrl[n] === 'function' ? ctrl[n](...x) : null), barres: () => (ctrl ? ctrl.barres() : []), controle: () => (ctrl ? ctrl.controle() : null), ouvrirMode: o => aller('volume', o || {}), fermerMode: () => aller('classique'), attendre: async () => { for (let k = 0; k < 60; k++) { const e = ctrl && ctrl.etat(); if (e && (e.charge || e.erreur)) return; await new Promise(r => setTimeout(r, 250)); } }, analyse: () => (ctrl ? ctrl.analyse() : ''), ancrer: () => (ctrl ? ctrl.ancrer() : ''), pocsNus: () => (ctrl ? ctrl.pocsNus() : ''), etat: () => (ctrl ? ctrl.etat() : null), zoomer: (...x) => (ctrl ? ctrl.zoomer(...x) : false), reaction: () => (ctrl ? ctrl.reaction() : ''), definir: o => (ctrl ? ctrl.definir(o) : null), definirOpt: (k, v) => (ctrl ? ctrl.definirOpt(k, v) : null), echelle: () => (ctrl && ctrl.echelle ? ctrl.echelle() : null), echelleAuto: () => (ctrl ? ctrl.echelleAuto() : null), echelleV: (...x) => (ctrl ? ctrl.echelleV(...x) : null), classique: () => ({ echelle: E.ech ? E.ech.etat() : null, auto: () => (E.ech ? E.ech.auto() : null), zoomerV: (f, y) => (E.ech ? E.ech.zoomerV(f, y) : null) }) };
     if (lire(MODE, 'classique') === 'volume') aller('volume');
   })();

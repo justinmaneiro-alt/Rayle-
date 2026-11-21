@@ -54,3 +54,17 @@ export function resume(r) {
   const parties = []; if (r.incidents.length) parties.push(r.incidents.length + ' bougie(s) rejetée(s)'); if (r.trous.length) parties.push(r.trous.length + ' trou(s)');
   return parties.length ? 'Contrôle : ' + parties.join(', ') : 'Contrôle : série continue';
 }
+
+/* v7 : contrôle du raccord (historique long → source récente). Rejeté si l'écart de prix entre la dernière bougie historique et la première récente dépasse 10 %
+   (après le recalage mesuré), ou s'il manque plus de 2 bougies entre les deux (marché 24/7 ; ailleurs : plus de 5 jours). Pur, testé. */
+export function verifierRaccord(longues, recentes, { unite = 'J', actif = '', maxSaut = 0.10, maxManquantes = 2 } = {}) {
+  if (!longues || !longues.length || !recentes || !recentes.length) return { ok: true, raison: null, manquantes: 0, saut: 0 };
+  const pas = PAS[unite] || PAS.J, t0 = recentes[0].t, avant = [...longues].reverse().find(b => b.t < t0);
+  if (!avant) return { ok: true, raison: null, manquantes: 0, saut: 0 };
+  const e = ecartSources(longues, recentes), ratio = e && Math.abs(e.ratio - 1) < 0.2 ? e.ratio : 1;
+  const dt = t0 - avant.t, manquantes = Math.max(0, Math.round(dt / pas) - 1), saut = recentes[0].o / (avant.c * ratio) - 1;
+  const trop = MARCHE_24_7[actif] ? manquantes > maxManquantes : dt > (unite === 'J' ? 6 : 5) * 86400e3;
+  if (Math.abs(saut) > maxSaut) return { ok: false, raison: 'saut', manquantes, saut, de: avant.t, a: t0 };
+  if (trop) return { ok: false, raison: 'trou', manquantes, saut, de: avant.t, a: t0 };
+  return { ok: true, raison: null, manquantes, saut };
+}

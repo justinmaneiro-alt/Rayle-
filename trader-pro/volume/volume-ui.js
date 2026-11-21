@@ -15,7 +15,8 @@ import { ouvrir as ouvrirFlux, parseBinance, creerCarnetKraken, parseKrakenTrade
 import { niveauxReaction, etiquetteNiveau, niveauProche, phraseNiveaux } from './reaction-calcul.js';
 import { creerStoreFootprint, creerLive, creerRattrapage, TEXTE_ABSENT } from './footprint-donnees.js';
 import { histoLong } from '../terminal/histo-long.js';
-import { raccorder, controler, resume as resumeControle } from '../commun/serie-continue.js';
+import { raccorder, controler, verifierRaccord, resume as resumeControle } from '../commun/serie-continue.js';
+import { noterIncident, noterPrix } from '../commun/incidents-donnees.js';
 import { dessiner as dessinerFootprint, infoCase, COULEUR_REACTION } from './footprint-rendu.js';
 import { PALETTE, PRESETS, NOM_PRESETS, appliquerPreset } from './palette.js';
 import { profilDe, PROFILS } from './profils-actifs.js';
@@ -93,8 +94,8 @@ export async function monterVolume({ racine, T = {}, parler = () => {}, idDefaut
       localization: { timeFormatter: t => tFr.format(new Date(t * 1000)) }, crosshair: { mode: 0 }, handleScroll: { mouseWheel: true, pressedMouseMove: true, horzTouchDrag: true, vertTouchDrag: true }, kineticScroll: { mouse: false, touch: true }, handleScale: { mouseWheel: true, pinch: true, axisPressedMouseMove: true } });
     sBou = chart.addSeries(LW.CandlestickSeries, { upColor: COUL.haut, downColor: COUL.bas, wickUpColor: COUL.haut, wickDownColor: COUL.bas, borderVisible: false, priceLineVisible: true }, 0);
     sMa = chart.addSeries(LW.LineSeries, { color: COUL.ma, lineWidth: 1, priceLineVisible: false, lastValueVisible: false, crosshairMarkerVisible: false, title: 'MA200', autoscaleInfoProvider: horsEchelleFp }, 0);
-    sVol = chart.addSeries(LW.HistogramSeries, { priceFormat: { type: 'volume' }, priceLineVisible: false, lastValueVisible: false }, 1);
-    sMoy = chart.addSeries(LW.LineSeries, { color: 'rgba(241,211,79,.7)', lineWidth: 1, priceLineVisible: false, lastValueVisible: false, crosshairMarkerVisible: false }, 1);
+    sVol = chart.addSeries(LW.HistogramSeries, { priceFormat: { type: 'volume' }, priceLineVisible: false, lastValueVisible: false, autoscaleInfoProvider: () => echelleVolume() }, 1);
+    sMoy = chart.addSeries(LW.LineSeries, { color: 'rgba(241,211,79,.7)', lineWidth: 1, priceLineVisible: false, lastValueVisible: false, crosshairMarkerVisible: false, autoscaleInfoProvider: () => echelleVolume() }, 1);
     sCvd = chart.addSeries(LW.LineSeries, { color: COUL.bleu, lineWidth: 1, priceScaleId: 'left', priceLineVisible: false, lastValueVisible: true, title: 'CVD' }, 1);
     chart.priceScale('left', 1).applyOptions({ visible: true, borderColor: '#1a232b' });
     sMfi = chart.addSeries(LW.LineSeries, { color: COUL.sable, lineWidth: 1, priceLineVisible: false, title: 'MFI' }, 2);
@@ -115,6 +116,10 @@ export async function monterVolume({ racine, T = {}, parler = () => {}, idDefaut
     L.innerHTML = `<b>${esc(parId[a].court)} · ${NOM_U[S.unite]}</b> <time>${tFr.format(new Date(b.t))}</time> <span class="${cl}">O ${prix(a, b.o)} H ${prix(a, b.h)} B ${prix(a, b.l)} C ${prix(a, b.c)} (${v >= 0 ? '+' : '−'}${nf(Math.abs(v), 2)} %)</span> ${S.donnees && S.donnees.aVolume === false ? '' : `<span>Vol ${compact(b.v || 0)}</span> <span class="${d >= 0 ? 'tpv-h' : 'tpv-b'}">Δ ${sgn(d)}${S.donnees && S.donnees.deltaReel ? '' : ' ~'}</span>`}`;
   }
   /* panneaux du bas : chacun peut être masqué ; un panneau sans série visible se réduit à un filet */
+  /* v7 : échelle du panneau de volume = partie VISIBLE seulement, valeurs aberrantes écrêtées au 99e percentile (plus d'échelle « 50 B » qui écrase les barres) */
+  function echelleVolume() {
+    try { const r = chart && chart.timeScale().getVisibleLogicalRange(), B = S.bars; if (!r || !B.length) return null; const i0 = Math.max(0, Math.floor(r.from)), i1 = Math.min(B.length - 1, Math.ceil(r.to)); const v = []; for (let i = i0; i <= i1; i++) if (B[i].v > 0) v.push(B[i].v); if (!v.length) return null; v.sort((a, b) => a - b); const max = v[Math.min(v.length - 1, Math.floor(v.length * 0.99))] * 1.15; return { priceRange: { minValue: 0, maxValue: max } }; } catch (e) { return null; }
+  }
   function appliquerPanneaux() {
     if (!chart) return; const sansVol = !!(S.donnees && S.donnees.aVolume === false), vol = opts.pVol !== false && !sansVol, cvdv = opts.pCvd !== false && !sansVol, mf = opts.pMfi !== false && !sansVol;   // v6 : sans volume (DXY, secours), les panneaux de volume sont masqués, pas affichés vides
     try { sVol.applyOptions({ visible: vol }); sMoy.applyOptions({ visible: vol }); sCvd.applyOptions({ visible: cvdv }); sMfi.applyOptions({ visible: mf }); sRv.applyOptions({ visible: mf }); const P = chart.panes(); P[1].setStretchFactor(vol || cvdv ? 2 : 0.001); P[2].setStretchFactor(mf ? 2 : 0.001); } catch (e) { /* version sans panneaux ajustables */ }
@@ -307,7 +312,7 @@ export async function monterVolume({ racine, T = {}, parler = () => {}, idDefaut
     const liste = L => (L.length ? `<ul class="tpv-niv">${L.join('')}</ul>` : '<p class="tpv-doux">—</p>');
     const flux = Object.entries(S.etatFlux).map(([n, e]) => `${n} : ${e.etat === 'connecte' ? 'en direct' : e.etat === 'erreur' ? 'injoignable' : e.etat}`).join(' · ');
     return `<p class="tpv-doux"><b>${esc(a.nom)} · profil ${esc(p.nom)}</b><br>${esc(badgeSource(a, d ? d.source : 'reel'))}${d ? ' · ' + esc(ageDonnee(d.t)) : ''}.</p>
-      <p class="tpv-doux">${esc(NOM_U[S.unite])} · ${S.bars.length} bougies. ${S.controle ? esc(resumeControle(S.controle)) + '. ' : ''}${S.raccord && S.raccord.methode ? `Historique long raccordé (${esc(S.raccord.methode)}, écart ${nf((S.raccord.ratio - 1) * 100, 3)} %, ${S.raccord.longues} bougies). ` : ''}${d && d.repli ? 'Repli : ' + esc(d.repli) + '. ' : ''}${d && d.note ? esc(d.note) : ''}</p>
+      <p class="tpv-doux">${esc(NOM_U[S.unite])} · ${S.bars.length} bougies. ${S.controle ? esc(resumeControle(S.controle)) + '. ' : ''}${S.raccord && S.raccord.refuse ? 'Historique long refusé (raccord incohérent : ' + esc(S.raccord.raison === 'saut' ? 'écart de prix' : 'bougies manquantes') + '), source récente seule. ' : S.raccord && S.raccord.methode ? `Historique long raccordé (${esc(S.raccord.methode)}, écart ${nf((S.raccord.ratio - 1) * 100, 3)} %, ${S.raccord.longues} bougies). ` : ''}${d && d.repli ? 'Repli : ' + esc(d.repli) + '. ' : ''}${d && d.note ? esc(d.note) : ''}</p>
       <p class="tpv-doux">${flux ? 'Flux : ' + esc(flux) + '. ' : (a.live ? '' : 'Pas de flux direct gratuit pour cet actif : données différées. ')}Delta ${d && d.deltaReel ? 'réel (côté de l’agresseur)' : 'estimé depuis la bougie'}.</p>
       <p class="tpv-doux">${esc(texteEmpreinte())}</p>
       ${p.masques.length || (d && d.aVolume === false) ? `<p class="tpv-doux"><b>Masqué</b><br>${[...p.masques, ...(d && d.aVolume === false ? ['Panneaux Volume, CVD et MFI : cette source ne fournit aucun volume pour ' + a.nom + '.'] : [])].map(esc).join('<br>')}</p>` : ''}
@@ -387,11 +392,18 @@ export async function monterVolume({ racine, T = {}, parler = () => {}, idDefaut
     }
   }
 
+  /* v7 : dernier prix du mode Volume noté pour le contrôle de cohérence (clés d'actif du Classique) */
+  { const CLE_CL = { or: 'OR', us100: 'NASDAQ', us500: 'SP500', btc: 'BTC', sol: 'SOL', dxy: 'DXY', eurusd: 'EURUSD', usdchf: 'USDCHF' }; setInterval(() => { try { if (!S.ouvert || document.hidden || !S.charge || !S.bars.length) return; const a = parId[S.actif]; if (a.id === 'us100' || a.id === 'us500' || a.id === 'eurusd' || (a.id === 'or' && opts.sourceVolume === 'ref') || (S.donnees && S.donnees.repli)) return;   /* prix de futures (base différente du comptant) : non comparés */ noterPrix(CLE_CL[S.actif], 'volume', S.bars[S.bars.length - 1].c); } catch (e) { /* rien */ } }, 20000); }
   /* A2 : historique long raccordé AVANT la source récente (recalé sur les bougies communes), puis contrôle (bougies isolées, trous). */
   async function etendreSerie(a, u, bars) {
     const NB = { J: 40, H4: 8, H1: 3 }; if (!bars.length) return { bougies: bars, raccord: null, controle: null };
     const fin = bars[bars.length - 1].t + PAS_UNITE[u], fiche = await histoLong.fiche(a, u); if (!fiche) return { bougies: bars, raccord: null, controle: null };
-    await Promise.all(fiche.annees.slice(-(NB[u] || 3) - 1).map(y => histoLong.annee(a, u, y).catch(() => []))); const L = await histoLong.avant(a, u, fin, NB[u] || 3); if (!L.bougies.length) return { bougies: bars, raccord: null, controle: null };
+    const lireLongues = async () => { const f = await histoLong.fiche(a, u); await Promise.all(f.annees.slice(-(NB[u] || 3) - 1).map(y => histoLong.annee(a, u, y).catch(() => []))); return histoLong.avant(a, u, fin, NB[u] || 3); };
+    let L = await lireLongues(); if (!L.bougies.length) return { bougies: bars, raccord: null, controle: null };
+    /* v7 : contrôle du raccord (écart > 10 % ou plus de 2 bougies manquantes) : on recharge l'historique depuis la source (la même que le Classique), puis on refuse la série raccordée */
+    let V = verifierRaccord(L.bougies, bars, { unite: u, actif: a });
+    if (!V.ok) { histoLong.oublier(); try { L = await lireLongues(); V = verifierRaccord(L.bougies, bars, { unite: u, actif: a }); } catch (e) { /* source injoignable : le refus ci-dessous s'applique */ } }
+    if (!V.ok) { noterIncident({ type: 'raccord', actif: a, unite: u, detail: (V.raison === 'saut' ? 'écart de ' + Math.round(Math.abs(V.saut) * 100) + ' %' : V.manquantes + ' bougies manquantes') + ' entre l’historique et la bougie en direct : série raccordée refusée' }); return { bougies: bars, raccord: { refuse: true, raison: V.raison, manquantes: V.manquantes, saut: V.saut }, controle: null }; }
     const R = raccorder(L.bougies, bars), C = controler(R.bougies, { unite: u, actif: a }); return { bougies: C.bougies, raccord: { ratio: R.ratio, methode: R.methode, n: R.n, longues: L.bougies.length }, controle: C };
   }
   /* la vue ne bouge pas : conservée par le temps, pas par l'indice */

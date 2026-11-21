@@ -55,10 +55,12 @@ export async function ouvrir({ racine = document.body, onFermer = () => {} } = {
   const suivie = id => S.liste.includes(id), hz = () => HORIZONS.find(h => h.id === S.horizon);
 
   /* ───── données ───── */
+  /* v7 : UN seul chiffre pour « instruments » : le total du manifeste (le même que la carte de l'accueil) */
+  const totalManifeste = () => (S.manifeste && S.manifeste.shards ? S.manifeste.shards.reduce((t, x) => t + (x.n || 0), 0) : 0) || S.lignes.length;
   async function charger(classes) {
     const manques = classes.filter(c => !S.classesChargees.has(c)); if (!manques.length && S.lignes.length) return;
     S.manifeste = await S.D.manifeste(); S.ajust = S.manifeste.ajust || {}; S.lignes = await S.D.lignes(null === classes ? null : [...new Set([...S.classesChargees, ...classes])]); classes.forEach(c => S.classesChargees.add(c)); S.calc.init(S.lignes); S.saisonChargee = false;
-    $('[data-etat]').textContent = `${nf(S.lignes.length, 0).replace(/,/g, ' ')} instruments chargés · calcul ${age(S.manifeste.t)} · prix : dernière clôture de chaque bourse (ouvrir une fiche pour l’âge exact)`;
+    $('[data-etat]').textContent = `${nf(totalManifeste(), 0).replace(/,/g, ' ')} instruments${S.lignes.length < totalManifeste() ? ' (' + nf(S.lignes.length, 0).replace(/,/g, ' ') + ' chargés pour l’instant)' : ''} · calcul ${age(S.manifeste.t)} · prix : dernière clôture de chaque bourse (ouvrir une fiche pour l’âge exact)`;
   }
   async function chargerSaison() { if (S.saisonChargee) return; const { encodes, ref } = await S.D.saison([...S.classesChargees]); S.ref = ref; S.calc.saison(encodes, ref); S.saisonChargee = true; }
   const besoinSaison = () => S.horizon === 'swing' || S.tri === 'sai' || S.filtre.saisonSignificative;

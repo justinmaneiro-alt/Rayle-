@@ -2,6 +2,7 @@
    Pour chaque source : dernière mise à jour, prochaine prévue, erreurs sur 24 h (sur cet appareil), état (vert / orange / rouge) ; rapport des contrôles de la nuit ; consommation du budget gratuit Cloudflare.
    Le voyant (vert / orange / rouge) est affiché dans la barre du haut ; un toucher ouvre la page. Lecture seule. */
 import { lireEtat, erreurs24h, age, voyant as _v, MIN } from './fraicheur.js';
+import { lireIncidents, controlerCoherence } from './incidents-donnees.js';
 import { niveau, pourcentages, phraseBudget, budgetPrevu, NOMS, LIMITES } from './budget-cf.js';
 
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -25,6 +26,7 @@ export function htmlEtat(E, { conso = null, maintenant = Date.now() } = {}) {
     <table class="ed-t"><thead><tr><th>Source</th><th>Dernière mise à jour</th><th>Prochaine prévue</th><th>Erreurs 24 h*</th><th>État</th></tr></thead><tbody>${L.map(ligne).join('')}</tbody></table>
     <p class="ed-doux">* erreurs de lecture notées sur cet appareil (aucun serveur ne les compte ailleurs) + fichiers en échec côté robot.</p>
     <h3>Contrôles de la nuit</h3>${c ? `<p>${esc(c.resume)} <span class="ed-doux">(${esc(hFr.format(new Date(c.t)))})</span></p>${c.problemes && c.problemes.length ? `<ul class="ed-doux">${c.problemes.slice(0, 8).map(p => `<li><b>${p.gravite === 'grave' ? 'grave' : 'info'}</b> · ${esc(p.fichier)} · ${esc(p.detail)}</li>`).join('')}</ul>` : ''}` : '<p class="ed-doux">Pas encore de rapport (le premier est publié la nuit suivant le déploiement).</p>'}
+    <h3>Séries et prix (3 derniers jours)</h3>${(() => { let I = []; try { controlerCoherence(); I = lireIncidents(); } catch (e) { I = []; } return I.length ? `<ul class="ed-doux">${I.slice(0, 8).map(i => `<li><b>${i.type === 'coherence' ? 'prix incohérents' : 'série refusée'}</b> · ${esc(i.actif)}${i.unite ? ' ' + esc(i.unite) : ''} · ${esc(i.detail)} <span class="ed-doux">(${esc(hFr.format(new Date(i.t)))})</span></li>`).join('')}</ul>` : '<p class="ed-doux">Aucun incident : séries continues, prix identiques à 0,5 % près sur les surfaces comparées.</p>'; })()}
     <h3>Budget gratuit Cloudflare ${prev ? '(prévision : aucune mesure du Worker disponible)' : '(consommation du jour)'}</h3><p class="ed-doux">${esc(phraseBudget(N))}</p>
     <table class="ed-t"><tbody>${Object.entries(lim).map(([k, l]) => `<tr><td>${esc(NOMS[k])}</td><td>${Math.round(C[k] || 0).toLocaleString('fr-FR')} / ${l.toLocaleString('fr-FR')}</td><td><div class="ed-bar"><i data-n="${P[k] >= 0.7 ? 'alerte' : P[k] >= 0.3 ? 'attention' : 'ok'}" style="width:${Math.min(100, Math.round(P[k] * 100))}%"></i></div></td><td>${Math.round(P[k] * 100)} %</td></tr>`).join('')}</tbody></table>
     <p class="ed-doux">Objectif : moins de 30 % de chaque limite. À 70 % : alerte Telegram et ralentissement des rafraîchissements non essentiels. Rayle n'écrit jamais dans KV.</p>`;

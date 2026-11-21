@@ -83,3 +83,6 @@ html.tpv-actif .tor-graph, html.tpv-actif .tor-outils { visibility: hidden; }
 .tpv-h4-reac { color: #7fb3c2 !important; } .tpv-niv-reac li b { color: #7fb3c2; }
 .tpv-reglages .tpv-preset { flex: 1 1 100%; font-weight: 600; }
 @media (max-width: 900px) { .tpv-droite { max-height: 44%; } .tpv-mini { height: 180px; } .tpv-jour { height: 260px; } .tpv-legende { font-size: 10px; } .tpv-onglets button { min-height: 38px; } }
+
+/* v7 : un seul sélecteur d actif et d unité (celui du terminal) : ceux du mode Volume sont retirés */
+.tpv [data-actif], .tpv .tpv-unites { display: none !important; }

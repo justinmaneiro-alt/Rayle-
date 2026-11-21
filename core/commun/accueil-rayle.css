@@ -96,3 +96,8 @@ html .ar-lien,html .ar-btn{min-height:0}
   .ad-pied{display:none}
 }
 @media (prefers-reduced-motion:reduce){.ad-liste{scroll-behavior:auto}}
+
+/* v7 : la colonne Météo / Ce jour-là ne descend jamais sur la barre du bas (dock), quelle que soit la hauteur de l écran */
+.ar-g{max-height:calc(100vh - 370px - 170px);overflow:hidden}.ar-g .ar-fen{max-height:100%;overflow:auto}
+@media (max-height:760px) and (min-width:821px){.ar-g{top:150px;max-height:calc(100vh - 150px - 170px)}}
+@media (max-width:820px){.ar-g{max-height:calc(100vh - 44px - 214px)}}
