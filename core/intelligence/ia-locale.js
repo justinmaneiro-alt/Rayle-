@@ -82,6 +82,6 @@
     function definirPhraseSecrete(phrase){ reglages.empreinteSecrete=C.empreinte(phrase); sauver(); }
 
     planifier();
-    return {essayer,sonder,regler,definirPhraseSecrete,reglages:()=>({...reglages,empreinteSecrete:reglages.empreinteSecrete?'définie':''}),etat:etatPublic,surEtat:f=>{ ecouteurs.push(f); },dernierMoteur:()=>dernierMoteur};
+    return {demandeNonCensure:t=>{ try{ return !!C.detecterNonCensure(t,reglages).demande; }catch(e){ return false; } },essayer,sonder,regler,definirPhraseSecrete,reglages:()=>({...reglages,empreinteSecrete:reglages.empreinteSecrete?'définie':''}),etat:etatPublic,surEtat:f=>{ ecouteurs.push(f); },dernierMoteur:()=>dernierMoteur};
   })();
   window.IaLocale=IaLocale;

@@ -12,6 +12,25 @@
     const cmdApp=window.Application?await Application.commande(text):null;    // application : « ouvre le terminal », « suivant », « montre l'actualité », « ferme »
     if(my!==epoch) return;
     if(cmdApp){ diagAction('application'); addLine('ray',cmdApp); await speak(cmdApp); return; }
+    let reply='', engine='', actions=[], viaAgent=false, parle=null, sansHistorique=false, cerveauEssaye=false;
+    const nonCens=!!(window.IaLocale&&IaLocale.demandeNonCensure&&IaLocale.demandeNonCensure(text));
+    /* v8 : le CERVEAU (Gemini + outils qui lisent les vraies données de l'application, et qui ouvrent les fenêtres) */
+    const tenterCerveau=async()=>{
+      cerveauEssaye=true; setState('thinking');
+      try{
+        const C=await Cerveau.repondre(text); if(my!==epoch) return false;
+        reply=C.reply; parle=C.parle||null; engine=C.engine; actions=[]; viaAgent=true;
+        if(C.outils.length) addLine('sys','Outils : '+C.outils.map(o=>o.nom+(o.resultat&&o.resultat.indisponible?' ✘':'')).join(' → '));
+        diagAction('cerveau : '+(C.outils.length?C.outils.map(o=>o.nom).join(', '):'sans outil')); return true;
+      }catch(e){
+        if(my!==epoch) return false; addLine('sys',Cerveau.message(e));
+        const rl=await Cerveau.repli(text); if(my!==epoch) return false;
+        if(rl){ reply=rl; engine='lecture locale (sans IA)'; viaAgent=true; addLine('sys','Je te donne la lecture directe des données, sans l’IA.'); return true; }
+        return false;
+      }
+    };
+    if(window.Cerveau&&Cerveau.dispo()&&!nonCens&&Cerveau.prendLaMain(text)){ await tenterCerveau(); if(my!==epoch) return; }
+    if(!viaAgent){
     const cmdD=window.DirectPage?await DirectPage.commande(text):null;    // sources en direct : « montre-moi les séismes », « mets France 24 en direct », « que dit l'OMS ? »
     if(my!==epoch) return;
     if(cmdD){ diagAction('sources en direct'); addLine('ray',cmdD); await speak(cmdD); return; }
@@ -46,14 +65,15 @@
       if(phraseImages){ diagAction('images libres'); addLine('ray',phraseImages); await speak(phraseImages); return; }
       ImagesHolo.lancerParallele(text);
     }
-    if(window.MediasHolo) MediasHolo.lancer(text);    // question de recherche ou d'actualité : images et vidéo cherchées en parallèle, affichées APRÈS la réponse écrite (jamais pour une commande)
+    if(window.MediasHolo) MediasHolo.lancer(text);
+    }   // fin des commandes « maison » (sautées quand le cerveau a déjà répondu)    // question de recherche ou d'actualité : images et vidéo cherchées en parallèle, affichées APRÈS la réponse écrite (jamais pour une commande)
 
     diagAction("envoyé à l'IA");
     setState('thinking');
-    let reply='', engine='', actions=[], viaAgent=false;
     // 0) IA locale (LM Studio) pour les tâches courantes ; null = le Worker répond comme avant. Le modèle non censuré (sur demande explicite) ne déclenche aucune action et n'entre pas dans l'historique.
-    let sansHistorique=false;
-    if(window.IaLocale){
+    // v8 : cerveau Gemini + outils pour tout ce qui n'a pas été pris en main plus haut (questions générales, histoire, sciences…)
+    if(!viaAgent&&!cerveauEssaye&&window.Cerveau&&Cerveau.dispo()&&!nonCens){ await tenterCerveau(); if(my!==epoch) return; }
+    if(!reply&&window.IaLocale){
       try{ const L=await IaLocale.essayer(text,{historique:historiqueChat.slice(-8),contexte:contextText()}); if(my!==epoch) return; if(L&&valid(L.reply)){ reply=L.reply; engine=L.engine+(L.model?' · '+L.model:''); actions=[]; viaAgent=true; sansHistorique=!!L.sansHistorique; diagAction('IA locale'); } }catch(e){ /* le Worker prend le relais */ }
     }
     // 1) Agent : le Worker choisit et enchaîne ses outils (données, alertes, mémoire…) et renvoie les actions de la page
@@ -105,7 +125,7 @@
       if(window.TerreVoix) reply=TerreVoix.propre(reply);
       addLine('ray',reply);
       if(window.MediasHolo) MediasHolo.montrer();    // le texte est la réponse : les médias s'ouvrent seulement maintenant, sans retarder la voix
-      await speak(reply);
+      await speak(parle||reply);   // v8 : la voix lit le résumé (2 à 5 phrases) ; le détail reste à l'écran
     }
   }
 
