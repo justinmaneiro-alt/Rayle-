@@ -30,7 +30,7 @@ jobs:
         env:
           SEC_USER_AGENT: ${{ secrets.SEC_USER_AGENT }}
         run: node outils-donnees/invest/calcul-v2.mjs --sortie sortie --reprise --conc 6
-      - name: Mes actifs (indicateurs quotidiens : Bitcoin, Solana, or, Nasdaq 100, S&P 500, pétrole)
+      - name: "Mes actifs (indicateurs quotidiens, six actifs)"
         continue-on-error: true
         run: node outils-donnees/invest/mes-actifs.mjs --sortie sortie
       - name: Instantané mensuel du modèle et suivi de sa performance (data/snapshots)
