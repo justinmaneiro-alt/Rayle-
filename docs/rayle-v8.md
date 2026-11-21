@@ -1,0 +1,13 @@
+# Rayle v8 — une seule voix, un vrai cerveau, fenêtres pilotées à la voix, images
+
+Décisions et constats, phase par phase (prompt du 21/11/2026, essais tablette de 18 h 30).
+
+## Phase 1 — Une seule voix : Sulafat, et rien d'autre
+**Cause de la double voix (trouvée dans `core/voice/voix.js`).** Gemini lisait la réponse en entier, puis le garde-fou de lecture (`gardeBlocage` : « le temps de lecture n'avance plus pendant 3 s » ou événement `ended` manquant) la déclarait en panne ; la boucle de `speak()` basculait alors sur `browserSpeak()` et **relisait la même réponse avec la voix du système**. Depuis la v7, une réponse = une seule requête, donc la voix robotique relisait toute la réponse.
+**Décisions.**
+- La voix du système est **supprimée** : `browserSpeak`, `speechSynthesis.*`, le déverrouillage silencieux iOS par énoncé, la liste « voix du système » du panneau, la voix de repli de `or/tableau-or.js`, `terminal/rayle-terminal.js` et `commun/dashboard.js` (ces trois passent par `window.speak`, sinon texte seul). Plus aucun `SpeechSynthesisUtterance` ni `speechSynthesis.speak` dans l'application (test statique `trader-pro/tests/voix-unique-test.mjs`, dans `npm test`).
+- **Gestionnaire unique** : `speak()` de `voix.js`. Tous les modules passent par `window.speak` (vérifié : chat, alertes, briefing, actualités, Anatomie, Terre, 3D, sécurité…). File unique par jeton : une nouvelle réponse coupe la précédente, « stop » / `cancelSpeech` coupe tout. **Anti-doublon** : la même phrase redemandée moins de 4 s après est ignorée (sauf « Écouter » d'une voix).
+- Garde-fou de lecture corrigé : une lecture arrivée au bout (`ended`, ou position à moins de 0,6 s de la durée) est un succès, jamais une panne.
+- **Voix = Gemini uniquement** (Sulafat par défaut ; les 6 voix restent au choix dans Réglages). Si Gemini est indisponible (quota, réseau) : la réponse reste affichée, l'indicateur « voix momentanément indisponible » apparaît (ligne discrète dans le journal et pastille `voix :`), le détail de l'erreur est dans Réglages → Voix ; aucune voix de remplacement. Les alertes continuent de partir sur Telegram (inchangé).
+- Quota : une réponse = une requête Gemini (regroupement v7), copie sur l'appareil et sur le Worker pour les phrases qui reviennent (salutations, formules d'alerte et de briefing : générées une fois), limiteur de 3 requêtes par minute (v7).
+- Tests : `trader-pro/tests/voix-dix-chrome.mjs` (tablette : 10 réponses d'affilée = 10 requêtes, 0 appel à `speechSynthesis`, jamais deux lectures simultanées, doublon ignoré, panne → indicateur sans voix de remplacement : 17 vérifications) ; `voix-gemini-chrome.mjs` adapté (19).

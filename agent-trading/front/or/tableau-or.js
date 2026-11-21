@@ -40,10 +40,10 @@ const VIDE = Object.freeze([]);
 export const dessinPeriode = S => ({ bandes: S.niveauxP ? S.niveauxP.bandes : VIDE, liquidite: S.liquidite ? S.liquidite.zones : VIDE, balayages: S.liquidite ? S.liquidite.balayages : VIDE });
 export const disposition = (l, h) => (l >= 1000 && l >= h ? 'pc' : 'colonne');
 
-/* voix : celle de Rayle si la page est dans Rayle (window.speak), sinon la synthèse du navigateur */
+/* voix : celle de Rayle (window.speak) ; v8 : jamais la synthèse du navigateur */
 export function parler(texte) {
   try { if (typeof window.speak === 'function') return window.speak(texte); if (window.parent !== window && typeof window.parent.speak === 'function') return window.parent.speak(texte); } catch (e) { /* repli */ }
-  try { const u = new SpeechSynthesisUtterance(texte); u.lang = 'fr-FR'; u.rate = 0.95; const v = speechSynthesis.getVoices().find(x => /^fr/i.test(x.lang)); if (v) u.voice = v; speechSynthesis.cancel(); speechSynthesis.speak(u); } catch (e) { /* pas de voix */ }
+  /* v8 : pas de voix de remplacement (page ouverte hors de Rayle : texte seul) */
 }
 
 export function monterTableauOr(el, { modules = {}, contexte = 'page', fetchFn, WS, etudeAuto = true } = {}) {

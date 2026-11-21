@@ -37,13 +37,13 @@ await p.evaluate(t => { VoixMoteurs.razLimiteurGem(); speechSynthesis.cancel(); 
 verif(appels.length >= 2 && appels.length <= 3 && appels.every(a => a.text.length <= 600), 'réponse très longue : requêtes de 600 caractères au plus, jamais plus de 3 en une minute (' + appels.length + ' envoyées, les suivantes attendent leur créneau)');
 /* 429 par minute : nouvelle tentative après une pause, sans basculer sur la voix du système */
 modeMinute = true; minute429 = 1; mode429 = false; appels = []; await p.evaluate(() => { VoixMoteurs.razLimiteurGem(); localStorage.removeItem('rayle_voix_gemini_pause'); speechSynthesis.cancel(); speak('Une phrase pour tester la relance après une limite par minute.'); }); await w(26000);
-verif(appels.length === 2 && !/secours/.test(await p.evaluate(() => VoixMoteurs.dernier())), '429 par minute : une relance après la pause, Gemini parle (' + appels.length + ' appels, ' + await p.evaluate(() => VoixMoteurs.dernier()) + ')');
+verif(appels.length === 2 && !/indisponible/.test(await p.evaluate(() => VoixMoteurs.dernier())), '429 par minute : une relance après la pause, Gemini parle (' + appels.length + ' appels, ' + await p.evaluate(() => VoixMoteurs.dernier()) + ')');
 modeMinute = false;
 /* quota : 429 → le moteur de secours parle, pause de 15 minutes, plus de requête */
 mode429 = true; appels = []; await p.evaluate(() => { VoixMoteurs.razLimiteurGem(); speak('Une phrase nouvelle pour le quota.'); }); await w(3500);
 verif(appels.length === 1, 'Gemini est appelé une fois'); verif(await p.evaluate(() => VoixMoteurs.pauseGem() > Date.now()), 'après le 429 : pause de 15 minutes');
 await p.evaluate(() => speak('Encore une autre phrase.')); await w(2500); verif(appels.length === 1, 'pendant la pause : plus d appel à Gemini');
-verif(await p.evaluate(() => /secours/.test(VoixMoteurs.dernier())), 'indicateur : moteur de secours (' + await p.evaluate(() => VoixMoteurs.dernier()) + ')');
+verif(await p.evaluate(() => /indisponible/.test(VoixMoteurs.dernier()) && /momentanément indisponible/.test(document.getElementById('voiceName').textContent)), 'indicateur discret « voix momentanément indisponible » (' + await p.evaluate(() => VoixMoteurs.dernier()) + ')');
 /* échec visible : plus de silence, erreur exacte (code HTTP + message) + diagnostic */
 mode429 = false; mode401 = true; await p.evaluate(() => { localStorage.removeItem('rayle_voix_gemini_pause'); document.querySelector('#vxGemini [data-ecouter="gemini-f3"]').click(); }); await w(3500);
 const msgErr = await p.evaluate(() => document.querySelector('#vxMsg, #vxMessage, .vx-msg') ? document.querySelector('#vxMsg, #vxMessage, .vx-msg').innerText : '') + ' | ' + await p.evaluate(() => document.querySelector('#vxMoteur').innerText);

@@ -15,7 +15,7 @@
       gem.innerHTML=groupe('Voix féminines','f')+groupe('Voix masculines « majordome IA »','h');
       gVit.value=String(g.vitesse); gVitVal.textContent=g.vitesse===0?'normale':(g.vitesse>0?'+':'')+g.vitesse+' %'; gTon.value=g.ton;
       const p=VoixMoteurs.pauseGem(); gQuota.textContent=(L.some(c=>c.etat==='prête')?'':'Le Worker n’est pas configuré (adresse et code d’accès dans ces réglages) ou la clé GEMINI_KEY n’est pas dans ses secrets : ces voix ne peuvent pas parler. ')+'Phrases nouvelles aujourd’hui : '+VoixMoteurs.nGemJour()+' / '+VoixMoteurs.LIMITE_JOUR_GEM+' (les phrases déjà dites sont gardées en cache et ne comptent pas).'+(p>Date.now()?' En pause : quota Google atteint, moteur de secours jusqu’à '+new Date(p).toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'})+'.':'');
-      const d=VoixMoteurs.dernier(); const ec=VoixMoteurs.echec(); gMoteur.textContent=(ec&&/^gemini-/.test(ec.id)&&/^secours/.test(d||'')?'✖ '+(VoixMoteurs.NOMS[ec.id]||{nom:ec.id}).nom+' a échoué : '+ec.msg+' — la voix du système a parlé à la place. ':'')+'Moteur utilisé en ce moment : '+(d||(VoixMoteurs.NOMS[VoixMoteurs.actif()]||{nom:VoixMoteurs.actif()}).nom)+(d?'':' (aucune phrase dite depuis l’ouverture)');
+      const d=VoixMoteurs.dernier(); const ec=VoixMoteurs.echec(); gMoteur.textContent=(ec&&/^gemini-/.test(ec.id)&&/indisponible/.test(d||'')?'✖ '+(VoixMoteurs.NOMS[ec.id]||{nom:ec.id}).nom+' a échoué : '+ec.msg+' — aucune voix de remplacement : la réponse reste affichée. ':'')+'Moteur utilisé en ce moment : '+(d||(VoixMoteurs.NOMS[VoixMoteurs.actif()]||{nom:VoixMoteurs.actif()}).nom)+(d?'':' (aucune phrase dite depuis l’ouverture)');
     }
     const gDiag=$('vxGemDiag'), gDiagSortie=$('vxGemDiagSortie'); if(gDiag) gDiag.addEventListener('click',async()=>{ gDiag.disabled=true; gDiagSortie.textContent='Diagnostic en cours…'; try{ gDiagSortie.textContent=(await VoixMoteurs.diagnostic()).join('\n'); }catch(e){ gDiagSortie.textContent='✖ '+errMsg(e); } gDiag.disabled=false; });
     if(gVit){ gVit.addEventListener('input',()=>{ VoixMoteurs.definirGemini({vitesse:Number(gVit.value)}); }); gTon.addEventListener('change',()=>{ VoixMoteurs.definirGemini({ton:gTon.value}); }); }
@@ -35,7 +35,7 @@
           '<div class="hint">'+esc(c.detail)+(c.raison?' — '+esc(c.raison):'')+(c.test&&c.test.ms?' · test '+(c.test.ms/1000).toFixed(1).replace('.',',')+' s':'')+'</div></div>').join('');
       const h=VoixMoteurs.hauteur(); haut.value=String(h); hautVal.textContent=h===0?'normale':(h>0?'+':'')+h+' %';
       // voix du système classées automatiquement
-      const rang=window.VoixCalcul?VoixCalcul.classerVoixSysteme(('speechSynthesis' in window)?speechSynthesis.getVoices():[],true):[];
+      const rang=[];   // v8 : plus de voix du système
       const cle=VoixMoteurs.voixSystemeChoisie();
       sys.innerHTML='<option value="">Automatique'+(rang[0]?' → '+esc(rang[0].voix.name)+' ('+rang[0].famille+')':'')+'</option>'+rang.map(r=>'<option value="'+esc(r.voix.voiceURI||r.voix.name)+'"'+((r.voix.voiceURI||r.voix.name)===cle?' selected':'')+'>'+esc(r.voix.name)+' · '+r.famille+'</option>').join('');
       if(document.activeElement!==dico){ const d=VoixMoteurs.dico(); dico.value=Object.keys(d).map(k=>k+' = '+d[k]).join('\n'); }
@@ -49,7 +49,7 @@
       try{ await speak(VoixCalcul.PHRASE_ESSAI,{moteur:id}); msg.textContent=''; }catch(x){ msg.textContent='✖ '+errMsg(x); }
     });
     haut.addEventListener('input',()=>{ VoixMoteurs.definirHauteur(Number(haut.value)); });
-    sys.addEventListener('change',()=>{ VoixMoteurs.choisirVoixSysteme(sys.value); if('speechSynthesis' in window) speechSynthesis.dispatchEvent(new Event('voiceschanged')); });
+    sys.addEventListener('change',()=>{ VoixMoteurs.choisirVoixSysteme(sys.value); });
     $('vxEssai').addEventListener('click',()=>{ msg.textContent='Lecture de la phrase d’essai…'; speak(VoixCalcul.PHRASE_ESSAI).then(()=>{ msg.textContent=''; }); });
     $('vxTester').addEventListener('click',async()=>{ msg.textContent='Test des voix…'; await VoixMoteurs.testerAuto(); msg.textContent='Test terminé.'; });
     dico.addEventListener('change',()=>{
@@ -57,6 +57,5 @@
       VoixMoteurs.definirDico(o); msg.textContent='Prononciation enregistrée ('+Object.keys(o).length+' mot'+(Object.keys(o).length>1?'s':'')+').';
     });
     VoixMoteurs.surChangement(rendre);
-    if('speechSynthesis' in window) speechSynthesis.addEventListener('voiceschanged',rendre);
     rendre();
   })();

@@ -30,7 +30,7 @@ export async function monterRayle(T, { stockage = null, maintenant = () => Date.
   const E = { signaux: [], signauxDits: new Set(), nonLus: 0, scen: [], surligne: null, memoire: ((await st.lire('contexte', 'jour')) || { id: 'jour', jour: jour(), m: [] }), derniere: null, annoncesDites: new Set(), detruit: false, hist: [], dernierSujet: null };
   if (E.memoire.jour !== jour()) E.memoire = { id: 'jour', jour: jour(), m: [] };
   const G = T.graph, f = p => fmt(T.actif(), p), nom = () => PAR_ID_T[T.actif()].nom;
-  const parler = async txt => { if (!txt) return; try { if (parlerFn) return parlerFn(txt); if (typeof window.speak === 'function') return await window.speak(txt); const u = new SpeechSynthesisUtterance(txt); u.lang = 'fr-FR'; speechSynthesis.speak(u); } catch (e) { /* pas de voix */ } };
+  const parler = async txt => { if (!txt) return; try { if (parlerFn) return parlerFn(txt); if (typeof window.speak === 'function') return await window.speak(txt); /* v8 : pas de voix de remplacement */ } catch (e) { /* pas de voix */ } };
   async function retenir(quoi) { E.memoire.m.push({ t: maintenant(), quoi: `${heure(maintenant())} ${quoi}` }); E.memoire.m = E.memoire.m.slice(-30); await st.ecrire('contexte', E.memoire); }
 
   /* ── état structuré ── */

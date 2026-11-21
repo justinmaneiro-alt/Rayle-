@@ -115,7 +115,7 @@ export function monterDashboard(zone, id, { prixRef = () => null, parler = null 
   zone.addEventListener('click', e => {
     const lc = e.target.closest('[data-comp]'); if (lc) { basculer(lc); return; }
     if (e.target.closest('[data-reessayer-dash]')) { zone.innerHTML = ''; monterDashboard(zone, id, { prixRef, parler }); return; }
-    if (e.target.closest('[data-lire-score]') && E.S) { const t = phraseScore(a.nom, E.S); if (parler) parler(t); else { try { (window.TraderPro && window.TraderPro.parler) ? window.TraderPro.parler(t) : speechSynthesis.speak(new SpeechSynthesisUtterance(t)); } catch (er) { /* pas de voix */ } } }
+    if (e.target.closest('[data-lire-score]') && E.S) { const t = phraseScore(a.nom, E.S); if (parler) parler(t); else { try { if (window.TraderPro && window.TraderPro.parler) window.TraderPro.parler(t); else if (typeof window.speak === 'function') window.speak(t); } catch (er) { /* pas de voix */ } } }
   });
   const minuteur = setInterval(() => { zone.querySelectorAll('[data-cr]').forEach(n => { n.textContent = compteARebours(+n.dataset.cr, Date.now()); }); }, 1000);
   return { rafraichir() { if (E.D && !E.fini) { dessinerTendance(); dessinerPro(); dessinerScore(); } }, detruire() { E.fini = true; E.seq++; clearInterval(minuteur); detruireGraphs(); }, resume: () => (E.S ? phraseScore(a.nom, E.S) : ''), score: () => E.S };

@@ -96,15 +96,15 @@
       const m=local.moteurs&&local.moteurs[n.moteur];
       return !!(local.installe&&m&&m.pret&&(local.voix||[]).some(v=>v.id===id));
     }
-    const voixSysteme=()=>('speechSynthesis' in window)?speechSynthesis.getVoices():[];
+    const voixSysteme=()=>[];   // v8 : voix du système supprimée
     function pret(id){
       const n=NOMS[id]; if(!n) return false;
       if(n.type==='local') return pretLocal(id);
       if(n.type==='worker') return typeof workerReady==='function'&&!!workerReady();
-      return ('speechSynthesis' in window);
+      return false;
     }
     function candidats(){
-      return Object.keys(NOMS).map(id=>{
+      return Object.keys(NOMS).filter(id=>NOMS[id].famille==='gemini').map(id=>{
         const n=NOMS[id], t=resultats[id];
         let etat='indisponible', raison='';
         if(n.type==='local'){
@@ -119,10 +119,7 @@
     }
     function choisi(){
       const gm=gemini().moteur; if(gm&&NOMS[gm]) return gm;   // le choix d'une voix Gemini est synchronisé entre les appareils (clé rayle_voix_gemini_v1)
-      const m=lire(CLE_MOTEUR);
-      if(m&&NOMS[m]) return m;
-      return 'gemini-f1';   // voix choisie par l'utilisateur (Sulafat) : par défaut ; si Gemini échoue, la voix du système prend le relais
-
+      return 'gemini-f1';   // v8 : voix unique Gemini ; Sulafat par défaut. Plus de voix du système.
     }
     function auto(){
       const a=C.choisirParDefaut(resultats,C.ORDRE_DEFAUT);
@@ -132,11 +129,7 @@
       return 'systeme';
     }
     function actif(){   // moteur réellement utilisé maintenant (le choix, ou la voix du système tant qu'il n'est pas prêt)
-      const id=choisi();
-      if(id==='systeme') return 'systeme';
-      if(!pret(id)) return 'systeme';
-      if(resultats[id]&&!resultats[id].ok) return 'systeme';
-      return id;
+      return choisi();
     }
     function choisir(id){ ecrire(CLE_MOTEUR,id==='auto'?'':id); const g=gemini(), est=/^gemini-/.test(id); if(est||g.moteur) definirGemini({moteur:est?id:''}); else prevenir(); }
     const hauteur=()=>{ const h=Number(lire(CLE_HAUTEUR)); return isFinite(h)?h:0; };

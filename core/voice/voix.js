@@ -1,20 +1,7 @@
 "use strict";
   /* ═════════════ VOIX : moteur choisi (Kokoro / Piper locaux, Edge par le Worker, voix du système) ═════════════ */
-  let voices=[], chosenVoice=null, speaking=false, speakToken=0, lastSpoken='', lastSpokenRaw='', speechEndT=0;
-  function pickVoice(){
-    const choisie=window.VoixMoteurs?VoixMoteurs.voixSystemeChoisie():'';
-    if(choisie){ const v=voices.find(x=>x.voiceURI===choisie||x.name===choisie); if(v) return v; }
-    const rang=window.VoixCalcul?VoixCalcul.classerVoixSysteme(voices,persona.feminin):[];
-    if(rang.length) return rang[0].voix;
-    return voices.find(v=>/^fr/i.test(v.lang))||null;
-  }
-  function loadVoices(){
-    if(!('speechSynthesis' in window)) return;
-    voices=speechSynthesis.getVoices();
-    chosenVoice=pickVoice();
-    if(!workerReady()) voiceEl.textContent='voix : '+(chosenVoice ? chosenVoice.name.replace(/Microsoft |Google /,'') : 'système');
-  }
-  if('speechSynthesis' in window){ speechSynthesis.onvoiceschanged=loadVoices; loadVoices(); }
+  /* v8 : UNE SEULE voix, Gemini (Sulafat par défaut). La voix du système est supprimée : en cas d'échec, la réponse reste affichée et un indicateur discret le dit. Aucun appel à speechSynthesis dans tout le code. */
+  let speaking=false, speakToken=0, lastSpoken='', lastSpokenRaw='', speechEndT=0, derniereCle='', derniereT=0;
 
   function splitChunks(t){
     const sents=t.match(/[^.!?;:]+[.!?;:]*/g)||[t];
@@ -40,31 +27,8 @@
     return out;
   }
 
-  // Voix du navigateur (dernier filet : Raylé n'est jamais muette)
   /* Silence entre deux phrases : coupé net si une nouvelle réponse arrive ou si on coupe Raylé. */
   function pauseParole(ms,token){ return new Promise(res=>{ if(!ms||ms<=0){ res(); return; } const t0=Date.now(), v=()=>{ if(token!==speakToken||Date.now()-t0>=ms) res(); else setTimeout(v,40); }; v(); }); }
-  function browserSpeak(t,token,seg){
-    seg=seg||{vitesse:1,hauteur:0};
-    return new Promise(resolve=>{
-      if(!('speechSynthesis' in window)){ resolve(); return; }
-      speechSynthesis.cancel();
-      const chunks=splitChunks(t); let i=0;
-      const rate=Math.max(0.5,Math.min(1.3,1+vitesseCourante()/100));
-      const next=()=>{
-        if(token!==speakToken || i>=chunks.length){ resolve(); return; }
-        const piece=chunks[i++];
-        const u=new SpeechSynthesisUtterance(piece);
-        try{ if(chosenVoice){ u.voice=chosenVoice; u.lang=chosenVoice.lang; } else u.lang='fr-FR'; }catch(e){ u.lang='fr-FR'; }   // une voix refusée ne doit jamais bloquer la lecture
-        u.pitch=Math.max(0,Math.min(2,(persona.feminin?1:0.78)*(1+(window.VoixMoteurs?VoixMoteurs.hauteur():0)/100))); u.rate=Math.max(0.5,Math.min(1.5,rate*(seg.vitesse||1))); u.pitch=Math.max(0,Math.min(2,u.pitch*(1+(seg.hauteur||0)/100))); u.volume=1;
-        let fired=false;
-        const go=()=>{ if(fired) return; fired=true; clearTimeout(tm); next(); };
-        const tm=setTimeout(go, 4000+piece.length*130);   // garde-fou si « onend » n'arrive pas
-        u.onend=go; u.onerror=go;
-        try{ speechSynthesis.speak(u); }catch(e){ go(); }
-      };
-      setTimeout(next,60);
-    });
-  }
 
   // Voix en ligne (Azure ou Edge, choisie par le Worker)
   let curAudio=null, audioStop=null, lastVoiceSrc='', lastVoiceInfo='';
@@ -88,7 +52,6 @@
     if(audioDebloque) return;
     audioDebloque=true;
     try{ if(!silenceUrl) silenceUrl=wavSilence(); audioEl.src=silenceUrl; const p=audioEl.play(); if(p&&p.catch) p.catch(()=>{ audioDebloque=false; }); }catch(e){ audioDebloque=false; }
-    try{ if('speechSynthesis' in window){ const u=new SpeechSynthesisUtterance(' '); u.volume=0; speechSynthesis.speak(u); } }catch(e){}
   }
   // Niveau sonore de la voix en ligne (Azure/Edge) → l'entité vibre en temps réel.
   // La source audio n'est branchée qu'une fois le contexte réellement actif, pour ne jamais rendre Raylé muette.
@@ -126,7 +89,7 @@
         const fin=(ok,err)=>{ if(fini) return; fini=true; clearTimeout(gardeDemarrage); clearInterval(gardeBlocage); ok?resolve():reject(err); };
         const gardeDemarrage=setTimeout(()=>fin(false,new Error('la lecture audio ne démarre pas (son bloqué par le navigateur ?)')),7000);
         let dernier=-1, figes=0;
-        const gardeBlocage=setInterval(()=>{ if(!demarre) return; if(el.currentTime===dernier && !el.paused) figes++; else figes=0; dernier=el.currentTime; if(figes>=6) fin(false,new Error('lecture audio bloquée')); },500);
+        const gardeBlocage=setInterval(()=>{ if(!demarre) return; if(el.currentTime===dernier && !el.paused) figes++; else figes=0; dernier=el.currentTime; if(figes>=6){ if(isFinite(el.duration)&&el.duration>0&&el.currentTime>=el.duration-0.6) fin(true); else fin(false,new Error('lecture audio bloquée')); } else if(isFinite(el.duration)&&el.duration>0&&el.ended) fin(true); },500);
         el.onplaying=()=>{ demarre=true; };
         el.onended=()=>fin(true);
         el.onerror=()=>fin(false,new Error('lecture audio impossible'));
@@ -138,7 +101,6 @@
   }
   function stopAudioOnly(){
     if(synthCtrl){ try{ synthCtrl.abort(); }catch(e){} synthCtrl=null; }
-    if('speechSynthesis' in window) speechSynthesis.cancel();
     if(curAudio){ try{ curAudio.pause(); }catch(e){} }
     if(audioStop){ const f=audioStop; audioStop=null; f(); }
   }
@@ -147,6 +109,8 @@
   async function speak(text,opts){
     opts=opts||{};
     const t=clean(text); if(!t) return;
+    /* v8 : une phrase n'est jamais lue deux fois : la même réponse redemandée moins de 4 s après est ignorée (sauf écoute explicite d'une voix) */
+    const cleDed=norm(t).slice(0,300); if(!opts.moteur&&cleDed===derniereCle&&Date.now()-derniereT<4000) return; derniereCle=cleDed; derniereT=Date.now();
     const token=++speakToken;
     stopAudioOnly();                       // une nouvelle phrase remplace la précédente
     speaking=true; lastSpoken=norm(t).slice(0,4000); lastSpokenRaw=t.slice(0,4000);
@@ -157,41 +121,30 @@
     let parts=segs&&segs.length?segs.map(s=>s.texte):(window.NormFr?NormFr.phrases(NormFr.normaliser(text)):regroup(t,260));
     if(!parts.length){ parts=regroup(t,260); segs=null; }
     const reglage=i=>segs&&segs[i]?segs[i]:{vitesse:1,hauteur:0,pause:0};
-    if(!opts.moteur?/^gemini-/.test(VoixMoteurs.actif()):/^gemini-/.test(opts.moteur)){ try{ parts=VoixCalcul.regrouperPourGemini(parts,550); segs=null; }catch(e){} }   // v7 : une seule requête Gemini par réponse (quota gratuit d'environ 3 par minute)
-    const baseHauteur=window.VoixMoteurs?VoixMoteurs.hauteur():0;
-    const choisiId=opts.moteur||VoixMoteurs.choisi();
-    const moteurId=opts.moteur||VoixMoteurs.actif();   // « systeme » tant que le modèle local n'est pas prêt : Raylé n'est jamais muette
-    if(!opts.moteur&&moteurId==='systeme'&&choisiId!=='systeme'){
-      const m='Voix « '+(VoixMoteurs.NOMS[choisiId]||{nom:choisiId}).nom+' » pas encore prête : voix du système en attendant';
-      if(m!==lastVoiceInfo){ addLine('sys',m); lastVoiceInfo=m; }
-    }
+    try{ parts=VoixCalcul.regrouperPourGemini(parts,550); segs=null; }catch(e){}   // v7 : une seule requête Gemini par réponse (quota gratuit d'environ 3 par minute)
+    const baseHauteur=0;
+    const moteurId=/^gemini-/.test(opts.moteur||'')?opts.moteur:VoixMoteurs.choisi();   // toujours une voix Gemini
     const vit=Math.max(0.5,Math.min(2,1+vitesseCourante()/100));
     const ctrl=new AbortController(); synthCtrl=ctrl;
     const taches=[];
     const lancer=i=>{ if(i<parts.length&&!taches[i]){ taches[i]=VoixMoteurs.synth(moteurId,parts[i],{vitesse:Math.max(0.5,Math.min(2,vit*reglage(i).vitesse)),hauteur:baseHauteur+reglage(i).hauteur,signal:ctrl.signal}); taches[i].catch(()=>{}); } };
-    let enLigne=moteurId!=='systeme';
-    if(enLigne){ lancer(0); lancer(1); }   // synthèse phrase par phrase : la première part vite, la suite se prépare pendant la lecture
+    lancer(0); lancer(1);   // synthèse phrase par phrase : la première part vite, la suite se prépare pendant la lecture
     for(let i=0;i<parts.length;i++){
       if(token!==speakToken) return;
-      if(enLigne){
-        try{
-          const a=await taches[i];
-          lancer(i+2);
-          if(token!==speakToken) return;
-          await playAudio(a,token); lastVoiceInfo=''; try{ VoixMoteurs.noterUtilise(voiceLabel(a.src)); }catch(e){}
-          if(i<parts.length-1) await pauseParole(reglage(i).pause,token);
-          continue;
-        }catch(e){
-          if(token!==speakToken) return;
-          enLigne=false; try{ ctrl.abort(); }catch(x){}
-          try{ VoixMoteurs.noterEchec(moteurId,(e&&e.message)||errMsg(e)); }catch(x){}
-          const m='Voix « '+(VoixMoteurs.NOMS[moteurId]||{nom:moteurId}).nom+' » indisponible ('+errMsg(e)+') : voix du système';
-          if(m!==lastVoiceInfo){ addLine('sys',m); lastVoiceInfo=m; }
-        }
+      try{
+        const a=await taches[i];
+        lancer(i+2);
+        if(token!==speakToken) return;
+        await playAudio(a,token); lastVoiceInfo=''; indicateurVoix(true); try{ VoixMoteurs.noterUtilise(voiceLabel(a.src)); }catch(e){}
+        if(i<parts.length-1) await pauseParole(reglage(i).pause,token);
+        continue;
+      }catch(e){
+        if(token!==speakToken) return;
+        try{ ctrl.abort(); }catch(x){}
+        const msg=(e&&e.message)||errMsg(e); try{ VoixMoteurs.noterEchec(moteurId,msg); }catch(x){}
+        try{ VoixMoteurs.noterUtilise('voix momentanément indisponible'); }catch(x){} indicateurVoix(false,msg);   // la réponse reste affichée ; pas de voix de remplacement ; les alertes partent sur Telegram
+        break;
       }
-      try{ VoixMoteurs.noterUtilise('secours : voix du système'+(moteurId!=='systeme'?' ('+(VoixMoteurs.NOMS[moteurId]||{nom:moteurId}).nom+' indisponible)':'')); }catch(e){}
-      await browserSpeak(parts[i],token,reglage(i));
-      if(i<parts.length-1) await pauseParole(reglage(i).pause,token);
     }
     if(token!==speakToken) return;
     speaking=false; speechEndT=Date.now(); lastAct=Date.now();
@@ -219,6 +172,8 @@
     const fin=lastVoiceInfo?lastVoiceInfo:resume;
     dire(lignes.join('\n')+'\n'+fin); return fin;
   }
+  /* indicateur discret : « voix momentanément indisponible » quand Gemini ne répond pas (quota, réseau) */
+  function indicateurVoix(ok,detail){ try{ if(ok){ if(voiceEl.dataset.indispo){ delete voiceEl.dataset.indispo; voiceEl.textContent='voix : '+(lastVoiceSrc?voiceLabel(lastVoiceSrc):'Gemini'); voiceEl.title=''; } } else { const deja=voiceEl.dataset.indispo; voiceEl.dataset.indispo='1'; voiceEl.textContent='voix momentanément indisponible'; voiceEl.title=detail||''; if(!deja) addLine('sys','🔇 voix momentanément indisponible : la réponse reste affichée.'); } }catch(e){} }
   function cancelSpeech(){
     speakToken++;
     stopAudioOnly();
