@@ -42,7 +42,9 @@
       if(cache){ try{ const hit=await cache.match(cle); if(hit){ noterUtilise('gemini (copie sur l’appareil)'); return {blob:await hit.blob(),vitesseLecture:1,src:'gemini/'+id+' (cache)'}; } }catch(e){} }
       if(Date.now()<pauseGem()) throw new Error('Gemini en pause (quota atteint) : moteur de secours');
       if(nGemJour()>=LIMITE_JOUR_GEM) throw new Error('quota Gemini du jour atteint ('+LIMITE_JOUR_GEM+' phrases nouvelles) : moteur de secours');
-      const res=await wfetch('/tts',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({text:texte,moteur:'gemini',id,ton:g.ton,vitesse:vit}),signal:opts.signal},30000);
+      /* Worker séparé « rayle-voix » (Gemini TTS seulement) : même jeton que le Worker principal, qui le vérifie */
+      const base=(lire('rayle_voix_url')||'https://rayle-voix.justinmaneiro.workers.dev').replace(/\/+$/,'');
+      const res=await fetchT(base+'/tts',{method:'POST',headers:{'Content-Type':'application/json','X-Rayle-Token':W.token()||''},body:JSON.stringify({text:texte,id,ton:g.ton,vitesse:vit}),signal:opts.signal},30000);
       if(res.status===429){ ecrire(CLE_GEM_PAUSE,String(Date.now()+15*60e3)); throw new Error('quota Gemini atteint : moteur de secours pendant 15 minutes'); }
       if(!res.ok) throw await workerError(res);
       const blob=await res.blob(), etat=res.headers.get('X-Rayle-Cache'); memGem.set(cle,blob); if(memGem.size>60) memGem.delete(memGem.keys().next().value);

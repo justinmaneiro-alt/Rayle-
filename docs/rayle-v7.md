@@ -41,3 +41,6 @@
 - **Aucune voix n'est mise par défaut** (le moteur automatique reste inchangé) : j'attends ton choix.
 - Test Chrome avec Worker simulé : `trader-pro/tests/voix-gemini-chrome.mjs` (14 contrôles : 6 voix, requête envoyée, cache, choix mémorisé, 429 → secours + pause).
 - **Non fait / à faire par toi** : redéployer le Worker principal (le code est dans `worker/worker.js`) et vérifier que le secret `GEMINI_KEY` existe (étapes dans le résumé).
+
+### Correctif de déploiement (21/11/2026)
+Le Worker principal « rayle » en ligne (liaison caméra, D1, 4 crons) n'a pas son code source dans le dépôt : `worker/worker.js` est plus ancien, donc **non déployé**. Les voix Gemini passent par un **Worker séparé `rayle-voix`** (`worker-voix/`, déployé, aucun déclencheur planifié, secret `GEMINI_KEY` à y mettre, jeton vérifié par le /ping du Worker principal) : `https://rayle-voix.justinmaneiro.workers.dev`. Le bloc collé dans `worker/worker.js` est inutile.

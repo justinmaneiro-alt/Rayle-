@@ -1,0 +1,14 @@
+# Petit Worker « rayle-voix » : uniquement Gemini TTS (v7). Ne touche pas au Worker principal « rayle ».
+# AUCUN déclencheur planifié (le compte en a déjà 4 sur 5). Secret unique : GEMINI_KEY.
+# Les jetons sont vérifiés par le /ping du Worker principal (comme rayle-agent-trading).
+# Déployer :  npx.cmd wrangler deploy --config worker-voix/wrangler.toml     Secret :  npx.cmd wrangler secret put GEMINI_KEY --config worker-voix/wrangler.toml
+name = "rayle-voix"
+main = "src/index.js"
+compatibility_date = "2026-10-07"
+preview_urls = false
+workers_dev = true
+
+[vars]
+WORKER_RAYLE = "https://rayle.justinmaneiro.workers.dev"
+ORIGINES = "https://justinmaneiro-alt.github.io,http://127.0.0.1:8000,http://localhost:8000"
+GEMINI_TTS_LIMITE_JOUR = "90"

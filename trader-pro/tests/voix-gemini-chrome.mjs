@@ -6,7 +6,7 @@ const wav = Buffer.concat([Buffer.from('RIFF'), (() => { const b = Buffer.alloc(
 let appels = [], mode429 = false;
 const CORS = { 'access-control-allow-origin': '*', 'access-control-expose-headers': 'X-Rayle-Voix, X-Rayle-Cache' };
 const T = await lancer(mode, { dossierCaptures: 'donnees-privees/captures-v7', stockage: { rayle_worker_url: 'https://faux-worker.test', rayle_worker_token: 'jeton' }, interception: async (r, u) => {
-  if (!u.startsWith('https://faux-worker.test/')) return false;
+  if (!u.startsWith('https://faux-worker.test/') && !u.includes('rayle-voix')) return false;
   if (r.method() === 'OPTIONS') { await r.respond({ status: 204, headers: { ...CORS, 'access-control-allow-headers': '*', 'access-control-allow-methods': 'POST, GET, OPTIONS' } }); return true; }
   if (u.endsWith('/tts')) { const b = JSON.parse(r.postData() || '{}'); appels.push(b); if (mode429) { await r.respond({ status: 429, headers: { ...CORS, 'content-type': 'application/json' }, body: JSON.stringify({ error: 'quota', quota: true }) }); return true; } await r.respond({ status: 200, headers: { ...CORS, 'content-type': 'audio/wav', 'X-Rayle-Voix': 'gemini/Algieba (gemini-2.5-flash-preview-tts)', 'X-Rayle-Cache': 'miss' }, body: wav }); return true; }
   await r.respond({ status: 404, headers: CORS, body: '{}' }); return true;
@@ -21,7 +21,7 @@ verif(await p.evaluate(() => !!document.querySelector('#vxGemVit') && !!document
 await p.evaluate(() => { const t = document.querySelector('#vxGemTon'); t.value = 'pose'; t.dispatchEvent(new Event('change', { bubbles: true })); const v = document.querySelector('#vxGemVit'); v.value = '-10'; v.dispatchEvent(new Event('input', { bubbles: true })); });
 await p.evaluate(() => { try { speechSynthesis.cancel(); } catch (e) { /* */ } document.querySelector('#vxGemini [data-ecouter="gemini-h1"]').click(); });
 verif(await attendre(() => appels.length >= 1, 15000), 'Écouter envoie la phrase au Worker'); const a = appels[0];
-verif(a.moteur === 'gemini' && a.id === 'gemini-h1' && a.ton === 'pose' && a.vitesse <= -10 && a.vitesse >= -25 && /Rayle/.test(a.text), 'corps de la requête : ' + JSON.stringify({ ...a, text: a.text.slice(0, 24) + '…' }));
+verif(a.id === 'gemini-h1' && a.ton === 'pose' && a.vitesse <= -10 && a.vitesse >= -25 && /Rayle/.test(a.text), 'corps de la requête : ' + JSON.stringify({ ...a, text: a.text.slice(0, 24) + '…' }));
 await attendre(() => p.evaluate(() => /Algieba|Gemini/.test(document.querySelector("#vxMoteur").innerText)), 10000);
 verif(await p.evaluate(() => /Algieba|Gemini/.test(document.querySelector('#vxMoteur').innerText)), 'indicateur du moteur utilisé : ' + await p.evaluate(() => document.querySelector('#vxMoteur').innerText));
 const n1 = appels.length; await p.evaluate(() => document.querySelector('#vxGemini [data-ecouter="gemini-h1"]').click()); await w(2500); verif(appels.length === n1, 'même phrase, mêmes réglages : copie de l appareil, aucune nouvelle requête');
