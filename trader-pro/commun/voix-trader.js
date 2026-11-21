@@ -162,7 +162,14 @@ export function sourceInvest() {
     async piloter(spec) { if (typeof window !== 'undefined' && window.Application && window.Application.ouvrir) await window.Application.ouvrir('invest'); const m = await import('../invest/fenetre.js'), inst = await m.ouvrir({}); return inst.piloter(spec); }
   };
 }
+/* v7 : « Rayle, est-ce que l'or est cher ? », « où en est le Bitcoin sur 1 à 3 ans ? » : verdict de « Mes actifs » (mes-actifs.json), parlé à partir des vrais indicateurs */
+export async function repondreMesActifs(texte, { donnees = null } = {}) {
+  const M = await import('../invest/mes-actifs-calcul.js'), I = M.intentionMesActifs(texte); if (!I) return null;
+  try { const D = await (donnees || (await import('../invest/donnees-invest.js')).creerDonnees()).mesActifs(), A = D && D.actifs && D.actifs[I.actif]; if (!A) return `Je n’ai pas encore les indicateurs de ${I.nom.toLowerCase()} : la tâche quotidienne ne les a pas publiés.`; return M.phraseVerdict(I.nom, A.indicateurs, I.horizon); }
+  catch (e) { return `Je n’arrive pas à lire les indicateurs de ${I.nom.toLowerCase()} pour le moment (${String(e && e.message || e).slice(0, 80)}).`; }
+}
 export async function commande(texte) {
+  { const r = await repondreMesActifs(texte); if (r) return r; }
   if (!intention(texte)) { const I = await import('../invest/voix-invest.js'); return I.intentionInvest(texte) ? I.repondreInvest(texte, sourceInvest()) : null; }
   return repondre(texte, sourceNavigateur());
 }

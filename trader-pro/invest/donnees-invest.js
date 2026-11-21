@@ -15,6 +15,8 @@ export function creerDonnees({ base = baseParDefaut, fetchFn = (u, o) => fetch(u
   const json = async chemin => { const r = await fetchFn(base().replace(/\/*$/, '/') + chemin, { signal: typeof AbortSignal !== 'undefined' && AbortSignal.timeout ? AbortSignal.timeout(ms) : undefined }); if (!r.ok) throw new Error(chemin + ' : ' + r.status); return r.json(); };
   const D = {
     async manifeste() { return manifeste || (manifeste = await json('manifest.json')); },
+    /* v7 : indicateurs quotidiens de « Mes actifs » (mes-actifs.json, publié par la tâche mes-actifs / invest) */
+    async mesActifs() { return caches.mesActifs || (caches.mesActifs = json('mes-actifs.json').catch(e => { caches.mesActifs = null; throw e; })); },
     async backtest() { return bt || (bt = await json('backtest.json').catch(() => null)); },
     /* charge les fichiers d'index des classes demandées (ou de tous) ; renvoie toutes les lignes chargées */
     async lignes(classes = null) {

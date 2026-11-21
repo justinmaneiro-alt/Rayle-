@@ -30,6 +30,9 @@ jobs:
         env:
           SEC_USER_AGENT: ${{ secrets.SEC_USER_AGENT }}
         run: node outils-donnees/invest/calcul-v2.mjs --sortie sortie --reprise --conc 6
+      - name: Mes actifs (indicateurs quotidiens : Bitcoin, Solana, or, Nasdaq 100, S&P 500, pétrole)
+        continue-on-error: true
+        run: node outils-donnees/invest/mes-actifs.mjs --sortie sortie
       - name: Instantané mensuel du modèle et suivi de sa performance (data/snapshots)
         # Le 1er du mois (ou au premier calcul du mois) : tous les scores et verdicts de chaque horizon sont enregistrés dans data/snapshots/AAAA-MM.json ;
         # la performance réelle depuis chaque instantané (1, 3, 6, 12 mois ; « Très attractif » contre « Neutre » contre « À éviter », et contre l'indice) est recalculée dans data/snapshots/suivi.json.

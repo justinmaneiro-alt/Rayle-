@@ -9,6 +9,7 @@ import { creerDonnees, CLASSES } from './donnees-invest.js';
 import { HORIZONS, verdictLigne, pourquoi, LIBELLES, POIDS, NOM_FACTEUR } from './modele.js';
 import { contactTechnique, estBon } from './plan.js';
 import { vuePlan } from './plan-ui.js';
+import { vueMesActifs } from './mes-actifs-ui.js';
 import { suiviHtml } from './suivi-ui.js';
 import { calculerListe, PREREGLAGES, CAPS } from './calcul-liste.js';
 import { fenetreDefaut, libelleFenetre, MOIS, meilleuresFenetres, decoder } from './saison.js';
@@ -41,7 +42,7 @@ export async function ouvrir({ racine = document.body, onFermer = () => {} } = {
   const el = document.createElement('section'); el.id = 'invest-fenetre'; el.className = 'tp tp-invest'; el.setAttribute('aria-label', 'Investissement');
   el.innerHTML = `<header class="tp-tete"><b>Investissement</b><span class="tp-sync" data-etat role="status">chargement…</span></header>
     <div class="lt-barre" data-barre></div>
-    <nav class="tp-nav" role="tablist" aria-label="Sections">${[['liste', 'Instruments'], ['maliste', 'Ma liste'], ['plan', 'Mon plan'], ['methode', 'Méthode']].map(([k, n]) => `<button type="button" role="tab" data-onglet="${k}" aria-selected="false">${n}</button>`).join('')}</nav>
+    <nav class="tp-nav" role="tablist" aria-label="Sections">${[['liste', 'Instruments'], ['maliste', 'Ma liste'], ['mesactifs', 'Mes actifs'], ['plan', 'Mon plan'], ['methode', 'Méthode']].map(([k, n]) => `<button type="button" role="tab" data-onglet="${k}" aria-selected="false">${n}</button>`).join('')}</nav>
     <p class="tp-bandeau" data-bandeau hidden role="status"></p><main class="tp-corps" data-corps><div class="tp-onglet" data-zone></div></main>
     <footer class="tp-pied">Estimations chiffrées avec leurs hypothèses visibles : ni prévision ni conseil en investissement. Prix : Yahoo Finance ; comptes : SEC EDGAR (États-Unis) et séries publiques Yahoo ailleurs ; liste des instruments : table des marges XTB.</footer>`;
   racine.appendChild(el);
@@ -216,6 +217,7 @@ export async function ouvrir({ racine = document.body, onFermer = () => {} } = {
   async function rendre() {
     viderGraphs(); S.seq++; S.fiche = null; sauver(); el.querySelectorAll('[data-onglet]').forEach(b => b.setAttribute('aria-selected', String(b.dataset.onglet === S.onglet)));
     if (S.onglet === 'methode') { await vueMethode(); return; }
+    if (S.onglet === 'mesactifs') { await vueMesActifs({ zone, donnees: S.D, parler, S }); return; }
     if (S.onglet === 'plan') { await vuePlan({ S: { ...S, horizonNom: hz().nom }, zone, chargerTout: () => charger(CLASSES.map(x => x[0])), parler, badgeLib }); return; }
     cadreListe(); majTuiles(); await recalculer();
   }

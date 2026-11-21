@@ -35,13 +35,14 @@ export function delaiPourSource(source) {
   return null;
 }
 /* liste d'état à partir des index publiés : donnees/index.json { fichiers: { nom: { t, ok } } }, footprint/index.json { t }, historique/index.json { t }, controle/controle-nuit.json { t } */
-export function construireEtat({ donnees, footprint, historique, controle } = {}, maintenant = Date.now()) {
+export function construireEtat({ donnees, footprint, historique, controle, misActifs } = {}, maintenant = Date.now()) {
   const L = [], groupes = new Map();
   for (const [nom, e] of Object.entries((donnees && donnees.fichiers) || {})) { const f = familleDe(nom); if (!f) continue; let g = groupes.get(f.id); if (!g) { g = { famille: f, t: Infinity, n: 0, ko: 0, nomsKo: [] }; groupes.set(f.id, g); } g.n++; g.t = Math.min(g.t, e.t || 0); if (e.ok === false) { g.ko++; g.nomsKo.push(nom); } }
   for (const g of groupes.values()) { const s = statut(g.t, g.famille.delai, maintenant); L.push({ id: g.famille.id, nom: g.famille.nom, essentiel: g.famille.essentiel, t: g.t, delai: g.famille.delai, prochaine: g.t + g.famille.delai, statut: g.ko ? (s.code === 'vert' ? 'orange' : s.code) : s.code, fichiers: g.n, echecs: g.ko, detail: g.ko ? g.nomsKo.slice(0, 4).join(', ') : null }); }
   const add = (id, nom, t, delai, essentiel = false) => { if (!Number.isFinite(t)) { L.push({ id, nom, essentiel, t: null, delai, prochaine: null, statut: 'rouge', fichiers: 0, echecs: 0, detail: 'index illisible ou absent' }); return; } L.push({ id, nom, essentiel, t, delai, prochaine: t + delai, statut: statut(t, delai, maintenant).code, fichiers: null, echecs: 0, detail: null }); };
   add('historique', 'Historique long (branche historique)', historique && historique.t, 8 * J); add('footprint', 'Footprint (branche footprint)', footprint && footprint.t, 2 * J);
   if (controle) add('controle', 'Contrôles de la nuit', controle.t, 2 * J);
+  if (misActifs) add('misactifs', 'Investissement · Mes actifs (indicateurs quotidiens' + (misActifs.absentes ? ', ' + misActifs.absentes + ' indicateur(s) retiré(s)' : '') + ')', misActifs.t, 26 * H);
   const ordre = { rouge: 0, orange: 1, inconnu: 2, vert: 3 }; return L.sort((a, b) => ordre[a.statut] - ordre[b.statut] || a.nom.localeCompare(b.nom, 'fr'));
 }
 /* voyant global : rouge si une source essentielle est en panne ou si plus de la moitié des sources sont périmées ; orange si une source essentielle est périmée ou si une autre est en panne */
@@ -67,6 +68,6 @@ export function erreurs24h(st = (typeof localStorage !== 'undefined' ? localStor
 /* lecture des index (en parallèle, chacun avec un délai maximum) ; ce qui échoue est noté mais ne bloque pas les autres */
 export async function lireEtat({ fetchFn = (...a) => fetch(...a), base = BASE, maintenant = Date.now(), delai = 10000 } = {}) {
   const lire = async chemin => { try { const r = await fetchFn(base + chemin + '?v=' + Math.floor(maintenant / 60000), { signal: AbortSignal.timeout ? AbortSignal.timeout(delai) : undefined }); if (!r.ok) throw new Error(String(r.status)); return await r.json(); } catch (e) { noterErreur(chemin); return null; } };
-  const [donnees, footprint, historique, controle] = await Promise.all([lire('donnees/index.json'), lire('footprint/index.json'), lire('historique/index.json'), lire('controle/controle-nuit.json')]);
-  const L = construireEtat({ donnees, footprint, historique, controle }, maintenant); return { liste: L, voyant: voyant(L), controle, maintenant };
+  const [donnees, footprint, historique, controle, misActifs] = await Promise.all([lire('donnees/index.json'), lire('footprint/index.json'), lire('historique/index.json'), lire('controle/controle-nuit.json'), lire('donnees-invest/mes-actifs-etat.json')]);
+  const L = construireEtat({ donnees, footprint, historique, controle, misActifs }, maintenant); return { liste: L, voyant: voyant(L), controle, maintenant };
 }

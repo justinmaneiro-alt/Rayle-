@@ -1,0 +1,40 @@
+name: mes-actifs
+# Investissement > « Mes actifs » : indicateurs « cher ou pas cher » (FRED, Yahoo, multpl, CFTC, Coin Metrics, DefiLlama, CoinGecko, OKX ; aucune clé).
+# Une fois par jour (rapide : environ 10 secondes de calcul) ; le fichier est ajouté à la branche donnees-invest SANS toucher au reste (le calcul nocturne « invest » le recalcule aussi).
+on:
+  schedule:
+    - cron: '40 5 * * *'
+  workflow_dispatch:
+concurrency:
+  group: mes-actifs
+  cancel-in-progress: false
+permissions:
+  contents: write
+jobs:
+  mes-actifs:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Calculer
+        run: node outils-donnees/invest/mes-actifs.mjs --sortie sortie-ma
+      - name: Publier sur la branche donnees-invest (un commit de plus, aucun fichier existant touché)
+        env:
+          JETON: ${{ github.token }}
+        run: |
+          for i in 1 2 3; do
+            rm -rf branche
+            git clone -q --depth 1 --branch donnees-invest "https://x-access-token:${JETON}@github.com/${GITHUB_REPOSITORY}.git" branche || { echo "branche absente : rien à publier"; exit 0; }
+            cp sortie-ma/mes-actifs.json sortie-ma/mes-actifs-etat.json branche/
+            cd branche
+            git config user.name "rayle-donnees"
+            git config user.email "rayle-donnees@users.noreply.github.com"
+            git add mes-actifs.json mes-actifs-etat.json
+            git commit -q -m "mes-actifs $(date -u +%FT%TZ)" || { echo "rien de changé"; exit 0; }
+            git push -q origin donnees-invest && exit 0
+            cd ..
+          done
+          exit 1
