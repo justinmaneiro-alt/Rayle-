@@ -86,3 +86,8 @@ html.tpv-actif .tor-graph, html.tpv-actif .tor-outils { visibility: hidden; }
 
 /* v7 : un seul sélecteur d actif et d unité (celui du terminal) : ceux du mode Volume sont retirés */
 .tpv [data-actif], .tpv .tpv-unites { display: none !important; }
+
+/* v7 : bougies HTF en grand */
+.tpv-htf { display: block; width: 100%; height: min(48vh, 440px); min-height: 300px; background: #000; border: 1px solid #101a22; margin: 4px 0 6px; }
+.tpv-htf-proche { margin: 0 0 6px; font-size: 12px; line-height: 1.5; }
+.tpv-ict-det > summary { cursor: pointer; font-size: 11px; color: #8aa0aa; padding: 4px 0; }

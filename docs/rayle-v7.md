@@ -9,3 +9,12 @@
 5. **Instruments** : la fenêtre Investissement affiche le total du manifeste (même chiffre que la carte d'accueil) ; le nombre chargé n'apparaît qu'entre parenthèses s'il est plus petit.
 6. **Cohérence des prix** : Classique et Volume notent leur dernier prix (toutes les 20–30 s) ; écart > 0,5 % → incident « coherence » dans État des données. Limites : les prix de **futures** (US100, US500, EUR/USD, or en source « ref ») ne sont pas comparés (base différente du comptant, dite dans le badge) ; Marchés et accueil ne notent pas encore leur prix (à brancher).
 7. Autres : tests `trader-pro/tests/coherence-v7-test.mjs` (14).
+
+## Phase 2 — Onglet « Bougies HTF / ICT » : les dernières bougies en grand
+
+- Remplace la miniature par un **canvas qui prend toute la hauteur** du panneau (`volume/panneau-droite.js`, `dessinerHtf`) ; calcul pur et testé dans `volume/htf-calcul.js` (23 tests) : 3 / 4 / 5 bougies (4 par défaut ; Daily : 5), Weekly / Daily / Monthly, dernière bougie « en cours » en direct (prix du graphique principal).
+- Sous chaque bougie : date, « en cours », amplitude en %, volume relatif à la moyenne des 20 périodes précédentes (« ×1,4 »).
+- **Zones de rebond** : PWH/PWL (période précédente) et plus haut / plus bas des autres périodes affichées, 50 % de la période précédente, milieu des longues mèches (mèche > 40 % de l'amplitude : « CE »), FVG encore ouverts (zones grisées), ouverture de la période en cours, MA200 Daily si dans la zone visible. **Fusion** des niveaux à moins de 4 % de la hauteur visible, **6 étiquettes au plus** (priorité PWH/PWL > 50 % > CE > ouverture > MA200 > autres), étiquettes à droite **espacées d'au moins 25 px** (`placerEtiquettes`).
+- Prix actuel : ligne jaune + distance au niveau le plus proche au-dessus et en dessous (« Support le plus proche : PWL 3 511 (−1,1 %) »). Lecture en une ligne conservée ; bouton « Afficher sur le graphique principal » conservé ; la liste des repères est repliée dans un « Repères du graphique principal ».
+- Vérifié dans Chrome sur l'or et l'US100 (`trader-pro/tests/htf-chrome.mjs`, 13 contrôles, captures dans `donnees-privees/captures-v7/`).
+- Observé, non corrigé : l'en-tête du Classique affiche le Nasdaq 100 à 26 517 alors que les futures NQ (source du Volume) sont à 25 291 (4,6 %), ce qui dépasse une base de futures normale : à examiner (instantané `pro-us100` périmé ?).

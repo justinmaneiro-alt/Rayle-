@@ -8,6 +8,7 @@ import { creerZones, creerEtiquettesAxe } from './etiquettes-axe.js';
 import { etiquettesAxe as etiqIct } from './ict-affichage.js';
 import { profilDe, NOM_ONGLET, ongletInitial } from './profils-actifs.js';
 import { profil, serieDelta, cvd, deltaReel } from './volume-calcul.js';
+import { construireHtf, placerEtiquettes, NB_DEFAUT, NOMS as NOMS_HTF } from './htf-calcul.js';
 
 export function monterPanneau(ctx) {
   const { zone, LW, S, opts, esc, nf, compact, sgn, prix, tH, parId, NOM_U } = ctx, $ = s => zone.querySelector(s);
@@ -15,9 +16,10 @@ export function monterPanneau(ctx) {
     <div class="tpv-pan" data-pan="carnet"></div>
     <div class="tpv-pan" data-pan="ict" hidden>
       <p class="tpv-lecture" data-lecture>Lecture en cours…</p>
-      <div class="tpv-ict-barre"><label>Bougies <select data-htf><option value="J">Daily</option><option value="S">Weekly</option><option value="M">Monthly</option></select></label><button type="button" data-ict-principal aria-pressed="false" title="Reporte les repères choisis sur le grand graphique, avec étiquettes sur l’axe des prix seulement">Afficher sur le graphique principal</button></div>
-      <div class="tpv-mini" data-mini></div>
-      <div class="tpv-ict-liste" data-ict-liste>${REPERES_ICT.map(([k, n]) => `<label><input type="checkbox" data-ict="${k}"> ${esc(n)}</label>`).join('')}</div>
+      <div class="tpv-ict-barre"><label>Bougies <select data-htf><option value="S">Weekly</option><option value="J">Daily</option><option value="M">Monthly</option></select></label><label>Nombre <select data-htf-n><option value="3">3</option><option value="4">4</option><option value="5">5</option></select></label><button type="button" data-ict-principal aria-pressed="false" title="Reporte les repères choisis sur le grand graphique, avec étiquettes sur l’axe des prix seulement">Afficher sur le graphique principal</button></div>
+      <canvas class="tpv-htf" data-htf-cv width="260" height="420" aria-label="Dernières bougies en grand et zones de rebond"></canvas>
+      <p class="tpv-htf-proche" data-htf-proche></p>
+      <details class="tpv-ict-det"><summary>Repères du graphique principal</summary><div class="tpv-ict-liste" data-ict-liste>${REPERES_ICT.map(([k, n]) => `<label><input type="checkbox" data-ict="${k}"> ${esc(n)}</label>`).join('')}</div></details>
     </div>
     <div class="tpv-pan" data-pan="jour" hidden>
       <div class="tpv-jour-barre"><label>Bougie <select data-jour-tf><option value="J">Daily</option><option value="S">Weekly</option></select></label></div>
@@ -36,7 +38,7 @@ export function monterPanneau(ctx) {
   function choisir(k, { memoriser = true } = {}) {
     const p = profilDe(S.actif); if (!p.onglets.includes(k)) k = p.droite; onglet = k; if (memoriser) ctx.ecrireLS(cleOnglet(S.actif), k); dessinerOnglets(); rendre();
   }
-  function changerActif() { onglet = ongletInitial(S.actif, ctx.lireLS(cleOnglet(S.actif), null)); dessinerOnglets(); $('[data-htf]').value = ctx.lireLS(cleMemo('htf', S.actif), 'J'); $('[data-jour-tf]').value = ctx.lireLS(cleMemo('jourtf', S.actif), 'J'); synchroIct(); }
+  function changerActif() { onglet = ongletInitial(S.actif, ctx.lireLS(cleOnglet(S.actif), null)); dessinerOnglets(); $('[data-htf]').value = ctx.lireLS(cleMemo('htf', S.actif), 'S'); $('[data-htf-n]').value = String(nbHtf()); $('[data-jour-tf]').value = ctx.lireLS(cleMemo('jourtf', S.actif), 'J'); synchroIct(); }
 
   /* ───── Carnet (crypto / perpétuel) ───── */
   const palierDe = a => { const L = PALIERS[a] || [1]; const m = ctx.lireLS(cleMemo('palier', a), null); return L.includes(m) ? m : (PALIER_DEFAUT[a] || L[0]); };
@@ -74,21 +76,41 @@ export function monterPanneau(ctx) {
     zonesMini = creerZones(); serieMini.attachPrimitive(zonesMini); etiqMini = creerEtiquettesAxe({ ecart: 13 }); serieMini.attachPrimitive(etiqMini);
     try { echMini = ctx.creerEchelles({ chart: mini, serie: serieMini, hote, LW, panneau: 0 }); } catch (e) { echMini = null; }
   }
+  const tfHtf = () => ctx.lireLS(cleMemo('htf', S.actif), 'S'), nbHtf = () => { const n = ctx.lireLS(cleMemo('htfn', S.actif), null); return [3, 4, 5].includes(n) ? n : NB_DEFAUT[tfHtf()] || 4; };
+  let htfDernier = null;
+  const fmtDate = (t, tf) => (tf === 'M' ? new Date(t).toLocaleDateString('fr-FR', { timeZone: 'UTC', month: 'short', year: '2-digit' }) : new Date(t).toLocaleDateString('fr-FR', { timeZone: 'UTC', day: '2-digit', month: '2-digit' }));
+  /* v7 : les dernières bougies en grand (toute la hauteur), zones de rebond tracées en travers, étiquettes à droite sans chevauchement, prix actuel et distances */
+  function dessinerHtf() {
+    const cv = $('[data-htf-cv]'), pr = $('[data-htf-proche]'); if (!cv || !htfDernier) return; const a = S.actif, tf = tfHtf(), dernier = S.bars.length ? S.bars[S.bars.length - 1].c : null;
+    const R = construireHtf(htfDernier.J, { tf, n: nbHtf(), prixLive: dernier, fmt: v => prix(a, v) });
+    const dpr = Math.min(2, window.devicePixelRatio || 1), W = cv.clientWidth || 260, Hh = Math.max(300, cv.clientHeight || 420); cv.width = Math.round(W * dpr); cv.height = Math.round(Hh * dpr); const g = cv.getContext('2d'); g.setTransform(dpr, 0, 0, dpr, 0, 0); g.clearRect(0, 0, W, Hh);
+    if (!R.ok) { g.fillStyle = '#7f8f99'; g.font = '12px system-ui, sans-serif'; g.fillText(R.raison, 10, 24); pr.textContent = ''; return; }
+    const droite = Math.min(92, W * 0.34), pied = 60, haut = 14, bas = Hh - pied, gauche = 6, zoneW = W - droite - gauche, y = p => haut + (R.haut - p) / (R.haut - R.bas) * (bas - haut);
+    g.font = '10px ui-monospace, Consolas, monospace'; g.textBaseline = 'middle';
+    for (const z of R.zones) { g.fillStyle = 'rgba(170,180,190,.13)'; g.fillRect(gauche, y(z.haut), zoneW + droite * 0.15, Math.max(2, y(z.bas) - y(z.haut))); g.fillStyle = 'rgba(170,180,190,.55)'; g.textAlign = 'left'; g.fillText('FVG', gauche + zoneW + 4, y((z.bas + z.haut) / 2)); }
+    const n = R.bougies.length, pas = zoneW / n, corps = Math.min(58, pas * 0.56);
+    /* niveaux : traits en travers des bougies, étiquettes à droite (empilées) */
+    const ys = R.niveaux.map(l => y(l.prix)), yl = placerEtiquettes(ys, 25, haut + 12, bas - 12);
+    R.niveaux.forEach((l, i) => { g.strokeStyle = 'rgba(127,179,194,.55)'; g.setLineDash([3, 3]); g.lineWidth = 1; g.beginPath(); g.moveTo(gauche, ys[i]); g.lineTo(gauche + zoneW, ys[i]); g.stroke(); g.setLineDash([]); g.strokeStyle = 'rgba(127,179,194,.35)'; g.beginPath(); g.moveTo(gauche + zoneW, ys[i]); g.lineTo(gauche + zoneW + 5, yl[i]); g.stroke();
+      g.fillStyle = 'rgba(127,179,194,.95)'; g.textAlign = 'left'; g.fillText(l.texte, gauche + zoneW + 7, yl[i] - 5); g.fillStyle = '#aebcc4'; g.fillText(prix(a, l.prix), gauche + zoneW + 7, yl[i] + 5); });
+    /* bougies */
+    R.bougies.forEach((b, i) => {
+      const cx = gauche + pas * (i + 0.5), up = b.c >= b.o, col = up ? '#5fb894' : '#d86a6a', yo = y(b.o), yc = y(b.c);
+      g.strokeStyle = col; g.lineWidth = 2; g.beginPath(); g.moveTo(cx, y(b.h)); g.lineTo(cx, y(b.l)); g.stroke(); g.lineWidth = 1;
+      g.fillStyle = up ? 'rgba(95,184,148,.55)' : 'rgba(216,106,106,.55)'; const top = Math.min(yo, yc), hc = Math.max(2, Math.abs(yo - yc)); g.fillRect(cx - corps / 2, top, corps, hc); g.strokeStyle = col; g.strokeRect(cx - corps / 2 + 0.5, top + 0.5, corps - 1, hc - 1);
+      g.textAlign = 'center'; g.fillStyle = b.enCours ? '#e6edf2' : '#8a9aa4'; g.fillText(fmtDate(b.t, tf), cx, bas + 10); g.fillStyle = '#f1d34f'; g.fillText(b.enCours ? 'en cours' : '', cx, bas + 22); g.fillStyle = '#aebcc4'; g.fillText(b.amplitudePct != null ? nf(b.amplitudePct, 1) + ' %' : '—', cx, bas + 35); g.fillStyle = b.volRel != null && b.volRel >= 1.3 ? '#e6edf2' : '#6b7a84'; g.fillText(b.volRel != null ? '×' + nf(b.volRel, 1) : 'vol. —', cx, bas + 48);
+    });
+    /* prix actuel : ligne bien visible, étiquette sur l'axe */
+    const yp = y(R.prix); g.strokeStyle = '#f1d34f'; g.lineWidth = 1.5; g.beginPath(); g.moveTo(gauche, yp); g.lineTo(gauche + zoneW + 4, yp); g.stroke(); g.lineWidth = 1; g.fillStyle = '#f1d34f'; g.fillRect(gauche + zoneW + 4, yp - 8, droite - 6, 16); g.fillStyle = '#05080c'; g.textAlign = 'left'; g.font = 'bold 10px ui-monospace, Consolas, monospace'; g.fillText(prix(a, R.prix), gauche + zoneW + 7, yp);
+    pr.innerHTML = [R.resistance ? '<span class="tpv-b">' + esc(R.resistance.phrase) + '</span>' : '', R.support ? '<span class="tpv-h">' + esc(R.support.phrase) + '</span>' : ''].filter(Boolean).join('<br>');
+  }
   async function majIct() {
     const c = $('[data-pan="ict"]'); if (!c || c.hidden) return; const seq = ++tIct, a = S.actif;
     let J = null; try { J = await ctx.donneesJ(); } catch (e) { J = null; } if (seq !== tIct) return;
     if (!J || J.length < 20) { $('[data-lecture]').textContent = 'Pas assez de bougies Daily pour lire le contexte (' + (J ? J.length : 0) + ').'; return; }
-    creerMini(); const tf = ctx.lireLS(cleMemo('htf', a), 'J'), G = agreger(J, tf), t = x => Math.floor(x / 1000), fmt = v => prix(a, v);
-    serieMini.setData(G.map(b => ({ time: t(b.t), open: b.o, high: b.h, low: b.l, close: b.c })));
-    const A = construire(J, { ...ICT_DEFAUT, ...(opts.ict || {}) }, { fmt });
-    for (const l of lignesMini) { try { serieMini.removePriceLine(l); } catch (e) { /* retirée */ } } lignesMini = [];
-    for (const l of A.lignes) lignesMini.push(serieMini.createPriceLine({ price: l.prix, color: l.couleur, lineWidth: 1, lineStyle: l.tirets ? 2 : 0, axisLabelVisible: false, title: '' }));
-    etiqMini.set(etiqIct(A));
-    zonesMini.set(A.zones);
-    const snap = tt => { let k = null; for (const b of G) { if (b.t <= tt) k = b; else break; } return k ? t(k.t) : null; };
-    const M = A.marqueurs.map(m => ({ time: snap(m.t), position: m.position, color: m.couleur, shape: m.position === 'aboveBar' ? 'arrowDown' : 'arrowUp', text: m.texte, size: 1 })).filter(m => m.time != null);
-    try { if (!marqueursMini) marqueursMini = LW.createSeriesMarkers(serieMini, M); else marqueursMini.setMarkers(M); } catch (e) { /* marqueurs absents */ }
-    $('[data-lecture]').textContent = A.lecture; ctx.surIct(A); try { if (!c.dataset.vue) { const n = G.length; mini.timeScale().setVisibleLogicalRange({ from: Math.max(0, n - 70), to: n + 4 }); c.dataset.vue = '1'; } } catch (e) { /* vue */ }
+    const fmt = v => prix(a, v), A = construire(J, { ...ICT_DEFAUT, ...(opts.ict || {}) }, { fmt });
+    htfDernier = { J }; dessinerHtf();
+    $('[data-lecture]').textContent = A.lecture; ctx.surIct(A);
   }
   const demanderIct = () => { clearTimeout(demanderIct.t); demanderIct.t = setTimeout(majIct, 120); };
   function synchroIct() {
@@ -153,11 +175,12 @@ export function monterPanneau(ctx) {
     if (t.matches('[data-palier]')) { ctx.ecrireLS(cleMemo('palier', S.actif), +t.value); rendreCarnet(); return; }
     if (t.matches('[data-cumul]')) { ctx.ecrireLS('rayle_tpv_cumul', t.checked); rendreCarnet(); return; }
     if (t.matches('[data-seuil-gros]')) { const v = parseFloat(t.value); ctx.ecrireLS(cleMemo('seuilgros', S.actif), Number.isFinite(v) && v > 0 ? v : null); rendreCarnet(); return; }
-    if (t.matches('[data-htf]')) { ctx.ecrireLS(cleMemo('htf', S.actif), t.value); delete $('[data-pan="ict"]').dataset.vue; majIct(); return; }
+    if (t.matches('[data-htf]')) { ctx.ecrireLS(cleMemo('htf', S.actif), t.value); ctx.ecrireLS(cleMemo('htfn', S.actif), null); $('[data-htf-n]').value = String(nbHtf()); majIct(); return; }
+    if (t.matches('[data-htf-n]')) { ctx.ecrireLS(cleMemo('htfn', S.actif), +t.value); dessinerHtf(); return; }
     if (t.matches('[data-jour-tf]')) { ctx.ecrireLS(cleMemo('jourtf', S.actif), t.value); rendreJour(); return; }
     if (t.matches('[data-ict]')) { opts.ict = { ...ICT_DEFAUT, ...(opts.ict || {}), [t.dataset.ict]: t.checked }; ctx.sauverOpts(); majIct(); ctx.surIct(null, true); }
   });
   changerActif(); dessinerOnglets();
   return { rendre, rendreCarnet, majIct: demanderIct, rendreJour, choisir, changerActif, onglet: () => onglet, rendreDetails, synchroIct, dessinerOnglets,
-    detruire() { try { mini && mini.remove(); } catch (e) { /* déjà retiré */ } mini = null; } };
+    dessinerHtf, detruire() { /* rien à détruire : canvas */ } };
 }
