@@ -127,6 +127,12 @@
       <input id="kNoms" type="text" placeholder="ex. réalé, rallye, railé" autocomplete="off" spellcheck="false">
 
       <h3>Voix de Raylé <span class="voix" id="vxEtat">…</span></h3>
+      <p class="hint" id="vxMoteur" role="status">Moteur utilisé en ce moment : …</p>
+      <h4 class="vx-tit">Voix naturelles Gemini (Google, gratuit) — choisis à l'oreille</h4>
+      <div id="vxGemini" class="vx-liste"></div>
+      <div class="row vx-gem-reglages"><label for="vxGemVit">Vitesse <span id="vxGemVitVal">normale</span></label><input id="vxGemVit" type="range" min="-20" max="20" step="2"><label for="vxGemTon">Ton</label><select id="vxGemTon"><option value="naturel">Naturel</option><option value="chaleureux">Chaleureux</option><option value="pose">Posé</option><option value="dynamique">Dynamique</option></select></div>
+      <p class="hint" id="vxGemQuota"></p>
+      <h4 class="vx-tit">Autres voix</h4>
       <div id="vxListe" class="vx-liste"></div>
       <label for="vxHauteur">Hauteur de la voix : <span id="vxHauteurVal">normale</span></label>
       <input id="vxHauteur" type="range" min="-20" max="20" step="1">
@@ -289,7 +295,7 @@
   <div id="chargement"><div id="chargement-texte">Chargement des mondes…</div><div class="g-barre"><div id="chargement-barre"></div></div></div>
 </div>
 
-<script>window.RAYLE_VERSION='2026.11.20.4';</script>
+<script>window.RAYLE_VERSION='2026.11.21.1';</script>
 <script src="config.js"></script>
 <script src="core/commun/maj-pc.js"></script>
 <script src="core/commun/bascule-worker.js"></script>

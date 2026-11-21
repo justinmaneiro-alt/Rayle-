@@ -71,6 +71,7 @@
   function voiceLabel(src){
     const [moteur,nom]=String(src||'').split('/');
     if(moteur==='local'&&window.VoixMoteurs&&VoixMoteurs.NOMS[nom]) return VoixMoteurs.NOMS[nom].nom+' (locale, gratuite)';
+    if(moteur==='gemini'){ const id=String(nom||'').split(' ')[0]; return (window.VoixMoteurs&&VoixMoteurs.NOMS[id]?VoixMoteurs.NOMS[id].nom:nom)+' (Gemini TTS)'; }
     return (nom||persona.voix||'?')+' ('+(moteur==='azure'?'Azure':moteur==='edge'?'Edge':moteur)+')';
   }
   const audioEl=new Audio(); audioEl.preload='auto'; try{ audioEl.setAttribute('playsinline',''); }catch(e){}
@@ -176,7 +177,7 @@
           const a=await taches[i];
           lancer(i+2);
           if(token!==speakToken) return;
-          await playAudio(a,token); lastVoiceInfo='';
+          await playAudio(a,token); lastVoiceInfo=''; try{ VoixMoteurs.noterUtilise(voiceLabel(a.src)); }catch(e){}
           if(i<parts.length-1) await pauseParole(reglage(i).pause,token);
           continue;
         }catch(e){
@@ -186,6 +187,7 @@
           if(m!==lastVoiceInfo){ addLine('sys',m); lastVoiceInfo=m; }
         }
       }
+      try{ VoixMoteurs.noterUtilise('secours : voix du système'+(moteurId!=='systeme'?' ('+(VoixMoteurs.NOMS[moteurId]||{nom:moteurId}).nom+' indisponible)':'')); }catch(e){}
       await browserSpeak(parts[i],token,reglage(i));
       if(i<parts.length-1) await pauseParole(reglage(i).pause,token);
     }
