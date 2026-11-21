@@ -3,7 +3,9 @@
    Les OUTILS sont exécutés par la page (les données de l'application sont dans l'appareil) ; ce Worker ne fait que parler à Gemini avec la clé GEMINI_KEY (secrète) et renvoyer ce que le modèle a décidé :
    du texte, ou des appels de fonctions. La page renvoie ensuite les résultats (functionResponse) et rappelle la route jusqu'à la réponse finale.
    Modèles gratuits essayés dans l'ordre ; un modèle en quota (429) ou absent (404/400) est mis de côté et le suivant prend le relais (chaque modèle a son propre quota gratuit). */
-export const MODELES_TEXTE = ['gemini-2.5-flash', 'gemini-3.1-flash-lite', 'gemini-2.5-flash-lite', 'gemini-3.5-flash', 'gemini-flash-latest'];
+/* Mesuré le 21/11/2026 avec la vraie clé (appel de fonction + réponse, niveau de réflexion « low ») : gemini-3.1-flash-lite ≈ 2 s ; gemini-3.5-flash-lite ≈ 0,7 s ; gemini-3-flash-preview ≈ 2,3 s ;
+   gemini-2.5-flash et 2.5-flash-lite : « plus disponibles pour les nouveaux utilisateurs » (404) ; gemini-3.5-flash, 3.6/3.7/3.8-flash et flash-latest : plus de 25 s (abandonnés). */
+export const MODELES_TEXTE = ['gemini-3.1-flash-lite', 'gemini-3.5-flash-lite', 'gemini-3-flash-preview'];
 export class ErreurCerveau extends Error { constructor(msg, statut = 503, quota = false) { super(msg); this.statut = statut; this.quota = quota; } }
 const bloques = new Map();   // modèle → timestamp de fin de blocage (quota)
 let modeleOk = null;
@@ -13,14 +15,16 @@ const TAILLE_MAX = 300000;
 export function construireCorps({ system, contents, outils, temperature = 0.6, maxTokens = 900 }, modele) {
   const c = { systemInstruction: { parts: [{ text: String(system || '').slice(0, 20000) }] }, contents, generationConfig: { temperature: Math.max(0, Math.min(1.2, +temperature || 0.6)), maxOutputTokens: Math.max(200, Math.min(2000, Math.round(+maxTokens || 900))) } };
   if (Array.isArray(outils) && outils.length) { c.tools = [{ functionDeclarations: outils }]; c.toolConfig = { functionCallingConfig: { mode: 'AUTO' } }; }
-  if (/2\.5/.test(modele)) c.generationConfig.thinkingConfig = { thinkingBudget: 0 };   // réponse rapide : pas de « réflexion » facturée sur le quota
+  /* réponse rapide : peu ou pas de « réflexion » (elle consomme du quota et des secondes) : 2.5 → budget 0 ; 3.x → niveau « low » */
+  if (/2\.5/.test(modele)) c.generationConfig.thinkingConfig = { thinkingBudget: 0 };
+  else if (/3\.|latest/.test(modele)) c.generationConfig.thinkingConfig = { thinkingLevel: 'low' };
   return c;
 }
 const detail429 = async r => { const brut = await r.text().catch(() => ''); let d = brut; try { const e = (JSON.parse(brut).error) || {}; const viol = ((e.details || []).find(x => x.violations) || {}).violations || []; d = [e.message, ...viol.map(v => (v.quotaMetric || '') + ' ' + (v.quotaId || ''))].filter(Boolean).join(' | '); } catch (x) { /* texte brut */ } return String(d).replace(/\s+/g, ' ').slice(0, 400); };
 
-export async function appelerCerveau(req, { cle, fetchFn = (...a) => fetch(...a), maintenant = Date.now(), delai = 28000 }) {
+export async function appelerCerveau(req, { cle, fetchFn = (...a) => fetch(...a), maintenant = Date.now(), delai = 20000, modeles = null }) {
   if (!cle) throw new ErreurCerveau('clé GEMINI_KEY absente des secrets du Worker', 400);
-  const liste = (modeleOk ? [modeleOk, ...MODELES_TEXTE.filter(m => m !== modeleOk)] : MODELES_TEXTE), essais = []; let quota = 0;
+  const base = modeles || MODELES_TEXTE, liste = (!modeles && modeleOk ? [modeleOk, ...MODELES_TEXTE.filter(m => m !== modeleOk)] : base), essais = []; let quota = 0;
   for (const m of liste) {
     if ((bloques.get(m) || 0) > maintenant) { essais.push(m + ' : en pause (quota)'); quota++; continue; }
     let r; try { r = await fetchFn(`https://generativelanguage.googleapis.com/v1beta/models/${m}:generateContent`, { method: 'POST', headers: { 'Content-Type': 'application/json', 'x-goog-api-key': cle }, body: JSON.stringify(construireCorps(req, m)), signal: AbortSignal.timeout ? AbortSignal.timeout(delai) : undefined }); } catch (e) { essais.push(m + ' : ' + e.message); continue; }

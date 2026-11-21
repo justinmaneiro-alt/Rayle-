@@ -20,7 +20,7 @@ const sans = raison => ({ indisponible: raison });
 const manque = a => sans('actif inconnu ou non suivi : « ' + a + ' » (actifs : or, us100, us500, btc, sol, dxy ; pétrole et EUR/USD seulement dans Mes actifs ou le calendrier)');
 const MAINTENANT = () => Date.now();
 
-async function pro(id) { const r = await lireActifPro(id, { delai: 9000 }); return r.donnees; }
+async function pro(id) { let e; for (let k = 0; k < 2; k++) { try { return (await lireActifPro(id, { delai: k ? 25000 : 12000 })).donnees; } catch (x) { e = x; } } throw e; }   /* une relance, avec un délai plus long (la page charge aussi la fenêtre demandée) */
 const barres = (D, u) => ({ H1: D.h1, H4: D.h4, J: D.j })[u === 'D1' || u === 'Daily' || u === 'Jour' ? 'J' : u] || D.h4;
 
 /* ───── 1. prix_et_tendance ───── */
@@ -129,4 +129,41 @@ export async function lectureLocale(texte) {
   const r = await prix_et_tendance({ actif: id, unite: 'H4' }); if (r.indisponible) return null;
   const sgn = r.variationDepuisHierPct > 0 ? 'plus' : 'moins';
   return `${r.nom} : ${r.prix} dollars, ${sgn} ${Math.abs(r.variationDepuisHierPct)} pour cent depuis hier. Le prix est ${r.positionMa200} de sa moyenne mobile à 200 périodes (${r.ma200}, écart ${r.ecartMa200Pct} pour cent) en H4. Tendance Daily ${r.tendanceDaily}, H4 ${r.tendanceH4} : ${r.alignementDailyH4}.` + (r.regime && r.regime.type ? ` Le marché est en ${r.regime.type}.` : '');
+}
+
+/* ───── v8 phase 3 : chiffres clés (étiquettes animées) et éléments à surligner, déduits des résultats d'outils (jamais inventés) ───── */
+const fr = (x, d = 2) => (Number.isFinite(x) ? x.toLocaleString('fr-FR', { minimumFractionDigits: d, maximumFractionDigits: d }).replace(/[  ]/g, ' ') : '—');
+const sg = (x, d = 1) => (Number.isFinite(x) ? (x > 0 ? '+' : x < 0 ? '−' : '') + fr(Math.abs(x), d) : '—');
+export function etiquettesDe(tour) {
+  const E = [];
+  for (const t of tour || []) {
+    const r = t.resultat || {}; if (r.indisponible) continue;
+    if (t.nom === 'prix_et_tendance') {
+      const d = dec(r.actif); E.push({ label: r.nom + ' · prix', val: fr(r.prix, d), sous: sg(r.variationDepuisHierPct) + ' % depuis hier', ton: r.variationDepuisHierPct >= 0 ? 'haut' : 'bas' });
+      if (r.ma200 != null) E.push({ label: 'MA200 ' + r.unite, val: fr(r.ma200, d), sous: sg(r.ecartMa200Pct) + ' % · prix ' + r.positionMa200, ton: r.positionMa200 === 'au-dessus' ? 'haut' : 'bas' });
+      if (r.tendanceDaily) E.push({ label: 'Tendance Daily / H4', val: r.tendanceDaily, sous: 'H4 ' + r.tendanceH4, ton: r.tendanceDaily === 'haussière' ? 'haut' : r.tendanceDaily === 'baissière' ? 'bas' : '' });
+    } else if (t.nom === 'niveaux') {
+      const px = r.prix, L = [...(r.reperesIct || []).filter(x => x.prix != null).map(x => ({ n: x.nom, p: x.prix })), ...(r.volume ? [{ n: 'POC H4', p: r.volume.pocH4 }, { n: 'VAH', p: r.volume.vah }, { n: 'VAL', p: r.volume.val }] : [])].filter(x => Number.isFinite(x.p));
+      const haut = L.filter(x => x.p > px).sort((a, b) => a.p - b.p)[0], bas = L.filter(x => x.p < px).sort((a, b) => b.p - a.p)[0];
+      if (haut) E.push({ label: 'Résistance proche · ' + haut.n, val: fr(haut.p, dec(r.actif)), sous: sg((haut.p / px - 1) * 100) + ' % du prix', ton: 'bas' });
+      if (bas) E.push({ label: 'Support proche · ' + bas.n, val: fr(bas.p, dec(r.actif)), sous: sg((bas.p / px - 1) * 100) + ' % du prix', ton: 'haut' });
+    } else if (t.nom === 'mes_actifs' && r.horizons) {
+      const h = r.horizons[2] || r.horizons[0]; if (h) E.push({ label: r.nom + ' · ' + h.horizon, val: h.verdict, sous: h.score100 != null ? h.score100 + ' / 100' : '', ton: h.score100 >= 58 ? 'haut' : h.score100 < 42 ? 'bas' : '' });
+    } else if (t.nom === 'marches') {
+      if (r.cot && r.cot.indexSpeculateurs != null) E.push({ label: 'COT · fonds spéculatifs', val: r.cot.indexSpeculateurs + ' / 100', sous: 'index sur 3 ans', ton: '' });
+      if (r.scoreMarche && r.scoreMarche.score100 != null) E.push({ label: 'Score de marché', val: r.scoreMarche.score100 + ' / 100', sous: r.scoreMarche.verdict || '', ton: r.scoreMarche.score100 >= 58 ? 'haut' : r.scoreMarche.score100 < 42 ? 'bas' : '' });
+    }
+  }
+  return E.slice(0, 5);
+}
+export function surlignagesDe(tour) {
+  const S = [];
+  for (const t of tour || []) {
+    const r = t.resultat || {}; if (r.indisponible) continue;
+    if (t.nom === 'prix_et_tendance' && r.ma200 != null) S.push({ type: 'prix', actif: r.actif, prix: r.ma200, texte: 'MA200 ' + r.unite });
+    if (t.nom === 'niveaux') { const px = r.prix, L = [...(r.reperesIct || []).map(x => ({ n: x.nom, p: x.prix })), ...(r.volume ? [{ n: 'POC H4', p: r.volume.pocH4 }] : [])].filter(x => Number.isFinite(x.p) && x.n !== 'Ouverture jour'); const proches = L.sort((a, b) => Math.abs(a.p - px) - Math.abs(b.p - px)).slice(0, 2); for (const x of proches) S.push({ type: 'prix', actif: r.actif, prix: x.p, texte: x.n }); }
+    if (t.nom === 'marches' && r.cot) S.push({ type: 'cot', actif: (t.args && t.args.actif) || null });
+    if (t.nom === 'mes_actifs') S.push({ type: 'carte', actif: r.actif });
+  }
+  return S;
 }

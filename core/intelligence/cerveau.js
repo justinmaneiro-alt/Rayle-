@@ -8,6 +8,7 @@
     const CLE_HIST='rayle_cerveau_hist_v1', SEP='---DETAIL---', MAX_TOURS=5, DUREE_MEMOIRE=2*3600e3;
     const base=()=>{ let u=''; try{ u=localStorage.getItem('rayle_voix_url')||''; }catch(e){} return (u||'https://rayle-voix.justinmaneiro.workers.dev').replace(/\/+$/,''); };
     let mod=null, modActions=null, memoire=null, dernierEtat={modele:'',outils:[],erreur:''};
+    const EST=(A,n)=>!!(A&&A.EST_ACTION&&A.EST_ACTION(n));
     const chargerOutils=async()=>mod||(mod=await import(new URL('trader-pro/cerveau/outils.js',document.baseURI).href));
     const chargerActions=async()=>{ try{ return modActions||(modActions=await import(new URL('trader-pro/cerveau/actions.js',document.baseURI).href)); }catch(e){ return null; } };
     function lireMemoire(){ if(memoire) return memoire; try{ const h=JSON.parse(localStorage.getItem(CLE_HIST)||'null'); if(h&&Date.now()-h.t<DUREE_MEMOIRE&&Array.isArray(h.m)) return memoire={t:h.t,m:h.m.slice(-12),sujet:h.sujet||null}; }catch(e){} return memoire={t:Date.now(),m:[],sujet:null}; }
@@ -24,7 +25,7 @@
         "RÈGLE ABSOLUE : tu n'inventes jamais un chiffre, un prix, un niveau, une date. Pour toute question sur un marché, une position, un risque, une actualité, un indicateur ou l'état des données, tu APPELLES les outils, puis tu réponds avec les chiffres reçus (en citant la date de la donnée quand elle est ancienne). Si un outil répond « indisponible », dis précisément laquelle donnée manque et pourquoi, sans dire que tu n'as « aucune donnée » ni « pas d'accès » : tu as accès à toute l'application par tes outils.",
         "Pour un « point sur… » : appelle prix_et_tendance (et niveaux si utile), donne la lecture (tendance, MA200, régime), puis un ou deux scénarios probables avec leur niveau d'invalidation. Tu ne passes jamais d'ordres : c'est Justin qui décide ; rappelle-le brièvement quand tu proposes un scénario. Pas de probabilité chiffrée inventée.",
         "Quand la demande concerne une fenêtre (terminal, Marchés, COT, Mes actifs, Couverture, Risque, calendrier, briefing), appelle aussi l'outil d'ouverture correspondant : l'application l'ouvrira pendant que tu parles.",
-        "Tu réponds aussi à n'importe quelle question générale (histoire, sciences, culture…) directement, sans outil.",
+        "Tu réponds aussi à n'importe quelle question générale (histoire, sciences, culture…) directement. Quand elle porte sur UNE CHOSE CONCRÈTE qu'on peut photographier (une personne, un lieu, un monument, un animal, un objet, une œuvre, une planète) — « qui était… », « c'est quoi Mars », « parle-moi de la tour Eiffel », « raconte-moi le lion » — appelle TOUJOURS afficher_images avec le sujet précis (ex. « planète Mars ») : des images libres s'afficheront pendant que tu parles. Ne l'appelle PAS pour une explication, un phénomène, un calcul, une date ou une question de trading (« pourquoi le ciel est bleu », « combien font 17 fois 23 », « en quelle année… »).",
         "FORMAT : d'abord le texte PARLÉ : 2 à 5 phrases naturelles, sans liste, sans markdown, sans émoji, chiffres écrits en chiffres. Puis, seulement si utile, une ligne contenant exactement " + SEP + " suivie du détail complet à lire à l'écran (listes courtes autorisées).",
         'Date et heure à Paris : '+maintenant+'.',
         sujet&&sujet.actif?"Sujet en cours (pour « et en H4 ? », « et le Bitcoin ? ») : "+sujet.actif+(sujet.unite?' en '+sujet.unite:'')+'.':''
@@ -71,10 +72,11 @@
         if(n===MAX_TOURS-1) final='';
       }
       if(!final) throw new Error('le modèle n’a pas produit de réponse après '+MAX_TOURS+' tours d’outils');
-      const s=separer(final);
+      const s=separer(final); let etiquettes=[], surlignages=[]; try{ etiquettes=O.etiquettesDe(tour); surlignages=O.surlignagesDe(tour); }catch(e){}
+      if(A&&surlignages.length) setTimeout(()=>{ try{ A.surligner(surlignages); }catch(e){} },tour.some(x=>EST(A,x.nom))?2200:600);
       M.m.push({role:'user',texte:String(texte).slice(0,600)},{role:'model',texte:(s.parle+(s.detail?'\n'+SEP+'\n'+s.detail:'')).slice(0,1500)}); M.sujet=sujet; sauverMemoire();
-      dernierEtat={modele,outils:tour.map(x=>x.nom),erreur:''};
-      return {reply:s.parle+(s.detail?'\n\n'+s.detail:''),parle:s.parle,detail:s.detail,outils:tour,sujet,engine:'Gemini · '+modele};
+      dernierEtat={modele,outils:tour.map(x=>x.nom),erreur:'',etiquettes,surlignages};
+      return {reply:s.parle+(s.detail?'\n\n'+s.detail:''),parle:s.parle,detail:s.detail,outils:tour,sujet,etiquettes,surlignages,engine:'Gemini · '+modele};
     }
     /* Questions de trading ou sur l'application : le cerveau les prend en main AVANT les commandes « maison » (qui ne comprennent pas « fais-moi un point sur l'or »). Les commandes courtes (ouvre, ferme, retour, suivant…) restent aux commandes déterministes. */
     const VOCAB=/\b(or|gold|xau|nasdaq|us ?100|ndx|s ?p ?500|us ?500|bitcoin|btc|solana|sol|dxy|dollar|petrole|wti|brent|eur ?usd|cot|commitments|couvr\w*|risques?|portefeuille|positions?|trades?|mes actifs|cher|chere|bon marche|attractif\w*|point sur|ou en est|tendance|haussier|baissier|ma ?200|moyenne mobile|niveaux?|support|resistance|poc|vah|val|weekly|hebdo\w*|volume|carnet|annonces?|calendrier|inflation|fed|taux|briefing|marches?|actualites? (de l|du|sur)|score|signaux?|fleches?|scenarios?|invalidation|action|actions|etf|valorisation|donnees? (a jour|fraiches)|investissement|xtb)\b/;

@@ -91,6 +91,7 @@
         let dernier=-1, figes=0;
         const gardeBlocage=setInterval(()=>{ if(!demarre) return; if(el.currentTime===dernier && !el.paused) figes++; else figes=0; dernier=el.currentTime; if(figes>=6){ if(isFinite(el.duration)&&el.duration>0&&el.currentTime>=el.duration-0.6) fin(true); else fin(false,new Error('lecture audio bloquée')); } else if(isFinite(el.duration)&&el.duration>0&&el.ended) fin(true); },500);
         el.onplaying=()=>{ demarre=true; };
+        el.onloadedmetadata=()=>{ try{ window.dispatchEvent(new CustomEvent('rayle:parole',{detail:{duree:(el.duration||0)/(el.playbackRate||1)}})); }catch(e){} };   // la réponse animée écrit son texte au rythme de la voix
         el.onended=()=>fin(true);
         el.onerror=()=>fin(false,new Error('lecture audio impossible'));
         el.src=url;
@@ -147,6 +148,7 @@
       }
     }
     if(token!==speakToken) return;
+    try{ window.dispatchEvent(new CustomEvent('rayle:parole-fin')); }catch(e){}
     speaking=false; speechEndT=Date.now(); lastAct=Date.now();
     restState();
     if(modeToucher()){ if(!processing && !queue.length) apresReponse(); }

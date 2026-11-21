@@ -21,7 +21,7 @@ export async function lancer(mode = 'tel', { stockage = {}, dossierCaptures = 'd
   });
   const attendre = async (f, ms = 20000, pas = 250) => { const t0 = Date.now(); while (Date.now() - t0 < ms) { if (await f()) return true; await w(pas); } return false; };
   const texte = s => p.evaluate(s2 => (document.querySelector(s2) || {}).innerText || '', s);
-  await p.goto('http://rayle.test:8000/index.html', { waitUntil: 'domcontentloaded' }); await w(4000);
+  await p.goto('http://rayle.test:8000/index.html', { waitUntil: 'domcontentloaded', timeout: 120000 }); await w(4000);
   const capture = async nom => p.screenshot({ path: path.join(sortie, `${nom}-${mode}.png`) });
   const fin = async () => {
     const graves = erreurs.filter(e => !/allorigins|newyorkfed|favicon|ERR_NAME_NOT_RESOLVED|ERR_BLOCKED|Failed to load resource|WebSocket connection|net::|Unrecognized feature|manifest|service worker|ServiceWorker/i.test(e));

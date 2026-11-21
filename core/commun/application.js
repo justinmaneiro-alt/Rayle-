@@ -277,7 +277,7 @@
   }
   function commande(texte){
     const n=norm(texte).replace(/^(hey |dis moi |dis )?rayle /,'');
-    if(/^(ferme|fermer|quitte|quitter|reviens|retour|retourne)( (la |cette )?(fenetre|ecran|page))?( au carrousel| a l accueil| au menu)?$/.test(n)||/^(ferme (tout|la fenetre|cette fenetre|l ecran)|retour au carrousel|retour a l accueil|va a l accueil|accueil)$/.test(n)){
+    if(/^(ferme|fermer|quitte|quitter|reviens|retour|retourne)( (la |cette )?(fenetre|ecran|page)| ca| cela| ca stp| ca s il te plait)?( au carrousel| a l accueil| au menu)?$/.test(n)||/^(ferme (tout|la fenetre|cette fenetre|l ecran)|retour au carrousel|retour a l accueil|va a l accueil|accueil)$/.test(n)){
       if(ouvert) return fermer().then(()=> 'Fermé.'); if(cible>0){ aller(0); return 'Retour à l’accueil.'; } return null; }
     if(/^(suivant|suivante|a droite|va a droite|fenetre suivante|ecran suivant|glisse a droite|balaie a droite)$/.test(n)){ if(ouvert) return null; if(cible>=N-1) return 'C’est la dernière fenêtre.'; suivant(); return FENETRES[cible].nom+'.'; }
     if(/^(precedent|precedente|a gauche|va a gauche|fenetre precedente|ecran precedent|glisse a gauche|balaie a gauche)$/.test(n)){ if(ouvert) return null; if(cible<=0) return 'Tu es déjà à l’accueil.'; precedent(); return FENETRES[cible].nom+'.'; }

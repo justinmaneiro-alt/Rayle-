@@ -2,7 +2,7 @@
   /* ═════════════ TRAITEMENT D'UNE PHRASE ═════════════ */
   let engineLast='';
   async function respond(text){
-    const my=epoch;
+    const my=epoch; let galerieDeja=false; window.__galeriePending=null;   // v8 : jamais d'images d'une réponse précédente
     if(window.MultiEcrans) MultiEcrans.diffuserVoix(text);    // mode multi-écrans : les fenêtres des autres écrans reçoivent aussi la demande (actualités…)
     // Commandes du terminal (« ouvre le terminal », « passe sur le Bitcoin »…) : exécutées tout de suite, sans IA
     const cmdS=await commandeSecurite(text);    // « déverrouille », « verrouille », « journal de sécurité »…
@@ -12,14 +12,14 @@
     const cmdApp=window.Application?await Application.commande(text):null;    // application : « ouvre le terminal », « suivant », « montre l'actualité », « ferme »
     if(my!==epoch) return;
     if(cmdApp){ diagAction('application'); addLine('ray',cmdApp); await speak(cmdApp); return; }
-    let reply='', engine='', actions=[], viaAgent=false, parle=null, sansHistorique=false, cerveauEssaye=false;
+    let reply='', engine='', actions=[], viaAgent=false, parle=null, sansHistorique=false, cerveauEssaye=false, etiquettes=[];
     const nonCens=!!(window.IaLocale&&IaLocale.demandeNonCensure&&IaLocale.demandeNonCensure(text));
     /* v8 : le CERVEAU (Gemini + outils qui lisent les vraies données de l'application, et qui ouvrent les fenêtres) */
     const tenterCerveau=async()=>{
       cerveauEssaye=true; setState('thinking');
       try{
         const C=await Cerveau.repondre(text); if(my!==epoch) return false;
-        reply=C.reply; parle=C.parle||null; engine=C.engine; actions=[]; viaAgent=true;
+        reply=C.reply; parle=C.parle||null; engine=C.engine; actions=[]; viaAgent=true; etiquettes=C.etiquettes||[];
         if(C.outils.length) addLine('sys','Outils : '+C.outils.map(o=>o.nom+(o.resultat&&o.resultat.indisponible?' ✘':'')).join(' → '));
         diagAction('cerveau : '+(C.outils.length?C.outils.map(o=>o.nom).join(', '):'sans outil')); return true;
       }catch(e){
@@ -59,7 +59,21 @@
     const quick=quickAnswer(text);
     if(quick){ diagAction('réponse rapide'); addLine('ray',quick); await speak(quick); return; }
     // Questions visuelles (« montre-moi… », « à quoi ressemble… », « photo de… ») : des images libres dans une fenêtre holographique, sans IA ; « qui est… » : l'IA répond, les images arrivent en même temps
-    if(window.ImagesHolo){
+    if(window.ImagesWiki&&window.ImagesContenu){
+      /* v8 : images libres de Wikipédia / Commons, appelées directement (plus de passage par le Worker) */
+      const dm=ImagesContenu.demande(text);
+      if(dm&&dm.refus){ const r=dm.refus==='sensible'?'Je ne cherche pas ce genre d’images.':'Je ne cherche pas d’images de personnes privées.'; diagAction('images refusées'); addLine('ray',r); await speak(r); return; }
+      if(dm&&dm.requete&&!window.__galeriePending){
+        const explicite=dm.type!=='qui';
+        const p=ImagesWiki.chercher(dm.requete).catch(()=>null);
+        if(explicite){
+          const R=await p; if(my!==epoch) return;
+          if(R){ window.__galeriePending=R; const t='Voici '+(R.description?R.titre+', '+R.description:R.titre)+'.'; diagAction('images libres (Wikipédia)'); addLine('ray',t); if(window.GalerieAnim){ GalerieAnim.montrer(R); window.__galeriePending=null; } await speak(t); return; }
+          const t='Je n’ai pas trouvé d’image libre pour « '+dm.sujet+' ».'; addLine('ray',t); await speak(t); return;
+        }
+        p.then(R=>{ if(!R||my!==epoch) return; if(galerieDeja&&window.GalerieAnim) GalerieAnim.montrer(R); else if(!window.__galeriePending) window.__galeriePending=R; });   // « qui était… » : l'IA répond, les images arrivent en même temps
+      }
+    }else if(window.ImagesHolo){
       const phraseImages=await ImagesHolo.demandeExplicite(text);
       if(my!==epoch) return;
       if(phraseImages){ diagAction('images libres'); addLine('ray',phraseImages); await speak(phraseImages); return; }
@@ -116,7 +130,7 @@
       if(my!==epoch) return;
       if(plus) reply+=plus;
     }
-    if(window.ImagesHolo){ const suiteImages=await ImagesHolo.finParallele(1500); if(my!==epoch) return; if(suiteImages) reply+=' '+suiteImages; }   // « Voici les images de l'article Wikipédia « … » »
+    if(!window.ImagesWiki&&window.ImagesHolo){ const suiteImages=await ImagesHolo.finParallele(1500); if(my!==epoch) return; if(suiteImages) reply+=' '+suiteImages; }   // « Voici les images de l'article Wikipédia « … » »
     if(window.TerreVoix && TerreVoix.enAttente()){      // présentation sur la Terre : la caméra suit chaque sujet pendant qu'elle parle ([1], [2]… jamais prononcés)
       addLine('ray',TerreVoix.propre(reply));
       if(window.MediasHolo) MediasHolo.montrer();
@@ -124,6 +138,8 @@
     }else{
       if(window.TerreVoix) reply=TerreVoix.propre(reply);
       addLine('ray',reply);
+      galerieDeja=true; if(window.GalerieAnim&&window.__galeriePending){ GalerieAnim.montrer(window.__galeriePending); window.__galeriePending=null; }   // v8 : les images s'ouvrent pendant que Rayle parle
+      if(window.ReponseAnim&&/^Gemini/.test(engine||'')) ReponseAnim.montrer({titre:'Rayle',texte:parle||reply,etiquettes});   // v8 : le texte s'écrit au rythme de la voix, chiffres clés animés
       if(window.MediasHolo) MediasHolo.montrer();    // le texte est la réponse : les médias s'ouvrent seulement maintenant, sans retarder la voix
       await speak(parle||reply);   // v8 : la voix lit le résumé (2 à 5 phrases) ; le détail reste à l'écran
     }

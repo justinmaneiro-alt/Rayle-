@@ -1,6 +1,8 @@
 /* Worker « rayle-voix » : POST /tts { text, id, ton, vitesse } → audio WAV (Gemini TTS). GET /sante. Jeton vérifié par le /ping du Worker principal (comme rayle-agent-trading). */
 import { routeGeminiTTS } from '../../worker-gemini/gemini-tts.js';
-import { routeCerveau, modelesDisponibles, MODELES_TEXTE } from '../../worker-gemini/gemini-cerveau.js';
+import { routeCerveau, modelesDisponibles, MODELES_TEXTE, appelerCerveau } from '../../worker-gemini/gemini-cerveau.js';
+import { DECLARATIONS as OUTILS_LECTURE } from '../../trader-pro/cerveau/outils.js';
+import { DECLARATIONS as OUTILS_ACTION } from '../../trader-pro/cerveau/actions.js';
 let modelesCache = { t: 0, v: null };
 const json = (o, statut = 200, h = {}) => new Response(JSON.stringify(o), { status: statut, headers: { 'Content-Type': 'application/json; charset=utf-8', ...h } });
 const cors = (req, env) => { const o = req.headers.get('Origin') || '', ok = String(env.ORIGINES || '').split(',').map(s => s.trim()).includes(o); return { 'Access-Control-Allow-Origin': ok ? o : 'null', 'Access-Control-Allow-Headers': 'X-Rayle-Token, X-Rayle-Worker, Content-Type', 'Access-Control-Allow-Methods': 'GET, POST, OPTIONS', 'Access-Control-Expose-Headers': 'X-Rayle-Voix, X-Rayle-Cache', 'Access-Control-Max-Age': '86400', Vary: 'Origin' }; };
@@ -38,6 +40,20 @@ export default {
       const v = await verifierJeton(req, env);
       if (!v.ok) return json({ error: 'jeton refusé : ' + v.raison }, 401, h);
       return routeGeminiTTS(req, env, ctx, h, { json });
+    }
+    /* Essai de bout en bout avec la VRAIE clé et les VRAIES déclarations d'outils (appel de fonction, puis réponse). Inactif sauf si la variable ESSAI_CERVEAU vaut « 1 » (posée seulement pour un contrôle, puis retirée). */
+    if (u.pathname === '/cerveau/essai' && env.ESSAI_CERVEAU === '1') {
+      const outils = OUTILS_LECTURE.concat(OUTILS_ACTION); let corpsPost = null; if (req.method === 'POST') { try { corpsPost = await req.json(); } catch (e) { corpsPost = null; } }
+      const q = (corpsPost && corpsPost.q) || u.searchParams.get('q') || 'Rayle, fais-moi un point sur l’or', sortie = { question: q };
+      try {
+        const un = u.searchParams.get('m'), opt = { cle: env.GEMINI_KEY, modeles: un ? [un] : null, delai: 25000 }, t0 = Date.now(); sortie.modele = un || 'chaîne'; const c = [{ role: 'user', parts: [{ text: q }] }], r1 = await appelerCerveau({ system: (corpsPost && corpsPost.system) || 'Tu es Rayle, assistante de trading. Pour toute question sur un marché, appelle les outils ; pour toute question sur une fenêtre, appelle ouvrir_fenetre. Tutoie. Réponds en 2 phrases, puis une ligne ---DETAIL--- et un détail.', contents: (corpsPost && corpsPost.contents) || c, outils, maxTokens: 700 }, opt); sortie.ms1 = Date.now() - t0;
+        sortie.tour1 = { model: r1.model, essais: r1.essais, parts: r1.parts.map(p => (p.functionCall ? { appel: p.functionCall.name, args: p.functionCall.args, signature: !!p.thoughtSignature } : { texte: String(p.text || '').slice(0, 200) })) };
+        const appels = r1.parts.filter(p => p.functionCall);
+        if (appels.length && !(corpsPost && corpsPost.tour1seul)) { c.push({ role: 'model', parts: r1.parts }); c.push({ role: 'user', parts: appels.map(p => ({ functionResponse: { name: p.functionCall.name, response: { resultat: p.functionCall.name === 'prix_et_tendance' ? { actif: 'or', nom: 'Or', prix: 3558.3, ma200: 3953.77, positionMa200: 'sous', ecartMa200Pct: -10, tendanceDaily: 'baissière', tendanceH4: 'baissière' } : { ok: true } } } })) });
+          const r2 = await appelerCerveau({ system: 'Tu es Rayle, assistante de trading. Tutoie. 2 phrases, puis ---DETAIL--- et un détail.', contents: c, outils, maxTokens: 500 }, opt);
+          sortie.tour2 = { model: r2.model, texte: r2.parts.map(p => p.text || '').join('').slice(0, 500) }; }
+      } catch (e) { sortie.erreur = e.message; }
+      return json(sortie, 200, h);
     }
     if (u.pathname === '/cerveau' && req.method === 'POST') {
       const v = await verifierJeton(req, env);
