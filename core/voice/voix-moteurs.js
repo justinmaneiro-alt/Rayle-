@@ -45,7 +45,7 @@
       if(!W.token()) throw new Error('aucun code d’accès enregistré dans Rayle (Réglages)');
       /* Worker séparé « rayle-voix » (Gemini TTS seulement) : même jeton que le Worker principal, qui le vérifie */
       const base=(lire('rayle_voix_url')||'https://rayle-voix.justinmaneiro.workers.dev').replace(/\/+$/,'');
-      const res=await fetchT(base+'/tts',{method:'POST',headers:{'Content-Type':'application/json','X-Rayle-Token':W.token()||''},body:JSON.stringify({text:texte,id,ton:g.ton,vitesse:vit}),signal:opts.signal},30000).catch(e=>{ throw new Error('rayle-voix injoignable ('+(e&&e.name==='AbortError'?'délai dépassé':((e&&e.message)||e))+') : '+base+'/tts — réseau ou CORS'); });
+      const res=await fetchT(base+'/tts',{method:'POST',headers:{'Content-Type':'application/json','X-Rayle-Token':W.token()||'','X-Rayle-Worker':W.url()||''},body:JSON.stringify({text:texte,id,ton:g.ton,vitesse:vit}),signal:opts.signal},30000).catch(e=>{ throw new Error('rayle-voix injoignable ('+(e&&e.name==='AbortError'?'délai dépassé':((e&&e.message)||e))+') : '+base+'/tts — réseau ou CORS'); });
       if(res.status===429){ ecrire(CLE_GEM_PAUSE,String(Date.now()+15*60e3)); throw new Error('quota Gemini atteint : moteur de secours pendant 15 minutes'); }
       if(!res.ok) throw await workerError(res);
       const blob=await res.blob(), etat=res.headers.get('X-Rayle-Cache'); memGem.set(cle,blob); if(memGem.size>60) memGem.delete(memGem.keys().next().value);
@@ -65,7 +65,7 @@
       const base=baseGem(), tok=W.token()||'', L=[]; L.push('Adresse rayle-voix : '+base+(lire('rayle_voix_url')?' (réglage manuel)':' (par défaut)'));
       L.push('Code d’accès enregistré dans Rayle : '+(tok?'oui ('+tok.length+' caractères, même code que pour le Worker principal)':'NON — à saisir dans Réglages'));
       try{ const r=await fetchT(base+'/sante',{},10000); const j=await r.json().catch(()=>({})); L.push('GET /sante : HTTP '+r.status+' · clé Gemini '+(j.cle?'présente':'ABSENTE')); }catch(e){ L.push('GET /sante : ÉCHEC réseau ou CORS — '+((e&&e.message)||e)); return L; }
-      try{ const t0=Date.now(), r=await fetchT(base+'/tts',{method:'POST',headers:{'Content-Type':'application/json','X-Rayle-Token':tok},body:JSON.stringify({text:'Essai.',id:'gemini-h1',ton:'naturel',vitesse:0})},30000);
+      try{ const t0=Date.now(), r=await fetchT(base+'/tts',{method:'POST',headers:{'Content-Type':'application/json','X-Rayle-Token':tok,'X-Rayle-Worker':W.url()||''},body:JSON.stringify({text:'Essai.',id:'gemini-h1',ton:'naturel',vitesse:0})},30000);
         if(r.ok){ const b=await r.blob(); L.push('POST /tts : HTTP 200 · '+b.size+' octets · '+(r.headers.get('X-Rayle-Voix')||'?')+' · '+(Date.now()-t0)+' ms'); }
         else { const e=await workerError(r); L.push('POST /tts : '+e.message); } }catch(e){ L.push('POST /tts : ÉCHEC réseau ou CORS — '+((e&&e.message)||e)); }
       return L;

@@ -12,3 +12,8 @@ workers_dev = true
 WORKER_RAYLE = "https://rayle.justinmaneiro.workers.dev"
 ORIGINES = "https://justinmaneiro-alt.github.io,http://127.0.0.1:8000,http://localhost:8000"
 GEMINI_TTS_LIMITE_JOUR = "90"
+
+# Liaison de service vers le Worker principal (lecture seule : on n'y change rien). Un Worker du même compte ne peut pas appeler l'adresse workers.dev d'un autre (réponse 404) : on passe par la liaison.
+[[services]]
+binding = "PRINCIPAL"
+service = "rayle"

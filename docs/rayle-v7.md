@@ -44,3 +44,6 @@
 
 ### Correctif de déploiement (21/11/2026)
 Le Worker principal « rayle » en ligne (liaison caméra, D1, 4 crons) n'a pas son code source dans le dépôt : `worker/worker.js` est plus ancien, donc **non déployé**. Les voix Gemini passent par un **Worker séparé `rayle-voix`** (`worker-voix/`, déployé, aucun déclencheur planifié, secret `GEMINI_KEY` à y mettre, jeton vérifié par le /ping du Worker principal) : `https://rayle-voix.justinmaneiro.workers.dev`. Le bloc collé dans `worker/worker.js` est inutile.
+
+## Correctif voix (21/11, version 2026.11.21.4)
+Cause du « jeton refusé » : le /ping du Worker principal, appelé par `fetch()` depuis rayle-voix (même compte, adresse workers.dev), répondait **404** au lieu d'examiner le code. Correctif : liaison de service `PRINCIPAL` → « rayle » (`worker-voix/wrangler.toml`), sans toucher au Worker principal. La réponse 401 indique maintenant la raison précise (code absent, injoignable, statut du /ping), jamais le code. La page envoie aussi `X-Rayle-Worker` (adresse du Worker configurée, acceptée seulement en https sur *.workers.dev du même compte).
