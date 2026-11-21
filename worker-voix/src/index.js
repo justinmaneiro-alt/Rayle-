@@ -26,7 +26,11 @@ export default {
   async fetch(req, env, ctx) {
     const h = cors(req, env), u = new URL(req.url);
     if (req.method === 'OPTIONS') return new Response(null, { status: 204, headers: h });
-    if (u.pathname === '/sante') return json({ ok: true, service: 'rayle-voix', cle: !!env.GEMINI_KEY }, 200, h);
+    if (u.pathname === '/sante') {
+      /* la Cache API est-elle réellement active sur cette adresse ? (elle est sans effet sur *.workers.dev) */
+      let cacheServeur = false; try { const c = caches.default, k = new Request('https://rayle.local/sonde-cache'); const avant = await c.match(k); cacheServeur = !!avant;   /* vrai seulement si une requête PRÉCÉDENTE a gardé la sonde */ await c.put(k, new Response('ok', { headers: { 'Cache-Control': 'max-age=300' } })); } catch (e) { /* */ }
+      return json({ ok: true, service: 'rayle-voix', cle: !!env.GEMINI_KEY, cacheServeur }, 200, h);
+    }
     if (u.pathname === '/tts' && req.method === 'POST') {
       const v = await verifierJeton(req, env);
       if (!v.ok) return json({ error: 'jeton refusé : ' + v.raison }, 401, h);

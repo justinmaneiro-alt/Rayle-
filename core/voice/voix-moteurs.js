@@ -46,7 +46,7 @@
       /* Worker séparé « rayle-voix » (Gemini TTS seulement) : même jeton que le Worker principal, qui le vérifie */
       const base=(lire('rayle_voix_url')||'https://rayle-voix.justinmaneiro.workers.dev').replace(/\/+$/,'');
       const res=await fetchT(base+'/tts',{method:'POST',headers:{'Content-Type':'application/json','X-Rayle-Token':W.token()||'','X-Rayle-Worker':W.url()||''},body:JSON.stringify({text:texte,id,ton:g.ton,vitesse:vit}),signal:opts.signal},30000).catch(e=>{ throw new Error('rayle-voix injoignable ('+(e&&e.name==='AbortError'?'délai dépassé':((e&&e.message)||e))+') : '+base+'/tts — réseau ou CORS'); });
-      if(res.status===429){ ecrire(CLE_GEM_PAUSE,String(Date.now()+15*60e3)); throw new Error('quota Gemini atteint : moteur de secours pendant 15 minutes'); }
+      if(res.status===429){ let j={}; try{ j=await res.json(); }catch(e){} const jour=!!j.jour; ecrire(CLE_GEM_PAUSE,String(Date.now()+(jour?3*3600e3:2*60e3))); throw new Error('HTTP 429 · '+(j.error||'quota Gemini atteint')+' — moteur de secours '+(jour?'pendant 3 heures (limite du jour)':'pendant 2 minutes (limite par minute)')); }
       if(!res.ok) throw await workerError(res);
       const blob=await res.blob(), etat=res.headers.get('X-Rayle-Cache'); memGem.set(cle,blob); if(memGem.size>60) memGem.delete(memGem.keys().next().value);
       if(etat!=='hit') ecrire(cleJourGem(),String(nGemJour()+1));
@@ -116,7 +116,8 @@
       const gm=gemini().moteur; if(gm&&NOMS[gm]) return gm;   // le choix d'une voix Gemini est synchronisé entre les appareils (clé rayle_voix_gemini_v1)
       const m=lire(CLE_MOTEUR);
       if(m&&NOMS[m]) return m;
-      return auto();
+      return 'gemini-f1';   // voix choisie par l'utilisateur (Sulafat) : par défaut ; si Gemini échoue, la voix du système prend le relais
+
     }
     function auto(){
       const a=C.choisirParDefaut(resultats,C.ORDRE_DEFAUT);
@@ -193,6 +194,8 @@
     const voixSystemeChoisie=()=>lire(CLE_SYS);
     function choisirVoixSysteme(uri){ ecrire(CLE_SYS,uri); prevenir(); }
 
+    /* v7 : Sulafat devient la voix de tous les appareils (une seule fois par appareil ; la clé rayle_voix_gemini_v1 est synchronisée) */
+    setTimeout(()=>{ try{ if(!lire('rayle_voix_v7_sulafat')){ ecrire('rayle_voix_v7_sulafat','1'); if(lire(CLE_MOTEUR)) ecrire(CLE_MOTEUR,''); if(gemini().moteur!=='gemini-f1') definirGemini({moteur:'gemini-f1'}); } }catch(e){} },0);
     return {NOMS,noterEchec,echec,diagnostic,gemini,definirGemini,TONS_GEM,nGemJour,LIMITE_JOUR_GEM,pauseGem,noterUtilise,dernier,candidats,choisi,actif,auto,choisir,hauteur,definirHauteur,synth,tester,testerAuto,demarrer,rafraichirLocal,pret,dico,definirDico,voixSystemeChoisie,choisirVoixSysteme,
       resultats:()=>resultats,local:()=>local,surChangement:f=>ecouteurs.push(f),peutLocal};
   })();

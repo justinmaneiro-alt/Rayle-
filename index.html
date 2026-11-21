@@ -128,7 +128,8 @@
 
       <h3>Voix de Raylé <span class="voix" id="vxEtat">…</span></h3>
       <p class="hint" id="vxMoteur" role="status">Moteur utilisé en ce moment : …</p>
-      <h4 class="vx-tit">Voix naturelles Gemini (Google, gratuit) — choisis à l'oreille</h4>
+      <h4 class="vx-tit">Voix Gemini (Google, offre gratuite) — Sulafat est la voix par défaut</h4>
+      <p class="hint">Quota gratuit de Google limité (quelques phrases nouvelles par minute et par jour, chiffres officiels non publiés) : les phrases déjà dites sont gardées en copie sur l’appareil et sur le Worker, et quand la limite est atteinte la voix du système prend le relais, sans silence.</p>
       <div id="vxGemini" class="vx-liste"></div>
       <div class="row vx-gem-reglages"><label for="vxGemVit">Vitesse <span id="vxGemVitVal">normale</span></label><input id="vxGemVit" type="range" min="-20" max="20" step="2"><label for="vxGemTon">Ton</label><select id="vxGemTon"><option value="naturel">Naturel</option><option value="chaleureux">Chaleureux</option><option value="pose">Posé</option><option value="dynamique">Dynamique</option></select></div>
       <p class="hint" id="vxGemQuota"></p>
@@ -297,7 +298,7 @@
   <div id="chargement"><div id="chargement-texte">Chargement des mondes…</div><div class="g-barre"><div id="chargement-barre"></div></div></div>
 </div>
 
-<script>window.RAYLE_VERSION='2026.11.21.4';</script>
+<script>window.RAYLE_VERSION='2026.11.21.5';</script>
 <script src="config.js"></script>
 <script src="core/commun/maj-pc.js"></script>
 <script src="core/commun/bascule-worker.js"></script>

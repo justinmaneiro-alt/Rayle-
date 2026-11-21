@@ -39,7 +39,12 @@ export async function appelerGemini({ cle, texte, voix, style, ton, vitesse, fet
   const corps = JSON.stringify(construireDemande({ texte, voix, style, ton, vitesse })), liste = modeleOk ? [modeleOk, ...MODELES_TTS.filter(m => m !== modeleOk)] : MODELES_TTS, erreurs = [];
   for (const m of liste) {
     let r; try { r = await fetchFn(`https://generativelanguage.googleapis.com/v1beta/models/${m}:generateContent`, { method: 'POST', headers: { 'Content-Type': 'application/json', 'x-goog-api-key': cle }, body: corps, signal: AbortSignal.timeout ? AbortSignal.timeout(delai) : undefined }); } catch (e) { erreurs.push(m + ' : ' + e.message); continue; }
-    if (r.status === 429) { bloqueJusqua = maintenant + 10 * 60e3; throw new ErreurGemini('quota Gemini atteint (429)', 429, true); }
+    if (r.status === 429) {
+      /* le message de Google dit quelle limite est touchée (par minute ou par jour, modèle, valeur) : on le garde pour l'afficher et le noter */
+      const brut = await r.text().catch(() => ''); let detail = ''; try { const j = JSON.parse(brut), e = j.error || {}; const viol = ((e.details || []).find(d => d.violations) || {}).violations || []; detail = [e.message, ...viol.map(v => (v.quotaMetric || '') + ' ' + (v.quotaId || '') + (v.quotaValue ? ' limite=' + v.quotaValue : ''))].filter(Boolean).join(' | '); } catch (x) { detail = brut; }
+      detail = String(detail).replace(/s+/g, ' ').slice(0, 500); const parJour = /PerDay|per day|daily/i.test(detail);
+      bloqueJusqua = maintenant + (parJour ? 3 * 3600e3 : 90e3); try { console.log('gemini 429 ' + m + ' : ' + detail); } catch (x) { /* */ }
+      const er = new ErreurGemini('quota Gemini atteint (429) [' + m + '] ' + detail, 429, true); er.parJour = parJour; throw er; }
     if (r.status === 404 || r.status === 400) { erreurs.push(m + ' : HTTP ' + r.status); continue; }   // modèle absent ou refusé : on essaie le suivant
     if (!r.ok) { erreurs.push(m + ' : HTTP ' + r.status); continue; }
     const j = await r.json().catch(() => null), part = j && j.candidates && j.candidates[0] && j.candidates[0].content && j.candidates[0].content.parts && j.candidates[0].content.parts.find(p => p.inlineData || p.inline_data), d = part && (part.inlineData || part.inline_data);
@@ -73,5 +78,5 @@ export async function routeGeminiTTS(request, env, ctx, cors, { json, cache = (t
     const g = await appelerGemini({ cle: env.GEMINI_KEY, texte, voix: V.voix, style: V.style, ton, vitesse, fetchFn, maintenant });
     if (cache) { try { const copie = new Response(g.wav, { headers: { 'Content-Type': 'audio/wav', 'Cache-Control': 'public, max-age=2592000' } }); if (ctx && ctx.waitUntil) { ctx.waitUntil(cache.put(cle, copie)); ctx.waitUntil(incrementerJour(cache, maintenant)); } else { await cache.put(cle, copie); await incrementerJour(cache, maintenant); } } catch (e) { /* tant pis : pas de cache */ } }
     return rep(g.wav, 'miss', g.modele);
-  } catch (e) { return json({ error: e.message, quota: !!e.quota }, e.statut || 503, cors); }
+  } catch (e) { return json({ error: e.message, quota: !!e.quota, jour: !!e.parJour }, e.statut || 503, cors); }
 }

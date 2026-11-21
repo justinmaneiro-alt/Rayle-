@@ -69,7 +69,7 @@ export async function monterPro(T) {
     const maj = m => { sel.querySelectorAll('[data-mode]').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.mode === m))); };
     async function aller(m, o = {}) {
       ecrire(MODE, m); maj(m);
-      if (m === 'volume') { placerHaut(); try { const c = await assurer(); c.ouvrir(true, { actif: o.actif || VOL_DE_ACTIF[actif], unite: o.unite || uniteClassique() }); } catch (e) { maj('classique'); ecrire(MODE, 'classique'); console.warn('[tp] mode Volume indisponible :', e && e.message || e); } }
+      if (m === 'volume') { placerHaut(); try { const c = await assurer(); c.ouvrir(true, { actif: o.actif || VOL_DE_ACTIF[actif], unite: o.unite || uniteClassique() }); for (const ms of [800, 2500, 5000]) setTimeout(() => { const u = uniteClassique(); if (ctrl && ctrl.estOuvert() && u && ctrl.etat().unite !== u) ctrl.definir({ unite: u }); }, ms); /* le Classique applique sa période juste après le montage : on se recale dessus */ } catch (e) { maj('classique'); ecrire(MODE, 'classique'); console.warn('[tp] mode Volume indisponible :', e && e.message || e); } }
       else if (ctrl) ctrl.fermer();
     }
     sel.addEventListener('click', ev => { const b = ev.target.closest('[data-mode]'); if (b) aller(b.dataset.mode); });
