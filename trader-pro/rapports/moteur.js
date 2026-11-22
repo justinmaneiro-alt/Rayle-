@@ -106,8 +106,8 @@ export function creerMoteur(env) {
         if (i + 1 < n) pret(r, i + 1).then(s2 => { if (!r.fin && !s2.passer && env.prechauffer && mode === 'normal') { try { env.prechauffer(s2.texte); } catch (e) { /* le préchauffage est facultatif */ } } });   /* la voix de l'étape suivante est préparée (copie en cache) pendant que celle-ci est dite */
         const issue = await lireEtape(r, i, step, mode);
         if (r.fin) break;
-        if (issue.type === 'saut') { const g = r.go; r.go = null; if (g.detail) { mode = 'detail'; i = g.i; } else { mode = 'normal'; i = g.i; } continue; }
-        if (issue.type === 'pause-externe') { await attendreReprise(r); mode = 'normal'; continue; }
+        if (issue.type === 'saut') { const g = r.go; r.go = null; r.finPrecedente = now(); if (g.detail) { mode = 'detail'; i = g.i; } else { mode = 'normal'; i = g.i; } continue; }
+        if (issue.type === 'pause-externe') { await attendreReprise(r); r.finPrecedente = now(); mode = 'normal'; continue; }
         if (mode === 'detail') { mode = 'normal'; }
         i++;
         if (i < n && R.ecoute) await ATT(R.ecoute);   // petite fenêtre d'écoute entre deux étapes : une commande vocale peut passer

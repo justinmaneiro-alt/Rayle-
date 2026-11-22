@@ -3,7 +3,7 @@ import { lancer, w } from './aide-chrome.mjs';
 const T = await lancer(process.argv[2] || 'tablette', { dossierCaptures: 'donnees-privees/captures-v10', vraiNavigateur: true, stockage: { rayle_donnees_base: '', rayle_piper_precharge: '0' } }), { p, verif, attendre, fin } = T;
 const ouv = await p.evaluate(async () => { const A = await import('/trader-pro/cerveau/actions.js'); window.__A = A; return await A.executerAction('ouvrir_fenetre', { fenetre: 'terminal', actif: 'or', unite: 'H4' }); });
 console.log('ouverture :', JSON.stringify(ouv));
-const pret = await attendre(() => p.evaluate(async () => { const O = await import('/trader-pro/cerveau/outils.js'); const r = await O.executer('lecture_graphique', {}); return r.pret === true ? r : null; }), 400000, 4000);
+const pret = await attendre(() => p.evaluate(async () => { const O = await import('/trader-pro/cerveau/outils.js'); const r = await O.executer('lecture_graphique', {}); return r.pret === true && r.unite === 'H4' ? r : null; }), 400000, 4000);   // v11 : attend aussi l'unité demandée (l'action de la page la règle en arrière-plan ; lire avant faisait dépendre le test de la charge du PC)
 verif(pret, 'terminal ouvert et graphique prêt');
 const L = await p.evaluate(async () => { const O = await import('/trader-pro/cerveau/outils.js'); return await O.executer('lecture_graphique', {}); }); console.log(JSON.stringify(L));
 verif(L.ouvert && /or/i.test(L.actif || '') && L.unite === 'H4', 'lecture_graphique : actif or, unité H4 (' + L.actif + ', ' + L.unite + ')');

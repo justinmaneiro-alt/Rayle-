@@ -365,7 +365,7 @@ function rapportMarche(src) {
   for (const id of ['or', 'us100', 'us500', 'btc', 'sol', 'petrole', 'eurusd', 'dxy']) etapes.push({ id: 'actif-' + id, chapitre: NOMS_COURTS[id], faire: async () => {
     const g = await glob(); const x = !indispo(g) ? (g.actifs || []).find(a => a.actif === id) : null;
     const page = TERMINAL.has(id) ? { fenetre: 'terminal', actif: id, unite: 'H4', mode: 'classique' } : { fenetre: 'invest', section: 'mesactifs', actif: id };
-    if (!x || x.couleur === 'indisponible') return manque('actif-' + id, NOMS_COURTS[id], NOMS_COURTS[id], page, (x && x.phrase) || 'les données sont indisponibles.');
+    if (!x || x.couleur === 'indisponible') return manque('actif-' + id, NOMS_COURTS[id], NOMS_COURTS[id], page, x && x.phrase ? (x.phrase.startsWith(NOMS_COURTS[id] + ' : ') ? x.phrase.slice(NOMS_COURTS[id].length + 3) : x.phrase) : 'les données sont indisponibles.');
     let pos = '', montrer = [], pl = null;
     if (TERMINAL.has(id) && id !== 'eurusd') {
       const [nv, Dn] = await Promise.all([memo(() => src.outil('niveaux', { actif: id }))(id), memo(() => src.pro(id))(id)]);

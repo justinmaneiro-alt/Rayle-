@@ -3,8 +3,9 @@
    Prérequis : node serveur.mjs 8000 (déjà lancé). Vérifie, pour chaque rapport : les bonnes pages ouvertes dans l'ordre, les éléments mis en évidence (lignes, bougies, zones, bulles), les vrais chiffres, une seule voix,
    la barre de rapport (titre, progression, boutons), aucun blanc de plus de 2 s entre deux étapes, aucune erreur JavaScript. Une capture par étape clé dans donnees-privees/captures-v11/. */
 import { lancer, w } from './aide-chrome.mjs';
-const [, , vue = 'tablette', type = 'complet', actif = 'or'] = process.argv;
+const [, , vue = 'tablette', type = 'complet', actif = 'or', ralenti = ''] = process.argv;   // 4e argument « x4 » : processeur ralenti 4 fois (tablette ou S23 simulés)
 const T = await lancer(vue, { dossierCaptures: 'donnees-privees/captures-v11', vraiNavigateur: true, stockage: { rayle_donnees_base: '', rayle_piper_precharge: '0' } }), { p, verif, attendre, fin } = T;
+if (/^x\d+$/.test(ralenti)) { const cdp = await p.createCDPSession(); await cdp.send('Emulation.setCPUThrottlingRate', { rate: +ralenti.slice(1) }); console.log('processeur ralenti ×' + ralenti.slice(1)); }
 const pageCharge = await attendre(() => p.evaluate(() => !!window.LecteurRapports && typeof window.speak === 'function' && !!window.Application), 60000, 500);
 verif(pageCharge, 'la page est chargée (LecteurRapports, speak, Application)');
 
@@ -57,6 +58,7 @@ verif(await attendre(() => p.evaluate(() => { const b = document.getElementById(
 const prep = await p.evaluate(() => (document.querySelector('#lr-barre .lr-sous') || {}).textContent); verif(/Coût estimé : ≈ [\d  ]+ caractères/.test(prep || '') || /Préparation/.test(prep || ''), 'coût estimé affiché avant la lecture (« ' + prep + ' »)');
 await p.evaluate(() => { window.LecteurRapports.charger().then(L => { L.moteur.vitesse(+2); }); });   // ×1,3 : le banc dure moins longtemps, la synchronisation est la même
 await T.capture('rapport-' + type + '-debut');
+await attendre(() => p.evaluate(() => window.__trace.barre.length >= 4), 400000, 1500); await w(5000); await T.capture('rapport-' + type + '-milieu');
 const fini = await attendre(() => p.evaluate(() => { const b = document.getElementById('lr-barre'); return b && b.classList.contains('fini'); }), 900000, 2000); verif(fini, 'le rapport va jusqu’au bout');
 await T.capture('rapport-' + type + '-fin');
 
