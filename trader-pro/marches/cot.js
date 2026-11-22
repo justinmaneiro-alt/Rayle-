@@ -25,7 +25,7 @@ export function analyserCot(d) {
     dernier: { date: S[n].date, spec: spec[n], comm: comm[n], oi: oi[n], indexSpec: iSpec[n], indexComm: iComm[n], varSpec: var1(spec, n), varComm: var1(comm, n), varOi: var1(oi, n), extremeSpec: ext(iSpec[n]), extremeComm: ext(iComm[n]) }
   };
 }
-export const dateFr = d => (/^d{4}-d{2}-d{2}$/.test(d || '') ? d.slice(8, 10) + '/' + d.slice(5, 7) + '/' + d.slice(0, 4) : d);
+export const dateFr = d => (/^\d{4}-\d{2}-\d{2}$/.test(d || '') ? d.slice(8, 10) + '/' + d.slice(5, 7) + '/' + d.slice(0, 4) : d);
 const dec1 = v => String(v).replace('.', ',');
 const fr = v => (v == null ? '—' : Math.round(v).toLocaleString('fr-FR').replace(/[  ]/g, ' '));
 const signe = v => (v == null ? '—' : (v > 0 ? '+' : v < 0 ? '−' : '') + Math.abs(Math.round(v)).toLocaleString('fr-FR').replace(/[  ]/g, ' '));

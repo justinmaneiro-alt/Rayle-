@@ -1,0 +1,430 @@
+/* ═════════════ RAPPORTS GUIDÉS (v11, phases 1 et 3) : construction des étapes à partir des VRAIES données ═════════════
+   Un rapport = une suite d'ÉTAPES. Chaque étape sait : quelle page ouvrir (`page`), comment cadrer le graphique (`cadrage`), quoi montrer (`segments[].montrer`), ce que Rayle dit (`segments[].texte`, une phrase ou deux par segment : l'animation suit la voix segment par segment),
+   la carte résumé à l'écran (`carte`), un détail plus poussé (`detail`, « détaille ça ») et l'heure des données. Ce module ne touche NI l'écran NI le réseau : tout passe par `src` (voir lecteur.js ; les tests fournissent de fausses données).
+   Garde-fous : aucune valeur inventée (un chiffre absent donne une étape « donnée manquante » que Rayle annonce puis passe) ; scénarios en « si… alors » avec déclencheur, entrée, invalidation et objectifs pris dans les niveaux mesurés ; jamais d'ordre ni de certitude.
+   src = { pro(id) → instantané pro, outil(nom, args) → résultat des outils du cerveau, cot(inst) → JSON COT brut, calendrier() → JSON brut, macro() → JSON brut, statsFleches() → JSON, maintenant() }. */
+import { lireUnite, phraseUnite, semaines, positionPrix, arrondir, SEUILS, atrA } from './bougies.js';
+import { analyserCot, dateFr, indexCot, ZONE_HAUTE, ZONE_BASSE } from '../marches/cot.js';
+import { lireEvenements, evenementsMajeurs, classerEvenement, heureParis, DEVISES_ACTIF } from '../marches/calendrier.js';
+import { expliquerImpact } from '../marches/impact.js';
+import { phraseStats } from '../terminal/stats-fleches.js';
+import { pocsNus } from '../volume/volume-calcul.js';
+import { correlation, rendements } from '../commun/analyse.js';
+
+export const ACTIFS_COT = ['or', 'us100', 'us500', 'dxy', 'btc'];
+const COT_INST = { or: 'OR', us100: 'NASDAQ', us500: 'SP500', btc: 'BTC', sol: 'SOL', dxy: 'DXY', eurusd: 'EURUSD' };
+const NOMS = { or: "l'or", us100: 'le Nasdaq 100', us500: 'le S&P 500', btc: 'le Bitcoin', sol: 'Solana', dxy: 'le dollar (DXY)', eurusd: "l'EUR/USD", petrole: 'le pétrole' };
+const NOMS_COURTS = { or: 'Or', us100: 'Nasdaq 100', us500: 'S&P 500', btc: 'Bitcoin', sol: 'Solana', dxy: 'Dollar (DXY)', eurusd: 'EUR/USD', petrole: 'Pétrole' };
+const DEC = { or: 2, us100: 1, us500: 1, btc: 0, sol: 2, dxy: 2, eurusd: 4, petrole: 2 };
+export const TOUS_ACTIFS = ['or', 'us100', 'us500', 'btc', 'sol', 'petrole', 'eurusd', 'dxy'];
+const TERMINAL = new Set(['or', 'us100', 'us500', 'btc', 'sol', 'dxy', 'eurusd']);   // actifs que le terminal sait ouvrir (le pétrole passe par Mes actifs)
+/* Estimation du coût en caractères parlés AVANT de lire (nombre d'étapes × moyenne mesurée sur les rapports de test) ; le coût réel est mesuré étape par étape. */
+export const COUT_MOYEN_ETAPE = { complet: 520, cot: 340, marche: 320, macro: 640 };
+
+/* ───── formats ───── */
+const NB = /[  ]/g;
+export const fr = (x, d = 2) => (Number.isFinite(x) ? x.toLocaleString('fr-FR', { minimumFractionDigits: 0, maximumFractionDigits: d }).replace(NB, ' ') : '—');
+const sg = (x, d = 1) => (Number.isFinite(x) ? (x > 0 ? '+' : x < 0 ? '−' : '') + fr(Math.abs(x), d) : '—');
+const dc = id => (DEC[id] != null ? DEC[id] : 2);
+const nom = id => NOMS[id] || id;
+const parseIso = s => (typeof s === 'number' ? s : Date.parse(String(s || '').replace(' UTC', 'Z').replace(' ', 'T')));
+export const quand = iso => { const t = parseIso(iso); return Number.isFinite(t) ? new Intl.DateTimeFormat('fr-FR', { timeZone: 'Europe/Paris', day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }).format(new Date(t)).replace(',', '').replace(' ', ' à ') + ' (Paris)' : 'heure inconnue'; };
+const tonDe = s => (/haussi|hausse|au-dessus|acheteu/.test(s || '') ? 'haut' : /baissi|baisse|sous|vendeu/.test(s || '') ? 'bas' : '');
+const indispo = r => !r || r.indisponible || r.__erreur;
+const lcFirst = t => String(t || '').replace(/^[A-ZÉÈÀ]/, c => c.toLowerCase());
+const parle = t => String(t == null ? '' : t).replace(/(\d)\.(\d)/g, '$1,$2').replace(/%/g, ' pour cent');
+const raison = r => (r && (r.indisponible || r.__erreur)) || 'donnée absente';
+
+/* ───── fabrique d'étapes ───── */
+function etape(o) {
+  const segs = (o.segments || []).filter(s => s && s.texte).map(s => ({ ...s, texte: String(s.texte).replace(/\s+/g, ' ').trim() }));
+  const texte = segs.map(s => s.texte).join(' ');
+  return { ok: true, passer: false, detail: '', annotations: [], ...o, segments: segs, texte, caracteres: texte.length };
+}
+function manque(id, chapitre, titre, page, why) {
+  const texte = titre + ' : ' + why + ' Je passe à la suite.';
+  return { ok: false, passer: true, id, chapitre, titre, page, cadrage: null, segments: [{ texte }], texte, caracteres: texte.length, detail: '', annotations: [], carte: { titre, lignes: [{ label: 'Donnée manquante', val: why, ton: 'bas' }] }, manque: why };
+}
+const memo = f => { const m = new Map(); return k => { const c = k == null ? '_' : String(k); if (!m.has(c)) m.set(c, Promise.resolve().then(() => f(k)).catch(e => ({ __erreur: String((e && e.message) || e).slice(0, 120) }))); return m.get(c); }; };
+const sec = (a, b) => (b == null ? a : a + ' ' + b);
+
+/* niveaux (nom, prix) exploitables, tirés de l'outil `niveaux` */
+export function listeNiveaux(niv) {
+  const L = []; if (indispo(niv)) return L;
+  for (const x of niv.reperesIct || []) if (Number.isFinite(x.prix) && !/^Ouv/i.test(x.nom)) L.push({ nom: x.nom, prix: x.prix, type: 'ict' });
+  if (niv.volume && !niv.volume.indisponible) for (const [n, p] of [['POC H4', niv.volume.pocH4], ['VAH H4', niv.volume.vah], ['VAL H4', niv.volume.val]]) if (Number.isFinite(p)) L.push({ nom: n, prix: p, type: 'volume' });
+  for (const x of Array.isArray(niv.mesNiveauxTraces) ? niv.mesNiveauxTraces : []) if (Number.isFinite(x.prix)) L.push({ nom: 'ton niveau tracé en ' + (x.unite || '?'), prix: x.prix, type: 'trace' });
+  for (const g of niv.fvg || []) { if (Number.isFinite(g.bas)) L.push({ nom: 'FVG ' + g.sens + ' (bas)', prix: g.bas, type: 'fvg' }); if (Number.isFinite(g.haut)) L.push({ nom: 'FVG ' + g.sens + ' (haut)', prix: g.haut, type: 'fvg' }); }
+  const vus = new Set(); return L.filter(x => { const k = x.nom + '|' + x.prix; if (vus.has(k)) return false; vus.add(k); return true; });
+}
+
+/* ───── scénarios : « si… alors » avec déclencheur, entrée, invalidation, objectifs ───── */
+export function scenarios(an, id) {
+  const d = dc(id), px = an.prix, aH = an.h4 && an.h4.atr, au = (an.position && an.position.auDessus) || [], en = (an.position && an.position.enDessous) || [];
+  const s = x => (x === 'haussière' ? 1 : x === 'baissière' ? -1 : 0), pm = x => (x === 'au-dessus' ? 1 : x === 'sous' ? -1 : 0);
+  const facteurs = [['Weekly', s(an.weekly && an.weekly.tendance)], ['Daily', s(an.daily && an.daily.tendance)], ['H4', s(an.h4 && an.h4.tendance)], ['prix par rapport à la MA200 Daily', pm(an.daily && an.daily.positionMa200)]];
+  const score = facteurs.reduce((t, f) => t + f[1], 0), regimeRange = /range/i.test((an.daily && an.daily.regime && an.daily.regime.type) || '');
+  const sens = score >= 2 ? 1 : score <= -2 ? -1 : 0, niveau = Math.abs(score) >= 3 && !regimeRange ? 'fort' : Math.abs(score) >= 2 ? 'moyen' : 'faible';
+  const pour = facteurs.filter(f => f[1] === (sens || 0) && sens !== 0).map(f => f[0]), contre = facteurs.filter(f => sens !== 0 && f[1] === -sens).map(f => f[0]);
+  const raisonConf = sens === 0 ? 'signaux partagés entre les unités de temps (' + facteurs.map(f => f[0] + ' ' + (f[1] > 0 ? 'haussier' : f[1] < 0 ? 'baissier' : 'neutre')).join(', ') + ')' : pour.length + ' signal(aux) sur 4 dans le même sens (' + pour.join(', ') + ')' + (contre.length ? ', contre : ' + contre.join(', ') : '') + (regimeRange ? ' ; marché en range, confiance plafonnée' : '');
+  const P = x => (x ? fr(x.prix, d) : null), marge = Number.isFinite(aH) ? 0.5 * aH : 0;
+  const objectifs = (L, k) => L.slice(k, k + 2).map(x => ({ prix: x.prix, nom: x.niveau }));
+  const mk = (titre, dir, declencheur, entree, invalidationPrix, objs, conf, annotations) => ({ titre, sens: dir, declencheur, entree, invalidation: invalidationPrix != null ? { prix: invalidationPrix, texte: (dir > 0 ? 'clôture H4 sous ' : dir < 0 ? 'clôture H4 au-dessus de ' : 'sortie du range à ') + fr(invalidationPrix, d) } : null, objectifs: objs, confiance: conf, annotations });
+  let principal, alternatif;
+  if (!au.length || !en.length) return { disponible: false, raison: 'pas assez de niveaux mesurés de part et d’autre du prix pour poser des scénarios', score, facteurs };
+  const A = au[0], B = en[0];
+  const hausse = () => mk('Scénario haussier', 1, 'clôture H4 au-dessus de ' + P(A) + ' (' + A.niveau + ')', 'retest de ' + P(A) + ' après la cassure, ou rebond sur ' + P(B) + ' (' + B.niveau + ')', B.prix - marge, objectifs(au, 1).length ? objectifs(au, 1) : [{ prix: A.prix + (aH || 0) * 2, nom: 'A.T.R. ×2 au-dessus du déclencheur' }], null,
+    [{ type: 'niveau', prix: A.prix, texte: 'déclencheur haussier' }, { type: 'niveau', prix: B.prix - marge, texte: 'invalidation' }, ...objectifs(au, 1).map(o => ({ type: 'niveau', prix: o.prix, texte: 'objectif ' + o.nom }))]);
+  const baisse = () => mk('Scénario baissier', -1, 'clôture H4 sous ' + P(B) + ' (' + B.niveau + ')', 'retest de ' + P(B) + ' par en dessous, ou rejet sur ' + P(A) + ' (' + A.niveau + ')', A.prix + marge, objectifs(en, 1).length ? objectifs(en, 1) : [{ prix: B.prix - (aH || 0) * 2, nom: 'A.T.R. ×2 sous le déclencheur' }], null,
+    [{ type: 'niveau', prix: B.prix, texte: 'déclencheur baissier' }, { type: 'niveau', prix: A.prix + marge, texte: 'invalidation' }, ...objectifs(en, 1).map(o => ({ type: 'niveau', prix: o.prix, texte: 'objectif ' + o.nom }))]);
+  if (sens > 0) { principal = hausse(); alternatif = baisse(); }
+  else if (sens < 0) { principal = baisse(); alternatif = hausse(); }
+  else {
+    principal = mk('Scénario de range', 0, 'le prix reste entre ' + P(B) + ' et ' + P(A), 'rebond sur ' + P(B) + ' (achat) ou rejet sur ' + P(A) + ' (vente), avec confirmation en H4', null, [{ prix: sens === 0 && px - B.prix < A.prix - px ? A.prix : B.prix, nom: 'l’autre borne du range' }], null, [{ type: 'zone', prix: B.prix, prix2: A.prix, texte: 'range' }]);
+    alternatif = mk('Sortie du range', 0, 'clôture H4 hors de ' + P(B) + ' – ' + P(A), 'après la cassure, retest du niveau cassé', null, [], null, []);
+  }
+  principal.confiance = { niveau, raison: raisonConf }; alternatif.confiance = { niveau: 'faible', raison: 'scénario contraire au biais principal (' + raisonConf + ')' };
+  return { disponible: true, score, facteurs, principal, alternatif };
+}
+const phraseScenario = (sc, id) => {
+  const d = dc(id), o = sc.objectifs.length ? ' Objectifs : ' + sc.objectifs.map(x => fr(x.prix, d) + ' (' + x.nom + ')').join(', puis ') + '.' : '';
+  return sc.titre + ' : si ' + sc.declencheur + ', entrée possible : ' + sc.entree + (sc.invalidation ? '. Invalidation : ' + sc.invalidation.texte : '') + '.' + o;
+};
+
+/* corrélation sur 60 séances de l'actif avec un autre (rendements journaliers alignés par date) */
+export function corrJours(Ja, Jb, n = 60) {
+  const cle = t => Math.floor(t / 86400e3), mb = new Map((Jb || []).map(b => [cle(b.t), b.c])), A = [], B = [];
+  for (const b of (Ja || []).slice(-(n + 10))) if (mb.has(cle(b.t))) { A.push(b.c); B.push(mb.get(cle(b.t))); }
+  const r = correlation(rendements(A.slice(-n - 1)), rendements(B.slice(-n - 1))); return r == null ? null : arrondir(r, 2);
+}
+
+/* ═════════════════════ A. RAPPORT COMPLET D'UN ACTIF ═════════════════════ */
+function rapportComplet(id, src) {
+  const d = dc(id), N = nom(id), cap = NOMS_COURTS[id];
+  const D = memo(() => src.pro(id)), niv = memo(() => src.outil('niveaux', { actif: id })), ana = memo(() => src.outil('analyse_marche', { actif: id })), glob = memo(() => src.outil('marche_global', {}));
+  const mac = memo(() => src.macro()), cal = memo(() => src.calendrier()), maj = memo(() => src.outil('mes_actifs', { actif: id, horizon: 'swing' })), pt4 = memo(() => src.outil('prix_et_tendance', { actif: id, unite: 'H4' }));
+  const marc = memo(() => src.outil('marches', { actif: id })), cotBrut = memo(() => src.cot(COT_INST[id])), stats = memo(() => (src.statsFleches ? src.statsFleches() : null));
+  const pageT = (unite, extra) => ({ fenetre: 'terminal', actif: id, unite, ...(extra || {}) });
+  const terminalOk = TERMINAL.has(id);
+  const lire = async (unite, B, n, an, nomMa200, prix) => {
+    const nv = await niv(id), ma = unite === 'S' ? (an.weekly && an.weekly.moyenne50Semaines) : unite === 'J' ? (an.daily && an.daily.ma200) : (an.h4 && an.h4.ma200);
+    return lireUnite(B, { n, niveaux: listeNiveaux(nv), dec: d, unite: unite === 'S' ? 'Weekly' : unite === 'J' ? 'Daily' : 'H4', ma200: ma, nomMa200, prix, enCours: unite === 'S' || unite === 'J' });
+  };
+  const bougiesSegments = (L, uniteCode, nomU, ref) => {
+    const S = []; if (!L || !L.disponible) return S;
+    const der = L.derniere, av = L.bougies[L.bougies.length - 2];
+    const vue = (b, lib) => ({ type: 'bougie', unite: uniteCode, t: b.t, tFin: uniteCode === 'S' ? b.t + 5 * 86400e3 : null, jours: uniteCode === 'S' && ref && ref.W[b.index] ? [ref.J[ref.W[b.index].i0], ref.J[ref.W[b.index].i1]].map(x => ({ o: x.o, h: x.h, l: x.l, c: x.c })) : null, o: b.o, h: b.h, l: b.l, c: b.c, texte: lib || b.etiquette });
+    S.push({ texte: phraseUnite({ ...L, position: { phrase: '' } }, nomU, d).replace(/\.\s*$/, '.'), montrer: [vue(der)], bougie: der.index });
+    if (av && (av.figures.length || av.contexte.length)) S.push({ texte: 'La bougie d’avant : ' + [av.figures.map(x => x.nom).join(' et '), av.contexte[0] ? av.contexte[0].texte : ''].filter(Boolean).join(', ') + '.', montrer: [vue(av)] });
+    const pos = L.position; if (pos.disponible) S.push({ texte: pos.phrase, montrer: [...pos.sur, ...pos.proche].slice(0, 2).map(n => ({ type: 'prix', prix: n.prix, texte: n.nom })).concat(!pos.sur.length && !pos.proche.length ? [pos.dessus, pos.dessous].filter(Boolean).map(n => ({ type: 'prix', prix: n.prix, texte: n.nom })) : []) });
+    else S.push({ texte: pos.phrase });
+    return S;
+  };
+  const ligneBougie = (b, lib) => ({ label: lib, val: b.etiquette, ton: b.figures.find(f => f.sens) ? (b.figures.find(f => f.sens).sens > 0 ? 'haut' : 'bas') : '' });
+
+  const etapes = [];
+  /* 1 · contexte global */
+  etapes.push({ id: 'contexte', chapitre: 'Contexte global', faire: async () => {
+    const [g, m, c, mc] = await Promise.all([glob(), mac(), cal(), marc()]);
+    if (indispo(g)) return manque('contexte', 'Contexte global', 'Contexte global', { fenetre: 'marches', section: 'aujourdhui' }, 'le tour des marchés est indisponible (' + raison(g) + ').');
+    const S = [], L = [], dxy = (g.actifs || []).find(x => x.actif === 'dxy'), us = (g.actifs || []).filter(x => x.actif === 'us100' || x.actif === 'us500');
+    S.push({ texte: 'Contexte global : le climat est ' + g.climat.lecture + '.', ligne: 0 }); L.push({ label: 'Climat', val: g.climat.lecture.split(' (')[0], ton: /risk-on/.test(g.climat.lecture) ? 'haut' : /risk-off/.test(g.climat.lecture) ? 'bas' : '' });
+    if (dxy && dxy.couleur !== 'indisponible') { S.push({ texte: 'Le dollar est ' + dxy.couleur + ' : ' + dxy.phrase + '.', ligne: 1 }); L.push({ label: 'Dollar (DXY)', val: dxy.couleur + (dxy.variationJourPct != null ? ' · ' + sg(dxy.variationJourPct) + ' % sur la séance' : ''), ton: dxy.couleur === 'haussier' ? 'bas' : dxy.couleur === 'baissier' ? 'haut' : '' }); }
+    else L.push({ label: 'Dollar (DXY)', val: 'indisponible', ton: '' });
+    if (us.length) { S.push({ texte: 'Actions américaines : ' + us.map(x => x.nom + ' ' + x.couleur).join(', ') + '.', ligne: 2 }); L.push({ label: 'Actions US', val: us.map(x => x.nom + ' ' + x.couleur).join(' · '), ton: '' }); }
+    const mes = (k, nomM) => { for (const s of (m && m.sections) || []) for (const x of s.mesures || []) if (x.id === k) return x; return null; };
+    const t10 = mes('taux.ust10'), pente = mes('taux.pente10_2'), reel = mes('taux.reel10');
+    if (t10 && Number.isFinite(t10.valeur)) { S.push({ texte: 'Taux américains à dix ans : ' + fr(t10.valeur, 2) + ' pour cent' + (pente && Number.isFinite(pente.valeur) ? ', pente dix ans moins deux ans ' + fr(pente.valeur, 2) + ' point' : '') + (reel && Number.isFinite(reel.valeur) ? ', taux réel ' + fr(reel.valeur, 2) + ' pour cent' : '') + '.', ligne: 3 }); L.push({ label: 'Taux 10 ans', val: fr(t10.valeur, 2) + ' %' + (reel && Number.isFinite(reel.valeur) ? ' · réel ' + fr(reel.valeur, 2) + ' %' : ''), ton: '' }); }
+    else { S.push({ texte: 'Les taux américains ne sont pas lisibles pour le moment.', ligne: 3 }); L.push({ label: 'Taux 10 ans', val: 'indisponible', ton: '' }); }
+    const act = !indispo(mc) && Array.isArray(mc.actualites) ? mc.actualites.slice(0, 2) : [];
+    if (act.length) { S.push({ texte: 'À la une pour ' + N + ' : ' + act.map(x => x.titre).join(' ; ') + '.', ligne: 4 }); L.push({ label: 'Actualité', val: act[0].titre.slice(0, 70) + (act[0].source ? ' · ' + act[0].source : ''), ton: '' }); }
+    else { S.push({ texte: 'Aucune actualité récente ne cite ' + N + '.', ligne: 4 }); L.push({ label: 'Actualité', val: 'aucune actualité récente', ton: '' }); }
+    let ann = []; if (!indispo(c)) ann = evenementsMajeurs(lireEvenements(c), src.maintenant(), { max: 40, pays: (DEVISES_ACTIF[id] || ['USD']) }).slice(0, 3);
+    if (ann.length) { S.push({ texte: 'Annonces à venir : ' + ann.map(a => a.titre + ' ' + heureParis(a.t) + (a.prevu ? ', prévu ' + parle(a.prevu) : '') + (a.precedent ? ', précédent ' + parle(a.precedent) : '')).join(' ; ') + '.', ligne: 5 }); L.push({ label: 'Annonces fortes', val: ann.map(a => a.titre).join(' · '), ton: '' }); }
+    else { S.push({ texte: indispo(c) ? 'Le calendrier est indisponible.' : 'Pas d’annonce à fort impact à venir cette semaine pour ' + N + '.', ligne: 5 }); L.push({ label: 'Annonces fortes', val: indispo(c) ? 'calendrier indisponible' : 'aucune à fort impact', ton: '' }); }
+    return etape({ id: 'contexte', chapitre: 'Contexte global', titre: 'Contexte global', page: { fenetre: 'marches', section: 'aujourdhui' }, segments: S, carte: { titre: 'Contexte global · ' + cap, grand: { label: 'Climat', val: g.climat.lecture.split(' (')[0] }, lignes: L }, detail: 'Détail du contexte : ' + (g.actifs || []).map(x => x.phrase).join(' ; ') + '. ' + (g.climat.base || ''), donneesDu: g.donneesDu });
+  } });
+
+  /* 2 · Weekly */
+  etapes.push({ id: 'weekly', chapitre: 'Weekly', faire: async () => {
+    const [Dn, an, nv] = await Promise.all([D(), ana(), niv()]); const page = pageT('J', { mode: 'volume', onglet: 'htf' });
+    if (indispo(Dn) || indispo(an)) return manque('weekly', 'Weekly', 'Weekly', page, 'les données de ' + N + ' sont indisponibles (' + raison(indispo(an) ? an : Dn) + ').');
+    const W = semaines(Dn.j), L = await lire('S', W, 4, an, 'MA50 semaines', an.prix);
+    if (!L.disponible) return manque('weekly', 'Weekly', 'Weekly', page, 'pas assez de semaines pour lire les bougies Weekly (' + L.raison + ').');
+    const w = an.weekly, S = [];
+    S.push({ texte: 'Weekly : tendance ' + w.tendance + (w.structure ? ', ' + w.structure.lecture : '') + '.', ligne: 0 });
+    if (w.moyenne50Semaines != null) S.push({ texte: 'Le prix est ' + w.positionMoyenne50 + ' de sa moyenne à cinquante semaines (' + fr(w.moyenne50Semaines, d) + ').', ligne: 1, montrer: [{ type: 'prix', prix: w.moyenne50Semaines, texte: 'MA50 semaines' }] });
+    S.push(...bougiesSegments(L, 'S', 'Weekly', { W, J: Dn.j }).map(s => ({ ...s, ligne: s.bougie != null ? 2 : 3 })));
+    const wk = (nv.bougiesWeekly || []).filter(b => Number.isFinite(b.bas));
+    if (wk.length) { const zb = wk.slice(-3); S.push({ texte: 'Zones de rebond possibles : bas des semaines récentes à ' + zb.map(b => fr(b.bas, d)).join(', ') + '.', ligne: 3, montrer: zb.map(b => ({ type: 'prix', prix: b.bas, texte: 'bas hebdo' })).slice(-2) }); }
+    const lg = [{ label: 'Tendance Weekly', val: w.tendance, ton: tonDe(w.tendance) }, { label: 'MA50 semaines', val: w.moyenne50Semaines != null ? fr(w.moyenne50Semaines, d) + ' · prix ' + w.positionMoyenne50 : 'indisponible', ton: w.positionMoyenne50 === 'au-dessus' ? 'haut' : w.positionMoyenne50 === 'sous' ? 'bas' : '' }, ligneBougie(L.derniere, 'Bougie en cours'), { label: 'Position', val: L.position.phrase, ton: '' }];
+    return etape({ id: 'weekly', chapitre: 'Weekly', titre: 'Weekly', page, cadrage: { unite: 'J', barres: 70 }, segments: S, carte: { titre: 'Weekly · ' + cap, grand: { label: 'Tendance Weekly', val: w.tendance }, lignes: lg }, detail: 'Détail Weekly : ' + L.bougies.map(b => b.etiquette + ' (haut ' + fr(b.h, d) + ', bas ' + fr(b.l, d) + ')').join(' ; ') + '. ATR hebdomadaire ' + fr(L.atr, d) + '.', donneesDu: an.donneesDu, focus: { type: 'bougie', unite: 'S', t: L.derniere.t, tFin: L.derniere.t + 5 * 86400e3, h: L.derniere.h, l: L.derniere.l, texte: L.derniere.etiquette } });
+  } });
+
+  /* 3 · Daily, 4 · H4 */
+  const unite = (code, titre, chap, B, nbBarres) => async () => {
+    const idEt = code === 'J' ? 'daily' : 'h4';
+    const [Dn, an] = await Promise.all([D(), ana()]); const page = pageT(code === 'J' ? 'J' : 'H4', { mode: 'classique' });
+    if (indispo(Dn) || indispo(an)) return manque(idEt, chap, titre, page, 'les données de ' + N + ' sont indisponibles (' + raison(indispo(an) ? an : Dn) + ').');
+    const bars = code === 'J' ? Dn.j : Dn.h4, u = code === 'J' ? an.daily : an.h4, L = await lire(code, bars, 4, an, 'MA200 ' + (code === 'J' ? 'Daily' : 'H4'), an.prix);
+    if (!L.disponible) return manque(idEt, chap, titre, page, 'pas assez de bougies pour la lecture (' + L.raison + ').');
+    const S = [];
+    S.push({ texte: titre + ' : tendance ' + u.tendance + (u.regime && u.regime.type ? ', marché en ' + u.regime.type : '') + (u.structure ? ', ' + u.structure.lecture : '') + '.', ligne: 0 });
+    if (u.ma200 != null) S.push({ texte: 'Le prix est ' + u.positionMa200 + ' de la MA200 ' + titre + ' à ' + fr(u.ma200, d) + ' (écart ' + sg(u.ecartMa200Pct) + ' pour cent).', ligne: 1, montrer: [{ type: 'prix', prix: u.ma200, texte: 'MA200 ' + titre }] });
+    else S.push({ texte: 'La MA200 ' + titre + ' n’est pas calculable (moins de deux cents bougies).', ligne: 1 });
+    S.push(...bougiesSegments(L, code === 'J' ? 'J' : 'H4', titre).map(s => ({ ...s, ligne: s.bougie != null ? 2 : 3 })));
+    let fl = [], stat = null;
+    if (code === 'H4') {
+      const p4 = await pt4(); fl = !indispo(p4) ? (p4.dernieresFleches || []).filter(f => f.unite === 'H4' || !f.unite).slice(0, 3) : [];
+      const st = await stats(), ts = st && st.actifs && st.actifs[id] && st.actifs[id].H4 && st.actifs[id].H4.types;
+      if (fl.length) { const f0 = fl[0], cle = String(f0.type || '').toLowerCase(), tp = ts && Object.keys(ts).find(k => k === cle || (st.types || []).some(t => t.id === k && t.nom === f0.type)); stat = tp ? phraseStats(N, 'H4', ts[tp]) : null;
+        S.push({ texte: 'Flèches récentes : ' + fl.map(f => f.sens + ' ' + f.type + ' le ' + quand(f.date).split(' (')[0] + ' à ' + fr(f.niveau, d)).join(' ; ') + '.' + (stat ? ' ' + stat + '.' : ''), ligne: 4, montrer: fl.slice(0, 2).filter(f => Number.isFinite(f.niveau)).map(f => ({ type: 'prix', prix: f.niveau, texte: 'flèche ' + f.type })) }); }
+      else S.push({ texte: 'Aucune flèche récente en H4.', ligne: 4 });
+    }
+    const lg = [{ label: 'Tendance · régime', val: u.tendance + (u.regime && u.regime.type ? ' · ' + u.regime.type : ''), ton: tonDe(u.tendance) }, { label: 'MA200 ' + titre, val: u.ma200 != null ? fr(u.ma200, d) + ' · prix ' + u.positionMa200 + ' (' + sg(u.ecartMa200Pct) + ' %)' : 'indisponible', ton: u.positionMa200 === 'au-dessus' ? 'haut' : u.positionMa200 === 'sous' ? 'bas' : '' }, ligneBougie(L.derniere, 'Dernière bougie'), { label: 'Position', val: L.position.phrase, ton: '' }];
+    if (code === 'H4') lg.push({ label: 'Flèches', val: fl.length ? fl.map(f => f.sens.split(' ')[0] + ' ' + f.type).join(' · ') : 'aucune récente', ton: '' });
+    return etape({ id: idEt, chapitre: chap, titre, page, cadrage: { unite: code === 'J' ? 'J' : 'H4', barres: nbBarres }, segments: S, carte: { titre: titre + ' · ' + cap, grand: { label: 'Prix', val: fr(an.prix, d) }, lignes: lg }, detail: 'Détail ' + titre + ' : ' + L.bougies.map(b => b.etiquette + ' (' + b.forme.sens + (b.forme.tailleAtr != null ? ', ' + fr(b.forme.tailleAtr, 1) + ' ATR' : '') + (b.volume ? ', ' + b.volume.lib : '') + ')').join(' ; ') + '. ATR ' + fr(L.atr, d) + '. ' + (stat ? stat + '.' : ''), donneesDu: an.donneesDu, focus: { type: 'bougie', unite: code === 'J' ? 'J' : 'H4', t: L.derniere.t, h: L.derniere.h, l: L.derniere.l, texte: L.derniere.etiquette } });
+  };
+  etapes.push({ id: 'daily', chapitre: 'Daily', faire: unite('J', 'Daily', 'Daily', null, 60) });
+  etapes.push({ id: 'h4', chapitre: 'H4', faire: unite('H4', 'H4', 'H4', null, 90) });
+
+  /* 5 · Volume */
+  etapes.push({ id: 'volume', chapitre: 'Volume', faire: async () => {
+    const [Dn, nv, an] = await Promise.all([D(), niv(), ana()]); const page = pageT('H4', { mode: 'volume' });
+    if (indispo(nv) || !nv.volume || nv.volume.indisponible) return manque('volume', 'Volume', 'Volume', page, 'le profil de volume n’est pas calculable pour ' + N + '.');
+    const v = nv.volume, px = an && !indispo(an) ? an.prix : nv.prix, S = [], lg = [];
+    const place = px > v.vah ? 'au-dessus de la zone de valeur' : px < v.val ? 'sous la zone de valeur' : 'dans la zone de valeur';
+    S.push({ texte: 'Volume : le point de contrôle H4 est à ' + fr(v.pocH4, d) + ', la zone de valeur va de ' + fr(v.val, d) + ' à ' + fr(v.vah, d) + ', et le prix est ' + place + '.', ligne: 0, montrer: [{ type: 'prix', prix: v.pocH4, texte: 'POC H4' }, { type: 'zone', prix: v.val, prix2: v.vah, texte: 'zone de valeur' }] });
+    lg.push({ label: 'POC · zone de valeur', val: fr(v.pocH4, d) + ' · ' + fr(v.val, d) + ' – ' + fr(v.vah, d), ton: '' }, { label: 'Prix', val: place, ton: px > v.vah ? 'haut' : px < v.val ? 'bas' : '' });
+    let nus = []; try { if (!indispo(Dn)) nus = [...pocsNus(Dn.h4, 'semaine', { max: 2 })].slice(0, 2); } catch (e) { nus = []; }
+    if (nus.length) { S.push({ texte: 'POC nus non retestés : ' + nus.map(n => fr(n.prix, d) + ' (' + fr((n.prix / px - 1) * 100, 1).replace(/^(\d)/, '+$1') + ' pour cent)').join(' et ') + '. Ils attirent souvent le prix quand il en est proche.', ligne: 2, montrer: nus.map(n => ({ type: 'prix', prix: n.prix, texte: 'POC nu' })) }); lg.push({ label: 'POC nus', val: nus.map(n => fr(n.prix, d)).join(' · '), ton: '' }); } else { S.push({ texte: 'Aucun POC nu hebdomadaire proche.', ligne: 2 }); lg.push({ label: 'POC nus', val: 'aucun', ton: '' }); }
+    const vv = !indispo(an) ? an.volumeEtFlux && an.volumeEtFlux.volumeH4 : null;
+    if (vv && !vv.indisponible) { S.push({ texte: 'Le volume de la dernière bougie H4 vaut ' + fr(vv.volumeRelatifDerniereBougie, 1) + ' fois la moyenne ; le CVD est ' + (vv.cvdTendance || 'indéterminé') + (vv.deltaEstime ? ' (delta estimé, pas mesuré)' : ' (delta réel)') + '.', ligne: 3 }); lg.push({ label: 'Volume relatif · CVD', val: fr(vv.volumeRelatifDerniereBougie, 1) + ' × · CVD ' + (vv.cvdTendance || '?'), ton: vv.cvdTendance === 'en hausse' ? 'haut' : vv.cvdTendance === 'en baisse' ? 'bas' : '' }); }
+    else { S.push({ texte: 'Volume et CVD indisponibles pour cet actif.', ligne: 3 }); lg.push({ label: 'Volume · CVD', val: 'indisponible', ton: '' }); }
+    S.push({ texte: 'Footprint et carnet : lecture en direct en cours.', ligne: 4 }); lg.push({ label: 'Footprint · carnet', val: 'lecture en direct…', ton: '' });
+    return etape({ id: 'volume', chapitre: 'Volume', titre: 'Volume', page, cadrage: { unite: 'H4', barres: 80 }, segments: S, carte: { titre: 'Volume · ' + cap, grand: { label: 'POC H4', val: fr(v.pocH4, d) }, lignes: lg }, detail: 'Détail du volume : zones de volume fort à ' + (v.zonesDeVolume || []).map(x => fr(x, d)).join(', ') + '. Le POC est le prix où il s’est échangé le plus de volume ; hors de la zone de valeur le prix est « cher » ou « bon marché » pour les participants.', donneesDu: an && an.donneesDu,
+      /* Une fois le terminal Volume ouvert sur l'actif : lecture du footprint et du carnet en direct (la même phrase que le terminal) ; sinon on le dit */
+      enrichir: async () => { const r = await src.outil('carnet_et_volume', { actif: id }); const tv = r && r.terminalVolume, lt = r && r.lectureTerminal;
+        let texte, val; if (tv && lt && typeof lt === 'string') { texte = 'Carnet et footprint : ' + lt.split('. ').filter(x => /carnet|flèche|mur/i.test(x)).join('. ') + (tv.deltaReel ? ' Delta réel mesuré.' : ' Delta estimé.'); val = (tv.murs && tv.murs.length ? tv.murs.length + ' mur(s)' : 'pas de mur') + (tv.carnetVivant ? ' · carnet vivant' : ''); if (!/carnet|flèche|mur/i.test(texte.replace('Carnet et footprint :', ''))) texte = 'Carnet et footprint : ' + lt.slice(0, 220); }
+        else { texte = 'Footprint et carnet d’ordres : indisponibles hors connexion directe pour ' + N + '.'; val = 'indisponible (pas de flux direct)'; }
+        return { segment: 4, texte, ligne: { index: 4, label: 'Footprint · carnet', val, ton: '' } }; } });
+  } });
+
+  /* 6 · COT */
+  etapes.push({ id: 'cot', chapitre: 'COT', faire: async () => {
+    const page = { fenetre: 'marches', section: 'cot', actif: id };
+    if (!COT_INST[id]) return manque('cot', 'COT', 'COT', page, 'il n’existe pas de rapport COT pour ' + N + '.');
+    const raw = await cotBrut(); if (indispo(raw)) return manque('cot', 'COT', 'COT', page, 'le rapport COT est indisponible (' + raison(raw) + ').');
+    const a = analyserCot(raw); if (!a) return manque('cot', 'COT', 'COT', page, 'pas assez de semaines de COT publiées.');
+    const dd = a.dernier, S = [{ texte: 'COT du ' + dateFr(dd.date) + ' : les ' + a.nomSpec.toLowerCase() + ' sont nets à ' + fr(dd.spec, 0) + ' contrats (' + sg(dd.varSpec, 0) + ' sur la semaine), indice ' + (dd.indexSpec == null ? 'indisponible' : fr(dd.indexSpec, 0) + ' sur cent') + (dd.extremeSpec ? ', un extrême ' + (dd.extremeSpec === 'haut' ? 'acheteur' : 'vendeur') : ', pas d’extrême') + '.', ligne: 0, montrer: [{ type: 'element', selecteur: '.tp-cartes > div:nth-child(2)', texte: 'indice COT' }] },
+      { texte: 'Le détail complet est dans le rapport COT : demande « rapport COT sur ' + N + ' ».', ligne: 1 }];
+    return etape({ id: 'cot', chapitre: 'COT', titre: 'COT', page, segments: S, carte: { titre: 'COT · ' + cap, grand: { label: 'Indice COT 3 ans', val: dd.indexSpec == null ? '—' : fr(dd.indexSpec, 0) + ' / 100' }, lignes: [{ label: a.nomSpec, val: fr(dd.spec, 0) + ' net · ' + sg(dd.varSpec, 0), ton: '' }, { label: 'Lecture', val: 'rapport COT pour le détail', ton: '' }] }, detail: 'Lecture du COT : ' + a.libelle + '. ' + dateFr(dd.date) + '.', donneesDu: dd.date + ' (mardi de mesure)' });
+  } });
+
+  /* 7 · Valorisation */
+  etapes.push({ id: 'valo', chapitre: 'Valorisation', faire: async () => {
+    const m = await maj(); const page = { fenetre: 'invest', section: 'mesactifs', actif: id };
+    if (indispo(m)) return manque('valo', 'Valorisation', 'Valorisation', page, 'la valorisation « Mes actifs » est indisponible pour ' + N + ' (' + raison(m) + ').');
+    const H = m.horizons || [], S = [{ texte: 'Valorisation de ' + N + ' dans Mes actifs : ' + H.map(h => 'à ' + h.horizon + ', ' + h.verdict + ' (' + h.score100 + ' sur cent)').join(' ; ') + '.', ligne: 0, montrer: [{ type: 'element', selecteur: '[data-ma-actif="' + id + '"]', texte: 'verdict Mes actifs' }] }];
+    const rs = (H[1] || H[0] || {}).raisons || []; if (rs.length) S.push({ texte: 'Les raisons principales à un à six mois : ' + rs.join(' ; ') + '.', ligne: 1 });
+    return etape({ id: 'valo', chapitre: 'Valorisation', titre: 'Valorisation', page, segments: S, carte: { titre: 'Valorisation · ' + cap, grand: { label: (H[1] || H[0]).horizon, val: (H[1] || H[0]).verdict }, lignes: H.map(h => ({ label: h.horizon, val: h.verdict + ' · ' + h.score100 + ' / 100 · confiance ' + h.confiancePct + ' %', ton: h.score100 >= 58 ? 'haut' : h.score100 < 42 ? 'bas' : '' })) }, detail: 'Détail : ' + (m.phrase || '') + ' Prix lu le ' + quand(m.prixDu) + '.', donneesDu: m.prixDu });
+  } });
+
+  /* 8 · Scénarios */
+  etapes.push({ id: 'scenarios', chapitre: 'Scénarios', faire: async () => {
+    const [an, nv] = await Promise.all([ana(), niv()]); const page = pageT('H4', { mode: 'classique' });
+    if (indispo(an)) return manque('scenarios', 'Scénarios', 'Scénarios', page, 'les données pour poser des scénarios sont indisponibles (' + raison(an) + ').');
+    const sc = scenarios(an, id); void nv;
+    if (!sc.disponible) return manque('scenarios', 'Scénarios', 'Scénarios', page, sc.raison + '.');
+    const S = [{ texte: 'Scénarios. ' + phraseScenario(sc.principal, id) + ' Confiance ' + sc.principal.confiance.niveau + ' : ' + sc.principal.confiance.raison + '.', ligne: 0, montrer: sc.principal.annotations.map(x => (x.type === 'zone' ? { type: 'zone', prix: x.prix, prix2: x.prix2, texte: x.texte } : { type: 'prix', prix: x.prix, texte: x.texte })).slice(0, 4) },
+      { texte: 'Scénario alternatif. ' + phraseScenario(sc.alternatif, id) + ' C’est toi qui décides : ce sont des conditions à surveiller, pas des ordres.', ligne: 1, montrer: sc.alternatif.annotations.map(x => ({ type: 'prix', prix: x.prix, texte: x.texte })).slice(0, 3) }];
+    const ann = [...sc.principal.annotations, ...sc.alternatif.annotations].filter(x => Number.isFinite(x.prix)).slice(0, 8);
+    return etape({ id: 'scenarios', chapitre: 'Scénarios', titre: 'Scénarios', page, cadrage: { unite: 'H4', barres: 90 }, segments: S, annotations: ann, scenarios: { principal: sc.principal, alternatif: sc.alternatif }, contexte: { prix: an.prix, atr: an.h4.atr, dec: d, niveaux: [...(an.position.auDessus || []).map(x => ({ nom: x.niveau, prix: x.prix })), ...(an.position.enDessous || []).map(x => ({ nom: x.niveau, prix: x.prix }))], donneesDu: an.donneesDu }, carte: { titre: 'Scénarios · ' + cap, grand: { label: sc.principal.titre, val: 'confiance ' + sc.principal.confiance.niveau }, lignes: [{ label: sc.principal.titre, val: 'si ' + sc.principal.declencheur, ton: sc.principal.sens > 0 ? 'haut' : sc.principal.sens < 0 ? 'bas' : '' }, { label: 'Invalidation', val: sc.principal.invalidation ? sc.principal.invalidation.texte : 'sortie du range', ton: 'bas' }, { label: 'Objectifs', val: sc.principal.objectifs.map(o => fr(o.prix, d)).join(' puis ') || 'à définir', ton: 'haut' }, { label: sc.alternatif.titre, val: 'si ' + sc.alternatif.declencheur, ton: '' }] }, detail: 'Détail des scénarios. Biais mesuré : ' + sc.facteurs.map(f => f[0] + ' ' + (f[1] > 0 ? 'haussier' : f[1] < 0 ? 'baissier' : 'neutre')).join(', ') + '. Entrée du principal : ' + sc.principal.entree + '. Entrée de l’alternatif : ' + sc.alternatif.entree + '. L’A.T.R. H4 est de ' + fr(an.h4.atr, d) + ' : l’invalidation est placée une demi A.T.R. au-delà du niveau.', donneesDu: an.donneesDu });
+  } });
+
+  /* 9 · Vigilance et risque */
+  etapes.push({ id: 'risque', chapitre: 'Vigilance et risque', faire: async () => {
+    const [an, c, Dn] = await Promise.all([ana(), cal(), D()]); const page = { fenetre: 'portefeuille', section: 'risque' };
+    if (indispo(an)) return manque('risque', 'Vigilance et risque', 'Vigilance et risque', page, 'les données sont indisponibles (' + raison(an) + ').');
+    const S = [], lg = [], ev = !indispo(c) ? evenementsMajeurs(lireEvenements(c), src.maintenant(), { max: 40, pays: DEVISES_ACTIF[id] || ['USD'] }).slice(0, 2) : [];
+    S.push({ texte: ev.length ? 'Vigilance : ' + ev.map(a => a.titre + ' ' + heureParis(a.t)).join(' et ') + ', des annonces fortes qui peuvent faire bouger ' + N + '.' : 'Vigilance : aucune annonce forte à venir côté ' + (DEVISES_ACTIF[id] || ['USD']).join(' et ') + ' dans le calendrier.', ligne: 0 }); lg.push({ label: 'Annonces', val: ev.length ? ev.map(a => a.titre).join(' · ') : 'aucune forte à venir', ton: ev.length ? 'bas' : 'haut' });
+    const atrPct = an.daily && an.daily.atr && an.prix ? an.daily.atr / an.prix * 100 : null;
+    S.push({ texte: atrPct != null ? 'Volatilité : l’A.T.R. Daily vaut ' + fr(an.daily.atr, d) + ', soit ' + fr(atrPct, 1) + ' pour cent du prix' + (an.daily.regime && an.daily.regime.volatilite ? ', volatilité ' + an.daily.regime.volatilite : '') + '.' : 'La volatilité n’est pas calculable.', ligne: 1 }); lg.push({ label: 'Volatilité (ATR Daily)', val: atrPct != null ? fr(atrPct, 1) + ' % du prix' : 'indisponible', ton: '' });
+    const cors = []; if (!indispo(Dn)) for (const o of ['dxy', 'us100']) if (o !== id) { const x = await memo(() => src.pro(o))(o); if (!indispo(x)) { const r = corrJours(Dn.j, x.j, 60); if (r != null) cors.push({ o, r }); } }
+    if (cors.length) { S.push({ texte: 'Corrélation sur soixante séances : ' + cors.map(x => nom(x.o) + ' ' + fr(x.r, 2)).join(', ') + '. Plus la valeur est proche de un ou de moins un, plus ' + N + ' bouge avec ou contre eux.', ligne: 2 }); lg.push({ label: 'Corrélations 60 séances', val: cors.map(x => NOMS_COURTS[x.o] + ' ' + fr(x.r, 2)).join(' · '), ton: '' }); }
+    else { S.push({ texte: 'Les corrélations ne sont pas calculables pour le moment.', ligne: 2 }); lg.push({ label: 'Corrélations', val: 'indisponible', ton: '' }); }
+    const r = an.monRisque;
+    if (r && !r.indisponible && (r.risque || r.portefeuille)) { S.push({ texte: 'Ton risque engagé : ' + String(r.risque || r.portefeuille).replace(/\s+/g, ' ').slice(0, 260), ligne: 3, montrer: [{ type: 'element', selecteur: '.tp-carte', texte: 'mon risque' }] }); lg.push({ label: 'Mon risque', val: String(r.risque || r.portefeuille).slice(0, 110), ton: '' }); }
+    else { S.push({ texte: 'Ton risque engagé n’est pas lisible : l’historique XTB n’est pas importé sur cet appareil.', ligne: 3 }); lg.push({ label: 'Mon risque', val: 'historique XTB non importé', ton: '' }); }
+    return etape({ id: 'risque', chapitre: 'Vigilance et risque', titre: 'Vigilance et risque', page, segments: S, carte: { titre: 'Vigilance · ' + cap, grand: { label: 'Volatilité', val: atrPct != null ? fr(atrPct, 1) + ' %' : '—' }, lignes: lg }, detail: r && !r.indisponible ? 'Détail du risque : ' + [r.portefeuille, r.risque].filter(Boolean).join(' ').slice(0, 700) : 'Pas de détail de risque : historique non importé.', donneesDu: an.donneesDu });
+  } });
+  return etapes;
+}
+
+/* ═════════════════════ B. RAPPORT COT ═════════════════════ */
+const pctRang = (serie, k) => { const w = serie.slice(-k); if (w.length < Math.min(k, 26)) return null; const v = w[w.length - 1]; return Math.round(w.filter(x => x <= v).length / w.length * 100); };
+const prixAuxDates = (dates, jours) => { const out = []; let k = 0; for (const dt of dates) { const t = Date.parse(dt + 'T23:59:59Z'); while (k + 1 < jours.length && jours[k + 1].t <= t) k++; out.push(jours.length && jours[k].t <= t ? jours[k].c : null); } return out; };
+/* épisodes d'extrême du COT index : semaine d'entrée + prix 8 semaines plus tard (si on a le prix) */
+export function episodesExtremes(a, px, sens, horizon = 8) {
+  const idx = a.indexSpec, ep = []; let dans = false;
+  for (let i = 0; i < idx.length; i++) { const e = idx[i] != null && (sens === 'haut' ? idx[i] >= ZONE_HAUTE : idx[i] <= ZONE_BASSE); if (e && !dans) { ep.push({ i, date: a.dates[i], index: idx[i] }); dans = true; } if (!e) dans = false; }
+  return ep.map(x => { const p0 = px ? px[x.i] : null, p1 = px && x.i + horizon < px.length ? px[x.i + horizon] : null; return { ...x, prix0: p0, apres: p0 != null && p1 != null ? (p1 / p0 - 1) * 100 : null }; });
+}
+function rapportCot(id, src) {
+  const N = nom(id), cap = NOMS_COURTS[id], inst = COT_INST[id], d = dc(id);
+  const page = { fenetre: 'marches', section: 'cot', actif: id }, raw = memo(() => (inst ? src.cot(inst) : { indisponible: 'aucun rapport COT pour ' + N })), D = memo(() => src.pro(id));
+  const ana = memo(async () => { const r = await raw(); if (indispo(r)) return { err: raison(r) }; const a = analyserCot(r); return a ? { a, brut: r } : { err: 'pas assez de semaines de COT publiées (moins de huit)' }; });
+  const sur = (n) => '.tp-cartes > div:nth-child(' + n + ')';
+  const note = id === 'eurusd' || id === 'sol' ? 'La fenêtre COT n’affiche pas ' + N + ' : je te montre ses chiffres dans ma carte.' : '';
+  const sans = (cid, chap, why) => manque(cid, chap, chap, page, why);
+  const etapes = [];
+  etapes.push({ id: 'positions', chapitre: 'Positions nettes', faire: async () => {
+    const r = await ana(); if (r.err) return sans('positions', 'Positions nettes', r.err + '.');
+    const { a } = r, dd = a.dernier, S = [{ texte: 'Rapport COT sur ' + N + ', mesure du mardi ' + dateFr(dd.date) + ', publiée le vendredi.', ligne: 0 }];
+    if (note) S.push({ texte: note, ligne: 0 });
+    S.push({ texte: a.nomSpec + ' : positions nettes ' + fr(dd.spec, 0) + ' contrats, ' + (dd.varSpec > 0 ? 'en hausse' : dd.varSpec < 0 ? 'en baisse' : 'stables') + ' de ' + fr(Math.abs(dd.varSpec), 0) + ' sur la semaine. Ce sont les gros spéculateurs, qui suivent les tendances.', ligne: 1, montrer: [{ type: 'element', selecteur: sur(1), texte: a.nomSpec }] });
+    S.push({ texte: a.nomComm + ' : ' + fr(dd.comm, 0) + ' contrats nets, ' + (dd.varComm > 0 ? '+' : dd.varComm < 0 ? '−' : '') + fr(Math.abs(dd.varComm), 0) + ' sur la semaine. Ce sont les producteurs et intermédiaires, qui couvrent leur activité.', ligne: 2, montrer: [{ type: 'element', selecteur: sur(3), texte: a.nomComm }] });
+    S.push({ texte: 'Les petits spéculateurs ne sont pas fournis par la source utilisée : je ne peux pas les lire.', ligne: 3 });
+    return etape({ id: 'positions', chapitre: 'Positions nettes', titre: 'Positions nettes', page, segments: S, carte: { titre: 'COT · positions nettes · ' + cap, grand: { label: a.nomSpec, val: fr(dd.spec, 0) }, lignes: [{ label: 'Date de mesure', val: dateFr(dd.date) + ' (mardi)', ton: '' }, { label: a.nomSpec, val: fr(dd.spec, 0) + ' net · ' + sg(dd.varSpec, 0) + ' / semaine', ton: dd.varSpec > 0 ? 'haut' : dd.varSpec < 0 ? 'bas' : '' }, { label: a.nomComm, val: fr(dd.comm, 0) + ' net · ' + sg(dd.varComm, 0) + ' / semaine', ton: '' }, { label: 'Petits spéculateurs', val: 'non fournis par la source', ton: '' }] }, detail: 'Détail : contrats longs et courts du dernier rapport. ' + a.source + '. Les positions nettes sont longues moins courtes.', donneesDu: dd.date + ' (mardi de mesure)' });
+  } });
+  etapes.push({ id: 'indice', chapitre: 'Indice COT', faire: async () => {
+    const r = await ana(); if (r.err) return sans('indice', 'Indice COT', r.err + '.');
+    const { a } = r, dd = a.dernier, p52 = pctRang(a.spec, 52), p156 = pctRang(a.spec, 156);
+    if (dd.indexSpec == null) return sans('indice', 'Indice COT', 'l’historique est trop court (moins d’un an) pour situer la position.');
+    const ext = dd.extremeSpec === 'haut' ? 'extrême acheteur : la position est déjà très chargée' : dd.extremeSpec === 'bas' ? 'extrême vendeur : la position vendeuse est très chargée' : 'pas d’extrême : ni trop acheteur, ni trop vendeur';
+    const S = [{ texte: 'Indice COT sur trois ans : ' + fr(dd.indexSpec, 0) + ' sur cent pour les ' + a.nomSpec.toLowerCase() + '. Zone haute à ' + ZONE_HAUTE + ', zone basse à ' + ZONE_BASSE + ' : ' + ext + '.', ligne: 0, montrer: [{ type: 'element', selecteur: sur(2), texte: 'indice COT' }] },
+      { texte: 'Percentile : la position nette est plus haute que ' + (p52 == null ? 'n’est mesurable' : fr(p52, 0) + ' pour cent des cinquante-deux dernières semaines') + (p156 == null ? '' : ' et que ' + fr(p156, 0) + ' pour cent des trois dernières années') + '.', ligne: 1 }];
+    if (dd.indexComm != null) S.push({ texte: 'Côté ' + a.nomComm.toLowerCase() + ', l’indice est à ' + fr(dd.indexComm, 0) + (dd.extremeComm ? ', un extrême ' + (dd.extremeComm === 'haut' ? 'acheteur' : 'vendeur') : ', sans extrême') + '.', ligne: 2 });
+    return etape({ id: 'indice', chapitre: 'Indice COT', titre: 'Indice COT', page, segments: S, contexte: { indexSpec: dd.indexSpec, spec: dd.spec, oi: dd.oi, dateMesure: dd.date }, carte: { titre: 'COT · indice · ' + cap, grand: { label: 'Indice COT 3 ans', val: fr(dd.indexSpec, 0) + ' / 100' }, lignes: [{ label: 'Spéculateurs', val: fr(dd.indexSpec, 0) + ' / 100 · ' + (dd.extremeSpec ? 'extrême ' + (dd.extremeSpec === 'haut' ? 'acheteur' : 'vendeur') : 'pas d’extrême'), ton: dd.extremeSpec === 'haut' ? 'bas' : dd.extremeSpec === 'bas' ? 'haut' : '' }, { label: 'Percentile 52 semaines', val: p52 == null ? '—' : p52 + ' %', ton: '' }, { label: 'Percentile 3 ans', val: p156 == null ? '—' : p156 + ' %', ton: '' }, { label: 'Commerciaux', val: dd.indexComm == null ? '—' : fr(dd.indexComm, 0) + ' / 100', ton: '' }] }, detail: 'L’indice COT vaut 0 au plus bas de la position nette sur trois ans et 100 à son plus haut ; au-dessus de ' + ZONE_HAUTE + ' ou sous ' + ZONE_BASSE + ' on parle d’extrême.', donneesDu: dd.date + ' (mardi de mesure)' });
+  } });
+  etapes.push({ id: 'oi', chapitre: 'Intérêt ouvert', faire: async () => {
+    const r = await ana(); if (r.err) return sans('oi', 'Intérêt ouvert', r.err + '.');
+    const { a } = r, dd = a.dernier, oi = a.oi, n = oi.length, v4 = n > 4 ? oi[n - 1] - oi[n - 5] : null, v13 = n > 13 ? oi[n - 1] - oi[n - 14] : null;
+    const tend = v13 == null ? 'indéterminée' : v13 > 0 ? 'en hausse' : v13 < 0 ? 'en baisse' : 'stable';
+    const S = [{ texte: 'Intérêt ouvert : ' + fr(dd.oi, 0) + ' contrats, ' + sg(dd.varOi, 0) + ' sur la semaine' + (v4 != null ? ', ' + sg(v4, 0) + ' sur quatre semaines' : '') + (v13 != null ? ', ' + sg(v13, 0) + ' sur treize semaines' : '') + ' : tendance ' + tend + '.', ligne: 0, montrer: [{ type: 'element', selecteur: sur(4), texte: 'intérêt ouvert' }] },
+      { texte: v13 == null ? 'L’historique est trop court pour conclure.' : v13 > 0 ? 'Un intérêt ouvert qui monte signifie que de nouveaux contrats entrent : la tendance en cours est plutôt soutenue.' : 'Un intérêt ouvert qui baisse signifie que des positions se ferment : la tendance perd du carburant.', ligne: 1 }];
+    return etape({ id: 'oi', chapitre: 'Intérêt ouvert', titre: 'Intérêt ouvert', page, segments: S, carte: { titre: 'COT · intérêt ouvert · ' + cap, grand: { label: 'Intérêt ouvert', val: fr(dd.oi, 0) }, lignes: [{ label: 'Semaine', val: sg(dd.varOi, 0), ton: '' }, { label: '4 semaines', val: v4 == null ? '—' : sg(v4, 0), ton: '' }, { label: '13 semaines', val: v13 == null ? '—' : sg(v13, 0), ton: v13 > 0 ? 'haut' : v13 < 0 ? 'bas' : '' }, { label: 'Tendance', val: tend, ton: '' }] }, detail: 'L’intérêt ouvert est le nombre total de contrats en cours.', donneesDu: dd.date + ' (mardi de mesure)' });
+  } });
+  etapes.push({ id: 'divergence', chapitre: 'Prix et positionnement', faire: async () => {
+    const r = await ana(); if (r.err) return sans('divergence', 'Prix et positionnement', r.err + '.');
+    const Dn = inst && TERMINAL.has(id) ? await D() : null; if (!Dn || indispo(Dn)) return sans('divergence', 'Prix et positionnement', 'le prix de ' + N + ' n’est pas disponible ici : pas de comparaison prix et positionnement.');
+    const { a } = r, px = prixAuxDates(a.dates, Dn.j), n = a.dates.length - 1, k = 8, p0 = px[n - k], p1 = px[n]; if (p0 == null || p1 == null) return sans('divergence', 'Prix et positionnement', 'historique de prix trop court.');
+    const dp = (p1 / p0 - 1) * 100, ds = a.spec[n] - a.spec[n - k], dir = dp > 1 ? 1 : dp < -1 ? -1 : 0, ds_ = ds > 0 ? 1 : ds < 0 ? -1 : 0;
+    const diverge = dir !== 0 && ds_ !== 0 && dir !== ds_;
+    const S = [{ texte: 'Sur huit semaines, le prix de ' + N + ' fait ' + sg(dp, 1) + ' pour cent et les ' + a.nomSpec.toLowerCase() + ' ont ' + (ds > 0 ? 'ajouté' : 'retiré') + ' ' + fr(Math.abs(ds), 0) + ' contrats nets.', ligne: 0 },
+      { texte: diverge ? 'C’est une divergence : le prix ' + (dir > 0 ? 'monte' : 'baisse') + ' alors que les fonds ' + (ds_ > 0 ? 'achètent' : 'vendent') + ' en sens contraire ; ' + (dir > 0 ? 'la hausse manque de soutien des gros acteurs.' : 'la baisse est contestée par les gros acteurs.') : dir === 0 ? 'Le prix est quasi stable : pas de divergence mesurable.' : 'Pas de divergence : prix et positionnement vont dans le même sens.', ligne: 1 }];
+    return etape({ id: 'divergence', chapitre: 'Prix et positionnement', titre: 'Prix et positionnement', page, segments: S, carte: { titre: 'COT · divergence · ' + cap, grand: { label: 'Divergence', val: diverge ? 'oui' : 'non' }, lignes: [{ label: 'Prix, 8 semaines', val: sg(dp, 1) + ' %', ton: dp > 0 ? 'haut' : 'bas' }, { label: a.nomSpec + ', 8 sem.', val: sg(ds, 0), ton: ds > 0 ? 'haut' : 'bas' }, { label: 'Divergence', val: diverge ? 'oui' : 'non', ton: diverge ? 'bas' : '' }] }, detail: 'Le prix est pris à la clôture du mardi de chaque rapport (jamais de valeur du futur).', donneesDu: a.dernier.date + ' (mardi de mesure)' });
+  } });
+  etapes.push({ id: 'historique', chapitre: 'Historique', faire: async () => {
+    const r = await ana(); if (r.err) return sans('historique', 'Historique', r.err + '.');
+    const { a } = r, Dn = TERMINAL.has(id) ? await D() : null, px = Dn && !indispo(Dn) ? prixAuxDates(a.dates, Dn.j) : null;
+    const hauts = episodesExtremes(a, px, 'haut'), bas = episodesExtremes(a, px, 'bas'), dd = a.dernier;
+    const dire = e => dateFr(e.date) + ' (indice ' + fr(e.index, 0) + ')' + (e.apres != null ? ', puis ' + sg(e.apres, 1) + ' pour cent de prix en huit semaines' : '');
+    const S = [{ texte: 'Historique sur ' + a.dates.length + ' semaines : ' + hauts.length + ' épisode(s) d’extrême acheteur et ' + bas.length + ' d’extrême vendeur.', ligne: 0, montrer: [{ type: 'element', selecteur: '[data-g]', texte: 'historique du COT' }] }];
+    if (hauts.length) S.push({ texte: 'Derniers extrêmes acheteurs : ' + hauts.slice(-2).map(dire).join(' ; ') + '.', ligne: 1 });
+    if (bas.length) S.push({ texte: 'Derniers extrêmes vendeurs : ' + bas.slice(-2).map(dire).join(' ; ') + '.', ligne: 2 });
+    if (!px) S.push({ texte: 'Le prix n’est pas disponible : je ne peux pas dire ce qu’il a fait ensuite.', ligne: 3 });
+    const ok = [...hauts, ...bas].filter(e => e.apres != null);
+    return etape({ id: 'historique', chapitre: 'Historique', titre: 'Historique', page, segments: S, carte: { titre: 'COT · historique · ' + cap, grand: { label: 'Épisodes extrêmes', val: String(hauts.length + bas.length) }, lignes: [...hauts.slice(-2).map(e => ({ label: 'Extrême acheteur', val: dire(e), ton: 'bas' })), ...bas.slice(-2).map(e => ({ label: 'Extrême vendeur', val: dire(e), ton: 'haut' }))] }, detail: 'Mesure sur ' + a.dates.length + ' semaines (' + dateFr(a.dates[0]) + ' à ' + dateFr(dd.date) + '). ' + (ok.length ? ok.length + ' épisodes avec prix connu : c’est un petit échantillon, pas une règle.' : 'Aucun épisode avec prix connu.'), donneesDu: dd.date + ' (mardi de mesure)' });
+  } });
+  etapes.push({ id: 'conclusion', chapitre: 'Conclusion', faire: async () => {
+    const r = await ana(); if (r.err) return sans('conclusion', 'Conclusion', r.err + '.');
+    const { a } = r, dd = a.dernier, ext = dd.extremeSpec;
+    const imp = ext === 'haut' ? 'Les fonds sont très acheteurs : le carburant d’une hausse se raréfie et un retournement serait plus brutal ; à surveiller sur les semaines à venir, sans en faire un signal de vente.' : ext === 'bas' ? 'Les fonds sont très vendeurs : un rebond violent est possible s’ils rachètent ; à surveiller, sans en faire un signal d’achat.' : 'Aucun extrême : le positionnement ne donne pas, à lui seul, d’indication marquée pour les prochaines semaines.';
+    const S = [{ texte: 'Conclusion. ' + imp, ligne: 0 }, { texte: 'Limites : le COT est un indicateur lent, la donnée date du mardi ' + dateFr(dd.date) + ' et ne dit rien du timing. C’est une aide à la lecture : c’est toi qui décides.', ligne: 1 }];
+    return etape({ id: 'conclusion', chapitre: 'Conclusion', titre: 'Conclusion', page, segments: S, carte: { titre: 'COT · conclusion · ' + cap, grand: { label: 'Positionnement', val: ext ? 'extrême ' + (ext === 'haut' ? 'acheteur' : 'vendeur') : 'sans extrême' }, lignes: [{ label: 'Implication', val: imp.slice(0, 130), ton: '' }, { label: 'Limites', val: 'indicateur lent · donnée du mardi ' + dateFr(dd.date), ton: '' }] }, detail: 'Résumé : ' + lectureResume(a, N), donneesDu: dd.date + ' (mardi de mesure)' });
+  } });
+  return etapes;
+}
+const lectureResume = (a, N) => { const d = a.dernier; return N + ' : ' + a.nomSpec + ' ' + fr(d.spec, 0) + ' net, indice ' + (d.indexSpec == null ? '—' : fr(d.indexSpec, 0)) + ', intérêt ouvert ' + fr(d.oi, 0) + '.'; };
+
+/* ═════════════════════ C. RAPPORT « MARCHÉ GLOBAL » ═════════════════════ */
+function rapportMarche(src) {
+  const glob = memo(() => src.outil('marche_global', {})), etapes = [];
+  const ligneActif = x => ({ label: x.nom, val: x.couleur + (x.variationJourPct != null ? ' · ' + sg(x.variationJourPct) + ' %' : ''), ton: x.couleur === 'haussier' ? 'haut' : x.couleur === 'baissier' ? 'bas' : '' });
+  etapes.push({ id: 'climat', chapitre: 'Climat', faire: async () => {
+    const g = await glob(); const page = { fenetre: 'marches', section: 'actifs' };
+    if (indispo(g)) return manque('climat', 'Climat', 'Climat', page, 'le tour des marchés est indisponible (' + raison(g) + ').');
+    return etape({ id: 'climat', chapitre: 'Climat', titre: 'Le marché en global', page, contexte: { climat: g.climat.lecture.split(' (')[0], couleurs: Object.fromEntries((g.actifs || []).map(x => [x.actif, x.couleur])) }, segments: [{ texte: 'Le marché en global : le climat est ' + g.climat.lecture + '. Je fais le tour de huit actifs, puis je détaille les deux plus intéressants.', ligne: 0 }], carte: { titre: 'Marché global', grand: { label: 'Climat', val: g.climat.lecture.split(' (')[0] }, lignes: (g.actifs || []).map(ligneActif) }, detail: g.avertissement + ' ' + g.climat.base, donneesDu: g.donneesDu });
+  } });
+  for (const id of ['or', 'us100', 'us500', 'btc', 'sol', 'petrole', 'eurusd', 'dxy']) etapes.push({ id: 'actif-' + id, chapitre: NOMS_COURTS[id], faire: async () => {
+    const g = await glob(); const x = !indispo(g) ? (g.actifs || []).find(a => a.actif === id) : null;
+    const page = TERMINAL.has(id) ? { fenetre: 'terminal', actif: id, unite: 'H4', mode: 'classique' } : { fenetre: 'invest', section: 'mesactifs', actif: id };
+    if (!x || x.couleur === 'indisponible') return manque('actif-' + id, NOMS_COURTS[id], NOMS_COURTS[id], page, (x && x.phrase) || 'les données sont indisponibles.');
+    let pos = '', montrer = [], pl = null;
+    if (TERMINAL.has(id) && id !== 'eurusd') {
+      const [nv, Dn] = await Promise.all([memo(() => src.outil('niveaux', { actif: id }))(id), memo(() => src.pro(id))(id)]);
+      if (!indispo(nv) && !indispo(Dn)) { const A = atrA(Dn.h4), atr = A[A.length - 1]; pl = positionPrix(x.prix, listeNiveaux(nv), atr, { dec: dc(id), unite: 'H4' }); pos = pl.disponible ? ' ' + pl.phrase : ''; montrer = pl.disponible ? [...pl.sur, ...pl.proche].slice(0, 1).concat(!pl.sur.length && !pl.proche.length ? [pl.dessous, pl.dessus].filter(Boolean).slice(0, 1) : []).map(n => ({ type: 'prix', prix: n.prix, texte: n.nom })) : []; }
+    }
+    return etape({ id: 'actif-' + id, chapitre: NOMS_COURTS[id], titre: NOMS_COURTS[id], page, cadrage: TERMINAL.has(id) ? { unite: 'H4', barres: 90 } : null, segments: [{ texte: x.phrase + ' : ' + x.couleur + (x.prix != null ? ', prix ' + fr(x.prix, dc(id)) : '') + '.' + pos, ligne: 0, montrer }], carte: { titre: NOMS_COURTS[id], grand: { label: x.couleur, val: x.prix != null ? fr(x.prix, dc(id)) : '—' }, lignes: [{ label: 'Lecture', val: x.phrase, ton: x.couleur === 'haussier' ? 'haut' : x.couleur === 'baissier' ? 'bas' : '' }, ...(x.variationJourPct != null ? [{ label: 'Séance', val: sg(x.variationJourPct) + ' %', ton: x.variationJourPct >= 0 ? 'haut' : 'bas' }] : []), ...(pl && pl.disponible ? [{ label: 'Position', val: pl.phrase, ton: '' }] : [])] }, detail: 'Détail ' + NOMS_COURTS[id] + ' : ' + x.phrase + (x.aligne ? ', Daily et H4 alignés' : '') + '. Données du ' + quand(x.donneesDu) + '.', donneesDu: x.donneesDu });
+  } });
+  for (const k of [0, 1]) for (const part of ['lecture', 'scenarios']) etapes.push({ id: 'top' + (k + 1) + '-' + part, chapitre: 'Top ' + (k + 1), faire: async () => {
+    const g = await glob(), t = !indispo(g) ? (g.lesDeuxPlusInteressants || [])[k] : null;
+    if (!t) return manque('top' + (k + 1) + '-' + part, 'Top ' + (k + 1), 'Top ' + (k + 1), { fenetre: 'marches', section: 'actifs' }, 'pas assez d’actifs lisibles pour un ' + (k + 1) + 'er du classement.');
+    const sub = rapportComplet(t.actif, src), cle = part === 'lecture' ? 'daily' : 'scenarios', f = sub.find(e => e.id === cle), s = await f.faire();
+    if (!s.ok) return { ...s, chapitre: 'Top ' + (k + 1) };
+    const intro = part === 'lecture' ? 'Numéro ' + (k + 1) + ' du moment : ' + t.nom + '. ' : '';
+    return { ...s, id: 'top' + (k + 1) + '-' + part, chapitre: 'Top ' + (k + 1) + ' · ' + t.nom, titre: (part === 'lecture' ? 'Lecture' : 'Scénarios') + ' · ' + t.nom, segments: intro ? [{ texte: intro + t.pourquoi + '.', ligne: 0 }, ...s.segments] : s.segments, texte: (intro ? intro + t.pourquoi + '. ' : '') + s.texte, caracteres: s.caracteres + (intro ? intro.length + t.pourquoi.length + 2 : 0) };
+  } });
+  return etapes;
+}
+
+/* ═════════════════════ D. RAPPORT MACRO ET CALENDRIER ═════════════════════ */
+/* réaction MESURÉE d'un actif à une annonce déjà publiée : variation entre la clôture H1 avant l'heure de l'annonce et celle 2 h après */
+export function reactionAnnonce(H1, t, heures = 2) {
+  if (!H1 || H1.length < 10) return null; let i0 = -1; for (let i = 0; i < H1.length; i++) { if (H1[i].t + 3600e3 <= t) i0 = i; else break; } if (i0 < 0 || t - (H1[i0].t + 3600e3) > 3 * 3600e3) return null; /* dernière bougie H1 CLÔTURÉE avant l'annonce */
+  const j = H1.findIndex(b => b.t + 3600e3 >= t + heures * 3600e3); if (j < 0) return null; /* première bougie H1 dont la clôture tombe au moins 2 h après */ return arrondir((H1[j].c / H1[i0].c - 1) * 100, 2);
+}
+function rapportMacro(src) {
+  const cal = memo(() => src.calendrier()), etapes = [], page = { fenetre: 'marches', section: 'aujourdhui' }, pro = memo(id => src.pro(id));
+  etapes.push({ id: 'semaine', chapitre: 'La semaine', faire: async () => {
+    const c = await cal(); if (indispo(c)) return manque('semaine', 'La semaine', 'La semaine', page, 'le calendrier est indisponible (' + raison(c) + ').');
+    const tous = lireEvenements(c), maintenant = src.maintenant(), fortes = tous.filter(e => e.impact === 'fort'), avenir = fortes.filter(e => e.t > maintenant - 15 * 60e3);
+    if (!tous.length) return manque('semaine', 'La semaine', 'La semaine', page, 'le calendrier est vide.');
+    const parJour = {}; for (const e of avenir) { const j = new Intl.DateTimeFormat('fr-FR', { timeZone: 'Europe/Paris', weekday: 'long' }).format(new Date(e.t)); (parJour[j] = parJour[j] || []).push(e); }
+    const S = [{ texte: 'Cette semaine : ' + fortes.length + ' annonce(s) à fort impact au calendrier, dont ' + avenir.length + ' encore à venir.', ligne: 0 }];
+    for (const [j, L] of Object.entries(parJour).slice(0, 4)) S.push({ texte: j + ' : ' + L.slice(0, 3).map(e => e.titre + ' (' + e.pays + ')').join(', ') + '.', ligne: 1 });
+    return etape({ id: 'semaine', chapitre: 'La semaine', titre: 'La semaine', page, segments: S, carte: { titre: 'Annonces de la semaine', grand: { label: 'À venir (impact fort)', val: String(avenir.length) }, lignes: Object.entries(parJour).slice(0, 5).map(([j, L]) => ({ label: j, val: L.slice(0, 3).map(e => e.titre).join(' · '), ton: '' })) }, detail: 'Calendrier : source Forex Factory, heures de Paris. Les annonces déjà passées ne sont pas relues ici.', donneesDu: new Date(maintenant).toISOString().slice(0, 16).replace('T', ' ') + ' UTC' });
+  } });
+  for (let k = 0; k < 4; k++) etapes.push({ id: 'annonce-' + (k + 1), chapitre: 'Annonce ' + (k + 1), faire: async () => {
+    const c = await cal(); if (indispo(c)) return manque('annonce-' + (k + 1), 'Annonce ' + (k + 1), 'Annonce ' + (k + 1), page, 'le calendrier est indisponible.');
+    const maintenant = src.maintenant(), ev = evenementsMajeurs(lireEvenements(c), maintenant, { max: 12 })[k];
+    if (!ev) return manque('annonce-' + (k + 1), 'Annonce ' + (k + 1), 'Annonce ' + (k + 1), page, 'pas d’autre annonce à fort impact à venir.');
+    const cl = classerEvenement(ev.titre, ev.pays), concernes = Object.entries(DEVISES_ACTIF).filter(([, dv]) => dv.includes(ev.pays)).map(([a]) => a).filter(a => a !== 'eurusd' || true);
+    const mecan = ['or', 'us100'].map(a => ({ a, e: expliquerImpact({ titre: ev.titre, resume: '' }, a) })).filter(x => x.e.regles.length);
+    /* réactions passées MESURÉES : annonces de même nom déjà publiées dans le calendrier (cette semaine) */
+    const passes = lireEvenements(c).filter(e => e.titre === ev.titre && e.t < maintenant - 2.5 * 3600e3 && e.actuel), meas = [];
+    for (const a of ['or', 'us100']) { try { const D = await pro(a); if (!indispo(D)) for (const p of passes.slice(-2)) { const r = reactionAnnonce(D.h1, p.t); if (r != null) meas.push({ a, r, t: p.t }); } } catch (e) { /* actif sans données */ } }
+    const S = [{ texte: ev.titre + ' (' + ev.pays + '), ' + heureParis(ev.t) + ', impact fort. Consensus ' + (parle(ev.prevu) || 'non publié') + ', précédent ' + (parle(ev.precedent) || 'non publié') + '.', ligne: 0 },
+      { texte: 'Actifs concernés : ' + (concernes.length ? concernes.map(a => nom(a)).join(', ') : 'aucun actif suivi en direct') + '.', ligne: 1 }];
+    if (mecan.length) S.push({ texte: 'Mécanisme classique : ' + mecan.map(x => 'Pour ' + nom(x.a) + ' : ' + lcFirst(x.e.regles[0].texte)).join(' ') + ' Ce n’est pas une prévision.', ligne: 2 });
+    if (meas.length) S.push({ texte: 'Réactions mesurées, deux heures après une annonce identique déjà publiée : ' + meas.map(m => nom(m.a) + ' ' + sg(m.r, 2) + ' pour cent').join(', ') + '. C’est un très petit échantillon.', ligne: 3 });
+    else S.push({ texte: 'Je n’ai pas de réaction passée mesurable pour cette annonce : l’historique des annonces n’est pas conservé au-delà de la semaine du calendrier.', ligne: 3 });
+    return etape({ id: 'annonce-' + (k + 1), chapitre: 'Annonce ' + (k + 1), titre: ev.titre, page, segments: S, carte: { titre: ev.titre, grand: { label: heureParis(ev.t), val: cl.etiquette }, lignes: [{ label: 'Consensus', val: ev.prevu || '—', ton: '' }, { label: 'Précédent', val: ev.precedent || '—', ton: '' }, { label: 'Actifs concernés', val: concernes.map(a => NOMS_COURTS[a]).join(' · ') || '—', ton: '' }, { label: 'Réaction mesurée', val: meas.length ? meas.map(m => NOMS_COURTS[m.a] + ' ' + sg(m.r, 2) + ' %').join(' · ') : 'non mesurable', ton: '' }] }, detail: mecan.map(x => nom(x.a) + ' : ' + x.e.texte).join(' ') || 'Aucune règle de lecture ne relie directement cette annonce à l’or ou au Nasdaq.', donneesDu: new Date(maintenant).toISOString().slice(0, 16).replace('T', ' ') + ' UTC' });
+  } });
+  return etapes;
+}
+
+/* ═════════════════════ fabrique de rapports ═════════════════════ */
+export const TYPES = Object.freeze({ complet: 'Rapport complet', cot: 'Rapport COT', marche: 'Rapport marché global', macro: 'Rapport macro et calendrier' });
+export function creerRapport(type, { actif = 'or' } = {}, src) {
+  const id = actif, titre = type === 'complet' ? 'Rapport complet · ' + (NOMS_COURTS[id] || id) : type === 'cot' ? 'Rapport COT · ' + (NOMS_COURTS[id] || id) : type === 'marche' ? 'Rapport marché global' : 'Rapport macro et calendrier';
+  const etapes = type === 'complet' ? rapportComplet(id, src) : type === 'cot' ? rapportCot(id, src) : type === 'marche' ? rapportMarche(src) : type === 'macro' ? rapportMacro(src) : null;
+  if (!etapes) throw new Error('type de rapport inconnu : ' + type);
+  return { type, actif: type === 'complet' || type === 'cot' ? id : null, titre, etapes, estimation: etapes.length * (COUT_MOYEN_ETAPE[type] || 500), nbEtapes: etapes.length };
+}
+
+/* ───── reconnaissance de la demande (texte parlé → rapport), sans IA ───── */
+const normT = t => String(t || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[’'`]/g, ' ').replace(/[^a-z0-9&/ ]+/g, ' ').replace(/\s+/g, ' ').trim();
+const ALIAS = [['or', /\b(or|gold|xau|xauusd)\b/], ['us100', /\b(nasdaq|us ?100|ndx|nas100)\b/], ['us500', /\b(s ?p ?500|us ?500|sp500|s&p)\b/], ['btc', /\b(bitcoin|btc)\b/], ['sol', /\b(solana|sol)\b/], ['dxy', /\b(dxy|dollar index|indice dollar|dollar)\b/], ['petrole', /\b(petrole|wti|brent|oil)\b/], ['eurusd', /\b(eur ?usd|eur\/usd|euro dollar|euro)\b/]];
+export function demandeRapport(texte) {
+  const n = ' ' + normT(texte).replace(/^(hey |dis moi |dis )?(rayle|rayle ) ?/, '') + ' ';
+  if (!/\brapports?\b|\bannonces? (de |cette )?semaine|\bquelles annonces\b/.test(n)) return null;
+  const actif = (ALIAS.find(([, re]) => re.test(n)) || [])[0] || null;
+  if (/\bcot\b|commitments|positionnement/.test(n)) return { type: 'cot', actif: actif || 'or' };
+  if (/annonces?|calendrier|macro/.test(n) && !/rapport complet/.test(n)) return { type: 'macro', actif: null };
+  if (/\b(marche|marches)\b|global|tour d horizon/.test(n) && !actif) return { type: 'marche', actif: null };
+  if (/rapport/.test(n)) return { type: 'complet', actif: actif || 'or', parDefaut: !actif };
+  return null;
+}
+void SEUILS; void indexCot; void sec;
