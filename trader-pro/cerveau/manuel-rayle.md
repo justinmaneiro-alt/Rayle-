@@ -1,0 +1,223 @@
+# Manuel interne de Rayle
+
+Fiches courtes, une par outil de l'application. Format de chaque fiche : **C'est quoi** · **Comment le lire** · **Pour un trader H4/Daily** · **Pièges et limites** · **Où le trouver** (lignes `Fenêtre` et `Mots-clés` : pour l'IA, pas pour l'oral).
+Règle d'or : ces fiches expliquent COMMENT lire un outil ; les chiffres viennent toujours des outils de lecture (jamais d'ici). Aucun outil de l'application n'envoie d'ordre : tout est de la lecture. Aide à la décision, c'est Justin qui décide.
+
+## Terminal : modes Classique et Volume
+Mots-clés: terminal, mode classique, mode volume, périodes, h1, h4, jour, unité de temps
+Fenêtre: terminal
+C'est quoi : le terminal a deux modes. Classique : graphique en bougies avec la MA200, les niveaux que Justin trace, les flèches, Fibonacci et l'outil position. Volume : l'analyse par le volume (profil, footprint, delta, carnet) et les bougies Weekly/HTF avec les repères ICT. Les unités de temps sont H1, H4 et Jour ; le reste de l'appli raisonne surtout en H4 et Daily.
+Pièges : le graphique de la tablette peut mettre quelques secondes à se charger ; chaque dessin est évalué sur l'unité où il a été tracé.
+
+## Terminal : la MA200 et ses flèches
+Mots-clés: ma200, moyenne mobile, 200, flèches ma200, cassure ma200, rebond ma200, tendance
+Fenêtre: terminal (classique) · Surligner: ligne de la MA200
+C'est la moyenne simple des 200 dernières clôtures de l'unité affichée (MA200 H4 sur H4, MA200 Jour sur Jour ; sur H1 on voit la MA200 H4). La flèche est posée sur la bougie de confirmation, jamais en arrière. CASSURE : une bougie clôture de l'autre côté avec au moins 0,3 ATR de marge, la tendance change. REBOND : en tendance haussière le prix revient toucher la MA par le haut et clôture au-dessus (flèche verte) ; en baissière l'inverse. Une seule flèche de rebond par retour : le prix doit d'abord s'éloigner d'1 ATR.
+Pour un trader H4/Daily : c'est le filtre de tendance de base. Prix au-dessus = on cherche des achats, en dessous = des ventes.
+Pièges : en range, le prix traverse la MA200 sans cesse et les cassures sont des faux signaux ; une flèche n'est pas un ordre ; plus l'écart à la MA est grand, moins un rebond est probable à court terme.
+Où : Terminal, mode Classique, ligne de la MA200 et petites flèches sur les bougies.
+
+## Terminal : flèches de niveaux et rebonds
+Mots-clés: flèches de niveaux, niveaux tracés, rebond sur niveau, cassure de niveau, retest, boîte, trendline, ligne
+Fenêtre: terminal (classique)
+C'est quoi : sur les niveaux que Justin a tracés lui-même (ligne horizontale, trendline, boîte), Rayle pose une flèche à la CLÔTURE de bougie. REBOND : le prix touche le niveau, la bougie clôture du bon côté avec une mèche de rejet nette (au moins 50 % de la bougie) et un volume au-dessus de la moyenne des 20 précédentes. CASSURE : clôture au-delà d'au moins 0,25 ATR avec volume supérieur à la moyenne ; le niveau passe en « cassé ». RETEST : retour sur le niveau cassé qui clôture du côté de la cassure.
+Pièges : seules les bougies clôturées comptent (jamais une bougie en formation) ; un niveau mal placé donne de mauvaises flèches ; l'évaluation se fait sur l'unité où le niveau a été tracé.
+Où : Terminal ; les niveaux sont les dessins de Justin.
+
+## Terminal : Fibonacci
+Mots-clés: fibonacci, fibo, retracement, 618, 382, 50
+Fenêtre: terminal (classique)
+C'est quoi : un outil de dessin qui place les retracements (38,2 %, 50 %, 61,8 %…) entre deux points. Les flèches « rebond Fibonacci » suivent la même logique que les autres niveaux : touche, rejet, volume.
+Pour un trader H4/Daily : zone de repli probable dans une tendance, à confirmer par la structure et le volume. Piège : les niveaux n'ont aucun pouvoir en soi, ils valent par la confluence avec un autre niveau (MA200, POC, PDH/PDL). Dépend du choix des deux points.
+Où : Terminal, barre d'outils de dessin.
+
+## Terminal : outil position et calculateur de lots
+Mots-clés: position, calculateur, lots, taille de position, stop, risque, xtb, ratio
+Fenêtre: terminal (classique)
+C'est quoi : on pose entrée, stop et objectifs sur le graphique ; le calculateur donne la taille en lots XTB pour un risque fixé en euros (conversion par le taux EUR/USD). Le contrat est connu pour l'or (1 lot = 100 onces) et le Bitcoin (1 lot = 1 bitcoin) ; pour les indices et Solana la valeur par lot est marquée « à vérifier dans xStation ».
+Pièges : si la valeur du contrat n'est pas vérifiée, le calcul n'est qu'un point de départ ; ne jamais s'y fier sans contrôler dans xStation. Le ratio gain/risque affiché ne dit rien sur la probabilité.
+
+## Terminal : badge de régime
+Mots-clés: régime, tendance ou range, badge, efficacité, kaufman, volatilité
+Fenêtre: terminal (classique)
+C'est quoi : un badge qui dit si le marché est en tendance ou en range sur l'unité affichée, avec la volatilité. Le calcul utilise le ratio d'efficacité de Kaufman sur les 20 dernières clôtures : variation nette divisée par la somme des variations absolues (0 = bruit pur, 1 = ligne droite) ; au-dessus de 0,30 on parle de tendance.
+Pour un trader : en tendance on suit (cassures, rebonds sur la MA200) ; en range on évite de poursuivre les cassures et on travaille les bords. Piège : le régime change vite autour du seuil ; il décrit le passé récent.
+
+## Terminal : voyant d'alignement Daily / H4
+Mots-clés: alignement, voyant, daily h4, vert orange
+Fenêtre: terminal (classique)
+C'est quoi : un voyant qui compare la tendance MA200 du Daily et celle du H4. Vert = alignées (même sens), orange = Daily et H4 s'opposent, gris = pas assez de bougies (moins de 200).
+Pour un trader : trade dans le sens du Daily avec un déclencheur H4 = situation la plus propre ; orange = prudence, la H4 peut être un simple repli.
+Piège : l'alignement dit le sens, pas le bon moment.
+
+## Terminal : filtre annonces
+Mots-clés: annonces, filtre annonces, calendrier, fed, fomc, nfp, cpi, news
+Fenêtre: terminal (classique) ; marches (section aujourdhui)
+C'est quoi : les annonces économiques majeures (Fed, inflation, emploi…) sont repérées sur le graphique et dans le calendrier, classées par type. Elles servent à ne pas ouvrir un trade juste avant une annonce.
+Pièges : une annonce peut créer des mèches énormes et des faux signaux ; les heures sont à lire dans le fuseau affiché. L'impact réel dépend de l'écart avec le consensus, pas du simple fait qu'elle tombe.
+
+## Terminal : statistiques des flèches
+Mots-clés: statistiques, taux de réussite, espérance, r, flèches stats, significatif
+Fenêtre: terminal (classique)
+C'est quoi : pour chaque type de flèche, chaque actif et H4/Jour, sur tout l'historique : taux de réussite (cible à 2 R atteinte avant le stop), R médian après 10 et 20 bougies, espérance en R, nombre de cas. Moins de 30 cas : « non significatif ».
+Repère : avec cible 2 R et stop 1 R, une marche aléatoire gagne environ 1 fois sur 3. Un taux proche de 33 % ne prouve aucun avantage.
+Pièges : le passé ne garantit rien ; peu de cas = bruit ; ces statistiques sont mesurées sans coûts de trading.
+
+## Volume : Volume Profile (POC, VAH, VAL, HVN, LVN)
+Mots-clés: volume profile, profil de volume, poc, vah, val, hvn, lvn, zone de valeur
+Fenêtre: terminal, mode volume
+C'est quoi : la répartition du volume par prix. POC = prix le plus échangé. VAH et VAL = haut et bas de la zone de valeur (environ 70 % du volume). HVN = zone de fort volume (le prix s'y attarde, support/résistance probable). LVN = zone de faible volume (le prix la traverse vite).
+Pour un trader H4/Daily : le prix attiré vers le POC, rejeté ou accepté aux bords de la zone de valeur ; un LVN est une zone de vide où les mouvements accélèrent.
+Pièges : dépend de la période choisie ; sur les indices et l'or le volume est celui du marché utilisé comme source, pas le volume mondial.
+
+## Volume : POC nus
+Mots-clés: poc nu, poc nus, naked poc
+Fenêtre: terminal, mode volume
+C'est quoi : les POC de périodes passées que le prix n'a pas encore retestés. Ils agissent souvent comme des aimants.
+Pièges : un POC nu ancien vaut moins qu'un récent ; il n'a de poids qu'en confluence avec un autre niveau.
+
+## Volume : VWAP ancrés
+Mots-clés: vwap, ancré, prix moyen pondéré
+Fenêtre: terminal, mode volume
+C'est quoi : le prix moyen pondéré par le volume depuis un point d'ancrage (un creux, un sommet, l'ouverture d'une période). Il représente le coût moyen de ceux qui ont acheté ou vendu depuis ce point.
+Lecture : prix au-dessus = les acheteurs depuis l'ancrage sont gagnants, la VWAP sert de support ; en dessous elle sert de résistance. Piège : le choix de l'ancrage change tout.
+
+## Volume : footprint
+Mots-clés: footprint, empreinte, order flow, déséquilibre, empilé, cases
+Fenêtre: terminal, mode volume
+C'est quoi : chaque bougie est découpée par prix, avec le volume des vendeurs agressifs (bid) et des acheteurs agressifs (ask) par case. Déséquilibre : à une case, les acheteurs sont comparés aux vendeurs de la case du dessous (et l'inverse), rapport d'au moins 3. Trois déséquilibres consécutifs du même côté = déséquilibre empilé, souvent un support ou une résistance.
+Pièges : l'empreinte n'existe que là où des données côté acheteur/vendeur sont disponibles ; une bougie sans données n'a pas d'empreinte (rien n'est inventé). Lecture fine, utile surtout pour affiner une entrée.
+
+## Volume : delta et CVD
+Mots-clés: delta, cvd, volume delta, achats agressifs, ventes agressives
+Fenêtre: terminal, mode volume
+C'est quoi : delta = achats agressifs moins ventes agressives de la bougie. CVD = cumul du delta dans le temps. Réel quand la bourse fournit le volume côté acheteur (Binance : or via XAUUSDT, Bitcoin, Solana) ; ESTIMÉ à partir de la forme de la bougie pour les indices et les futures, et alors étiqueté comme tel.
+Lecture : prix qui monte avec un CVD qui monte = mouvement soutenu ; prix qui monte avec un CVD qui baisse = divergence, essoufflement possible.
+Pièges : un delta estimé est une approximation ; la divergence n'est pas un signal à elle seule.
+
+## Volume : MFI
+Mots-clés: mfi, money flow index
+Fenêtre: terminal, mode volume
+C'est quoi : un oscillateur de 0 à 100 sur 14 périodes qui combine prix et volume (un RSI pondéré par le volume). Au-dessus de 80 : suracheté, en dessous de 20 : survendu.
+Pièges : en forte tendance il reste longtemps en zone extrême ; à lire avec la structure, pas seul.
+
+## Volume : le carnet (déséquilibre, murs, grosses transactions)
+Mots-clés: carnet, order book, déséquilibre du carnet, murs, gros ordres, grosses transactions, liquidité
+Fenêtre: terminal, mode volume, onglet carnet
+C'est quoi : les ordres en attente côté acheteur (bids) et vendeur (asks), regroupés par palier de prix. Déséquilibre = part des acheteurs contre vendeurs. Mur = un palier avec une quantité très supérieure aux voisins. Grosses transactions = exécutions bien au-dessus de la taille habituelle.
+Pièges : le carnet est en direct seulement quand le terminal Volume est ouvert sur l'actif (Binance/Kraken) ; les murs peuvent être retirés avant d'être touchés (spoofing) ; ne jamais en déduire une direction seule.
+
+## Volume : flèches d'absorption, de cassure et de faux breakout
+Mots-clés: absorption, cassure validée, faux breakout, flèches volume
+Fenêtre: terminal, mode volume
+C'est quoi : ABSORPTION : volume fort sur un niveau, petit corps, longue mèche du côté du niveau, delta qui se retourne (les ordres agressifs sont absorbés). CASSURE VALIDÉE : clôture au-delà de la VAH, de la VAL ou d'un HVN venant de l'autre côté, volume fort, delta dans le sens. FAUX BREAKOUT : le prix dépasse un niveau puis revient dedans.
+Pièges : une flèche à la fois par type tous les quelques bougies (anti-bruit) ; calculées sans regarder le futur, mais restent des repères, pas des ordres.
+
+## Volume : niveaux de réaction
+Mots-clés: niveaux de réaction, réaction, zones de réaction
+Fenêtre: terminal, mode volume
+C'est quoi : un prix où le marché a réagi au moins 2 fois, chaque réaction étant suivie d'un mouvement d'au moins 1 ATR dans l'autre sens. Les réactions proches (moins de 0,35 ATR) forment un seul niveau. La force augmente avec la confluence : HVN, POC nus, déséquilibres empilés, absorptions.
+Pièges : un niveau n'existe qu'à partir de la 2e réaction confirmée ; plus un niveau est testé, plus il s'use.
+
+## Bougies HTF / ICT : PDH, PDL, PWH, PWL
+Mots-clés: pdh, pdl, pwh, pwl, plus haut de la veille, plus bas de la semaine, repères ict
+Fenêtre: terminal, mode volume, onglet htf
+C'est quoi : PDH/PDL = plus haut et plus bas de la veille ; PWH/PWL = de la semaine précédente ; ouverture du jour, de la semaine, du mois. Les périodes utilisées sont les périodes terminées, jamais la bougie en cours.
+Pour un trader : ce sont des aimants et des zones de réaction fréquents ; un prix qui balaie le PDH puis revient est une lecture classique de « prise de liquidité ».
+Pièges : repères de lecture, pas des signaux ; le jour est celui de la séance UTC décalée de 6 h pour les futures et le forex.
+
+## Bougies HTF / ICT : premium et discount
+Mots-clés: premium, discount, équilibre, 50 %, zone chère, zone bon marché
+Fenêtre: terminal, mode volume, onglet htf
+C'est quoi : on découpe un intervalle (haut-bas de la période) en deux moitiés autour de 50 % : au-dessus = premium (zone chère, plutôt pour vendre dans une tendance baissière), au-dessous = discount (zone bon marché, plutôt pour acheter dans une tendance haussière).
+Pièges : dépend de l'intervalle choisi ; ne dit rien sans le sens de la tendance.
+
+## Bougies HTF / ICT : FVG
+Mots-clés: fvg, fair value gap, déséquilibre de prix, imbalance, gap
+Fenêtre: terminal, mode volume, onglet htf
+C'est quoi : un trou entre la mèche haute de la bougie 1 et la mèche basse de la bougie 3 (ou l'inverse) quand la bougie 2 est très directionnelle. Le prix revient souvent en combler une partie. L'appli n'affiche que les FVG encore ouverts.
+Pièges : tous ne sont pas retestés ; un FVG comblé complètement perd son sens ; à regarder sur Daily/H4 plutôt qu'en petites unités.
+
+## Bougies HTF / ICT : order blocks
+Mots-clés: order block, ob, bloc d'ordres
+Fenêtre: terminal, mode volume, onglet htf
+C'est quoi : la dernière bougie contraire avant un mouvement impulsif qui casse la structure ; on la considère comme une zone où des ordres institutionnels ont été placés.
+Pièges : notion d'interprétation (non mesurée par l'appli comme les flèches) ; ne remplace pas une confluence avec volume ou niveau tracé. Dis-le clairement si on te demande des chiffres : l'appli ne donne pas de statistique de réussite pour cet outil.
+
+## Bougies HTF / ICT : égaux hauts et bas
+Mots-clés: égaux hauts, égaux bas, equal highs, equal lows, eqh, eql
+Fenêtre: terminal, mode volume, onglet htf
+C'est quoi : deux sommets (ou deux creux) presque au même prix ; au-dessus/dessous s'accumulent des ordres stop. Le marché vient souvent les chercher.
+Pièges : un double sommet peut aussi être un vrai retournement ; attendre la réaction après le balayage.
+
+## Bougies HTF / ICT : balayages de liquidité
+Mots-clés: balayage, sweep, prise de liquidité, chasse aux stops
+Fenêtre: terminal, mode volume, onglet htf
+C'est quoi : le prix dépasse un haut ou un bas évident (PDH, PWL, égaux hauts) puis revient immédiatement de l'autre côté. Lecture classique : les stops ont été pris et le mouvement réel va dans l'autre sens.
+Pièges : se confirme seulement à la clôture de bougie ; avant, c'est peut-être une vraie cassure.
+
+## Marchés : rapport COT
+Mots-clés: cot, commitments of traders, cftc, commerciaux, spéculateurs, gros spéculateurs, petits spéculateurs, positionnement, extrême
+Fenêtre: marches, section cot (choisir l'actif) · Surligner: ligne COT
+C'est quoi : le rapport hebdomadaire de la CFTC sur les positions nettes. Commerciaux (producteurs, couverture) ; gros spéculateurs (fonds) ; petits spéculateurs (particuliers). Publié le vendredi avec les positions du MARDI précédent : la date affichée est celle du mardi.
+COT Index : position nette ramenée à son plus bas/haut sur 3 ans, de 0 (très vendeur) à 100 (très acheteur). Au-dessus de 80 ou en dessous de 20 : extrême de positionnement.
+Pour un trader H4/Daily : un extrême ne donne pas la date d'un retournement, il dit que le marché est encombré d'un côté ; les commerciaux sont souvent à contre-courant des fonds.
+Pièges : donnée en retard de 3 jours ; ne couvre pas l'actif entier ; rien n'est estimé quand la donnée manque.
+
+## Marchés : macro et taux
+Mots-clés: macro, taux, taux us, rendement, dollar, dxy, inflation
+Fenêtre: marches, section macro
+C'est quoi : le contexte de fond : taux américains, dollar, inflation, indicateurs. Un dollar fort et des taux en hausse pèsent en général sur l'or et les actifs risqués ; l'inverse les soutient.
+Pièges : ce sont des relations moyennes, qui s'inversent parfois ; vérifier avec les prix réels.
+
+## Marchés : score de marché
+Mots-clés: score de marché, score, composite, confiance
+Fenêtre: marches (section actifs) ; dashboard
+C'est quoi : un composite de −100 (très baissier) à +100 (très haussier) par actif, en six composantes : Tendance 30, Momentum 20, Positionnement COT 15, Macro 15, Volatilité 10, Flux de volume 10 (points sur 100). Une composante sans donnée est retirée et la confiance baisse d'autant.
+Pièges : le score décrit l'état du marché, il ne prévoit rien ; une confiance basse veut dire que des composantes manquent.
+
+## Marchés : volume net USD
+Mots-clés: volume net, flux, achats agresseurs, entrant, sortant
+Fenêtre: marches
+C'est quoi : achats agresseurs moins ventes agresseurs, en dollars. Données réelles pour l'or, le Bitcoin et Solana (Binance, volume acheteur « taker buy »). Pour les indices, une ESTIMATION étiquetée (pression de la bougie × volume, en titres) ou « non disponible ».
+Pièges : l'unité n'est pas la même selon l'actif ; ne pas comparer une estimation et une mesure réelle.
+
+## Marchés : calendrier
+Mots-clés: calendrier, annonces du jour, agenda économique
+Fenêtre: marches, section aujourdhui
+C'est quoi : les annonces économiques du jour et de la semaine avec leur impact (fort, moyen). Utile pour savoir quand ne pas être exposé ou quand s'attendre à de la volatilité. Les heures sont affichées en heure de Paris.
+
+## Couverture
+Mots-clés: couverture, hedge, corrélation, bêta, protection
+Fenêtre: couverture
+C'est quoi : trouver l'actif qui protège le mieux une position. β = covariance/variance : si β est positif (actifs corrélés), la couverture va dans le sens opposé à la position, s'il est négatif, dans le même sens. La taille de la couverture vaut |β| × la taille de la position. Un backtest « sans regard vers l'avenir » compare la position seule et la position couverte.
+Pièges : les corrélations changent (la stabilité est mesurée) ; une couverture réduit le risque mais aussi le gain ; elle ne protège jamais à 100 %.
+
+## Risque global
+Mots-clés: risque global, risque, limite du jour, limite de la semaine, facteurs, corrélation
+Fenêtre: portefeuille, section risque
+C'est quoi : le risque total de mes positions ouvertes (perte en euros si chaque stop est touché), les limites du jour et de la semaine, et les facteurs communs : or + argent + EUR/USD à l'achat = un seul gros pari contre le dollar. Lecture seule : une alerte, jamais un blocage.
+Pièges : il faut avoir importé l'historique XTB et défini les stops ; une corrélation estimée est dite comme telle.
+
+## Statistiques par setup
+Mots-clés: setup, setups, statistiques par setup, journal, erreurs, discipline
+Fenêtre: portefeuille, section setups
+C'est quoi : mes trades regroupés par type de setup, avec taux de réussite, R moyen et erreurs fréquentes. Montre quels setups rapportent vraiment et lesquels coûtent.
+Pièges : peu de trades = peu de signification ; un seul grand gain peut masquer un setup perdant.
+
+## Mes actifs
+Mots-clés: mes actifs, cher ou pas cher, verdict, indicateurs, horizons, percentile
+Fenêtre: invest, section mesactifs · Surligner: carte de l'actif
+C'est quoi : pour Bitcoin, Solana, l'or, le Nasdaq 100, le S&P 500 et le pétrole, une liste d'indicateurs calculés chaque jour. Chacun a sa valeur, son percentile dans SA propre histoire et un score de −1 à +1. Verdict par horizon : moyenne pondérée mise sur 0–100 (Très attractif ≥ 72, Attractif ≥ 58, Neutre ≥ 42, Peu attractif ≥ 28, à éviter en dessous), avec une confiance (part des indicateurs disponibles × accord entre eux).
+Pièges : les poids changent selon l'horizon (la tendance compte pour 1–10 jours, la valeur pour 1–3 ans) ; la donnée est mise à jour une fois par jour.
+
+## Investissement : facteurs et horizons
+Mots-clés: investissement, facteurs, horizons, fiche, actions, fonds, secteurs, valeur, qualité
+Fenêtre: invest
+C'est quoi : des fiches d'actions, de fonds et de secteurs avec des scores par facteur (valorisation, qualité, tendance…) et par horizon (1–10 jours, 1–6 mois, 1–3 ans, 5–10 ans).
+Pièges : un score élevé n'est pas une promesse ; les facteurs ne pèsent pas pareil selon l'horizon ; les données de fonds et d'actions sont celles de l'application, avec leur date.
+
+## État des données
+Mots-clés: état des données, fraîcheur, source en panne, retard
+Fenêtre: réglages
+C'est quoi : la liste des sources de l'appli avec dernière mise à jour, prochaine prévue, erreurs sur 24 h et état (vert, en retard au-delà de 2 fois le délai normal, en panne au-delà de 5 fois). À regarder avant de se fier à un chiffre : Rayle affiche toujours l'heure des données utilisées.

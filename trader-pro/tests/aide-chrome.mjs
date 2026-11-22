@@ -4,12 +4,14 @@ import { createRequire } from 'node:module'; import path from 'node:path'; impor
 const require = createRequire(path.resolve('tests-navigateur/package.json')); const puppeteer = require('puppeteer-core');
 export const w = ms => new Promise(r => setTimeout(r, ms));
 const VUES = { tel: { width: 412, height: 915, deviceScaleFactor: 2, isMobile: true, hasTouch: true }, tablette: { width: 1024, height: 768, deviceScaleFactor: 1, isMobile: true, hasTouch: true }, pc: { width: 1600, height: 900, deviceScaleFactor: 1 } };
-export async function lancer(mode = 'tel', { stockage = {}, dossierCaptures = 'donnees-privees/captures-test', interception = null } = {}) {
+export async function lancer(mode = 'tel', { stockage = {}, dossierCaptures = 'donnees-privees/captures-test', interception = null, vraiNavigateur = false } = {}) {
   const sortie = path.resolve(dossierCaptures); fs.mkdirSync(sortie, { recursive: true });
   let ok = 0, ko = 0; const verif = (c, m) => { if (c) ok++; else { ko++; console.log('  ✗ ' + m); } };
   const nav = await puppeteer.launch({ executablePath: 'C:/Program Files/Google/Chrome/Application/chrome.exe', headless: 'new', args: ['--no-sandbox', '--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--host-resolver-rules=MAP rayle.test 127.0.0.1'] });
   const p = await nav.newPage(); await p.setViewport(VUES[mode]); if (mode !== 'pc') await p.setUserAgent('Mozilla/5.0 (Linux; Android 14; SM-S918B) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0 Mobile Safari/537.36');
   const erreurs = []; p.on('pageerror', e => erreurs.push(String(e.stack || e.message).replace(/\s+/g, ' ').slice(0, 420))); p.on('console', async m => { if (m.type() === 'error') { let t = m.text(); try { const L = await Promise.all(m.args().map(h => h.evaluate(e => (e && (e.stack || e.message)) || String(e)).catch(() => ''))); if (L.some(Boolean)) t += ' ' + L.join(' | '); } catch (e) { /* */ } erreurs.push('console: ' + t.replace(/\s+/g, ' ').slice(0, 400)); } });
+  /* or.html ne monte le terminal pro que dans un vrai navigateur (navigator.webdriver faux) : vraiNavigateur:true le simule, pour les tests qui pilotent le terminal */
+  if (vraiNavigateur) await p.evaluateOnNewDocument(() => { Object.defineProperty(Navigator.prototype, 'webdriver', { get: () => false }); });
   await p.evaluateOnNewDocument(s => { try { localStorage.setItem('rayle_donnees_base', 'http://127.0.0.1:8801/'); localStorage.setItem('rayle_m_sw', '0'); for (const [k, v] of Object.entries(s)) localStorage.setItem(k, typeof v === 'string' ? v : JSON.stringify(v)); } catch (e) { /* */ } }, stockage);
   await p.setRequestInterception(true);
   p.on('request', async r => {

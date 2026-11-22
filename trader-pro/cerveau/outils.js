@@ -5,6 +5,7 @@
 import { lireActifPro, lireCot, lireCalendrier, lireActus, parId as ACTIF_PAR_ID, ACTIFS } from '../commun/donnees.js';
 import { sma, tendance, atr } from '../commun/analyse.js';
 import { regime } from '../terminal/aides.js';
+import { creerAnalyste, DECLARATIONS_ANALYSTE } from './analyste.js';
 
 /* ───── reconnaissance des actifs (noms parlés → identifiants des données) ───── */
 const ALIAS = [['or', /\b(or|gold|xau|xauusd)\b/], ['us100', /\b(nasdaq|us ?100|ndx|nas100)\b/], ['us500', /\b(s ?p ?500|us ?500|sp500|s&p)\b/], ['btc', /\b(bitcoin|btc)\b/], ['sol', /\b(solana|sol)\b/], ['dxy', /\b(dxy|dollar index|indice dollar|dollar)\b/], ['petrole', /\b(petrole|pétrole|wti|brent|oil)\b/], ['eurusd', /\b(eur ?usd|euro dollar|euro)\b/]];
@@ -106,6 +107,8 @@ async function etat_des_donnees() {
 }
 
 export const OUTILS = { prix_et_tendance, niveaux, carnet_et_volume, marches, mes_actifs, investissement, portefeuille_et_risque, couverture, etat_des_donnees };
+/* v10 : outils de l'analyste (manuel, analyse complète, marché global, lecture du graphique) */
+Object.assign(OUTILS, creerAnalyste({ OUTILS, idActif, pro, dec, dateIso, sans, manque, norm }).outils);
 const A_ENUM = ['or', 'us100', 'us500', 'btc', 'sol', 'dxy'];
 export const DECLARATIONS = [
   { name: 'prix_et_tendance', description: 'Prix actuel, variation, MA200 et position par rapport à elle, tendance Daily/H4 et alignement, régime de marché (tendance ou range), dernières flèches (MA200, niveaux, volume). À appeler pour tout « point sur… », « où en est… », « est-ce haussier ? ».', parameters: { type: 'object', properties: { actif: { type: 'string', description: 'or, us100 (Nasdaq), us500 (S&P 500), btc (Bitcoin), sol (Solana), dxy (dollar)', enum: A_ENUM }, unite: { type: 'string', description: 'H1, H4 (défaut) ou J (Daily)', enum: ['H1', 'H4', 'J'] } }, required: ['actif'] } },
@@ -116,11 +119,12 @@ export const DECLARATIONS = [
   { name: 'investissement', description: 'Fiche et scores d’une action, d’un fonds ou d’un secteur (fenêtre Investissement) : « Airbus est-il attractif ? », « actions européennes à 1–3 ans ».', parameters: { type: 'object', properties: { recherche: { type: 'string', description: 'la demande en français, avec le nom de la valeur' } }, required: ['recherche'] } },
   { name: 'portefeuille_et_risque', description: 'Mes positions XTB, résultats, risque engagé, limites du jour et de la semaine, statistiques et erreurs par setup.' },
   { name: 'couverture', description: 'Meilleure couverture d’une position (actif et sens achat/vente) et son taux de protection mesuré.', parameters: { type: 'object', properties: { actif: { type: 'string', enum: ['or', 'us100', 'us500', 'btc', 'sol', 'dxy', 'petrole'] }, sens: { type: 'string', enum: ['achat', 'vente'] } }, required: ['actif'] } },
-  { name: 'etat_des_donnees', description: 'Fraîcheur des données de l’application : lesquelles sont à jour, lesquelles sont en retard.', }
+  { name: 'etat_des_donnees', description: 'Fraîcheur des données de l’application : lesquelles sont à jour, lesquelles sont en retard.', },
+  ...DECLARATIONS_ANALYSTE
 ];
 export async function executer(nom, args) {
   const f = OUTILS[nom]; if (!f) return sans('outil inconnu : ' + nom);
-  try { const r = await f(args || {}); const s = JSON.stringify(r); return s.length > 9000 ? { tronque: true, extrait: s.slice(0, 8800) } : r; }
+  try { const r = await f(args || {}); const s = JSON.stringify(r); return s.length > 15000 ? { tronque: true, extrait: s.slice(0, 14800) } : r; }
   catch (e) { return sans('erreur de l’outil ' + nom + ' : ' + String((e && e.message) || e).slice(0, 120)); }
 }
 /* repli sans IA (quota Gemini atteint ou Worker injoignable) : lit le prix et la tendance de l'actif cité, jamais « aucune donnée » si la donnée existe */

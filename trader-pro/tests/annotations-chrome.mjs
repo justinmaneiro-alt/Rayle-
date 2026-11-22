@@ -1,0 +1,22 @@
+/* v10 phase 2 : le terminal s'ouvre, Rayle lit le graphique (lecture_graphique) puis l'annote (couche « Rayle » séparée de mes dessins) et efface ses annotations. Usage : node trader-pro/tests/annotations-chrome.mjs [tablette|pc] */
+import { lancer, w } from './aide-chrome.mjs';
+const T = await lancer(process.argv[2] || 'tablette', { dossierCaptures: 'donnees-privees/captures-v10', vraiNavigateur: true, stockage: { rayle_donnees_base: '', rayle_piper_precharge: '0' } }), { p, verif, attendre, fin } = T;
+const ouv = await p.evaluate(async () => { const A = await import('/trader-pro/cerveau/actions.js'); window.__A = A; return await A.executerAction('ouvrir_fenetre', { fenetre: 'terminal', actif: 'or', unite: 'H4' }); });
+console.log('ouverture :', JSON.stringify(ouv));
+const pret = await attendre(() => p.evaluate(async () => { const O = await import('/trader-pro/cerveau/outils.js'); const r = await O.executer('lecture_graphique', {}); return r.pret === true ? r : null; }), 400000, 4000);
+verif(pret, 'terminal ouvert et graphique prêt');
+const L = await p.evaluate(async () => { const O = await import('/trader-pro/cerveau/outils.js'); return await O.executer('lecture_graphique', {}); }); console.log(JSON.stringify(L));
+verif(L.ouvert && /or/i.test(L.actif || '') && L.unite === 'H4', 'lecture_graphique : actif or, unité H4 (' + L.actif + ', ' + L.unite + ')');
+verif(L.zoneDePrixVisible && L.zoneDePrixVisible.haut > L.zoneDePrixVisible.bas, 'lecture_graphique : zone de prix visible ' + JSON.stringify(L.zoneDePrixVisible));
+verif(Array.isArray(L.mesDessins) && L.annotationsDeRayle === 0, 'lecture_graphique : mes dessins listés, aucune annotation de Rayle au départ');
+const bas = L.zoneDePrixVisible ? L.zoneDePrixVisible.bas : 0, haut = L.zoneDePrixVisible ? L.zoneDePrixVisible.haut : 0, mi = (bas + haut) / 2;
+const a = await p.evaluate(async (mi, bas, haut) => await window.__A.executerAction('annoter_graphique', { annotations: [{ type: 'niveau', prix: mi, texte: 'niveau test' }, { type: 'zone', prix: mi + (haut - bas) * 0.1, prix2: mi + (haut - bas) * 0.2, texte: 'zone test' }, { type: 'fleche', prix: mi - (haut - bas) * 0.15, sens: 'haut', texte: 'flèche test' }] }), mi, bas, haut);
+verif(a.ok && a.posees === 3, 'annoter : 3 marques posées ' + JSON.stringify(a));
+await w(600);
+const D = await p.evaluate(() => { const f = [...document.querySelectorAll('iframe')].find(x => { try { return /or\.html/.test(x.contentWindow.location.href); } catch (e) { return false; } }); const d = f.contentDocument, c = d.querySelector('.ra-annotations'); return { couche: !!c, n: d.querySelectorAll('.ra-annot').length, signe: [...d.querySelectorAll('.ra-annot .ra-txt')].map(e => e.textContent), visibles: [...d.querySelectorAll('.ra-annot')].filter(e => e.style.display !== 'none').length, sourisLibre: c && getComputedStyle(c).pointerEvents === 'none' }; });
+verif(D.couche && D.n === 3 && D.visibles === 3, 'annotations visibles dans une couche à part (' + JSON.stringify(D) + ')'); verif(D.signe.every(t => /^Rayle · /.test(t)), 'chaque marque est signée « Rayle »'); verif(D.sourisLibre, 'la couche ne gêne pas le graphique (pointer-events none)');
+const L2 = await p.evaluate(async () => { const O = await import('/trader-pro/cerveau/outils.js'); return await O.executer('lecture_graphique', {}); }); verif(L2.annotationsDeRayle === 3 && JSON.stringify(L2.mesDessins) === JSON.stringify(L.mesDessins), 'mes dessins inchangés, 3 annotations de Rayle comptées à part');
+await T.capture('annotations');
+const e = await p.evaluate(async () => await window.__A.executerAction('annoter_graphique', { effacer: true })); verif(e.ok && e.effacees === 3, 'efface tes annotations : 3 retirées ' + JSON.stringify(e));
+verif(await p.evaluate(() => { const f = [...document.querySelectorAll('iframe')].find(x => { try { return /or\.html/.test(x.contentWindow.location.href); } catch (e) { return false; } }); return f.contentDocument.querySelectorAll('.ra-annot').length === 0; }), 'plus aucune annotation sur le graphique');
+await fin();

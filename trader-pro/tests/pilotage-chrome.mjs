@@ -15,7 +15,7 @@ const SCENARIOS = [   // question → appels de fonctions décidés par le « mo
   [/annonces/i, [['ouvrir_fenetre', { fenetre: 'marches', section: 'aujourdhui' }], ['marches', {}]], 'annonces']
 ];
 const requetes = []; let tts = [];
-const T = await lancer(mode, { dossierCaptures: 'donnees-privees/captures-v8', stockage: { rayle_worker_url: 'https://faux-worker.test', rayle_worker_token: 'jeton', rayle_voix_gemini_v1: { moteur: 'gemini-f1', ton: 'naturel', vitesse: 0 }, rayle_voix_v9: '1', rayle_piper_precharge: '0', rayle_donnees_base: '' }, interception: async (r, u) => {
+const T = await lancer(mode, { vraiNavigateur: true, dossierCaptures: 'donnees-privees/captures-v8', stockage: { rayle_worker_url: 'https://faux-worker.test', rayle_worker_token: 'jeton', rayle_voix_gemini_v1: { moteur: 'gemini-f1', ton: 'naturel', vitesse: 0 }, rayle_voix_v9: '1', rayle_piper_precharge: '0', rayle_donnees_base: '' }, interception: async (r, u) => {
   if (!u.startsWith('https://faux-worker.test/') && !u.includes('rayle-voix')) return false;
   const rep = (statut, corps) => r.respond({ status: statut, headers: { ...CORS, 'content-type': 'application/json' }, body: JSON.stringify(corps) });
   if (r.method() === 'OPTIONS') { await r.respond({ status: 204, headers: { ...CORS, 'access-control-allow-headers': '*', 'access-control-allow-methods': 'POST, GET, OPTIONS' } }); return true; }

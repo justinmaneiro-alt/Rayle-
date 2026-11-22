@@ -1,0 +1,12 @@
+/* Rapport détaillé de Rayle (v10) : verre sombre, filet doré, coins coupés (même langage que les réponses animées) */
+#ra-rapport{position:fixed;z-index:66;right:24px;top:84px;width:min(560px,46vw);max-height:calc(100vh - 200px);display:flex;flex-direction:column;color:#dbe9ef;background:linear-gradient(160deg,rgba(255,174,61,.10),rgba(6,11,16,.92));border:1px solid rgba(255,174,61,.34);backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);clip-path:polygon(14px 0,100% 0,100% calc(100% - 14px),calc(100% - 14px) 100%,0 100%,0 14px);padding:10px 14px 10px}
+#ra-rapport[hidden]{display:none}
+#ra-rapport header{display:flex;flex-wrap:wrap;gap:6px 10px;align-items:center;margin-bottom:6px;font-size:12px;letter-spacing:.1em;text-transform:uppercase;color:#ffe08a}
+#ra-rapport .rr-h{color:#7f98a3;letter-spacing:.04em;text-transform:none;flex:1 1 auto}
+#ra-rapport .rr-b{display:flex;gap:6px;margin-left:auto}
+#ra-rapport .rr-b button{background:none;border:1px solid rgba(255,174,61,.3);color:#ffae3d;padding:3px 9px;min-height:30px;font-size:12px;cursor:pointer}
+#ra-rapport .rr-corps{overflow:auto;font-size:13.5px;line-height:1.5;padding-right:4px}
+#ra-rapport .rr-corps h4{margin:12px 0 4px;font-size:13px;color:#ffe08a}
+#ra-rapport .rr-corps p{margin:4px 0}#ra-rapport .rr-corps ul{margin:4px 0 4px 18px;padding:0}
+#ra-rapport footer{margin-top:6px;font-size:11px;color:#6f8791}
+@media (max-width:900px){#ra-rapport{z-index:72;right:auto;left:50%;transform:translateX(-50%);top:calc(56px + env(safe-area-inset-top,0px));width:min(94vw,640px);max-height:calc(100vh - 250px)}}
