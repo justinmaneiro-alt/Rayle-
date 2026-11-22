@@ -70,6 +70,7 @@ function surlignerElement(doc, sel, texte, nettoyage) {
 }
 
 export function creerEcran({ document: doc = document, actions, historique = null, quota = () => null }) {
+  const journal = [];   /* trace des mises en avant (pour les bancs d'essai et le diagnostic) */
   let moteur = null, barre = null, carte = null, nettoyage = [], pagePrete = null, histo = null, dernierSeg = null, marquesCourantes = null;
   const q = (r, s) => r.querySelector(s);
   function construire() {
@@ -102,7 +103,7 @@ export function creerEcran({ document: doc = document, actions, historique = nul
     prep(rapport, b) { construire(); nettoyer(); barre.hidden = false; barre.classList.remove('fini'); q(barre, '.lr-chap').textContent = rapport.titre; q(barre, '.lr-sous').textContent = 'Préparation… ' + budgetTexte(b); progression(-1, rapport.nbEtapes); rendreCarte({ titre: rapport.titre, grand: { label: 'Coût estimé', val: '≈ ' + fr(rapport.estimation) + ' caractères' }, lignes: [{ label: 'Étapes', val: String(rapport.nbEtapes), ton: '' }, { label: 'Azure ce mois', val: b && b.azureUtilise != null ? fr(b.azureUtilise) + ' / ' + fr(H.QUOTA_AZURE) : 'compteur pas encore lu', ton: b && b.assez === false ? 'bas' : '' }, { label: 'Voix', val: 'une requête par étape ; le détail complet reste à l’écran', ton: '' }] }, null); try { window.scrollTo(0, 0); } catch (e) { /* */ } },
     etape(step, i, n, mode) { construire(); nettoyer(); dernierSeg = null; marquesCourantes = null; barre.hidden = false; barre.classList.remove('fini'); q(barre, '.lr-chap').textContent = (mode === 'detail' ? 'Détail · ' : '') + (step.chapitre || step.titre); q(barre, '.lr-sous').textContent = 'étape ' + Math.min(i + 1, n) + '/' + n + (step.donneesDu ? ' · données ' + step.donneesDu : '') + (step.manque ? ' · donnée manquante' : ''); progression(Math.min(i, n - 1), n); if (mode !== 'detail') rendreCarte(step.carte, step.donneesDu); else carte.classList.add('detail'); },
     segment(step, k, mode) {
-      if (mode === 'detail') return; const s = step.segments[k]; if (!s) return; dernierSeg = k;
+      if (mode === 'detail') return; const s = step.segments[k]; if (!s) return; dernierSeg = k; journal.push({ t: Date.now(), id: step.id, k, m: (s.montrer || []).map(x => x.type) }); if (journal.length > 400) journal.shift();
       for (const li of carte.querySelectorAll('li.actif')) li.classList.remove('actif'); if (s.ligne != null) { const li = q(carte, 'li[data-i="' + s.ligne + '"]'); if (li) { li.classList.add('actif'); try { li.scrollIntoView({ block: 'nearest', behavior: 'smooth' }); } catch (e) { /* */ } } }
       if (s.montrer && s.montrer.length) { nettoyer(); const marques = s.montrer; marquesCourantes = marques; const encore = () => marquesCourantes === marques && !!barre && !barre.hidden; (pagePrete || Promise.resolve()).then(() => (encore() ? appliquer(marques, encore) : null)); }
     },
@@ -133,12 +134,12 @@ export function creerEcran({ document: doc = document, actions, historique = nul
       setTimeout(() => { if (barre && barre.classList.contains('fini') && !histo) { /* la barre reste jusqu'à fermeture : le résumé et l'historique sont à portée */ } }, 0);
     },
     fermer() { nettoyer(); if (barre) barre.hidden = true; if (carte) carte.hidden = true; },
-    ouvrirHistorique
+    ouvrirHistorique, journal
   };
   /* Les marques sont posées dès que la page est prête, même si elle charge encore quand la phrase arrive (la carte, le graphique) : on réessaie jusqu'à 25 s tant que ces marques sont les marques courantes. */
   async function appliquer(marques, encore = () => true) {
     const terminal = marques.filter(m => ['prix', 'bougie', 'zone'].includes(m.type)), elements = marques.filter(m => m.type === 'element');
-    if (terminal.length) { const G = await attendreGraphe(doc, 25000); if (G && encore()) for (const m of terminal) { try { poser(G, m); } catch (e) { /* une marque qui échoue ne gêne jamais la lecture */ } } }
+    if (terminal.length) { const G = await attendreGraphe(doc, 25000); if (G && encore()) for (const m of terminal) { try { poser(G, m); journal.push({ t: Date.now(), pose: m.type }); } catch (e) { journal.push({ t: Date.now(), erreur: String((e && e.message) || e).slice(0, 100), pose: m.type }); /* une marque qui échoue ne gêne jamais la lecture */ } } else journal.push({ t: Date.now(), pose: 'aucun-graphe' }); }
     for (const m of elements) { const t0 = Date.now(); while (encore()) { let ok = false; try { ok = surlignerElement(doc, m.selecteur, m.texte, nettoyage); } catch (e) { ok = false; } if (ok || Date.now() - t0 > 25000) break; await ATT(300); } }
   }
   function rendreFin(d) {

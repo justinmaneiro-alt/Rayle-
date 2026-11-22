@@ -9,7 +9,7 @@ import { lireEvenements, evenementsMajeurs, classerEvenement, heureParis, DEVISE
 import { expliquerImpact } from '../marches/impact.js';
 import { phraseStats } from '../terminal/stats-fleches.js';
 import { pocsNus } from '../volume/volume-calcul.js';
-import { correlation, rendements } from '../commun/analyse.js';
+import { correlation, rendements, tendance, sma } from '../commun/analyse.js';
 
 export const ACTIFS_COT = ['or', 'us100', 'us500', 'dxy', 'btc'];
 const COT_INST = { or: 'OR', us100: 'NASDAQ', us500: 'SP500', btc: 'BTC', sol: 'SOL', dxy: 'DXY', eurusd: 'EURUSD' };
@@ -98,10 +98,23 @@ export function corrJours(Ja, Jb, n = 60) {
   const r = correlation(rendements(A.slice(-n - 1)), rendements(B.slice(-n - 1))); return r == null ? null : arrondir(r, 2);
 }
 
+/* Couleur d'un actif (mêmes règles que marche_global) : Daily + H4 + position par rapport à la MA200 Daily ; ne lit que les bougies déjà chargées. */
+const sgn = x => (x === 'haussière' ? 1 : x === 'baissière' ? -1 : 0);
+export function couleurDe(Dn, id) {
+  const px = Number.isFinite(Dn.prix) ? Dn.prix : Dn.h4[Dn.h4.length - 1].c, tJ = tendance(Dn.j), tH = tendance(Dn.h4), mJ = Dn.j.length >= 200 ? sma(Dn.j.map(b => b.c), 200).slice(-1)[0] : null;
+  const score = sgn(tJ.sens) + sgn(tH.sens) + (mJ ? (px > mJ ? 1 : -1) : 0), couleur = score >= 2 ? 'haussier' : score <= -2 ? 'baissier' : 'neutre', veille = Dn.j.length > 1 ? Dn.j[Dn.j.length - 2].c : null;
+  return { actif: id, nom: NOMS_COURTS[id] || id, couleur, score, prix: px, variationJourPct: veille ? (px / veille - 1) * 100 : null, phrase: (NOMS_COURTS[id] || id) + ' : Daily ' + tJ.sens + ', H4 ' + tH.sens + (mJ ? ', prix ' + (px > mJ ? 'au-dessus' : 'sous') + ' la MA200 Daily' : ''), donneesDu: Number.isFinite(Dn.t) ? new Date(Dn.t).toISOString().slice(0, 16).replace('T', ' ') + ' UTC' : null };
+}
+export function climatDe(liste) {
+  const g = id => liste.find(x => x.actif === id) || { score: 0 }, actions = (g('us100').score + g('us500').score) / 2, dollar = g('dxy').score;
+  const lecture = actions >= 1 && dollar <= 0 ? 'risk-on (actions américaines fortes, dollar pas haussier)' : actions <= -1 || dollar >= 2 ? 'risk-off (actions faibles ou dollar fort)' : 'mitigé (signaux partagés entre actions et dollar)';
+  return { lecture, base: 'score actions ' + actions.toFixed(1) + ', score dollar ' + dollar };
+}
+
 /* ═════════════════════ A. RAPPORT COMPLET D'UN ACTIF ═════════════════════ */
 function rapportComplet(id, src) {
   const d = dc(id), N = nom(id), cap = NOMS_COURTS[id];
-  const D = memo(() => src.pro(id)), niv = memo(() => src.outil('niveaux', { actif: id })), ana = memo(() => src.outil('analyse_marche', { actif: id })), glob = memo(() => src.outil('marche_global', {}));
+  const proM = memo(x => src.pro(x)), D = () => proM(id), niv = memo(() => src.outil('niveaux', { actif: id })), ana = memo(() => src.outil('analyse_marche', { actif: id })), clim = memo(async () => { const L = []; for (const o of ['us100', 'us500', 'dxy']) { try { const x = await proM(o); if (!indispo(x)) L.push(couleurDe(x, o)); } catch (e) { /* cet actif manquera au climat */ } } if (L.length < 2) return { indisponible: 'moins de deux actifs de référence lisibles (Nasdaq, S&P 500, dollar)' }; return { actifs: L, climat: climatDe(L), donneesDu: L[0].donneesDu }; });
   const mac = memo(() => src.macro()), cal = memo(() => src.calendrier()), maj = memo(() => src.outil('mes_actifs', { actif: id, horizon: 'swing' })), pt4 = memo(() => src.outil('prix_et_tendance', { actif: id, unite: 'H4' }));
   const marc = memo(() => src.outil('marches', { actif: id })), cotBrut = memo(() => src.cot(COT_INST[id])), stats = memo(() => (src.statsFleches ? src.statsFleches() : null));
   const pageT = (unite, extra) => ({ fenetre: 'terminal', actif: id, unite, ...(extra || {}) });
@@ -125,7 +138,7 @@ function rapportComplet(id, src) {
   const etapes = [];
   /* 1 · contexte global */
   etapes.push({ id: 'contexte', chapitre: 'Contexte global', faire: async () => {
-    const [g, m, c, mc] = await Promise.all([glob(), mac(), cal(), marc()]);
+    const [g, m, c, mc] = await Promise.all([clim(), mac(), cal(), marc()]);
     if (indispo(g)) return manque('contexte', 'Contexte global', 'Contexte global', { fenetre: 'marches', section: 'aujourdhui' }, 'le tour des marchés est indisponible (' + raison(g) + ').');
     const S = [], L = [], dxy = (g.actifs || []).find(x => x.actif === 'dxy'), us = (g.actifs || []).filter(x => x.actif === 'us100' || x.actif === 'us500');
     S.push({ texte: 'Contexte global : le climat est ' + g.climat.lecture + '.', ligne: 0 }); L.push({ label: 'Climat', val: g.climat.lecture.split(' (')[0], ton: /risk-on/.test(g.climat.lecture) ? 'haut' : /risk-off/.test(g.climat.lecture) ? 'bas' : '' });
@@ -201,13 +214,13 @@ function rapportComplet(id, src) {
     const vv = !indispo(an) ? an.volumeEtFlux && an.volumeEtFlux.volumeH4 : null;
     if (vv && !vv.indisponible) { S.push({ texte: 'Le volume de la dernière bougie H4 vaut ' + fr(vv.volumeRelatifDerniereBougie, 1) + ' fois la moyenne ; le CVD est ' + (vv.cvdTendance || 'indéterminé') + (vv.deltaEstime ? ' (delta estimé, pas mesuré)' : ' (delta réel)') + '.', ligne: 3 }); lg.push({ label: 'Volume relatif · CVD', val: fr(vv.volumeRelatifDerniereBougie, 1) + ' × · CVD ' + (vv.cvdTendance || '?'), ton: vv.cvdTendance === 'en hausse' ? 'haut' : vv.cvdTendance === 'en baisse' ? 'bas' : '' }); }
     else { S.push({ texte: 'Volume et CVD indisponibles pour cet actif.', ligne: 3 }); lg.push({ label: 'Volume · CVD', val: 'indisponible', ton: '' }); }
-    S.push({ texte: 'Footprint et carnet : lecture en direct en cours.', ligne: 4 }); lg.push({ label: 'Footprint · carnet', val: 'lecture en direct…', ton: '' });
+    lg.push({ label: 'Footprint · carnet', val: 'lecture en direct…', ton: '' });
     return etape({ id: 'volume', chapitre: 'Volume', titre: 'Volume', page, cadrage: { unite: 'H4', barres: 80 }, segments: S, carte: { titre: 'Volume · ' + cap, grand: { label: 'POC H4', val: fr(v.pocH4, d) }, lignes: lg }, detail: 'Détail du volume : zones de volume fort à ' + (v.zonesDeVolume || []).map(x => fr(x, d)).join(', ') + '. Le POC est le prix où il s’est échangé le plus de volume ; hors de la zone de valeur le prix est « cher » ou « bon marché » pour les participants.', donneesDu: an && an.donneesDu,
-      /* Une fois le terminal Volume ouvert sur l'actif : lecture du footprint et du carnet en direct (la même phrase que le terminal) ; sinon on le dit */
-      enrichir: async () => { const r = await src.outil('carnet_et_volume', { actif: id }); const tv = r && r.terminalVolume, lt = r && r.lectureTerminal;
+      /* Une fois le terminal Volume ouvert sur l'actif : lecture du footprint et du carnet en direct (la même phrase que le terminal), dite après le texte principal ; sinon on le dit */
+      suite: async () => { const r = await src.outil('carnet_et_volume', { actif: id }); const tv = r && r.terminalVolume, lt = r && r.lectureTerminal;
         let texte, val; if (tv && lt && typeof lt === 'string') { texte = 'Carnet et footprint : ' + lt.split('. ').filter(x => /carnet|flèche|mur/i.test(x)).join('. ') + (tv.deltaReel ? ' Delta réel mesuré.' : ' Delta estimé.'); val = (tv.murs && tv.murs.length ? tv.murs.length + ' mur(s)' : 'pas de mur') + (tv.carnetVivant ? ' · carnet vivant' : ''); if (!/carnet|flèche|mur/i.test(texte.replace('Carnet et footprint :', ''))) texte = 'Carnet et footprint : ' + lt.slice(0, 220); }
         else { texte = 'Footprint et carnet d’ordres : indisponibles hors connexion directe pour ' + N + '.'; val = 'indisponible (pas de flux direct)'; }
-        return { segment: 4, texte, ligne: { index: 4, label: 'Footprint · carnet', val, ton: '' } }; } });
+        return { texte, ligne: { index: 4, label: 'Footprint · carnet', val, ton: '' } }; } });
   } });
 
   /* 6 · COT */
@@ -250,7 +263,7 @@ function rapportComplet(id, src) {
     S.push({ texte: ev.length ? 'Vigilance : ' + ev.map(a => a.titre + ' ' + heureParis(a.t)).join(' et ') + ', des annonces fortes qui peuvent faire bouger ' + N + '.' : 'Vigilance : aucune annonce forte à venir côté ' + (DEVISES_ACTIF[id] || ['USD']).join(' et ') + ' dans le calendrier.', ligne: 0 }); lg.push({ label: 'Annonces', val: ev.length ? ev.map(a => a.titre).join(' · ') : 'aucune forte à venir', ton: ev.length ? 'bas' : 'haut' });
     const atrPct = an.daily && an.daily.atr && an.prix ? an.daily.atr / an.prix * 100 : null;
     S.push({ texte: atrPct != null ? 'Volatilité : l’A.T.R. Daily vaut ' + fr(an.daily.atr, d) + ', soit ' + fr(atrPct, 1) + ' pour cent du prix' + (an.daily.regime && an.daily.regime.volatilite ? ', volatilité ' + an.daily.regime.volatilite : '') + '.' : 'La volatilité n’est pas calculable.', ligne: 1 }); lg.push({ label: 'Volatilité (ATR Daily)', val: atrPct != null ? fr(atrPct, 1) + ' % du prix' : 'indisponible', ton: '' });
-    const cors = []; if (!indispo(Dn)) for (const o of ['dxy', 'us100']) if (o !== id) { const x = await memo(() => src.pro(o))(o); if (!indispo(x)) { const r = corrJours(Dn.j, x.j, 60); if (r != null) cors.push({ o, r }); } }
+    const cors = []; if (!indispo(Dn)) for (const o of ['dxy', 'us100']) if (o !== id) { const x = await proM(o); if (!indispo(x)) { const r = corrJours(Dn.j, x.j, 60); if (r != null) cors.push({ o, r }); } }
     if (cors.length) { S.push({ texte: 'Corrélation sur soixante séances : ' + cors.map(x => nom(x.o) + ' ' + fr(x.r, 2)).join(', ') + '. Plus la valeur est proche de un ou de moins un, plus ' + N + ' bouge avec ou contre eux.', ligne: 2 }); lg.push({ label: 'Corrélations 60 séances', val: cors.map(x => NOMS_COURTS[x.o] + ' ' + fr(x.r, 2)).join(' · '), ton: '' }); }
     else { S.push({ texte: 'Les corrélations ne sont pas calculables pour le moment.', ligne: 2 }); lg.push({ label: 'Corrélations', val: 'indisponible', ton: '' }); }
     const r = an.monRisque;
@@ -258,6 +271,7 @@ function rapportComplet(id, src) {
     else { S.push({ texte: 'Ton risque engagé n’est pas lisible : l’historique XTB n’est pas importé sur cet appareil.', ligne: 3 }); lg.push({ label: 'Mon risque', val: 'historique XTB non importé', ton: '' }); }
     return etape({ id: 'risque', chapitre: 'Vigilance et risque', titre: 'Vigilance et risque', page, segments: S, carte: { titre: 'Vigilance · ' + cap, grand: { label: 'Volatilité', val: atrPct != null ? fr(atrPct, 1) + ' %' : '—' }, lignes: lg }, detail: r && !r.indisponible ? 'Détail du risque : ' + [r.portefeuille, r.risque].filter(Boolean).join(' ').slice(0, 700) : 'Pas de détail de risque : historique non importé.', donneesDu: an.donneesDu });
   } });
+  etapes.prechauffer = () => { clim(); ana(); niv(); D(); cotBrut(); };   /* lancé dès la demande : le gros des lectures se fait pendant l'ouverture de la barre et la première étape */
   return etapes;
 }
 
@@ -334,6 +348,7 @@ function rapportCot(id, src) {
     const S = [{ texte: 'Conclusion. ' + imp, ligne: 0 }, { texte: 'Limites : le COT est un indicateur lent, la donnée date du mardi ' + dateFr(dd.date) + ' et ne dit rien du timing. C’est une aide à la lecture : c’est toi qui décides.', ligne: 1 }];
     return etape({ id: 'conclusion', chapitre: 'Conclusion', titre: 'Conclusion', page, segments: S, carte: { titre: 'COT · conclusion · ' + cap, grand: { label: 'Positionnement', val: ext ? 'extrême ' + (ext === 'haut' ? 'acheteur' : 'vendeur') : 'sans extrême' }, lignes: [{ label: 'Implication', val: imp.slice(0, 130), ton: '' }, { label: 'Limites', val: 'indicateur lent · donnée du mardi ' + dateFr(dd.date), ton: '' }] }, detail: 'Résumé : ' + lectureResume(a, N), donneesDu: dd.date + ' (mardi de mesure)' });
   } });
+  etapes.prechauffer = () => { ana(); D(); };
   return etapes;
 }
 const lectureResume = (a, N) => { const d = a.dernier; return N + ' : ' + a.nomSpec + ' ' + fr(d.spec, 0) + ' net, indice ' + (d.indexSpec == null ? '—' : fr(d.indexSpec, 0)) + ', intérêt ouvert ' + fr(d.oi, 0) + '.'; };
@@ -366,6 +381,7 @@ function rapportMarche(src) {
     const intro = part === 'lecture' ? 'Numéro ' + (k + 1) + ' du moment : ' + t.nom + '. ' : '';
     return { ...s, id: 'top' + (k + 1) + '-' + part, chapitre: 'Top ' + (k + 1) + ' · ' + t.nom, titre: (part === 'lecture' ? 'Lecture' : 'Scénarios') + ' · ' + t.nom, segments: intro ? [{ texte: intro + t.pourquoi + '.', ligne: 0 }, ...s.segments] : s.segments, texte: (intro ? intro + t.pourquoi + '. ' : '') + s.texte, caracteres: s.caracteres + (intro ? intro.length + t.pourquoi.length + 2 : 0) };
   } });
+  etapes.prechauffer = () => { glob(); };
   return etapes;
 }
 
@@ -411,7 +427,7 @@ export function creerRapport(type, { actif = 'or' } = {}, src) {
   const id = actif, titre = type === 'complet' ? 'Rapport complet · ' + (NOMS_COURTS[id] || id) : type === 'cot' ? 'Rapport COT · ' + (NOMS_COURTS[id] || id) : type === 'marche' ? 'Rapport marché global' : 'Rapport macro et calendrier';
   const etapes = type === 'complet' ? rapportComplet(id, src) : type === 'cot' ? rapportCot(id, src) : type === 'marche' ? rapportMarche(src) : type === 'macro' ? rapportMacro(src) : null;
   if (!etapes) throw new Error('type de rapport inconnu : ' + type);
-  return { type, actif: type === 'complet' || type === 'cot' ? id : null, titre, etapes, estimation: etapes.length * (COUT_MOYEN_ETAPE[type] || 500), nbEtapes: etapes.length };
+  return { type, actif: type === 'complet' || type === 'cot' ? id : null, titre, etapes, prechauffer: etapes.prechauffer || null, estimation: etapes.length * (COUT_MOYEN_ETAPE[type] || 500), nbEtapes: etapes.length };
 }
 
 /* ───── reconnaissance de la demande (texte parlé → rapport), sans IA ───── */

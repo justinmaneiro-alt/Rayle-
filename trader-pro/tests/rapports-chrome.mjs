@@ -14,7 +14,7 @@ await p.evaluate(() => {
   window.speak = async function (t) {
     const L = window.LecteurRapports.moteur(), v = L && L.etat() ? L.etat().vitesse : 1, dur = Math.max(400, String(t).length / (14.5 * v) * 1000), V = window.__voix;
     const nous = /lecteur.js/.test(new Error().stack || ''); V.parles.push({ t: String(t), debut: Date.now(), dur, nous }); if (nous) { V.enCours++; V.max = Math.max(V.max, V.enCours); }
-    window.dispatchEvent(new CustomEvent('rayle:parole', { detail: { duree: dur / 1000 } }));
+    /* pas d'événement rayle:parole : le lecteur suit alors l'horloge estimée (comme avec Piper) ; avec la vraie voix Azure il suit l'horloge du lecteur audio */
     const me = V.parles[V.parles.length - 1]; await new Promise(r => setTimeout(r, dur)); if (nous) V.enCours--; me.fin = Date.now();
   };
   window.cancelSpeech = () => {};   // les commandes arrêtent la voix factice en laissant finir sa temporisation courte
@@ -67,7 +67,10 @@ let k = 0; for (const c of chaps) if (attendus[k] && c.replace(/^Détail · /, '
 verif(k === attendus.length, 'étapes vues dans le bon ordre (' + k + '/' + attendus.length + ')');
 verif(R.voix.max === 1, 'une seule voix à la fois (max simultané : ' + R.voix.max + ')'); if (R.voix.max > 1) console.log(R.voix.parles.map(x => (x.debut % 1e6) + '→' + ((x.fin || 0) % 1e6) + ' ' + x.t.slice(0, 50)).join(' |')); verif(R.voix.parles.filter(x => x.nous).length >= attendus.length, 'une requête de voix par étape (' + R.voix.parles.length + ')');
 const txt = R.voix.parles.filter(x => x.nous).map(x => x.t).join(' '); verif(!/undefined|NaN|\[object/.test(txt), 'aucun « undefined » ni « NaN » dans les textes dits'); console.log('texte dit :', txt.length, 'caractères');
-const ec = (R.dernier && R.dernier.ecarts) || []; verif(ec.length > 0 && Math.max(...ec) <= 2000, 'aucun blanc de plus de 2 s entre deux étapes (max ' + (ec.length ? Math.max(...ec) : '?') + ' ms, ' + ec.length + ' transitions)'); console.log('écarts (ms) :', ec.join(', '));
+const ec = (R.dernier && R.dernier.ecarts) || []; verif(ec.length > 0 && Math.max(...ec) <= 2000, 'aucun blanc de plus de 2 s entre deux étapes (max ' + (ec.length ? Math.max(...ec) : '?') + ' ms, ' + ec.length + ' transitions)'); console.log('blancs entre étapes (ms) :', ec.join(', ')); console.log('préparation des étapes (ms) :', ((R.dernier && R.dernier.preps) || []).map(x => x.id + '=' + x.ms).join(', '));
+const J = await p.evaluate(() => window.LecteurRapports.journal()), segs = J.filter(x => x.k != null); const etalee = {}; for (const x of segs) (etalee[x.id] = etalee[x.id] || []).push(x.t); const pasEtale = Object.entries(etalee).filter(([, L]) => L.length >= 4 && (L[L.length - 1] - L[0]) < 1500).map(([id]) => id);
+verif(segs.length >= attendus.length * 2 && pasEtale.length === 0, 'les mises en avant suivent la lecture phrase par phrase, pas d’un seul coup (' + segs.length + ' segments ; groupés : ' + (pasEtale.join(',') || 'aucun') + ')');
+const poses = J.filter(x => x.pose); console.log('marques posées :', JSON.stringify(poses.reduce((o, x) => { o[x.pose] = (o[x.pose] || 0) + 1; return o; }, {}))); verif(poses.every(x => !x.erreur), 'aucune marque en erreur');
 const m = R.trace.marques; verif(m.length > 0, 'des éléments sont mis en avant (' + m.length + ' échantillons)');
 if (type === 'complet' || type === 'marche') { const vis = m.reduce((s, x) => s + x.visibles, 0); verif(vis > 0, 'des repères pulsent sur le graphique : lignes, bougies, zones (' + vis + ' échantillons visibles)'); verif(m.some(x => x.bougie > 0), 'une bougie est mise en évidence'); }
 if (type === 'cot' || type === 'complet') verif(m.some(x => x.el > 0 && x.bulle > 0), 'une case de la page est surlignée avec sa bulle');

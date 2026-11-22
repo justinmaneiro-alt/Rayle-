@@ -12,12 +12,14 @@ const CPS = 14.5;   // caractères parlés par seconde (repli quand la durée r�
 
 export function creerLecteurReel() {
   const W = window;
+  /* une relance (délai plus long) : un serveur de données qui ne répond pas une fois sur deux ne doit pas manquer une étape */
+  const relance = async f => { try { return await f(15000); } catch (e) { await ATT(700); return await f(25000); } };
   const src = {
-    pro: async id => (await lireActifPro(id, { delai: 25000 })).donnees,
+    pro: async id => (await relance(d => lireActifPro(id, { delai: d }))).donnees,
     outil: async (nom, args) => { const f = OUTILS[nom]; if (!f) return { indisponible: 'outil inconnu : ' + nom }; try { return await f(args || {}); } catch (e) { return { indisponible: 'erreur ' + nom + ' : ' + String((e && e.message) || e).slice(0, 90) }; } },
-    cot: async inst => (await lireCot(inst, { delai: 15000 })).donnees,
-    calendrier: async () => (await lireCalendrier({ delai: 15000 })).donnees,
-    macro: async () => (await lireSnapshot('marches-macro.json', { delai: 12000, valider: d => (d && d.sections ? true : 'panneau vide') })).donnees,
+    cot: async inst => (await relance(d => lireCot(inst, { delai: d }))).donnees,
+    calendrier: async () => (await relance(d => lireCalendrier({ delai: d }))).donnees,
+    macro: async () => (await relance(d => lireSnapshot('marches-macro.json', { delai: d, valider: x => (x && x.sections ? true : 'panneau vide') }))).donnees,
     statsFleches: async () => { const r = await fetch(new URL('../terminal/stats-fleches.json', import.meta.url).href); return r.json(); },
     maintenant: () => Date.now()
   };
@@ -34,7 +36,8 @@ export function creerLecteurReel() {
       try { const e = moteur.etat(); if (e && e.actif && e.pause && a && !a.paused && !pauseSrc) env.pauseVoix(); } catch (x) { /* le moteur n'est pas encore là */ }   // pause demandée avant que le son ne démarre
       if (a && a.paused && pauseSrc) { if (!tPause) tPause = Date.now(); return; } if (tPause) { pausee += Date.now() - tPause; tPause = 0; }
       let f; if (pret && a && a.duration > 0 && isFinite(a.duration)) f = a.currentTime / a.duration; else f = Math.min(0.97, (Date.now() - t0 - pausee) / 1000 / (texte.length / (CPS * v)));
-      try { surProgression && surProgression(Math.max(0, Math.min(1, f))); } catch (e) { /* */ }
+      const total = pret && a && a.duration > 0 && isFinite(a.duration) ? (a.duration - a.currentTime) / (a.playbackRate || 1) * 1000 : (1 - f) * texte.length / (CPS * v) * 1000;
+      try { surProgression && surProgression(Math.max(0, Math.min(1, f)), Math.max(0, total)); } catch (e) { /* */ }
     }, 100);
     let p; try { p = W.speak(texte); } catch (e) { p = Promise.resolve(); }
     const tok = jeton();   // speak() incrémente son jeton tout de suite : si un autre texte prend la parole, le jeton change

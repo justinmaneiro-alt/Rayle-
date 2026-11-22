@@ -19,7 +19,7 @@ const ATT = ms => new Promise(r => setTimeout(r, ms));
 const norm = t => String(t || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[’'`]/g, ' ').replace(/[^a-z0-9 ]+/g, ' ').replace(/\s+/g, ' ').trim();
 export const SILENCE = '✔';   // « commande traitée, rien à dire » : Application.commande renvoie une chaîne non vide ; clean() retire ce symbole, donc speak() ne dit rien et le journal affiche juste ✔
 export const VITESSES = [0.9, 1, 1.15, 1.3];
-export const REGLAGES = { ecoute: 500, pageMax: 800, prepMin: 1800, delaiEtape: 40000 };
+export const REGLAGES = { ecoute: 400, pageMax: 500, prepMin: 1800, delaiEtape: 50000, anticipe: 5500 };   /* anticipe : la page de l'étape suivante s'ouvre pendant les 5,5 dernières secondes de l'étape en cours (le son continue de jouer pendant que la page charge : pas de blanc) */
 
 export function commandeRapport(texte) {
   const n = norm(texte).replace(/^(hey |dis moi |dis )?(rayle |raile )/, '').trim();
@@ -54,7 +54,7 @@ export function creerMoteur(env) {
       r.pret[i] = (async () => {
         let s; try { s = await Promise.race([def.faire(), ATT(R.delaiEtape).then(() => { throw new Error('délai dépassé (' + Math.round(R.delaiEtape / 1000) + ' s)'); })]); }
         catch (e) { const why = 'lecture impossible (' + String((e && e.message) || e).slice(0, 90) + ').'; s = { ok: false, passer: true, id: def.id, chapitre: def.chapitre, titre: def.chapitre, page: null, segments: [{ texte: def.chapitre + ' : ' + why + ' Je passe à la suite.' }], texte: def.chapitre + ' : ' + why + ' Je passe à la suite.', caracteres: 0, detail: '', annotations: [], carte: { titre: def.chapitre, lignes: [{ label: 'Donnée manquante', val: why, ton: 'bas' }] }, manque: why }; s.caracteres = s.texte.length; }
-        s.prepareMs = now() - t0; if (env.prechauffer && !r.fin && i > 0 && !s.passer) { try { env.prechauffer(s.texte); } catch (e) { /* le préchauffage est facultatif */ } }
+        s.prepareMs = now() - t0; r.preps.push({ id: def.id, ms: s.prepareMs, attendu: r.i });
         return s;
       })();
     }
@@ -64,22 +64,24 @@ export function creerMoteur(env) {
   /* ───── lecture d'une étape ───── */
   async function lireEtape(r, i, step, mode) {
     r.i = i; r.etapeCourante = step; r.mode = mode; appel('etape', step, i, r.rapport.nbEtapes, mode);
-    const tEtape = now(); if (r.finPrecedente != null) r.ecarts.push(tEtape - r.finPrecedente);
-    if (step.annotations && step.annotations.length && !step.passer && env.annoter) { try { await Promise.race([env.annoter(step.annotations), ATT(3000)]); } catch (e) { /* les annotations sont un plus */ } }
-    const pageP = step.passer ? Promise.resolve() : Promise.resolve(appel('page', step)).catch(() => {});
+    const tEtape = now();
+    const ant = r.anticipee && r.anticipee.i === i && r.anticipee.p ? r.anticipee.p : null; r.anticipee = null;
+    const pageP = step.passer ? Promise.resolve() : ant || Promise.resolve(appel('page', step)).catch(() => {});
     r.pageP = pageP; await Promise.race([pageP, ATT(R.pageMax)]);
+    if (step.annotations && step.annotations.length && !step.passer && env.annoter) pageP.then(() => env.annoter(step.annotations)).catch(() => {});   /* en arrière-plan : les marques de Rayle se posent dès que le graphique est prêt, sans retarder la voix */
     if (r.fin || r.go != null) return { type: r.fin ? 'fin' : 'saut' };
     while (r.paused && !r.fin && r.go == null) await ATT(60);
     if (r.fin || r.go != null) return { type: r.fin ? 'fin' : 'saut' };
-    /* enrichissement une fois la page ouverte (ex. carnet et footprint en direct) : jamais bloquant plus de quelques secondes */
-    if (mode === 'normal' && step.enrichir && !step.passer) { try { const x = await Promise.race([step.enrichir(), ATT(6000).then(() => null)]); if (x && x.texte && step.segments[x.segment]) { step.segments[x.segment].texte = x.texte; step.texte = step.segments.map(s => s.texte).join(' '); step.caracteres = step.texte.length; appel('enrichi', step, x); } } catch (e) { /* on garde le texte de départ */ } }
+    /* suite en direct (ex. carnet et footprint du terminal Volume) : lue APRÈS le texte principal, une fois la page ouverte ; préparée pendant que le texte principal est dit, donc sans blanc */
+    const suiteP = mode === 'normal' && step.suite && !step.passer ? pageP.then(() => Promise.race([step.suite(), ATT(8000).then(() => null)])).catch(() => null) : null;
     const texte = mode === 'detail' ? (step.detail || 'Je n’ai pas de détail de plus sur cette étape.') : step.texte;
     const segs = mode === 'detail' ? [{ texte }] : step.segments, tot = Math.max(1, segs.reduce((s, x) => s + x.texte.length + 1, 0)), debuts = []; let cum = 0; for (const s of segs) { debuts.push(cum / tot); cum += s.texte.length + 1; }
     let k = -1; const montrer = j => { if (j > k) { for (let q = k + 1; q <= j; q++) appel('segment', step, q, mode); k = j; } };
     if (env.voixLibre) await Promise.race([env.voixLibre(), ATT(5000)]);
     if (r.fin || r.go != null) return { type: r.fin ? 'fin' : 'saut' };
-    montrer(0); r.tDebutParole = now();
-    const res = await env.parler(texte, { vitesse: r.vitesse, surProgression: f => { let j = k; while (j + 1 < debuts.length && f >= debuts[j + 1]) j++; if (j > k) montrer(j); } });
+    montrer(0); r.tDebutParole = now(); if (r.finPrecedente != null && mode === 'normal') r.ecarts.push(r.tDebutParole - r.finPrecedente);   /* le vrai blanc : de la fin de la voix précédente au début de la suivante */
+    const res = await env.parler(texte, { vitesse: r.vitesse, surProgression: (f, restantMs) => { let j = k; while (j + 1 < debuts.length && f >= debuts[j + 1]) j++; if (j > k) montrer(j); if (mode === 'normal' && restantMs != null && restantMs <= R.anticipe && !r.anticipee) anticiper(r, i); } });
+    if (suiteP && !r.fin && r.go == null && !(res && res.interrompu)) { const x = await suiteP; if (x && x.texte && !r.fin && r.go == null) { appel('enrichi', step, x); r.chars += x.texte.length; const res2 = await env.parler(x.texte, { vitesse: r.vitesse, surProgression: () => {} }); if (res2 && res2.interrompu) res.interrompu = true; } }
     r.chars += texte.length; r.lues.push({ i, id: step.id, mode, chars: texte.length, ms: now() - tEtape }); r.finPrecedente = now();
     if (r.fin) return { type: 'fin' };
     if (r.go != null) return { type: 'saut' };
@@ -88,14 +90,20 @@ export function creerMoteur(env) {
     return { type: 'ok' };
   }
 
+  /* ouvre la page de l'étape suivante pendant la fin de l'étape en cours (si ses données sont déjà prêtes) */
+  function anticiper(r, i) {
+    if (r.anticipee || i + 1 >= r.rapport.nbEtapes || r.fin || r.go != null) return; const cible = r.anticipee = { i: i + 1, p: null };
+    pret(r, i + 1).then(s => { if (r.anticipee === cible && !s.passer && !r.fin && r.go == null && !r.paused) cible.p = Promise.resolve(appel('page', s)).catch(() => {}); });
+  }
+
   async function attendreReprise(r) { r.paused = true; appel('pause', true, true); while (r.paused && !r.fin && r.go == null) await ATT(80); appel('pause', false); }
 
   async function boucle(r) {
     const n = r.rapport.nbEtapes; let i = 0, mode = 'normal';
     try {
       while (i < n && !r.fin) {
-        const step = await pret(r, i); if (r.fin) break;
-        if (i + 1 < n) pret(r, i + 1);
+        const attente = setTimeout(() => { if (!r.fin) appel('message', 'Lecture des données de l’étape…'); }, 1500); const step = await pret(r, i); clearTimeout(attente); if (r.fin) break;
+        if (i + 1 < n) pret(r, i + 1).then(s2 => { if (!r.fin && !s2.passer && env.prechauffer && mode === 'normal') { try { env.prechauffer(s2.texte); } catch (e) { /* le préchauffage est facultatif */ } } });   /* la voix de l'étape suivante est préparée (copie en cache) pendant que celle-ci est dite */
         const issue = await lireEtape(r, i, step, mode);
         if (r.fin) break;
         if (issue.type === 'saut') { const g = r.go; r.go = null; if (g.detail) { mode = 'detail'; i = g.i; } else { mode = 'normal'; i = g.i; } continue; }
@@ -119,7 +127,7 @@ export function creerMoteur(env) {
       const t = 'Par rapport au rapport précédent : ' + comparaison.phrases.slice(0, 3).join(' ').slice(0, 420); r.fin = null; r.chars += t.length; try { appel('etape', { id: 'comparaison', chapitre: 'Comparaison', titre: 'Depuis le rapport précédent', segments: [{ texte: t }], texte: t, carte: { titre: 'Depuis le rapport précédent', lignes: comparaison.phrases.map(p => ({ label: '', val: p, ton: '' })) }, donneesDu: null }, r.rapport.nbEtapes, r.rapport.nbEtapes, 'normal'); await env.parler(t, { vitesse: r.vitesse, surProgression: () => {} }); } catch (e) { /* la comparaison reste à l'écran */ } r.fin = 'fini';
     }
     if (entree) { entree.caracteres = r.chars; H.enregistrer(env.store, entree); }
-    dernier = { id: r.id, type: r.rapport.type, raison, entree, comparaison, caracteres: r.chars, ecarts: r.ecarts.slice(), lues: r.lues.slice(), erreur: r.erreur || null, manques: etapes.filter(e => e.manque).map(e => e.titre + ' : ' + e.manque) };
+    dernier = { preps: r.preps.slice(), id: r.id, type: r.rapport.type, raison, entree, comparaison, caracteres: r.chars, ecarts: r.ecarts.slice(), lues: r.lues.slice(), erreur: r.erreur || null, manques: etapes.filter(e => e.manque).map(e => e.titre + ' : ' + e.manque) };
     appel(raison === 'fini' ? 'fin' : 'fermer', dernier);
     if (run === r) { /* on garde `run` pour etat() jusqu'au prochain lancement */ }
   }
@@ -129,9 +137,11 @@ export function creerMoteur(env) {
     if (!TYPES[type]) return { ok: false, raison: 'type de rapport inconnu : ' + type };
     if (run && !run.fin) await arreter('remplace');
     let rapport; try { rapport = creerRapport(type, { actif: a || 'or' }, env.src); } catch (e) { return { ok: false, raison: String((e && e.message) || e) }; }
-    const r = run = { id: ++seq, rapport, pret: [], i: 0, paused: false, fin: null, go: null, vitesse: 1, chars: 0, lues: [], ecarts: [], finPrecedente: null, termine: false };
-    const b = budget(rapport); r.budget = b; appel('prep', rapport, b);
+    const r = run = { id: ++seq, rapport, pret: [], i: 0, paused: false, fin: null, go: null, vitesse: 1, chars: 0, lues: [], ecarts: [], preps: [], finPrecedente: null, termine: false };
+    const b = budget(rapport); r.budget = b; appel('prep', rapport, b); try { if (rapport.prechauffer) rapport.prechauffer(); } catch (e) { /* les étapes liront seules */ }
     const p0 = pret(r, 0), minimum = ATT(R.prepMin);
+    /* les données de TOUTES les étapes sont préparées en arrière-plan, une à la fois dans l'ordre (un seul calcul lourd à la fois) : quand l'étape arrive, elle est prête */
+    r.fond = (async () => { for (let k = 1; k < rapport.nbEtapes && !r.fin; k++) { await pret(r, k).catch(() => {}); } })();
     r.promesse = (async () => { await Promise.all([minimum, p0.catch(() => {})]); if (!r.fin) await boucle(r); })();
     r.promesse.catch(() => {});
     return { ok: true, type, actif: rapport.actif, titre: rapport.titre, etapes: rapport.nbEtapes, estimation: rapport.estimation, budget: b };

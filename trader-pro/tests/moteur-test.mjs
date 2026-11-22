@@ -13,14 +13,14 @@ function creerEnv({ src = fauxSrc(), store = faussMem(), msParCar = 0.15, mainte
   const J = { ouvertures: [], etapes: [], segments: [], parles: [], messages: [], pauses: [], fins: [], ferme: 0, graphiques: 0, prep: null, prechauffes: [], annotations: [], enCours: 0, maxEnCours: 0 };
   let courant = null; // { fin(interrompu), restant, pause }
   const env = {
-    src, store, maintenant, reglages: { ecoute: 15, pageMax: 40, prepMin: 40, delaiEtape: 8000, ...reglages },
+    src, store, maintenant, reglages: { ecoute: 15, pageMax: 40, prepMin: 40, delaiEtape: 8000, anticipe: 200, ...reglages },
     quota: () => ({ mois: new Date().toISOString().slice(0, 7), n: 120000, limite: 490000 }),
     parler(texte, { surProgression, vitesse }) {
       J.parles.push({ texte, t: Date.now(), vitesse }); J.enCours++; J.maxEnCours = Math.max(J.maxEnCours, J.enCours);
       return new Promise(res => {
         const dur = Math.max(30, texte.length * msParCar), c = courant = { restant: dur, pause: false, t0: Date.now(), done: false };
         const fin = interrompu => { if (c.done) return; c.done = true; clearInterval(iv); J.enCours--; if (courant === c) courant = null; res({ interrompu }); };
-        c.fin = fin; const iv = setInterval(() => { if (c.pause) { c.t0 = Date.now() - (dur - c.restant); return; } const e = Date.now() - c.t0; c.restant = dur - e; surProgression && surProgression(Math.min(1, e / dur)); if (e >= dur) fin(false); }, 10);
+        c.fin = fin; const iv = setInterval(() => { if (c.pause) { c.t0 = Date.now() - (dur - c.restant); return; } const e = Date.now() - c.t0; c.restant = dur - e; surProgression && surProgression(Math.min(1, e / dur), Math.max(0, dur - e)); if (e >= dur) fin(false); }, 10);
       });
     },
     pauseVoix() { if (courant) courant.pause = true; }, reprendreVoix() { if (courant) courant.pause = false; },
@@ -46,7 +46,11 @@ function creerEnv({ src = fauxSrc(), store = faussMem(), msParCar = 0.15, mainte
   t(JSON.stringify(ids) === JSON.stringify(['contexte', 'weekly', 'daily', 'h4', 'volume', 'cot', 'valo', 'scenarios', 'risque']), 'complet : étapes dans l’ordre — ' + ids.join(','));
   const pages = J.ouvertures.map(o => o.page && (o.page.fenetre + (o.page.section ? ':' + o.page.section : '') + (o.page.unite ? ':' + o.page.unite : '') + (o.page.mode ? ':' + o.page.mode : '')));
   t(pages[0] === 'marches:aujourdhui' && /terminal:J:volume/.test(pages[1]) && pages[2] === 'terminal:J:classique' && pages[3] === 'terminal:H4:classique' && /terminal:H4:volume/.test(pages[4]) && pages[5] === 'marches:cot' && pages[6] === 'invest:mesactifs' && pages[7] === 'terminal:H4:classique' && pages[8] === 'portefeuille:risque', 'complet : bonnes pages ouvertes dans l’ordre — ' + pages.join(' > '));
-  t(J.parles.length === 9, 'une seule requête de voix par étape (' + J.parles.length + ')');
+  /* anticipation : la page de l'étape suivante s'ouvre pendant la fin de la voix de l'étape en cours (le son joue pendant que la page charge) */
+  { const ou = J.ouvertures.map(o => o.t), fins = J.parles.map(x => x.t + 1), debut = k => J.parles[k].t; let avant = 0; for (let k = 1; k < 9; k++) { const prochain = J.parles[k >= 5 ? k + 1 : k]; if (prochain && ou[k] != null && ou[k] < prochain.t) avant++; } void fins; void debut; t(avant >= 7, 'la page de l’étape suivante est ouverte avant que sa voix ne démarre (' + avant + '/8)'); }
+  t(new Set(J.ouvertures.map(o => o.id)).size === J.ouvertures.length, 'chaque page n’est ouverte qu’une fois (pas de double ouverture avec l’anticipation)');
+  t(J.parles.length === 10 && J.parles.filter(p => /^Carnet et footprint/.test(p.texte)).length === 1, 'une seule requête de voix par étape, sauf Volume : le carnet et le footprint en direct sont dits ensuite (' + J.parles.length + ')');
+  const iv = J.parles.findIndex(p => /^Volume :/.test(p.texte)); t(iv >= 0 && /^Carnet et footprint/.test(J.parles[iv + 1].texte), 'la lecture en direct du carnet suit immédiatement le texte du Volume');
   t(J.maxEnCours === 1, 'une seule voix à la fois');
   const seg = J.segments.filter(s => s.id === 'weekly'); t(seg.length === 6 && seg.every((s, i) => s.k === i), 'weekly : les 6 segments sont révélés dans l’ordre, un par un');
   t(J.segments.some(s => s.montrer && s.montrer.some(m => m.type === 'bougie')) && J.segments.some(s => s.montrer && s.montrer.some(m => m.type === 'prix')) && J.segments.some(s => s.montrer && s.montrer.some(m => m.type === 'zone')), 'des bougies, des niveaux et des zones sont mis en avant');
@@ -103,7 +107,7 @@ for (const [actif, inst] of [['or', 'OR'], ['us100', 'NASDAQ'], ['eurusd', 'EURU
   const src2 = fauxSrc({ sans: ['pro'] }); const E2 = creerEnv({ src: src2 }), m2 = creerMoteur(E2.env); await m2.lancer({ type: 'complet', actif: 'or' }); await m2.attendreFin();
   t(m2.dernier().raison === 'fini' && m2.dernier().manques.length >= 3, 'sans prix du tout : rapport terminé proprement, étapes concernées annoncées manquantes');
   const src3 = { ...fauxSrc(), async outil() { throw new Error('boum'); } }; const E3 = creerEnv({ src: src3 }), m3 = creerMoteur(E3.env); await m3.lancer({ type: 'complet', actif: 'or' }); await m3.attendreFin();
-  t(m3.dernier().raison === 'fini' && E3.J.parles.length === 9, 'un outil qui plante ne bloque pas la visite');
+  t(m3.dernier().raison === 'fini' && E3.J.parles.length >= 9, 'un outil qui plante ne bloque pas la visite');
 }
 
 /* ───── 6 · commandes vocales pendant un rapport ───── */

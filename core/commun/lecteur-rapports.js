@@ -17,6 +17,6 @@
     commande, actif:()=>!!(L&&L.moteur.actif()), charger,
     lancer:async o=>(await charger()).moteur.lancer(o), etat:()=>L?L.moteur.etat():null, dernier:()=>L?L.moteur.dernier():null,
     moteur:()=>L?L.moteur:null, historique:()=>L?L.moteur.historique():[], ouvrirHistorique:async()=>(await charger()).ecran.ouvrirHistorique(),
-    arreter:()=>L?L.moteur.arreter('stop'):false
+    arreter:()=>L?L.moteur.arreter('stop'):false, journal:()=>L?L.ecran.journal:[]
   };
 })();
