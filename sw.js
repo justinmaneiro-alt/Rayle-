@@ -37,7 +37,7 @@ self.addEventListener('install', e => {
 });
 self.addEventListener('activate', e => {
   e.waitUntil((async () => {
-    for (const k of await caches.keys()) if (k !== SHELL && k !== IMAGES) await caches.delete(k);   // TOUS les anciens caches (coque mobile comprise)
+    for (const k of await caches.keys()) if (k !== SHELL && k !== IMAGES && !/^rayle-(?:piper|voix)-/.test(k)) await caches.delete(k);   // v9 : les voix Piper (63 à 77 Mo, téléchargées une seule fois) et les phrases en copie (rayle-voix-*) survivent aux mises à jour   // TOUS les anciens caches (coque mobile comprise)
     await self.clients.claim();
   })());
 });

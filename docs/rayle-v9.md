@@ -42,3 +42,12 @@
 - **Compteur du mois** : Réglages → Voix et État des données (barre et pourcentage), alerte à 80 % (ligne dans la conversation, une fois par mois).
 - **Verrou des fonctions v8** : `trader-pro/tests/verrou-v8-test.mjs` (dans `npm test`) enregistre l'empreinte des fichiers des fenêtres pilotées, des réponses animées et du panneau d'images (`verrou-v8.json`) et contrôle leur branchement ; aucune de ces fonctions n'a été modifiée par la v9.
 - Test : `trader-pro/tests/voix-v9-chrome.mjs`.
+
+## Phase 5 — Contrôles (avant la clé Azure)
+
+- **Bug trouvé et corrigé : les mises à jour effaçaient les voix.** `sw.js` (activation) et `agent-trading/front/or.html` (mise à jour forcée) supprimaient TOUS les caches qui n'étaient pas la coque : à chaque nouvelle version, la voix Piper téléchargée (63 Mo) aurait disparu, et avec elle le mode avion. Les caches `rayle-piper-*` et `rayle-voix-*` (phrases en copie, y compris Gemini) sont maintenant conservés. Mis en évidence par `piper-avion-chrome.mjs`.
+- **Mode avion** (`trader-pro/tests/piper-avion-chrome.mjs`, tablette) : premier lancement en ligne (la voix se télécharge), puis NOUVEAU navigateur, même profil, tout réseau extérieur coupé : Piper parle (réponse complète lue par « Siwis (Piper, local) », zéro requête vers Hugging Face, aucune voix du système) — 6/6.
+- **Note de sécurité du navigateur** : le Cache Storage n'existe qu'en https ou en localhost ; sur GitHub Pages (https) et en 127.0.0.1 c'est le cas ; en http simple (adresse IP du réseau local) la voix est gardée en mémoire seulement pour la session.
+- **10 questions d'affilée** (`voix-v9-chrome.mjs`, Worker simulé, Piper simulé) : tablette 34/34 et téléphone 34/34 — une seule requête Azure et une seule voix (Vivienne) par réponse, jamais deux lectures en même temps, aucun `speechSynthesis`, secours Piper complet sur une panne d'Azure, panneau Réglages → Voix (4 + 4 voix, Écouter, vitesse, ton), compteur du mois, alerte à 80 %.
+- **Fenêtres, animations et images (verrou)** : `npm test` passe (dont `verrou-v8-test` 20/20) ; `images-chrome` tablette 28/28 ; `banc-30-chrome` partie 1 (tablette) 31/31 et partie 3 (téléphone) 49/49 ; `pilotage-chrome` tablette 13/16 — les 3 contrôles du Terminal combinés (H4, ligne MA200, onglet HTF) échouent comme en v8 sur ce PC sans carte graphique (le graphique met plus de 3 minutes à monter), sans lien avec la voix.
+- Les tests v8 (images, pilotage, cerveau, banc) fixent désormais la voix sur Gemini simulé (`rayle_voix_gemini_v1`) pour ne pas déclencher le vrai téléchargement de Piper.

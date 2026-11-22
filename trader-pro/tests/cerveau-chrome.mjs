@@ -7,7 +7,7 @@ const wav = Buffer.concat([Buffer.from('RIFF'), u32(36 + pcm.length), Buffer.fro
 const ref = await (await fetch('https://raw.githubusercontent.com/justinmaneiro-alt/Rayle-/donnees/pro-or.json')).json();   // prix réel de l'or dans la branche de données
 const CORS = { 'access-control-allow-origin': '*', 'access-control-expose-headers': 'X-Rayle-Voix, X-Rayle-Cache' };
 let requetes = [], tts = [], panneCerveau = null;
-const T = await lancer(mode, { dossierCaptures: 'donnees-privees/captures-v8', stockage: { rayle_worker_url: 'https://faux-worker.test', rayle_worker_token: 'jeton', rayle_donnees_base: 'https://raw.githubusercontent.com/justinmaneiro-alt/Rayle-/donnees/' }, interception: async (r, u) => {
+const T = await lancer(mode, { dossierCaptures: 'donnees-privees/captures-v8', stockage: { rayle_worker_url: 'https://faux-worker.test', rayle_worker_token: 'jeton', rayle_voix_gemini_v1: { moteur: 'gemini-f1', ton: 'naturel', vitesse: 0 }, rayle_voix_v9: '1', rayle_piper_precharge: '0', rayle_donnees_base: 'https://raw.githubusercontent.com/justinmaneiro-alt/Rayle-/donnees/' }, interception: async (r, u) => {
   if (!u.startsWith('https://faux-worker.test/') && !u.includes('rayle-voix')) return false;
   const rep = (statut, corps, h = {}) => r.respond({ status: statut, headers: { ...CORS, 'content-type': 'application/json', ...h }, body: typeof corps === 'string' ? corps : JSON.stringify(corps) });
   if (r.method() === 'OPTIONS') { await r.respond({ status: 204, headers: { ...CORS, 'access-control-allow-headers': '*', 'access-control-allow-methods': 'POST, GET, OPTIONS' } }); return true; }

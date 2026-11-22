@@ -41,7 +41,7 @@ window.RAYLE_OR_VERSION = '2026.11.22.2';
         }
       }
     } catch (e) { /* pas de service worker */ }
-    try { var ks = await caches.keys(); for (var i = 0; i < ks.length; i++) await caches.delete(ks[i]); } catch (e) { /* pas de cache */ }
+    try { var ks = await caches.keys(); for (var i = 0; i < ks.length; i++) if (!/^rayle-(?:piper|voix)-/.test(ks[i])) await caches.delete(ks[i]);   /* v9 : on garde les voix Piper et les phrases en copie */ } catch (e) { /* pas de cache */ }
     aller();
   }
   async function verifier() {

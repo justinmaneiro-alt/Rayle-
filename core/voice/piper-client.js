@@ -18,7 +18,9 @@ const PiperLocal=(function(){
   const etats={};            // id → {etat:'absente'|'telechargement'|'chargement'|'prete'|'erreur', pct, raison}
   const mem=new Map();       // repli quand le Cache Storage n'existe pas
   let ouvrirCache=null, worker=null, moteurPret=null, compteur=0; const attentes=new Map(); const chargements={};
-  const cacheStorage=()=>{ if(!ouvrirCache) ouvrirCache=('caches' in self)?caches.open(CACHE).catch(()=>null):Promise.resolve(null); return ouvrirCache; };
+  let derniereErreurCache='';
+  /* Cache Storage : ouverture avec nouvel essai (un échec passager ne doit pas faire perdre la copie hors ligne) ; absent en http hors localhost → copie en mémoire seulement */
+  const cacheStorage=async()=>{ if(!('caches' in self)) return null; for(let i=0;i<4;i++){ try{ return await (ouvrirCache||(ouvrirCache=caches.open(CACHE))); }catch(e){ ouvrirCache=null; derniereErreurCache=String((e&&e.message)||e); await new Promise(r=>setTimeout(r,400)); } } return null; };
   function majEtat(id,o){ const av=etats[id]||{}; etats[id]=Object.assign({},av,o); if(av.etat!==etats[id].etat||av.pct!==etats[id].pct||av.raison!==etats[id].raison) prevenir(); }
 
   /* lecture « cache d'abord » : Cache Storage, sinon réseau (avec progression), puis mise en cache */
@@ -33,7 +35,8 @@ const PiperLocal=(function(){
       for(;;){ const {done,value}=await lecteur.read(); if(done) break; morceaux.push(value); recu+=value.length; progres(recu/total); }
       const u=new Uint8Array(recu); let o=0; for(const m of morceaux){ u.set(m,o); o+=m.length; } buf=u.buffer;
     } else buf=await r.arrayBuffer();
-    if(c){ try{ await c.put(url,new Response(buf.slice(0),{headers:{'Content-Type':'application/octet-stream'}})); }catch(e){ mem.set(url,buf); } } else mem.set(url,buf);
+    let gardee=false; if(c){ for(let i=0;i<3&&!gardee;i++){ try{ await c.put(url,new Response(buf.slice(0),{headers:{'Content-Type':'application/octet-stream'}})); gardee=true; }catch(e){ derniereErreurCache=String((e&&e.message)||e); await new Promise(r=>setTimeout(r,400)); } } }
+    if(!gardee) mem.set(url,buf);
     return buf;
   }
   const blobUrl=(buf,type)=>URL.createObjectURL(new Blob([buf],{type}));
@@ -89,6 +92,6 @@ const PiperLocal=(function(){
   const pret=id=>!!(etats[id]&&etats[id].etat==='prete');
   /* préchargement de fond : la voix de secours par défaut, quelques secondes après l'ouverture, sans gêner l'interface */
   function precharger(id){ const lancer=()=>{ try{ if(navigator.connection&&navigator.connection.saveData) return dejaTelechargee(id).then(d=>{ if(d) charger(id).catch(()=>{}); }); }catch(e){} charger(id).catch(()=>{}); }; if('requestIdleCallback' in self) requestIdleCallback(lancer,{timeout:6000}); else setTimeout(lancer,3000); }
-  return {VOIX,etat:id=>etats[id]||{etat:'absente'},etats:()=>etats,pret,charger,synth,precharger,dejaTelechargee,surChangement:f=>ecouteurs.push(f)};
+  return {diag:()=>({erreurCache:derniereErreurCache,memoire:mem.size}),VOIX,etat:id=>etats[id]||{etat:'absente'},etats:()=>etats,pret,charger,synth,precharger,dejaTelechargee,surChangement:f=>ecouteurs.push(f)};
 })();
 window.PiperLocal=PiperLocal;
