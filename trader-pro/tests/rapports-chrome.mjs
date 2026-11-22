@@ -19,7 +19,7 @@ await p.evaluate(() => {
     const me = V.parles[V.parles.length - 1]; await new Promise(r => setTimeout(r, dur)); if (nous) V.enCours--; me.fin = Date.now();
   };
   window.cancelSpeech = () => {};   // les commandes arrêtent la voix factice en laissant finir sa temporisation courte
-  window.__trace = { barre: [], marques: [], pages: [] };
+  window.__trace = { barre: [], marques: [], pages: [] }; window.__longues = []; try { new PerformanceObserver(l => { for (const e of l.getEntries()) window.__longues.push({ t: Math.round(performance.timeOrigin + e.startTime), d: Math.round(e.duration) }); }).observe({ entryTypes: ['longtask'] }); } catch (e) { /* pas de longtask */ }
   const echant = () => {
     const doc = document, b = doc.getElementById('lr-barre'), chap = b && !b.hidden ? (b.querySelector('.lr-chap') || {}).textContent : null, sous = b && !b.hidden ? (b.querySelector('.lr-sous') || {}).textContent : null;
     const tr = window.__trace; if (chap && (!tr.barre.length || tr.barre[tr.barre.length - 1].chap !== chap)) tr.barre.push({ chap, sous, t: Date.now(), prog: (b.querySelectorAll('.lr-prog i.fait').length) });
@@ -73,6 +73,7 @@ const ec = (R.dernier && R.dernier.ecarts) || []; verif(ec.length > 0 && Math.ma
 const J = await p.evaluate(() => window.LecteurRapports.journal()), segs = J.filter(x => x.k != null); const etalee = {}; for (const x of segs) (etalee[x.id] = etalee[x.id] || []).push(x.t); const pasEtale = Object.entries(etalee).filter(([, L]) => L.length >= 4 && (L[L.length - 1] - L[0]) < 1500).map(([id]) => id);
 verif(segs.length >= attendus.length * 2 && pasEtale.length === 0, 'les mises en avant suivent la lecture phrase par phrase, pas d’un seul coup (' + segs.length + ' segments ; groupés : ' + (pasEtale.join(',') || 'aucun') + ')');
 const poses = J.filter(x => x.pose); console.log('marques posées :', JSON.stringify(poses.reduce((o, x) => { o[x.pose] = (o[x.pose] || 0) + 1; return o; }, {}))); verif(poses.every(x => !x.erreur), 'aucune marque en erreur');
+if (process.env.RAPPORT_DIAG) { const L = await p.evaluate(() => window.__longues), V = R.voix.parles.filter(x => x.nous), t0 = V[0].debut; console.log('voix (début→fin, s) :', V.map(x => ((x.debut - t0) / 1000).toFixed(1) + '→' + (((x.fin || 0) - t0) / 1000).toFixed(1)).join(' | ')); console.log('tâches longues > 300 ms (début s, durée ms) :', L.filter(x => x.d > 300).map(x => ((x.t - t0) / 1000).toFixed(1) + ' ' + x.d).join(' | ')); const J2 = await p.evaluate(() => window.LecteurRapports.journal()); console.log('pages anticipées (journal) :', J2.filter(x => x.k === 0).map(x => x.id + '@' + ((x.t - t0) / 1000).toFixed(1)).join(' ')); }
 const m = R.trace.marques; verif(m.length > 0, 'des éléments sont mis en avant (' + m.length + ' échantillons)');
 if (type === 'complet' || type === 'marche') { const vis = m.reduce((s, x) => s + x.visibles, 0); verif(vis > 0, 'des repères pulsent sur le graphique : lignes, bougies, zones (' + vis + ' échantillons visibles)'); verif(m.some(x => x.bougie > 0), 'une bougie est mise en évidence'); }
 if (type === 'cot' || type === 'complet') verif(m.some(x => x.el > 0 && x.bulle > 0), 'une case de la page est surlignée avec sa bulle');

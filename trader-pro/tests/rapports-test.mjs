@@ -23,6 +23,11 @@ const mem = () => { const m = new Map(); return { getItem: k => (m.has(k) ? m.ge
   const E = fauxAnalyse('or'); E.position.auDessus = []; t(scenarios(E, 'or').disponible === false, 'sans niveau au-dessus : pas de scénario inventé');
   t(sc.principal.annotations.length >= 3 && sc.principal.annotations.every(a => Number.isFinite(a.prix) && a.type), 'annotations prêtes pour la couche Rayle');
 }
+{
+  const A = fauxAnalyse('or'), z = A.position.enDessous[1]; A.position.enDessous.splice(2, 0, { ...z, niveau: 'FVG doublon' });   // deux niveaux au même prix
+  const sb = scenarios({ ...A, weekly: { ...A.weekly, tendance: 'baissière' }, daily: { ...A.daily, tendance: 'baissière', positionMa200: 'sous' }, h4: { ...A.h4, tendance: 'baissière' } }, 'or');
+  t(sb.principal.sens === -1 && new Set(sb.principal.objectifs.map(o => o.prix)).size === sb.principal.objectifs.length && sb.principal.objectifs.length === 2, 'objectifs sans doublon (deux niveaux au même prix = un seul objectif)');
+}
 /* ───── niveaux ───── */
 t(listeNiveaux({ indisponible: 'x' }).length === 0 && listeNiveaux({ reperesIct: [{ nom: 'PDH', prix: 10 }, { nom: 'Ouverture jour', prix: 9 }], mesNiveauxTraces: 'illisibles' }).length === 1, 'niveaux : indisponible et dessins illisibles ne cassent rien ; l’ouverture du jour est écartée');
 /* ───── épisodes COT et réaction aux annonces ───── */

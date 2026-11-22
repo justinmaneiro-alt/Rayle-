@@ -68,7 +68,8 @@ export function scenarios(an, id) {
   const pour = facteurs.filter(f => f[1] === (sens || 0) && sens !== 0).map(f => f[0]), contre = facteurs.filter(f => sens !== 0 && f[1] === -sens).map(f => f[0]);
   const raisonConf = sens === 0 ? 'signaux partagés entre les unités de temps (' + facteurs.map(f => f[0] + ' ' + (f[1] > 0 ? 'haussier' : f[1] < 0 ? 'baissier' : 'neutre')).join(', ') + ')' : pour.length + ' signal(aux) sur 4 dans le même sens (' + pour.join(', ') + ')' + (contre.length ? ', contre : ' + contre.join(', ') : '') + (regimeRange ? ' ; marché en range, confiance plafonnée' : '');
   const P = x => (x ? fr(x.prix, d) : null), marge = Number.isFinite(aH) ? 0.5 * aH : 0;
-  const objectifs = (L, k) => L.slice(k, k + 2).map(x => ({ prix: x.prix, nom: x.niveau }));
+  /* objectifs : niveaux suivants, sans doublon (deux niveaux au même prix, ou à moins d'un quart d'ATR l'un de l'autre, n'en font qu'un) */
+  const objectifs = (L, k) => { const out = [], sep = 0.25 * (aH || 0); for (const x of L.slice(k)) { if (out.length >= 2) break; if (out.every(o => Math.abs(o.prix - x.prix) > sep + 1e-9)) out.push({ prix: x.prix, nom: x.niveau }); } return out; };
   const mk = (titre, dir, declencheur, entree, invalidationPrix, objs, conf, annotations) => ({ titre, sens: dir, declencheur, entree, invalidation: invalidationPrix != null ? { prix: invalidationPrix, texte: (dir > 0 ? 'clôture H4 sous ' : dir < 0 ? 'clôture H4 au-dessus de ' : 'sortie du range à ') + fr(invalidationPrix, d) } : null, objectifs: objs, confiance: conf, annotations });
   let principal, alternatif;
   if (!au.length || !en.length) return { disponible: false, raison: 'pas assez de niveaux mesurés de part et d’autre du prix pour poser des scénarios', score, facteurs };

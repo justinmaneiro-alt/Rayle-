@@ -83,7 +83,7 @@ export function creerEcran({ document: doc = document, actions, historique = nul
     try { new ResizeObserver(() => doc.documentElement.style.setProperty('--lr-h', barre.offsetHeight + 'px')).observe(barre); } catch (e) { /* sans ResizeObserver : valeur par défaut */ }
     carte = el(doc, 'aside', 'lr-carte'); carte.id = 'lr-carte'; if ((doc.defaultView && doc.defaultView.innerWidth) < 1100) carte.classList.add('reduite');   /* petit écran : la carte ne montre d'abord que sa ligne active */ carte.hidden = true; carte.setAttribute('aria-label', 'Résumé de l’étape'); doc.body.appendChild(carte);
     barre.addEventListener('click', e => { const b = e.target.closest('[data-a]'); if (!b || !moteur) return; const a = b.dataset.a;
-      if (a === 'precedent') moteur.aller(-1); else if (a === 'suivant') moteur.aller(+1); else if (a === 'stop') moteur.arreter('stop'); else if (a === 'detail') moteur.detail(); else if (a === 'graphique') moteur.graphique();
+      if (a === 'precedent') moteur.aller(-1); else if (a === 'suivant') moteur.aller(+1); else if (a === 'stop') { if (barre.classList.contains('fini')) ecran.fermer(); else moteur.arreter('stop'); } else if (a === 'detail') moteur.detail(); else if (a === 'graphique') moteur.graphique();
       else if (a === 'pause') { const s = moteur.etat(); if (s && s.pause) moteur.reprendre(); else moteur.pause(); }
       else if (a === 'vitesse') { const s = moteur.etat(), VIT = [0.9, 1, 1.15, 1.3], k = s ? (VIT.indexOf(s.vitesse) + 1) % VIT.length : 1; moteur.vitesse(k - VIT.indexOf(s ? s.vitesse : 1)); }
       else if (a === 'carte') carte.classList.toggle('reduite');
@@ -94,7 +94,7 @@ export function creerEcran({ document: doc = document, actions, historique = nul
   const nettoyer = () => { for (const f of nettoyage.splice(0)) { try { f(); } catch (e) { /* */ } } effacerMarques(doc); };
   const progression = (i, n) => { const p = q(barre, '.lr-prog'); if (!p || p.children.length !== n) { p.innerHTML = ''; for (let k = 0; k < n; k++) p.appendChild(el(doc, 'i')); } [...p.children].forEach((c, k) => { c.className = k < i ? 'fait' : k === i ? 'cours' : ''; }); };
   function rendreCarte(c, donneesDu) {
-    carte.innerHTML = ''; if (!c) { carte.hidden = true; return; } carte.hidden = false; carte.classList.remove('entree'); void carte.offsetWidth; carte.classList.add('entree');
+    carte.innerHTML = ''; if (!c) { carte.hidden = true; return; } carte.hidden = false; carte.classList.remove('entree'); requestAnimationFrame(() => carte.classList.add('entree'));   /* pas de lecture de mise en page forcée (void offsetWidth) : sur un terminal chargé, elle coûtait plusieurs secondes de blocage */
     const h = el(doc, 'header'); h.appendChild(el(doc, 'b', null, c.titre || '')); if (donneesDu) h.appendChild(el(doc, 'small', null, 'données : ' + donneesDu)); carte.appendChild(h);
     if (c.grand) { const g = el(doc, 'div', 'lr-grand'); g.appendChild(el(doc, 'small', null, c.grand.label)); g.appendChild(el(doc, 'strong', null, c.grand.val)); carte.appendChild(g); }
     const ul = el(doc, 'ul'); (c.lignes || []).forEach((l, i) => { const li = el(doc, 'li', l.ton ? 'ton-' + l.ton : ''); li.dataset.i = i; if (l.label) li.appendChild(el(doc, 'span', null, l.label)); li.appendChild(el(doc, 'b', null, l.val)); ul.appendChild(li); }); carte.appendChild(ul);
@@ -146,7 +146,7 @@ export function creerEcran({ document: doc = document, actions, historique = nul
     for (const m of elements) { const t0 = Date.now(); while (encore()) { let ok = false; try { ok = surlignerElement(doc, m.selecteur, m.texte, nettoyage); } catch (e) { ok = false; } if (ok || Date.now() - t0 > 25000) break; await ATT(300); } }
   }
   function rendreFin(d) {
-    const e = d.entree; carte.hidden = false; carte.innerHTML = ''; carte.classList.remove('detail'); carte.appendChild(el(doc, 'header')).appendChild(el(doc, 'b', null, e.titre));
+    const e = d.entree; carte.hidden = false; carte.innerHTML = ''; carte.classList.remove('detail', 'reduite'); carte.appendChild(el(doc, 'header')).appendChild(el(doc, 'b', null, e.titre));
     const ul = el(doc, 'ul'); const L = [['Étapes lues', String(e.etapes.length)], ['Caractères lus', fr(d.caracteres)], ['Données manquantes', d.manques && d.manques.length ? d.manques.join(' · ') : 'aucune']]; if (d.comparaison && d.comparaison.disponible) L.push(['Depuis le précédent', d.comparaison.phrase]); for (const [a, b] of L) { const li = el(doc, 'li'); li.appendChild(el(doc, 'span', null, a)); li.appendChild(el(doc, 'b', null, b)); ul.appendChild(li); } carte.appendChild(ul);
     const act = el(doc, 'div', 'lr-actions'); for (const [a, t] of [['ecran', 'Rapport à l’écran'], ['pdf', 'PDF'], ['md', 'Copier'], ['histo', 'Historique'], ['ferme', 'Fermer']]) { const b = el(doc, 'button', null, t); b.type = 'button'; b.dataset.a = a; act.appendChild(b); } carte.appendChild(act);
     act.addEventListener('click', ev => { const b = ev.target.closest('button'); if (!b) return; const a = b.dataset.a; if (a === 'ferme') ecran.fermer(); else if (a === 'histo') ouvrirHistorique(); else exporter(e, a, d.comparaison, b); });
