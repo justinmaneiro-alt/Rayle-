@@ -55,10 +55,10 @@ export function creerAdaptateur(inst, { fetchReel, lireBougies = null, ttl = 20e
       return json({ ticker: { symbol: inst.yahoo, last: prix, lastTime: new Date(tp).toISOString(), bid: prix, ask: prix, open24h: il ? il.c : null } });
     }
     if (u.startsWith(RELAIS + '/kraken/instrument')) return json({ instrument: { symbol: inst.yahoo, tradeable: true } });
-    if (u.startsWith(BINANCE.klines)) {
+    if (u.startsWith(BINANCE.klines) && (!new URL(u).searchParams.get('symbol') || new URL(u).searchParams.get('symbol') === BINANCE.symbole)) {   // v12 : seules les requêtes du moteur (XAUUSDT) sont détournées ; le mode Volume lit les vraies klines Binance de son propre symbole
       const q = new URL(u).searchParams, P = parPeriode(q.get('interval')); if (!P) throw new Error('période inconnue');
       const d = await serie(P.id), de = +q.get('startTime') || 0, a = q.get('endTime') ? +q.get('endTime') : Infinity, lim = +q.get('limit') || 1500;
-      return json(d.bougies.filter(b => b.t >= de && b.t <= a).slice(0, lim).map(b => [b.t, String(b.o), String(b.h), String(b.l), String(b.c), String(b.v), b.t + P.ms - 1, String(b.v * b.c), 0, String(b.v / 2), '0', '0']));
+      return json(d.bougies.filter(b => b.t >= de && b.t <= a).slice(q.get('startTime') ? 0 : -lim).slice(0, lim).map(b => [b.t, String(b.o), String(b.h), String(b.l), String(b.c), String(b.v), b.t + P.ms - 1, String(b.v * b.c), 0, String(b.v / 2), '0', '0']));
     }
     if (u.startsWith(BINANCE.ticker)) {
       const d = await serie('H1'), n = maintenant(), L = d.bougies.filter(b => b.t >= n - 24 * 3600e3);
@@ -72,7 +72,7 @@ export function creerAdaptateur(inst, { fetchReel, lireBougies = null, ttl = 20e
 function installer() {
   if (typeof window === 'undefined' || ACTIF === ID_DEFAUT || window.__adaptateurInstrument) return;
   window.__adaptateurInstrument = ACTIF;
-  const fetchOrig = window.fetch.bind(window), A = creerAdaptateur(INSTR, { fetchReel: u => fetchOrig(u), lireBougies: (sym, iv) => lireBougiesCouche(sym, iv, { fetchFn: fetchOrig }) });
+  const fetchOrig = window.fetch.bind(window); window.__fetchReel = fetchOrig; const A = creerAdaptateur(INSTR, { fetchReel: u => fetchOrig(u), lireBougies: (sym, iv) => lireBougiesCouche(sym, iv, { fetchFn: fetchOrig }) });
   window.fetch = async function (url, opts) { const r = await A(typeof url === 'string' ? url : (url && url.url) || url, opts); return r || fetchOrig(url, opts); };
   // stockage : clés suffixées par instrument (les clés qui ne commencent pas par rayle_or_ ne bougent pas)
   const P = Storage.prototype, g = P.getItem, s = P.setItem, d = P.removeItem;

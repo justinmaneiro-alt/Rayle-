@@ -23,13 +23,14 @@ export function ecartSources(longues, recentes) {
   if (r.length < 5) return null; return { ratio: mediane(r), n: r.length };
 }
 /* recale la série longue pour qu'elle se raccorde à la récente : rapport mesuré sur les bougies communes, sinon sur le saut entre la dernière longue et la première récente (< 5 % : pas de recalage) */
-export function raccorder(longues, recentes) {
+export function raccorder(longues, recentes, { avantSeulement = false } = {}) {
   if (!longues.length || !recentes.length) return { bougies: fusionner(longues, recentes), ratio: 1, methode: 'aucun', n: 0 };
   const e = ecartSources(longues, recentes); let ratio = 1, methode = 'aucun', n = 0;
   if (e && Math.abs(e.ratio - 1) < 0.2) { ratio = e.ratio; methode = 'bougies communes'; n = e.n; }
   else { const avant = [...longues].reverse().find(b => b.t < recentes[0].t); if (avant) { const sauts = avant.c > 0 ? recentes[0].o / avant.c : 1; if (Math.abs(sauts - 1) < 0.05 && Math.abs(sauts - 1) > 1e-9) { ratio = sauts; methode = 'saut de raccord'; n = 1; } } }
   const L = ratio === 1 ? longues : longues.map(b => ({ ...b, o: b.o * ratio, h: b.h * ratio, l: b.l * ratio, c: b.c * ratio }));
-  return { bougies: fusionner(L, recentes), ratio, methode, n };
+  /* v12 : avec la série unique du Classique, l'historique long ne sert QU'AVANT la première bougie récente (grilles horaires différentes : :00 contre :30 pour les indices) */
+  return { bougies: fusionner(avantSeulement ? L.filter(b => b.t < recentes[0].t) : L, recentes), ratio, methode, n };
 }
 
 /* contrôle : renvoie { bougies (nettoyées), incidents[], trous[] } ; ne modifie pas l'entrée */

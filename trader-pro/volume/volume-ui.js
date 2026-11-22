@@ -16,6 +16,7 @@ import { niveauxReaction, etiquetteNiveau, niveauProche, phraseNiveaux } from '.
 import { creerStoreFootprint, creerLive, creerRattrapage, TEXTE_ABSENT } from './footprint-donnees.js';
 import { histoLong } from '../terminal/histo-long.js';
 import { raccorder, controler, verifierRaccord, resume as resumeControle } from '../commun/serie-continue.js';
+import { canoniser } from '../commun/bougies-uniques.js';
 import { noterIncident, noterPrix } from '../commun/incidents-donnees.js';
 import { dessiner as dessinerFootprint, infoCase, COULEUR_REACTION } from './footprint-rendu.js';
 import { PALETTE, PRESETS, NOM_PRESETS, appliquerPreset } from './palette.js';
@@ -41,7 +42,7 @@ const sgn = v => (v >= 0 ? '+' : '−') + compact(Math.abs(v));
 const dec = a => parId[a].decimales;
 const prix = (a, p) => nf(p, dec(a));
 
-export async function monterVolume({ racine, T = {}, parler = () => {}, idDefaut = 'or', unite0 = 'H4', surClassique = () => {} } = {}) {
+export async function monterVolume({ racine, T = {}, parler = () => {}, idDefaut = 'or', unite0 = 'H4', surClassique = () => {}, serieUnique = null } = {}) {
   const LW = await chargerLib();
   const actif0 = parId[lireLS(CLE.actif, idDefaut)] ? lireLS(CLE.actif, idDefaut) : idDefaut;
   const opts = { ...OPTS_DEFAUT, ...lireLS(CLE.opts(actif0), {}) };
@@ -383,10 +384,16 @@ export async function monterVolume({ racine, T = {}, parler = () => {}, idDefaut
   }
 
   /* ───── chargement ───── */
+  /* v12 : UNE seule série de prix. Les bougies (O, H, L, C, date) sont celles du Classique ; le Volume n'y ajoute que son volume et son volume acheteur. */
+  async function unifier(a, u, r, attendre) {
+    if (!serieUnique || a !== idDefaut || (a === 'or' && opts.sourceVolume === 'ref')) return { bougies: r.bougies, canon: false };
+    try { const U = await serieUnique(u, { attendre }); if (!U || !U.bougies || U.bougies.length < 50) return { bougies: r.bougies, canon: false }; const C = canoniser(U.bougies, r.bougies, PAS_UNITE[u]); return { bougies: C.bougies, canon: true, origine: U.origine, sansVolume: C.sansVolume }; } catch (e) { return { bougies: r.bougies, canon: false }; }
+  }
   async function charger(recadrer = true) {
     const n = ++S.seq; S.charge = false; S.erreur = null; $('[data-att]').hidden = false; $('[data-att]').textContent = 'Chargement du volume ' + parId[S.actif].nom + ' ' + NOM_U[S.unite] + '…'; majBadge();
     try {
-      const r = await chargerBarres(S.actif, S.unite, { source: S.actif === 'or' ? opts.sourceVolume : 'reel' }); if (n !== S.seq) return;
+      const r0 = await chargerBarres(S.actif, S.unite, { source: S.actif === 'or' ? opts.sourceVolume : 'reel' }); if (n !== S.seq) return;
+      const U = await unifier(S.actif, S.unite, r0, 20000); if (n !== S.seq) return; const r = U.canon ? { ...r0, bougies: U.bougies } : r0; S.canon = U.canon ? { origine: U.origine, sansVolume: U.sansVolume } : null; if (!U.canon && serieUnique && S.actif === idDefaut && !(S.actif === 'or' && opts.sourceVolume === 'ref')) setTimeout(() => { if (n === S.seq && S.ouvert) charger(false); }, 6000);   /* série du Classique pas prête : on réessaie, jamais de série à part définitive */
       S.ecart = null; if (parId[S.actif].volumeSeul) ecartFutures(S.actif).then(e => { if (n === S.seq) { S.ecart = e; majBadge(); } }).catch(() => {});
       S.zonesEmp.clear(); S.donnees = r; const C = controler(r.bougies, { unite: S.unite, actif: S.actif }); S.controle = C; S.raccord = null; S.bars = C.bougies.length >= 20 ? C.bougies : r.bougies; S.charge = true; $('[data-att]').hidden = true; creerGraphique(); peindre(recadrer); majBadge(); demarrerFlux(); etendreHistorique(n); majIctPrincipal(); if (panneau) panneau.rendre();
     } catch (e) {
@@ -406,7 +413,7 @@ export async function monterVolume({ racine, T = {}, parler = () => {}, idDefaut
     let V = verifierRaccord(L.bougies, bars, { unite: u, actif: a });
     if (!V.ok) { histoLong.oublier(); try { L = await lireLongues(); V = verifierRaccord(L.bougies, bars, { unite: u, actif: a }); } catch (e) { /* source injoignable : le refus ci-dessous s'applique */ } }
     if (!V.ok) { noterIncident({ type: 'raccord', actif: a, unite: u, detail: (V.raison === 'saut' ? 'écart de ' + Math.round(Math.abs(V.saut) * 100) + ' %' : V.manquantes + ' bougies manquantes') + ' entre l’historique et la bougie en direct : série raccordée refusée' }); return { bougies: bars, raccord: { refuse: true, raison: V.raison, manquantes: V.manquantes, saut: V.saut }, controle: null }; }
-    const R = raccorder(L.bougies, bars), C = controler(R.bougies, { unite: u, actif: a }); return { bougies: C.bougies, raccord: { ratio: R.ratio, methode: R.methode, n: R.n, longues: L.bougies.length }, controle: C };
+    const R = raccorder(L.bougies, bars, { avantSeulement: true }), C = controler(R.bougies, { unite: u, actif: a }); return { bougies: C.bougies, raccord: { ratio: R.ratio, methode: R.methode, n: R.n, longues: L.bougies.length }, controle: C };
   }
   /* la vue ne bouge pas : conservée par le temps, pas par l'indice */
   async function etendreHistorique(n) {
@@ -419,7 +426,7 @@ export async function monterVolume({ racine, T = {}, parler = () => {}, idDefaut
   }
   /* séries annexes pour les onglets ICT et « Bougie du jour » : Daily (historique complet) et H1 (jour en cours), chargées à la demande et gardées en mémoire */
   function serieCache(u, etendre) {
-    const k = S.actif + '|' + u; if (!S.cache.has(k)) S.cache.set(k, (async () => { const r = await chargerBarres(S.actif, u, { source: S.actif === 'or' ? opts.sourceVolume : 'reel' }); let B = controler(r.bougies, { unite: u, actif: S.actif }).bougies; if (etendre) { try { B = (await etendreSerie(S.actif, u, B)).bougies; } catch (e) { /* source récente seule */ } } return B; })().catch(err => { S.cache.delete(k); throw err; })); return S.cache.get(k);
+    const k = S.actif + '|' + u; if (!S.cache.has(k)) S.cache.set(k, (async () => { const r0 = await chargerBarres(S.actif, u, { source: S.actif === 'or' ? opts.sourceVolume : 'reel' }); const r = { ...r0, bougies: (await unifier(S.actif, u, r0, 0)).bougies }; let B = controler(r.bougies, { unite: u, actif: S.actif }).bougies; if (etendre) { try { B = (await etendreSerie(S.actif, u, B)).bougies; } catch (e) { /* source récente seule */ } } return B; })().catch(err => { S.cache.delete(k); throw err; })); return S.cache.get(k);
   }
   const donneesJ = async () => (S.unite === 'J' ? S.bars : serieCache('J', true)), donneesH1 = async () => (S.unite === 'H1' ? S.bars : serieCache('H1', false));
   /* repères ICT reportés sur le graphique principal : lignes fines, zones grisées, étiquettes sur l'axe des prix seulement */
@@ -505,6 +512,6 @@ export async function monterVolume({ racine, T = {}, parler = () => {}, idDefaut
     zoomer: (n = 8, decalage = 0) => { const L = S.bars.length; if (!chart || !L) return false; sauteRange = false; chart.timeScale().setVisibleLogicalRange({ from: L - n - decalage, to: L + 1 - decalage }); return true; },
     definirOpt: (k, v) => { opts[k] = v; sauverOpts(); synchroUI(); peindre(false); },
     ancrerDerniere: () => { if (S.bars.length) ancrerEn(S.bars[S.bars.length - 1].t); return 'VWAP ancré sur la dernière bougie.'; }, definir: ({ actif, unite }) => { if (actif && parId[actif] && actif !== S.actif) { S.actif = actif; ecrireLS(CLE.actif, actif); optsPourActif(actif); if (panneau) panneau.changerActif(); } if (unite && UNITES_VOLUME.includes(unite)) { S.unite = unite; ecrireLS(CLE.unite, unite); } synchroUI(); return charger(); },
-    etat: () => ({ ouvert: S.ouvert, dernier: S.bars.length ? S.bars[S.bars.length - 1].c : null, avecVolume: S.bars.filter(b => b.v > 0).length, ecart: S.ecart || null, actif: S.actif, unite: S.unite, bougies: S.bars.length, charge: S.charge, erreur: S.erreur, poc: S.prof && S.prof.poc.prix, val: S.prof && S.prof.val, vah: S.prof && S.prof.vah, hvn: S.prof ? S.prof.hvn.length : 0, niveaux: S.niveaux.length, reactionTous: S.reactionTous ? S.reactionTous.length : 0, onglet: panneau ? panneau.onglet() : null, profil: profilDe(S.actif).id, etiquettes: etiqAxe ? etiqAxe.taille() : 0, reaction: S.reaction.map(n => ({ prix: n.prix, reactions: n.reactions, force: n.force, forceRel: n.forceRel, sources: n.sources, unite: n.unite })), empiles: S.zonesEmp.size, fleches: S.fleches.length, flechesMA: S.flechesMA.length, deltaReel: S.donnees && S.donnees.deltaReel, source: S.donnees && S.donnees.source,
+    etat: () => ({ canon: S.canon || null, ouvert: S.ouvert, dernier: S.bars.length ? S.bars[S.bars.length - 1].c : null, avecVolume: S.bars.filter(b => b.v > 0).length, ecart: S.ecart || null, actif: S.actif, unite: S.unite, bougies: S.bars.length, charge: S.charge, erreur: S.erreur, poc: S.prof && S.prof.poc.prix, val: S.prof && S.prof.val, vah: S.prof && S.prof.vah, hvn: S.prof ? S.prof.hvn.length : 0, niveaux: S.niveaux.length, reactionTous: S.reactionTous ? S.reactionTous.length : 0, onglet: panneau ? panneau.onglet() : null, profil: profilDe(S.actif).id, etiquettes: etiqAxe ? etiqAxe.taille() : 0, reaction: S.reaction.map(n => ({ prix: n.prix, reactions: n.reactions, force: n.force, forceRel: n.forceRel, sources: n.sources, unite: n.unite })), empiles: S.zonesEmp.size, fleches: S.fleches.length, flechesMA: S.flechesMA.length, deltaReel: S.donnees && S.donnees.deltaReel, source: S.donnees && S.donnees.source,
       flux: Object.fromEntries(Object.entries(S.etatFlux).map(([k, v]) => [k, v.etat])), carnet: !!S.book, murs: S.book ? murs(S.book).length : 0, gros: S.gros.liste().length, badge: $('[data-badge]').textContent, empreintes: S.live ? S.live.nHeures() : 0, fp: { index: !!(S.fp && S.fp.indexPret()), erreur: S.fp && S.fp.erreurIndex(), info: S.fp && S.fp.info(S.actif) && { debut: S.fp.info(S.actif).debut, dernier: S.fp.info(S.actif).dernier }, rendu: S.rendu ? { actif: S.rendu.actif, esp: Math.round(S.rendu.esp), pas: S.rendu.pas, px: S.rendu.px, ms: S.rendu.ms, msMoy: S.msN ? S.msSomme / S.msN : null, msMax: S.msMax, bougies: S.rendu.lignes ? [...S.rendu.lignes.values()].filter(x => x.A).length : 0, sansEmpreinte: S.rendu.lignes ? [...S.rendu.lignes.values()].filter(x => !x.A).length : 0, partielles: S.rendu.lignes ? [...S.rendu.lignes.values()].filter(x => x.res && x.res.partielle).length : 0 } : null, chargement: S.fp ? S.fp.chargement() : 0, rattrapage: S.ratt ? { ...S.ratt.etat, file: S.ratt.fileLongueur(), heures: S.live ? S.live.nCompletes() : 0 } : null }, panneaux: chart ? chart.panes().length : 0, lignes: S.lignes.length, series: S.seriesVwap.length }) };
 }

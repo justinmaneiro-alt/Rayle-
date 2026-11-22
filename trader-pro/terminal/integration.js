@@ -12,6 +12,7 @@ import { indexSurUnite, styleFleche, phraseFleche, typeLibelle, typeNom, ma200Po
 import { analyseDe, nouvellesFleches, lireReglages, ecrireReglages, lireRegistre } from './fleches-registre.js';
 import { monterDashboard } from '../commun/dashboard.js';
 import { VERSION } from './version.js';
+import { creerSerieUnique } from './serie-unique.js';
 import { noterPrix, controlerCoherence } from '../commun/incidents-donnees.js';
 import { monterDessins } from './dessins-ui.js';
 import { monterAides } from './aides-ui.js';
@@ -62,19 +63,21 @@ export async function monterPro(T) {
   (function selecteurMode() {
     const teteBrute = document.querySelector('.tor-tete'), teteVisible = !!(teteBrute && teteBrute.getBoundingClientRect().width > 0 && getComputedStyle(teteBrute).display !== 'none'), tete = teteVisible ? teteBrute : null, sel = document.createElement('div'); sel.className = 'tp-mode'; sel.setAttribute('role', 'group'); sel.setAttribute('aria-label', 'Mode du terminal');
     sel.innerHTML = '<button type="button" data-mode="classique" aria-pressed="true">Classique</button><button type="button" data-mode="volume" aria-pressed="false">Volume</button>';
-    if (tete) tete.appendChild(sel); else { sel.classList.add('tp-mode-flottant'); (graph.conteneur() || document.body).appendChild(sel); }
+    if (tete) tete.appendChild(sel); else { document.documentElement.classList.add('tp-mode-flot'); sel.classList.add('tp-mode-flottant'); (graph.conteneur() || document.body).appendChild(sel); }
     let ctrl = null, charge = null;
     const uniteVolume = () => 'H4';   // le mode Volume s'ouvre en H4 (puis garde le dernier choix de l'utilisateur)
     const css = () => { if (!document.querySelector('link[data-tpv]')) { const l = document.createElement('link'); l.rel = 'stylesheet'; l.href = new URL('../volume/volume.css', import.meta.url).href; l.dataset.tpv = '1'; document.head.appendChild(l); } };
-    const assurer = async () => { if (ctrl) return ctrl; css(); charge = charge || import('../volume/volume-ui.js').then(m => m.monterVolume({ racine: document.body, T, parler, surClassique: () => aller('classique'), idDefaut: VOL_DE_ACTIF[actif] || 'or', unite0: uniteVolume() })); ctrl = await charge; return ctrl; };
+    let _su = null; const serieUniqueDePage = () => _su || (_su = creerSerieUnique(T)); window.__serieUnique = (u, o) => serieUniqueDePage().serieUnique(u, o);
+  const assurer = async () => { if (ctrl) return ctrl; css(); charge = charge || import('../volume/volume-ui.js').then(m => m.monterVolume({ racine: document.body, T, parler, serieUnique: serieUniqueDePage().serieUnique, surClassique: () => aller('classique'), idDefaut: VOL_DE_ACTIF[actif] || 'or', unite0: uniteVolume() })); ctrl = await charge; return ctrl; };
     const placerHaut = () => { const h = tete ? tete.getBoundingClientRect().bottom : (graph.conteneur() ? graph.conteneur().getBoundingClientRect().top : 56); document.documentElement.style.setProperty('--tpv-haut', Math.max(0, Math.round(h)) + 'px'); };
     const maj = m => { sel.querySelectorAll('[data-mode]').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.mode === m))); };
     async function aller(m, o = {}) {
       ecrire(MODE, m); maj(m);
       if (m === 'volume') { placerHaut(); try { const c = await assurer(); c.ouvrir(true, { actif: o.actif || VOL_DE_ACTIF[actif], unite: o.unite || uniteClassique() }); for (const ms of [800, 2500, 5000]) setTimeout(() => { const u = uniteClassique(); if (ctrl && ctrl.estOuvert() && u && ctrl.etat().unite !== u) ctrl.definir({ unite: u }); }, ms); /* le Classique applique sa période juste après le montage : on se recale dessus */ } catch (e) { maj('classique'); ecrire(MODE, 'classique'); console.warn('[tp] mode Volume indisponible :', e && e.message || e); } }
-      else if (ctrl) ctrl.fermer();
+      else { if (ctrl) ctrl.fermer(); for (const ms of [80, 600, 1800]) setTimeout(() => { try { if (graph.recaler) graph.recaler(); } catch (e) { /* graphique indisponible */ } }, ms); }   // v12 : retour au Classique → échelle recalée (comme TradingView)
     }
     sel.addEventListener('click', ev => { const b = ev.target.closest('[data-mode]'); if (b) aller(b.dataset.mode); });
+    document.addEventListener('click', ev => { const a = ev.target.closest && ev.target.closest('[data-tpe-auto]'); if (a && graph.conteneur() && graph.conteneur().contains(a)) setTimeout(() => { try { graph.recaler(); } catch (e) { /* rien */ } }, 0); });   // v12 : « Auto » recale aussi l'axe du temps
     window.addEventListener('resize', () => { if (ctrl && ctrl.estOuvert()) placerHaut(); });
     /* l'unité du Classique pilote le Volume (un toucher sur H1 / H4 / Jour de la barre du haut) */
     document.addEventListener('click', ev => { if (!ctrl || !ctrl.estOuvert() || !ev.target.closest('[data-periode],[data-tt-periode]')) return; setTimeout(() => { const u = uniteClassique(); if (u && ctrl.etat().unite !== u) ctrl.definir({ unite: u }); }, 60); });

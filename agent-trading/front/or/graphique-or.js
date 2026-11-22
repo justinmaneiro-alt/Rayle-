@@ -212,14 +212,17 @@ export function creerGraphiqueOr(el, { surClicPrix, mobile = false } = {}) {
   let sig = null;   // signature des données déjà envoyées : seule la dernière bougie change → update (pas de setData de 20 000 bougies)
   function versSerie() {
     if (!serie) return;
-    const B = etat.bougies, V = etat.volumes, s = { n: B.length, t0: B.length ? B[0].t : null, nv: V.length, v0: V.length ? V[0].t : null, ref: B.length ? B.filter(b => b.ref).length : 0, e: etat.ecart };
+    /* v12 : CAUSE de l'échelle cassée (bougies écrasées, moitié droite vide). La référence de volume (Binance) a des bougies à des heures où le prix n'en a pas (week-ends, pauses) :
+       ces dates en trop s'ajoutaient à l'axe du temps de Lightweight Charts, décalaient tous les indices et la vue par défaut (calculée sur le nombre de bougies) tombait des mois en arrière.
+       Le volume n'est donc dessiné que sous les bougies qui existent. */
+    const B = etat.bougies, Bt = new Set(B.map(b => b.t)), V = etat.volumes.filter(v => Bt.has(v.t)), s = { n: B.length, t0: B.length ? B[0].t : null, nv: V.length, v0: V.length ? V[0].t : null, ref: B.length ? B.filter(b => b.ref).length : 0, e: etat.ecart };
     if (sig && s.t0 === sig.t0 && s.v0 === sig.v0 && s.ref === sig.ref && s.e === sig.e && s.n >= sig.n && s.n - sig.n <= 1 && s.nv >= sig.nv && s.nv - sig.nv <= 1 && B.length) {
       const tb = tempsMonotones(B.slice(-3).map(b => b.t)); for (let i = Math.max(0, B.length - 2), j = tb.length - (B.length - Math.max(0, B.length - 2)); i < B.length; i++, j++) { serie.update(pointBougie(B[i], tb[j])); etat.tSerie.set(B[i].t, tb[j]); etat.barres.set(tb[j], B[i]); }
-      if (V.length) { const tv = tempsMonotones(V.slice(-3).map(b => b.t)); for (let i = Math.max(0, V.length - 2), j = tv.length - (V.length - Math.max(0, V.length - 2)); i < V.length; i++, j++) vol.update(pointVolume(V[i], tv[j])); }
+      for (const x of V.slice(-2)) { const tx = etat.tSerie.get(x.t); if (tx != null) vol.update(pointVolume(x, tx)); }   // v12 : même date graphique que la bougie du même instant
     } else {
-      const tb = tempsMonotones(B.map(b => b.t)), tv = tempsMonotones(V.map(b => b.t));
-      serie.setData(B.map((b, i) => pointBougie(b, tb[i]))); vol.setData(V.map((b, i) => pointVolume(b, tv[i])));
-      etat.tSerie = new Map(B.map((b, i) => [b.t, tb[i]])); etat.barres = new Map(B.map((b, i) => [tb[i], b]));
+      const tb = tempsMonotones(B.map(b => b.t)), tm = new Map(B.map((b, i) => [b.t, tb[i]]));
+      serie.setData(B.map((b, i) => pointBougie(b, tb[i]))); vol.setData(V.map(b => pointVolume(b, tm.get(b.t))));
+      etat.tSerie = tm; etat.barres = new Map(B.map((b, i) => [tb[i], b]));
     }
     sig = s;
     if (marqueurs) marqueurs.setMarkers(marquesLW());
@@ -227,6 +230,17 @@ export function creerGraphiqueOr(el, { surClicPrix, mobile = false } = {}) {
   /* vue par défaut : les 150 dernières bougies, calées à droite, petite marge */
   const VUE_DEFAUT = 150, MARGE_DROITE = 5;
   function vueDefaut() { if (!chart || !etat.bougies.length) return; const n = etat.bougies.length; chart.timeScale().setVisibleLogicalRange({ from: Math.max(0, n - VUE_DEFAUT), to: n - 1 + MARGE_DROITE }); }
+  /* v12 : l'échelle ne doit JAMAIS rester cassée (bougies écrasées au milieu, moitié droite vide). `recaler()` = échelle verticale automatique + vue par défaut (dernières bougies à droite, petite marge) ;
+     la garde ci-dessous le fait toute seule tant que l'utilisateur n'a pas lui-même déplacé ou zoomé le graphique. */
+  etat.vueUser = false;
+  function recaler() { if (!chart || !etat.bougies.length) return; try { chart.priceScale('right').setAutoScale(true); } catch (e) { /* ignoré */ } etat.vueUser = false; vueDefaut(); }
+  function mesureVue() {
+    if (!chart || !serie || !etat.bougies.length) return null; const B = etat.bougies, n = B.length; let L = null, P = null; try { L = chart.timeScale().getVisibleLogicalRange(); P = chart.priceScale('right').getVisibleRange(); } catch (e) { return null; } if (!L || !P || !(P.to > P.from)) return null;
+    const i0 = Math.max(0, Math.ceil(L.from)), i1 = Math.min(n - 1, Math.floor(L.to)); let lo = Infinity, hi = -Infinity; for (let i = i0; i <= i1; i++) { if (B[i].l < lo) lo = B[i].l; if (B[i].h > hi) hi = B[i].h; }
+    return { n, droiteVide: L.to - (n - 1), gaucheHors: L.from > n - 1, occupe: hi > lo ? (hi - lo) / (P.to - P.from) : 1, dedans: lo >= P.from - (P.to - P.from) * 0.05 && hi <= P.to + (P.to - P.from) * 0.05 };
+  }
+  const vueCassee = m => !!m && (m.droiteVide > 30 || m.gaucheHors || m.occupe < 0.3 || !m.dedans);
+  function garde() { if (etat.vueUser || !chart || document.hidden || !el || el.clientWidth === 0 || getComputedStyle(el).visibility === 'hidden') return; if (vueCassee(mesureVue())) recaler(); }
   let marqueurs = null;
   /* marques du graphique (dessinées par Lightweight Charts, à la bougie près) : flèches de rebond, zones de liquidité balayées, trades du journal */
   const tDe = t => etat.tSerie.get(t) ?? tempsGraphique(t);
@@ -265,6 +279,8 @@ export function creerGraphiqueOr(el, { surClicPrix, mobile = false } = {}) {
     // glisser vers la gauche : arrivée près du bord des données → un morceau plus ancien (Kraken, puis la référence)
     chart.timeScale().subscribeVisibleLogicalRangeChange(r => { if (r && r.from < 40 && etat.bougies.length && api.surBordGauche) api.surBordGauche(); redessiner(); });
     /* l'ancien glisser des traits de position (blocs) est remplacé par celui des outils */ brancherGlisserOutils(); brancherInfo(); versSerie(); vueDefaut();
+    for (const ev of ['pointerdown', 'wheel', 'touchstart']) el.addEventListener(ev, () => { etat.vueUser = true; }, { capture: true, passive: true });   // v12 : l'utilisateur a pris la main sur la vue
+    setInterval(garde, 1200);
     return api;
   }
   /* création d'un outil : 1 clic (ligne), 2 clics (zone, tendance, rayon), 3 clics (position : entrée, stop, objectif) ; aimantation facultative */
@@ -458,12 +474,12 @@ export function creerGraphiqueOr(el, { surClicPrix, mobile = false } = {}) {
       /* 2026-11-15 : une série qui passe de quelques bougies (bougie en direct seule) à tout l'historique recadre aussi la vue (sinon le graphique restait calé tout à gauche en H4 et Jour) */
       const nouvelle = (cle !== etat.cle) || (!etat.bougies.length && L.length) || (etat.bougies.length < 20 && L.length >= 50);
       etat.bougies = L; if (volumes) etat.volumes = volumes; etat.cle = cle; etat.debutKraken = debutKraken; etat.ecart = ecart;
-      if (nouvelle) sig = null;
+      if (nouvelle) { sig = null; etat.vueUser = false; }
       try { versSerie(); } catch (e) { console.warn('bougies :', e.message); }
       if (nouvelle && chart && L.length) vueDefaut();
       redessiner();
     },
-    vueDefaut,
+    vueDefaut, recaler, mesureVue, vueCassee,
     majDerniere(b) {
       if (!serie || !b) return; const der = etat.bougies[etat.bougies.length - 1]; sig = sig && { ...sig, n: etat.bougies.length };
       if (der && b.t < der.t) return;
