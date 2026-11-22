@@ -91,3 +91,17 @@ html.tpv-actif .tor-graph, html.tpv-actif .tor-outils { visibility: hidden; }
 .tpv-htf { display: block; width: 100%; height: min(48vh, 440px); min-height: 300px; background: #000; border: 1px solid #101a22; margin: 4px 0 6px; }
 .tpv-htf-proche { margin: 0 0 6px; font-size: 12px; line-height: 1.5; }
 .tpv-ict-det > summary { cursor: pointer; font-size: 11px; color: #8aa0aa; padding: 4px 0; }
+
+/* ───── Bookmap (v12) ───── */
+.tpv-bm { position: absolute; inset: 0; z-index: 8; display: flex; flex-direction: column; background: #000; }
+.tpv-bm[hidden] { display: none; }
+.tpv-bm-barre { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; padding: 4px 8px; background: #05080c; border-bottom: 1px solid #1a232b; font: 11px/1.4 ui-monospace, Consolas, monospace; color: #aebcc4; flex: none; }
+.tpv-bm-titre { color: #d7e3ea; font-weight: 600; } .tpv-bm-statut { color: #6b7a84; }
+.tpv-bm-barre label { display: inline-flex; align-items: center; gap: 4px; color: #8aa0aa; }
+.tpv-bm-barre select, .tpv-bm-barre button { background: #0b1117; color: #aebcc4; border: 1px solid #22323c; border-radius: 3px; padding: 2px 6px; font: 11px/1.4 ui-monospace, Consolas, monospace; min-height: 24px; }
+.tpv-bm-barre input[type=range] { width: 80px; }
+.tpv-bm-canvas { flex: 1; min-height: 0; width: 100%; display: block; touch-action: none; cursor: grab; background: #000; }
+.tpv-bm-note { flex: none; margin: 0; padding: 3px 8px; font: 10px/1.4 ui-monospace, Consolas, monospace; color: #5d6d77; background: #05080c; border-top: 1px solid #1a232b; }
+.tpv [data-bookmap][aria-pressed="true"] { color: #8fd0e3; border-color: rgba(143, 208, 227, .6); background: #12202a; }
+.tpv [data-bookmap]:disabled { opacity: .45; cursor: not-allowed; }
+@media (pointer: coarse) { .tpv-bm-barre select, .tpv-bm-barre button { min-height: 32px; } }
