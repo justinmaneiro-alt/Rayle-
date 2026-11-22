@@ -129,14 +129,22 @@
 
       <h3>Voix de Raylé <span class="voix" id="vxEtat">…</span></h3>
       <p class="hint" id="vxMoteur" role="status">Moteur utilisé en ce moment : …</p>
-      <p class="hint">Rayle comprend des questions libres et ouvre les fenêtres elle-même. Essaie : « fais-moi un point sur l’or », « montre-moi le rapport COT de l’or », « est-ce que le Bitcoin est cher ? », « comment me couvrir si j’achète de l’or ? », « quel est mon risque aujourd’hui ? », « quelles annonces aujourd’hui ? », puis « et en H4 ? » ; « ferme ça » ou « retour à l’accueil » pour revenir. Une question de culture (« qui était Napoléon ? », « la tour Eiffel ») affiche des images libres de Wikipédia avec leur licence. Une seule voix : Gemini ; si elle est indisponible, la réponse reste affichée.</p>
-      <h4 class="vx-tit">Voix Gemini (Google, offre gratuite) — Sulafat est la voix par défaut</h4>
-      <p class="hint">Quota gratuit de Google limité (quelques phrases nouvelles par minute et par jour, chiffres officiels non publiés) : les phrases déjà dites sont gardées en copie sur l’appareil et sur le Worker, et quand la limite est atteinte la voix du système prend le relais, sans silence.</p>
-      <div id="vxGemini" class="vx-liste"></div>
+      <p class="hint">Rayle comprend des questions libres et ouvre les fenêtres elle-même. Essaie : « fais-moi un point sur l’or », « montre-moi le rapport COT de l’or », « quel est mon risque aujourd’hui ? », puis « et en H4 ? » ; « ferme ça » pour revenir. Une question de culture (« qui était Napoléon ? ») affiche des images libres de Wikipédia. Ordre des voix : <b>Microsoft Azure</b> (gratuit, 500 000 caractères par mois) puis <b>Piper</b> (local, illimité, hors ligne). Jamais la voix robotique du système. Ton choix est mémorisé et synchronisé sur tes appareils.</p>
+      <div class="row"><label class="chk"><input type="radio" name="vxChoix" value="auto" id="vxAuto"> <b>Automatique</b> : Vivienne Multilingual si Azure marche, sinon la meilleure voix Piper féminine</label></div>
+      <h4 class="vx-tit">Voix Microsoft Azure (gratuit F0 : 500 000 caractères par mois)</h4>
+      <div id="vxAzure" class="vx-liste"></div>
+      <p class="hint" id="vxAzQuota"></p>
+      <h4 class="vx-tit">Voix Piper (locale, gratuite, illimitée, hors ligne)</h4>
+      <p class="hint">Chaque voix se télécharge une seule fois (63 à 77 Mo) puis reste sur l’appareil : elle parle ensuite sans réseau.</p>
+      <div id="vxPiper" class="vx-liste"></div>
       <div class="row vx-gem-reglages"><label for="vxGemVit">Vitesse <span id="vxGemVitVal">normale</span></label><input id="vxGemVit" type="range" min="-20" max="20" step="2"><label for="vxGemTon">Ton</label><select id="vxGemTon"><option value="naturel">Naturel</option><option value="chaleureux">Chaleureux</option><option value="pose">Posé</option><option value="dynamique">Dynamique</option></select></div>
+      <details class="vx-gem-det"><summary>Voix Gemini (Google, quota gratuit très limité) — facultatif</summary>
+      <p class="hint">Quota gratuit de Google très bas (quelques phrases nouvelles par minute et par jour) : n’est plus utilisée par défaut. À choisir seulement pour comparer.</p>
+      <div id="vxGemini" class="vx-liste"></div>
       <p class="hint" id="vxGemQuota"></p>
       <div class="row"><button type="button" class="ghost" id="vxGemDiag">Diagnostiquer rayle-voix</button></div>
       <pre class="hint" id="vxGemDiagSortie" style="white-space:pre-wrap;user-select:text"></pre>
+      </details>
       <div id="vxListe" class="vx-liste" hidden></div>
       <label for="vxHauteur">Hauteur de la voix : <span id="vxHauteurVal">normale</span></label>
       <input id="vxHauteur" type="range" min="-20" max="20" step="1">
@@ -145,7 +153,7 @@
       <textarea id="vxDico" rows="3" spellcheck="false" placeholder="Kraken = Krakène"></textarea>
       <div class="row"><button type="button" class="ghost" id="vxEssai">Lire la phrase d'essai avec la voix choisie</button><button type="button" class="ghost" id="vxTester">Retester les voix</button></div>
       <span class="msg" id="vxMsg"></span>
-      <div class="hint">Voix locales : gratuites, hors ligne, aucun cloud (installation une fois : <code>node app-pc/installer-voix.mjs</code>). Licences : NOTICE.md.</div>
+      <div class="hint">Voix Piper : gratuites, hors ligne, aucun cloud (modèles Piper/Hugging Face téléchargés une fois). Licences : NOTICE.md.</div>
 
       <h3>Tests</h3>
       <div class="row">
@@ -298,7 +306,7 @@
   <div id="chargement"><div id="chargement-texte">Chargement des mondes…</div><div class="g-barre"><div id="chargement-barre"></div></div></div>
 </div>
 
-<script>window.RAYLE_VERSION='2026.11.22.1';</script>
+<script>window.RAYLE_VERSION='2026.11.22.2';</script>
 <script src="config.js"></script>
 <script src="core/commun/maj-pc.js"></script>
 <script src="core/commun/bascule-worker.js"></script>
@@ -341,6 +349,7 @@
 <script src="core/voice/normalisation-fr.js"></script>
 <script src="core/voice/prosodie.js"></script>
 <script src="core/voice/voix-moteurs-calcul.js"></script>
+<script src="core/voice/piper-client.js"></script>
 <script src="core/voice/voix-moteurs.js"></script>
 <script src="core/voice/voix.js"></script>
 <script src="core/voice/prenom-calcul.js"></script>

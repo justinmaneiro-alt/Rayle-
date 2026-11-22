@@ -32,3 +32,13 @@
 - **Ordre des moteurs** : voix choisie (Azure par défaut s'il est prêt) → Piper. Une réponse commencée se termine avec la même voix ; si Azure échoue avant la première phrase, toute la réponse est lue par Piper (même sensibilité féminine/masculine). Disjoncteur : après une panne d'Azure, une minute sans le réessayer ; quota du mois atteint : 6 h ; clé refusée ou absente : 30 min. Si Piper n'a pas encore téléchargé sa voix (tout premier usage sans réseau), la réponse reste affichée avec « voix momentanément indisponible », jamais la voix du système.
 - **Gemini** n'est plus utilisé par défaut ; il reste un choix dans Réglages → Voix (section facultative). L'ancien choix automatique de la v7 (Sulafat) est effacé une fois par appareil.
 - Tests : `worker-voix/tests/azure-test.mjs` (22), `galaxie/tests/voix-moteurs-test.mjs` (38), `trader-pro/tests/voix-v9-chrome.mjs` (tablette et téléphone : 34 chacun, voir phases 4 et 5).
+
+## Phase 4 — Choisir la voix à l'oreille (Réglages → Voix)
+
+- **Liste** : « Automatique », les 4 voix Microsoft (Vivienne Multilingual, Denise, Rémy Multilingual, Henri), les 4 voix Piper (Siwis, Jessica, Pierre, Tom), et — repliées, facultatives — les 6 voix Gemini. Chaque voix a un bouton **Écouter** (même phrase d'essai ; une voix choisie à l'écoute ne bascule pas discrètement sur une autre : l'échec est écrit).
+- **Vitesse** (−20 à +20 %) et **ton** (naturel, chaleureux, posé, dynamique) : transmis à Azure (SSML) et à Piper (vitesse de synthèse) ; la vitesse de base de la voix de Rayle (−8 %) s'y ajoute comme avant.
+- **Indicateur du moteur utilisé à l'instant** : « Moteur utilisé en ce moment : Vivienne Multilingual (Microsoft Azure) / Siwis (Piper, local) » (en haut du panneau et dans le journal technique), avec l'état de chaque voix (prête, à télécharger, téléchargement x %, en pause…).
+- **Par défaut** (aucun choix fait) : Vivienne Multilingual si Azure marche, sinon Siwis (Piper féminine). Le choix est mémorisé dans la clé `rayle_voix_gemini_v1` (même clé que la vitesse et le ton), synchronisée entre les appareils par le Worker Portefeuille comme avant.
+- **Compteur du mois** : Réglages → Voix et État des données (barre et pourcentage), alerte à 80 % (ligne dans la conversation, une fois par mois).
+- **Verrou des fonctions v8** : `trader-pro/tests/verrou-v8-test.mjs` (dans `npm test`) enregistre l'empreinte des fichiers des fenêtres pilotées, des réponses animées et du panneau d'images (`verrou-v8.json`) et contrôle leur branchement ; aucune de ces fonctions n'a été modifiée par la v9.
+- Test : `trader-pro/tests/voix-v9-chrome.mjs`.
