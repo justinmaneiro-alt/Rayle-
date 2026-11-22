@@ -51,3 +51,10 @@
 - **10 questions d'affilée** (`voix-v9-chrome.mjs`, Worker simulé, Piper simulé) : tablette 34/34 et téléphone 34/34 — une seule requête Azure et une seule voix (Vivienne) par réponse, jamais deux lectures en même temps, aucun `speechSynthesis`, secours Piper complet sur une panne d'Azure, panneau Réglages → Voix (4 + 4 voix, Écouter, vitesse, ton), compteur du mois, alerte à 80 %.
 - **Fenêtres, animations et images (verrou)** : `npm test` passe (dont `verrou-v8-test` 20/20) ; `images-chrome` tablette 28/28 ; `banc-30-chrome` partie 1 (tablette) 31/31 et partie 3 (téléphone) 49/49 ; `pilotage-chrome` tablette 13/16 — les 3 contrôles du Terminal combinés (H4, ligne MA200, onglet HTF) échouent comme en v8 sur ce PC sans carte graphique (le graphique met plus de 3 minutes à monter), sans lien avec la voix.
 - Les tests v8 (images, pilotage, cerveau, banc) fixent désormais la voix sur Gemini simulé (`rayle_voix_gemini_v1`) pour ne pas déclencher le vrai téléchargement de Piper.
+
+## Clé Azure en place (22/11/2026) — essai réel
+
+- `GET /sante` : `azure: { cle: true, region: true, compteur: true }`. Région `francecentral`.
+- Essai réel sans jeton par la route `/azure/essai` (inactive sauf variable `ESSAI_AZURE=1`, posée le temps du contrôle puis retirée : elle renvoie 404 maintenant) : les 4 voix répondent en HTTP 200, audio MP3 valide (Vivienne 28,9 Ko, Denise 39,2 Ko, Rémy 32,5 Ko, Henri 37,7 Ko) ; la 2e demande de la même phrase vient du cache (`X-Rayle-Cache: hit`, compteur inchangé) ; compteur du mois lu : 304 caractères.
+- **Voix par défaut : Vivienne Multilingual** (Azure prêt), **Piper Siwis en secours** (si Azure est en panne, en pause ou hors quota). Chaque réponse garde une seule voix.
+- Quota : 500 000 caractères par mois (arrêt volontaire à 490 000, alerte à 80 %), visible dans Réglages → Voix et État des données.

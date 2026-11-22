@@ -38,6 +38,11 @@ export default {
       return json({ ok: true, service: 'rayle-voix', cle: !!env.GEMINI_KEY, azure: { cle: !!env.AZURE_SPEECH_KEY, region: !!env.AZURE_SPEECH_REGION, compteur: !!env.QUOTA }, cacheServeur, cerveau: { ordre: MODELES_TEXTE, disponibles: modeles } }, 200, h);
     }
     /* v9 : voix Azure Speech (niveau gratuit F0), clé et région en secrets ; compteur du mois dans KV */
+    /* Essai réel d'Azure sans jeton : inactif sauf si ESSAI_AZURE vaut « 1 » (posé le temps d'un contrôle, puis retiré). Texte fixe, une phrase courte. */
+    if (u.pathname === '/azure/essai' && env.ESSAI_AZURE === '1') {
+      const voix = u.searchParams.get('voix') || 'azure-vivienne';
+      return routeAzure(new Request(req.url, { method: 'POST', body: JSON.stringify({ text: 'Bonjour Justin, je suis Rayle. L’or se tient au-dessus de sa moyenne mobile.', voix, ton: 'chaleureux', vitesse: 0 }) }), env, ctx, h, { json });
+    }
     if (u.pathname === '/azure' && req.method === 'POST') {
       const v = await verifierJeton(req, env);
       if (!v.ok) return json({ error: 'jeton refusé : ' + v.raison }, 401, h);
