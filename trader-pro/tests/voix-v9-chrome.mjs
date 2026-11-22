@@ -66,7 +66,7 @@ panne = true; await p.evaluate(() => { VoixMoteurs.choisir('auto'); window.__pip
 await p.evaluate(() => { addLine('ray', 'Réponse pendant une panne.'); speak('Réponse pendant une panne d’Azure. Elle doit être lue entièrement par Piper, avec une seule voix, du début à la fin.'); });
 await attendre(() => p.evaluate(() => window.__piper.length >= 1), 8000); await attendre(() => p.evaluate(() => window.__en.size === 0 && !document.querySelector('[data-etat="speaking"]')), 8000); await w(500);
 const secours = await p.evaluate(() => window.__piper.map(x => x.id)); verif(secours.length >= 1 && new Set(secours).size === 1 && secours[0] === 'piper-siwis', 'panne Azure : Piper (Siwis) lit la réponse avec une seule voix : ' + secours.join(','));
-verif(azure.length === nb + 1, 'panne Azure : une seule tentative Azure pour la réponse (' + (azure.length - nb) + ')'); verif(await p.evaluate(() => window.__ss === 0 && !/indisponible/.test(document.getElementById('voiceName').textContent)), 'panne Azure : pas de voix du système, pas de message d’échec puisque Piper a parlé');
+verif(azure.length >= nb + 1 && azure.length <= nb + 2, 'panne Azure : une tentative puis une seule reprise (v12), puis Piper (' + (azure.length - nb) + ')'); verif(await p.evaluate(() => window.__ss === 0 && !/indisponible/.test(document.getElementById('voiceName').textContent)), 'panne Azure : pas de voix du système, pas de message d’échec puisque Piper a parlé');
 /* Azure en pause après un échec ? (une panne n'est PAS une pause : seul le quota ou la clé refusée mettent en pause) */
 panne = false; await p.evaluate(() => localStorage.removeItem('rayle_voix_azure_pause'));
 /* alerte à 80 % */

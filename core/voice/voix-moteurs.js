@@ -64,11 +64,26 @@
       return {blob,vitesseLecture:1,src:res.headers.get('X-Rayle-Voix')||('gemini/'+id)};
     }
     /* ── v9 Azure Speech (voix principale) : une réponse = une requête ; phrases déjà dites en copie sur l'appareil ; compteur du mois ; pause si quota ou clé refusée ── */
-    const CLE_AZ_ETAT='rayle_voix_azure_etat', CLE_AZ_PAUSE='rayle_voix_azure_pause', CLE_AZ_QUOTA='rayle_voix_azure_quota';
+    const CLE_AZ_ETAT='rayle_voix_azure_etat', CLE_AZ_PAUSE='rayle_voix_azure_pause', CLE_AZ_QUOTA='rayle_voix_azure_quota', CLE_AZ_RAISON='rayle_voix_azure_raison';
+    const pauseRaison=()=>lire(CLE_AZ_RAISON);
+    /* v12 : dernier passage en secours (Piper à la place d'Azure) et sa raison, pour l'indicateur et « État des données » */
+    const CLE_SECOURS='rayle_voix_secours';
+    function noterSecours(o){ if(!o){ if(lire(CLE_SECOURS)) ecrire(CLE_SECOURS,''); return; } ecrire(CLE_SECOURS,JSON.stringify({t:Date.now(),de:o.de||'',vers:o.vers||'',raison:String(o.raison||'').slice(0,200)})); prevenir(); }
+    const dernierSecours=()=>jsonLu(CLE_SECOURS);
+    /* pourquoi Piper parle sans avoir essayé Azure (aucune voix choisie à la main) : '' si rien à signaler */
+    function raisonSansAzure(){ if(gemini().moteur) return ''; if(azureEtat().cle===false) return 'clé Azure pas encore posée dans rayle-voix'; if(Date.now()<pauseAzure()) return 'Azure en pause ('+(pauseRaison()||'quota du mois ou clé refusée')+')'; return ''; }
+    /* file d'attente : une requête Azure à la fois, au moins 1,2 s entre deux départs (offre F0) ; une annulation sort de la file sans rien envoyer */
+    let filAzure=Promise.resolve(), departAzure=0;
+    function enFileAzure(signal,tache){
+      const t=filAzure.then(async()=>{ if(signal&&signal.aborted) throw new DOMException('abandon','AbortError'); const att=departAzure+1200-Date.now(); if(att>0) await dormir(att,signal); departAzure=Date.now(); return tache(); });
+      filAzure=t.catch(()=>{}); return t;
+    }
+    /* panne passagère : 20 s de voix locale, pas plus (avant : 60 s après la moindre erreur, même une annulation) */
+    function pauseAzureCourte(e){ ecrire(CLE_AZ_PAUSE,String(Date.now()+20e3)); ecrire(CLE_AZ_RAISON,String((e&&e.message)||e).slice(0,160)); prevenir(); }
     const jsonLu=k=>{ try{ return JSON.parse(lire(k)||'null'); }catch(e){ return null; } };
     const baseWorker=()=>(lire('rayle_voix_url')||'https://rayle-voix.justinmaneiro.workers.dev').replace(/\/+$/,'');
     const azureEtat=()=>jsonLu(CLE_AZ_ETAT)||{cle:null,t:0}, pauseAzure=()=>Number(lire(CLE_AZ_PAUSE))||0;
-    const azureDispo=()=>azureEtat().cle===true&&Date.now()>=pauseAzure();
+    const azureDispo=()=>azureEtat().cle!==false&&Date.now()>=pauseAzure();   // v12 : état inconnu = on essaie Azure d'abord (avant : Piper tant que /sante n'avait pas répondu)
     const quotaAzure=()=>jsonLu(CLE_AZ_QUOTA);
     function noterQuotaAzure(n,limite){ const mois=new Date().toISOString().slice(0,7), l=Number(limite)||490000; ecrire(CLE_AZ_QUOTA,JSON.stringify({mois,n:Number(n)||0,limite:l,pct:Math.round((Number(n)||0)/500000*1000)/10,t:Date.now()}));
       /* alerte à 80 % du quota gratuit (une fois par mois) : visible dans la conversation, dans Réglages → Voix et dans État des données */
@@ -76,18 +91,42 @@
       prevenir(); }
     const cacheAz=async()=>{ try{ return ('caches' in window)?await caches.open('rayle-voix-azure-v1'):null; }catch(e){ return null; } };
     const memAz=new Map();
-    async function synthAzure(id,texte,opts){
+    /* v12 : la même phrase demandée deux fois en même temps (préparation de l'étape suivante d'un rapport + lecture) ne part qu'UNE fois chez Azure (les caractères sont comptés) */
+    const enCoursAz=new Map();
+    function synthAzure(id,texte,opts){
+      opts=opts||{}; const g=gemini(), k=[id,g.ton,g.vitesse,opts.vitesse,texte].join('\u0001');
+      if(enCoursAz.has(k)){ const p=enCoursAz.get(k); return p.then(r=>({blob:r.blob,vitesseLecture:1,src:r.src})); }
+      const p=synthAzureBrut(id,texte,opts); enCoursAz.set(k,p); const fin=()=>{ if(enCoursAz.get(k)===p) enCoursAz.delete(k); }; p.then(fin,fin); return p;
+    }
+    async function synthAzureBrut(id,texte,opts){
       const g=gemini(), vit=Math.round(((opts.vitesse!=null?opts.vitesse:1)-1)*100)+g.vitesse, cle='https://rayle.local/tts-azure/'+await empreinte([id,g.ton,vit,texte].join('\u0001'));
       const cache=await cacheAz(); if(memAz.has(cle)) return {blob:memAz.get(cle),vitesseLecture:1,src:'azure/'+id+' (cache)'};
       if(cache){ try{ const hit=await cache.match(cle); if(hit) return {blob:await hit.blob(),vitesseLecture:1,src:'azure/'+id+' (cache)'}; }catch(e){} }
-      if(Date.now()<pauseAzure()) throw new Error('Azure en pause (quota du mois ou clé refusée) : voix Piper');
+      if(Date.now()<pauseAzure()) throw new Error('Azure en pause ('+(pauseRaison()||'quota du mois ou clé refusée')+') : voix Piper');
       if(!W.token()) throw new Error('aucun code d’accès enregistré dans Rayle (Réglages)');
-      const res=await fetchT(baseWorker()+'/azure',{method:'POST',headers:{'Content-Type':'application/json','X-Rayle-Token':W.token()||'','X-Rayle-Worker':W.url()||''},body:JSON.stringify({text:texte,voix:id,ton:g.ton,vitesse:vit}),signal:opts.signal},14000).catch(e=>{ { ecrire(CLE_AZ_PAUSE,String(Date.now()+60e3)); throw new Error('rayle-voix injoignable ('+(e&&e.name==='AbortError'?'délai dépassé':((e&&e.message)||e))+')'); } });
+      /* v12 : une seule requête Azure à la fois (l'offre gratuite F0 n'en accepte qu'une, et 20 par minute : une préparation d'étape en parallèle déclenchait des HTTP 429, pris à tort pour la fin du quota du mois = 6 h de voix Piper), reprises sur les erreurs passagères, et JAMAIS de pause quand c'est NOUS qui annulons (nouvelle phrase, « stop ») */
+      const res=await enFileAzure(opts.signal,async()=>{
+        let derniere=null;
+        for(let essai=0;essai<4;essai++){
+          if(opts.signal&&opts.signal.aborted) throw new DOMException('abandon','AbortError');
+          let r=null;
+          try{ r=await fetchT(baseWorker()+'/azure',{method:'POST',headers:{'Content-Type':'application/json','X-Rayle-Token':W.token()||'','X-Rayle-Worker':W.url()||''},body:JSON.stringify({text:texte,voix:id,ton:g.ton,vitesse:vit}),signal:opts.signal},25000); }
+          catch(e){ if(opts.signal&&opts.signal.aborted) throw e; derniere=new Error('rayle-voix injoignable ('+(e&&e.name==='AbortError'?'délai dépassé':((e&&e.message)||e))+')'); if(essai>=1) break; await dormir(500,opts.signal); continue; }   // panne : une reprise, puis Piper
+          if(r.ok) return r;
+          let j={}; try{ j=await r.clone().json(); }catch(e){}
+          if(j.mois||j.cleRefusee||j.nonConfigure||r.status===400||r.status===413){ return r; }   // pas de reprise utile : le traitement ci-dessous décide
+          derniere=new Error('Azure : '+(j.error||('HTTP '+r.status)));
+          if(r.status===429||j.limiteDebit){ const att=Math.min(8000,Math.max(1500,(Number(r.headers.get('Retry-After'))||2)*1000))*(1+essai*0.5); await dormir(att,opts.signal); continue; }
+          if(essai>=1) break; await dormir(500,opts.signal);   // erreur du service : une reprise, puis Piper
+        }
+        throw derniere||new Error('Azure : échec');
+      }).catch(e=>{ if(!(opts.signal&&opts.signal.aborted)) pauseAzureCourte(e); throw e; });
       if(!res.ok){ let j={}; try{ j=await res.json(); }catch(e){}
-        if(j.mois||res.status===429){ ecrire(CLE_AZ_PAUSE,String(Date.now()+6*3600e3)); if(j.n!=null) noterQuotaAzure(j.n,j.limite); }
-        else if(j.cleRefusee||j.nonConfigure){ ecrire(CLE_AZ_PAUSE,String(Date.now()+30*60e3)); }
-        else ecrire(CLE_AZ_PAUSE,String(Date.now()+60e3));   // disjoncteur : après une panne, une minute de Piper sans réessayer Azure (pas d'attente à chaque réponse)
+        if(j.mois){ ecrire(CLE_AZ_PAUSE,String(Date.now()+6*3600e3)); ecrire(CLE_AZ_RAISON,'quota du mois atteint'); if(j.n!=null) noterQuotaAzure(j.n,j.limite); }
+        else if(j.cleRefusee||j.nonConfigure){ ecrire(CLE_AZ_PAUSE,String(Date.now()+30*60e3)); ecrire(CLE_AZ_RAISON,j.cleRefusee?'clé Azure refusée':'Azure non configuré (clé absente de rayle-voix)'); }
+        else pauseAzureCourte(new Error('Azure : '+(j.error||('HTTP '+res.status))));
         throw new Error('Azure : '+(j.error||('HTTP '+res.status))); }
+      ecrire(CLE_AZ_PAUSE,''); ecrire(CLE_AZ_RAISON,'');   // Azure répond : plus aucune pause
       const blob=await res.blob(); memAz.set(cle,blob); if(memAz.size>60) memAz.delete(memAz.keys().next().value);
       const n=res.headers.get('X-Rayle-Chars'); if(n!=null&&res.headers.get('X-Rayle-Cache')!=='hit') noterQuotaAzure(n,res.headers.get('X-Rayle-Chars-Limite'));
       if(cache){ try{ await cache.put(cle,new Response(blob,{headers:{'Content-Type':'audio/mpeg'}})); const ks=await cache.keys(); if(ks.length>600) for(const k of ks.slice(0,150)) await cache.delete(k); }catch(e){} }
@@ -159,7 +198,7 @@
           if(typeof workerReady!=='function'||!workerReady()) raison='code d’accès non saisi';
           else if(azureEtat().cle===false) raison='clé Azure pas encore posée dans rayle-voix';
           else if(azureEtat().cle===null) raison='état d’Azure en cours de lecture…';
-          else if(Date.now()<pauseAzure()) raison='en pause (quota du mois ou clé refusée) : Piper parle à la place';
+          else if(Date.now()<pauseAzure()) raison='en pause ('+(pauseRaison()||'quota du mois ou clé refusée')+') : Piper parle à la place';
           else etat='prête';
         } else if(n.type==='worker'){ etat=pret(id)?'prête':'indisponible'; if(etat!=='prête') raison='Worker non configuré'; }
         if(t&&!t.ok&&etat==='prête'){ etat='en échec'; raison=t.raison||'test échoué'; }
@@ -230,7 +269,9 @@
 
     /* v9 : Gemini (Sulafat) n'est plus la voix par défaut : une seule fois par appareil, le choix automatique de la v7 est effacé (un autre choix que tu aurais fait est conservé) */
     setTimeout(()=>{ try{ if(!lire('rayle_voix_v9')){ ecrire('rayle_voix_v9','1'); if(gemini().moteur==='gemini-f1') definirGemini({moteur:''}); } }catch(e){} },0);
-    return {NOMS,azureDispo,azureEtat,pauseAzure,quotaAzure,rafraichirAzure,defaut,chaine,piperSecours,razLimiteurGem:()=>{ limiteurGem=C.creerLimiteur({max:3,fenetre:62000}); },noterEchec,echec,diagnostic,gemini,definirGemini,TONS_GEM,nGemJour,LIMITE_JOUR_GEM,pauseGem,noterUtilise,dernier,candidats,choisi,actif,choisir,hauteur,definirHauteur,synth,tester,testerAuto,demarrer,rafraichirLocal,pret,dico,definirDico,voixSystemeChoisie,choisirVoixSysteme,
+    /* v12 (une seule fois) : une voix Piper restée mémorisée (anciens essais, secours choisi par erreur) ne doit plus passer devant Vivienne : retour au choix automatique, Vivienne (Azure) d'abord. Piper reste choisissable dans Réglages → Voix. */
+    try{ const g0=gemini(); if(g0.moteur&&NOMS[g0.moteur]&&NOMS[g0.moteur].famille==='piper'&&!lire('rayle_voix_v12_vivienne')) definirGemini({moteur:''}); ecrire('rayle_voix_v12_vivienne','1'); }catch(e){}
+    return {NOMS,azureDispo,azureEtat,pauseAzure,pauseRaison,noterSecours,dernierSecours,raisonSansAzure,quotaAzure,rafraichirAzure,defaut,chaine,piperSecours,razLimiteurGem:()=>{ limiteurGem=C.creerLimiteur({max:3,fenetre:62000}); },noterEchec,echec,diagnostic,gemini,definirGemini,TONS_GEM,nGemJour,LIMITE_JOUR_GEM,pauseGem,noterUtilise,dernier,candidats,choisi,actif,choisir,hauteur,definirHauteur,synth,tester,testerAuto,demarrer,rafraichirLocal,pret,dico,definirDico,voixSystemeChoisie,choisirVoixSysteme,
       resultats:()=>resultats,local:()=>local,surChangement:f=>ecouteurs.push(f),peutLocal};
   })();
 

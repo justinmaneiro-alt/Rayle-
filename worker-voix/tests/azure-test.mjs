@@ -33,6 +33,14 @@ v('mois UTC', moisCle(maintenant) === 'chars-2026-11'); const q = etatQuota(4000
   v('quota du mois atteint : 429 avec mois:true, sans appeler Azure', r.status === 429 && j.mois === true && appels.length === 2, JSON.stringify(j)); }
 { const env = { QUOTA: kv() }; const r = await routeAzure(req({ text: 'Bonjour.' }), env, ctx, {}, { json, cache: null, fetchFn: azureOk, maintenant }); const j = await r.json(); v('sans clé : 503 « non configuré »', r.status === 503 && j.nonConfigure === true); }
 { const env = env0(); const r = await routeAzure(req({ text: 'Bonjour.' }), env, ctx, {}, { json, cache: null, fetchFn: async () => new Response('denied', { status: 401 }), maintenant }); const j = await r.json(); v('clé refusée par Microsoft : message clair, compteur inchangé', r.status === 502 && j.cleRefusee === true && !env.QUOTA.m.size); }
+/* v12 : un HTTP 429 d'Azure n'est PAS la fin du quota du mois (limite de débit de l'offre gratuite) */
+{ const env = env0(); let n429 = 0; const r = await routeAzure(req({ text: 'Bonjour débit.' }), env, ctx, {}, { json, cache: null, maintenant, pause: async () => {}, fetchFn: async () => { n429++; return new Response('Too many requests', { status: 429 }); } }); const j = await r.json();
+  v('429 d’Azure : limite de débit (limiteDebit, PAS mois), Retry-After, une reprise côté Worker', r.status === 429 && j.limiteDebit === true && !j.mois && r.headers.get('Retry-After') === '3' && n429 === 2, JSON.stringify(j) + ' appels ' + n429);
+  v('429 d’Azure : le compteur du mois n’a pas bougé', !env.QUOTA.m.get('chars-2026-11')); }
+{ const env = env0(); let n = 0; const r = await routeAzure(req({ text: 'Bonjour reprise.' }), env, ctx, {}, { json, cache: null, maintenant, pause: async () => {}, fetchFn: async () => (++n === 1 ? new Response('busy', { status: 429 }) : new Response(mp3, { status: 200 })) });
+  v('429 passager : la reprise côté Worker réussit (200 audio)', r.status === 200 && n === 2); }
+{ const env = env0(); const r = await routeAzure(req({ text: 'Bonjour quota.' }), env, ctx, {}, { json, cache: null, maintenant, pause: async () => {}, fetchFn: async () => new Response('Your free tier quota exceeded', { status: 429 }) }); const j = await r.json();
+  v('429 qui dit « quota » : mois:true', r.status === 429 && j.mois === true); }
 { const env = env0(); const r = await routeAzure(req({ text: 'x'.repeat(4001) }), env, ctx, {}, { json, cache: null, fetchFn: azureOk, maintenant }); v('texte trop long : 413', r.status === 413); }
 { const env = env0(); const r = await routeAzure(req({ text: 'Bonjour.' }), env, ctx, {}, { json, cache: null, fetchFn: async () => { throw new Error('réseau'); }, maintenant }); v('réseau coupé : 502', r.status === 502); }
 console.log(`${ok} ok, ${ko} KO`); process.exit(ko ? 1 : 0);

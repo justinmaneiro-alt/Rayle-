@@ -30,6 +30,19 @@
   /* Silence entre deux phrases : coupé net si une nouvelle réponse arrive ou si on coupe Raylé. */
   function pauseParole(ms,token){ return new Promise(res=>{ if(!ms||ms<=0){ res(); return; } const t0=Date.now(), v=()=>{ if(token!==speakToken||Date.now()-t0>=ms) res(); else setTimeout(v,40); }; v(); }); }
 
+  /* v12 : indicateur discret pendant que Rayle parle : « Vivienne · Azure » (voix principale) ou « Siwis · secours » (Piper, avec la raison au survol et dans État des données) */
+  let pastilleEl=null, pastilleMinuteur=0;
+  function etiquetteVoix(src,secours){
+    const [moteur,nom]=String(src||'').split('/'), id=String(nom||'').split(' ')[0], N=window.VoixMoteurs&&VoixMoteurs.NOMS[id], court=N?String(N.nom).split(' ')[0]:String(nom||'?');
+    if(moteur==='azure') return court+' · Azure'; if(moteur==='piper') return court+' · '+(secours?'secours':'Piper'); if(moteur==='gemini') return court+' · Gemini'; return court+' · '+moteur;
+  }
+  function pastilleVoix(src,secours){
+    try{
+      if(!pastilleEl){ pastilleEl=document.createElement('div'); pastilleEl.id='rayle-voix-pastille'; pastilleEl.setAttribute('role','status'); pastilleEl.setAttribute('aria-live','off'); pastilleEl.style.cssText='position:fixed;left:8px;bottom:8px;z-index:199;padding:2px 9px;border-radius:10px;font:11px/1.5 system-ui,sans-serif;color:#9fb3bd;background:rgba(5,8,12,.78);border:1px solid #22323c;pointer-events:none;opacity:0;transition:opacity .25s;max-width:70vw;white-space:nowrap;overflow:hidden;text-overflow:ellipsis'; document.body.appendChild(pastilleEl); }
+      clearTimeout(pastilleMinuteur); pastilleEl.textContent=etiquetteVoix(src,secours); pastilleEl.dataset.mode=secours?'secours':'principale'; pastilleEl.style.color=secours?'#e8a85a':'#9fb3bd'; pastilleEl.title=secours&&secours.raison?('Voix de secours : '+secours.raison):''; pastilleEl.style.opacity='1';
+    }catch(e){}
+  }
+  function masquerPastilleVoix(){ try{ clearTimeout(pastilleMinuteur); pastilleMinuteur=setTimeout(()=>{ if(pastilleEl) pastilleEl.style.opacity='0'; },3000); }catch(e){} }
   // Voix en ligne (Azure ou Edge, choisie par le Worker)
   let curAudio=null, audioStop=null, lastVoiceSrc='', lastVoiceInfo='';
   function voiceLabel(src){
@@ -129,7 +142,7 @@
     const vit=Math.max(0.5,Math.min(2,1+vitesseCourante()/100));
     const chaine=opts.moteur?[moteurId]:VoixMoteurs.chaine(moteurId);   // « Écouter » une voix précise : pas de remplacement discret
     const partsPour=id=>{ const f=(VoixMoteurs.NOMS[id]||{}).famille; return f==='piper'?VoixCalcul.decouperPourPiper(phrases):VoixCalcul.regrouperPourGemini(phrases,f==='azure'?3500:550); };
-    let joue=false, derniereErreur='';
+    let joue=false, derniereErreur=''; const echecs=[], sansAzure=opts.moteur?'':((VoixMoteurs.NOMS[moteurId]||{}).famille==='piper'?VoixMoteurs.raisonSansAzure():'');
     for(const id of chaine){
       if(token!==speakToken) return;
       const ctrl=new AbortController(); synthCtrl=ctrl;
@@ -142,19 +155,21 @@
           const a=await taches[i];
           lancer(i+2);
           if(token!==speakToken) return;
+          if(!joue){ const secours=echecs.length?{de:echecs[0].id,vers:id,raison:echecs[0].msg}:(sansAzure?{de:'azure-vivienne',vers:id,raison:sansAzure}:null); try{ if(secours) VoixMoteurs.noterSecours(secours); else if(/^azure/.test(String(a.src||'').split('/')[1]||'')) VoixMoteurs.noterSecours(null); }catch(e){} pastilleVoix(a.src,secours); }
           joue=true; await playAudio(a,token); lastVoiceInfo=''; try{ VoixMoteurs.noterUtilise(voiceLabel(a.src)); }catch(e){}
         }
         derniereErreur=''; indicateurVoix(true); break;
       }catch(e){
         if(token!==speakToken) return;
         try{ ctrl.abort(); }catch(x){}
-        derniereErreur=(e&&e.message)||errMsg(e); try{ VoixMoteurs.noterEchec(id,derniereErreur); }catch(x){}
+        derniereErreur=(e&&e.message)||errMsg(e); try{ VoixMoteurs.noterEchec(id,derniereErreur); }catch(x){} echecs.push({id,msg:derniereErreur});
         if(joue) break;   // déjà commencée : on ne change pas de voix en pleine réponse
       }
     }
     if(derniereErreur){ try{ VoixMoteurs.noterUtilise('voix momentanément indisponible'); }catch(x){} indicateurVoix(false,derniereErreur); }   // la réponse reste affichée ; jamais de voix du système ; les alertes partent sur Telegram
     if(token!==speakToken) return;
     try{ window.dispatchEvent(new CustomEvent('rayle:parole-fin')); }catch(e){}
+    masquerPastilleVoix();
     speaking=false; speechEndT=Date.now(); lastAct=Date.now();
     restState();
     if(modeToucher()){ if(!processing && !queue.length) apresReponse(); }

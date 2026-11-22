@@ -46,3 +46,20 @@ Journal de la session autonome du 22/11/2026 (instructions : `prompt-rayle-v12-c
 **Rayle l'explique** : fiche « Volume : le Bookmap (carte de chaleur de la liquidité) » dans `manuel-rayle.md` (« Rayle, explique-moi le Bookmap », « c'est quoi les bulles vertes et rouges »).
 
 **Tests.** Purs (`npm test`) : `bookmap-test` (33 : carnet local officiel, grille, bulles, palette, durée). Chrome (flux réels) : `bookmap-chrome.mjs [vue] [BTC|OR|SOL] [secondes] [ralentissement]`, `bookmap-reprise-chrome.mjs` (actifs grisés, carte relue après rechargement : 18 colonnes).
+
+## Phase 3 — Vivienne (Azure) en priorité, vérifiable
+
+**Constat du code.** Toute prise de parole (réponses, rapports, alertes, briefing) passe par `speak()` (`core/voice/voix.js`) → `VoixMoteurs.chaine(choisi())` = **[voix choisie, Piper de secours]** (jamais `speechSynthesis`, test `voix-unique-test`). La voix choisie par défaut est Vivienne **si `azureDispo()`**. Voici pourquoi Piper pouvait parler à sa place — quatre causes réelles, toutes corrigées :
+
+1. **Un HTTP 429 d'Azure = « quota du mois atteint » = 6 heures de Piper.** Le Worker `rayle-voix` renvoyait `mois: true` à chaque 429 de Microsoft ; or l'offre gratuite F0 n'accepte **qu'une requête à la fois (et 20 par minute)** : la préparation de l'étape suivante d'un rapport, en parallèle de la lecture, déclenchait des 429. Corrigé des deux côtés : le Worker fait une reprise après 1,3 s puis répond `limiteDebit: true` (+ `Retry-After`), et ne dit `mois: true` que si la réponse parle de quota ou si le compteur local est dépassé ; le navigateur met les requêtes Azure **en file (une à la fois, 1,2 s d'écart)**, attend et reprend (jusqu'à 4 tentatives sur un 429) ; seule la vraie fin de quota (`mois`) met Azure en pause 6 h.
+2. **Toute annulation (nouvelle phrase, « stop », « suivant ») mettait Azure en pause 60 s** (l'`AbortError` était pris pour un délai dépassé). Corrigé : une annulation n'a plus aucun effet sur Azure ; `fetchT` écoute maintenant le signal de l'appelant.
+3. **Après la moindre panne : 60 s de Piper.** Maintenant : une reprise, puis Piper, et **20 s** de pause au plus (la raison est gardée).
+4. **État d'Azure inconnu = Piper** (tant que `/sante` n'avait pas répondu, `azureDispo()` était faux). Maintenant : inconnu = on essaie Azure d'abord. Délai de requête 14 s → 25 s.
+   Et : une voix Piper restée mémorisée (ancien essai) passait devant Vivienne ; **migration unique** (`rayle_voix_v12_vivienne`) : retour au choix automatique ; Piper reste choisissable dans Réglages → Voix.
+   Bonus : la même phrase demandée deux fois en même temps (préparation + lecture) ne part qu'**une fois** chez Azure (les caractères sont comptés).
+
+**Indicateur discret** (pastille en bas à gauche, 3 s après la fin de la parole) : « **Vivienne · Azure** » ; en secours « **Siwis · secours** » (en orange), avec la **raison au survol**. La raison est aussi gardée (`rayle_voix_secours`) et affichée dans **État des données** (« Dernier passage en voix de secours : … — raison : … », et « Azure en pause jusqu'à … »). Elle s'efface quand Azure reparle.
+
+**Découpage.** Inchangé et vérifié : une étape de rapport = une requête Azure (blocs de 3 500 caractères au plus pour une réponse longue), l'étape suivante préparée en avance ; maintenant sans doublon de requête.
+
+**Tests.** `worker-voix/tests/azure-test.mjs` (26, dont 429 de débit / reprise / quota), `trader-pro/tests/voix-priorite-azure-chrome.mjs` (20, vraie voix de l'appli, Azure simulé qui sait limiter le débit et tomber en panne : état inconnu → Azure ; 2 × 429 → 3 tentatives, aucun Piper, aucune pause ; annulation → aucune pause ; une requête à la fois ; panne → Piper + raison + indicateur ; retour automatique à Vivienne ; jamais `speechSynthesis`), `voix-v9-chrome.mjs` (34, régression ; « une seule tentative » devient « une reprise puis Piper »).

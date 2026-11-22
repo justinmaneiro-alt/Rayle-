@@ -10,10 +10,10 @@
   let cutAbort=new AbortController();   // permet d'interrompre les appels réseau d'une réponse coupée
   async function fetchT(url,opts,ms){
     const c=new AbortController(); const tm=setTimeout(()=>c.abort(),ms);
-    const sig=cutAbort.signal, onCut=()=>c.abort();
-    sig.addEventListener('abort',onCut);
+    const sig=cutAbort.signal, onCut=()=>c.abort(), ext=opts&&opts.signal;   // v12 : le signal passé par l'appelant (nouvelle phrase, stop) coupe aussi la requête
+    sig.addEventListener('abort',onCut); if(ext){ if(ext.aborted) c.abort(); else ext.addEventListener('abort',onCut); }
     try{ return await fetch(url,Object.assign({},opts,{signal:c.signal})); }
-    finally{ clearTimeout(tm); sig.removeEventListener('abort',onCut); }
+    finally{ clearTimeout(tm); sig.removeEventListener('abort',onCut); if(ext) ext.removeEventListener('abort',onCut); }
   }
   async function wfetch(path,opts,ms){
     const o=Object.assign({},opts||{});

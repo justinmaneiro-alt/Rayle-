@@ -36,7 +36,7 @@ export async function routeAzureQuota(env, cors, { json, maintenant = Date.now()
   return json({ configure, region: configure ? env.AZURE_SPEECH_REGION : null, mois: moisCle(maintenant).slice(6), compteur: !!env.QUOTA, ...etatQuota(n, limite), plafondAzure: 500000 }, 200, cors);
 }
 
-export async function routeAzure(request, env, ctx, cors, { json, cache = (typeof caches !== 'undefined' ? caches.default : null), fetchFn = fetch, maintenant = Date.now() } = {}) {
+export async function routeAzure(request, env, ctx, cors, { json, cache = (typeof caches !== 'undefined' ? caches.default : null), fetchFn = fetch, maintenant = Date.now(), pause = ms => new Promise(r => setTimeout(r, ms)) } = {}) {
   let c; try { c = await request.json(); } catch (e) { return json({ error: 'corps JSON attendu' }, 400, cors); }
   const texte = String(c.text || '').trim(), voix = String(c.voix || 'azure-vivienne');
   if (!texte) return json({ error: 'texte vide' }, 400, cors);
@@ -50,12 +50,14 @@ export async function routeAzure(request, env, ctx, cors, { json, cache = (typeo
   const avant = await lireCompteur(env, maintenant);
   if (avant + texte.length > limite) return json({ error: 'quota Azure du mois atteint (' + avant + ' / ' + limite + ' caractères) : voix locale Piper', mois: true, n: avant, limite }, 429, cors);
   let r;
-  try { r = await fetchFn('https://' + env.AZURE_SPEECH_REGION + '.tts.speech.microsoft.com/cognitiveservices/v1', { method: 'POST', headers: { 'Ocp-Apim-Subscription-Key': env.AZURE_SPEECH_KEY, 'Content-Type': 'application/ssml+xml', 'X-Microsoft-OutputFormat': FORMAT_AUDIO, 'User-Agent': 'rayle-voix' }, body: construireSsml({ texte, voix, ton: c.ton, vitesse: c.vitesse }) }); }
+  /* v12 : l'offre gratuite F0 n'accepte qu'une requête à la fois (et 20 par minute) : un HTTP 429 est le plus souvent une limite de DÉBIT, pas la fin du quota du mois. Une reprise après une courte attente ; si ça persiste, on le dit comme limite de débit (le navigateur réessaie), jamais comme quota du mois. */
+  const appeler = () => fetchFn('https://' + env.AZURE_SPEECH_REGION + '.tts.speech.microsoft.com/cognitiveservices/v1', { method: 'POST', headers: { 'Ocp-Apim-Subscription-Key': env.AZURE_SPEECH_KEY, 'Content-Type': 'application/ssml+xml', 'X-Microsoft-OutputFormat': FORMAT_AUDIO, 'User-Agent': 'rayle-voix' }, body: construireSsml({ texte, voix, ton: c.ton, vitesse: c.vitesse }) });
+  try { r = await appeler(); if (r.status === 429) { await pause(1300); r = await appeler(); } }
   catch (e) { return json({ error: 'Azure injoignable : ' + ((e && e.message) || e) }, 502, cors); }
   if (!r.ok) {
     let d = ''; try { d = (await r.text()).slice(0, 200); } catch (e) { /* */ }
     if (r.status === 401 || r.status === 403) return json({ error: 'clé Azure refusée (HTTP ' + r.status + ') : vérifier AZURE_SPEECH_KEY et AZURE_SPEECH_REGION ' + d, cleRefusee: true }, 502, cors);
-    if (r.status === 429) return json({ error: 'Azure : trop de requêtes ou quota F0 atteint (HTTP 429)', mois: true, n: avant, limite }, 429, cors);
+    if (r.status === 429) { if (/quota|month|free tier|exceeded your/i.test(d)) return json({ error: 'Azure : quota gratuit F0 atteint (HTTP 429) : voix locale Piper', mois: true, n: avant, limite }, 429, cors); return json({ error: 'Azure : limite de débit (HTTP 429) : réessayer dans quelques secondes', limiteDebit: true }, 429, { ...cors, 'Retry-After': '3' }); }
     return json({ error: 'Azure : HTTP ' + r.status + ' ' + d }, 502, cors);
   }
   const audio = await r.arrayBuffer(), apres = avant + texte.length;
