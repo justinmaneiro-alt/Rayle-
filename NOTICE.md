@@ -37,3 +37,8 @@ En secours (pendant le chargement du modèle, ou si rien d'autre ne marche), Ray
 ## Code de Raylé
 
 `core/voice/normalisation-fr.js`, `voix-moteurs*.js`, `voix-panneau.js`, `app-pc/voix-locale.mjs`, `app-pc/voix/serveur-voix.py` : code de Raylé.
+
+## v9 — Piper dans le navigateur et Microsoft Azure Speech
+
+- **Piper (voix locale, dans le navigateur).** Moteur : `core/voice/piper/` — **onnxruntime-web 1.18.0** (Microsoft, licence MIT) et **piper_phonemize** (analyseur de phonèmes de Piper compilé en WebAssembly avec **espeak-ng**, licence GPL-3.0), tirés du paquet `@diffusionstudio/piper-wasm` 1.0.0 ; `piper-worker.js` et `piper-client.js` sont du code de Raylé, adapté de `@mintplex-labs/piper-tts-web` (MIT). Les modèles de voix (`fr_FR-siwis-medium`, `fr_FR-upmc-medium` — voix Jessica et Pierre —, `fr_FR-tom-medium`) viennent du dépôt officiel **rhasspy/piper-voices** (Hugging Face), sont téléchargés une fois par appareil et jamais redistribués par Raylé ; licences : Siwis CC BY 4.0, UPMC CC BY-SA 4.0, Tom selon la fiche du dépôt (https://huggingface.co/rhasspy/piper-voices).
+- **Microsoft Azure Speech** (voix `fr-FR-VivienneMultilingualNeural`, `fr-FR-DeniseNeural`, `fr-FR-RemyMultilingualNeural`, `fr-FR-HenriNeural`) : service officiel, ressource Azure au nom de l'utilisateur, niveau gratuit F0 ; l'ancien accès non officiel à la voix d'Edge n'est plus utilisé.
