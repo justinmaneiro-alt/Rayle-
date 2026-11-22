@@ -133,6 +133,7 @@
   let wakeLock=null;
   async function garderEcranAllume(on){
     try{
+      if(on && window.Activation && Activation.ecranAllume && !Activation.ecranAllume()) on=false;   // v10 : l'option « garder l'écran allumé » peut être coupée
       if(on && 'wakeLock' in navigator && document.visibilityState==='visible'){ if(!wakeLock) wakeLock=await navigator.wakeLock.request('screen'); wakeLock.addEventListener('release',()=>{ wakeLock=null; }); }
       else if(!on && wakeLock){ await wakeLock.release(); wakeLock=null; }
     }catch(e){ wakeLock=null; }

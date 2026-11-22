@@ -38,7 +38,6 @@ donnees-sol-cache/
 donnees-doge-cache/
 
 # Modèle vocal français de Vosk (Apache-2.0, ~41 Mo) : téléchargé par installer-voix-locale.ps1, jamais publié
-core/voice/vendor/modele-fr.tar.gz
 captures-v1/
 
 # modeles lourds (nuit 3) : jamais publies sur GitHub Pages

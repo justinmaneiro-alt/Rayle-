@@ -17,14 +17,22 @@
   const t=()=>Date.now();
 
   /* ── Vosk, chargé une seule fois, à la demande ── */
+  /* modèle : Cache Storage d'abord (cache « rayle-voix-vosk-v1 », conservé par les mises à jour), sinon réseau puis mise en cache ; blob local passé à Vosk */
+  async function urlModele(){
+    const abs=new URL(URL_MODELE,document.baseURI).href;
+    if(!('caches' in window)){ const t=await fetch(abs,{method:'HEAD',cache:'no-store'}); if(!t.ok) throw Object.assign(new Error('modèle absent'),{absent:true}); return abs; }
+    const c=await caches.open('rayle-voix-vosk-v1'); let r=await c.match(abs);
+    if(!r){ const n=await fetch(abs); if(!n.ok) throw Object.assign(new Error('modèle absent (HTTP '+n.status+')'),{absent:true}); try{ await c.put(abs,n.clone()); }catch(e){} r=n; }
+    return URL.createObjectURL(await r.blob());
+  }
   function chargerVosk(){
     if(promesseVosk) return promesseVosk;
     promesseVosk=(async()=>{
       motCle='chargement';
       try{
-        const tete=await fetch(URL_MODELE,{method:'HEAD',cache:'no-store'}); if(!tete.ok) throw Object.assign(new Error('modèle absent'),{absent:true});
+        const urlM=await urlModele();
         if(!window.Vosk) await new Promise((ok,ko)=>{ const s=document.createElement('script'); s.src=URL_VOSK; s.onload=ok; s.onerror=()=>ko(new Error('bibliothèque Vosk introuvable')); document.head.appendChild(s); });
-        modele=await Vosk.createModel(new URL(URL_MODELE,document.baseURI).href);
+        modele=await Vosk.createModel(urlM);
         motCle='pret'; return modele;
       }catch(e){ motCle=e&&e.absent?'absent':'erreur'; if(motCle==='erreur') erreur='mot « Raylé » local : '+String((e&&e.message)||e).slice(0,100); promesseVosk=null; throw e; }
     })();
@@ -36,7 +44,7 @@
     rec=new modele.KaldiRecognizer(FREQ,C.grammaireMotCle(reglages.mots));
     const verifier=txt=>{
       if(enPause||!txt) return; dernierMot=String(txt).slice(0,60);
-      if(C.motCleDansTexte(txt,reglages.mots)) sortie({source:'mot',texte:dernierMot});
+      if(C.motCleDansTexte(txt,reglages.mots,reglages.niveauPrenom)) sortie({source:'mot',texte:dernierMot});
     };
     rec.on('partialresult',m=>verifier(m&&m.result&&m.result.partial));
     rec.on('result',m=>verifier(m&&m.result&&m.result.text));

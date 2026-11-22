@@ -100,12 +100,17 @@
      « le relais de la course » ne déclenche pas, « Raylé quelle heure est-il » oui. Les mots absents du vocabulaire du modèle sont simplement ignorés. */
   const sansAccent=t=>String(t==null?'':t).toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'');
   const MOTS_RAYLE=['relais','rayé','rallye','raillé','raye'];
-  function motCleDansTexte(texte,mots){
-    const liste=(mots&&mots.length?mots:MOTS_RAYLE).map(sansAccent), t=sansAccent(texte).replace(/[^a-z\[\] ]/g,' ').trim().split(/\s+/).filter(Boolean);
-    if(!t.length||t.length>3) return false;
-    return t.slice(0,2).some(x=>liste.includes(x));
+  /* v10 : sensibilité du prénom. stricte : le mot seul ou suivi d'un seul mot (2 au plus), en première position ; normale : 3 mots au plus, dans les deux premiers (comportement d'origine) ;
+     large : 5 mots au plus, dans les trois premiers (le prénom est repris même quand la phrase continue, au prix de quelques faux déclenchements en plus). */
+  const NIVEAUX_PRENOM={stricte:{max:2,tete:1},normale:{max:3,tete:2},large:{max:5,tete:3}};
+  function motCleDansTexte(texte,mots,niveau){
+    const N=NIVEAUX_PRENOM[niveau]||NIVEAUX_PRENOM.normale, liste=(mots&&mots.length?mots:MOTS_RAYLE).map(sansAccent), t=sansAccent(texte).replace(/[^a-z\[\] ]/g,' ').trim().split(/\s+/).filter(Boolean);
+    if(!t.length||t.length>N.max) return false;
+    return t.slice(0,N.tete).some(x=>liste.includes(x));
   }
-  const grammaireMotCle=mots=>JSON.stringify([...new Set((mots&&mots.length?mots:MOTS_RAYLE).map(x=>String(x).toLowerCase().trim()).filter(Boolean)),'[unk]']);
-  const api={creerDetecteur,seuilsPour,PARAMETRES,motCleDansTexte,grammaireMotCle,MOTS_RAYLE,sansAccent};
+  /* v10 : mots « leurres » ajoutés à la grammaire. Avec le seul prénom comme choix, le décodeur forçait n'importe quel son proche (« le rail », « c'est réel ») vers le prénom ; avec des alternatives plausibles, ces mots sont reconnus pour ce qu'ils sont. Les mots absents du vocabulaire du modèle sont ignorés. */
+  const LEURRES=['le','la','les','de','du','des','un','une','et','est','il','elle','je','tu','on','ce','que','qui','quoi','pas','plus','pour','dans','sur','avec','mais','ou','oui','non','bonjour','salut','merci','heure','rail','réel','rayon','raie','râle','rue','arrêt','travail','royal','ré','règle','regarde','réalité','rapide','gare','panne','matin','parc','course'];
+  const grammaireMotCle=mots=>JSON.stringify([...new Set([...(mots&&mots.length?mots:MOTS_RAYLE).map(x=>String(x).toLowerCase().trim()).filter(Boolean),...LEURRES]),'[unk]']);
+  const api={LEURRES,NIVEAUX_PRENOM,creerDetecteur,seuilsPour,PARAMETRES,motCleDansTexte,grammaireMotCle,MOTS_RAYLE,sansAccent};
   if(typeof module!=='undefined'&&module.exports) module.exports=api; else racine.Declencheurs=api;
 })(typeof window!=='undefined'?window:globalThis);

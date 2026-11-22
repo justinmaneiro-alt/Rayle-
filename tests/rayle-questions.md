@@ -50,3 +50,30 @@ Pour chaque question, le banc vérifie :
 | 28 | « Et le Bitcoin ? » | le sujet passe à BTC, même type de réponse |
 | 29 | « Et son COT ? » | COT du Bitcoin |
 | 30 | « Retour à l'accueil » | accueil, fenêtres fermées |
+
+
+---
+
+# v10 : l'analyste (25 demandes de plus)
+
+Exécuté par `trader-pro/tests/banc-v10-chrome.mjs` (partie 1 : A1–A5, partie 2 : A6–A10, partie 3 : B1–B5 ; tablette et téléphone) et, pour les activations vocales, par `tests-navigateur/activation-v10-test.mjs`. Le modèle est simulé par un routeur qui appelle les outils comme le vrai modèle (vérifié sur le vrai Gemini avec le vrai prompt : voir `docs/rayle-v10.md`) ; les outils, le rapport à l'écran et la voix sont réels, sur les données de production. Contrôles : V une seule voix · C vrais chiffres · N jamais « aucune donnée » · D aucun outil indisponible · R rapport à l'écran (rubriques, heure des données, rappel « aide à la décision ») · E exemple chiffré tiré des données actuelles.
+
+## A. Analyses (10)
+| N° | Demande | Outils attendus | Attendu |
+|---|---|---|---|
+| A1 | Rayle, point rapide sur l'or | prix_et_tendance, niveaux | vrai prix, MA200, heure des données |
+| A2 | Rayle, analyse complète du Nasdaq | marche_global, analyse_marche | vrai prix, Weekly/Daily/H4, rapport à l'écran en 6 rubriques |
+| A3 | Rayle, le marché en global | marche_global | climat, 8 actifs avec une couleur chacun, les 2 plus intéressants |
+| A4 | Rayle, qu'est-ce que tu vois sur le graphique ? | lecture_graphique | dit ce qu'il voit, ou que le terminal est fermé |
+| A5 | Rayle, explique-moi le COT | manuel, marches | explication du manuel (CFTC, commerciaux, spéculateurs) |
+| A6 | Rayle, explique-moi le footprint | manuel, carnet_et_volume | explication + exemple chiffré |
+| A7 | Rayle, donne-moi des scénarios sur le Bitcoin | analyse_marche | vrai prix, déclencheur, invalidation, confiance |
+| A8 | Rayle, analyse complète de l'or | analyse_marche, marche_global | vrai prix, rapport complet |
+| A9 | Rayle, point rapide sur le S&P 500 | prix_et_tendance, niveaux | vrai prix, MA200 |
+| A10 | Rayle, que penses-tu de Solana ? | analyse_marche | vrai prix |
+
+## B. « Apprends-moi » (5)
+B1 volume profile · B2 POC nus · B3 FVG · B4 CVD · B5 voyant d'alignement : manuel(sujet) + un exemple tiré des données actuelles.
+
+## C. Activations vocales (10 + sensibilités)
+1. « Rayle » seul → ACTIF, petit son d'écoute, aucune phrase d'accueil. 2. « Rayle, fais-moi un point sur l'or » → la question est traitée directement. 3. « et en H4 ? » sans le prénom dans les 8 s → traitée. 3bis. 8 s de silence → retour en VEILLE. 4. Faux déclenchements : « le rail de la gare… », « c'est réel, regarde… », « le rallye de Monte-Carlo… », conversation ordinaire → aucun déclenchement. 5. « Rayle, stop » (coupe), « Rayle, reprends » (relit), « Rayle, mets-toi en pause » (micro coupé). 6. Sensibilités stricte / normale / large. 7. Tablette (Android simulé) : écoute mains libres par le prénom.

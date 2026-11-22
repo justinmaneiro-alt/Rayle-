@@ -8,7 +8,7 @@ const u32 = n => { const b = Buffer.alloc(4); b.writeUInt32LE(n); return b; };
 const wav = Buffer.concat([Buffer.from('RIFF'), u32(36 + pcm.length), Buffer.from('WAVEfmt '), Buffer.from([16, 0, 0, 0, 1, 0, 1, 0]), u32(24000), u32(48000), Buffer.from([2, 0, 16, 0]), Buffer.from('data'), u32(pcm.length), pcm]);
 let azure = [], gemini = [], panne = false, compteur = 100, cle = true;
 const CORS = { 'access-control-allow-origin': '*', 'access-control-expose-headers': 'X-Rayle-Voix, X-Rayle-Cache, X-Rayle-Chars, X-Rayle-Chars-Limite' };
-const T = await lancer(mode, { dossierCaptures: 'donnees-privees/captures-v9', stockage: { rayle_worker_url: 'https://faux-worker.test', rayle_worker_token: 'jeton', rayle_piper_precharge: '0' }, interception: async (r, u) => {
+const T = await lancer(mode, { dossierCaptures: 'donnees-privees/captures-v9', stockage: { rayle_worker_url: 'https://faux-worker.test', rayle_worker_token: 'jeton', rayle_piper_precharge: '0', rayle_pf_dernier_import: String(Date.now()) }, interception: async (r, u) => {
   if (!u.startsWith('https://faux-worker.test/') && !u.includes('rayle-voix')) return false;
   if (r.method() === 'OPTIONS') { await r.respond({ status: 204, headers: { ...CORS, 'access-control-allow-headers': '*', 'access-control-allow-methods': 'POST, GET, OPTIONS' } }); return true; }
   if (u.endsWith('/sante')) { await r.respond({ status: 200, headers: { ...CORS, 'content-type': 'application/json' }, body: JSON.stringify({ ok: true, cle: true, azure: { cle, region: cle, compteur: true } }) }); return true; }

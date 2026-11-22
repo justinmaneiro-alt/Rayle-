@@ -2,6 +2,7 @@
   /* ═════════════ COUPURE : arrêter Raylé à tout moment ═════════════ */
   function cutAll(why){
     const busy = speaking || processing || queue.length>0;
+    if(speaking&&why==='Parole interrompue') window.__paroleCoupee=lastSpokenRaw||'';   // « Rayle, reprends » la relira
     epoch++;                                // la réponse en cours (calcul ou voix) est abandonnée
     queue.length=0; drainId++; processing=false;
     try{ cutAbort.abort(); }catch(e){}
@@ -58,6 +59,9 @@
     if(STOP_RE.test(c)){ cutAll('Parole interrompue'); return true; }
     if(COUPURE_RE.test(c)){ coupureTotale(); return true; }
     if(/(arrete|coupe|desactive).{0,12}(ecoute|micro)/.test(c)){ coupureTotale(); return true; }
+    /* v10 : « Rayle, mets-toi en pause » : micro coupé jusqu'au prochain toucher ; « Rayle, reprends » : relit la réponse que « stop » a interrompue */
+    if(/^(?:mets[- ]?toi en pause|en pause|pause|fais une pause)$/.test(c)){ const r='Micro en pause. Touche le bouton pour me réveiller.'; addLine('ray',r); cutAll(); stopListening(); ligneGalaxie(r,6000); return true; }
+    if(/^(?:reprends|reprend|reprenons|continue|poursuis)$/.test(c)){ const r=window.__paroleCoupee; if(r){ window.__paroleCoupee=''; addLine('ray',r); speak(r); } else { const t='Je n’ai rien à reprendre.'; addLine('ray',t); speak(t); } return true; }
     if(/^mets[- ]?toi en veille$|^(en )?veille$|^dors$/.test(c)){
       if(reveilActif() && micOn){ const r='Je passe en veille, Justin.'; addLine('ray',r); speak(r); enterVeille(); }
       else { addLine('ray',"Mise en veille. Je ne bouge plus."); stopListening(); }

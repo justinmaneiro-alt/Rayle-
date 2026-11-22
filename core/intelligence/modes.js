@@ -3,7 +3,7 @@
   let micOn=false, mode='veille', lastAct=0;
   const RETOUR_VEILLE_MS=90000;          // en conversation, retour en veille après 90 s de silence
   // « toucher » : on touche le bouton, on parle, elle répond (le plus fiable sur téléphone et tablette)
-  function modeEcoute(){ const m=prefs.mode(); return m==='auto' ? (IS_MOBILE?'toucher':'mainslibres') : m; }
+  function modeEcoute(){ const m=prefs.mode(); if(m!=='auto') return m; if(IS_MOBILE&&window.Activation&&Activation.prenomActif&&Activation.prenomActif()) return 'mainslibres'; return IS_MOBILE?'toucher':'mainslibres'; }   // v10 : sur tablette/téléphone, l'activation par le prénom (écoute locale) remplace le mode « toucher »
   const modeToucher=()=>modeEcoute()==='toucher';
   const reveilActif=()=>prefs.reveil() && !modeToucher();
   let ecouteDepuis=0, dernierSon=0, fermerApresParole=false;
