@@ -64,4 +64,8 @@ v('entrée vide', R([]).length === 0 && R(['', '  ']).length === 0);
   v('3 départs immédiats', lim.creneau() === 0 && lim.creneau() === 0 && lim.creneau() === 0);
   t = 10000; const d = lim.creneau(); v('le 4e attend la fin de la fenêtre du 1er (≈ 52 s)', d === 52000, String(d));
   t = 62001; v('après la fenêtre : de nouveau libre', lim.creneau() === 0); }
+/* v9 : découpage pour Piper (la première part part vite) */
+{ const L = C.decouperPourPiper(['Voici le point sur l’or, qui reste au-dessus de sa moyenne mobile à deux cents jours, avec un volume plutôt faible aujourd’hui.', 'Oui.', 'Le Bitcoin est plus fragile.']);
+  v('Piper : première part ≤ 90 caractères', L[0].length <= 90, L[0]); v('Piper : parts ≤ 140 caractères', L.every(x => x.length <= 140)); v('Piper : miettes rattachées (« Oui. » avec la suivante)', L.some(x => /^Oui. Le Bitcoin/.test(x)), JSON.stringify(L));
+  v('Piper : aucun texte perdu', L.join(' ').replace(/s+/g, ' ').length >= 130); v('Piper : liste vide acceptée', C.decouperPourPiper([]).length === 0); }
 console.log(`${ok} ok, ${ko} KO`); process.exit(ko ? 1 : 0);

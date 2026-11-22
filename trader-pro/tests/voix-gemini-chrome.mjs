@@ -5,7 +5,7 @@ const pcm = Buffer.alloc(24000 * 2); for (let i = 0; i < 24000; i++) pcm.writeIn
 const wav = Buffer.concat([Buffer.from('RIFF'), (() => { const b = Buffer.alloc(4); b.writeUInt32LE(36 + pcm.length); return b; })(), Buffer.from('WAVEfmt '), Buffer.from([16, 0, 0, 0, 1, 0, 1, 0]), (() => { const b = Buffer.alloc(8); b.writeUInt32LE(24000, 0); b.writeUInt32LE(48000, 4); return b; })(), Buffer.from([2, 0, 16, 0]), Buffer.from('data'), (() => { const b = Buffer.alloc(4); b.writeUInt32LE(pcm.length); return b; })(), pcm]);
 let appels = [], mode429 = false, mode401 = false, modeMinute = false, minute429 = 0;
 const CORS = { 'access-control-allow-origin': '*', 'access-control-expose-headers': 'X-Rayle-Voix, X-Rayle-Cache' };
-const T = await lancer(mode, { dossierCaptures: 'donnees-privees/captures-v7', stockage: { rayle_worker_url: 'https://faux-worker.test', rayle_worker_token: 'jeton' }, interception: async (r, u) => {
+const T = await lancer(mode, { dossierCaptures: 'donnees-privees/captures-v7', stockage: { rayle_worker_url: 'https://faux-worker.test', rayle_worker_token: 'jeton', rayle_voix_gemini_v1: { moteur: 'gemini-f1', ton: 'naturel', vitesse: 0 }, rayle_voix_v9: '1', rayle_piper_precharge: '0' }, interception: async (r, u) => {
   if (!u.startsWith('https://faux-worker.test/') && !u.includes('rayle-voix')) return false;
   if (r.method() === 'OPTIONS') { await r.respond({ status: 204, headers: { ...CORS, 'access-control-allow-headers': '*', 'access-control-allow-methods': 'POST, GET, OPTIONS' } }); return true; }
   if (u.endsWith('/sante')) { await r.respond({ status: 200, headers: { ...CORS, 'content-type': 'application/json' }, body: '{"ok":true,"cle":true}' }); return true; }
@@ -17,7 +17,7 @@ verif(await attendre(() => p.evaluate(() => !!document.querySelector('#vxGemini 
 const L = await p.evaluate(() => [...document.querySelectorAll('#vxGemini [data-ecouter]')].map(b => ({ id: b.dataset.ecouter, off: b.disabled })));
 verif(L.length === 6 && L.filter(x => /-f/.test(x.id)).length === 3 && L.filter(x => /-h/.test(x.id)).length === 3, '3 voix féminines + 3 masculines : ' + L.map(x => x.id).join(','));
 verif(L.every(x => !x.off), 'boutons « Écouter » actifs quand le Worker est configuré');
-verif(await p.evaluate(() => !!document.querySelector('#vxGemVit') && !!document.querySelector('#vxGemTon') && /Phrases nouvelles aujourd/.test(document.querySelector('#vxGemQuota').innerText)), 'réglages de vitesse et de ton + compteur de quota');
+verif(await p.evaluate(() => !!document.querySelector('#vxGemVit') && !!document.querySelector('#vxGemTon') && /Phrases Gemini nouvelles aujourd/.test(document.querySelector('#vxGemQuota').innerText)), 'réglages de vitesse et de ton + compteur de quota');
 /* réglages puis écoute */
 await p.evaluate(() => { const t = document.querySelector('#vxGemTon'); t.value = 'pose'; t.dispatchEvent(new Event('change', { bubbles: true })); const v = document.querySelector('#vxGemVit'); v.value = '-10'; v.dispatchEvent(new Event('input', { bubbles: true })); });
 await p.evaluate(() => { try { speechSynthesis.cancel(); } catch (e) { /* */ } document.querySelector('#vxGemini [data-ecouter="gemini-h1"]').click(); });

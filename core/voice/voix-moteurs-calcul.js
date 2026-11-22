@@ -85,10 +85,18 @@
     for(const p0 of parts||[]){ const p=String(p0||'').trim(); if(!p) continue; for(const m of morceaux(p)){ if(cur&&(cur+' '+m).length>max){ out.push(cur); cur=m; } else cur=cur?cur+' '+m:m; } }
     if(cur) out.push(cur); return out;
   }
+  /* v9 : Piper (voix locale) parle dès que la première part est prête : parts courtes (≤ 140 caractères, coupées aux virgules), la première encore plus courte ; les miettes (< 25 caractères) sont rattachées à la suivante. */
+  function decouperPourPiper(phrases,max,premiere){
+    max=max||140; premiere=premiere||90; const out=[];
+    const couper=(t,m)=>{ const r=[]; let reste=t.trim(); while(reste.length>m){ const tete=reste.slice(0,m); let k=Math.max(tete.lastIndexOf(', '),tete.lastIndexOf('; '),tete.lastIndexOf(': ')); if(k<m*0.4) k=Math.max(k,tete.lastIndexOf(' et '),tete.lastIndexOf(' mais '),tete.lastIndexOf(' ou ')); if(k<m*0.4) k=Math.max(k,tete.lastIndexOf(' ')); if(k<1) k=m-1; r.push(reste.slice(0,k+1).trim()); reste=reste.slice(k+1).trim(); } if(reste) r.push(reste); return r; };
+    for(const p0 of phrases||[]){ const p=String(p0||'').trim(); if(!p) continue; for(const m of couper(p,out.length?max:premiere)) out.push(m); }
+    const fin=[]; for(let i=0;i<out.length;i++){ let t=out[i]; while(t.length<25&&i+1<out.length&&(t+' '+out[i+1]).length<=max){ t=t+' '+out[++i]; } fin.push(t); }
+    return fin;
+  }
   /* Limiteur : au plus `max` départs par fenêtre glissante (défaut 3 par 62 s) ; `creneau()` renvoie le délai (ms) à attendre avant de partir, 0 si on peut partir tout de suite (et réserve alors le créneau). */
   function creerLimiteur(o){ o=o||{}; const max=o.max||3, fenetre=o.fenetre||62000, now=o.maintenant||Date.now; let departs=[];
     return { creneau(){ const t=now(); departs=departs.filter(x=>t-x<fenetre); if(departs.length<max){ departs.push(t); return 0; } return Math.max(1,departs[0]+fenetre-t); }, n(){ const t=now(); return departs.filter(x=>t-x<fenetre).length; } }; }
 
-  const api={regrouperPourGemini,creerLimiteur,ORDRE_DEFAUT,PHRASE_ESSAI,scoreVoixSysteme,classerVoixSysteme,familleVoixSysteme,facteursLecture,analyserWav,choisirParDefaut};
+  const api={regrouperPourGemini,decouperPourPiper,creerLimiteur,ORDRE_DEFAUT,PHRASE_ESSAI,scoreVoixSysteme,classerVoixSysteme,familleVoixSysteme,facteursLecture,analyserWav,choisirParDefaut};
   if(typeof module!=='undefined'&&module.exports) module.exports=api; else racine.VoixCalcul=api;
 })(typeof window!=='undefined'?window:globalThis);

@@ -36,6 +36,7 @@
     const [moteur,nom]=String(src||'').split('/');
     if(moteur==='local'&&window.VoixMoteurs&&VoixMoteurs.NOMS[nom]) return VoixMoteurs.NOMS[nom].nom+' (locale, gratuite)';
     if(moteur==='gemini'){ const id=String(nom||'').split(' ')[0]; return (window.VoixMoteurs&&VoixMoteurs.NOMS[id]?VoixMoteurs.NOMS[id].nom:nom)+' (Gemini TTS)'; }
+    if(moteur==='azure'||moteur==='piper'){ const id=String(nom||'').split(' ')[0], N=window.VoixMoteurs&&VoixMoteurs.NOMS[id]; return (N?N.nom:nom)+(moteur==='azure'?' (Microsoft Azure)':' (Piper, local)')+(/cache/.test(nom||'')?' · copie sur l’appareil':''); }
     return (nom||persona.voix||'?')+' ('+(moteur==='azure'?'Azure':moteur==='edge'?'Edge':moteur)+')';
   }
   const audioEl=new Audio(); audioEl.preload='auto'; try{ audioEl.setAttribute('playsinline',''); }catch(e){}
@@ -122,31 +123,36 @@
     let parts=segs&&segs.length?segs.map(s=>s.texte):(window.NormFr?NormFr.phrases(NormFr.normaliser(text)):regroup(t,260));
     if(!parts.length){ parts=regroup(t,260); segs=null; }
     const reglage=i=>segs&&segs[i]?segs[i]:{vitesse:1,hauteur:0,pause:0};
-    try{ parts=VoixCalcul.regrouperPourGemini(parts,550); segs=null; }catch(e){}   // v7 : une seule requête Gemini par réponse (quota gratuit d'environ 3 par minute)
-    const baseHauteur=0;
-    const moteurId=/^gemini-/.test(opts.moteur||'')?opts.moteur:VoixMoteurs.choisi();   // toujours une voix Gemini
+    const phrases=parts.slice(); segs=null;
+    /* v9 : moteur choisi (Azure par défaut, sinon Piper), puis Piper en secours. Azure et Gemini : UNE requête par réponse ; Piper : parts courtes, la première part part vite. Une réponse commencée avec une voix se termine avec la même voix. */
+    const moteurId=(opts.moteur&&VoixMoteurs.NOMS[opts.moteur])?opts.moteur:VoixMoteurs.choisi();
     const vit=Math.max(0.5,Math.min(2,1+vitesseCourante()/100));
-    const ctrl=new AbortController(); synthCtrl=ctrl;
-    const taches=[];
-    const lancer=i=>{ if(i<parts.length&&!taches[i]){ taches[i]=VoixMoteurs.synth(moteurId,parts[i],{vitesse:Math.max(0.5,Math.min(2,vit*reglage(i).vitesse)),hauteur:baseHauteur+reglage(i).hauteur,signal:ctrl.signal}); taches[i].catch(()=>{}); } };
-    lancer(0); lancer(1);   // synthèse phrase par phrase : la première part vite, la suite se prépare pendant la lecture
-    for(let i=0;i<parts.length;i++){
+    const chaine=opts.moteur?[moteurId]:VoixMoteurs.chaine(moteurId);   // « Écouter » une voix précise : pas de remplacement discret
+    const partsPour=id=>{ const f=(VoixMoteurs.NOMS[id]||{}).famille; return f==='piper'?VoixCalcul.decouperPourPiper(phrases):VoixCalcul.regrouperPourGemini(phrases,f==='azure'?3500:550); };
+    let joue=false, derniereErreur='';
+    for(const id of chaine){
       if(token!==speakToken) return;
+      const ctrl=new AbortController(); synthCtrl=ctrl;
+      const pp=partsPour(id), taches=[];
+      const lancer=i=>{ if(i<pp.length&&!taches[i]){ taches[i]=VoixMoteurs.synth(id,pp[i],{vitesse:vit,hauteur:0,signal:ctrl.signal}); taches[i].catch(()=>{}); } };
+      lancer(0); lancer(1);   // la première part part vite, la suivante se prépare pendant la lecture
       try{
-        const a=await taches[i];
-        lancer(i+2);
-        if(token!==speakToken) return;
-        await playAudio(a,token); lastVoiceInfo=''; indicateurVoix(true); try{ VoixMoteurs.noterUtilise(voiceLabel(a.src)); }catch(e){}
-        if(i<parts.length-1) await pauseParole(reglage(i).pause,token);
-        continue;
+        for(let i=0;i<pp.length;i++){
+          if(token!==speakToken) return;
+          const a=await taches[i];
+          lancer(i+2);
+          if(token!==speakToken) return;
+          joue=true; await playAudio(a,token); lastVoiceInfo=''; try{ VoixMoteurs.noterUtilise(voiceLabel(a.src)); }catch(e){}
+        }
+        derniereErreur=''; indicateurVoix(true); break;
       }catch(e){
         if(token!==speakToken) return;
         try{ ctrl.abort(); }catch(x){}
-        const msg=(e&&e.message)||errMsg(e); try{ VoixMoteurs.noterEchec(moteurId,msg); }catch(x){}
-        try{ VoixMoteurs.noterUtilise('voix momentanément indisponible'); }catch(x){} indicateurVoix(false,msg);   // la réponse reste affichée ; pas de voix de remplacement ; les alertes partent sur Telegram
-        break;
+        derniereErreur=(e&&e.message)||errMsg(e); try{ VoixMoteurs.noterEchec(id,derniereErreur); }catch(x){}
+        if(joue) break;   // déjà commencée : on ne change pas de voix en pleine réponse
       }
     }
+    if(derniereErreur){ try{ VoixMoteurs.noterUtilise('voix momentanément indisponible'); }catch(x){} indicateurVoix(false,derniereErreur); }   // la réponse reste affichée ; jamais de voix du système ; les alertes partent sur Telegram
     if(token!==speakToken) return;
     try{ window.dispatchEvent(new CustomEvent('rayle:parole-fin')); }catch(e){}
     speaking=false; speechEndT=Date.now(); lastAct=Date.now();

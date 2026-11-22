@@ -1,4 +1,4 @@
-# Petit Worker « rayle-voix » : uniquement Gemini TTS (v7). Ne touche pas au Worker principal « rayle ».
+# Petit Worker « rayle-voix » : Gemini TTS (v7), cerveau (v8), Azure Speech (v9). Ne touche pas au Worker principal « rayle ».
 # AUCUN déclencheur planifié (le compte en a déjà 4 sur 5). Secret unique : GEMINI_KEY.
 # Les jetons sont vérifiés par le /ping du Worker principal (comme rayle-agent-trading).
 # Déployer :  npx.cmd wrangler deploy --config worker-voix/wrangler.toml     Secret :  npx.cmd wrangler secret put GEMINI_KEY --config worker-voix/wrangler.toml
@@ -17,3 +17,9 @@ GEMINI_TTS_LIMITE_JOUR = "90"
 [[services]]
 binding = "PRINCIPAL"
 service = "rayle"
+
+# v9 : compteur de caractères Azure du mois (une écriture par phrase nouvelle, loin sous la limite gratuite de 1000 par jour).
+# Secrets (à poser avec « wrangler secret put ») : AZURE_SPEECH_KEY, AZURE_SPEECH_REGION.
+[[kv_namespaces]]
+binding = "QUOTA"
+id = "631b2fc8b1ea44d19ad87b1a94d38220"

@@ -13,10 +13,15 @@
     const lire=k=>{ try{ return localStorage.getItem(k)||''; }catch(e){ return ''; } };
     const ecrire=(k,v)=>{ try{ if(v===''||v==null) localStorage.removeItem(k); else localStorage.setItem(k,String(v)); }catch(e){} };
     const NOMS={
-      'kokoro-siwis':{nom:'Kokoro · Siwis',detail:'voix neuronale française, locale (PC)',type:'local',moteur:'kokoro'},
-      'piper-siwis':{nom:'Piper · Siwis',detail:'voix neuronale française, locale et très rapide (PC)',type:'local',moteur:'piper'},
-      'piper-jessica':{nom:'Piper · Jessica',detail:'voix neuronale française, locale (PC)',type:'local',moteur:'piper'},
-      'edge':{nom:'Vivienne · Edge (en ligne, gratuit)',detail:'par le Worker, sans clé ; nécessite le réseau',type:'worker'},
+      /* v9 : voix principale Microsoft Azure Speech (offre gratuite F0, par le Worker rayle-voix) ; secours Piper local (illimité, hors ligne) ; Gemini reste un choix des réglages */
+      'azure-vivienne':{nom:'Vivienne Multilingual',detail:'Microsoft Azure : voix féminine très naturelle, chaleureuse',type:'worker',famille:'azure',genre:'f'},
+      'azure-denise':{nom:'Denise',detail:'Microsoft Azure : voix féminine claire et posée',type:'worker',famille:'azure',genre:'f'},
+      'azure-remy':{nom:'Rémy Multilingual',detail:'Microsoft Azure : voix masculine naturelle, expressive',type:'worker',famille:'azure',genre:'h'},
+      'azure-henri':{nom:'Henri',detail:'Microsoft Azure : voix masculine claire et sérieuse',type:'worker',famille:'azure',genre:'h'},
+      'piper-siwis':{nom:'Siwis',detail:'Piper : voix féminine naturelle, claire (locale, hors ligne)',type:'piper',famille:'piper',genre:'f'},
+      'piper-jessica':{nom:'Jessica',detail:'Piper : voix féminine douce (locale, hors ligne)',type:'piper',famille:'piper',genre:'f'},
+      'piper-pierre':{nom:'Pierre',detail:'Piper : voix masculine posée (locale, hors ligne)',type:'piper',famille:'piper',genre:'h'},
+      'piper-tom':{nom:'Tom',detail:'Piper : voix masculine grave (locale, hors ligne)',type:'piper',famille:'piper',genre:'h'},
       /* v7 : voix Gemini TTS (Google, offre gratuite), appelées par le Worker (la clé reste secrète) ; 3 féminines + 3 masculines « majordome IA » ; voix prédéfinies originales */
       'gemini-f1':{nom:'Sulafat · féminine chaleureuse',detail:'Gemini TTS : voix féminine chaleureuse, posée, souriante',type:'worker',famille:'gemini',genre:'f'},
       'gemini-f2':{nom:'Vindemiatrix · féminine douce',detail:'Gemini TTS : voix féminine douce, élégante, posée',type:'worker',famille:'gemini',genre:'f'},
@@ -24,11 +29,11 @@
       'gemini-h1':{nom:'Algieba · majordome raffiné',detail:'Gemini TTS : voix masculine calme et raffinée, style assistant dévoué',type:'worker',famille:'gemini',genre:'h'},
       'gemini-h2':{nom:'Charon · majordome posé',detail:'Gemini TTS : voix masculine grave, précise, rassurante',type:'worker',famille:'gemini',genre:'h'},
       'gemini-h3':{nom:'Iapetus · majordome clair',detail:'Gemini TTS : voix masculine claire, mesurée, distinguée',type:'worker',famille:'gemini',genre:'h'},
-      'systeme':{nom:'Voix du système',detail:'meilleure voix française de ton appareil',type:'systeme'}
     };
     /* ── Gemini : réglages (ton, vitesse), cache audio de l'appareil, plafond du jour, pause après un quota ── */
     const TONS_GEM={naturel:'Naturel',chaleureux:'Chaleureux',pose:'Posé',dynamique:'Dynamique'};
-    function gemini(){ try{ const o=JSON.parse(lire(CLE_GEM)||'{}'); return {ton:TONS_GEM[o.ton]?o.ton:'naturel',vitesse:Math.max(-20,Math.min(20,Number(o.vitesse)||0)),moteur:/^gemini-/.test(o.moteur||'')?o.moteur:'',maj:o.maj||0}; }catch(e){ return {ton:'naturel',vitesse:0,moteur:'',maj:0}; } }
+    /* La clé synchronisée rayle_voix_gemini_v1 porte désormais le choix de voix de TOUS les moteurs (azure-*, piper-*, gemini-*) avec la vitesse et le ton. */
+    function gemini(){ try{ const o=JSON.parse(lire(CLE_GEM)||'{}'); return {ton:TONS_GEM[o.ton]?o.ton:'naturel',vitesse:Math.max(-20,Math.min(20,Number(o.vitesse)||0)),moteur:(o.moteur&&NOMS[o.moteur])?o.moteur:'',maj:o.maj||0}; }catch(e){ return {ton:'naturel',vitesse:0,moteur:'',maj:0}; } }
     function definirGemini(o){ const g=Object.assign(gemini(),o||{}); ecrire(CLE_GEM,JSON.stringify({ton:g.ton,vitesse:g.vitesse,moteur:g.moteur,maj:Date.now()})); prevenir(); }
     const jourGem=()=>new Date().toISOString().slice(0,10), cleJourGem=()=>'rayle_voix_gemini_n_'+jourGem();
     const nGemJour=()=>Number(lire(cleJourGem()))||0;
@@ -57,6 +62,42 @@
       if(etat!=='hit') ecrire(cleJourGem(),String(nGemJour()+1));
       if(cache){ try{ await cache.put(cle,new Response(blob,{headers:{'Content-Type':'audio/wav'}})); const ks=await cache.keys(); if(ks.length>400) for(const k of ks.slice(0,100)) await cache.delete(k); }catch(e){} }
       return {blob,vitesseLecture:1,src:res.headers.get('X-Rayle-Voix')||('gemini/'+id)};
+    }
+    /* ── v9 Azure Speech (voix principale) : une réponse = une requête ; phrases déjà dites en copie sur l'appareil ; compteur du mois ; pause si quota ou clé refusée ── */
+    const CLE_AZ_ETAT='rayle_voix_azure_etat', CLE_AZ_PAUSE='rayle_voix_azure_pause', CLE_AZ_QUOTA='rayle_voix_azure_quota';
+    const jsonLu=k=>{ try{ return JSON.parse(lire(k)||'null'); }catch(e){ return null; } };
+    const baseWorker=()=>(lire('rayle_voix_url')||'https://rayle-voix.justinmaneiro.workers.dev').replace(/\/+$/,'');
+    const azureEtat=()=>jsonLu(CLE_AZ_ETAT)||{cle:null,t:0}, pauseAzure=()=>Number(lire(CLE_AZ_PAUSE))||0;
+    const azureDispo=()=>azureEtat().cle===true&&Date.now()>=pauseAzure();
+    const quotaAzure=()=>jsonLu(CLE_AZ_QUOTA);
+    function noterQuotaAzure(n,limite){ const mois=new Date().toISOString().slice(0,7), l=Number(limite)||490000; ecrire(CLE_AZ_QUOTA,JSON.stringify({mois,n:Number(n)||0,limite:l,pct:Math.round((Number(n)||0)/500000*1000)/10,t:Date.now()}));
+      /* alerte à 80 % du quota gratuit (une fois par mois) : visible dans la conversation, dans Réglages → Voix et dans État des données */
+      try{ if((Number(n)||0)>=400000&&lire('rayle_voix_azure_alerte')!==mois){ ecrire('rayle_voix_azure_alerte',mois); if(typeof addLine==='function') addLine('sys','⚠ Voix Azure : plus de 80 % des 500 000 caractères gratuits du mois sont utilisés. À la limite le service se bloque sans facturer, et la voix locale Piper prend le relais.'); } }catch(e){}
+      prevenir(); }
+    const cacheAz=async()=>{ try{ return ('caches' in window)?await caches.open('rayle-voix-azure-v1'):null; }catch(e){ return null; } };
+    const memAz=new Map();
+    async function synthAzure(id,texte,opts){
+      const g=gemini(), vit=Math.round(((opts.vitesse!=null?opts.vitesse:1)-1)*100)+g.vitesse, cle='https://rayle.local/tts-azure/'+await empreinte([id,g.ton,vit,texte].join('\u0001'));
+      const cache=await cacheAz(); if(memAz.has(cle)) return {blob:memAz.get(cle),vitesseLecture:1,src:'azure/'+id+' (cache)'};
+      if(cache){ try{ const hit=await cache.match(cle); if(hit) return {blob:await hit.blob(),vitesseLecture:1,src:'azure/'+id+' (cache)'}; }catch(e){} }
+      if(Date.now()<pauseAzure()) throw new Error('Azure en pause (quota du mois ou clé refusée) : voix Piper');
+      if(!W.token()) throw new Error('aucun code d’accès enregistré dans Rayle (Réglages)');
+      const res=await fetchT(baseWorker()+'/azure',{method:'POST',headers:{'Content-Type':'application/json','X-Rayle-Token':W.token()||'','X-Rayle-Worker':W.url()||''},body:JSON.stringify({text:texte,voix:id,ton:g.ton,vitesse:vit}),signal:opts.signal},14000).catch(e=>{ { ecrire(CLE_AZ_PAUSE,String(Date.now()+60e3)); throw new Error('rayle-voix injoignable ('+(e&&e.name==='AbortError'?'délai dépassé':((e&&e.message)||e))+')'); } });
+      if(!res.ok){ let j={}; try{ j=await res.json(); }catch(e){}
+        if(j.mois||res.status===429){ ecrire(CLE_AZ_PAUSE,String(Date.now()+6*3600e3)); if(j.n!=null) noterQuotaAzure(j.n,j.limite); }
+        else if(j.cleRefusee||j.nonConfigure){ ecrire(CLE_AZ_PAUSE,String(Date.now()+30*60e3)); }
+        else ecrire(CLE_AZ_PAUSE,String(Date.now()+60e3));   // disjoncteur : après une panne, une minute de Piper sans réessayer Azure (pas d'attente à chaque réponse)
+        throw new Error('Azure : '+(j.error||('HTTP '+res.status))); }
+      const blob=await res.blob(); memAz.set(cle,blob); if(memAz.size>60) memAz.delete(memAz.keys().next().value);
+      const n=res.headers.get('X-Rayle-Chars'); if(n!=null&&res.headers.get('X-Rayle-Cache')!=='hit') noterQuotaAzure(n,res.headers.get('X-Rayle-Chars-Limite'));
+      if(cache){ try{ await cache.put(cle,new Response(blob,{headers:{'Content-Type':'audio/mpeg'}})); const ks=await cache.keys(); if(ks.length>600) for(const k of ks.slice(0,150)) await cache.delete(k); }catch(e){} }
+      return {blob,vitesseLecture:1,src:'azure/'+id};
+    }
+    /* l'état d'Azure (clé en place ?) et le compteur du mois, demandés au Worker */
+    async function rafraichirAzure(){
+      try{ const r=await fetchT(baseWorker()+'/sante',{},10000), j=await r.json(); ecrire(CLE_AZ_ETAT,JSON.stringify({cle:!!(j.azure&&j.azure.cle&&j.azure.region),t:Date.now()})); }catch(e){ return azureEtat(); }
+      if(azureEtat().cle&&W.token()){ try{ const r=await fetchT(baseWorker()+'/azure/quota',{headers:{'X-Rayle-Token':W.token()||'','X-Rayle-Worker':W.url()||''}},10000); if(r.ok){ const q=await r.json(); noterQuotaAzure(q.n,q.limite); } }catch(e){} }
+      prevenir(); return azureEtat();
     }
     let dernierUtilise='';
     function noterUtilise(s){ if(s&&s!==dernierUtilise){ dernierUtilise=s; prevenir(); } }
@@ -99,39 +140,41 @@
     const voixSysteme=()=>[];   // v8 : voix du système supprimée
     function pret(id){
       const n=NOMS[id]; if(!n) return false;
-      if(n.type==='local') return pretLocal(id);
+      if(n.type==='piper') return !!window.PiperLocal&&PiperLocal.pret(id);
+      if(n.famille==='azure') return typeof workerReady==='function'&&!!workerReady()&&azureDispo();
       if(n.type==='worker') return typeof workerReady==='function'&&!!workerReady();
       return false;
     }
     function candidats(){
-      return Object.keys(NOMS).filter(id=>NOMS[id].famille==='gemini').map(id=>{
-        const n=NOMS[id], t=resultats[id];
-        let etat='indisponible', raison='';
-        if(n.type==='local'){
-          if(!local.installe) raison=local.raison||'non installée';
-          else if(!pretLocal(id)){ const m=local.moteurs&&local.moteurs[n.moteur]; etat='chargement'; raison=(m&&m.erreur)||'chargement du modèle…'; if(m&&m.erreur) etat='indisponible'; }
+      return Object.keys(NOMS).map(id=>{
+        const n=NOMS[id], t=resultats[id]; let etat='indisponible', raison='';
+        if(n.type==='piper'){
+          const e=window.PiperLocal?PiperLocal.etat(id):{etat:'absente'};
+          if(e.etat==='prete') etat='prête';
+          else if(e.etat==='telechargement'){ etat='chargement'; raison='téléchargement de la voix ('+(e.pct||0)+' %), une seule fois'; }
+          else if(e.etat==='chargement'){ etat='chargement'; raison='préparation de la voix…'; }
+          else if(e.etat==='erreur'){ etat='indisponible'; raison=e.raison||''; }
+          else { etat='à télécharger'; raison='téléchargée au premier usage ('+(PiperLocal.VOIX[id]||{}).mo+' Mo, une seule fois)'; }
+        } else if(n.famille==='azure'){
+          if(typeof workerReady!=='function'||!workerReady()) raison='code d’accès non saisi';
+          else if(azureEtat().cle===false) raison='clé Azure pas encore posée dans rayle-voix';
+          else if(azureEtat().cle===null) raison='état d’Azure en cours de lecture…';
+          else if(Date.now()<pauseAzure()) raison='en pause (quota du mois ou clé refusée) : Piper parle à la place';
           else etat='prête';
         } else if(n.type==='worker'){ etat=pret(id)?'prête':'indisponible'; if(etat!=='prête') raison='Worker non configuré'; }
-        else { etat=pret(id)?'prête':'indisponible'; }
         if(t&&!t.ok&&etat==='prête'){ etat='en échec'; raison=t.raison||'test échoué'; }
-        return {id,nom:n.nom,detail:n.detail,type:n.type,etat,raison,test:t||null};
+        return {id,nom:n.nom,detail:n.detail,type:n.type,famille:n.famille,genre:n.genre,etat,raison,test:t||null};
       });
     }
-    function choisi(){
-      const gm=gemini().moteur; if(gm&&NOMS[gm]) return gm;   // le choix d'une voix Gemini est synchronisé entre les appareils (clé rayle_voix_gemini_v1)
-      return 'gemini-f1';   // v8 : voix unique Gemini ; Sulafat par défaut. Plus de voix du système.
-    }
-    function auto(){
-      const a=C.choisirParDefaut(resultats,C.ORDRE_DEFAUT);
-      if(a!=='systeme') return a;
-      // pas encore de test : première voix prête dans l'ordre de préférence
-      for(const id of C.ORDRE_DEFAUT) if(id!=='systeme'&&pretLocal(id)&&!(resultats[id]&&!resultats[id].ok)) return id;
-      return 'systeme';
-    }
-    function actif(){   // moteur réellement utilisé maintenant (le choix, ou la voix du système tant qu'il n'est pas prêt)
-      return choisi();
-    }
-    function choisir(id){ ecrire(CLE_MOTEUR,id==='auto'?'':id); const g=gemini(), est=/^gemini-/.test(id); if(est||g.moteur) definirGemini({moteur:est?id:''}); else prevenir(); }
+    /* Voix par défaut (tant que tu n'as pas choisi) : Vivienne Multilingual si Azure marche, sinon la meilleure Piper féminine. Le choix est synchronisé entre les appareils (clé rayle_voix_gemini_v1). */
+    function defaut(){ return azureDispo()?'azure-vivienne':'piper-siwis'; }
+    function choisi(){ const gm=gemini().moteur; if(gm&&NOMS[gm]) return gm; return defaut(); }
+    /* Piper de secours : la même sensibilité (féminine/masculine) que la voix choisie, de préférence déjà téléchargée */
+    function piperSecours(id){ const genre=(NOMS[id]&&NOMS[id].genre)||'f', L=Object.keys(NOMS).filter(k=>NOMS[k].famille==='piper'&&NOMS[k].genre===genre); return L.find(k=>window.PiperLocal&&PiperLocal.pret(k))||L[0]||'piper-siwis'; }
+    /* Chaîne des moteurs d'UNE réponse : la voix choisie, puis Piper. Une fois la première phrase lue, la réponse se termine avec la même voix. */
+    function chaine(id){ return NOMS[id]&&NOMS[id].famille==='piper'?[id]:[id,piperSecours(id)]; }
+    function actif(){ return choisi(); }
+    function choisir(id){ ecrire(CLE_MOTEUR,''); definirGemini({moteur:(id&&id!=='auto'&&NOMS[id])?id:''}); }
     const hauteur=()=>{ const h=Number(lire(CLE_HAUTEUR)); return isFinite(h)?h:0; };
     function definirHauteur(h){ ecrire(CLE_HAUTEUR,Number(h)===0?'':String(h)); prevenir(); }
 
@@ -141,11 +184,8 @@
       const n=NOMS[id]; if(!n) throw new Error('moteur inconnu : '+id);
       const vit=opts.vitesse!=null?opts.vitesse:1;
       const f=C.facteursLecture(vit,opts.hauteur!=null?opts.hauteur:hauteur());
-      if(n.type==='local'){
-        const r=await fetch('/__voix/synth',{method:'POST',headers:{'Content-Type':'application/json; charset=utf-8'},body:JSON.stringify({voix:id,texte,vitesse:f.vitesseMoteur}),signal:opts.signal});
-        if(!r.ok){ let d=''; try{ d=(await r.json()).erreur||''; }catch(e){} throw new Error('voix locale : HTTP '+r.status+(d?' · '+d:'')); }
-        return {blob:await r.blob(),vitesseLecture:f.vitesseLecture,src:'local/'+id};
-      }
+      if(n.type==='piper'){ const g=gemini(), vm=Math.max(0.5,Math.min(2,f.vitesseMoteur*(1+g.vitesse/100))); return PiperLocal.synth(id,texte,{vitesse:vm,vitesseLecture:f.vitesseLecture,signal:opts.signal}); }
+      if(n.famille==='azure') return synthAzure(id,texte,opts);
       if(n.famille==='gemini') return synthGemini(id,texte,opts);
       if(n.type==='worker'){
         const body={text:texte}; body.vitesse=Math.round((f.vitesseMoteur-1)*100);
@@ -153,17 +193,16 @@
         if(!res.ok) throw await workerError(res);
         return {blob:await res.blob(),vitesseLecture:f.vitesseLecture,src:res.headers.get('X-Rayle-Voix')||'edge'};
       }
-      throw new Error('la voix du système ne produit pas de fichier audio');
+      throw new Error('moteur sans synthèse : '+id);
     }
 
     /* ── test automatique ── */
     async function tester(id){
       const t0=performance.now();
       try{
-        if(id==='systeme') return {ok:voixSysteme().some(v=>/^fr/i.test(v.lang)),ms:0,raison:voixSysteme().length?'':'aucune voix française'};
         const a=await synth(id,"Bonjour, je suis Rayle.",{vitesse:1,hauteur:0});
         const ms=Math.round(performance.now()-t0);
-        if(NOMS[id].type==='local'){ const an=C.analyserWav(new Uint8Array(await a.blob.arrayBuffer())); return Object.assign({ms},an); }
+        if(NOMS[id].type==='piper'){ const an=C.analyserWav(new Uint8Array(await a.blob.arrayBuffer())); return Object.assign({ms},an); }
         return {ok:a.blob.size>1500,ms,duree:null,raison:a.blob.size>1500?'':'audio vide',src:a.src};
       }catch(e){ return {ok:false,ms:Math.round(performance.now()-t0),raison:String(e&&e.message||e).slice(0,160)}; }
     }
@@ -172,19 +211,16 @@
       enCours=(async()=>{
         await rafraichirLocal();
         const res={};
-        for(const id of Object.keys(NOMS)){ if(NOMS[id].famille==='gemini') continue;   /* pas de test automatique des voix Gemini : il consommerait le quota gratuit */
-          if(id==='systeme'||pret(id)) res[id]=await tester(id); }
-        resultats=res; ecrire(CLE_AUTO,JSON.stringify({date:Date.now(),defaut:C.choisirParDefaut(res,C.ORDRE_DEFAUT)}));
+        for(const id of Object.keys(NOMS)){ if(NOMS[id].type==='piper'&&pret(id)) res[id]=await tester(id); }   /* pas de test automatique d'Azure ni de Gemini : il consommerait le quota gratuit */
+        resultats=res;
         prevenir(); return res;
       })().finally(()=>{ enCours=null; });
       return enCours;
     }
-    /* À l'ouverture : on réveille le service local (le modèle se charge), puis on teste sans bruit. Tant que ce n'est pas prêt, la voix du système parle. */
+    /* À l'ouverture : on lit l'état d'Azure et, en tâche de fond, on précharge la voix Piper de secours (téléchargée une seule fois, puis hors ligne). */
     async function demarrer(){
-      await rafraichirLocal();
-      if(!local.installe) return;
-      for(let i=0;i<40&&!(pretLocal('kokoro-siwis')||pretLocal('piper-siwis'));i++){ await new Promise(r=>setTimeout(r,1000)); await rafraichirLocal(); }
-      await testerAuto();
+      try{ const g=gemini().moteur, id=(g&&NOMS[g]&&NOMS[g].famille==='piper')?g:'piper-siwis'; if(window.PiperLocal&&lire('rayle_piper_precharge')!=='0') PiperLocal.precharger(id); }catch(e){}
+      await rafraichirAzure();
     }
     const dico=()=>{ try{ return JSON.parse(lire(CLE_DICO)||'{}'); }catch(e){ return {}; } };
     function definirDico(o){ ecrire(CLE_DICO,o&&Object.keys(o).length?JSON.stringify(o):''); if(window.NormFr) NormFr.definirDictionnaire(o||{}); prevenir(); }
@@ -192,9 +228,9 @@
     const voixSystemeChoisie=()=>lire(CLE_SYS);
     function choisirVoixSysteme(uri){ ecrire(CLE_SYS,uri); prevenir(); }
 
-    /* v7 : Sulafat devient la voix de tous les appareils (une seule fois par appareil ; la clé rayle_voix_gemini_v1 est synchronisée) */
-    setTimeout(()=>{ try{ if(!lire('rayle_voix_v7_sulafat')){ ecrire('rayle_voix_v7_sulafat','1'); if(lire(CLE_MOTEUR)) ecrire(CLE_MOTEUR,''); if(gemini().moteur!=='gemini-f1') definirGemini({moteur:'gemini-f1'}); } }catch(e){} },0);
-    return {NOMS,razLimiteurGem:()=>{ limiteurGem=C.creerLimiteur({max:3,fenetre:62000}); },noterEchec,echec,diagnostic,gemini,definirGemini,TONS_GEM,nGemJour,LIMITE_JOUR_GEM,pauseGem,noterUtilise,dernier,candidats,choisi,actif,auto,choisir,hauteur,definirHauteur,synth,tester,testerAuto,demarrer,rafraichirLocal,pret,dico,definirDico,voixSystemeChoisie,choisirVoixSysteme,
+    /* v9 : Gemini (Sulafat) n'est plus la voix par défaut : une seule fois par appareil, le choix automatique de la v7 est effacé (un autre choix que tu aurais fait est conservé) */
+    setTimeout(()=>{ try{ if(!lire('rayle_voix_v9')){ ecrire('rayle_voix_v9','1'); if(gemini().moteur==='gemini-f1') definirGemini({moteur:''}); } }catch(e){} },0);
+    return {NOMS,azureDispo,azureEtat,pauseAzure,quotaAzure,rafraichirAzure,defaut,chaine,piperSecours,razLimiteurGem:()=>{ limiteurGem=C.creerLimiteur({max:3,fenetre:62000}); },noterEchec,echec,diagnostic,gemini,definirGemini,TONS_GEM,nGemJour,LIMITE_JOUR_GEM,pauseGem,noterUtilise,dernier,candidats,choisi,actif,choisir,hauteur,definirHauteur,synth,tester,testerAuto,demarrer,rafraichirLocal,pret,dico,definirDico,voixSystemeChoisie,choisirVoixSysteme,
       resultats:()=>resultats,local:()=>local,surChangement:f=>ecouteurs.push(f),peutLocal};
   })();
 
