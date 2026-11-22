@@ -91,7 +91,7 @@
         const gardeDemarrage=setTimeout(()=>fin(false,new Error('la lecture audio ne démarre pas (son bloqué par le navigateur ?)')),15000);   // 15 s : un appareil chargé (fenêtre lourde qui s'ouvre) peut mettre plus de 7 s à démarrer le son
         let dernier=-1, figes=0;
         const gardeBlocage=setInterval(()=>{ if(!demarre) return; if(el.currentTime===dernier && !el.paused) figes++; else figes=0; dernier=el.currentTime; if(figes>=6){ if(isFinite(el.duration)&&el.duration>0&&el.currentTime>=el.duration-0.6) fin(true); else fin(false,new Error('lecture audio bloquée')); } else if(isFinite(el.duration)&&el.duration>0&&el.ended) fin(true); },500);
-        el.onplaying=()=>{ demarre=true; };
+        el.onplaying=()=>{ demarre=true; clearTimeout(gardeDemarrage); };   // v11 : la garde de démarrage (15 s) ne doit plus couper une lecture déjà commencée (les étapes d'un rapport durent 30 s et plus)
         el.onloadedmetadata=()=>{ try{ window.dispatchEvent(new CustomEvent('rayle:parole',{detail:{duree:(el.duration||0)/(el.playbackRate||1)}})); }catch(e){} };   // la réponse animée écrit son texte au rythme de la voix
         el.onended=()=>fin(true);
         el.onerror=()=>fin(false,new Error('lecture audio impossible'));
@@ -159,6 +159,18 @@
     restState();
     if(modeToucher()){ if(!processing && !queue.length) apresReponse(); }
     else if(micOn) setTimeout(startRec,700);  // petit délai : la fin de sa voix ne doit pas être captée
+  }
+  /* v11 : prépare la voix d'un texte SANS la jouer (copie en cache de l'appareil) : l'étape suivante d'un rapport guidé démarre sans blanc. Azure seulement (Piper est une synthèse locale : la lancer d'avance ralentirait la voix en cours). Mêmes parts que speak(), donc même clé de cache ; ne coûte les caractères qu'une fois. */
+  async function preparerParole(text){
+    try{
+      const t=clean(text); if(!t) return false;
+      const moteurId=VoixMoteurs.choisi(), N=VoixMoteurs.NOMS[moteurId]||{}; if(N.famille!=='azure') return false;
+      let segs=null; try{ if(window.Prosodie&&window.NormFr&&localStorage.getItem('rayle_prosodie')!=='0') segs=Prosodie.depuisTexte(text,NormFr.normaliser); }catch(e){ segs=null; }
+      let parts=segs&&segs.length?segs.map(s=>s.texte):(window.NormFr?NormFr.phrases(NormFr.normaliser(text)):regroup(t,260)); if(!parts.length) parts=regroup(t,260);
+      const vit=Math.max(0.5,Math.min(2,1+vitesseCourante()/100)), pp=VoixCalcul.regrouperPourGemini(parts,3500);
+      for(const p of pp) await VoixMoteurs.synth(moteurId,p,{vitesse:vit,hauteur:0});
+      return true;
+    }catch(e){ return false; }
   }
   // Test de la voix : résultat de chaque voix candidate, puis lecture avec la voix retenue
   async function testerVoix(signaler){

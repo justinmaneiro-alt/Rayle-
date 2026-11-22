@@ -275,7 +275,12 @@
     let best=null,len=0; for(const f of FENETRES) for(const a of f.alias){ if(a.length>len&&new RegExp('(^| )'+a+'( |$)').test(n)){ best=f; len=a.length; } }
     return best;
   }
+  /* v11 : pendant un rapport guidé (ou pour en lancer un), le lecteur de rapports passe en premier (suivant, reviens, pause, reprends, stop, détaille ça…) ; il peut répondre plus tard (chargement à la demande) */
   function commande(texte){
+    const h=window.LecteurRapports; if(h){ const r=h.commande(texte); if(r&&typeof r.then==='function') return r.then(v=>v!=null?v:commandeApp(texte)); if(r!=null) return r; }
+    return commandeApp(texte);
+  }
+  function commandeApp(texte){
     const n=norm(texte).replace(/^(hey |dis moi |dis )?rayle /,'');
     if(/^(ferme|fermer|quitte|quitter|reviens|retour|retourne)( (la |cette )?(fenetre|ecran|page)| ca| cela| ca stp| ca s il te plait)?( au carrousel| a l accueil| au menu)?$/.test(n)||/^(ferme (tout|la fenetre|cette fenetre|l ecran)|retour au carrousel|retour a l accueil|va a l accueil|accueil)$/.test(n)){
       if(ouvert) return fermer().then(()=> 'Fermé.'); if(cible>0){ aller(0); return 'Retour à l’accueil.'; } return null; }
