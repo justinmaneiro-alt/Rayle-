@@ -8,6 +8,9 @@ const mesure = () => p.evaluate(() => { const g = window.__orPro.graphe(), m = g
 const bon = m => !m.cassee && m.occupe >= 0.3 && m.droiteVide <= 12 && m.droiteVide >= -2 && m.dedans && m.auto !== false;
 const choisir = async u => { await p.evaluate(x => { const b = document.querySelector('[data-periode="' + x + '"]'); if (b) b.click(); }, u); await attendre(() => p.evaluate(x => { const S = window.__or.moteur.S; return S.periode === x && !S.chargement && S.k.length > 50; }, u), 90000); await w(2500); };
 await choisir(U); let m = await mesure(); console.log('départ', JSON.stringify(m)); verif(bon(m), 'échelle correcte au chargement'); await capture('echelle-0');
+/* v12 : le sélecteur Classique | Volume ne recouvre ni Log ni Auto (aucun recouvrement des rectangles) */
+const chev = await p.evaluate(() => { const A = document.querySelector('.tp-mode'), B = document.querySelector('.tpe-barre'); if (!A || !B) return { absent: true }; const a = A.getBoundingClientRect(), b = B.getBoundingClientRect(); const x = Math.max(0, Math.min(a.right, b.right) - Math.max(a.left, b.left)), y = Math.max(0, Math.min(a.bottom, b.bottom) - Math.max(a.top, b.top)); return { surface: Math.round(x * y), mode: [Math.round(a.left), Math.round(a.top), Math.round(a.width), Math.round(a.height)], barre: [Math.round(b.left), Math.round(b.top), Math.round(b.width), Math.round(b.height)], dansEcran: a.right <= innerWidth + 1 && b.right <= innerWidth + 1 }; });
+console.log('recouvrement', JSON.stringify(chev)); verif(chev.absent || (chev.surface === 0 && chev.dansEcran), 'sélecteur Classique | Volume et boutons Log / Auto : aucun recouvrement, tout dans l’écran');
 for (let k = 1; k <= N; k++) {
   await p.evaluate(() => document.querySelector('.tp-mode [data-mode="volume"]').click());
   await attendre(() => p.evaluate(() => { const e = window.__tpVolume.etat(); return e && e.charge; }), 90000); await w(2500);

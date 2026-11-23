@@ -93,4 +93,4 @@ html.tp-terminal .tor-graph .tv-lightweight-charts, html.tp-terminal .tor-graph 
 .tp-mode button[aria-pressed="true"] { background: #14212b; color: #8fd0e3; }
 .tp-mode-flottant { position: absolute; top: 6px; right: 6px; z-index: 6; margin-left: 0; }
 /* v12 : le sélecteur Classique | Volume ne recouvre plus les boutons Log et Auto (ils passent dessous) */
-.tp-mode-flot .tpe-barre { top: 40px; }
+.tp-mode-flot .tpe-barre { top: 48px; }

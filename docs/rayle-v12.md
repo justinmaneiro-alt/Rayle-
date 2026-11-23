@@ -113,3 +113,29 @@ Avec les **vraies données de production** (banc Chrome, vraie voix) : complet s
 - *Après* : L'or : fond haussier, court terme dans le même sens. Il est sur un de tes niveaux tracés : une clôture sous 3 600 environ ouvrirait la baisse.
 
 **Tests.** `narration-test` (22, dans `npm test`), `rapports-test` (54 : au plus 2 chiffres parlés par étape sur les 4 types de rapport, longueur −20 % au moins, plus de jargon récité, voir/comprendre/surveiller), `moteur-test` (84), `rapports-v12-chrome.mjs` (réel : voir phase 5).
+
+## Phase 5 — Contrôles et publication
+
+| Contrôle | Résultat |
+|---|---|
+| `npm test` (tests purs, dont `bougies-uniques-test` 14, `bookmap-test` 33, `narration-test` 22, `rapports-test` 54, `moteur-test` 84, `azure-test` 26) | passe en entier |
+| **Mêmes bougies partout** (`npm run test:bougies` : OR, NASDAQ, SP500, BTC, SOL, EURUSD, USDCHF, DXY × H1, H4, Jour, 300 dernières bougies, tablette) | **24/24 identiques**, après toutes les modifications (pétrole : aucun instrument dans le Classique ni le Volume, non comparable) |
+| BTC en Volume et en Classique | même série (même dernière date, mêmes O H L C) ; plus de saut de 15 mois (117 833 → 60 709) ; plus de « −48 % » sur une bougie |
+| Échelle du Classique après 10 allers-retours Classique / Volume | OR Jour ×10, BTC H4 ×10, OR H4 ×3 : `cassee: false`, dernière bougie à droite avec 5 bougies de marge, 100 % de la hauteur occupée, échelle automatique |
+| Chevauchement Classique \| Volume / Log / Auto | aucun recouvrement sur tablette 1024×768, téléphone 412×915, PC 1600×900 (rectangles mesurés) |
+| Bookmap BTC et or (tablette simulée, vraies données Binance) | BTC : 30 colonnes en 30 s, ≈ 10 mises à jour/s, 0 resynchronisation ; dessin 20 ms (processeur normal), 56 ms (ralenti ×4) ; or : 18 ms ; carte relue après rechargement (18 colonnes) ; Nasdaq et EUR/USD : bouton grisé avec la raison |
+| Vivienne (Azure) | `voix-priorite-azure-chrome` 20/20, `voix-v9-chrome` 34/34 ; pendant les 3 rapports en vrai (`rapports-v12-chrome` : Piper simulé pour le détecter) : **Piper n'a jamais parlé**, l'indicateur dit « Vivienne · Azure » à chaque échantillon |
+| Rapports en vrai (vraies données, vraie voix, Azure simulé) | complet sur l'or 11/11, COT Nasdaq 11/11, marché global 11/11 : au plus **2 chiffres parlés par étape**, pas de jargon récité, **aucune case de texte** (ni `.ra-texte`, ni le coin de la petite Rayle, ni aucun élément visible portant le texte dit) ; `rapports-chrome` complet or 21/21, COT 19/19, marché 19/20 (seul écart : un blanc de 2,9 s au lieu de 2 s, voir limites) |
+| Régressions | `images-chrome` 28/28, `banc-30-chrome` 3/3, `bookmap-reprise-chrome` 18/18 ; `cerveau-chrome` 15/16 et `pilotage-chrome` 13/16 (voir phase 4 : deux faiblesses anciennes des tests, pas de la v12) |
+
+### Les 3 choses à tester en premier (sur la tablette)
+1. **BTC en mode Volume** : ouvre la page Bitcoin, H4, passe de Classique à Volume et reviens plusieurs fois. Même prix, même historique (plus de trou en juillet 2025), échelle toujours bien cadrée, et le sélecteur ne cache plus Log / Auto.
+2. **« Rayle, rapport complet sur l'or »** puis **« rapport COT sur le Nasdaq »** : elle explique au lieu de réciter, la pastille en bas à gauche dit « Vivienne · Azure », et plus aucune case de texte en bas de l'écran. Si tu l'entends autrement, regarde la raison (survol de la pastille orange, ou Réglages → État des données).
+3. **Bookmap** : mode Volume sur Bitcoin ou l'or → bouton **Bookmap**. Laisse tourner quelques minutes : la carte commence à l'ouverture et se garde ensuite sur l'appareil ; essaie le contraste, le seuil des bulles, « Secondes » / « Minutes » ; « Rayle, explique-moi le Bookmap ».
+
+### Limites honnêtes
+- **Tablette réelle et Galaxy S23 : non essayés** (inaccessibles depuis cette session). Tout est mesuré en Chrome simulé (vue, agent utilisateur, processeur ralenti ×4) sur un PC sans GPU. La fluidité du Bookmap (20 à 56 ms par image, une image par seconde au repos) et le blanc entre deux étapes de rapport (jusqu'à ≈ 3 s à la première ouverture du terminal en simulation) sont à confirmer sur l'appareil.
+- Le **Bookmap n'a pas d'historique avant l'ouverture de la page** (Binance n'en fournit pas) ; les heures gardées dépendent de la mémoire de l'appareil (1 h à 6 h). Binance seulement (pas Kraken) ; si une région bloque Binance, le flux reste « injoignable » et le bouton ne fait rien d'utile.
+- **Pétrole** : absent du Classique comme du Volume (aucun instrument) : il n'entre pas dans le test « mêmes bougies partout ».
+- Les séries annexes du Volume (onglets ICT / HTF) pour une unité autre que celle du Classique reposent sur la même fonction de chargement que le moteur, pas sur le même objet en mémoire.
+- Le Worker principal `rayle` n'est **pas** touché ; `rayle-voix` est redéployé (correctif du HTTP 429).
