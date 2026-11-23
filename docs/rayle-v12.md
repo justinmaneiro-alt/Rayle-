@@ -63,3 +63,53 @@ Journal de la session autonome du 22/11/2026 (instructions : `prompt-rayle-v12-c
 **Découpage.** Inchangé et vérifié : une étape de rapport = une requête Azure (blocs de 3 500 caractères au plus pour une réponse longue), l'étape suivante préparée en avance ; maintenant sans doublon de requête.
 
 **Tests.** `worker-voix/tests/azure-test.mjs` (26, dont 429 de débit / reprise / quota), `trader-pro/tests/voix-priorite-azure-chrome.mjs` (20, vraie voix de l'appli, Azure simulé qui sait limiter le débit et tomber en panne : état inconnu → Azure ; 2 × 429 → 3 tentatives, aucun Piper, aucune pause ; annulation → aucune pause ; une requête à la fois ; panne → Piper + raison + indicateur ; retour automatique à Vivienne ; jamais `speechSynthesis`), `voix-v9-chrome.mjs` (34, régression ; « une seule tentative » devient « une reprise puis Piper »).
+
+## Phase 4 — Rapports qui expliquent au lieu de réciter
+
+**Ce qui change.**
+1. **Plus de case de texte.** La carte `#ra-panneau` (en bas de l'écran, `core/commun/reponse-anim.js`) écrivait le texte de la réponse au rythme de la voix : le paragraphe `.ra-texte` n'existe plus, et la carte elle-même ne s'ouvre que s'il y a des **chiffres clés** à montrer (les étiquettes, les « bulles »). Le coin de la petite Rayle (`#miniDit`) ne recopie plus ce que Rayle dit (il garde l'écho de ce que *tu* dis). Les chiffres restent dans les fenêtres, les cartes et les bulles. (Le sous-titre de la galaxie et l'option « sous-titres » des Réglages sont inchangés : ce sont des choix distincts.)
+2. **Nouvelle narration** — `trader-pro/rapports/narration.js` (calcul pur, testé) remplace les phrases récitées de `construire.js` (les **cartes** et les **détails** gardent tous les chiffres) :
+   - **voir → comprendre → surveiller** dans cet ordre ; Rayle *interprète* (« les fonds ont commencé à racheter : c'est souvent un début de retournement ») au lieu de lire les mesures ;
+   - **au plus deux chiffres parlés par étape**, arrondis (« 3 620 environ », « environ 3 pour cent »), seulement s'ils servent ; les dates deviennent « mardi en soirée », « il y a quelques mois » ; les titres d'actualité ou de risque venus d'ailleurs ne sont dits que sans chiffre ;
+   - phrases courtes, termes expliqués en quelques mots (« la zone de valeur, là où se fait l'essentiel des échanges », « le prix le plus échangé ») ; ATR, percentile, « contrats nets », « fois la moyenne », « POC nu » ne sont plus récités ;
+   - le COT dit **qui achète, qui vend, si ça change, si c'est un extrême et ce que ça implique** ; le prix se lit en « fond haussier, court terme dans le même sens » ; les scénarios disent la condition, l'invalidation et pourquoi la confiance est forte ou faible, sans lister les paliers.
+3. **Consigne donnée à l'IA** (`core/intelligence/cerveau.js`, bloc « STYLE À L'ORAL ») et au manuel interne (fiche « Rapports guidés ») : mêmes règles pour les réponses d'analyse libres. `cerveau.js`, `reponse-anim.js/.css` sont verrouillés par la v8 : empreintes mises à jour (`verrou-v8-test --maj`) après les bancs `images-chrome` (28/28), `banc-30-chrome` (3/3), `cerveau-chrome` (15/16 : la seule réserve — « la réponse affichée contient le prix arrondi » — est une faiblesse ancienne du test : 3578,56 arrondi à 3579 n'est pas une sous-chaîne de « 3578.56 ») et `pilotage-chrome` (13/16 : l'ouverture du terminal dans le cadre dépasse les 90 s du test sur ce PC, avant et indépendamment de la narration ; contrôle équivalent fait dans `rapports-v12-chrome`).
+4. **Bonus quota** : un rapport est nettement plus court à l'oral (mesures ci-dessous). Les estimations de coût affichées avant la lecture sont recalculées (`COUT_MOYEN_ETAPE`).
+
+**Longueur et chiffres, avant → après** (mêmes données de test, `trader-pro/tests/rapports-textes.mjs`) :
+
+| Rapport | Caractères avant | Caractères après | Chiffres max / étape avant | après |
+|---|---|---|---|---|
+| Complet sur l’or | 4311 | 3203 (-26 %) | 16 | 2 |
+| COT Nasdaq | 1971 | 1382 (-30 %) | 14 | 1 |
+| Marché global | 3698 | 2895 (-22 %) | 13 | 2 |
+Avec les **vraies données de production** (banc Chrome, vraie voix) : complet sur l'or ≈ 3 300 caractères (≈ 5 000 à 5 300 avant : −35 %), COT Nasdaq ≈ 1 450 (≈ 2 000 avant : −27 %), marché global ≈ 2 850 (≈ 4 400 avant : −35 %). Au plus 2 chiffres par étape dans les trois cas.
+
+**Comparaison avant / après sur 3 rapports** (extraits, données de test) :
+
+**Rapport complet sur l’or — étape « Scénarios »**
+
+- *Avant* : Scénarios. Scénario haussier : si clôture H4 au-dessus de 3 624,55 (PDH), entrée possible : retest de 3 624,55 après la cassure, ou rebond sur 3 584,92 (POC H4). Invalidation : clôture H4 sous 3 576,82. Objectifs : 3 675 (PWH), puis 3 729,04 (FVG baissier (bas)). Confiance fort : 4 signal(aux) sur 4 dans le même sens (Weekly, Daily, H4, prix par rapport à la MA200 Daily). Scénario alternatif. Scénario baissier : si clôture H4 sous 3 584,92 (POC H4), entrée possible : retest de 3 584,92 par en dessous, ou rejet sur 3 624,55 (PDH). Invalidation : clôture H4 au-dessus de 3 632,66. Objectifs : 3 512,86 (PWL), puis 3 458,82 (PDL). C’est toi qui décides : ce sont des conditions à surveiller, pas des ordres.
+- *Après* : Scénario principal : haussier, s’il clôture en H4 au-dessus de PDH, 3 620 environ, avec pour objectif PWH. Il serait invalidé sous 3 580 environ. Confiance forte : Weekly, Daily, H4 et la MA200 vont dans le même sens. Scénario inverse : une clôture H4 sous POC H4. Conditions à surveiller, pas des ordres : c’est toi qui décides.
+
+**Rapport complet sur l’or — étape « Daily »**
+
+- *Avant* : Daily : tendance haussière, marché en tendance, plus hauts et plus bas hauts (structure haussière). Le prix est au-dessus de la MA200 Daily à 3 422,79 (écart +5,3 pour cent). Dernière bougie Daily : haussière, grande (1,5 ATR), encore en cours, doji et marteau (pin bar haussière), rejet du support POC H4 (clôture au-dessus), rejet du support VAL H4 (clôture au-dessus), volume fort (1,78 fois la moyenne). La bougie d’avant : inside bar, rejet du support POC H4 (clôture au-dessus). On est sur le support ton niveau tracé en H4 3 602,22 (à 0,0 %).
+- *Après* : En Daily, la tendance est haussière : les sommets et les creux montent. Le prix est nettement au-dessus de la MA200 Daily : tendance de fond haussière. Dernière bougie Daily : haussière, grande, pas encore terminée. Longue mèche basse : les vendeurs ont été repoussés, plutôt favorable aux acheteurs. Elle a rebondi sur le support POC H4. Volume fort : l’intérêt est réel. Le prix est juste sur un de tes niveaux tracés. À surveiller : une clôture sous 3 600 environ ouvrirait la baisse.
+
+**Rapport COT sur le Nasdaq — étape « Positions nettes »**
+
+- *Avant* : Rapport COT sur le Nasdaq 100, mesure du mardi 17/11/2026, publiée le vendredi. Fonds spéculatifs (managed money) : positions nettes 128 739 contrats, en baisse de 6 570 sur la semaine. Ce sont les gros spéculateurs, qui suivent les tendances. Commerciaux (producteurs et négociants) : -115 865 contrats nets, +5 913 sur la semaine. Ce sont les producteurs et intermédiaires, qui couvrent leur activité. Les petits spéculateurs ne sont pas fournis par la source utilisée : je ne peux pas les lire.
+- *Après* : Rapport COT sur le Nasdaq : les positions de mardi, publiées vendredi. Les gros fonds, qui suivent les tendances, sont plutôt acheteurs. Mais ils ont allégé cette semaine : l’élan s’essouffle. Les commerciaux, qui se couvrent, font l’inverse : c’est normal. Les petits spéculateurs ne sont pas dans ma source.
+
+**Rapport COT sur le Nasdaq — étape « Historique »**
+
+- *Avant* : Historique sur 200 semaines : 3 épisode(s) d’extrême acheteur et 2 d’extrême vendeur. Derniers extrêmes acheteurs : 06/05/2025 (indice 84) ; 02/06/2026 (indice 82), puis +2,3 pour cent de prix en huit semaines. Derniers extrêmes vendeurs : 29/10/2024 (indice 17) ; 02/12/2025 (indice 19).
+- *Après* : La dernière fois qu’ils étaient aussi acheteurs, c’était il y a quelques mois. Huit semaines plus tard, le prix avait en moyenne gagné environ 2,5 pour cent. La dernière fois qu’ils étaient aussi vendeurs, c’était il y a environ un an. Petit échantillon : une indication, pas une règle.
+
+**Rapport marché global — étape « Or »**
+
+- *Avant* : OR : Daily haussier, H4 haussier : haussier, prix 3 602,94. On est sur le support ton niveau tracé en H4 3 602,22 (à 0,0 %).
+- *Après* : L'or : fond haussier, court terme dans le même sens. Il est sur un de tes niveaux tracés : une clôture sous 3 600 environ ouvrirait la baisse.
+
+**Tests.** `narration-test` (22, dans `npm test`), `rapports-test` (54 : au plus 2 chiffres parlés par étape sur les 4 types de rapport, longueur −20 % au moins, plus de jargon récité, voir/comprendre/surveiller), `moteur-test` (84), `rapports-v12-chrome.mjs` (réel : voir phase 5).

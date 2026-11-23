@@ -3,6 +3,7 @@ import { scenarios, episodesExtremes, reactionAnnonce, corrJours, listeNiveaux, 
 import * as H from '../rapports/historique.js';
 import { analyserCot } from '../marches/cot.js';
 import { fauxAnalyse, fauxPro, fauxCot, fauxSrc } from './rapports-faux.mjs';
+import { compterChiffres, textes } from './rapports-textes.mjs';
 let ok = 0, ko = 0; const t = (c, m) => { if (c) ok++; else { ko++; console.log('  ✗ ' + m); } };
 const H1 = 3600e3;
 const mem = () => { const m = new Map(); return { getItem: k => (m.has(k) ? m.get(k) : null), setItem: (k, v) => m.set(k, String(v)), removeItem: k => m.delete(k) }; };
@@ -87,7 +88,20 @@ t(listeNiveaux({ indisponible: 'x' }).length === 0 && listeNiveaux({ reperesIct:
   const R = creerRapport('complet', { actif: 'or' }, src), s = await R.etapes[1].faire();
   t(s.ok && s.cadrage.unite === 'J' && s.page.onglet === 'htf' && s.segments.some(x => x.montrer && x.montrer.some(m => m.type === 'bougie' && m.jours && m.jours.length === 2)), 'weekly : page HTF, cadrage Daily, bougies hebdomadaires repérées par leurs jours');
   const toutes = []; for (const e of R.etapes) toutes.push(await e.faire()); t(toutes.every(x => x.carte && x.carte.titre && x.segments.length && x.caracteres === x.texte.length && x.donneesDu !== undefined), 'chaque étape a une carte, du texte et une heure de données');
-  t(toutes.every(x => !x.ok || /\d/.test(x.texte)), 'les étapes valides citent des chiffres');
+  t(toutes.every(x => !x.ok || /\d/.test(JSON.stringify(x.carte))), 'les cartes (à l’écran) gardent tous les chiffres');
+  t(toutes.every(x => compterChiffres(x.texte) <= 2), 'v12 : au plus deux chiffres PARLÉS par étape (rapport complet) — max ' + Math.max(...toutes.map(x => compterChiffres(x.texte))));
   t(fr(3511.4, 0) === '3 511' && fr(null) === '—', 'format français sans espace insécable');
+}
+/* ───── v12 : rapports qui expliquent (4 types, données de test) ───── */
+{
+  const T = await textes(), AVANT = { complet: 4311, cot: 1971, marche: 3698 };
+  for (const r of T) {
+    t(r.maxChiffres <= 2, r.type + ' : au plus deux chiffres parlés par étape (max ' + r.maxChiffres + ')');
+    if (AVANT[r.type]) t(r.total <= AVANT[r.type] * 0.8, r.type + ' : nettement plus court à l’oral qu’avant la v12 (' + r.total + ' caractères contre ' + AVANT[r.type] + ')');
+  }
+  const tout = T.flatMap(r => r.etapes.map(e => e.texte || '')).join(' ');
+  t(!/ATR|A\.T\.R\.|POC nu|percentile|fois la moyenne|contrats nets|\bnets à\b/.test(tout), 'v12 : plus de jargon récité (ATR, percentile, contrats nets…)');
+  t(/À surveiller/.test(T[0].etapes.map(e => e.texte).join(' ')) && /Ce qu’on voit|la tendance est|Dernière bougie/.test(T[0].etapes.map(e => e.texte).join(' ')), 'v12 : voir, puis signifier, puis surveiller');
+  t(T[0].etapes.every(e => !e.ok || /[:.]/.test(e.texte)) && T[1].etapes.some(e => /souvent un début de retournement|l’élan s’essouffle|se durcit/.test(e.texte)), 'v12 : le COT dit ce que ça implique (retournement, essoufflement), pas une liste de positions');
 }
 console.log(ko ? `✗ ${ko} échec(s), ${ok} ok` : `rapports : tout passe (${ok})`); process.exit(ko ? 1 : 0);

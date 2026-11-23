@@ -65,7 +65,7 @@
   function montrerDansLeCoin(kind,text){
     try{ sousTitre(kind,text); }catch(e){}
     const ligne=(kind==='user'?'VOUS › ':'')+String(text).slice(0,220);
-    miniDit.textContent=ligne;
+    miniDit.textContent=kind==='user'?ligne:'';   // v12 : la réponse de Rayle n'est plus recopiée dans la case à côté de la petite Rayle (elle est dite ; les chiffres sont dans les fenêtres)
     const gd=document.getElementById('g-dit'); if(gd) gd.textContent=ligne;   // sous-titre de la vue galaxie
     clearTimeout(coinTimer); coinTimer=setTimeout(()=>{ miniDit.textContent=''; if(gd) gd.textContent=''; },15000);
   }

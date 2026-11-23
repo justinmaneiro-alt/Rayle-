@@ -49,10 +49,10 @@ function creerEnv({ src = fauxSrc(), store = faussMem(), msParCar = 0.15, mainte
   /* anticipation : la page de l'étape suivante s'ouvre pendant la fin de la voix de l'étape en cours (le son joue pendant que la page charge) */
   { const ou = J.ouvertures.map(o => o.t), fins = J.parles.map(x => x.t + 1), debut = k => J.parles[k].t; let avant = 0; for (let k = 1; k < 9; k++) { const prochain = J.parles[k >= 5 ? k + 1 : k]; if (prochain && ou[k] != null && ou[k] < prochain.t) avant++; } void fins; void debut; t(avant >= 7, 'la page de l’étape suivante est ouverte avant que sa voix ne démarre (' + avant + '/8)'); }
   t(new Set(J.ouvertures.map(o => o.id)).size === J.ouvertures.length, 'chaque page n’est ouverte qu’une fois (pas de double ouverture avec l’anticipation)');
-  t(J.parles.length === 10 && J.parles.filter(p => /^Carnet et footprint/.test(p.texte)).length === 1, 'une seule requête de voix par étape, sauf Volume : le carnet et le footprint en direct sont dits ensuite (' + J.parles.length + ')');
-  const iv = J.parles.findIndex(p => /^Volume :/.test(p.texte)); t(iv >= 0 && /^Carnet et footprint/.test(J.parles[iv + 1].texte), 'la lecture en direct du carnet suit immédiatement le texte du Volume');
+  t(J.parles.length === 10 && J.parles.filter(p => /^(En direct,|Carnet d’ordres et footprint)/.test(p.texte)).length === 1, 'une seule requête de voix par étape, sauf Volume : le carnet et le footprint en direct sont dits ensuite (' + J.parles.length + ')');
+  const iv = J.parles.findIndex(p => /zone de valeur/.test(p.texte)); t(iv >= 0 && /^(En direct,|Carnet d’ordres et footprint)/.test(J.parles[iv + 1].texte), 'la lecture en direct du carnet suit immédiatement le texte du Volume');
   t(J.maxEnCours === 1, 'une seule voix à la fois');
-  const seg = J.segments.filter(s => s.id === 'weekly'); t(seg.length === 6 && seg.every((s, i) => s.k === i), 'weekly : les 6 segments sont révélés dans l’ordre, un par un');
+  const seg = J.segments.filter(s => s.id === 'weekly'); t(seg.length === 5 && seg.every((s, i) => s.k === i), 'weekly : les 5 segments (tendance, moyenne, bougie, position, zones) sont révélés dans l’ordre, un par un');
   t(J.segments.some(s => s.montrer && s.montrer.some(m => m.type === 'bougie')) && J.segments.some(s => s.montrer && s.montrer.some(m => m.type === 'prix')) && J.segments.some(s => s.montrer && s.montrer.some(m => m.type === 'zone')), 'des bougies, des niveaux et des zones sont mis en avant');
   t(J.annotations.length === 1 && J.annotations[0].length >= 3, 'scénarios : annotations posées dans la couche Rayle (' + (J.annotations[0] || []).length + ')');
   const d = M.dernier(); t(d && d.raison === 'fini' && d.entree && d.entree.etapes.length === 9, 'rapport terminé et enregistré dans l’historique');
@@ -80,7 +80,7 @@ for (const [actif, inst] of [['or', 'OR'], ['us100', 'NASDAQ'], ['eurusd', 'EURU
   t(J.ouvertures.every(o => o.page.fenetre === 'marches' && o.page.section === 'cot' && o.page.actif === actif), 'COT ' + actif + ' : page Marchés → COT ouverte sur le bon actif');
   t(J.segments.some(s => s.montrer && s.montrer.some(m => m.type === 'element')), 'COT ' + actif + ' : chaque indicateur est mis en évidence sur la page');
   const txt = J.parles.map(p => p.texte).join(' ');
-  t(/indice COT/i.test(txt) && /intérêt ouvert/i.test(txt) && /petits spéculateurs ne sont pas fournis/.test(txt) && /indicateur lent/.test(txt) && /mardi/.test(txt), 'COT ' + actif + ' : indicateurs lus, limites dites (lent, donnée du mardi, petits spéculateurs absents)');
+  t(/positions de mardi/.test(txt) && /extrême/i.test(txt) && /intérêt ouvert/i.test(txt) && /petits spéculateurs ne sont pas dans ma source/.test(txt) && /COT est lent/.test(txt) && /mardi/.test(txt), 'COT ' + actif + ' : positions, extrême, intérêt ouvert lus, limites dites (lent, donnée du mardi, petits spéculateurs absents)');
   if (actif === 'eurusd') t(/n’affiche pas l’EUR\/USD/.test(txt.replace(/'/g, '’')) && /prix de l’EUR\/USD n’est pas disponible/.test(txt.replace(/'/g, '’')), 'COT eurusd : dit que la fenêtre ne l’affiche pas et que le prix manque, sans inventer');
 }
 
@@ -94,7 +94,7 @@ for (const [actif, inst] of [['or', 'OR'], ['us100', 'NASDAQ'], ['eurusd', 'EURU
   const M2 = creerEnv(), m2 = creerMoteur(M2.env); await m2.lancer({ type: 'macro' }); await m2.attendreFin();
   t(M2.J.etapes.map(e => e.id).join(',') === 'semaine,annonce-1,annonce-2,annonce-3,annonce-4', 'macro : la semaine puis les annonces à venir');
   const txt = M2.J.parles.map(p => p.texte).join(' ');
-  t(/Consensus 0,3 pour cent, précédent 0,3 pour cent/.test(txt) && /mécanisme classique/i.test(txt) && /n’est pas conservé|pas de réaction passée/.test(txt), 'macro : consensus, précédent, mécanisme et limite sur les réactions passées');
+  t(/chiffre identique au précédent/.test(txt) && /mécanisme habituel/i.test(txt) && /n’est pas conservé|pas de réaction passée/.test(txt), 'macro : attente comparée au précédent (sans chiffre), mécanisme et limite sur les réactions passées');
   const d = m2.dernier(); t(d.manques.length === 1 && /pas d’autre annonce/.test(d.manques[0]), 'macro : une annonce de moins que prévu est annoncée comme manquante, pas inventée');
 }
 
@@ -138,7 +138,7 @@ for (const [actif, inst] of [['or', 'OR'], ['us100', 'NASDAQ'], ['eurusd', 'EURU
   t(M.commande('quelle heure est-il') === null, 'une question pendant le rapport n’est pas avalée (elle passe au cerveau)');
   E.externe('Il est quatorze heures.'); await ATT(60);
   t(M.etat().pause === true && J.pauses.some(p => p.ext), 'la question met le rapport en attente (la voix est unique)');
-  const n = J.parles.length; t(M.commande('reprends') === SILENCE, '« reprends » après la question'); await ATT(60); t(J.parles.length > n && J.parles[J.parles.length - 1].texte === J.parles.find(p => /^Weekly/.test(p.texte)).texte, 'l’étape interrompue est relue depuis le début');
+  const n = J.parles.length; t(M.commande('reprends') === SILENCE, '« reprends » après la question'); await ATT(60); t(J.parles.length > n && J.parles[J.parles.length - 1].texte === J.parles.find(p => /^En Weekly/.test(p.texte)).texte, 'l’étape interrompue est relue depuis le début');
   M.commande('stop'); await M.attendreFin();
   /* « suivant » sur la dernière étape termine le rapport */
   const E2 = creerEnv({ msParCar: 0.05 }), M2 = creerMoteur(E2.env); await M2.lancer({ type: 'cot', actif: 'or' }); while (E2.J.etapes.length < 6) { if (E2.J.etapes.length) M2.commande('suivant'); await ATT(20); }
