@@ -17,7 +17,7 @@ import { creerStoreFootprint, creerLive, creerRattrapage, TEXTE_ABSENT } from '.
 import { histoLong } from '../terminal/histo-long.js';
 import { raccorder, controler, verifierRaccord, resume as resumeControle } from '../commun/serie-continue.js';
 import { canoniser } from '../commun/bougies-uniques.js';
-import { BOOKMAP_POSSIBLE, RAISON_INDISPONIBLE } from './bookmap-flux.js';
+import { creerBougiesVolume, monterCommandes as monterCommandesBv } from './bougies-volume-ui.js';
 import { noterIncident, noterPrix } from '../commun/incidents-donnees.js';
 import { dessiner as dessinerFootprint, infoCase, COULEUR_REACTION } from './footprint-rendu.js';
 import { PALETTE, PRESETS, NOM_PRESETS, appliquerPreset } from './palette.js';
@@ -45,6 +45,7 @@ const prix = (a, p) => nf(p, dec(a));
 
 export async function monterVolume({ racine, T = {}, parler = () => {}, idDefaut = 'or', unite0 = 'H4', surClassique = () => {}, serieUnique = null } = {}) {
   const LW = await chargerLib();
+  try { if (typeof indexedDB !== 'undefined') indexedDB.deleteDatabase('rayle-bookmap'); } catch (e) { /* v13 : ancienne base du Bookmap supprimée de l'appareil (rien ne doit rester en mémoire) */ }
   const actif0 = parId[lireLS(CLE.actif, idDefaut)] ? lireLS(CLE.actif, idDefaut) : idDefaut;
   const opts = { ...OPTS_DEFAUT, ...lireLS(CLE.opts(actif0), {}) };
   const optsPourActif = a => { for (const k of Object.keys(opts)) delete opts[k]; Object.assign(opts, { ...OPTS_DEFAUT, ...lireLS(CLE.opts(a), {}) }); };
@@ -61,7 +62,6 @@ export async function monterVolume({ racine, T = {}, parler = () => {}, idDefaut
       <div class="tpv-unites" role="group" aria-label="Unité">${UNITES_VOLUME.map(u => `<button type="button" data-unite="${u}">${NOM_U[u]}</button>`).join('')}</div>
       <span class="tpv-profil" data-profil title="Profil de l’actif : décide de ce qui est affiché"></span>
       <button type="button" data-fp aria-pressed="false" title="Empreinte (footprint) dans les bougies, quand elles sont assez larges">Footprint</button>
-      <button type="button" data-bookmap aria-pressed="false" title="Bookmap : carte de chaleur de la liquidité du carnet, bulles des grosses transactions">Bookmap</button>
       <span class="tpv-badge" data-badge role="status" tabindex="0" title="Touche pour les détails"></span>
       <span class="tpv-vide"></span>
       <button type="button" data-ancrer title="Touche ensuite une bougie : un VWAP s’y ancre (bandes ±1 et ±2 écarts-types)">Ancrer VWAP</button>
@@ -84,7 +84,7 @@ export async function monterVolume({ racine, T = {}, parler = () => {}, idDefaut
   const zoneGraph = $('[data-graph]'), zoneDroite = $('[data-droite]');
 
   /* ───── graphique ───── */
-  let etiqAxe = null, zonesPrinc = null, chart = null, sBou = null, sVol = null, sMoy = null, sCvd = null, sMfi = null, sRv = null, sMa = null, marqueurs = null, couche = null, sauteRange = false, tempsProfil = 0;
+  let bv = null, cmdBv = null, etiqAxe = null, zonesPrinc = null, chart = null, sBou = null, sVol = null, sMoy = null, sCvd = null, sMfi = null, sRv = null, sMa = null, marqueurs = null, couche = null, sauteRange = false, tempsProfil = 0;
   const temps = t => Math.floor(t / 1000);
   /* pendant l'empreinte, l'échelle des prix suit les bougies seulement (MA200 et VWAP, souvent loin du prix, écraseraient les cases) */
   const horsEchelleFp = original => (S.bougiesFp ? null : original());
@@ -107,6 +107,8 @@ export async function monterVolume({ racine, T = {}, parler = () => {}, idDefaut
     couche = creerCouche(); sBou.attachPrimitive(couche); zonesPrinc = creerZones(); sBou.attachPrimitive(zonesPrinc); etiqAxe = creerEtiquettesAxe(); sBou.attachPrimitive(etiqAxe);
     try { S.ech = creerEchelles({ chart, serie: sBou, hote: zoneGraph, LW, panneau: 0, journalInitial: !!opts.log, surChange: () => { couche && couche.req && couche.req(); } }); } catch (e) { console.warn('[tpv] échelles indisponibles :', e && e.message || e); }
     chart.timeScale().subscribeVisibleLogicalRangeChange(() => { majTempsReel(); if (sauteRange) return; clearTimeout(tempsProfil); tempsProfil = setTimeout(() => { calculerProfil(); couche && couche.req && couche.req(); }, 60); });
+    /* Bougies volume : coloration, zones, fenêtre « Et après ? », bouton à la place de l'ancien Bookmap */
+    try { bv = creerBougiesVolume({ mode: 'volume', chart, conteneur: zoneGraph, lireLS, ecrireLS, temps, bars: () => S.bars, actif: () => S.actif, unite: () => S.unite, serie: () => sBou, serieVol: () => sVol, bloque: () => S.modeAncre }); cmdBv = monterCommandesBv($('.tpv-barre'), bv, { avant: $('[data-badge]') }); } catch (e) { console.warn('[tpv] bougies volume indisponibles :', e && e.message || e); bv = null; cmdBv = { maj() {} }; }
     chart.subscribeClick(p => { if (!p || p.time == null) return; if (S.modeAncre) { ancrerEn(p.time * 1000); return; } if (infoSurCase(p.point, p.time * 1000, true)) return; montrerInfoFleche(p.time * 1000, p.point); });
     chart.subscribeCrosshairMove(p => { legende(p && p.time != null ? p.time * 1000 : null); const boite = $('[data-info]'); if (!p || p.time == null || !p.point) { if (S.survol) { S.survol = false; boite.hidden = true; } return; } if (S.modeAncre) return; if (infoSurCase(p.point, p.time * 1000, false)) S.survol = true; else if (S.survol) { S.survol = false; boite.hidden = true; } });
   }
@@ -180,7 +182,7 @@ export async function monterVolume({ racine, T = {}, parler = () => {}, idDefaut
     if (neuf && opts.reaction !== false) { clearTimeout(S.tReac); S.tReac = setTimeout(() => { calculerReaction(); couche && couche.req && couche.req(); majDroite(); }, 800); }
   }
   function basculerBougies(fp) {
-    if (S.bougiesFp === fp) return; S.bougiesFp = fp;
+    if (S.bougiesFp === fp) return; S.bougiesFp = fp; if (bv) bv.pause(fp);   // empreinte affichée : bougies natives transparentes, sans coloration
     setTimeout(() => { try { sBou.applyOptions(fp ? { upColor: 'rgba(0,0,0,0)', downColor: 'rgba(0,0,0,0)', wickUpColor: 'rgba(0,0,0,0)', wickDownColor: 'rgba(0,0,0,0)', borderVisible: false } : { upColor: COUL.haut, downColor: COUL.bas, wickUpColor: COUL.haut, wickDownColor: COUL.bas, borderVisible: false }); if (!S.ech || S.ech.estAuto()) chart.priceScale('right').applyOptions({ autoScale: true }); } catch (e) { /* graphique fermé */ } }, 0);
   }
   /* survol (souris) ou toucher d'une case : prix, acheteurs, vendeurs, delta, transactions */
@@ -202,6 +204,7 @@ export async function monterVolume({ racine, T = {}, parler = () => {}, idDefaut
   const moyenne = (B, n = 20) => B.map((_, i) => (i < n ? null : B.slice(i - n, i).reduce((s, b) => s + (b.v || 0), 0) / n));
   function peindre(recadrer) {
     const B = S.bars; if (!chart || !B.length) return; sauteRange = true;
+    if (bv) { try { bv.maj(); cmdBv.maj(); } catch (e) { console.warn('[tpv] bougies volume :', e && e.message || e); } }   // AVANT setData : les couleurs viennent des calculs en cache
     sBou.setData(B.map(b => ({ time: temps(b.t), open: b.o, high: b.h, low: b.l, close: b.c })));
     const D = serieDelta(B), R = volumeRelatif(B), moy = moyenne(B);
     sVol.setData(B.map((b, i) => ({ time: temps(b.t), value: b.v || 0, color: R[i] != null && R[i] > 2 ? (D[i] >= 0 ? '#7ee3b0' : '#ff8a8a') : (D[i] >= 0 ? 'rgba(95,184,148,.6)' : 'rgba(216,106,106,.6)') })));
@@ -363,10 +366,10 @@ export async function monterVolume({ racine, T = {}, parler = () => {}, idDefaut
     arreterFlux(); const a = parId[S.actif]; if (!a.live || !S.ouvert) { majBadge(); return; }
     S.live = creerLive(FIN_FOOTPRINT[S.actif] || 1); const iv = { H1: '1h', H4: '4h', J: '1d' }[S.unite], durable = opts.carnetSource, sur = (src, m) => {
       if (!m) return;
-      if (m.type === 'carnet') { if (src !== opts.carnetSource) return; S.book = m; S.chaleur.ajouter(m); if (el.classList.contains('tpv-bm-on')) return;   /* v12 : Bookmap affiché = le graphique caché n'est plus redessiné à chaque message */ majDroite(); couche && couche.req && couche.req(); }
+      if (m.type === 'carnet') { if (src !== opts.carnetSource) return; S.book = m; S.chaleur.ajouter(m); majDroite(); couche && couche.req && couche.req(); }
       else if (m.type === 'trade') {
         if (src === 'Binance' && S.live) {   // l'empreinte suit TOUJOURS Binance (même volume que l'archive), quel que soit le carnet choisi
-          S.live.ajouterTrade(m); if (!el.classList.contains('tpv-bm-on')) demanderDessin();
+          S.live.ajouterTrade(m); demanderDessin();
           if (!S.ratt && a.binance) { S.ratt = creerRattrapage(S.live, a.binance, { surChange: demanderDessin }); S.ratt.demander([Math.floor(m.t / 3600e3) * 3600e3]); }
         }
         if (src !== opts.carnetSource) return; const seuil = lireLS(`rayle_tpv_seuilgros_${S.actif}`, null); if (S.gros.ajouter(m, seuil != null ? () => seuil : seuilGrosses)) majDroite();
@@ -379,7 +382,7 @@ export async function monterVolume({ racine, T = {}, parler = () => {}, idDefaut
   }
   function mettreAJourBougie(b, close) {
     if (!S.bars.length) return; const dern = S.bars[S.bars.length - 1];
-    if (b.t === dern.t) { Object.assign(dern, b); sBou.update({ time: temps(b.t), open: b.o, high: b.h, low: b.l, close: b.c }); const d = deltaBarre(dern); sVol.update({ time: temps(b.t), value: b.v, color: d >= 0 ? 'rgba(95,184,148,.6)' : 'rgba(216,106,106,.6)' }); }
+    if (b.t === dern.t) { Object.assign(dern, b); if (bv) { try { bv.majDerniere(); } catch (e) { /* le flux ne doit jamais casser */ } } sBou.update({ time: temps(b.t), open: b.o, high: b.h, low: b.l, close: b.c }); const d = deltaBarre(dern); sVol.update({ time: temps(b.t), value: b.v, color: d >= 0 ? 'rgba(95,184,148,.6)' : 'rgba(216,106,106,.6)' }); }
     else if (b.t > dern.t) { S.bars.push({ ...b }); sBou.update({ time: temps(b.t), open: b.o, high: b.h, low: b.l, close: b.c }); sVol.update({ time: temps(b.t), value: b.v, color: 'rgba(95,184,148,.6)' }); peindre(false); return; }
     if (close) { calculerFleches(); }
     legende(null); couche && couche.req && couche.req(); clearTimeout(S.tProfil); S.tProfil = setTimeout(() => { calculerProfil(); couche && couche.req && couche.req(); majDroite(); }, 800);
@@ -469,18 +472,10 @@ export async function monterVolume({ racine, T = {}, parler = () => {}, idDefaut
     if (ev.target.closest('[data-effacer-vwap]')) { ecrireLS(CLE.ancres(S.actif, S.unite), []); calculerAnnexes(); return; }
     const r = ev.target.closest('[data-reglages]'); if (r) { const p = $('[data-panneau-reglages]'); p.hidden = !p.hidden; r.setAttribute('aria-expanded', String(!p.hidden)); }
   });
-  /* v12 : Bookmap (module chargé à la première activation). Grisé, avec la raison, pour les actifs sans carnet public gratuit. */
-  let bm = null; const bBm = $('[data-bookmap]');
-  function majBoutonBookmap() { const ok = BOOKMAP_POSSIBLE(S.actif); bBm.disabled = !ok; bBm.setAttribute('aria-disabled', String(!ok)); bBm.title = ok ? 'Bookmap : carte de chaleur de la liquidité du carnet Binance, bulles des grosses transactions (lecture seule)' : RAISON_INDISPONIBLE; if (!ok && bm && bm.estActif()) { bm.desactiver(); } bBm.setAttribute('aria-pressed', String(!!(bm && bm.estActif()))); el.classList.toggle('tpv-bm-on', !!(bm && bm.estActif())); }
-  async function basculerBookmap(on) {
-    if (!BOOKMAP_POSSIBLE(S.actif)) { majBoutonBookmap(); return false; }
-    if (!bm) { const m = await import('./bookmap-ui.js'); bm = m.creerBookmap({ hote: zoneGraph, lireLS, ecrireLS, surChange: () => majBoutonBookmap() }); }
-    const veut = on == null ? !bm.estActif() : !!on; if (veut) await bm.activer(S.actif); else bm.desactiver(); majBoutonBookmap(); return bm.estActif();
-  }
-  bBm.addEventListener('click', () => { basculerBookmap(); });
+  function majBvActif() { if (bv) { bv.actifChange(); cmdBv.maj(); } }
   function changerActif(a) {
     S.actif = a; ecrireLS(CLE.actif, a); optsPourActif(a); S.etiqIct = []; S.etiqProfil = []; S.etiqReac = []; S.etiqGros = []; S.lignesIct = S.lignesIct || []; if (S.ech && S.ech.estJournal() !== !!opts.log) S.ech.journal(!!opts.log);
-    arreterFlux(); if (bm && bm.estActif()) bm.desactiver(); majBoutonBookmap(); if (panneau) panneau.changerActif(); synchroUI(); charger();
+    arreterFlux(); if (bv) { bv.actifChange(); cmdBv.maj(); } if (panneau) panneau.changerActif(); synchroUI(); charger();
   }
   el.addEventListener('change', ev => {
     const t = ev.target;
@@ -509,11 +504,10 @@ export async function monterVolume({ racine, T = {}, parler = () => {}, idDefaut
   const pocsNusTexte = () => { const L = ['semaine', 'mois'].flatMap(p => pocsNus(S.bars, p, { max: 3 }).map(n => ({ ...n, p }))); opts.nus = true; sauverOpts(); synchroUI(); calculerAnnexes(); return L.length ? 'POC nus : ' + L.map(n => `${prix(S.actif, n.prix)} (${n.p})`).join(', ') + '.' : 'Aucun POC nu sur cette période.'; };
   function ouvrirMode(o, { actif, unite } = {}) {
     S.ouvert = o; el.hidden = !o; document.documentElement.classList.toggle('tpv-actif', !!o);
-    if (o) { S.cache.clear(); if (actif && parId[actif] && actif !== S.actif) { S.actif = actif; ecrireLS(CLE.actif, actif); optsPourActif(actif); if (panneau) panneau.changerActif(); } if (unite && UNITES_VOLUME.includes(unite)) { S.unite = unite; ecrireLS(CLE.unite, unite); } synchroUI(); if (!S.charge || (actif && S.donnees == null)) charger(); else { demarrerFlux(); majBadge(); peindre(false); } }
-    else { arreterFlux(); if (bm && bm.estActif()) bm.desactiver(); majBoutonBookmap(); }
-    if (o) majBoutonBookmap();
+    if (o) { S.cache.clear(); if (actif && parId[actif] && actif !== S.actif) { S.actif = actif; ecrireLS(CLE.actif, actif); optsPourActif(actif); majBvActif(); if (panneau) panneau.changerActif(); } if (unite && UNITES_VOLUME.includes(unite)) { S.unite = unite; ecrireLS(CLE.unite, unite); } synchroUI(); if (!S.charge || (actif && S.donnees == null)) charger(); else { demarrerFlux(); majBadge(); peindre(false); } }
+    else { arreterFlux(); if (bv) bv.fermerFenetre(); }
   }
-  panneau = monterPanneau({ zone: zoneDroite, LW, S, opts, esc, nf, compact, sgn, prix, tH, tFr, parId, NOM_U, lireLS, ecrireLS, sauverOpts: () => sauverOpts(), creerEchelles, seuilGrosses, niveauProche, ageDonnee,
+  panneau = monterPanneau({ zone: zoneDroite, LW, S, opts, bv: () => bv, esc, nf, compact, sgn, prix, tH, tFr, parId, NOM_U, lireLS, ecrireLS, sauverOpts: () => sauverOpts(), creerEchelles, seuilGrosses, niveauProche, ageDonnee,
     donneesJ: () => donneesJ(), donneesH1: () => donneesH1(), detailsHtml, surIct: (A, force) => { if (force) majIctPrincipal(); } });
   S.fp = creerStoreFootprint({ surChange: () => { couche && couche.req && couche.req(); majBadge(); } }); S.fp.chargerIndex();
   synchroUI(); majBadge();
@@ -523,8 +517,8 @@ export async function monterVolume({ racine, T = {}, parler = () => {}, idDefaut
     echelle: () => (S.ech ? S.ech.etat() : null), echelleAuto: () => { if (S.ech) S.ech.auto(); }, echelleV: (f, y) => { if (S.ech) S.ech.zoomerV(f, y == null ? zoneGraph.clientHeight * 0.4 : y); },
     zoomer: (n = 8, decalage = 0) => { const L = S.bars.length; if (!chart || !L) return false; sauteRange = false; chart.timeScale().setVisibleLogicalRange({ from: L - n - decalage, to: L + 1 - decalage }); return true; },
     definirOpt: (k, v) => { opts[k] = v; sauverOpts(); synchroUI(); peindre(false); },
-    ancrerDerniere: () => { if (S.bars.length) ancrerEn(S.bars[S.bars.length - 1].t); return 'VWAP ancré sur la dernière bougie.'; }, definir: ({ actif, unite }) => { if (actif && parId[actif] && actif !== S.actif) { S.actif = actif; ecrireLS(CLE.actif, actif); optsPourActif(actif); if (panneau) panneau.changerActif(); } if (unite && UNITES_VOLUME.includes(unite)) { S.unite = unite; ecrireLS(CLE.unite, unite); } synchroUI(); return charger(); },
-    bookmap: () => (bm ? bm.etat() : null), bookmapActiver: on => basculerBookmap(on), bookmapObjet: () => bm, bookmapPossible: () => BOOKMAP_POSSIBLE(S.actif),
+    ancrerDerniere: () => { if (S.bars.length) ancrerEn(S.bars[S.bars.length - 1].t); return 'VWAP ancré sur la dernière bougie.'; }, definir: ({ actif, unite }) => { if (actif && parId[actif] && actif !== S.actif) { S.actif = actif; ecrireLS(CLE.actif, actif); optsPourActif(actif); majBvActif(); if (panneau) panneau.changerActif(); } if (unite && UNITES_VOLUME.includes(unite)) { S.unite = unite; ecrireLS(CLE.unite, unite); } synchroUI(); return charger(); },
+    bougiesVolume: () => (bv ? bv.etat() : null), bv: () => bv,
     etat: () => ({ canon: S.canon || null, ouvert: S.ouvert, dernier: S.bars.length ? S.bars[S.bars.length - 1].c : null, avecVolume: S.bars.filter(b => b.v > 0).length, ecart: S.ecart || null, actif: S.actif, unite: S.unite, bougies: S.bars.length, charge: S.charge, erreur: S.erreur, poc: S.prof && S.prof.poc.prix, val: S.prof && S.prof.val, vah: S.prof && S.prof.vah, hvn: S.prof ? S.prof.hvn.length : 0, niveaux: S.niveaux.length, reactionTous: S.reactionTous ? S.reactionTous.length : 0, onglet: panneau ? panneau.onglet() : null, profil: profilDe(S.actif).id, etiquettes: etiqAxe ? etiqAxe.taille() : 0, reaction: S.reaction.map(n => ({ prix: n.prix, reactions: n.reactions, force: n.force, forceRel: n.forceRel, sources: n.sources, unite: n.unite })), empiles: S.zonesEmp.size, fleches: S.fleches.length, flechesMA: S.flechesMA.length, deltaReel: S.donnees && S.donnees.deltaReel, source: S.donnees && S.donnees.source,
       flux: Object.fromEntries(Object.entries(S.etatFlux).map(([k, v]) => [k, v.etat])), carnet: !!S.book, murs: S.book ? murs(S.book).length : 0, gros: S.gros.liste().length, badge: $('[data-badge]').textContent, empreintes: S.live ? S.live.nHeures() : 0, fp: { index: !!(S.fp && S.fp.indexPret()), erreur: S.fp && S.fp.erreurIndex(), info: S.fp && S.fp.info(S.actif) && { debut: S.fp.info(S.actif).debut, dernier: S.fp.info(S.actif).dernier }, rendu: S.rendu ? { actif: S.rendu.actif, esp: Math.round(S.rendu.esp), pas: S.rendu.pas, px: S.rendu.px, ms: S.rendu.ms, msMoy: S.msN ? S.msSomme / S.msN : null, msMax: S.msMax, bougies: S.rendu.lignes ? [...S.rendu.lignes.values()].filter(x => x.A).length : 0, sansEmpreinte: S.rendu.lignes ? [...S.rendu.lignes.values()].filter(x => !x.A).length : 0, partielles: S.rendu.lignes ? [...S.rendu.lignes.values()].filter(x => x.res && x.res.partielle).length : 0 } : null, chargement: S.fp ? S.fp.chargement() : 0, rattrapage: S.ratt ? { ...S.ratt.etat, file: S.ratt.fileLongueur(), heures: S.live ? S.live.nCompletes() : 0 } : null }, panneaux: chart ? chart.panes().length : 0, lignes: S.lignes.length, series: S.seriesVwap.length }) };
 }

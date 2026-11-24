@@ -38,7 +38,7 @@ const snap = { t: 5, b: Array.from({ length: 30 }, (_, i) => [1e12 + i * 3600e3,
 v(r2.deltaReel === false && r2.bougies.length >= 7 && r2.bougies[0].v === 50 * 4 || r2.bougies.length > 0, 'Nasdaq : futures NQ via l’instantané, H4 construit, delta estimé');
 const r3 = await chargerBarres('or', 'J', { source: 'ref', fetchFn: async () => ({ ok: true, json: async () => snap }) }); v(r3.source === 'ref' && r3.deltaReel === false, 'Or, option COMEX : volume de référence institutionnel, delta estimé');
 v(/Binance XAUUSDT/.test(badgeSource('or')) && /delta réel/.test(badgeSource('or')) && /COMEX GC/.test(badgeSource('or', 'ref')) && /delta estimé/.test(badgeSource('or', 'ref')) && /futures CME/.test(badgeSource('us100')) && /delta estimé/.test(badgeSource('eurusd')), 'badges : source, type de volume, delta réel ou estimé');
-v(ACTIFS_VOLUME.length === 8 && ACTIFS_VOLUME.filter(a => a.carnet).map(a => a.id).join() === 'or,btc,sol' && !parId.us100.live, 'carnet seulement pour l’or, le Bitcoin et Solana');
+v(ACTIFS_VOLUME.length === 9 && ACTIFS_VOLUME.filter(a => a.carnet).map(a => a.id).join() === 'or,btc,sol' && !parId.us100.live, 'carnet seulement pour l’or, le Bitcoin et Solana');
 let e = null; try { await chargerBarres('doge', 'H1'); } catch (x) { e = x; } v(e && /inconnu/.test(e.message), 'actif inconnu : erreur claire');
 v(ageDonnee(0, 5 * 60000) === 'il y a 5 min' && ageDonnee(null) === 'âge inconnu', 'âge des données');
 const UB = urlsBinance('or', '1h'); v(UB.marche.endsWith('/market/stream?streams=xauusdt@aggTrade/xauusdt@kline_1h') && UB.public.endsWith('/public/stream?streams=xauusdt@depth20@100ms') && urlsBinance('us100', '1h') === null, 'adresses Binance actuelles : /market (transactions + bougie) et /public (carnet)');

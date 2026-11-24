@@ -9,6 +9,8 @@ import { etiquettesAxe as etiqIct } from './ict-affichage.js';
 import { profilDe, NOM_ONGLET, ongletInitial } from './profils-actifs.js';
 import { profil, serieDelta, cvd, deltaReel } from './volume-calcul.js';
 import { construireHtf, placerEtiquettes, NB_DEFAUT, NOMS as NOMS_HTF } from './htf-calcul.js';
+import { panneauHtml as panneauBvHtml } from './bougies-volume-texte.js';
+import { CLES as CLES_BV, ALERTES_DEFAUT } from './bougies-volume-ui.js';
 
 export function monterPanneau(ctx) {
   const { zone, LW, S, opts, esc, nf, compact, sgn, prix, tH, parId, NOM_U } = ctx, $ = s => zone.querySelector(s);
@@ -26,6 +28,7 @@ export function monterPanneau(ctx) {
       <canvas class="tpv-jour" data-jour width="250" height="300" aria-label="Bougie du jour en grand"></canvas>
       <div data-jour-texte class="tpv-jour-texte"></div>
     </div>
+    <div class="tpv-pan bv-pan" data-pan="bv" hidden></div>
     <details class="tpv-details" data-details><summary>Détails</summary><div data-details-corps></div></details>`;
   const cleOnglet = a => `rayle_tpv_onglet_${a}`, cleMemo = (k, a) => `rayle_tpv_${k}_${a}`;
   let onglet = ongletInitial(S.actif, ctx.lireLS(cleOnglet(S.actif), null));
@@ -33,7 +36,7 @@ export function monterPanneau(ctx) {
   /* ───── onglets ───── */
   function dessinerOnglets() {
     const p = profilDe(S.actif); $('[data-onglets]').innerHTML = p.onglets.map(k => `<button type="button" role="tab" data-onglet="${k}" aria-selected="${k === onglet}">${NOM_ONGLET[k]}</button>`).join('');
-    for (const k of ['carnet', 'ict', 'jour']) $(`[data-pan="${k}"]`).hidden = k !== onglet;
+    for (const k of ['carnet', 'ict', 'jour', 'bv']) $(`[data-pan="${k}"]`).hidden = k !== onglet;
   }
   function choisir(k, { memoriser = true } = {}) {
     const p = profilDe(S.actif); if (!p.onglets.includes(k)) k = p.droite; onglet = k; if (memoriser) ctx.ecrireLS(cleOnglet(S.actif), k); dessinerOnglets(); rendre();
@@ -162,16 +165,24 @@ export function monterPanneau(ctx) {
   function rendreDetails() { const d = $('[data-details-corps]'); if (!d) return; const h = ctx.detailsHtml(); if (d.dataset.h !== h) { d.innerHTML = h; d.dataset.h = h; } }
 
   /* ───── rendu général ───── */
-  function rendre() { if (onglet === 'carnet') rendreCarnet(); else if (onglet === 'ict') demanderIct(); else rendreJour(); rendreDetails(); }
+  /* ───── Bougies volume : tableau descriptif (aucun signal) ───── */
+  function rendreBv() {
+    const c = $('[data-pan="bv"]'); if (!c || c.hidden) return; const bv = ctx.bv && ctx.bv(); let d = bv ? bv.donnees() : null; const al = { ...ALERTES_DEFAUT, ...(ctx.lireLS(CLES_BV.alertes, ALERTES_DEFAUT) || {}) };
+    const h = panneauBvHtml({ actif: S.actif, unite: S.unite, B: S.charge && d ? d.B : [], calc: d ? d.calc : null, seuil: d ? d.seuil : 2, pas: d ? d.pas : 4 * 3600e3, alertes: al, fmtPrix: v => prix(S.actif, v) });
+    if (c.dataset.h !== h) { const y = zone.scrollTop; c.innerHTML = h; c.dataset.h = h; zone.scrollTop = y; }
+  }
+  function rendre() { if (onglet === 'carnet') rendreCarnet(); else if (onglet === 'ict') demanderIct(); else if (onglet === 'bv') rendreBv(); else rendreJour(); rendreDetails(); }
 
   /* ───── événements ───── */
   zone.addEventListener('click', ev => {
     const o = ev.target.closest('[data-onglet]'); if (o) { choisir(o.dataset.onglet); return; }
+    const cb = ev.target.closest('[data-bv-centrer]'); if (cb) { const bv = ctx.bv && ctx.bv(); if (bv) bv.centrer(+cb.dataset.bvCentrer); return; }
     if (ev.target.closest('[data-seuil-auto]')) { ctx.ecrireLS(cleMemo('seuilgros', S.actif), null); const i = $('[data-seuil-gros]'); if (i) i.value = ''; rendreCarnet(); return; }
     if (ev.target.closest('[data-ict-principal]')) { opts.ictPrincipal = !opts.ictPrincipal; ctx.sauverOpts(); synchroIct(); ctx.surIct(null, true); return; }
   });
   zone.addEventListener('change', ev => {
     const t = ev.target;
+    if (t.matches('[data-bv-alerte]')) { const al = { ...ALERTES_DEFAUT, ...(ctx.lireLS(CLES_BV.alertes, ALERTES_DEFAUT) || {}), [t.dataset.bvAlerte]: t.checked }; ctx.ecrireLS(CLES_BV.alertes, al); return; }
     if (t.matches('[data-palier]')) { ctx.ecrireLS(cleMemo('palier', S.actif), +t.value); rendreCarnet(); return; }
     if (t.matches('[data-cumul]')) { ctx.ecrireLS('rayle_tpv_cumul', t.checked); rendreCarnet(); return; }
     if (t.matches('[data-seuil-gros]')) { const v = parseFloat(t.value); ctx.ecrireLS(cleMemo('seuilgros', S.actif), Number.isFinite(v) && v > 0 ? v : null); rendreCarnet(); return; }
@@ -181,6 +192,6 @@ export function monterPanneau(ctx) {
     if (t.matches('[data-ict]')) { opts.ict = { ...ICT_DEFAUT, ...(opts.ict || {}), [t.dataset.ict]: t.checked }; ctx.sauverOpts(); majIct(); ctx.surIct(null, true); }
   });
   changerActif(); dessinerOnglets();
-  return { rendre, rendreCarnet, majIct: demanderIct, rendreJour, choisir, changerActif, onglet: () => onglet, rendreDetails, synchroIct, dessinerOnglets,
+  return { rendre, rendreBv, rendreCarnet, majIct: demanderIct, rendreJour, choisir, changerActif, onglet: () => onglet, rendreDetails, synchroIct, dessinerOnglets,
     dessinerHtf, detruire() { /* rien à détruire : canvas */ } };
 }

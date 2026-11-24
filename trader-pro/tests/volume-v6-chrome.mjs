@@ -47,7 +47,7 @@ if (blocs.includes('a2')) {
   }
 }
 if (blocs.includes('a3')) {
-  for (const [a, onglets, defaut] of [['btc', 'carnet,ict,jour', 'carnet'], ['or', 'carnet,ict,jour', 'carnet'], ['us100', 'ict,jour', 'ict'], ['eurusd', 'ict,jour', 'ict']]) {
+  for (const [a, onglets, defaut] of [['btc', 'carnet,ict,jour,bv', 'carnet'], ['or', 'carnet,ict,jour,bv', 'carnet'], ['us100', 'ict,jour,bv', 'ict'], ['eurusd', 'ict,jour,bv', 'ict']]) {
     await choisir(a, 'J'); await w(1500); const d = await p.evaluate(() => ({ t: [...document.querySelectorAll('.tpv [data-onglet]')].map(b => b.dataset.onglet).join(), on: window.__tpVolume.etat().onglet, profil: document.querySelector('[data-profil]').textContent, fp: !document.querySelector('[data-fp]').hidden }));
     verif(d.t === onglets, 'A3 ' + a + ' : onglets ' + d.t + ' (profil ' + d.profil + ')'); verif(d.on === defaut, 'A3 ' + a + ' : onglet par défaut ' + defaut + ' (' + d.on + ')'); verif(d.fp === (a === 'btc' || a === 'or'), 'A3 ' + a + ' : bouton Footprint ' + (d.fp ? 'visible' : 'masqué'));
   }

@@ -22,6 +22,7 @@ import { SETUPS, NOM_SETUP } from '../portefeuille/journal-setups.js';
 import { CONTRATS_XTB } from './aides.js';
 import { contexteEvenement, libelleContexte } from './contexte.js';
 import { barresDaily } from './fleches-registre.js';
+import { creerCalcul as creerCalculBv, alertesCloture as alertesBv, PAS as PAS_BV } from '../volume/bougies-volume-calcul.js';
 
 const ID_PRO = { OR: 'or', NASDAQ: 'us100', SP500: 'us500', BTC: 'btc', SOL: 'sol', DOGE: 'doge' };
 const NOMS = { or: 'Or', us100: 'Nasdaq 100', us500: 'S&P 500', btc: 'Bitcoin', sol: 'Solana', doge: 'Dogecoin' };
@@ -240,7 +241,7 @@ export async function monterPro(T) {
     const n = ++E.seq;
     try { const r = await lireActifPro(id, { delai: 8000 }); if (n !== E.seq) return; E.D = r.donnees; E.meta = r; E.raison = null; E.A = analyseDe(id, E.D); E.fleches = E.A.reg; }
     catch (e) { E.raison = 'Données H4 / Jour indisponibles : ' + (e && e.message || e) + ' (le robot publie ces séries toutes les 30 minutes). Les flèches déjà confirmées restent affichées.'; E.A = null; try { E.fleches = lireRegistre(id); } catch (e2) { /* aucune */ } }
-    E.cleFleches = null; dessiner(true); rendrePanneau(); alerter(); if (E.dess) E.dess.evaluer(true);
+    E.cleFleches = null; dessiner(true); rendrePanneau(); alerter(); alerterBv(); if (E.dess) E.dess.evaluer(true);
     enrichirLong(n);
   }
   /* v4 : la MA200 et ses flèches sont recalculées sur l'historique COMPLET (Daily jusqu'à 40 ans, H4 8 ans) : l'historique long (recalé sur le cours direct) est ajouté AVANT l'instantané.
@@ -348,9 +349,31 @@ export async function monterPro(T) {
   bStats.addEventListener('click', () => ouvrirStats(!(E.stats && !E.stats.hidden)));
   chargerStats().then(S => { E.statsData = S; if (S && !S.actifs[E.statsActif]) E.statsActif = 'or'; E.cleFleches = null; dessiner(true); rendreStats(); });
 
+  /* ───── Bougies volume (v13) : même repérage que dans le mode Volume, désactivé par défaut en Classique (interrupteur à côté du bouton MA200) ───── */
+  try {
+    const m = await import('../volume/bougies-volume-ui.js');
+    if (!document.querySelector('link[data-tpv]')) { const l = document.createElement('link'); l.rel = 'stylesheet'; l.href = new URL('../volume/volume.css', import.meta.url).href; l.dataset.tpv = '1'; document.head.appendChild(l); }
+    E.bv = m.creerBougiesVolume({ mode: 'classique', chart: graph.chart(), conteneur: graph.conteneur(), lireLS: lire, ecrireLS: ecrire, temps, bars: () => T.moteur.serie() || [], actif: () => id || '', unite: () => T.moteur.S.periode, serie: () => graph.serie(), serieVol: () => null });
+    E.bvCmd = m.monterCommandes(bHJ.parentNode || document.body, E.bv, { avant: bHJ });
+    E.bvTic = setInterval(() => { try { E.bv.maj(); E.bvCmd.maj(); } catch (e) { /* jamais bloquant */ } }, 1500);
+  } catch (e) { console.warn('[tp] bougies volume :', e && e.message || e); E.bv = null; }
+  /* alerte de Rayle (voix) + Telegram : DÉSACTIVÉE par défaut (réglage dans l'onglet « Bougies volume » du mode Volume), seulement quand une bougie à volume EXTRÊME se clôture en H4 ou Daily */
+  function alerterBv() {
+    try {
+      if (!id || !E.D) return; const al = { voix: false, telegram: false, ...(lire('rayle_bv_alertes', {}) || {}) }, vus = lire('rayle_bv_vus', null), L = [];
+      for (const [u, B] of [['H4', E.D.h4], ['J', barresDaily(id, E.D.j)]]) { if (!B || B.length < 60) continue; L.push(...alertesBv(B, creerCalculBv(id).maj(B), { actif: id, unite: u, pas: PAS_BV[u] })); }
+      const deja = new Set(vus || []); ecrire('rayle_bv_vus', [...new Set([...deja, ...L.map(x => x.cle)])].slice(-200));
+      if (vus == null || (!al.voix && !al.telegram)) return;   // premier passage : on note tout comme déjà vu
+      for (const x of L.filter(x => !deja.has(x.cle)).slice(0, 2)) {
+        if (al.voix) { parler(x.texte); try { if (T.notifier) T.notifier(x.texte, { niveau: 'info', dit: false, raison: 'bougie volume extrême' }); } catch (e2) { /* */ } }
+        if (al.telegram) { try { if (T.envoyerTelegram) T.envoyerTelegram(x.texte + ' · lecture seule, aucun ordre'); } catch (e2) { /* */ } }
+      }
+    } catch (e) { /* une alerte ne doit jamais casser le terminal */ }
+  }
+
   /* ───── cycle ───── */
   await charger(); majSpot(); const spot = setInterval(majSpot, 30000);
   const suivi = setInterval(() => dessiner(), 1500), maj = setInterval(() => { if (!document.hidden) charger(); }, 120000);
-  window.addEventListener('pagehide', () => { clearInterval(suivi); clearInterval(maj); clearInterval(spot); });
-  return { graphe: () => graph, dessins: () => E.dess, aides: () => E.aides, stats: () => ({ charge: !!E.statsData, actifs: E.statsData ? Object.keys(E.statsData.actifs) : [], ouvert: !!(E.stats && !E.stats.hidden) }), ouvrirStats, charger, majSpot, dessiner: () => dessiner(true), fleches: () => E.fleches.slice(), sens: () => (E.A && E.A[srcUnite(uniteAffichee())] ? E.A[srcUnite(uniteAffichee())].sens.map(x => ({ ...x })) : []), fond: () => ({ n: E.fondN || 0, segments: E.fondN ? (E.fondSegs || 0) : 0, sens: E.fondSens ?? null }), infos: () => [...(E.infos || new Map()).entries()].map(([t, x]) => ({ time: t, texte: x.texte })), marqueurs: () => (E.M || []).map(m => ({ ...m })), maPoints: () => (E.series.ma ? E.series.ma.data() : []), maInfo: () => (E.ma ? { ...E.ma } : null), reglages: () => JSON.parse(JSON.stringify(E.reglages)), etat: () => ({ id, details: E.details, fleches: E.fleches.length, marques: E.marques || 0, ma: Object.keys(E.series) }), ouvrirPanneau, ouvrirDonnees, dashboard: () => E.dash, appliquerDetails };
+  window.addEventListener('pagehide', () => { clearInterval(suivi); clearInterval(maj); clearInterval(spot); clearInterval(E.bvTic); });
+  return { bougiesVolume: () => (E.bv ? E.bv.etat() : null), bv: () => E.bv, alerterBv, graphe: () => graph, dessins: () => E.dess, aides: () => E.aides, stats: () => ({ charge: !!E.statsData, actifs: E.statsData ? Object.keys(E.statsData.actifs) : [], ouvert: !!(E.stats && !E.stats.hidden) }), ouvrirStats, charger, majSpot, dessiner: () => dessiner(true), fleches: () => E.fleches.slice(), sens: () => (E.A && E.A[srcUnite(uniteAffichee())] ? E.A[srcUnite(uniteAffichee())].sens.map(x => ({ ...x })) : []), fond: () => ({ n: E.fondN || 0, segments: E.fondN ? (E.fondSegs || 0) : 0, sens: E.fondSens ?? null }), infos: () => [...(E.infos || new Map()).entries()].map(([t, x]) => ({ time: t, texte: x.texte })), marqueurs: () => (E.M || []).map(m => ({ ...m })), maPoints: () => (E.series.ma ? E.series.ma.data() : []), maInfo: () => (E.ma ? { ...E.ma } : null), reglages: () => JSON.parse(JSON.stringify(E.reglages)), etat: () => ({ id, details: E.details, fleches: E.fleches.length, marques: E.marques || 0, ma: Object.keys(E.series) }), ouvrirPanneau, ouvrirDonnees, dashboard: () => E.dash, appliquerDetails };
 }

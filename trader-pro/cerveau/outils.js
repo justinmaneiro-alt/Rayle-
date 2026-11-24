@@ -106,7 +106,27 @@ async function etat_des_donnees() {
   catch (e) { return sans('état des données illisible (' + String(e.message || e).slice(0, 80) + ')'); }
 }
 
-export const OUTILS = { prix_et_tendance, niveaux, carnet_et_volume, marches, mes_actifs, investissement, portefeuille_et_risque, couverture, etat_des_donnees };
+/* ───── 3 bis. bougies_volume : le tableau « Bougies volume » du terminal (statistiques descriptives, jamais un signal) ───── */
+async function bougies_volume({ actif, unite = 'H4', seuil = 2 } = {}) {
+  const BV = await import('../volume/bougies-volume-calcul.js'), id = idActif(actif);
+  if (!id || !BV.volumeDisponible(id)) return sans(BV.TEXTE_INDISPO + ' (disponible pour : or, Nasdaq 100, S&P 500, Bitcoin, Solana, pétrole)');
+  const u = ['H1', 'H4', 'J'].includes(unite) ? unite : /^(d|j)/i.test(String(unite)) ? 'J' : 'H4', sd = BV.SEUILS.includes(+seuil) ? +seuil : BV.SEUIL_DEFAUT, pas = BV.PAS[u];
+  let B = null, origine = null;
+  try { const w = typeof window !== 'undefined' ? window : null, V = w && (w.__tpVolume || null); const bv = V && V.appel ? V.appel('bv') : null; if (bv && bv.donnees) { const d = bv.donnees(); if (d.actif === id && d.unite === u && d.B.length >= 60) { B = d.B; origine = 'terminal Volume ouvert (mêmes bougies que l’écran)'; } } } catch (e) { B = null; }
+  if (!B) {
+    try {
+      const { chargerBarres } = await import('../volume/volume-donnees.js'), c = await chargerBarres(id, u); B = c.bougies; origine = 'données du mode Volume (' + c.source + ')';
+      try { const { histoLong } = await import('../terminal/histo-long.js'), L = await histoLong.avant(id, u, B[0].t, { J: 40, H4: 8, H1: 3 }[u]); if (L && L.bougies.length && Math.abs(L.bougies[L.bougies.length - 1].c / B[0].o - 1) < 0.1) { B = L.bougies.concat(B); origine += ' + historique long'; } } catch (e) { /* source récente seule */ }
+    } catch (e) { return sans('volume de ' + id + ' injoignable (' + String(e.message || e).slice(0, 80) + ')'); }
+  }
+  if (!B || B.length < 60 || !B.some(b => b.v > 0)) return sans('pas assez de bougies avec volume pour ' + id + ' en ' + u);
+  const calc = BV.creerCalcul(id).maj(B), T = BV.tableau(B, calc, { seuil: sd, pas }), ligne = x => ({ nombre: x.n, mesurablesA5: x.n5, echantillonTropPetit: x.petit, continuationA5Pct: x.petit ? null : arr(x.cont5, 0), retournementA5Pct: x.petit ? null : arr(x.ret5, 0), mouvementMoyenA5Atr: x.petit ? null : arr(x.moy5, 2), mouvementMoyenA10Atr: x.petit || x.n10 < BV.MIN_CAS ? null : arr(x.moy10, 2) });
+  return { actif: id, nom: ACTIF_PAR_ID[id] ? ACTIF_PAR_ID[id].nom : id, unite: u, seuilFortVolume: sd, bougiesAnalysees: B.length, origine, achatFort: ligne(T.lignes.achatFort), venteForte: ligne(T.lignes.venteForte), achatExtreme: ligne(T.lignes.achatExtreme), venteExtreme: ligne(T.lignes.venteExtreme),
+    parContexte: { finDeMouvement: ligne(T.contexte.fin), sortieDeRange: ligne(T.contexte.range), milieuDeMouvement: ligne(T.contexte.milieu) }, parPositionMa200: { auDessus: ligne(T.ma.dessus), sous: ligne(T.ma.dessous) },
+    resumeAdire: BV.resumeParle(T, { actif: id, unite: u, seuil: sd }), regles: 'Mouvement en ATR dans le sens de la bougie (positif = continuation). Moins de ' + BV.MIN_CAS + ' cas : échantillon trop petit, aucun pourcentage. Statistiques descriptives sur l’historique affiché, pas un signal : ne rien promettre.' };
+}
+
+export const OUTILS = { prix_et_tendance, niveaux, carnet_et_volume, bougies_volume, marches, mes_actifs, investissement, portefeuille_et_risque, couverture, etat_des_donnees };
 /* v10 : outils de l'analyste (manuel, analyse complète, marché global, lecture du graphique) */
 Object.assign(OUTILS, creerAnalyste({ OUTILS, idActif, pro, dec, dateIso, sans, manque, norm }).outils);
 const A_ENUM = ['or', 'us100', 'us500', 'btc', 'sol', 'dxy'];
@@ -114,6 +134,7 @@ export const DECLARATIONS = [
   { name: 'prix_et_tendance', description: 'Prix actuel, variation, MA200 et position par rapport à elle, tendance Daily/H4 et alignement, régime de marché (tendance ou range), dernières flèches (MA200, niveaux, volume). À appeler pour tout « point sur… », « où en est… », « est-ce haussier ? ».', parameters: { type: 'object', properties: { actif: { type: 'string', description: 'or, us100 (Nasdaq), us500 (S&P 500), btc (Bitcoin), sol (Solana), dxy (dollar)', enum: A_ENUM }, unite: { type: 'string', description: 'H1, H4 (défaut) ou J (Daily)', enum: ['H1', 'H4', 'J'] } }, required: ['actif'] } },
   { name: 'niveaux', description: 'Niveaux importants : mes niveaux tracés sur le graphique, volume (POC, VAH, VAL, zones de volume), repères ICT (PDH/PDL, PWH/PWL, FVG) et bougies Weekly.', parameters: { type: 'object', properties: { actif: { type: 'string', enum: A_ENUM } }, required: ['actif'] } },
   { name: 'carnet_et_volume', description: 'Volume relatif, CVD, et — si le terminal Volume est ouvert sur l’actif — déséquilibre du carnet, gros ordres et lecture du terminal (MFI, delta).', parameters: { type: 'object', properties: { actif: { type: 'string', enum: A_ENUM } }, required: ['actif'] } },
+  { name: 'bougies_volume', description: 'Tableau « Bougies volume » du terminal : après les bougies à fort volume (≥ 2 fois la médiane des 50 précédentes) et à volume extrême (≥ 3), combien de cas, % de continuation et de retournement à +5 bougies, mouvement moyen en ATR, par contexte et par position vs MA200. Pour « qu’est-ce qui se passe après les grosses bougies de volume sur l’or en H4 ? ». Chiffres et taille de l’échantillon à dire, sans rien promettre.', parameters: { type: 'object', properties: { actif: { type: 'string', description: 'or, us100, us500, btc, sol, petrole', enum: [...A_ENUM, 'petrole'] }, unite: { type: 'string', enum: ['H1', 'H4', 'J'] } }, required: ['actif'] } },
   { name: 'marches', description: 'Actualités récentes, annonces économiques du jour, rapport COT, score de marché. Sans actif : actualités et annonces générales.', parameters: { type: 'object', properties: { actif: { type: 'string', enum: A_ENUM } } } },
   { name: 'mes_actifs', description: 'Verdicts « cher / pas cher » par horizon (1–10 jours, 1–6 mois, 1–3 ans, 5–10 ans) et leurs raisons, pour l’or, le Bitcoin, Solana, le Nasdaq 100, le S&P 500, le pétrole.', parameters: { type: 'object', properties: { actif: { type: 'string', description: 'or, btc, sol, us100, us500, petrole' }, horizon: { type: 'string', enum: ['tactique', 'swing', 'moyen', 'long'] } }, required: ['actif'] } },
   { name: 'investissement', description: 'Fiche et scores d’une action, d’un fonds ou d’un secteur (fenêtre Investissement) : « Airbus est-il attractif ? », « actions européennes à 1–3 ans ».', parameters: { type: 'object', properties: { recherche: { type: 'string', description: 'la demande en français, avec le nom de la valeur' } }, required: ['recherche'] } },

@@ -29,6 +29,8 @@ Journal de la session autonome du 22/11/2026 (instructions : `prompt-rayle-v12-c
 
 ## Phase 2 — Bookmap (terminal Volume)
 
+> **Retiré en v13** : le bouton Bookmap, la carte de chaleur et leurs flux sont remplacés par « Bougies volume » (voir docs/rayle-v13.md). Le texte ci-dessous est gardé comme historique.
+
 **Utilisation.** Mode Volume → bouton **Bookmap** (barre du haut, à côté de Footprint). Grisé, avec l'infobulle qui explique pourquoi, pour le Nasdaq, le S&P 500, EUR/USD, USD/CHF et le dollar (pas de carnet public gratuit). Disponible pour **Bitcoin, Solana et l'or** (perpétuels Binance).
 
 **Ce qui est affiché** (un canvas 2D qui remplace le graphique en bougies tant que Bookmap est allumé ; le panneau de droite du Volume reste) :
