@@ -2,7 +2,9 @@ worker/
 .claude/
 .serena/
 CLAUDE.md
-docs/
+docs/*
+!docs/outils-rayle.md
+!docs/connaissances/
 
 # Clés et secrets : jamais dans le dépôt
 .env
