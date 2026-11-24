@@ -8,7 +8,7 @@ on:
   workflow_dispatch:
   push:
     branches: [main]
-    paths: ['outils-donnees/**', '.github/workflows/donnees.yml', 'app-pc/terminal-donnees.mjs', 'app-pc/terminal-sources.mjs', 'marches/donnees/**', 'trader-pro/commun/analyse.js']
+    paths: ['outils-donnees/**', '.github/workflows/donnees.yml', 'app-pc/terminal-donnees.mjs', 'app-pc/terminal-sources.mjs', 'marches/donnees/**', 'trader-pro/commun/analyse.js', 'trader-pro/lecture/**']
 concurrency:
   group: donnees-boucle
   cancel-in-progress: false
@@ -33,6 +33,8 @@ jobs:
       - name: "Boucle de rafraîchissement (v4 : le déclencheur « schedule » de GitHub ne passe en pratique que toutes les 4 à 12 h ; on reste donc en vie ~5 h et on republie toutes les 5 minutes, puis on se relance soi-même)"
         env:
           JETON: ${{ github.token }}
+          LECTURE_URL: ${{ secrets.LECTURE_URL }}
+          LECTURE_CODE: ${{ secrets.LECTURE_CODE }}
         run: |
           DEBUT=$(date +%s); FIN=$((DEBUT + 17400)); N=0
           while true; do
@@ -43,6 +45,7 @@ jobs:
             fi
             for L in $LOTS; do node outils-donnees/snapshots.mjs --sortie sortie --lot "$L" || true; done
             node outils-donnees/signaux.mjs --sortie sortie || true
+            node outils-donnees/lecture.mjs --dossier sortie || true   # copilote : fiches de lecture (publiées en fichiers + envoyées au Worker si LECTURE_URL et LECTURE_CODE existent)
             if node outils-donnees/verifier-publication.mjs sortie; then
               ( cd sortie && rm -rf .git && git init -q -b donnees && git config user.name "rayle-donnees" && git config user.email "rayle-donnees@users.noreply.github.com"                 && git add -A && git commit -q -m "snapshots $(date -u +%FT%TZ)"                 && git push -q --force "https://x-access-token:${JETON}@github.com/${GITHUB_REPOSITORY}.git" donnees ) || echo "publication échouée, on réessaie au prochain tour"
             else echo "vérification de publication refusée : rien n'est publié ce tour"; fi

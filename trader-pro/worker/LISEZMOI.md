@@ -65,3 +65,9 @@ npx.cmd wrangler secret put SEC_USER_AGENT --config trader-pro/worker/wrangler.t
 - Si Cloudflare signale un dépassement de temps de calcul (plan gratuit), baisse `LT_LOT` à 1 ou 2 : le S&P 500 reste revu en une journée.
 - Calcul complet depuis ton PC (mise à jour du calcul embarqué) : `SEC_USER_AGENT="Rayle-Invest ton-nom ton-adresse@exemple.fr" node outils-donnees/lt-calcul.mjs`.
 - « Tout effacer » du portefeuille n'efface jamais les données long terme (clés `lt:…`).
+
+## Copilote : fiches de lecture de marché (phase 1)
+Les fiches sont calculées par GitHub Actions (`outils-donnees/lecture.mjs`, dans la boucle du workflow `donnees`) et envoyées au Worker (route `PUT /lecture/fiches`), qui les range dans D1 (clé `lecture:tout`, une écriture par envoi). Les appareils les lisent par `GET /lecture/tout` (même code d'accès que le portefeuille). Sans le Worker, les mêmes fiches sont publiées en fichiers `lecture-<actif>.json` sur la branche `donnees`.
+Secrets à ajouter (une fois, aucun dans le dépôt) :
+1. Worker : `npx.cmd wrangler secret put LECTURE_CODE` (une phrase de passe d'au moins 12 caractères, tirée au hasard).
+2. GitHub (dépôt → Settings → Secrets and variables → Actions) : `LECTURE_CODE` (la même valeur) et `LECTURE_URL` (l'adresse du Worker `rayle-portefeuille`, sans barre finale).

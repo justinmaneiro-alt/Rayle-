@@ -14,6 +14,7 @@ export const ACTIFS_PRO = Object.freeze([
   { id: 'btc', nom: 'Bitcoin', sym: 'BTC-USD' },
   { id: 'sol', nom: 'Solana', sym: 'SOL-USD' },
   { id: 'dxy', nom: 'Indice dollar', sym: 'DX-Y.NYB' },
+  { id: 'petrole', nom: 'Pétrole (WTI)', sym: 'CL=F' },
   { id: 'eurusd', nom: 'EUR/USD', sym: 'EURUSD=X' }
 ]);
 const nomBougies = (sym, iv) => `bougies-${String(sym).replace(/[^A-Za-z0-9]/g, '_')}-${iv}.json`;
