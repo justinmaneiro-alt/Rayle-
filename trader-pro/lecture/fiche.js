@@ -1,7 +1,7 @@
 /* ═════════════ FICHE DE LECTURE D'UN ACTIF : JSON horodaté, calculé par le code (jamais par l'IA), stocké dans D1 et lisible par tous les appareils ═════════════
    Tout ce que Rayle dit en phase 4 (les points) vient d'ICI : chaque chiffre cité doit exister dans cette fiche (vérification automatique, trader-pro/point/verifier.js).
    Sources non disponibles → le champ vaut null ou « disponible: false » avec la raison. Rien n'est inventé. Lecture seule : aucun ordre. */
-import { tendanceUnite, croisementsMa200, bougiesVolumeRecentes, mouvementRecent, mouvementSessions, mouvementNuit, niveauxLecture, regime, calibrerSeuil, grosMouvements, cloturees, PAS, H, J } from './calculs.js';
+import { tendanceUnite, croisementsMa200, bougiesVolumeRecentes, mouvementRecent, mouvementSessions, mouvementNuit, niveauxLecture, regime, calibrerSeuil, grosMouvements, statsTendanceJ, cloturees, PAS, H, J } from './calculs.js';
 import { scoreMarche } from '../commun/score.js';
 import { analyserCot } from '../marches/cot.js';
 import { classerEvenement } from '../marches/calendrier.js';
@@ -55,6 +55,8 @@ export function construireFiche(E, maintenant = Date.now()) {
   F.sessions = mouvementSessions(B[Bsess], Bsess, maintenant, { atrJ }); F.uniteSessions = Bsess; F.nuit = mouvementNuit(B[Bsess], Bsess, maintenant, F.sessions);
   F.niveaux = niveauxLecture(B, maintenant, { sessionsMv: F.sessions });
   for (const u of ['J', 'H4']) F.regime[u] = regime(B[u], u, maintenant);
+  F.statsJ = statsTendanceJ(B.J, maintenant);   // ce que fait d'habitude l'actif sur 5 jours dans la même situation de tendance Daily
+  F.h1 = H1c.slice(-120).map(b => [b.t, +b.o.toFixed(6), +b.h.toFixed(6), +b.l.toFixed(6), +b.c.toFixed(6)]);   // 120 dernières bougies H1 closes : le prix à n'importe quelle heure (récit d'une absence), page « Montre-moi »
 
   /* score de marché, COT, flux, carnet */
   try {

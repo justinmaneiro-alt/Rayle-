@@ -136,3 +136,17 @@
 .tp-ia { padding: 8px 10px; border: 1px dashed #2b4150; border-radius: 10px; } .tp-regles { font-size: 13px; color: #b9ccd6; }
 .tp-reglages { display: grid; gap: 8px; margin: 6px 0 12px; } .tp-reglages input[type=number] { width: 64px; } .tp-form-ajout { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin: 10px 0; }
 @media (max-width: 640px) { .tp-carte-meta, .tp-react { margin-left: 0; } .tp-score { min-width: 44px; min-height: 44px; } .tp-curseur input { width: 120px; } }
+
+/* ───── points de Rayle, relecture, bandeau de proposition (copilote, phase 4) ───── */
+.tp-point, .tp-relecture { position: fixed; inset: 0; z-index: 9000; display: flex; flex-direction: column; background: #060c11 !important; color: #dbe8ee; overflow: hidden; } .tp-relecture { z-index: 9500; overflow-y: auto; }
+.tp-point .tp-corps, .tp-relecture .tp-rel-texte { overflow-y: auto; }
+.tp-point .tp-corps { flex: 1; padding: 10px 14px 24px; max-width: 920px; width: 100%; margin: 0 auto; box-sizing: border-box; }
+.tp-point-meta { color: #8aa0ac; font-size: 12.5px; margin: 4px 0 10px; }
+.tp-point-sec { margin: 0 0 14px; padding: 8px 12px; border-left: 3px solid #2b4150; opacity: 0; transform: translateY(8px); transition: opacity .6s ease, transform .6s ease; } .tp-point-sec.tp-visible { opacity: 1; transform: none; }
+.tp-point-sec h3 { margin: 0 0 4px; font-size: 14px; letter-spacing: .06em; text-transform: uppercase; color: #8fd0e3; } .tp-point-sec[data-sec="rate"] { border-left-color: #d86a6a; } .tp-point-sec[data-sec="conseil"] { border-left-color: #8fd0e3; } .tp-point-sec p { margin: 4px 0; line-height: 1.5; }
+@media (prefers-reduced-motion: reduce) { .tp-point-sec { transition: none; opacity: 1; transform: none; } }
+.tp-propose { position: fixed; left: 50%; bottom: 18px; transform: translateX(-50%); z-index: 9100; display: flex; flex-wrap: wrap; gap: 8px 10px; align-items: center; justify-content: center; max-width: min(94vw, 640px); padding: 10px 14px; border: 1px solid #8fd0e3; border-radius: 14px; background: rgba(8,16,22,.96); box-shadow: 0 6px 30px rgba(0,0,0,.5); }
+.tp-propose button { min-height: 40px; padding: 4px 14px; }
+.tp-rel-graph { width: 100%; min-height: 320px; flex: 0 0 auto; } .tp-rel-ctrl { display: flex; gap: 6px; align-items: center; padding: 6px 12px; flex-wrap: wrap; } .tp-rel-ctrl button, .tp-rel-ctrl select { min-height: 40px; min-width: 40px; width: auto; flex: 0 0 auto; } .tp-rel-ctrl input[type=range] { flex: 1; min-width: 120px; }
+.tp-rel-legende { margin: 2px 12px; font-size: 12.5px; color: #8aa0ac; } .tp-rel-texte { margin: 6px 12px; padding: 8px 10px; border-left: 3px solid #8fd0e3; background: rgba(143,208,227,.06); flex: 0 0 auto; min-height: 70px; line-height: 1.5; }
+.tp-relecture .tp-actions { margin: 4px 12px 12px; }

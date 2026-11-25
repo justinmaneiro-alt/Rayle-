@@ -169,6 +169,15 @@ export async function repondreMesActifs(texte, { donnees = null } = {}) {
   catch (e) { return `Je n’arrive pas à lire les indicateurs de ${I.nom.toLowerCase()} pour le moment (${String(e && e.message || e).slice(0, 80)}).`; }
 }
 /* réseau d'information : « quoi de neuf d'important ? », « qu'est-ce que Trump a dit aujourd'hui ? », « qu'est-ce qui peut faire bouger l'or cette semaine ? » (lu dans l'état, sans IA) */
+/* points de Rayle : « qu'est-ce qui se passe ? dis-moi tout », « fais-moi un point sur cette nuit », « le point du matin », « où en est l'or ? » : le point est composé (chiffres vérifiés), lu, et ouvert en fenêtre */
+export async function repondrePoint(texte) {
+  const I = await import('../point/intention.js'), it = I.intentionPoint(texte); if (!it) return null;
+  const [C, Vi, F] = await Promise.all([import('../point/charger.js'), import('../point/visite.js'), import('../point/fenetre.js')]), vis = Vi.lireVisite(), maintenant = Date.now();
+  const prec = it.type === 'depuis' && vis && vis.precedente && maintenant - vis.precedente < 7 * 86400e3 ? vis.precedente : null;
+  const P = await C.construirePoint({ type: it.type, actif: it.actif || null, depuis: prec, absenceMs: prec ? maintenant - prec : null, maintenant });
+  try { F.ouvrirPoint({ type: it.type, actif: it.actif || null, depuis: prec, absenceMs: prec ? maintenant - prec : null, point: P }); } catch (e) { /* la fenêtre est facultative : le texte est lu */ }
+  return P.texteParle;
+}
 export async function repondreReseau(texte) {
   const T = await import('../reseau/textes.js'); if (!T.intentionReseau(texte)) return null;
   const C = await import('./donnees.js'), K = await import('../reseau/client.js'), Cal = await import('../marches/calendrier.js');
@@ -177,6 +186,7 @@ export async function repondreReseau(texte) {
   return T.reponseReseau(texte, E.value.donnees, { evenements: cal.status === 'fulfilled' ? Cal.lireEvenements(cal.value.donnees) : [] });
 }
 export async function commande(texte) {
+  { const r = await repondrePoint(texte); if (r) return r; }
   { const r = await repondreReseau(texte); if (r) return r; }
   { const r = await repondreMesActifs(texte); if (r) return r; }
   if (!intention(texte)) { const I = await import('../invest/voix-invest.js'); return I.intentionInvest(texte) ? I.repondreInvest(texte, sourceInvest()) : null; }

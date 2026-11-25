@@ -2,13 +2,15 @@
 /* Chargeur léger (script classique) de la voix « trading » : window.TraderPro.commande(texte) → réponse parlée ou null.
    Le module complet (trader-pro/commun/voix-trader.js) n'est chargé que si la phrase ressemble à une demande de trading (détection par mots-clés, instantanée). */
 (function(){
-  const MOTS=/\b(quoi de neuf|quoi de nouveau|des nouvelles|infos? importantes?|actu importante|a dit|a declare|faire bouger|volume|vwap|poc|portefeuille|resultats?|performances?|bilan|compte xtb|risques?|erreurs?|fautes?|defauts?|discipline|coach|couvr\w*|signaux?|cot|commitments|fonds speculatifs|managed money|que je fais mal|mes positions|attractifs?|attractives?|saisonnalite|saisonnier|saisonniere|pepites?|mega caps?|a eviter|neutre|pourquoi|j ai|je viens de|ca y est|je suis)\b/;
+  const MOTS=/\b(quoi de neuf|quoi de nouveau|des nouvelles|infos? importantes?|actu importante|a dit|a declare|faire bouger|dis moi tout|se passe|un point|le point|ou en est|j ai rate|cette nuit|volume|vwap|poc|portefeuille|resultats?|performances?|bilan|compte xtb|risques?|erreurs?|fautes?|defauts?|discipline|coach|couvr\w*|signaux?|cot|commitments|fonds speculatifs|managed money|que je fais mal|mes positions|attractifs?|attractives?|saisonnalite|saisonnier|saisonniere|pepites?|mega caps?|a eviter|neutre|pourquoi|j ai|je viens de|ca y est|je suis)\b/;
   const norm=t=>String(t||'').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/[’'`]/g,' ');
   let mod=null;
   /* rappel du dimanche : si l'historique XTB n'a pas été importé depuis 7 jours, Rayle le dit une fois (le Worker envoie le même rappel par Telegram) */
   setTimeout(async()=>{ try{ if(document.hidden) return; const j=await import(new URL('trader-pro/portefeuille/journal-stockage.js',document.baseURI).href), ia=await import(new URL('trader-pro/commun/ia.js',document.baseURI).href); const aujourdhui=j.partiesParis(Date.now()).jour; if(j.doitRappeler({ maintenant:Date.now(), dernierImport:j.dernierImport(), dernierRappel:localStorage.getItem(j.CLE_RAPPEL) })){ localStorage.setItem(j.CLE_RAPPEL,aujourdhui); ia.parler(j.PHRASE_RAPPEL); } }catch(e){ /* facultatif */ } },15000);
   /* alertes vocales du réseau d'information (score ≥ seuil, mode nuit) : une interrogation légère par minute quand la page est visible */
   setTimeout(async()=>{ try{ const m=await import(new URL('trader-pro/reseau/alertes-voix.js',document.baseURI).href); m.brancherAlertesReseau(); }catch(e){} },6000);
+  /* dernière visite de CET appareil + proposition du point après plus de 3 h d'absence (« Tu étais absent depuis 9 heures, je te fais le point ? ») */
+  setTimeout(async()=>{ try{ const v=await import(new URL('trader-pro/point/visite.js',document.baseURI).href); v.brancherVisite({ proposer: async p=>{ const f=await import(new URL('trader-pro/point/fenetre.js',document.baseURI).href); f.proposerPoint(p); } }); }catch(e){} },3000);
   window.TraderPro={
     /* prix unique de l'or (spot XAU/USD du Worker, repli Kraken) : utilisé par les fenêtres Marchés, Alertes, Portefeuille et, via le cadre, par le terminal */
     async prixOr(){ try{ const m=await import(new URL('trader-pro/commun/donnees.js',document.baseURI).href); return await m.prixOr(); }catch(e){ return null; } },

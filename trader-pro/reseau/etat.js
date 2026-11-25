@@ -22,7 +22,7 @@ export function analyser(texte, source, personnes = PERSONNES) {
   let personne = null, p = null;
   for (const x of personnes) if (x.alias.some(a => t.includes(a))) { if (!p || x.poids > p.poids) { p = x; personne = x.id; } }
   if (S && S.personne && !personne) { personne = S.personne; p = personnes.find(x => x.id === personne) || null; }
-  const sujets = SUJETS.filter(s => s.motif.test(texte)).sort((a, b) => b.poids - a.poids), actifs = new Set(S && S.actifs ? S.actifs : []);
+  const sujets = SUJETS.filter(s => s.motif.test(texte)).sort((a, b) => b.poids - a.poids), actifs = new Set(S && S.actifs && S.genre === 'officiel' ? S.actifs : []);   // seules les sources OFFICIELLES (Fed, BCE, EDGAR…) ajoutent leurs actifs d'office ; une source crypto qui parle de Nvidia ne touche pas Solana
   for (const s of sujets) s.actifs.forEach(a => actifs.add(a));
   if (p && p.actifs !== 'tous') p.actifs.forEach(a => actifs.add(a));   // « tous » : seuls les actifs du SUJET sont touchés (une déclaration sur les puces touche le Nasdaq, pas l'or)
   const esc = STANCE.escalade.test(texte), apa = STANCE.apaisement.test(texte), stance = esc && !apa ? 1 : apa && !esc ? -1 : 0;

@@ -170,5 +170,18 @@ export function grosMouvements(Bbrut, maintenant = Date.now(), { seuil, heures =
   const { B, L } = mouvementsH4(Bbrut, maintenant, { k }), t0 = maintenant - heures * H, S = L.filter(x => x.tFin >= t0 && Math.abs(x.atr) >= seuil), out = [];
   for (const x of S) { const d = Math.sign(x.atr), der = out[out.length - 1]; if (der && der.sens === d && x.i - der.iFin <= k) { der.iFin = x.i; if (Math.abs(x.atr) > Math.abs(der.atr)) der.atr = x.atr; der.tFin = x.tFin; } else out.push({ sens: d, iDebut: x.i - k, iFin: x.i, atr: x.atr, tFin: x.tFin }); }
   return out.map(g => { const a = B[g.iDebut], z = B[g.iFin], hi = Math.max(...B.slice(g.iDebut + 1, g.iFin + 1).map(b => b.h)), lo = Math.min(...B.slice(g.iDebut + 1, g.iFin + 1).map(b => b.l));
-    return { sens: g.sens, depart: a.t + PAS.H4, fin: z.t + PAS.H4, pct: arr((z.c / a.c - 1) * 100, 2), atrH4: arr(g.atr, 1), bougiesH4: g.iFin - g.iDebut, plusHaut: arr(hi, 6), plusBas: arr(lo, 6), seuil }; });
+    return { sens: g.sens, depart: a.t + PAS.H4, fin: z.t + PAS.H4, prixDepart: arr(a.c, 6), prixFin: arr(z.c, 6), pct: arr((z.c / a.c - 1) * 100, 2), atrH4: arr(g.atr, 1), bougiesH4: g.iFin - g.iDebut, plusHaut: arr(hi, 6), plusBas: arr(lo, 6), seuil }; });
+}
+
+/* ───── 9. ce que fait d'habitude l'actif dans la MÊME situation de tendance Daily : statistiques sur 5 jours tirées de notre propre historique (jamais d'invention) ─────
+   Situation = position du prix vs MA200 Daily + sens de la pente. Pour chaque jour passé dans la même situation : variation à +5 jours, plus forte hausse et plus forte baisse atteintes dans les 5 jours.
+   « objectif possible » = médiane de la plus forte excursion dans le sens de la tendance (hausse si haussier, baisse si baissier). Moins de 30 cas : « échantillon trop petit ». */
+export function statsTendanceJ(Bbrut, maintenant = Date.now(), { horizon = 5, minCas = 30 } = {}) {
+  const B = cloturees(Bbrut, PAS.J, maintenant), n = B.length; if (n < 260) return { dispo: false, raison: `pas assez de bougies Daily (${n})` };
+  const M = sma(B.map(b => b.c), 200), situation = i => (M[i] == null || M[i - 20] == null ? null : (B[i].c >= M[i] ? 'dessus' : 'dessous') + '|' + (M[i] >= M[i - 20] ? 'montante' : 'descendante')), actuelle = situation(n - 1); if (!actuelle) return { dispo: false, raison: 'MA200 Daily indisponible' };
+  const R = [], H = [], Bs = [];
+  for (let i = 220; i + horizon < n; i++) { if (situation(i) !== actuelle) continue; const c0 = B[i].c; let hi = -Infinity, lo = Infinity; for (let j = i + 1; j <= i + horizon; j++) { if (B[j].h > hi) hi = B[j].h; if (B[j].l < lo) lo = B[j].l; } R.push((B[i + horizon].c / c0 - 1) * 100); H.push((hi / c0 - 1) * 100); Bs.push((lo / c0 - 1) * 100); }
+  const cas = R.length; if (cas < minCas) return { dispo: true, situation: actuelle, cas, petit: true, raison: 'échantillon trop petit' };
+  const pos = R.filter(x => x > 0).length;
+  return { dispo: true, situation: actuelle, cas, petit: false, horizonJours: horizon, retourMoyenPct: arr(R.reduce((s, x) => s + x, 0) / cas, 2), retourMedianPct: arr(mediane(R), 2), partHaussePct: arr(pos / cas * 100, 0), hausseMaxMedianePct: arr(mediane(H), 2), baisseMaxMedianePct: arr(mediane(Bs), 2) };
 }
