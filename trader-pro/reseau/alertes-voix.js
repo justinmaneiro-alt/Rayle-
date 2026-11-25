@@ -5,11 +5,13 @@
 import { lireAlertes, lireReglages, modeNuit, CLE_VU } from './client.js';
 import { lireConn } from '../terminal/dessins-stockage.js';
 
+export const CLE_SILENCE = 'rayle_copilote_silence_v1';
+export function silenceActif(maintenant = Date.now(), st = (typeof localStorage !== 'undefined' ? localStorage : null)) { try { const s = JSON.parse(st.getItem(CLE_SILENCE) || 'null'); return !!(s && s.jusqua > maintenant); } catch (e) { return false; } }
 /* alertes à dire maintenant : plus récentes que la dernière vue, assez importantes, pas trop vieilles */
 export function alertesADire(etat, { vuT = 0, reglages, maintenant = Date.now(), maxAgeMs = 25 * 60e3, max = 2 } = {}) {
   const L = (etat && etat.alertes ? etat.alertes : []).filter(a => a.t > vuT).sort((a, b) => a.t - b.t), nouvelleVue = L.length ? Math.max(vuT, ...L.map(a => a.t)) : vuT;
   const dire = L.filter(a => (a.revirement || a.score >= reglages.seuilVoix) && maintenant - a.t <= maxAgeMs);
-  const silence = !reglages.voix || modeNuit(reglages, maintenant);
+  const silence = !reglages.voix || modeNuit(reglages, maintenant) || silenceActif(maintenant);   // « Rayle, alertes silencieuses jusqu'à demain »
   return { aDire: silence ? [] : dire.slice(-max), manquees: silence ? dire.length : Math.max(0, dire.length - max), nouvelleVue, silence };
 }
 export function brancherAlertesReseau({ parler = t => (typeof window.speak === 'function' ? window.speak(t) : null), intervalle = 60000 } = {}) {

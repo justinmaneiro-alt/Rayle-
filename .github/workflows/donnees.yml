@@ -46,7 +46,9 @@ jobs:
             for L in $LOTS; do node outils-donnees/snapshots.mjs --sortie sortie --lot "$L" || true; done
             node outils-donnees/signaux.mjs --sortie sortie || true
             node outils-donnees/reseau.mjs --dossier sortie || true   # copilote : réseau d'information, voie complète (sources lentes toutes les 10 min, réaction réelle du marché, alertes)
-            node outils-donnees/lecture.mjs --dossier sortie || true   # copilote : fiches de lecture (publiées en fichiers + envoyées au Worker si LECTURE_URL et LECTURE_CODE existent)
+            node outils-donnees/lecture.mjs --dossier sortie || true
+            node outils-donnees/copilote.mjs --dossier sortie || true   # alertes du copilote (gros moments, annonce dans 30 min, idées du carnet) : envoyées par le Worker (Telegram + voix)
+            node outils-donnees/matin.mjs --dossier sortie --pas-de-texte-seul || true   # point du matin (voix Azure) ; le workflow « matin » prend le relais avec Piper si Azure échoue   # copilote : fiches de lecture (publiées en fichiers + envoyées au Worker si LECTURE_URL et LECTURE_CODE existent)
             if node outils-donnees/verifier-publication.mjs sortie; then
               ( cd sortie && rm -rf .git && git init -q -b donnees && git config user.name "rayle-donnees" && git config user.email "rayle-donnees@users.noreply.github.com"                 && git add -A && git commit -q -m "snapshots $(date -u +%FT%TZ)"                 && git push -q --force "https://x-access-token:${JETON}@github.com/${GITHUB_REPOSITORY}.git" donnees ) || echo "publication échouée, on réessaie au prochain tour"
             else echo "vérification de publication refusée : rien n'est publié ce tour"; fi

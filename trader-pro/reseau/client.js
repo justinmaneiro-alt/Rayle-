@@ -56,6 +56,9 @@ export async function ecrirePersonnes(personnes, { conn = lireConn(), fetchFn = 
 export async function envoyerReglagesCopilote(patch, { conn = lireConn(), fetchFn = (...a) => fetch(...a) } = {}) {
   if (!conn) return false; try { const r = await fetchFn(conn.url + '/reseau/reglages', { method: 'PUT', headers: { 'Content-Type': 'application/json', ...entetes(conn) }, body: JSON.stringify(patch), signal: AbortSignal.timeout ? AbortSignal.timeout(10000) : undefined }); return r.ok; } catch (e) { return false; }
 }
+export async function lireReglagesServeur({ conn = lireConn(), fetchFn = (...a) => fetch(...a) } = {}) {
+  if (!conn) return null; try { const r = await fetchFn(conn.url + '/reseau/reglages', { headers: entetes(conn), signal: AbortSignal.timeout ? AbortSignal.timeout(9000) : undefined }); return r.ok ? await r.json() : null; } catch (e) { return null; }
+}
 export async function envoyerSeuilServeur(seuilAlerte, { conn = lireConn(), fetchFn = (...a) => fetch(...a) } = {}) {
   if (!conn) return false; try { const r = await fetchFn(conn.url + '/reseau/reglages', { method: 'PUT', headers: { 'Content-Type': 'application/json', ...entetes(conn) }, body: JSON.stringify({ seuilAlerte }), signal: AbortSignal.timeout ? AbortSignal.timeout(10000) : undefined }); return r.ok; } catch (e) { return false; }
 }

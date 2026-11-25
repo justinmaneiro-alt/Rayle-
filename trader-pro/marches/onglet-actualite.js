@@ -2,7 +2,7 @@
    onglet Personnalités (une ligne par personne suivie), onglet Sources et réglages (état de chaque source, délai moyen, personnalités modifiables, voix et mode nuit). Au clic : page détail avec le score expliqué,
    la réaction réelle du marché, les précédents tirés de notre base, des scénarios (hypothèses) et « Rayle, explique-moi ». Lecture seule : aucun ordre. */
 import { lireLS, ecrireLS } from '../commun/ui.js';
-import { lireReseau, lirePersonnes, ecrirePersonnes, lireReglages, ecrireReglages, envoyerSeuilServeur, modeNuit } from '../reseau/client.js';
+import { lireReseau, lirePersonnes, ecrirePersonnes, lireReglages, ecrireReglages, envoyerSeuilServeur, modeNuit, lireReglagesServeur, envoyerReglagesCopilote } from '../reseau/client.js';
 import { htmlALaUne, htmlFil, htmlPersonnes, htmlSources, htmlDetailCarte, esc } from '../reseau/rendu.js';
 import { precedentDe } from '../reseau/reaction.js';
 import { texteExplication, promptScenarios, phraseScenariosRegles, nomSujet, nomPers, quoiDeNeuf } from '../reseau/textes.js';
@@ -30,9 +30,17 @@ export function monter(zone) {
   const regle = () => lireReglages();
   function reglagesHtml() {
     const r = regle(), P = E.personnes;
+    const S = E.serveur, cop = (S && S.copilote) || {}, ma = (S && S.matin) || { actif: true, heure: '07:00', jours: [1, 2, 3, 4, 5], vocal: true }, sil = S && S.silenceJusqua > Date.now(), JOURS = ['L', 'M', 'M', 'J', 'V', 'S', 'D'], NOMS_TYPES = { cassure: 'Cassure confirmée de la MA200 (H4 / Daily)', climax: 'Bougie de volume extrême en haut ou en bas d’un mouvement', balayage: 'Balayage d’un niveau clé puis retour', mouvement: 'Début probable d’un mouvement de plusieurs jours', annonce: 'Annonce importante dans 30 minutes', idee: 'Changement de lecture sur une idée de ton carnet' };
+    const copilote = S ? `<h3>Alertes du copilote <small>(seulement les gros moments)</small></h3><div class="tp-reglages">${Object.entries(NOMS_TYPES).map(([k, n]) => `<label><input type="checkbox" data-cop="${k}" ${cop[k] !== false ? 'checked' : ''}> ${esc(n)}</label>`).join('')}
+      <p>${sil ? `Alertes silencieuses jusqu’à ${esc(new Date(S.silenceJusqua).toLocaleString('fr-FR', { timeZone: 'Europe/Paris', weekday: 'long', hour: '2-digit', minute: '2-digit' }))} (Telegram sans notification, pas de voix). <button type="button" data-silence-fin>Lever le silence</button>` : '<button type="button" data-silence-demain>Alertes silencieuses jusqu’à demain 7 h</button> <small>(ou dis « Rayle, alertes silencieuses jusqu’à demain »)</small>'}</p></div>
+      <h3>Point du matin sur Telegram</h3><div class="tp-reglages"><label><input type="checkbox" data-matin-actif ${ma.actif ? 'checked' : ''}> Envoyer le point du matin</label>
+      <label>Heure (Paris) <input type="time" value="${esc(ma.heure)}" data-matin-heure aria-label="Heure du point du matin"> <small>(entre 5 h et 11 h)</small></label>
+      <div role="group" aria-label="Jours">${JOURS.map((j, i) => `<label><input type="checkbox" data-matin-jour="${i + 1}" ${(ma.jours || []).includes(i + 1) ? 'checked' : ''}> ${j}</label>`).join(' ')}</div>
+      <label><input type="checkbox" data-matin-vocal ${ma.vocal !== false ? 'checked' : ''}> En message vocal (voix Azure gratuite, sinon Piper), plus la version texte</label></div>` : '<p class="tp-doux">Les réglages du copilote (types d’alertes, point du matin, silence) sont enregistrés dans ton Worker : configure-le dans la fenêtre Portefeuille.</p>';
     return `<h3>Alertes et voix</h3><div class="tp-reglages"><label><input type="checkbox" data-r-voix ${r.voix ? 'checked' : ''}> Rayle annonce à la voix les infos importantes</label>
       <label>Score minimum de l’alerte <input type="number" min="50" max="100" step="5" value="${r.seuilVoix}" data-r-seuil> <small>(voix et Telegram ; défaut 80 ; pas plus d’une alerte par fil toutes les 30 min, sauf revirement)</small></label>
       <label><input type="checkbox" data-r-nuit ${r.nuit.actif ? 'checked' : ''}> Mode nuit : pas de voix de <input type="number" min="0" max="23" value="${r.nuit.de}" data-r-de> h à <input type="number" min="0" max="23" value="${r.nuit.a}" data-r-a> h (heure de Paris), Telegram seulement${modeNuit(r) ? ' <b>(actif en ce moment)</b>' : ''}</label></div>
+      ${copilote}
       <h3>Personnalités suivies</h3><table class="tp-tab-pers"><thead><tr><th>Nom</th><th>Poids (1 à 5)</th><th>Actifs</th><th></th></tr></thead><tbody>${P.map(p => `<tr><td>${esc(p.nom)}<br><small>${esc(p.role || '')}</small></td><td><input type="number" min="1" max="5" value="${p.poids}" data-p-poids="${esc(p.id)}" aria-label="Poids de ${esc(p.nom)}"></td><td>${p.actifs === 'tous' ? 'tous' : esc(p.actifs.map(a => NOMS_COURTS[a]).join(', '))}</td><td><button type="button" data-p-retirer="${esc(p.id)}">Retirer</button></td></tr>`).join('')}</tbody></table>
       <form data-p-ajout class="tp-form-ajout"><b>Ajouter une personne</b> <input name="nom" placeholder="Nom (ex. Jamie Dimon)" required maxlength="60"> <input name="alias" placeholder="Mots qui la repèrent, séparés par des virgules" maxlength="120"> <input name="poids" type="number" min="1" max="5" value="3" aria-label="Poids"> <select name="actifs" multiple size="3" aria-label="Actifs liés">${TOUS.map(a => `<option value="${a}">${esc(NOMS_COURTS[a])}</option>`).join('')}</select> <button type="submit">Ajouter</button></form>
       <p class="tp-doux" data-p-msg role="status">${P === PERSONNES ? 'Liste par défaut. Les modifications sont enregistrées dans ton Worker (fenêtre Portefeuille configurée) et appliquées aux lectures suivantes.' : 'Liste enregistrée dans ton Worker.'}</p>`;
@@ -56,6 +64,8 @@ export function monter(zone) {
       try { const r = await demanderIA(promptScenarios(E.ctx.c, { precedents: E.ctx.prec }), { contexte: 'Hypothèses de lecture seulement, jamais un ordre ni une probabilité chiffrée.' }); ecrireLS('tp_scen_' + E.ctx.c.id, { texte: r.texte, t: now() }); dessiner(); }
       catch (er) { if (msg) msg.textContent = 'IA indisponible : ' + (er && er.message || er) + '. Les lectures par règles ci-dessous restent valables.'; b.disabled = false; } return;
     }
+    if (t.closest('[data-silence-demain]')) { const d = new Date(); d.setHours(7, 0, 0, 0); if (d.getTime() <= Date.now() + 3600e3) d.setDate(d.getDate() + 1); try { localStorage.setItem('rayle_copilote_silence_v1', JSON.stringify({ jusqua: d.getTime() })); } catch (x) { /* */ } await majServeur({ silenceJusqua: d.getTime() }); return; }
+    if (t.closest('[data-silence-fin]')) { try { localStorage.removeItem('rayle_copilote_silence_v1'); } catch (x) { /* */ } await majServeur({ silenceJusqua: 0 }); return; }
     const ret = t.closest('[data-p-retirer]'); if (ret) { await majPersonnes(E.personnes.filter(p => p.id !== ret.dataset.pRetirer)); return; }
   });
   zone.addEventListener('input', e => { const m = e.target.closest('[data-min]'); if (m) { E.min = +m.value; ecrireLS('tp_actu_min', E.min); const v = zone.querySelector('[data-min-val]'); if (v) v.textContent = E.min; clearTimeout(E.tm); E.tm = setTimeout(dessiner, 150); } });
@@ -64,6 +74,10 @@ export function monter(zone) {
     if (t.matches('[data-r-voix]')) { r.voix = t.checked; ch = true; } else if (t.matches('[data-r-seuil]')) { r.seuilVoix = Math.min(100, Math.max(50, +t.value || 80)); ch = true; envoyerSeuilServeur(r.seuilVoix); }
     else if (t.matches('[data-r-nuit]')) { r.nuit.actif = t.checked; ch = true; } else if (t.matches('[data-r-de]')) { r.nuit.de = Math.min(23, Math.max(0, +t.value || 0)); ch = true; } else if (t.matches('[data-r-a]')) { r.nuit.a = Math.min(23, Math.max(0, +t.value || 0)); ch = true; }
     if (ch) { ecrireReglages(r); return; }
+    if (t.matches('[data-cop]')) { await majServeur({ copilote: { [t.dataset.cop]: t.checked } }); return; }
+    if (t.matches('[data-matin-actif]')) { await majServeur({ matin: { actif: t.checked } }); return; } if (t.matches('[data-matin-vocal]')) { await majServeur({ matin: { vocal: t.checked } }); return; }
+    if (t.matches('[data-matin-heure]') && /^dd:dd$/.test(t.value)) { await majServeur({ matin: { heure: t.value } }); return; }
+    if (t.matches('[data-matin-jour]')) { await majServeur({ matin: { jours: [...zone.querySelectorAll('[data-matin-jour]')].filter(x => x.checked).map(x => +x.dataset.matinJour) } }); return; }
     const pp = t.closest('[data-p-poids]'); if (pp) await majPersonnes(E.personnes.map(p => (p.id === pp.dataset.pPoids ? { ...p, poids: Math.min(5, Math.max(1, Math.round(+pp.value) || p.poids)) } : p)));
   });
   zone.addEventListener('submit', async e => {
@@ -72,6 +86,7 @@ export function monter(zone) {
     const alias = String(d.get('alias') || nom).split(',').map(x => x.trim().toLowerCase()).filter(Boolean);
     await majPersonnes([...E.personnes.filter(p => p.id !== id), { id, nom, court: nom.split(' ').slice(-1)[0], role: 'ajoutée par toi', poids: Math.min(5, Math.max(1, +d.get('poids') || 3)), actifs: actifs.length ? actifs : 'tous', alias, requete: nom }]);
   });
+  async function majServeur(patch) { const ok = await envoyerReglagesCopilote(patch); E.serveur = (await lireReglagesServeur()) || E.serveur; dessiner(); const m = corps.querySelector('[data-p-msg]'); if (m) m.textContent = ok ? 'Réglage enregistré dans ton Worker.' : 'Réglage non enregistré (Worker injoignable ?).'; }
   async function majPersonnes(L) {
     const msg = () => corps.querySelector('[data-p-msg]');
     try { E.personnes = await ecrirePersonnes(L); dessiner(); const m = msg(); if (m) m.textContent = 'Enregistré dans ton Worker : appliqué aux prochaines lectures.'; }
@@ -83,6 +98,7 @@ export function monter(zone) {
     catch (er) { if (!E.etat) corps.innerHTML = `<p class="tp-panne" role="alert">Réseau d’information indisponible : ${esc(er && er.message || er)} <button type="button" data-recharger>Réessayer</button></p>`; }
   }
   zone.addEventListener('click', e => { if (e.target.closest('[data-recharger]')) { corps.innerHTML = '<p class="tp-att" role="status">Lecture…</p>'; charger(false); } });
+  lireReglagesServeur().then(S => { if (S) { E.serveur = S; if (E.sous === 'sources') dessiner(); } }).catch(() => {});
   lirePersonnes().then(P => { if (P) { E.personnes = P; if (E.sous === 'sources') dessiner(); } }).catch(() => {});
   marquer(); charger(false); E.minuteur = setInterval(() => { if (!document.hidden) charger(true); }, 60000);
   const ages = setInterval(() => { if (document.hidden) return; zone.querySelectorAll('[data-age]').forEach(n => { const m = Math.max(0, Math.round((Date.now() - +n.dataset.age) / 60e3)); n.textContent = m < 1 ? 'à l’instant' : m < 60 ? `il y a ${m} min` : `il y a ${Math.round(m / 60)} h`; }); }, 30000);

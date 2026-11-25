@@ -27,7 +27,14 @@ export async function envoyerTelegram(env, texte, fetchFn = fetch, { silencieux 
 export async function lirePersonnes(depot) { const P = await depot.kvLire(CLES.personnes); return Array.isArray(P) && P.length ? P : PERSONNES; }
 export const TYPES_COPILOTE = Object.freeze(['cassure', 'climax', 'balayage', 'annonce', 'idee', 'mouvement']);
 const DEFAUT_COPILOTE = Object.fromEntries(TYPES_COPILOTE.map(k => [k, true]));
-export const lireReglages = async depot => { const r = (await depot.kvLire(CLES.reglages)) || {}; return { seuilAlerte: SEUIL_ALERTE, silenceJusqua: 0, ...r, copilote: { ...DEFAUT_COPILOTE, ...(r.copilote || {}) } }; };
+export const MATIN_DEFAUT = Object.freeze({ actif: true, heure: '07:00', jours: [1, 2, 3, 4, 5], vocal: true });   // jours : 1 = lundi … 7 = dimanche (heure de Paris)
+export function nettoyerMatin(m, ancien = {}) {
+  const o = { ...MATIN_DEFAUT, ...ancien }; if (!m || typeof m !== 'object') return o;
+  if (typeof m.actif === 'boolean') o.actif = m.actif; if (typeof m.vocal === 'boolean') o.vocal = m.vocal;
+  if (typeof m.heure === 'string' && /^([01]\d|2[0-3]):[0-5]\d$/.test(m.heure)) o.heure = m.heure;
+  if (Array.isArray(m.jours)) o.jours = [...new Set(m.jours.map(Number).filter(j => Number.isInteger(j) && j >= 1 && j <= 7))].sort(); return o;
+}
+export const lireReglages = async depot => { const r = (await depot.kvLire(CLES.reglages)) || {}; return { seuilAlerte: SEUIL_ALERTE, silenceJusqua: 0, ...r, copilote: { ...DEFAUT_COPILOTE, ...(r.copilote || {}) }, matin: nettoyerMatin(r.matin) }; };
 
 /* tâche du déclencheur de 2 minutes : état RAPIDE (petit : cartes des 6 dernières heures issues des 3 sources rapides) ; l'état COMPLET (72 h, toutes sources, réactions du marché) est celui de GitHub Actions,
    stocké tel quel (texte brut, jamais relu ni fusionné ici : 10 ms de CPU seulement). Les appareils et GitHub Actions fusionnent les deux. */
@@ -99,7 +106,8 @@ export async function traiterReseau(req, env, depot, { cors = {}, autoriser = nu
         if (b.seuilAlerte !== undefined) { const s = Math.round(+b.seuilAlerte); if (!(s >= 50 && s <= 100)) return rep({ error: 'seuil entre 50 et 100' }, 400, cors); nv.seuilAlerte = s; }
         if (b.silenceJusqua !== undefined) { const t = Math.round(+b.silenceJusqua); if (!(t === 0 || (t > maintenant && t <= maintenant + 8 * 86400e3))) return rep({ error: 'silence : 0 ou une heure dans les 8 prochains jours' }, 400, cors); nv.silenceJusqua = t; }
         if (b.copilote && typeof b.copilote === 'object') nv.copilote = { ...(ancien.copilote || {}), ...Object.fromEntries(TYPES_COPILOTE.filter(k => typeof b.copilote[k] === 'boolean').map(k => [k, b.copilote[k]])) };
-        if (b.seuilAlerte === undefined && b.silenceJusqua === undefined && !b.copilote) return rep({ error: 'rien à enregistrer' }, 400, cors);
+        if (b.matin && typeof b.matin === 'object') nv.matin = nettoyerMatin(b.matin, ancien.matin);
+        if (b.seuilAlerte === undefined && b.silenceJusqua === undefined && !b.copilote && !b.matin) return rep({ error: 'rien à enregistrer' }, 400, cors);
         await depot.kvEcrire(CLES.reglages, nv); return rep(await lireReglages(depot), 200, cors);
       }
     }
