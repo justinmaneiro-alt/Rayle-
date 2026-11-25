@@ -47,6 +47,7 @@ jobs:
             node outils-donnees/signaux.mjs --sortie sortie || true
             node outils-donnees/reseau.mjs --dossier sortie || true   # copilote : réseau d'information, voie complète (sources lentes toutes les 10 min, réaction réelle du marché, alertes)
             node outils-donnees/lecture.mjs --dossier sortie || true
+            node outils-donnees/previsions.mjs --dossier sortie || true   # carnet de prévisions : enregistre le scénario principal de chaque actif et vérifie à +1, +3 et +5 jours
             node outils-donnees/copilote.mjs --dossier sortie || true   # alertes du copilote (gros moments, annonce dans 30 min, idées du carnet) : envoyées par le Worker (Telegram + voix)
             node outils-donnees/matin.mjs --dossier sortie --pas-de-texte-seul || true   # point du matin (voix Azure) ; le workflow « matin » prend le relais avec Piper si Azure échoue   # copilote : fiches de lecture (publiées en fichiers + envoyées au Worker si LECTURE_URL et LECTURE_CODE existent)
             if node outils-donnees/verifier-publication.mjs sortie; then

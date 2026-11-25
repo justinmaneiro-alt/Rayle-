@@ -45,7 +45,7 @@ export function niveauxProches(F) {
 
 /* ───── le compositeur ───── */
 export function blocActif(F, ctx) {
-  const { depuis, maintenant, reseau, evenements = [] } = ctx, id = F.actif, nom = NOM(id), derives = [], d = v => { derives.push(v); return v; }, S = [], prio = (t, p, cat) => S.push({ t, p, cat });
+  const { depuis, maintenant, reseau, evenements = [], previsions = null } = ctx, id = F.actif, nom = NOM(id), derives = [], d = v => { derives.push(v); return v; }, S = [], prio = (t, p, cat) => S.push({ t, p, cat });
   const W = mouvementFenetre(F, depuis, maintenant), px = F.prix, N = niveauxProches(F), T = F.tendance || {};
   const evts = (F.evenements || []).filter(e => e.t >= depuis && e.t <= maintenant + 60e3);
   /* 1. ce qui s'est passé */
@@ -96,12 +96,16 @@ export function blocActif(F, ctx) {
   }
   /* 6. conseil copilote (outil et chiffre cités ; jamais un ordre) */
   const cons = []; let aligne = 0; if (sJ === s4 && sJ !== 'mixte') aligne++; if (reg && reg.type === 'tendance') aligne++; if (evts.some(e => e.type === 'croisement_ma200' && e.vraieCassure && e.dir === sens)) aligne++; if (st && st.dispo && !st.petit && ((sens > 0 && st.partHaussePct >= 55) || (sens < 0 && st.partHaussePct <= 45))) aligne++; if (F.score && F.score.score100 != null && ((sens > 0 && F.score.score100 >= 58) || (sens < 0 && F.score.score100 <= 42))) aligne++;
-  const confiance = !sens ? 'signal faible' : aligne >= 4 ? 'signal assez solide' : aligne >= 2 ? 'signal moyen' : 'signal faible';
+  let confiance = !sens ? 'signal faible' : aligne >= 4 ? 'signal assez solide' : aligne >= 2 ? 'signal moyen' : 'signal faible';
+  /* situation : le « type » de scénario (sert à mesurer la fiabilité de Rayle par type de situation, voir copilote/previsions.js) */
+  const agProche = (F.agenda || []).some(a => a.t > maintenant && a.t < maintenant + 6 * H), sit = evts.some(e => e.type === 'croisement_ma200' && e.vraieCassure && ['J', 'H4'].includes(e.unite)) ? 'cassure_ma200_volume' : evts.some(e => e.type === 'volume_extreme' && e.contexte === 'fin') ? 'volume_extreme_fin' : evts.some(e => e.type === 'balayage') ? 'balayage' : agProche ? 'avant_annonce' : (sJ === s4 && sJ !== 'mixte' ? 'tendance_alignee' : 'tendance_mixte');
+  let fiab = null; if (sens && previsions && previsions.fiabilite) { fiab = previsions.fiabilite({ actif: id, situation: sit, maintenant }); if (fiab && fiab.ajuste) confiance = fiab.ajuste(confiance); if (fiab && fiab.nombres) fiab.nombres.forEach(d); }
   const ma4 = T.H4 && T.H4.ma200;
   if (sens && ma4) { const dist = (ma4 / px - 1) * 100; cons.push(sens > 0 ? `On privilégie plutôt les achats sur un repli vers la MA200 H4 (${prix(id, d(ma4))}, à ${fr(Math.abs(d(+dist.toFixed(1))), 1)} % ${dist < 0 ? 'en dessous' : 'au-dessus'} du prix), d’après la position du prix et la pente de la MA200 H4` : `On privilégie plutôt les ventes sur un rebond vers la MA200 H4 (${prix(id, d(ma4))}, à ${fr(Math.abs(d(+dist.toFixed(1))), 1)} % ${dist > 0 ? 'au-dessus' : 'en dessous'} du prix), d’après la position du prix et la pente de la MA200 H4`); }
   if (fin) cons.push(`Attention : grosse bougie de volume ${fr(d(fin.volumeRel), 1)} fois la normale ${fin.dir > 0 ? 'tout en haut du mouvement, un retournement baissier est envisageable' : 'tout en bas du mouvement, un rebond est envisageable'} (outil Bougies volume, ${NOM_UNITE[fin.unite]})`);
   const ag = (F.agenda || []).filter(a => a.t > maintenant && a.t < maintenant + 8 * H)[0]; if (ag) cons.push(`Prudence avant ${ag.titre} à ${heureP(ag.t)}`);
-  return { actif: id, nom, F, W, passe: S, rate, montre, ou, lect, scen, cons, confiance, sens, derives, interet: (W ? Math.abs(W.pct) / Math.max(0.2, (F.tendance && F.tendance.J && F.tendance.J.atrPct) || 1) : 0) + rate.length * 3 + evts.filter(e => e.type !== 'gros_mouvement').length * 0.7, evts };
+  const scenData = sens && px ? { sens, situation: sit, unite: sJ === s4 && sJ !== 'mixte' ? 'J' : 'H4', invalidation: (sens > 0 ? N.dessous : N.dessus) ? { prix: (sens > 0 ? N.dessous : N.dessus).prix, nom: (sens > 0 ? N.dessous : N.dessus).nom } : null, objectifPct: scen && st && st.dispo && !st.petit ? (sens > 0 ? st.hausseMaxMedianePct : st.baisseMaxMedianePct) : null, prix0: px, confiance } : null;
+  return { actif: id, nom, F, W, passe: S, rate, montre, ou, lect, scen, scenData, fiab, cons, confiance, sens, derives, interet: (W ? Math.abs(W.pct) / Math.max(0.2, (F.tendance && F.tendance.J && F.tendance.J.atrPct) || 1) : 0) + rate.length * 3 + evts.filter(e => e.type !== 'gros_mouvement').length * 0.7, evts };
 }
 const H4_MS = 4 * H;
 /* ce qui a déclenché un gros mouvement : annonce, actualité, personnalité, cassure de MA200, balayage (dans les 3 heures qui encadrent son départ) */
@@ -138,10 +142,10 @@ const agendaTexte = (fiches, maintenant) => {
   const P = []; if (L.length) P.push(`Au programme : ${L.map(a => `${a.titre} à ${heureP(a.t)}`).join(', ')}.`); else P.push('Pas d’annonce majeure au programme pour le moment.');
   if (sess.length) P.push(`Sessions à surveiller : ${sess.map(s => `${s.nom} à ${heureP(s.debut)}`).join(', puis ')}.`); return { texte: P.join(' '), annonces: L, heures: hh.map(x => x[0]), minutes: hh.map(x => x[1]) };
 };
-export function composerPoint({ type = 'depuis', fiches = {}, actifs = null, depuis = null, maintenant = Date.now(), reseau = null, evenements = [], absenceMs = null } = {}) {
+export function composerPoint({ type = 'depuis', fiches = {}, actifs = null, depuis = null, maintenant = Date.now(), reseau = null, evenements = [], absenceMs = null, previsions = null } = {}) {
   const ids = (actifs && actifs.length ? actifs : Object.keys(fiches)).filter(id => fiches[id] && Number.isFinite(fiches[id].prix)), t0 = fenetreDe(type, maintenant, depuis ?? maintenant - 12 * H);
   if (!ids.length) return { type, vide: true, texteParle: 'Je n’ai pas de lecture de marché disponible pour le moment : les fiches ne sont pas encore calculées.', sections: [], faits: collecterFaits({}), montre: [], actifs: [], t0, maintenant };
-  const blocs = ids.map(id => blocActif(fiches[id], { depuis: t0, maintenant, reseau, evenements })).sort((a, b) => b.interet - a.interet), top = type === 'actif' ? blocs : blocs.slice(0, type === 'matin' ? 4 : 3), derives = blocs.flatMap(b => b.derives), sections = [], mots = BUDGET_MOTS[type] || 240;
+  const blocs = ids.map(id => blocActif(fiches[id], { depuis: t0, maintenant, reseau, evenements, previsions })).sort((a, b) => b.interet - a.interet), top = type === 'actif' ? blocs : blocs.slice(0, type === 'matin' ? 4 : 3), derives = blocs.flatMap(b => b.derives), sections = [], mots = BUDGET_MOTS[type] || 240;
   const intro = type === 'depuis' && absenceMs != null ? `Tu étais absent depuis ${dureeParlee(absenceMs)}. ` : type === 'matin' ? 'Bonjour Justin. Voici le point du matin. ' : type === 'nuit' ? 'Voici ce qui s’est passé depuis la clôture de New York. ' : type === 'journee' ? 'Voici le point de la journée : ce qu’ont fait Londres et New York. ' : '';
   /* ce qui s'est passé */
   const passe = []; for (const b of top) { const perime = b.passe.some(x => x.cat === 'fraicheur'), calme = !perime && b.W && Math.abs(b.W.pct) < 0.3 && !b.evts.some(e => e.type !== 'gros_mouvement'); if (calme && type !== 'actif') continue;   // un actif calme ne prend pas de place dans le récit
@@ -155,7 +159,7 @@ export function composerPoint({ type = 'depuis', fiches = {}, actifs = null, dep
   sections.push({ id: 'ou', titre: 'Où on en est', paragraphes: top.slice(0, type === 'actif' ? 1 : 2).map(b => b.ou), prio: 8 });
   const lect = top.slice(0, type === 'actif' ? 1 : 2).flatMap(b => b.lect.slice(0, type === 'actif' ? 5 : 3).map(x => (type === 'actif' ? x : `${NOM_COURT(b.actif)} : ${x}`))); if (lect.length) sections.push({ id: 'lecture', titre: 'Ce que ça veut dire', paragraphes: lect, prio: 7 });
   const sc = top.filter(b => b.scen).slice(0, type === 'actif' ? 1 : 2).flatMap(b => [b.scen.principal, b.scen.alternatif]); if (sc.length) sections.push({ id: 'scenarios', titre: 'Scénarios', paragraphes: sc, parle: type === 'actif' ? sc : sc.slice(0, 2), prio: 10.6 });   /* à l'oral, les scénarios du seul actif le plus important */
-  const cs = top.slice(0, type === 'actif' ? 1 : 2).flatMap(b => b.cons.map((c, i) => (i === 0 ? `${Maj(c)} (${b.confiance}).` : `${Maj(c)}.`))); if (cs.length) sections.push({ id: 'conseil', titre: 'Le conseil de la copilote', paragraphes: cs, prio: 11 });
+  const cs = top.slice(0, type === 'actif' ? 1 : 2).flatMap(b => b.cons.map((c, i) => (i === 0 ? `${Maj(c)} (${b.confiance}).${b.fiab && b.fiab.texte ? ' ' + b.fiab.texte : ''}` : `${Maj(c)}.`))); if (cs.length) sections.push({ id: 'conseil', titre: 'Le conseil de la copilote', paragraphes: cs, prio: 11 });
   const ag = agendaTexte(Object.fromEntries(ids.map(id => [id, fiches[id]])), maintenant); sections.push({ id: 'agenda', titre: 'Agenda', paragraphes: [ag.texte], prio: 5 });
   /* texte parlé : on garde les sections par ordre de priorité jusqu'au budget de mots */
   const ordre = ['passe', 'rate', 'sessions', 'ou', 'lecture', 'scenarios', 'conseil', 'agenda'], reste = { v: mots - intro.split(/\s+/).length }, choisies = [];
@@ -165,6 +169,6 @@ export function composerPoint({ type = 'depuis', fiches = {}, actifs = null, dep
   const montre = blocs.flatMap(b => b.montre).slice(0, 6), faits = collecterFaits({ fiches: ids.map(id => fiches[id]), reseau: reseau ? { cartes: (reseau.cartes || []).map(c => ({ score: c.score, t: c.t, reaction: c.reaction && c.reaction.max })) } : null, evenements }, { nombres: [...derives, ...(absenceMs != null ? [Math.round(absenceMs / H)] : [])], heures: ag.heures, minutes: ag.minutes });
   const verif = retirerInconnus(texteParle, faits); texteParle = verif.texte;
   for (const s of sections) s.paragraphes = s.paragraphes.filter(p => retirerInconnus(p, faits).ok);
-  return { type, titre: Maj(TYPES[type]), t0, maintenant, actifs: ids, ordreActifs: blocs.map(b => b.actif), sections, texteParle, mots: texteParle.split(/\s+/).length, faits, retirees: verif.retirees, montre, confiances: Object.fromEntries(blocs.map(b => [b.actif, b.confiance])), agenda: ag.annonces, vide: false };
+  return { type, titre: Maj(TYPES[type]), t0, maintenant, actifs: ids, ordreActifs: blocs.map(b => b.actif), sections, texteParle, mots: texteParle.split(/\s+/).length, faits, retirees: verif.retirees, montre, confiances: Object.fromEntries(blocs.map(b => [b.actif, b.confiance])), scenarios: blocs.filter(b => b.scenData).map(b => ({ actif: b.actif, ...b.scenData })), agenda: ag.annonces, vide: false };
 }
 export { verifierTexte };

@@ -5,6 +5,7 @@
    Usage : node outils-donnees/matin.mjs --dossier <instantanés> [--forcer] [--texte-seul-si-echec] [--sans-piper]   Variables : LECTURE_URL, LECTURE_CODE, AZURE_SPEECH_KEY, AZURE_SPEECH_REGION, PIPER_MODELE (facultatif) */
 import fs from 'node:fs'; import path from 'node:path'; import os from 'node:os'; import { spawnSync } from 'node:child_process';
 import { composerPoint } from '../trader-pro/point/composer.js';
+import { creerPrevisions } from '../trader-pro/copilote/previsions.js';
 import { lireEvenements } from '../trader-pro/marches/calendrier.js';
 import { TZ } from '../trader-pro/lecture/sessions.js';
 
@@ -29,7 +30,8 @@ export function texteTelegram(P, max = 3700) {
 export function composerMatin(dossier, maintenant = Date.now()) {
   const fiches = {}; for (const id of ['or', 'us100', 'us500', 'btc', 'sol', 'petrole', 'dxy']) { const f = lireJson(dossier, `lecture-${id}.json`); if (f) fiches[id] = f; }
   const reseau = lireJson(dossier, 'reseau-etat.json'), cal = lireJson(dossier, 'calendrier2.json');
-  return composerPoint({ type: 'matin', fiches, maintenant, reseau, evenements: cal ? lireEvenements(cal) : [] });
+  const prev = lireJson(dossier, 'previsions.json');
+  return composerPoint({ type: 'matin', fiches, maintenant, reseau, evenements: cal ? lireEvenements(cal) : [], previsions: prev && Array.isArray(prev.liste) && prev.liste.length ? creerPrevisions(prev.liste) : null });
 }
 /* ───── voix : Azure d'abord, Piper en secours ───── */
 export const ssml = (texte, voix = VOIX_DEFAUT) => `<speak version="1.0" xmlns="http://www.w3.org/2001/10/synthesis" xml:lang="fr-FR"><voice name="${voix}"><prosody rate="-3%" pitch="-2%">${String(texte).replace(/[\u0000-\u0008\u000b\u000c\u000e-\u001f]/g, ' ').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&apos;')}</prosody></voice></speak>`;

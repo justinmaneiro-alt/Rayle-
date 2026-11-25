@@ -37,6 +37,11 @@ export async function lireAlertes({ conn = lireConn(), fetchFn = (...a) => fetch
   if (conn) { try { const r = await fetchFn(conn.url + '/reseau/alertes', { headers: entetes(conn), signal: AbortSignal.timeout ? AbortSignal.timeout(8000) : undefined }); if (r.ok) { const j = await r.json(); return { alertes: j.alertes || [], origine: 'Worker' }; } } catch (e) { /* repli */ } }
   const r = await lireReseau({ conn: null, fetchFn }); return { alertes: r.donnees.alertes || [], origine: r.origine };
 }
+/* carnet de prévisions : Worker (D1), sinon le fichier publié previsions.json */
+export async function lirePrevisions({ conn = lireConn(), fetchFn = (...a) => fetch(...a), lireFichier = () => lireSnapshot('previsions.json', { valider: d => (d && Array.isArray(d.liste) ? true : 'carnet vide') }) } = {}) {
+  if (conn) { try { const r = await fetchFn(conn.url + '/copilote/previsions', { headers: entetes(conn), signal: AbortSignal.timeout ? AbortSignal.timeout(9000) : undefined }); if (r.ok) { const j = await r.json(); if (Array.isArray(j.previsions) && j.previsions.length) return j.previsions; } } catch (e) { /* repli */ } }
+  try { return (await lireFichier()).donnees.liste; } catch (e) { return []; }
+}
 export async function lireAnnonces({ lireFichier = () => lireSnapshot('reseau-annonces.json', { valider: d => (d && Array.isArray(d.entrees) ? true : 'mémoire vide') }) } = {}) { try { return (await lireFichier()).donnees.entrees; } catch (e) { return []; } }
 /* fiches de lecture de marché (phase 1) : Worker, sinon fichiers publiés */
 export async function lireFiches({ conn = lireConn(), fetchFn = (...a) => fetch(...a), ids = ['or', 'us100', 'us500', 'btc', 'sol', 'petrole', 'dxy'], lireFichier = id => lireSnapshot(`lecture-${id}.json`, { valider: d => (d && d.actif ? true : 'fiche vide') }) } = {}) {

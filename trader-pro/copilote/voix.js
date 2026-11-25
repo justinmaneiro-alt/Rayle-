@@ -13,6 +13,7 @@ export function intentionCopilote(texte) {
   if (intentionCloture(texte)) return { type: 'cloture' };
   if (/\b(formation|relis les gros mouvements|relire les gros mouvements|apprends moi|apprendre a lire)\b/.test(n)) return { type: 'formation', actif: actifDe(n) || 'or' };
   if (/\b(ce que j ai appris|mes progres|signaux que je repere|ce que je repere seul)\b/.test(n)) return { type: 'competences' };
+  if (/\b(ta fiabilite|ton taux de reussite|tu as souvent raison|a quel point tu as raison|tes previsions|ta precision|tu te trompes souvent)\b/.test(n)) return { type: 'fiabilite' };
   if (/\bmontre moi\b/.test(n) && !/\bmontre moi le point\b/.test(n)) return { type: 'montre', actif: actifDe(n) || 'or' };
   if (/\bregarde ca\b|\b(qu est ce qui|y a t il quelque chose qui) (merite|vaut) (d etre regarde|le coup)\b|\bgros moments?\b|\bqu est ce que tu vois d important\b/.test(n)) return { type: 'regarde', actif: actifDe(n) };
   return null;
@@ -24,6 +25,7 @@ export async function repondreCopilote(texte) {
     return `C’est noté : alertes silencieuses jusqu’à ${new Date(jusqua).toLocaleString('fr-FR', { timeZone: 'Europe/Paris', weekday: 'long', hour: '2-digit', minute: '2-digit' }).replace(':', ' h ')}. Plus de voix, et les messages Telegram arrivent sans notification.`; }
   if (it.type === 'idee') { const C = await import('./carnet-ui.js'); return C.noterIdee(texte); }
   if (it.type === 'cloture') { const C = await import('./carnet-ui.js'); return C.cloturerIdee(texte); }
+  if (it.type === 'fiabilite') { const K = await import('../reseau/client.js'), P = await import('./previsions.js'), L = await K.lirePrevisions(); import('./fiabilite-ui.js').then(m => m.ouvrirFiabilite({ liste: L })).catch(() => {}); return P.resumeParle(P.statistiques(L)); }
   if (it.type === 'competences') { const C = await import('./carnet-ui.js'); return C.texteCompetences(); }
   if (it.type === 'formation') { const F = await import('./formation-ui.js'); F.ouvrirFormation({ actif: it.actif }); return `J’ouvre la formation sur ${it.actif === 'or' ? 'l’or' : 'cet actif'} : je relis avec toi les plus gros mouvements des derniers mois, bougie par bougie.`; }
   const Rg = await import('./regarde.js');
