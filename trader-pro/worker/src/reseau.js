@@ -20,12 +20,14 @@ export async function lireSource(s, fetchFn = fetch, { max = 25, ms = 6000 } = {
     return A.length ? { id: s.id, ok: true, articles: A } : { id: s.id, ok: false, erreur: 'flux vide ou illisible', articles: [] };
   } catch (e) { return { id: s.id, ok: false, erreur: String(e && e.message || e).slice(0, 100), articles: [] }; }
 }
-export async function envoyerTelegram(env, texte, fetchFn = fetch) {
+export async function envoyerTelegram(env, texte, fetchFn = fetch, { silencieux = false } = {}) {
   if (!env.TELEGRAM_BOT_TOKEN || !env.TELEGRAM_CHAT_ID) return false;
-  try { const r = await fetchFn(`https://api.telegram.org/bot${env.TELEGRAM_BOT_TOKEN}/sendMessage`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ chat_id: env.TELEGRAM_CHAT_ID, text: texte }), signal: AbortSignal.timeout(8000) }); return r.ok; } catch (e) { return false; }
+  try { const r = await fetchFn(`https://api.telegram.org/bot${env.TELEGRAM_BOT_TOKEN}/sendMessage`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ chat_id: env.TELEGRAM_CHAT_ID, text: texte, ...(silencieux ? { disable_notification: true } : {}) }), signal: AbortSignal.timeout(8000) }); return r.ok; } catch (e) { return false; }
 }
 export async function lirePersonnes(depot) { const P = await depot.kvLire(CLES.personnes); return Array.isArray(P) && P.length ? P : PERSONNES; }
-export const lireReglages = async depot => ({ seuilAlerte: SEUIL_ALERTE, ...((await depot.kvLire(CLES.reglages)) || {}) });
+export const TYPES_COPILOTE = Object.freeze(['cassure', 'climax', 'balayage', 'annonce', 'idee', 'mouvement']);
+const DEFAUT_COPILOTE = Object.fromEntries(TYPES_COPILOTE.map(k => [k, true]));
+export const lireReglages = async depot => { const r = (await depot.kvLire(CLES.reglages)) || {}; return { seuilAlerte: SEUIL_ALERTE, silenceJusqua: 0, ...r, copilote: { ...DEFAUT_COPILOTE, ...(r.copilote || {}) } }; };
 
 /* tâche du déclencheur de 2 minutes : état RAPIDE (petit : cartes des 6 dernières heures issues des 3 sources rapides) ; l'état COMPLET (72 h, toutes sources, réactions du marché) est celui de GitHub Actions,
    stocké tel quel (texte brut, jamais relu ni fusionné ici : 10 ms de CPU seulement). Les appareils et GitHub Actions fusionnent les deux. */
@@ -40,10 +42,10 @@ export async function tacheReseauRapide(env, depot, t = Date.now(), { fetchFn = 
 }
 /* envoie par Telegram les alertes dont la carte n'a jamais été annoncée (registre commun à la voie rapide et à GitHub Actions) */
 export async function envoyerAlertes(env, depot, alertes, deja, fetchFn = fetch) {
-  const registre = Array.isArray(deja) ? deja.slice() : []; let n = 0;
+  const registre = Array.isArray(deja) ? deja.slice() : []; let n = 0; const reg = await lireReglages(depot), silencieux = reg.silenceJusqua > Date.now();   /* « alertes silencieuses jusqu'à demain » : Telegram sans notification */
   for (const a of alertes.slice(0, 8)) {
     if (!a || typeof a.carteId !== 'string' || registre.includes(a.carteId)) continue; const texte = String(a.texte || '').slice(0, 400); if (!texte) continue;
-    if (await envoyerTelegram(env, (a.revirement ? '🔁 ' : '🔔 ') + texte + '\n(Lecture seule : aucun ordre.)', fetchFn)) { registre.push(a.carteId); n++; }
+    if (await envoyerTelegram(env, (a.revirement ? '🔁 ' : '🔔 ') + texte + '\n(Lecture seule : aucun ordre.)', fetchFn, { silencieux })) { registre.push(a.carteId); n++; }
   }
   if (n) await depot.kvEcrire(CLES.envoyees, registre.slice(-150)); return n;
 }
@@ -92,7 +94,14 @@ export async function traiterReseau(req, env, depot, { cors = {}, autoriser = nu
     }
     if (p === '/reseau/reglages') {
       const r = await acces(); if (r) return r; if (req.method === 'GET') return rep(await lireReglages(depot), 200, cors);
-      if (req.method === 'PUT') { const b = await corps(), s = Math.round(+b.seuilAlerte); if (!(s >= 50 && s <= 100)) return rep({ error: 'seuil entre 50 et 100' }, 400, cors); await depot.kvEcrire(CLES.reglages, { seuilAlerte: s }); return rep({ seuilAlerte: s }, 200, cors); }
+      if (req.method === 'PUT') {
+        const b = await corps(), ancien = (await depot.kvLire(CLES.reglages)) || {}, nv = { ...ancien };
+        if (b.seuilAlerte !== undefined) { const s = Math.round(+b.seuilAlerte); if (!(s >= 50 && s <= 100)) return rep({ error: 'seuil entre 50 et 100' }, 400, cors); nv.seuilAlerte = s; }
+        if (b.silenceJusqua !== undefined) { const t = Math.round(+b.silenceJusqua); if (!(t === 0 || (t > maintenant && t <= maintenant + 8 * 86400e3))) return rep({ error: 'silence : 0 ou une heure dans les 8 prochains jours' }, 400, cors); nv.silenceJusqua = t; }
+        if (b.copilote && typeof b.copilote === 'object') nv.copilote = { ...(ancien.copilote || {}), ...Object.fromEntries(TYPES_COPILOTE.filter(k => typeof b.copilote[k] === 'boolean').map(k => [k, b.copilote[k]])) };
+        if (b.seuilAlerte === undefined && b.silenceJusqua === undefined && !b.copilote) return rep({ error: 'rien à enregistrer' }, 400, cors);
+        await depot.kvEcrire(CLES.reglages, nv); return rep(await lireReglages(depot), 200, cors);
+      }
     }
     return rep({ error: 'route inconnue' }, 404, cors);
   } catch (e) { return rep({ error: String(e && e.message || e).slice(0, 200) }, Number.isInteger(e && e.code) ? e.code : 500, cors); }

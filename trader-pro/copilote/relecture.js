@@ -40,7 +40,7 @@ export function donneesRelecture(Btout, actif, unite, t0, t1, { avant, apres } =
 }
 
 /* ───── montage navigateur ───── */
-export async function ouvrirRelecture({ actif, unite = 'H4', t0, t1, niveaux = [], titre = 'Relecture', nom = 'l’actif', lireBougies, racine = document.body, parler = null, auDemarrage = true } = {}) {
+export async function ouvrirRelecture({ actif, unite = 'H4', t0, t1, niveaux = [], titre = 'Relecture', nom = 'l’actif', lireBougies, racine = document.body, parler = null, auDemarrage = true, surlignages = [], panneauHtml = '', texteInitial = '' } = {}) {
   const [{ monterGraphique, COULEURS }, donnees] = await Promise.all([import('../commun/graph.js'), import('../commun/donnees.js')]);
   const D0 = await (lireBougies ? lireBougies() : donnees.lireActifPro(actif, { delai: 12000 }).then(r => ({ H1: r.donnees.h1, H4: r.donnees.h4, J: r.donnees.j })[unite]));
   const R = donneesRelecture(D0, actif, unite, t0, t1), dec2 = Math.abs(D0[D0.length - 1].c) >= 100 ? 0 : 2;
@@ -48,15 +48,31 @@ export async function ouvrirRelecture({ actif, unite = 'H4', t0, t1, niveaux = [
   el.innerHTML = `<header class="tp-tete"><b>${titre.replace(/</g, '&lt;')}</b><span class="tp-doux">${NOM_UNITE[unite]} · heure de Paris</span><button type="button" data-fermer aria-label="Fermer">✕</button></header>
     <div class="tp-rel-graph" data-graph></div>
     <div class="tp-rel-ctrl" role="group" aria-label="Lecture"><button type="button" data-debut title="Revenir au début">⏮</button><button type="button" data-prec title="Bougie précédente">◀</button><button type="button" data-jouer title="Lecture / pause">▶</button><button type="button" data-suiv title="Bougie suivante">▶|</button><input type="range" min="0" max="${R.bougies.length - 1}" value="${Math.max(0, R.i0 - 3)}" data-curseur aria-label="Bougie affichée"><select data-vitesse aria-label="Vitesse"><option value="900">lent</option><option value="450" selected>normal</option><option value="200">rapide</option></select></div>
+    <div class="tp-rel-panneau" data-panneau></div>
     <p class="tp-rel-legende">Volume : <span style="color:${COULEURS_VOLUME.achat}">■ achat fort</span> <span style="color:${COULEURS_VOLUME.vente}">■ vente forte</span> · ligne bleue : MA200 · pointillés : niveaux du point</p>
     <div class="tp-rel-texte" data-texte role="status" aria-live="polite">Appuie sur ▶ pour rejouer le mouvement bougie par bougie, ou mets en pause et demande ce que Rayle voit.</div>
     <p class="tp-actions"><button type="button" data-voir>Qu’est-ce que tu vois là ?</button> <button type="button" data-lire-tout>Rayle, rejoue et explique</button></p>`;
   racine.appendChild(el);
   const $ = s => el.querySelector(s), G = await monterGraphique($('[data-graph]'), { hauteur: 320, intraday: unite !== 'J', dec: dec2 });
   const serie = G.bougies(R.bougies), vol = G.histo(R.vol.map(x => ({ t: x.t, v: x.v, couleur: x.couleur })), { echelle: 'vol' }); try { G.chart.priceScale('vol').applyOptions({ scaleMargins: { top: 0.82, bottom: 0 } }); } catch (e) { /* échelle de volume facultative */ }
-  const lignes = []; G.ligne(R.ma, { couleur: COULEURS.accent, epaisseur: 1.5, titre: 'MA200' });
+  const lignes = [], lignesSurl = []; let marqueursSurl = null; const maLigne = G.ligne(R.ma, { couleur: COULEURS.accent, epaisseur: 1.5, titre: 'MA200' });
   const pxFin = D0[D0.length - 1].c; for (const n of niveaux.slice().sort((a, b) => Math.abs(a.prix - pxFin) - Math.abs(b.prix - pxFin)).slice(0, 5)) lignes.push(G.niveau(serie, n.prix, { couleur: COULEURS.or, titre: String(n.nom || '').replace(/^(la|le|un|une) /, '').slice(0, 22) }));
   let i = Math.max(0, R.i0 - 3), minuteur = null; const total = R.bougies.length;
+  /* surligner : la bougie, sa barre de volume, la MA200, le niveau balayé, la zone — remplace le surlignage précédent */
+  const surligner = (items = []) => {
+    for (const l of lignesSurl.splice(0)) { try { serie.removePriceLine(l); } catch (e) { /* déjà retirée */ } } const M = []; let epais = 1.5, vers = -1;
+    for (const s of items) {
+      if (s.type === 'niveau' && Number.isFinite(s.prix)) lignesSurl.push(G.niveau(serie, s.prix, { couleur: '#f1d34f', titre: String(s.titre || '').replace(/^(la|le|un|une) /, '').slice(0, 24), largeur: 2, style: 0 }));
+      else if (s.type === 'zone') { lignesSurl.push(G.niveau(serie, s.haut, { couleur: '#b49cf0', titre: String(s.titre || 'zone').slice(0, 24), largeur: 2, style: 0 })); if (s.bas !== s.haut) lignesSurl.push(G.niveau(serie, s.bas, { couleur: '#b49cf0', titre: '', largeur: 2, style: 0 })); }
+      else if (s.type === 'ma200') epais = 4;
+      else if (s.type === 'bougie') { const k = R.bougies.findIndex(b => b.t <= s.t && s.t < b.t + PAS[unite]); if (k >= 0) { M.push({ time: Math.floor(R.bougies[k].t / 1000), position: R.bougies[k].c >= R.bougies[k].o ? 'belowBar' : 'aboveBar', color: '#f1d34f', shape: R.bougies[k].c >= R.bougies[k].o ? 'arrowUp' : 'arrowDown', text: 'ici' }); vers = Math.max(vers, k); } }
+    }
+    try { maLigne.applyOptions({ lineWidth: epais }); } catch (e) { /* option facultative */ }
+    if (vers >= 0 && i < vers) afficher(vers);
+    try { if (G.LW.createSeriesMarkers) { if (!marqueursSurl) marqueursSurl = G.LW.createSeriesMarkers(serie, M); else marqueursSurl.setMarkers(M); } } catch (e) { /* marqueurs facultatifs */ }
+    return vers;
+  };
+  const panneau = html => { $('[data-panneau]').innerHTML = html || ''; }, ecrire = t => { $('[data-texte]').textContent = t; };
   const afficher = k => { i = Math.min(total - 1, Math.max(0, k)); serie.setData(R.bougies.slice(0, i + 1).map(b => ({ time: Math.floor(b.t / 1000), open: b.o, high: b.h, low: b.l, close: b.c }))); vol.setData(R.vol.slice(0, i + 1).map(x => ({ time: Math.floor(x.t / 1000), value: x.v, color: x.couleur }))); $('[data-curseur]').value = String(i); try { G.chart.timeScale().setVisibleLogicalRange({ from: Math.max(0, i - 60), to: i + 6 }); } catch (e) { /* plage facultative */ } };
   const parole = () => { const info = infosBougie(D0, R.calc, R.debut + i, unite), tx = texteBougie(info, { nom, unite, depuisDebut: (R.bougies[i].c / R.bougies[Math.max(0, R.i0)].o - 1) * 100 }); $('[data-texte]').textContent = tx; return tx; };
   const pause = () => { if (minuteur) { clearInterval(minuteur); minuteur = null; $('[data-jouer]').textContent = '▶'; } };
@@ -69,6 +85,6 @@ export async function ouvrirRelecture({ actif, unite = 'H4', t0, t1, niveaux = [
     else if (t.closest('[data-lire-tout]')) { pause(); afficher(R.i0); const a = parole(); afficher(Math.min(total - 1, R.i1)); const b = parole(); if (parler) parler(`On commence ici. ${a} Et à la fin du mouvement : ${b}`); }
   });
   $('[data-curseur]').addEventListener('input', e => { pause(); afficher(+e.target.value); });
-  afficher(Math.max(0, R.i0 - 3)); if (auDemarrage) setTimeout(jouer, 600);
-  return { el, afficher, jouer, pause, parole, fermer: () => el.querySelector('[data-fermer]').click() };
+  afficher(Math.max(0, R.i0 - 3)); if (panneauHtml) panneau(panneauHtml); if (texteInitial) ecrire(texteInitial); if (surlignages.length) surligner(surlignages); if (auDemarrage) setTimeout(jouer, 600);
+  return { el, afficher, jouer, pause, parole, surligner, panneau, ecrire, G, serie, R, D0, unite, actif, courante: () => infosBougie(D0, R.calc, R.debut + i, unite), index: () => i, fermer: () => el.querySelector('[data-fermer]').click() };
 }

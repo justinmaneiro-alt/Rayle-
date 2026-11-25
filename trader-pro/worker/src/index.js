@@ -5,6 +5,7 @@ import { traiter, entetesCors, autoriser } from './coeur.js';
 import { traiterLT, lotLongTerme, alertesInvest } from './long-terme.js';
 import { traiterLecture } from './lecture.js';
 import { traiterReseau, tacheReseauRapide, CRON_RESEAU } from './reseau.js';
+import { traiterCopilote } from './copilote.js';
 import { depotD1 } from './depot-d1.js';
 import { evaluerAlertes, texteAlerte } from '../../marches/alertes.js';
 import { rappelImport } from './rappel.js';
@@ -23,7 +24,7 @@ export default {
       const h = entetesCors(req, env), aut = await autoriser(req, env); if (!aut.ok) return new Response(JSON.stringify({ error: aut.raison }), { status: aut.code, headers: { 'Content-Type': 'application/json', ...h } });
       return new Response(JSON.stringify(await repondreBudget(d)), { headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store', ...h } });
     }
-    const lt = await traiterLT(req, env, d, { cors: entetesCors(req, env), autoriser }); if (lt) return lt; const lec = await traiterLecture(req, env, d, { cors: entetesCors(req, env), autoriser }); if (lec) return lec; const res = await traiterReseau(req, env, d, { cors: entetesCors(req, env), autoriser }); if (res) return res; const rep = await traiter(req, env, d), f = facteurActuel(); if (f > 1) { try { rep.headers.set('X-Rayle-Ralentir', String(f)); } catch (e) { /* en-têtes figés */ } } return rep;
+    const lt = await traiterLT(req, env, d, { cors: entetesCors(req, env), autoriser }); if (lt) return lt; const lec = await traiterLecture(req, env, d, { cors: entetesCors(req, env), autoriser }); if (lec) return lec; const res = await traiterReseau(req, env, d, { cors: entetesCors(req, env), autoriser }); if (res) return res; const cop = await traiterCopilote(req, env, d, { cors: entetesCors(req, env), autoriser }); if (cop) return cop; const rep = await traiter(req, env, d), f = facteurActuel(); if (f > 1) { try { rep.headers.set('X-Rayle-Ralentir', String(f)); } catch (e) { /* en-têtes figés */ } } return rep;
   },
   /* UN SEUL déclencheur (toutes les 5 minutes) : cron.js choisit les tâches selon l'heure ; chaque tâche est isolée */
   async scheduled(event, env, ctx) {

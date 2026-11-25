@@ -15,7 +15,7 @@ export const etat = () => (instance ? instance.etat() : { actif: false });
 export async function ouvrir({ racine = document.body, onFermer = () => {} } = {}) {
   if (instance) return instance;
   const el = document.createElement('section'); el.id = 'marches-fenetre'; el.className = 'tp tp-marches'; el.setAttribute('aria-label', 'Marchés');
-  el.innerHTML = `<header class="tp-tete"><b>Marchés</b><span class="tp-or" data-or aria-live="off" title="Prix de l’or : Kraken PF_XAUUSD, le même partout dans l’appli">Or —</span><button type="button" class="tp-lire" data-point title="Rayle te raconte ce qui s’est passé, session par session">Point de Rayle</button><button type="button" class="tp-lire" data-lire aria-label="Lire cet onglet à voix haute">🔊</button></header>
+  el.innerHTML = `<header class="tp-tete"><b>Marchés</b><span class="tp-or" data-or aria-live="off" title="Prix de l’or : Kraken PF_XAUUSD, le même partout dans l’appli">Or —</span><button type="button" class="tp-lire" data-carnet title="Tes idées, ce que disaient les outils, les débriefs">Carnet</button><button type="button" class="tp-lire" data-formation title="Relire les gros mouvements des derniers mois, bougie par bougie">Formation</button><button type="button" class="tp-lire" data-point title="Rayle te raconte ce qui s’est passé, session par session">Point de Rayle</button><button type="button" class="tp-lire" data-lire aria-label="Lire cet onglet à voix haute">🔊</button></header>
     <nav class="tp-nav" role="tablist" aria-label="Sections">${ONGLETS.map(([k, n]) => `<button type="button" role="tab" data-onglet="${k}" aria-selected="false">${esc(n)}</button>`).join('')}</nav>
     <main class="tp-corps" data-corps></main>
     <footer class="tp-pied">Lecture seule : aucun ordre. Pas un conseil d’investissement ; l’historique ne garantit rien. Chaque chiffre porte sa source et son âge.</footer>`;
@@ -40,6 +40,8 @@ export async function ouvrir({ racine = document.body, onFermer = () => {} } = {
   el.addEventListener('click', e => {
     const o = e.target.closest('[data-onglet]'); if (o) { aller(o.dataset.onglet); return; }
     if (e.target.closest('[data-rouvrir]')) { aller(S.onglet); return; }
+    if (e.target.closest('[data-carnet]')) { import('../copilote/carnet-ui.js').then(m => m.ouvrirCarnet()).catch(er => toast('Carnet indisponible : ' + (er && er.message || er))); return; }
+    if (e.target.closest('[data-formation]')) { import('../copilote/formation-ui.js').then(m => m.ouvrirFormation()).catch(er => toast('Formation indisponible : ' + (er && er.message || er))); return; }
     if (e.target.closest('[data-point]')) { import('../point/fenetre.js').then(m => m.ouvrirPoint({ type: 'depuis', parler: false })).catch(er => toast('Point indisponible : ' + (er && er.message || er))); return; }
     if (e.target.closest('[data-lire]')) { const t = S.module && S.module.resume ? S.module.resume() : ''; parler(t || 'Cet onglet n’a pas de résumé à lire.'); }
   });

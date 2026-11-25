@@ -52,6 +52,10 @@ export async function ecrirePersonnes(personnes, { conn = lireConn(), fetchFn = 
   const r = await fetchFn(conn.url + '/reseau/personnes', { method: 'PUT', headers: { 'Content-Type': 'application/json', ...entetes(conn) }, body: JSON.stringify({ personnes }), signal: AbortSignal.timeout ? AbortSignal.timeout(12000) : undefined });
   const j = await r.json().catch(() => ({})); if (!r.ok) throw new Error(j.error || 'le Worker a répondu ' + r.status); return j.personnes;
 }
+/* réglages du copilote côté Worker : silence jusqu'à une heure (messages Telegram sans notification), types d'alertes actifs */
+export async function envoyerReglagesCopilote(patch, { conn = lireConn(), fetchFn = (...a) => fetch(...a) } = {}) {
+  if (!conn) return false; try { const r = await fetchFn(conn.url + '/reseau/reglages', { method: 'PUT', headers: { 'Content-Type': 'application/json', ...entetes(conn) }, body: JSON.stringify(patch), signal: AbortSignal.timeout ? AbortSignal.timeout(10000) : undefined }); return r.ok; } catch (e) { return false; }
+}
 export async function envoyerSeuilServeur(seuilAlerte, { conn = lireConn(), fetchFn = (...a) => fetch(...a) } = {}) {
   if (!conn) return false; try { const r = await fetchFn(conn.url + '/reseau/reglages', { method: 'PUT', headers: { 'Content-Type': 'application/json', ...entetes(conn) }, body: JSON.stringify({ seuilAlerte }), signal: AbortSignal.timeout ? AbortSignal.timeout(10000) : undefined }); return r.ok; } catch (e) { return false; }
 }

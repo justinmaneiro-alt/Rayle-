@@ -185,7 +185,12 @@ export async function repondreReseau(texte) {
   if (E.status !== 'fulfilled') return 'Mon réseau d’information est injoignable pour le moment.';
   return T.reponseReseau(texte, E.value.donnees, { evenements: cal.status === 'fulfilled' ? Cal.lireEvenements(cal.value.donnees) : [] });
 }
+/* copilote en direct : « montre-moi », « regarde ça », « je regarde un achat sur l'or », « j'ai clôturé », « formation », « alertes silencieuses jusqu'à demain » */
+export async function repondreCopilote(texte) {
+  const V = await import('../copilote/voix.js'); if (!V.intentionCopilote(texte)) return null; return V.repondreCopilote(texte);
+}
 export async function commande(texte) {
+  { const r = await repondreCopilote(texte); if (r) return r; }
   { const r = await repondrePoint(texte); if (r) return r; }
   { const r = await repondreReseau(texte); if (r) return r; }
   { const r = await repondreMesActifs(texte); if (r) return r; }
