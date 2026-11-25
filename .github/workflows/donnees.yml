@@ -8,7 +8,7 @@ on:
   workflow_dispatch:
   push:
     branches: [main]
-    paths: ['outils-donnees/**', '.github/workflows/donnees.yml', 'app-pc/terminal-donnees.mjs', 'app-pc/terminal-sources.mjs', 'marches/donnees/**', 'trader-pro/commun/analyse.js', 'trader-pro/lecture/**']
+    paths: ['outils-donnees/**', '.github/workflows/donnees.yml', 'app-pc/terminal-donnees.mjs', 'app-pc/terminal-sources.mjs', 'marches/donnees/**', 'trader-pro/commun/analyse.js', 'trader-pro/lecture/**', 'trader-pro/reseau/**']
 concurrency:
   group: donnees-boucle
   cancel-in-progress: false
@@ -45,6 +45,7 @@ jobs:
             fi
             for L in $LOTS; do node outils-donnees/snapshots.mjs --sortie sortie --lot "$L" || true; done
             node outils-donnees/signaux.mjs --sortie sortie || true
+            node outils-donnees/reseau.mjs --dossier sortie || true   # copilote : réseau d'information, voie complète (sources lentes toutes les 10 min, réaction réelle du marché, alertes)
             node outils-donnees/lecture.mjs --dossier sortie || true   # copilote : fiches de lecture (publiées en fichiers + envoyées au Worker si LECTURE_URL et LECTURE_CODE existent)
             if node outils-donnees/verifier-publication.mjs sortie; then
               ( cd sortie && rm -rf .git && git init -q -b donnees && git config user.name "rayle-donnees" && git config user.email "rayle-donnees@users.noreply.github.com"                 && git add -A && git commit -q -m "snapshots $(date -u +%FT%TZ)"                 && git push -q --force "https://x-access-token:${JETON}@github.com/${GITHUB_REPOSITORY}.git" donnees ) || echo "publication échouée, on réessaie au prochain tour"

@@ -168,7 +168,16 @@ export async function repondreMesActifs(texte, { donnees = null } = {}) {
   try { const D = await (donnees || (await import('../invest/donnees-invest.js')).creerDonnees()).mesActifs(), A = D && D.actifs && D.actifs[I.actif]; if (!A) return `Je n’ai pas encore les indicateurs de ${I.nom.toLowerCase()} : la tâche quotidienne ne les a pas publiés.`; return M.phraseVerdict(I.nom, A.indicateurs, I.horizon); }
   catch (e) { return `Je n’arrive pas à lire les indicateurs de ${I.nom.toLowerCase()} pour le moment (${String(e && e.message || e).slice(0, 80)}).`; }
 }
+/* réseau d'information : « quoi de neuf d'important ? », « qu'est-ce que Trump a dit aujourd'hui ? », « qu'est-ce qui peut faire bouger l'or cette semaine ? » (lu dans l'état, sans IA) */
+export async function repondreReseau(texte) {
+  const T = await import('../reseau/textes.js'); if (!T.intentionReseau(texte)) return null;
+  const C = await import('./donnees.js'), K = await import('../reseau/client.js'), Cal = await import('../marches/calendrier.js');
+  const [E, cal] = await Promise.allSettled([K.lireReseau(), C.lireCalendrier({ delai: 6000 })]);
+  if (E.status !== 'fulfilled') return 'Mon réseau d’information est injoignable pour le moment.';
+  return T.reponseReseau(texte, E.value.donnees, { evenements: cal.status === 'fulfilled' ? Cal.lireEvenements(cal.value.donnees) : [] });
+}
 export async function commande(texte) {
+  { const r = await repondreReseau(texte); if (r) return r; }
   { const r = await repondreMesActifs(texte); if (r) return r; }
   if (!intention(texte)) { const I = await import('../invest/voix-invest.js'); return I.intentionInvest(texte) ? I.repondreInvest(texte, sourceInvest()) : null; }
   return repondre(texte, sourceNavigateur());

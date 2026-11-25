@@ -71,3 +71,9 @@ Les fiches sont calculées par GitHub Actions (`outils-donnees/lecture.mjs`, dan
 Secrets à ajouter (une fois, aucun dans le dépôt) :
 1. Worker : `npx.cmd wrangler secret put LECTURE_CODE` (une phrase de passe d'au moins 12 caractères, tirée au hasard).
 2. GitHub (dépôt → Settings → Secrets and variables → Actions) : `LECTURE_CODE` (la même valeur) et `LECTURE_URL` (l'adresse du Worker `rayle-portefeuille`, sans barre finale).
+
+## Copilote : réseau d'information (phase 3)
+- Deuxième déclencheur planifié (toutes les 2 minutes) : lit FinancialJuice, investingLive et Trump (3 appels), note, range dans D1 et envoie les alertes Telegram (score ≥ 80, réglable). Le premier (5 minutes) est inchangé. Deux déclencheurs utilisés sur les cinq du plan gratuit. Après avoir collé le nouveau `wrangler.toml`, redéployer : `npx.cmd wrangler deploy` depuis `trader-pro/worker`.
+- L'état complet (72 h, toutes sources, réaction réelle du marché) est calculé par GitHub Actions (`outils-donnees/reseau.mjs`) et envoyé par `PUT /reseau/etat` (même secret `LECTURE_CODE` que les fiches de lecture ; **aucun nouveau secret**). Le Worker le garde en texte brut (10 ms de CPU) et l'appareil fusionne avec l'état rapide.
+- Telegram : les secrets `TELEGRAM_BOT_TOKEN` et `TELEGRAM_CHAT_ID` déjà ajoutés au Worker suffisent. Les alertes de GitHub Actions passent par `POST /reseau/alertes` (le Worker les envoie : aucun secret Telegram dans GitHub).
+- Budget gratuit : ≈ 720 exécutions/jour pour le déclencheur de 2 minutes + 288 pour celui de 5 minutes, ≈ 1 000 requêtes réseau sortantes/jour (3 par exécution), ≈ 750 écritures D1/jour sur 100 000 permises. La page « État des données » (route `/budget`) les compte.

@@ -16,7 +16,7 @@ async function envoyer(env, texte, fetchFn) {
   return r.ok ? 'envoyé' : 'telegram a répondu ' + r.status;
 }
 export async function donneesBriefing(depot, t, fetchFn) {
-  const [sig, cal, idx] = await Promise.all([json(fetchFn, BASE_SIGNAUX + '?v=' + Math.floor(t / 60000)), json(fetchFn, BASE + 'calendrier2.json'), json(fetchFn, BASE + 'index.json')]), sync = (await depot.kvLire('sync')) || { cles: {} };
+  const [sig, cal, idx, rez] = await Promise.all([json(fetchFn, BASE_SIGNAUX + '?v=' + Math.floor(t / 60000)), json(fetchFn, BASE + 'calendrier2.json'), json(fetchFn, BASE + 'index.json'), json(fetchFn, BASE + 'reseau-actus.json')]), sync = (await depot.kvLire('sync')) || { cles: {} };
   const mouvements = [], niveaux = [];
   for (const a of ACTIFS) {
     const x = sig && sig.actifs && sig.actifs[a]; if (!x || !x.derniere) continue;
@@ -33,7 +33,8 @@ export async function donneesBriefing(depot, t, fetchFn) {
   const P = unifier({ ouvertes: ouv.map(o => ({ ...o, risqueAuStop: o.sl != null && o.prixOuv != null ? (o.sl - o.prixOuv) * (o.sens === 'BUY' ? 1 : -1) * (o.volume || 0) : null })), saisies: Array.isArray(pos) ? pos : [], traduire: x => String(x || '').toLowerCase() });
   const A = analyser(P, { corr: creerCorr(null), capital: reg.capital || 0 }), b = budget({ reglages: reg, pertes: { jour: 0, semaine: 0 }, engage: A.total });
   let dn; if (idx && idx.fichiers) { const ages = Object.values(idx.fichiers).map(f => f.t).filter(Number.isFinite), retard = ages.length ? (t - Math.min(...ages)) / 3600e3 : null; dn = { voyant: retard != null && retard < 3 ? 'vert' : 'orange', phrase: retard == null ? 'État des données illisible.' : retard < 3 ? 'Données à jour.' : `Attention : une source n’a pas été mise à jour depuis ${Math.round(retard)} heures.` }; } else dn = { voyant: 'rouge', phrase: 'Je ne peux pas lire l’état des données.' };
-  return { date: jolie(t), mouvements, niveaux, annonces, alertes: { actives: alertes.filter(a => !a.declenchee).length, recentes }, risque: A.n || reg.capital ? { total: A.total, totalPct: A.totalPct, jourReste: b.capital > 0 ? b.jour.reste : null, etatJour: b.jour.etat } : null, donnees: dn };
+  const infosCles = ((rez && rez.items) || []).filter(x => x.t >= t - 24 * 3600e3 && x.score >= 40).sort((a, b) => b.score - a.score).slice(0, 3).map(x => ({ titre: String(x.titre).slice(0, 120), score: x.score }));
+  return { date: jolie(t), mouvements, niveaux, annonces, infosCles, alertes: { actives: alertes.filter(a => !a.declenchee).length, recentes }, risque: A.n || reg.capital ? { total: A.total, totalPct: A.totalPct, jourReste: b.capital > 0 ? b.jour.reste : null, etatJour: b.jour.etat } : null, donnees: dn };
 }
 export async function briefingMatin(env, depot, t, { fetchFn = fetch, forcer = false } = {}) {
   const sync = (await depot.kvLire('sync')) || { cles: {} }, r = (sync.cles.rayle_briefing_reglage_v1 || {}).valeur; if (!forcer && r && r.actif === false) return 'désactivé';

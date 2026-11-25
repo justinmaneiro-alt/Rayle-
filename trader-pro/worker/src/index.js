@@ -4,6 +4,7 @@
 import { traiter, entetesCors, autoriser } from './coeur.js';
 import { traiterLT, lotLongTerme, alertesInvest } from './long-terme.js';
 import { traiterLecture } from './lecture.js';
+import { traiterReseau, tacheReseauRapide, CRON_RESEAU } from './reseau.js';
 import { depotD1 } from './depot-d1.js';
 import { evaluerAlertes, texteAlerte } from '../../marches/alertes.js';
 import { rappelImport } from './rappel.js';
@@ -22,11 +23,12 @@ export default {
       const h = entetesCors(req, env), aut = await autoriser(req, env); if (!aut.ok) return new Response(JSON.stringify({ error: aut.raison }), { status: aut.code, headers: { 'Content-Type': 'application/json', ...h } });
       return new Response(JSON.stringify(await repondreBudget(d)), { headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store', ...h } });
     }
-    const lt = await traiterLT(req, env, d, { cors: entetesCors(req, env), autoriser }); if (lt) return lt; const lec = await traiterLecture(req, env, d, { cors: entetesCors(req, env), autoriser }); if (lec) return lec; const rep = await traiter(req, env, d), f = facteurActuel(); if (f > 1) { try { rep.headers.set('X-Rayle-Ralentir', String(f)); } catch (e) { /* en-têtes figés */ } } return rep;
+    const lt = await traiterLT(req, env, d, { cors: entetesCors(req, env), autoriser }); if (lt) return lt; const lec = await traiterLecture(req, env, d, { cors: entetesCors(req, env), autoriser }); if (lec) return lec; const res = await traiterReseau(req, env, d, { cors: entetesCors(req, env), autoriser }); if (res) return res; const rep = await traiter(req, env, d), f = facteurActuel(); if (f > 1) { try { rep.headers.set('X-Rayle-Ralentir', String(f)); } catch (e) { /* en-têtes figés */ } } return rep;
   },
   /* UN SEUL déclencheur (toutes les 5 minutes) : cron.js choisit les tâches selon l'heure ; chaque tâche est isolée */
   async scheduled(event, env, ctx) {
     if (!env.DB) return; depot = depot || depotD1(env.DB); const d = compterDepot(depot), t = event && event.scheduledTime ? Number(event.scheduledTime) : Date.now();
+    if (event && event.cron === CRON_RESEAU) { ctx.waitUntil(tacheReseauRapide(env, d, t).catch(() => null)); return; }   // second déclencheur (2 min) : réseau d'information, voie rapide
     ctx.waitUntil(lancerTaches(tachesDuPassage(t), tachesWorker(env, d, t)));
   }
 };

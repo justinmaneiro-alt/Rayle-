@@ -2,7 +2,7 @@
    Garde identiques, sur le PC, la tablette et le téléphone : Ma liste, Mon plan, réglages des flèches, risque et positions, heures de silence (voir worker/src/sync.js).
    Interrogation toutes les 45 s SEULEMENT quand la page est visible (budget gratuit Cloudflare) ; pause en arrière-plan. Sans Worker configuré : rien ne se passe. Jamais d'exception.
    Pas de doublons : une valeur est identifiée par sa clé ; la dernière modification gagne (horodatage de l'appareil qui a modifié). */
-export const CLES_SYNC = Object.freeze(['rayle_lt_liste_v1', 'rayle_invest_plan_v1', 'rayle_tp_ma200h4_reglages', 'rayle_tp_fleches_alertes', 'rayle_pf_risque_v1', 'rayle_pf_positions_v1', 'rayle_alertes_silence_v1', 'rayle_briefing_reglage_v1', 'rayle_voix_gemini_v1']);
+export const CLES_SYNC = Object.freeze(['rayle_lt_liste_v1', 'rayle_invest_plan_v1', 'rayle_tp_ma200h4_reglages', 'rayle_tp_fleches_alertes', 'rayle_pf_risque_v1', 'rayle_pf_positions_v1', 'rayle_alertes_silence_v1', 'rayle_briefing_reglage_v1', 'rayle_voix_gemini_v1', 'rayle_reseau_reglages_v1']);
 export const CLE_META = 'rayle_sync_meta_v1', INTERVALLE = 45000;
 export const idAppareil = () => 'a' + Math.random().toString(36).slice(2, 8);
 

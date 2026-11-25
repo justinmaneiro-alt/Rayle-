@@ -9,6 +9,8 @@ export function construireBriefing(d) {
   const S = [], V = []; const nom = a => NOM[a] || a;
   const M = (d.mouvements || []).filter(m => Number.isFinite(m.variationPct)).sort((a, b) => Math.abs(b.variationPct) - Math.abs(a.variationPct));
   if (M.length) { S.push({ id: 'mouvements', titre: 'Depuis la veille', lignes: M.map(m => `${nom(m.actif)} ${pct(m.variationPct).replace('pour cent', '%')} (${f(m.prix, dec(m.actif))})`) }); V.push('Depuis la veille : ' + M.slice(0, 3).map(m => `${nom(m.actif)}, ${pct(m.variationPct)}`).join(' ; ') + '.'); }
+  const I = (d.infosCles || []).slice(0, 3);   // réseau d'information : les 3 infos clés des dernières 24 h (score d'importance)
+  if (I.length) { S.push({ id: 'infos', titre: 'Les infos clés', lignes: I.map(x => `${x.titre} (importance ${x.score}/100)`) }); V.push('Les infos clés : ' + I.map((x, i) => `${i + 1}, ${x.titre}`).join(' ; ') + '.'); }
   const N = (d.niveaux || []).filter(n => Number.isFinite(n.distancePct)).sort((a, b) => Math.abs(a.distancePct) - Math.abs(b.distancePct)).slice(0, 5);
   if (N.length) { S.push({ id: 'niveaux', titre: 'Niveaux proches', lignes: N.map(n => `${nom(n.actif)} : ${n.nom} à ${f(n.prix, dec(n.actif))} (${f(Math.abs(n.distancePct), 1)} % ${n.distancePct >= 0 ? 'au-dessus' : 'en dessous'})`) }); V.push('Niveaux à surveiller : ' + N.slice(0, 3).map(n => `${nom(n.actif)}, ${n.nom} à ${f(n.prix, dec(n.actif))}, à ${f(Math.abs(n.distancePct), 1)} pour cent`).join(' ; ') + '.'); }
   const A = d.annonces || []; S.push({ id: 'annonces', titre: 'Annonces du jour', lignes: A.length ? A.map(a => `${a.heure} · ${a.titre}${a.impact ? ' (' + a.impact + ')' : ''}`) : ['Aucune annonce importante aujourd’hui.'] });

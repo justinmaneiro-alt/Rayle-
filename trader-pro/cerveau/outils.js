@@ -126,7 +126,16 @@ async function bougies_volume({ actif, unite = 'H4', seuil = 2 } = {}) {
     resumeAdire: BV.resumeParle(T, { actif: id, unite: u, seuil: sd }), regles: 'Mouvement en ATR dans le sens de la bougie (positif = continuation). Moins de ' + BV.MIN_CAS + ' cas : échantillon trop petit, aucun pourcentage. Statistiques descriptives sur l’historique affiché, pas un signal : ne rien promettre.' };
 }
 
-export const OUTILS = { prix_et_tendance, niveaux, carnet_et_volume, bougies_volume, marches, mes_actifs, investissement, portefeuille_et_risque, couverture, etat_des_donnees };
+/* ───── réseau d'information : À la une, personnalités, ce qui peut faire bouger un actif (notes d'importance, réaction mesurée du marché) ───── */
+async function reseau_info({ sujet, actif, personne } = {}) {
+  const K = await import('../reseau/client.js'), E = (await K.lireReseau()).donnees, T = await import('../reseau/etat.js'), X = await import('../reseau/textes.js'), C = await import('../reseau/config.js'), now = MAINTENANT();
+  if (!E.cartes || !E.cartes.length) return sans('réseau d’information vide ou injoignable');
+  const carte = c => ({ titre: c.titre, importance: c.score, il_y_a: X.ageParle(c.t, now), heureParis: X.heureParisCourte(c.t), sources: c.sources.length, personne: c.personne ? X.nomPers(c.personne) : null, actifs: c.actifs, reaction_du_marche: c.reaction && c.reaction.max ? c.reaction.texte : null, revirement: !!(c.fil && (E.fils.find(f => f.id === c.fil) || {}).revirement) });
+  if (personne) { const id = (C.PERSONNES.find(p => p.alias.concat([p.nom.toLowerCase()]).some(a => norm(personne).includes(norm(a))) || {}).id); if (!id) return sans('personnalité non suivie : ' + personne); return { personne: X.nomPers(id), declarations_72h: E.cartes.filter(c => c.personne === id).sort((a, b) => b.t - a.t).slice(0, 5).map(carte) }; }
+  const id = actif ? idActif(actif) : null; if (id) return { actif: id, infos: E.cartes.filter(c => c.actifs.includes(id)).sort((a, b) => b.score - a.score).slice(0, 5).map(carte), note: 'hypothèses de lecture, jamais un signal' };
+  return { a_la_une: T.aLaUne(E, now, 5).map(carte), note: 'importance sur 100 : qui parle, sujet, actifs touchés, nouveauté, sources, réaction réelle du marché' };
+}
+export const OUTILS = { reseau_info, prix_et_tendance, niveaux, carnet_et_volume, bougies_volume, marches, mes_actifs, investissement, portefeuille_et_risque, couverture, etat_des_donnees };
 /* v10 : outils de l'analyste (manuel, analyse complète, marché global, lecture du graphique) */
 Object.assign(OUTILS, creerAnalyste({ OUTILS, idActif, pro, dec, dateIso, sans, manque, norm }).outils);
 const A_ENUM = ['or', 'us100', 'us500', 'btc', 'sol', 'dxy'];
@@ -140,6 +149,7 @@ export const DECLARATIONS = [
   { name: 'investissement', description: 'Fiche et scores d’une action, d’un fonds ou d’un secteur (fenêtre Investissement) : « Airbus est-il attractif ? », « actions européennes à 1–3 ans ».', parameters: { type: 'object', properties: { recherche: { type: 'string', description: 'la demande en français, avec le nom de la valeur' } }, required: ['recherche'] } },
   { name: 'portefeuille_et_risque', description: 'Mes positions XTB, résultats, risque engagé, limites du jour et de la semaine, statistiques et erreurs par setup.' },
   { name: 'couverture', description: 'Meilleure couverture d’une position (actif et sens achat/vente) et son taux de protection mesuré.', parameters: { type: 'object', properties: { actif: { type: 'string', enum: ['or', 'us100', 'us500', 'btc', 'sol', 'dxy', 'petrole'] }, sens: { type: 'string', enum: ['achat', 'vente'] } }, required: ['actif'] } },
+  { name: 'reseau_info', description: 'Réseau d’information de Rayle (infos notées de 0 à 100) : sans argument, les 5 infos les plus importantes des dernières 24 h (« quoi de neuf d’important ? ») ; avec `personne` (Trump, Powell, Musk…), ses dernières déclarations ; avec `actif`, ce qui peut le faire bouger. Donne l’heure de Paris, la réaction réelle du marché et les revirements.', parameters: { type: 'object', properties: { personne: { type: 'string' }, actif: { type: 'string', enum: [...A_ENUM, 'petrole'] } } } },
   { name: 'etat_des_donnees', description: 'Fraîcheur des données de l’application : lesquelles sont à jour, lesquelles sont en retard.', },
   ...DECLARATIONS_ANALYSTE
 ];

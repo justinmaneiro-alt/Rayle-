@@ -19,4 +19,4 @@ database_id = "REMPLACER-PAR-L-IDENTIFIANT-D1"
 
 # Toutes les 5 minutes : alertes de prix franchies → message Telegram (si les secrets TELEGRAM_BOT_TOKEN et TELEGRAM_CHAT_ID existent).
 [triggers]
-crons = ["*/5 * * * *"]
+crons = ["*/5 * * * *", "*/2 * * * *"]   # le second (toutes les 2 minutes) ne lance que le réseau d'information (voie rapide) ; 2 déclencheurs sur les 5 du plan gratuit
