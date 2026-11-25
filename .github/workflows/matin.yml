@@ -1,0 +1,52 @@
+name: matin
+# Point du matin de Rayle sur Telegram : message VOCAL (voix Azure gratuite, sinon Piper) + version texte. Sans PC allumé.
+# Le calcul vient des fiches de lecture de la branche « donnees » ; l'envoi passe par le Worker (les secrets Telegram restent dans le Worker).
+# Heure et jours : réglables dans l'appli (Marchés › Actualité › Sources et réglages). Une fois par jour (le Worker garde la date).
+# Secrets GitHub (Settings › Secrets and variables › Actions) : LECTURE_URL, LECTURE_CODE (voir trader-pro/worker/LISEZMOI.md), AZURE_SPEECH_KEY, AZURE_SPEECH_REGION (facultatifs : sans eux, voix Piper).
+on:
+  schedule:
+    - cron: '*/10 3-9 * * *'   # toutes les 10 minutes de 3 h à 9 h 50 UTC (couvre 5 h–11 h, heure de Paris, été comme hiver) ; GitHub peut retarder un déclenchement : la fenêtre d'envoi est de 40 minutes
+  workflow_dispatch:
+    inputs:
+      forcer:
+        description: 'Envoyer tout de suite (test), même si ce n est pas l heure ou déjà fait'
+        type: boolean
+        default: true
+concurrency:
+  group: matin
+  cancel-in-progress: false
+permissions:
+  contents: read
+jobs:
+  envoi:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      LECTURE_URL: ${{ secrets.LECTURE_URL }}
+      LECTURE_CODE: ${{ secrets.LECTURE_CODE }}
+      AZURE_SPEECH_KEY: ${{ secrets.AZURE_SPEECH_KEY }}
+      AZURE_SPEECH_REGION: ${{ secrets.AZURE_SPEECH_REGION }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Récupérer les fiches de lecture (branche donnees)
+        env:
+          JETON: ${{ github.token }}
+        run: git clone --depth 1 --branch donnees "https://x-access-token:${JETON}@github.com/${GITHUB_REPOSITORY}.git" sortie && rm -rf sortie/.git
+      - name: Faut-il envoyer maintenant ?
+        id: verif
+        run: node outils-donnees/matin.mjs --dossier sortie --seulement-verifier ${{ github.event_name == 'workflow_dispatch' && inputs.forcer && '--forcer' || '' }}
+      - name: Voix de secours Piper (seulement si on envoie)
+        if: steps.verif.outputs.du == 'true'
+        run: |
+          pip install --quiet piper-tts
+          mkdir -p voix && cd voix
+          curl -sSL -o fr_FR-siwis-medium.onnx "https://huggingface.co/rhasspy/piper-voices/resolve/main/fr/fr_FR/siwis/medium/fr_FR-siwis-medium.onnx"
+          curl -sSL -o fr_FR-siwis-medium.onnx.json "https://huggingface.co/rhasspy/piper-voices/resolve/main/fr/fr_FR/siwis/medium/fr_FR-siwis-medium.onnx.json"
+          echo "PIPER_MODELE=$PWD/fr_FR-siwis-medium.onnx" >> "$GITHUB_ENV"
+        continue-on-error: true
+      - name: Envoyer le point du matin (vocal + texte)
+        if: steps.verif.outputs.du == 'true'
+        run: node outils-donnees/matin.mjs --dossier sortie ${{ github.event_name == 'workflow_dispatch' && inputs.forcer && '--forcer' || '' }}

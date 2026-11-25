@@ -125,7 +125,7 @@ export function lectureSessions(F, depuis, maintenant) {
   const out = [], nom = NOM(F.actif);
   for (const s of (F.sessions || []).filter(x => x.fin > depuis && x.debut < maintenant && x.id !== 'creux')) {
     const typ = s.comportement && s.comportement.typique, txt = s.comportement ? s.comportement.texte : '';
-    out.push({ id: s.id, nom: s.nom, plage: s.plageParis, pct: s.pct, amplitudeAtrJ: s.amplitudeAtrJ, enCours: s.enCours, texte: `${s.nom}${s.enCours ? ' (en cours)' : ''} : ${nom} ${Math.abs(s.pct) < 0.1 ? 'presque stable' : (s.pct > 0 ? 'en hausse de ' : 'en baisse de ') + fr(Math.abs(s.pct), 1) + ' %'}${Number.isFinite(s.amplitudeAtrJ) ? ', amplitude ' + fr(s.amplitudeAtrJ, 1) + ' ATR du jour' : ''}${txt ? ' ; ' + txt : ''}${typ === false ? ', c’est inhabituel' : typ === true ? ', comportement typique' : ''}.` });
+    out.push({ id: s.id, nom: s.nom, plage: s.plageParis, pct: s.pct, amplitudeAtrJ: s.amplitudeAtrJ, enCours: s.enCours, texte: `${s.nom}${s.enCours ? ' (en cours)' : ''} : ${nom} ${Math.abs(s.pct) < 0.1 ? 'presque stable' : (s.pct > 0 ? 'en hausse de ' : 'en baisse de ') + fr(Math.abs(s.pct), 1) + ' %'}${Number.isFinite(s.amplitudeAtrJ) ? ', amplitude ' + fr(s.amplitudeAtrJ, 1) + ' ATR du jour' : ''}${txt ? ' ; ' + txt : ''}${typ === false && !/inhabituel/.test(txt) ? ', c’est inhabituel' : typ === true ? ', comportement typique' : ''}.` });
   }
   return out;
 }

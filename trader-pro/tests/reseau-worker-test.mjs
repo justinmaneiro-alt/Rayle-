@@ -4,7 +4,7 @@ import { DatabaseSync } from 'node:sqlite';
 import fs from 'node:fs'; import os from 'node:os'; import path from 'node:path';
 import { depotD1, d1DepuisSqlite } from '../worker/src/depot-d1.js';
 import { traiterReseau, tacheReseauRapide, envoyerAlertes, nettoyerPersonnes, lireSource, CLES, CRON_RESEAU } from '../worker/src/reseau.js';
-import { lireEtatWorker, passage, envoyerEtat, envoyerAlertes as robotAlertes, actusPourLecture } from '../../outils-donnees/reseau.mjs';
+import { lireEtatWorker, passage, envoyerEtat, envoyerAlertes as robotAlertes, actusPourLecture, masquer } from '../../outils-donnees/reseau.mjs';
 import { tachesDuPassage } from '../worker/src/cron.js';
 import { alertesDe, etatVide } from '../reseau/etat.js';
 
@@ -99,6 +99,7 @@ console.log('— le robot : un passage complet sur des instantanés —');
     v(c.reaction.max && c.reaction.max.actif === 'us100' && c.reaction.max.pct < 0 && /^le marché a réagi : Nasdaq −/.test(c.reaction.texte), 'réaction réelle du marché mesurée sur les bougies M5 : ' + c.reaction.texte);
     v(R.memoire.length === 1 && R.memoire[0].personne === 'trump' && R.memoire[0].sujet === 'droits_douane', 'la mémoire des précédents se construit');
     const A = alertesDe(R.etat, T0 + 60 * MIN, { seuil: 70 }); v(A.nouvelles.length >= 1 && /Nasdaq/.test(A.nouvelles[0].texte), 'une alerte part avec la réaction du marché');
+    v(masquer('écris à jean@gmail.com ou utilise sk-abcdefghijklmnopqrstuvwxyz1234') === 'écris à [masqué] ou utilise [masqué]' && masquer('Trump: new tariffs') === 'Trump: new tariffs', 'les titres venus d’Internet sont nettoyés avant publication (le garde-fou de publication refuserait tout le dossier sinon)');
     const L = actusPourLecture(R.etat); v(L.items.length >= 1 && L.items.every(i => i.titre && Number.isFinite(i.score) && Array.isArray(i.actifs)), 'reseau-actus.json pour le moteur de lecture');
     const sans = await passage(dossier, { maintenant: T0, reseau: false }); v(sans.etat.cartes.length === 0 && sans.resultats.length === 0, 'sans réseau : rien d’inventé');
     const F2 = async (url, init) => { if (init && init.method === 'PUT') { return new Response('{"ok":true}'); } return new Response('', { status: 500 }); };

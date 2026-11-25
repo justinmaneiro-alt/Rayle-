@@ -12,6 +12,7 @@ import { integrer, etatVide, majSources, alertesDe, finaliser, fusionnerCartes }
 import { mesurerReaction, memoriser } from '../trader-pro/reseau/reaction.js';
 import { tendanceUnite } from '../trader-pro/lecture/calculs.js';
 import { lireEvenements } from '../trader-pro/marches/calendrier.js';
+import { MOTIFS } from './verifier-publication.mjs';
 import { majAnnonces, lireMemoireAnnonces, ecrireMemoireAnnonces, series15 } from './annonces.mjs';
 
 export const SYM5 = { or: 'GC_F', us100: '_NDX', us500: '_GSPC', btc: 'BTC_USD', sol: 'SOL_USD', petrole: 'CL_F', dxy: 'DX_Y_NYB' };
@@ -84,6 +85,8 @@ export function injecterALaUne(dossier, etat, maintenant = Date.now()) {
   const une = etat.cartes.filter(c => c.t >= maintenant - 24 * 3600e3 && c.score >= 50).sort((a, b) => b.score - a.score || b.t - a.t).slice(0, 5).map(c => ({ titre: '★ ' + c.titre, lien: (c.sources.find(s => s.lien) || {}).lien || null, date: c.t, resume: `Score ${c.score}/100 · ${c.sources.length} source${c.sources.length > 1 ? 's' : ''}${c.reaction && c.reaction.max ? ' · ' + c.reaction.texte : ''}`, image: null, source: 'À la une' })).filter(x => x.lien);
   const deja = new Set(une.map(x => x.titre.slice(2).toLowerCase())); d.items = [...une, ...d.items.filter(x => !deja.has(String(x.titre).toLowerCase()))]; fs.writeFileSync(f, JSON.stringify(d)); return une.length;
 }
+/* le garde-fou de publication refuse TOUT le dossier si un seul texte ressemble à une clé ou une adresse personnelle : les titres venus d'Internet sont donc nettoyés avant d'être écrits */
+export function masquer(texte) { let t = String(texte); for (const [, re] of MOTIFS) t = t.replace(new RegExp(re.source, re.flags.includes('g') ? re.flags : re.flags + 'g'), '[masqué]'); return t; }
 export const actusPourLecture = E => ({ t: E.t, items: E.cartes.filter(c => c.score >= 25).map(c => ({ titre: c.titre, source: c.sources[0] ? c.sources[0].nom : null, t: c.t, lien: (c.sources.find(s => s.lien) || {}).lien || null, score: c.score, actifs: c.actifs, nbSources: c.sources.length })) });
 
 async function principal() {
@@ -94,7 +97,7 @@ async function principal() {
   const personnes = (avecWorker && await lirePersonnesWorker(url, code)) || PERSONNES;
   const R = await passage(dossier, { maintenant, base, personnes, lentes: a.includes('--lentes'), reseau });
   const reg = avecWorker ? await lireReglagesWorker(url, code) : null, A = alertesDe(R.etat, maintenant, { personnes, seuil: reg ? reg.seuilAlerte : undefined }); const E = A.etat;   // alertes calculées ici (score relevé par la réaction du marché) ; le Worker les envoie par Telegram
-  fs.writeFileSync(path.join(dossier, 'reseau-etat.json'), JSON.stringify({ ...E, memoire: R.memoire })); fs.writeFileSync(path.join(dossier, 'reseau-actus.json'), JSON.stringify(actusPourLecture(E)));
+  fs.writeFileSync(path.join(dossier, 'reseau-etat.json'), masquer(JSON.stringify({ ...E, memoire: R.memoire }))); fs.writeFileSync(path.join(dossier, 'reseau-actus.json'), masquer(JSON.stringify(actusPourLecture(E))));
   const cal = lireJson(dossier, 'calendrier2.json'), AN = majAnnonces(lireMemoireAnnonces(dossier), cal ? lireEvenements(cal) : [], series15(dossier), maintenant); ecrireMemoireAnnonces(dossier, AN.memoire); const nUne = injecterALaUne(dossier, E, maintenant);
   console.log(`annonces : ${AN.memoire.entrees.length} en mémoire (+${AN.ajoutees}, ${AN.mesurees} mesures) · À la une injectée dans le carrousel : ${nUne}`);
   if (R.lentesFaites) fs.writeFileSync(path.join(dossier, 'reseau-meta.json'), JSON.stringify({ tLentes: maintenant }));
