@@ -152,10 +152,29 @@ C'est quoi : un trou entre la mèche haute de la bougie 1 et la mèche basse de 
 Pièges : tous ne sont pas retestés ; un FVG comblé complètement perd son sens ; à regarder sur Daily/H4 plutôt qu'en petites unités.
 
 ## Bougies HTF / ICT : order blocks
-Mots-clés: order block, ob, bloc d'ordres
-Fenêtre: terminal, mode volume, onglet htf
-C'est quoi : la dernière bougie contraire avant un mouvement impulsif qui casse la structure ; on la considère comme une zone où des ordres institutionnels ont été placés.
-Pièges : notion d'interprétation (non mesurée par l'appli comme les flèches) ; ne remplace pas une confluence avec volume ou niveau tracé. Dis-le clairement si on te demande des chiffres : l'appli ne donne pas de statistique de réussite pour cet outil.
+Mots-clés: order block, ob, bloc d'ordres, reversal candle, mean threshold, breaker, vrai order block
+Fenêtre: terminal (mode ICT), mode volume, onglet htf
+C'est quoi : la dernière bougie contraire (baissière pour un order block haussier) avant le retournement. Checklist en trois points, à passer un par un avec oui ou non : 1) prise de liquidité : la candidate, ou la bougie juste avant, balaie un creux (un sommet pour un baissier) — c'est ce qui donne la version la plus puissante ; 2) reversal candle : une bougie CLÔTURE au-delà du plus haut de la candidate (sous son plus bas pour un baissier), une mèche seule ne compte pas ; 3) FVG sur la reversal candle ou juste après (sans FVG, pas d'order block). Valide quand les points 2 et 3 sont réunis. Simple : la reversal candle casse seulement la candidate ; fort : le déplacement casse aussi un vrai sommet ou creux de structure. Mean threshold : le milieu de la zone, une clôture au-delà l'affaiblit. Statuts : frais, testé, cassé (clôture au-delà de l'extrémité opposée) puis breaker.
+Pièges : la mèche seule ; le FVG trop tard (plusieurs bougies après) ne valide rien ; les stops laissés derrière (une consolidation aux creux intacts juste sous la zone attire le prix, qui vient souvent la chasser avant de partir). Notion d'interprétation : l'appli ne donne pas de statistique de réussite pour les order blocks (outil lecture_ict : drapeaux liquidite, fort, stopsDerriere). Dis-le clairement si on te demande des chiffres.
+
+## ICT : lecture par unité de temps
+Mots-clés: ict, unité de temps, unite, m15, h1, h4, daily, top-down, top down, en h1, en h4, en m15, en daily, graphique h1, multi-unités
+Fenêtre: terminal (mode ICT)
+C'est quoi : l'ICT se lit UNITÉ PAR UNITÉ, sans jamais mélanger. L'unité de référence est celle du graphique ouvert (lecture_graphique), sauf si Justin en nomme une. La réponse commence par « En M15 : », « En H1 : », « En H4 : » ou « En Daily : » et ne cite aucun élément d'une autre unité sans demande ; au moindre doute, chaque élément porte son unité (« FVG H4 »). M15 = exécution (killzones, sweeps de session, FVG et order blocks M15 ; ne donne pas la tendance de fond). H1 = le setup (structure H1, EQH / EQL, PDH / PDL, Asie et Londres, premium / discount, minuit). H4 = la carte (ITH / ITL, dealing range, PD arrays, PWH / PWL). Daily = la direction et la cible (biais du jour par PDH / PDL, LTH / LTL, FVG daily, NWOG, plages de 20, 40 et 60 jours). Top-down seulement sur demande : une rubrique par unité, de la plus haute (Daily) à la plus basse (M15), puis UNE phrase qui relie les unités et signale les contradictions.
+Pièges : un FVG H4 n'est jamais « le FVG » dans une réponse H1 ; changer d'unité en cours de réponse ; ni « achète » ni « vends » : de quel côté la lecture penche, ce qui manque, l'invalidation.
+
+## ICT : tendance de l'unité (STH, ITH, LTH)
+Mots-clés: sth, stl, ith, itl, lth, ltl, tendance de l'unité, bos, mss, déplacement, bruit, swing, structure ict
+Fenêtre: terminal (mode ICT)
+C'est quoi : STH / STL = une bougie plus haute (plus basse) que ses deux voisines, confirmée à la clôture de la suivante. ITH = un STH encadré par deux STH plus bas (ITL : un STL encadré par deux STL plus hauts) ; LTH / LTL : même logique sur les ITH / ITL. La tendance de l'unité est haussière si la dernière cassure EN CLÔTURE est celle d'un ITH (sans ITL cassé depuis), baissière dans le cas symétrique, indécise sans cassure ou quand les deux côtés se cassent à tour de rôle (range). BOS = cassure dans le sens de la tendance, MSS = cassure qui la renverse ; un déplacement est une grande bougie franche (corps ≥ 1,5 ATR, petites mèches). Badge du terminal : « Tendance H1 : haussière · ITL 2 641 tient ».
+Pièges : la cassure d'un simple STH ou STL n'est que du bruit, jamais un changement de tendance ; une mèche au-delà d'un ITH sans clôture ne casse rien ; chaque unité a sa propre structure (le H1 peut être haussier quand le H4 est baissier).
+
+## ICT : outil lecture_ict
+Mots-clés: lecture_ict, lecture ict, qu'est-ce que tu vois en ict, checklist ict, penche, invalidation, biais du jour, killzone, eqh, eql, liquidité, pd array
+Fenêtre: terminal (mode ICT)
+C'est quoi : lecture_ict({ actif, unite }) renvoie, pour UNE unité seulement et avec les mêmes calculs que l'affichage du terminal (ict-v2) : la tendance (ITH / ITL de référence, dernière cassure), les liquidités avec leurs distances (EQH, EQL, PDH, PDL, PWH, PWL, extrêmes de l'Asie et de Londres), les PD arrays (FVG, order blocks, breakers), le premium / discount avec l'OTE, la killzone en cours (M15 et H1), le biais du jour (Daily), la checklist de dix conditions (vrai, faux ou inconnu quand l'outil ne peut pas savoir, par exemple les annonces), et « penche » : achat, vente ou neutre avec les raisons, ce qui manque et l'invalidation. Sans unité, c'est l'unité du graphique ouvert. Pour un top-down, un appel par unité.
+Comment le dire : « la lecture ICT en H1 penche à l'achat (ou à la vente, ou reste neutre) », ce qui est réuni, ce qui manque, l'invalidation au prix exact de l'outil ; une valeur absente se dit « indisponible ». Jamais d'ordre, jamais de promesse : Justin décide.
+Pièges : les mesures statistiques de l'appli (ict-stats.json) ne concernent que le H1 (moteur ict-v1) ; pour M15, H4 et Daily, les éléments sont des descriptions, pas des taux de réussite.
 
 ## Bougies HTF / ICT : égaux hauts et bas
 Mots-clés: égaux hauts, égaux bas, equal highs, equal lows, eqh, eql

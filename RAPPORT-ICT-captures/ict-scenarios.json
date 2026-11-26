@@ -1,0 +1,107 @@
+{
+ "H1 · qu'est-ce que tu vois en ICT ?": {
+  "outil": "lecture_ict {}",
+  "unite": "H1",
+  "origine": "graphique ouvert dans le terminal (mêmes bougies que l’écran)",
+  "resume": "En H1 : structure haussière, dernière cassure BOS haussier (ITH à 3 563,14, sans déplacement), l'ITL H1 3 563,35 tient. Liquidité : EQL H1 à 3 563,35 en dessous ; haut de Londres déjà balayé (mèche puis retour). Zones : OB H1 haussier 3 563,57 à 3 564,17. La lecture ICT H1 penche à l'achat ; il manque : Dans une killzone, MSS avec déplacement, PD array créé par ce déplacement ; invalidation sous 3 563,35. C'est toi qui décides."
+ },
+ "« et en H4 ? »": {
+  "outil": "lecture_ict {unite:H4}",
+  "unite": "H4",
+  "origine": "instantané du robot (bougies H4)",
+  "resume": "En H4 : structure indécise, dernière cassure MSS baissier (ITL à 3 505,33, sans déplacement) : les deux côtés ont été cassés à tour de rôle sur les dernières bougies (range). Liquidité : EQH H4 à 3 889,65 au-dessus ; PDL à 3 429,53 en dessous ; PWL déjà balayé (mèche puis retour). Zones : FVG H4 baissier 3 569,00 à 3 615,11 ; le prix est en premium du dealing range H4 (78 %). La lecture ICT H4 reste neutre : signaux partagés ou structure indécise. C'est toi qui décides."
+ },
+ "M15 · où est la liquidité ?": {
+  "outil": "lecture_ict {}",
+  "unite": "M15",
+  "liquidites": [
+   {
+    "type": "EQH",
+    "nom": "EQH",
+    "prix": 3566.78,
+    "distance": 0.57,
+    "distanceAtr": 0.9,
+    "balayee": false,
+    "typeBalayage": null,
+    "unite": "M15"
+   },
+   {
+    "type": "PDH",
+    "nom": "PDH",
+    "prix": 3566.78,
+    "distance": 0.57,
+    "distanceAtr": 0.9,
+    "balayee": false,
+    "typeBalayage": null,
+    "unite": "M15"
+   },
+   {
+    "type": "EQH",
+    "nom": "EQH",
+    "prix": 3574.07,
+    "distance": 7.86,
+    "distanceAtr": 11.9,
+    "balayee": false,
+    "typeBalayage": null,
+    "unite": "M15"
+   },
+   {
+    "type": "PDL",
+    "nom": "PDL",
+    "prix": 3550.15,
+    "distance": -16.06,
+    "distanceAtr": -24.2,
+    "balayee": false,
+    "typeBalayage": null,
+    "unite": "M15"
+   },
+   {
+    "type": "EQL",
+    "nom": "EQL",
+    "prix": 3566.83,
+    "distance": 0.62,
+    "distanceAtr": 0.9,
+    "balayee": true,
+    "typeBalayage": "cassure",
+    "unite": "M15"
+   },
+   {
+    "type": "EQL",
+    "nom": "EQL",
+    "prix": 3568.58,
+    "distance": 2.37,
+    "distanceAtr": 3.6,
+    "balayee": true,
+    "typeBalayage": "sweep",
+    "unite": "M15"
+   },
+   {
+    "type": "EQL",
+    "nom": "EQL",
+    "prix": 3568.47,
+    "distance": 2.26,
+    "distanceAtr": 3.4,
+    "balayee": true,
+    "typeBalayage": "sweep",
+    "unite": "M15"
+   }
+  ],
+  "temps": {
+   "killzone": null,
+   "silverBullet": null,
+   "prochaine": {
+    "id": "asie",
+    "nom": "Asie",
+    "debutParis": "02:00"
+   },
+   "ouvertureMinuit": 3557.06
+  },
+  "resume": "En M15 : structure haussière, dernière cassure MSS haussier (ITH à 3 563,80, sans déplacement), l'ITL M15 3 561,40 tient. Liquidité : EQH M15 à 3 566,78 au-dessus ; PDL à 3 550,15 en dessous ; EQL M15 déjà balayé (mèche puis retour). Zones : OB M15 baissier 3 565,77 à 3 566,76 (le prix y est) ; le prix est au-dessus du dealing range M15 (extrême haut franchi). La lecture ICT M15 penche à l'achat ; il manque : Dans une killzone, Liquidité prise contre le biais, MSS avec déplacement ; invalidation sous 3 561,40. C'est toi qui décides."
+ },
+ "fais-moi le top-down ICT": {
+  "resume": "En Daily : structure baissière, dernière cassure BOS baissier (ITL à 3 632,79, avec déplacement), l'ITH Daily 4 149,53 tient. Liquidité : PDH à 3 677,77 au-dessus ; PWL déjà balayé (mèche puis retour). Zones : FVG Daily baissier 3 625,74 à 3 720,16 ; le prix est sous le dealing range Daily (extrême bas franchi). La lecture ICT Daily reste neutre : signaux partagés ou structure indécise. C'est toi qui décides.\nEn H4 : structure indécise, dernière cassure MSS baissier (ITL à 3 505,33, sans déplacement) : les deux côtés ont été cassés à tour de rôle sur les dernières bougies (range). Liquidité : EQH H4 à 3 889,65 au-dessus ; PDL à 3 429,53 en dessous ; PWL déjà balayé (mèche puis retour). Zones : FVG H4 baissier 3 569,00 à 3 615,11 ; le prix est en premium du dealing range H4 (78 %). La lecture ICT H4 reste neutre : signaux partagés ou structure indécise. C'est toi qui décides.\nEn H1 : structure haussière, dernière cassure BOS haussier (ITH à 3 590,81, sans déplacement), l'ITL H1 3 552,16 tient. Liquidité : haut de l'Asie à 3 605,85 au-dessus ; EQL H1 à 3 552,16 en dessous ; bas de Londres déjà balayé (mèche puis retour). Zones : FVG H1 baissier 3 574,44 à 3 614,72 ; le prix est en discount du dealing range H1 (49 %). La lecture ICT H1 penche à l'achat ; il manque : Dans une killzone, MSS avec déplacement, PD array créé par ce déplacement ; invalidation sous 3 566,06. C'est toi qui décides.\nEn M15 : structure haussière, dernière cassure MSS haussier (ITH à 3 563,80, sans déplacement), l'ITL M15 3 561,40 tient. Liquidité : EQH M15 à 3 566,78 au-dessus ; PDL à 3 550,15 en dessous ; EQL M15 déjà balayé (mèche puis retour). Zones : OB M15 baissier 3 565,77 à 3 566,76 (le prix y est) ; le prix est au-dessus du dealing range M15 (extrême haut franchi). La lecture ICT M15 penche à l'achat ; il manque : Dans une killzone, Liquidité prise contre le biais, MSS avec déplacement ; invalidation sous 3 561,40. C'est toi qui décides.\nLe Daily est baissier, le H1 haussier : un achat en H1 irait contre la dynamique Daily. (H4 : structure indécise.)"
+ },
+ "c'est un vrai order block ?": {
+  "resume": "En H1 : order block H1 haussier 3 563,57 à 3 564,17 (déjà testé). 1) Prise de liquidité : non ; 2) Reversal candle qui CLÔTURE au-delà de la candidate : oui ; 3) FVG sur la reversal candle ou juste après : oui. Il est valide (points 2 et 3 réunis), sans prise de liquidité : valide mais moins puissant ; simple (la reversal candle casse seulement la candidate). Piège des stops laissés derrière : non."
+ }
+}

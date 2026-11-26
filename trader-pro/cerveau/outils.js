@@ -160,6 +160,17 @@ export async function executer(nom, args) {
 }
 /* repli sans IA (quota Gemini atteint ou Worker injoignable) : lit le prix et la tendance de l'actif cité, jamais « aucune donnée » si la donnée existe */
 export async function lectureLocale(texte) {
+  /* question ICT sans IA : résumé déterministe d'UNE unité (celle nommée, sinon celle du graphique) : « En H1 : … » */
+  const n = norm(texte);
+  if (/\b(ict|fvg|order ?blocks?|killzones?|liquidites?|eqh|eql|top[ -]?down)\b/.test(n)) {
+    const u = /\bm15\b|15 ?min/.test(n) ? 'M15' : /\bh4\b/.test(n) ? 'H4' : /\bh1\b/.test(n) ? 'H1' : /\b(daily|journalier|jour)\b/.test(n) ? 'J' : undefined, id = actifDe(texte) || undefined;
+    try {
+      const LI = await import('../../agent-trading/front/or/ict-lecture.js');
+      if (/top[ -]?down|toutes les unites|toutes unites/.test(n)) { const L = []; for (const x of ['J', 'H4', 'H1', 'M15']) L.push(await OUTILS.lecture_ict({ actif: id, unite: x })); const T = LI.resumeTopDown(L.map((r, i) => (r && !r.indisponible ? r : { unite: ['Daily', 'H4', 'H1', 'M15'][i], indisponible: (r && r.indisponible) || 'indisponible' }))); return T.texte; }
+      const r = await OUTILS.lecture_ict({ actif: id, unite: u });
+      if (r && !r.indisponible) return /(vrai|valide|bon) order ?block|order ?block.*(vrai|valide)/.test(n) ? LI.verdictOrderBlock(r).texte : LI.resumeIct(r);
+    } catch (e) { /* on retombe sur la lecture simple */ }
+  }
   const id = actifDe(texte); if (!id || !ACTIF_PAR_ID[id]) return null;
   const r = await prix_et_tendance({ actif: id, unite: 'H4' }); if (r.indisponible) return null;
   const sgn = r.variationDepuisHierPct > 0 ? 'plus' : 'moins';
@@ -182,6 +193,10 @@ export function etiquettesDe(tour) {
       const haut = L.filter(x => x.p > px).sort((a, b) => a.p - b.p)[0], bas = L.filter(x => x.p < px).sort((a, b) => b.p - a.p)[0];
       if (haut) E.push({ label: 'Résistance proche · ' + haut.n, val: fr(haut.p, dec(r.actif)), sous: sg((haut.p / px - 1) * 100) + ' % du prix', ton: 'bas' });
       if (bas) E.push({ label: 'Support proche · ' + bas.n, val: fr(bas.p, dec(r.actif)), sous: sg((bas.p / px - 1) * 100) + ' % du prix', ton: 'haut' });
+    } else if (t.nom === 'lecture_ict' && r.tendance) {
+      const d = dec(r.actif), te = r.tendance, p = r.penche || {};
+      E.push({ label: 'Tendance ' + r.unite, val: te.sens === 'haussiere' ? 'haussière' : te.sens === 'baissiere' ? 'baissière' : 'indécise', sous: te.derniereCassure ? te.derniereCassure.type + ' ' + te.derniereCassure.niveau + ' ' + fr(te.derniereCassure.prix, d) : '', ton: te.sens === 'haussiere' ? 'haut' : te.sens === 'baissiere' ? 'bas' : '' });
+      E.push({ label: 'Lecture ICT ' + r.unite, val: p.sens === 'achat' ? 'penche à l’achat' : p.sens === 'vente' ? 'penche à la vente' : 'neutre', sous: p.invalidation ? 'invalidation ' + fr(p.invalidation.prix, d) : '', ton: p.sens === 'achat' ? 'haut' : p.sens === 'vente' ? 'bas' : '' });
     } else if (t.nom === 'mes_actifs' && r.horizons) {
       const h = r.horizons[2] || r.horizons[0]; if (h) E.push({ label: r.nom + ' · ' + h.horizon, val: h.verdict, sous: h.score100 != null ? h.score100 + ' / 100' : '', ton: h.score100 >= 58 ? 'haut' : h.score100 < 42 ? 'bas' : '' });
     } else if (t.nom === 'marches') {
@@ -199,6 +214,7 @@ export function surlignagesDe(tour) {
     if (t.nom === 'niveaux') { const px = r.prix, L = [...(r.reperesIct || []).map(x => ({ n: x.nom, p: x.prix })), ...(r.volume ? [{ n: 'POC H4', p: r.volume.pocH4 }] : [])].filter(x => Number.isFinite(x.p) && x.n !== 'Ouverture jour'); const proches = L.sort((a, b) => Math.abs(a.p - px) - Math.abs(b.p - px)).slice(0, 2); for (const x of proches) S.push({ type: 'prix', actif: r.actif, prix: x.p, texte: x.n }); }
     if (t.nom === 'marches' && r.cot) S.push({ type: 'cot', actif: (t.args && t.args.actif) || null });
     if (t.nom === 'mes_actifs') S.push({ type: 'carte', actif: r.actif });
+    if (t.nom === 'lecture_ict' && r.penche && r.penche.invalidation && Number.isFinite(r.penche.invalidation.prix)) S.push({ type: 'prix', actif: r.actif, prix: r.penche.invalidation.prix, texte: 'invalidation ' + r.unite });
   }
   return S;
 }

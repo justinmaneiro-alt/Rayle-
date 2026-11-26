@@ -6,7 +6,7 @@ const lire = (k, d) => { try { const v = localStorage.getItem(k); return v ? JSO
 const ecrire = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); return true; } catch (e) { return false; } };
 export const MODES = Object.freeze({
   pro: { nom: 'Pro épuré', couches: ['rayMa', 'rayGolden', 'rayNiveaux'], panneau: false },
-  ict: { nom: 'ICT', couches: ['rayMa', 'rayGolden', 'rayNiveaux', 'structure', 'ictLiquidite', 'ictStructure', 'ictFvg', 'ictOb', 'ictPd', 'ictTemps'], panneau: false },
+  ict: { nom: 'ICT', couches: ['ictLiquidite', 'ictStructure', 'ictFvg', 'ictPd', 'ictTemps'], panneau: false },   // v2 : sobre, une seule unité (celle du graphique), rien d'autre que la lecture ICT
   flux: { nom: 'Flux', couches: ['rayMa', 'rayNiveaux', 'vwap', 'profil', 'cvd', 'carteCarnet', 'seances'], panneau: true }
 });
 const OUTILS = [['curseur', '⌖', 'Curseur'], ['horizontale', '─', 'Ligne horizontale'], ['tendance', '╱', 'Droite (ligne de tendance)'], ['rayon', '↗', 'Rayon'], ['zone', '▭', 'Zone rectangulaire'], ['fib', 'F', 'Fibonacci (2 clics)'], ['texte', 'T', 'Texte (1 clic)'], ['mesure', '↔', 'Mesure (2 clics)'], ['aimant', '🧲', 'Aimant (aligne sur les extrêmes)']];

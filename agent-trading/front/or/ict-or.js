@@ -2,8 +2,12 @@
    Calculs : ict-v1.js (scellé SHA-256) ; fréquences : ict-stats.json (Dukascopy, mesurées avec n et base). « Interprétation de l'ICT, définitions variables selon les sources. »
    Rayle décrit : jamais « achète » ni « vends ». Registre forward en ajout seul (rayle_or_ict_forward). */
 import * as I from './ict-v1.js';
+import * as V2 from './ict-v2.js';
+import { lectureIct, resumeIct } from './ict-lecture.js';
 const CLE_FWD = 'rayle_or_ict_forward', CLE_REG = 'rayle_or_ict_reglages', H = 3600e3;
-export const COUCHES_ICT = Object.freeze({ ictLiquidite: 'ICT · liquidité (BSL / SSL, PDH / PDL, sessions)', ictStructure: 'ICT · structure (MSS, BOS, déplacements)', ictFvg: 'ICT · FVG (et FVG inversés, écarts d\'ouverture)', ictOb: 'ICT · order blocks et breakers', ictPd: 'ICT · premium / discount et zone OTE', ictTemps: 'ICT · temps (killzones, ouvertures de minuit et de 8h30 NY)', ictAmd: 'ICT · AMD / Judas swing' });
+/* v2 : cinq couches, toutes calculées sur l'UNITÉ du graphique (ict-v2). Le registre forward et les mesures restent ceux d'ict-v1 (H1 seulement). */
+export const COUCHES_ICT = Object.freeze({ ictLiquidite: 'ICT · liquidité (EQH / EQL, PDH / PDL, sessions)', ictStructure: 'ICT · structure (ITH / ITL de l\'unité)', ictFvg: 'ICT · FVG / order blocks', ictPd: 'ICT · premium / discount (équilibre)', ictTemps: 'ICT · temps (killzones, minuit New York)' });
+const NOM_KIND = { fvg: 'FVG', ifvg: 'FVG inversé', ob: 'Order block', breaker: 'Breaker' };
 const lire = (k, d) => { try { const v = localStorage.getItem(k); return v ? JSON.parse(v) : d; } catch (e) { return d; } };
 const ecrire = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); return true; } catch (e) { return false; } };
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -23,9 +27,15 @@ export function phraseMesureIct(stats, groupe, famille) {
   }
   return L.join(' ; ');
 }
-const FAM_ZONE = e => (e.kind === 'fvg' ? `fvg_${e.dir > 0 ? 'haussier' : 'baissier'}` : e.kind === 'ob' ? `order_block_${e.dir > 0 ? 'haussier' : 'baissier'}` : e.kind === 'breaker' ? `breaker_${e.dir > 0 ? 'haussier' : 'baissier'}` : e.kind === 'ote' ? `ote_${e.dir > 0 ? 'haussier' : 'baissier'}` : null);
 export function creerIct({ racine, moteur, graph, structure, parler = () => {}, maintenant = () => Date.now(), fetchFn = (...a) => fetch(...a), stats = null, auto = true } = {}) {
-  const E = { stats, reg: { max: 8, ...lire(CLE_REG, {}) }, registre: lire(CLE_FWD, []), an: null, B: null, cle: '', rapport: null, vus: new Set(), pret: false };
+  const E = { stats, reg: { max: 8, ...lire(CLE_REG, {}) }, registre: lire(CLE_FWD, []), an: null, B: null, cle: '', rapport: null, vus: new Set(), pret: false, an2: null, cle2: '', legende: false };
+  /* ict-v2 : bougies de l'unité affichée (moteur.serie()), closes seulement, ATR de cette unité ; jamais une autre unité */
+  function analyser2() {
+    const S = moteur.S, u = S.periode, ser = (moteur.serie ? moteur.serie() : []) || [], B = ser.slice(-1500), ms = (V2.UNITES[u] || {}).ms; if (!ms || B.length < 40) { E.an2 = null; E.cle2 = ''; return false; }
+    const n = maintenant(), cle = `${u}|${B.length}|${B[B.length - 1].t}|${Math.floor(n / ms)}`; if (cle === E.cle2 && E.an2) { E.an2.prix = S.prix ?? E.an2.prix; return false; }
+    E.cle2 = cle; E.an2 = V2.analyser(B, { unite: u, maintenant: n, prix: S.prix ?? null }); return true;
+  }
+  const lectureDe = (opts = {}) => { analyser2(); const an = E.an2; if (!an) return null; const a2 = opts.biais && !an.biaisDuJour ? { ...an, biaisDuJour: an._biais } : an; return lectureIct(a2, { actif: opts.actif ?? null, dec: opts.dec ?? 2 }); };
   const est = () => racine && racine.querySelector('[data-ict]');
   async function chargerStats() { if (E.stats) return; try { const r = await fetchFn(new URL('./ict-stats.json', import.meta.url).href, { cache: 'no-store' }); if (r.ok) E.stats = await r.json(); } catch (e) { /* sans les statistiques : « indisponibles » */ } }
   const couches = () => graph.couches(), actif = () => Object.keys(COUCHES_ICT).some(k => couches()[k]);
@@ -33,36 +43,23 @@ export function creerIct({ racine, moteur, graph, structure, parler = () => {}, 
     const st = structure && structure.etat && structure.etat(), A = st && st.A; if (!A || !A.B || A.B.length < 150) return false;
     const B = A.B, cle = `${B.length}|${B[B.length - 1].t}`; if (cle === E.cle && E.an) return false; E.cle = cle; E.B = B; E.an = I.analyser(B, { periode: H }); return true;
   }
-  function detail(o) {
-    const L = []; const b = o.brut;
-    if (o.kind === 'fvg' || o.kind === 'ifvg') L.push(`${nb(b.bas, 2)} à ${nb(b.haut, 2)} · posé à la clôture du ${hp(b.tCloture)} (heure de Paris)`, o.kind === 'ifvg' ? `devenu zone inversée le ${hp(b.tInverse)} : une clôture H1 a traversé le trou` : o.statut === 'rempli' ? `rempli le ${hp(b.tRempli)}` : o.statut === 'partiel' ? `partiellement rempli depuis le ${hp(b.tPartiel)}` : 'non rempli');
-    else if (o.kind === 'ob') L.push(`${nb(b.bas, 2)} à ${nb(b.haut, 2)} · bougie du ${hp(b.tOb)} · déplacement confirmé à la clôture du ${hp(b.tCloture)}`, b.statut === 'invalide' ? `invalidé le ${hp(b.tInval)} (clôture au-delà) : il devient un breaker` : 'actif', b.tTouche ? `déjà retouché le ${hp(b.tTouche)}` : 'jamais retouché');
-    else if (o.kind === 'breaker') L.push(`${nb(o.bas, 2)} à ${nb(o.haut, 2)} · issu d'un order block invalidé le ${hp(o.tDebut - H)}`);
-    else if (o.kind === 'liquidite') L.push(`niveau ${nb(b.p, 2)} · formé le ${hp(b.tForm)} · ${b.tSweep ? 'balayé le ' + hp(b.tSweep) : 'non balayé'}`);
-    else if (o.kind === 'ote') L.push(`${nb(o.bas, 2)} à ${nb(o.haut, 2)} · retracement de 62 % à 79 % de la plage des 5 jours, ${b.ote ? b.ote.sens : ''}`);
-    else if (o.kind === 'ecart') L.push(`${nb(o.bas, 2)} à ${nb(o.haut, 2)} · écart d'ouverture de ${b.portee} de ${nb(b.taille, 2)} $`);
-    const fam = FAM_ZONE(o) || (o.kind === 'liquidite' && ['PDH', 'PDL', 'PWH', 'PWL'].includes(b.nom) ? `balayage_${b.nom}` : null);
-    if (fam) L.push('mesure : ' + phraseMesureIct(E.stats, FAM_ZONE(o) ? 'zones' : 'directionnels', fam)); L.push('interprétation de l\'ICT, définitions variables selon les sources ; une description, jamais un ordre'); return L;
+  function detail2(o, an) {
+    const L = [], u = an.nom, ph = t => (t ? hp(t) : '—');
+    if (o.kind === 'fvg' || o.kind === 'ifvg') L.push(`${nb(o.bas, 2)} à ${nb(o.haut, 2)} (milieu CE ${nb(o.ce, 2)}) · FVG ${u} ${o.dir > 0 ? 'haussier' : 'baissier'}${o.kind === 'ifvg' ? ' inversé' : ''} posé à la clôture du ${ph(o.tDebut)} (heure de Paris)`);
+    else if (o.kind === 'ob') L.push(`${nb(o.bas, 2)} à ${nb(o.haut, 2)} · order block ${u} ${o.dir > 0 ? 'haussier' : 'baissier'}, ${o.fort ? 'fort (le déplacement casse aussi un sommet / creux de structure)' : 'simple'}`, `prise de liquidité : ${o.liquidite ? 'oui' : 'non'} · stops laissés derrière : ${o.stopsDerriere ? 'oui' : 'non'}`);
+    else if (o.kind === 'breaker') L.push(`${nb(o.bas, 2)} à ${nb(o.haut, 2)} · breaker ${u} (order block cassé, devenu ${o.dir > 0 ? 'support' : 'résistance'})`);
+    else if (o.kind === 'liquidite') L.push(`niveau ${nb(o.p, 2)} · ${o.nom} ${u} · formé le ${ph(o.tDebut)} · non balayé`);
+    else if (o.kind === 'swing') L.push(`niveau ${nb(o.p, 2)} · ${o.nom} · swing de structure de l'unité, encore intact`);
+    else if (o.kind === 'equilibre') L.push(`équilibre ${nb(o.p, 2)} du dealing range ${u}${o.haut != null ? ` (ITL ${nb(o.bas, 2)} → ITH ${nb(o.haut, 2)})` : ''}`, 'au-dessus de 50 % : premium ; au-dessous : discount');
+    else if (o.kind === 'ouverture') L.push(`ouverture de minuit New York : ${nb(o.p, 2)}`);
+    L.push(`calculé sur les bougies ${u} uniquement · interprétation de l'ICT, une description, jamais un ordre`); return L;
   }
   function modele() {
-    const an = E.an; if (!an) return null; const c = couches(), B = E.B, prix = moteur.S.prix ?? an.prix, o = I.objetsVisibles(an, { max: E.reg.max, prix });
-    const ok = x => (x.kind === 'liquidite' && c.ictLiquidite) || ((x.kind === 'fvg' || x.kind === 'ifvg' || x.kind === 'ecart') && c.ictFvg) || ((x.kind === 'ob' || x.kind === 'breaker') && c.ictOb) || (x.kind === 'ote' && c.ictPd);
-    const objets = o.filter(ok).map(x => ({ ...x, detail: detail(x), etiquette: x.kind === 'liquidite' ? x.nom : x.nom }));
-    const m = { objets, killzones: [], ouvertures: [], structure: [], deplacements: [], amd: [], pd: null };
-    if (c.ictTemps) { m.killzones = an.temps.killzones.map(k => ({ ...k, heure: `${hhmm(k.debut)} – ${hhmm(k.fin)} (heure de Paris)` })); for (const x of an.temps.ouvertures) { const fin = x.minuit + 24 * H; if (x.prixMinuit != null) m.ouvertures.push({ t: x.minuit, tFin: x.minuit + 24 * H, p: x.prixMinuit, nom: 'Minuit NY', detail: `ouverture de minuit New York du ${x.jour}, à ${hhmm(x.minuit)} (heure de Paris)` }); if (x.prixHuit30 != null) m.ouvertures.push({ t: x.huit30, tFin: fin, p: x.prixHuit30, nom: '8h30 NY', detail: `ouverture de 8h30 New York du ${x.jour}, à ${hhmm(x.huit30)} (heure de Paris), prix interpolé dans la bougie H1` }); } }
-    if (c.ictPd) m.pd = { equilibre: an.pd.equilibre, haut: an.pd.haut, bas: an.pd.bas, tDebut: an.tDebut, g: { p: an.pd.equilibre, texte: `Équilibre ${nb(an.pd.equilibre, 2)} · ${an.pd.cote}`, detail: [`plage des 5 derniers jours : ${nb(an.pd.bas, 2)} à ${nb(an.pd.haut, 2)}`, `prix à ${pc(an.pd.position)} de la plage`, 'au-dessus de 50 % : premium ; au-dessous : discount'] } };
-    if (c.ictStructure) { const SB = [...an.mss.map(e => ({ ...e, type: 'MSS' })), ...an.bos.map(e => ({ ...e, type: 'BOS' }))].slice(-10);
-      m.structure = SB.map(e => { const i = B.findIndex(b => b.t === e.t), tN = e.tNiveau ?? B[Math.max(0, (i < 0 ? B.length - 1 : i) - 12)].t; return { type: e.type, dir: e.dir, t: e.t, tNiveau: tN, niveau: e.niveau, g: { p: e.niveau, texte: `${e.type} ${e.dir > 0 ? 'haussier' : 'baissier'} · ${hp(e.tCloture ?? e.t)}`, detail: ['MSS = changement de caractère, BOS = cassure de structure (structure-marche-v1)', `niveau ${nb(e.niveau, 2)}`] } }; });
-      m.deplacements = an.deplacements.slice(-12).map(d => { const b = B[d.i]; return { t: d.t, p: d.dir > 0 ? b.l : b.h, dir: d.dir, g: { p: b.c, texte: `Déplacement ${d.dir > 0 ? 'haussier' : 'baissier'} · ${nb(d.taille, 1)} ATR`, detail: ['corps ≥ 1,5 ATR, mèches ≤ 25 % de l\'étendue', `posé à la clôture du ${hp(d.tCloture)}`] } }; }); }
-    if (c.ictAmd) m.amd = an.amd.filter(e => e.manipulation || e.statut !== 'accumulation').map(e => ({ ...e, etiquette: e.manipulation ? `AMD ${e.sens === 'judas' ? '(Judas)' : e.sens === 'continuation' ? '(continuation)' : ''}`.trim() : null, g: { p: (e.accumulation.h + e.accumulation.l) / 2, texte: `AMD du ${e.jour}`, detail: descriptionAmd(e) } }));
-    return m;
-  }
-  function descriptionAmd(e) {
-    const L = [`accumulation : plage asiatique ${nb(e.accumulation.l, 2)}–${nb(e.accumulation.h, 2)} (20h–00h New York)`];
-    L.push(e.manipulation ? `manipulation : mèche ${e.manipulation.cote === 'haut' ? 'au-dessus du haut' : 'au-dessous du bas'} asiatique à ${hhmm(e.manipulation.t)} (heure de Paris), ${nb(e.manipulation.depasse, 2)} $ au-delà${e.manipulation.clotureAu ? ', clôture au-delà' : ', clôture revenue dans la plage'}` : 'pas de manipulation : le prix n\'a pas dépassé la plage asiatique pendant Londres');
-    L.push(e.distribution ? `distribution : New York AM (07h–10h) ${e.distribution.mouvement >= 0 ? '+' : '−'}${nb(Math.abs(e.distribution.mouvement), 2)} $` : 'distribution pas encore connue');
-    if (e.sens) L.push(e.sens === 'judas' ? 'schéma Judas : la mèche de Londres a été suivie d\'un mouvement inverse à New York' : 'continuation : New York a prolongé la mèche de Londres');
-    L.push('mesure : ' + phraseMesureIct(E.stats, 'directionnels', 'judas_swing_londres')); return L;
+    analyser2(); const an = E.an2; if (!an || !an.ok) return null; const c = couches(), vue = { ...an, prix: moteur.S.prix ?? an.prix };
+    const M = V2.modeleAffichage(vue, { max: Math.max(6, Math.min(16, E.reg.max + 4)), couches: { ictLiquidite: !!c.ictLiquidite, ictStructure: !!c.ictStructure, ictFvg: !!c.ictFvg, ictPd: !!c.ictPd, ictTemps: !!c.ictTemps } });
+    const d = an.tendance.derniereCassure;
+    return { badge: { ...M.badge, detail: [d ? `dernière cassure en clôture : ${d.type} (${d.niveau} à ${nb(d.prix, 2)})${d.deplacement ? ', avec déplacement' : ', sans déplacement'}` : 'aucune cassure d\'ITH / ITL dans la fenêtre', an.tendance.pourquoi, `ATR(14) ${an.nom} : ${nb(an.atr, 2)}`] },
+      objets: M.objets.map(o => ({ ...o, detail: detail2(o, an) })), killzones: M.killzones.map(k => ({ ...k, heure: `${hhmm(k.debut)} – ${hhmm(k.fin)} (heure de Paris)` })), legende: M.legende, legendeOuverte: E.legende, unite: an.nom };
   }
   /* ── registre forward (ajout seul) : FVG, order blocks, balayages et manipulations nés dans les 3 dernières bougies, puis résultat à 6, 12 et 24 bougies ── */
   const issue = (B, i, dir, a, N) => { const ref = B[i].c, haut = ref + 1.5 * a, bas = ref - 1.5 * a; for (let k = i + 1; k <= Math.min(B.length - 1, i + N); k++) { const b = B[k], hit = dir > 0 ? b.h >= haut : b.l <= bas, adv = dir > 0 ? b.l <= bas : b.h >= haut; if (adv) return -1; if (hit) return 1; } return 0; };
@@ -82,9 +79,11 @@ export function creerIct({ racine, moteur, graph, structure, parler = () => {}, 
   function basculer(v) {
     const on = v == null ? !actif() : !!v; const o = {}; for (const k of Object.keys(COUCHES_ICT)) o[k] = on; graph.couches(o);
     for (const c of racine.querySelectorAll('[data-couche]')) if (c.dataset.couche in COUCHES_ICT) c.checked = on;
-    if (on) { analyser(); E.rapport = I.rapport(E.an, { maintenant: maintenant() }); } maj(true); return on;
+    if (on) { analyser(); analyser2(); E.rapport = rapportV2(); } maj(true); return on;
   }
-  function maj(force = false) { const change = analyser() || force; if (E.an && (change || force)) { if (!E.pret) { E.pret = true; } registre(); if (!E.rapport || change) E.rapport = I.rapport(E.an, { maintenant: maintenant() }); } graph.ict(actif() ? modele() : null); majBouton(); rendre(); }
+  /* rapport du panneau et résumé parlé : ict-v2, sur l'unité du graphique (même texte que l'outil `lecture_ict` de Rayle) */
+  function rapportV2() { const L = lectureDe({ actif: null, dec: 2 }); if (!L) return { titre: 'Lecture ICT', lignes: ['Pas assez de bougies closes sur cette unité pour lire l\'ICT.'], texte: 'Pas assez de bougies closes sur cette unité pour lire l\'ICT.' }; const t = resumeIct(L); return { titre: `Lecture ICT ${L.unite || ''}`.trim(), lignes: t.split(/(?<=\.) /), texte: t, lecture: L }; }
+  function maj(force = false) { const change = analyser() || force, ch2 = analyser2(); if (E.an && (change || force)) { if (!E.pret) { E.pret = true; } registre(); } if (!E.rapport || ch2 || force) E.rapport = rapportV2(); graph.ict(actif() ? modele() : null); majBouton(); rendre(); }
   function majBouton() { for (const b of racine.querySelectorAll('[data-a="ict-un-clic"]')) { b.classList.toggle('actif', actif()); b.setAttribute('aria-pressed', String(actif())); } }
   /* ── panneau : rapport de la semaine ── */
   function resumeStats() {
@@ -96,18 +95,18 @@ export function creerIct({ racine, moteur, graph, structure, parler = () => {}, 
   function rendre() {
     const el = est(); if (!el) return; const R = E.rapport;
     const L = el.querySelector('[data-ict-rapport]'); if (L) { if (R && actif()) { L.hidden = false; L.innerHTML = `<h3>${esc(R.titre)}</h3><ul>${R.lignes.map(l => `<li>${esc(l)}</li>`).join('')}</ul>`; } else { L.hidden = true; L.innerHTML = ''; } }
-    const st = el.querySelector('[data-ict-stats]'); if (st) st.textContent = resumeStats();
+    const st = el.querySelector('[data-ict-stats]'); if (st) st.textContent = moteur.S.periode === 'H1' ? resumeStats().replace(/^Mesures/, 'Mesures ict-v1 (H1 seulement)') : `Mesures : les statistiques mesurées (ict-stats.json) ne concernent que le H1 (ict-v1). Aucune mesure n'existe pour le ${V2.nomUnite(moteur.S.periode)} : les éléments affichés sont des descriptions, pas des taux de réussite.`;
     const sl = el.querySelector('[data-ict-max]'); if (sl) { sl.value = E.reg.max; const o = el.querySelector('[data-ict-max-val]'); if (o) o.textContent = String(E.reg.max); }
     const r = el.querySelector('[data-ict-reg]'); if (r) { const evs = E.registre.filter(x => x.kind === 'evenement'), res = E.registre.filter(x => x.kind === 'resultat'); r.textContent = `Registre forward : ${evs.length} événement${evs.length > 1 ? 's' : ''} noté${evs.length > 1 ? 's' : ''}, ${res.length} résultat${res.length > 1 ? 's' : ''} à 6, 12 ou 24 bougies (ajout seul, hors journal manuel).`; }
   }
   /* ── voix : « Analyse ICT de la semaine » ── */
-  function parlerRapport() { analyser(); if (!E.an) return 'Je n\'ai pas encore assez de bougies H1 pour analyser la semaine.'; E.rapport = I.rapport(E.an, { maintenant: maintenant() }); return E.rapport.texte; }
+  function parlerRapport() { analyser2(); E.rapport = rapportV2(); return E.rapport.texte; }
   const commande = texte => { const n = String(texte || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[’'`]/g, ' '); if (/analyse ict|ict de la semaine|rapport ict|efface l analyse ict|masque l analyse ict|ferme l analyse ict/.test(n)) { if (/efface|masque|ferme/.test(n)) { basculer(false); return 'J\'ai effacé l\'analyse ICT du graphique.'; } if (!actif()) basculer(true); else maj(true); return parlerRapport(); } return null; };
   const el0 = est(); if (el0) {
     el0.addEventListener('input', ev => { const s = ev.target.closest('[data-ict-max]'); if (s) { E.reg.max = +s.value; ecrire(CLE_REG, E.reg); maj(true); } });
-    el0.addEventListener('click', ev => { const b = ev.target.closest('[data-a]'); if (!b) return; if (b.dataset.a === 'ict-lire') { const t = parlerRapport(); try { parler(t); } catch (e) { /* */ } } });
+    el0.addEventListener('click', ev => { const b = ev.target.closest('[data-a]'); if (!b) return; if (b.dataset.a === 'ict-lire') { const t = parlerRapport(); try { parler(t); } catch (e) { /* */ } } else if (b.dataset.a === 'ict-legende') { E.legende = !E.legende; b.setAttribute('aria-pressed', String(E.legende)); maj(true); } });
   }
   for (const b of racine.querySelectorAll('[data-a="ict-un-clic"]')) b.addEventListener('click', () => { basculer(); });
   let minuterie = null; if (auto) { chargerStats().then(() => maj(true)); minuterie = setInterval(() => { try { if (actif()) maj(); } catch (e) { /* */ } }, 30000); }
-  return { maj, basculer, commande, rapport: () => { analyser(); return E.an ? I.rapport(E.an, { maintenant: maintenant() }) : null; }, parlerRapport, chargerStats, phraseMesure: (g, f) => phraseMesureIct(E.stats, g, f), actif, etat: () => ({ an: E.an, registre: E.registre.slice(), reg: E.reg, stats: E.stats, rapport: E.rapport }), injecter(stats) { E.stats = stats; }, detruire() { clearInterval(minuterie); } };
+  return { maj, basculer, commande, rapport: () => { analyser2(); return rapportV2(); }, rapportV1: () => { analyser(); return E.an ? I.rapport(E.an, { maintenant: maintenant() }) : null; }, lecture: lectureDe, analyse: () => { analyser2(); return E.an2; }, modele, unite: () => moteur.S.periode, parlerRapport, chargerStats, phraseMesure: (g, f) => phraseMesureIct(E.stats, g, f), actif, etat: () => ({ an: E.an, registre: E.registre.slice(), reg: E.reg, stats: E.stats, rapport: E.rapport }), injecter(stats) { E.stats = stats; }, detruire() { clearInterval(minuterie); } };
 }

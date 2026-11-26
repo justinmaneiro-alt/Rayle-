@@ -19,7 +19,7 @@ v('structure : série trop courte → null', structure(B([1, 2, 3], [0, 1, 2]), 
 const pd = premiumDiscount(150, B([200, 190, 180], [100, 110, 120])); v('premium/discount : 150 dans [100,200] = équilibre', pd && /équilibre/.test(pd.zone), JSON.stringify(pd));
 v('premium/discount : 190 = premium', /premium/.test(premiumDiscount(190, B([200], [100])).zone)); v('premium/discount : 110 = discount', /discount/.test(premiumDiscount(110, B([200], [100])).zone));
 /* déclarations */
-const noms = DECLARATIONS.map(d => d.name); for (const n of ['manuel', 'analyse_marche', 'marche_global', 'lecture_graphique']) v('outil déclaré au modèle : ' + n, noms.includes(n));
+const noms = DECLARATIONS.map(d => d.name); for (const n of ['manuel', 'analyse_marche', 'marche_global', 'lecture_graphique', 'lecture_ict']) v('outil déclaré au modèle : ' + n, noms.includes(n));
 v('outils analyste sans « properties » vide (refusé par Gemini)', [...DECLARATIONS_ANALYSTE, DECLARATION_ANNOTER].every(d => !d.parameters || (d.parameters.properties && Object.keys(d.parameters.properties).length)));
 v('annoter_graphique : 4 types, 8 marques au plus', DECLARATION_ANNOTER.parameters.properties.annotations.items.properties.type.enum.length === 4 && /8 marques/.test(DECLARATION_ANNOTER.description));
 console.log(`${ok} ok, ${ko} KO`); process.exit(ko ? 1 : 0);
