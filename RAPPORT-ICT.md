@@ -81,3 +81,6 @@ Test : `agent-trading/tests/ict-scenarios-chrome.mjs` (sortie complète dans `RA
 ## Fichiers
 Créés : `docs/connaissances/06-ict.md`, `07-ict-unites.md`, `agent-trading/front/or/ict-v2.js`, `ict-v2.sceau.json`, `ict-lecture.js`, `trader-pro/tests/ict-v2-test.mjs`, `agent-trading/tests/ict-harnais.html`, `ict-scenarios-chrome.mjs`, `RAPPORT-ICT.md`, `RAPPORT-ICT-captures/`.
 Modifiés : `ict-or.js`, `ict-dessin.js`, `terminal-pro.js`, `tableau-or.js`, `tactile-v1.js`, `moteur-or.js`, `config-or.js`, `instruments.js`, `trader-pro/cerveau/{analyste,outils}.js`, `manuel-rayle.md`, `trader-pro/point/connaissances.js` (+ `connaissances-data.js` régénéré), `core/intelligence/cerveau.js`, les tests `analyste-test`, `gemini-cerveau-test`, `connaissances-test`, `ict-chrome`, `package.json` (`ict-v2-test` dans `npm test`), `verrou-v8.json`, `precache.json`, `sw.js`, `index.html`, `or.html`, `version.js`, `docs/connaissances/README.md`, `PROGRESS.md`.
+
+## Résultat final
+`npm test` : **EXIT 0, aucun échec** (tests purs, dossier `agent-trading`, copilote). Branche `ict-v2` fusionnée dans `main` (commit de fusion `6d37b822`) et poussée sur `origin/main`. Chrome : `ict-chrome` (pc1600, tab1024, tel390) et `ict-scenarios-chrome` passent ; `pilotage-chrome` et `cerveau-chrome` gardent leurs échecs d'origine (identiques sur `main` avant ce chantier).
