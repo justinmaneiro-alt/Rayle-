@@ -10,7 +10,7 @@ import { zonesRetournement, etudeReaction } from './zones-or.js';
 import { etatZone, evenementZone, creerAntiBruit } from './etats-or.js';
 import { lecture, phraseEvenement } from './lecture-or.js';
 import { marcheOr, retard, heureLocale, dateParis } from './temps-or.js';
-import { instrument, actifCourant } from './instruments.js';
+import { instrument, actifCourant, periodeDisponible } from './instruments.js';
 import { marcheInstrument, retardInstrument } from './marche-instrument.js';
 const INSTR = instrument(actifCourant());
 import { niveauxPeriode, liquidite } from './niveaux-periode.js';
@@ -29,7 +29,7 @@ export function creerMoteurOr({ fetchFn = (...a) => fetch(...a), horloge = () =>
     prix: null, tPrix: null, ticker: null, ref24h: null, erreurs: {}, niveaux: [], zonesVol: [], zones: [], etats: {}, lecture: null, etude: null, etudeEtat: 'à faire',
     chargement: true, derniereRefM15: null, evenements: [], hist: null, chargementAncien: false, niveauxP: null, liquidite: null, spreads: lireJ('rayle_or_spreads', []).filter(x => x && x.s > 0)
   };
-  if (!PERIODES[S.periode] || !PERIODES_AFFICHEES.includes(S.periode)) S.periode = 'H1';   // une ancienne préférence M5 / M15 devient H1
+  if (!PERIODES[S.periode] || !PERIODES_AFFICHEES.includes(S.periode) || !periodeDisponible(INSTR, S.periode)) S.periode = 'H1';   // une ancienne préférence M5 (ou M15 sur un actif sans M15) devient H1
   const anti = creerAntiBruit(); const regl = lireJ('rayle_or_alertes', null); if (regl) { anti.regler(regl); if (regl.coupe) anti.couper(true); }
   let minuteries = [], arrete = false;
   const err = (k, e) => { S.erreurs[k] = e ? (e.message || String(e)) : null; };
@@ -179,7 +179,7 @@ export function creerMoteurOr({ fetchFn = (...a) => fetch(...a), horloge = () =>
       if (structureAuto) setTimeout(suiviStructure, 6000);
       return S;
     },
-    async periode(p) { if (!PERIODES_AFFICHEES.includes(p) || p === S.periode) return; S.periode = p; ecrireJ('rayle_or_periode', p); S.k = []; S.hist = null; await chargerPeriode(); calculer(); surMaj(S); },
+    async periode(p) { if (!PERIODES_AFFICHEES.includes(p) || p === S.periode || !periodeDisponible(INSTR, p)) return; S.periode = p; ecrireJ('rayle_or_periode', p); S.k = []; S.hist = null; await chargerPeriode(); calculer(); surMaj(S); },
     /* transactions du WebSocket Kraken (carnet) : prix en direct et bougie en cours */
     transactions(L) {
       let maj = false;

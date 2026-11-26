@@ -4,7 +4,7 @@
  "core/commun/galerie-anim.js": "e706faee7d6922ad545e689384d27ea1426490bc1c4d13181c37e30add2dfead",
  "core/commun/images-wiki.js": "db015f2f482d1d84173fae25a21967f1add89ef675e2f772ead5978490a2b0cb",
  "trader-pro/cerveau/actions.js": "d74c4ef71408894c2ebcaadb0f5c488f6c8435ec9d79d87e64f64baf23317763",
- "trader-pro/cerveau/outils.js": "487b39a1c3193349099e715b53b7b1a50470e2840892f8a64280225d37cdc323",
- "core/intelligence/cerveau.js": "859223544484e8bab5f0a6bbb3ca8d46765739e0b47c657c1f23d8a04f8ee284",
+ "trader-pro/cerveau/outils.js": "b3bfea23be04bea2b44459fafebd621d87eb8bd77d95ad1ca7372a3eac5645c6",
+ "core/intelligence/cerveau.js": "1d4709e91698cd758cd722910193ee0c9066ed11354e7f034a6491406db5cddb",
  "core/intelligence/phrase.js": "f2a055c4270e8871d0791912586cb6a257b57869c16b35d678070dabf64c8a47"
 }

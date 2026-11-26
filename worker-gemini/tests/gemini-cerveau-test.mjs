@@ -31,7 +31,7 @@ q = await routeCerveau({ text: async () => 'x'.repeat(400000) }, { GEMINI_KEY: '
 q = await routeCerveau({ text: async () => JSON.stringify(req) }, { GEMINI_KEY: 'k' }, null, {}, { json, fetchFn: async () => ok200([{ text: 'Salut Justin' }]) }); v('route : réponse du modèle', q.statut === 200 && q.o.parts[0].text === 'Salut Justin');
 /* outils */
 const noms = DECLARATIONS.map(d => d.name);
-v('15 outils déclarés (9 de la v8 + manuel, analyse_marche, marche_global, lecture_graphique en v10 + bougies_volume en v13 + reseau_info du copilote), noms uniques, tous implémentés', noms.length === 15 && new Set(noms).size === 15 && noms.every(n => typeof OUTILS[n] === 'function'), noms.join());
+v('16 outils déclarés (9 de la v8 + manuel, analyse_marche, marche_global, lecture_graphique en v10 + bougies_volume en v13 + reseau_info du copilote + lecture_ict en ICT v2), noms uniques, tous implémentés', noms.length === 16 && new Set(noms).size === 16 && noms.every(n => typeof OUTILS[n] === 'function'), noms.join());
 v('aucune déclaration avec « properties » vide (refusé par Gemini)', DECLARATIONS.every(d => !d.parameters || Object.keys(d.parameters.properties || {}).length > 0));
 v('reconnaissance des actifs parlés', actifDe('le Bitcoin') === 'btc' && actifDe('un point sur l’or') === 'or' && actifDe('Nasdaq 100') === 'us100' && actifDe('le S&P 500') === 'us500' && actifDe('le pétrole') === 'petrole' && actifDe('la tour Eiffel') === null);
 const x = await executer('prix_et_tendance', { actif: 'martien' }); v('actif inconnu : « indisponible » avec la raison, jamais un chiffre inventé', x.indisponible && /inconnu/.test(x.indisponible));

@@ -10,8 +10,8 @@ export const PERIODES = Object.freeze({
   H4:  { id: 'H4',  ms: 4 * 3600e3, kraken: '4h',  binance: '4h',  nom: '4 h' },
   J:   { id: 'J',   ms: 86400e3,    kraken: '1d',  binance: '1d',  nom: 'jour' }
 });
-/* unités proposées à l'écran (M5 et M15 retirées le 2026-11-16) ; PERIODES garde M5 / M15 pour les calculs internes (écart Kraken / Binance, réactions des zones) */
-export const PERIODES_AFFICHEES = Object.freeze(['H1', 'H4', 'J']);
+/* unités proposées à l'écran : M15, H1, H4, Jour (M5 jamais). M15 remise le 2026-11-26 pour l'ICT multi-unités : le bouton est désactivé pour un actif dont les bougies M15 gratuites ne sont pas vérifiées (instruments.js, m15). PERIODES garde M5 pour les calculs internes */
+export const PERIODES_AFFICHEES = Object.freeze(['M15', 'H1', 'H4', 'J']);
 export const REGLES = Object.freeze({
   version: 'zones-or-v1',
   atr: 14,                       // ATR H1 sur 14 bougies
