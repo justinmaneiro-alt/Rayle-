@@ -51,7 +51,7 @@ for (const vue of demandees) {
       const id = `${vue} ${u} ${mode}`;
       const E = await p.evaluate(() => { const g = window.__or.graph, a = window.__or.ict.analyse(), m = window.__or.ict.modele(), et = g.ictEtat(), B = g.etat().bougies, ts = g.chart().timeScale(), pas = Math.abs((g.xDeT(B[B.length - 1].t) ?? 0) - (g.xDeT(B[B.length - 2].t) ?? 0)) || 6;
         const hw = pas * 0.35, bougies = []; for (const b of B.slice(-500)) { const x = g.xDeT(b.t), yh = g.yDe(b.h), yl = g.yDe(b.l); if (x != null && yh != null && yl != null) bougies.push({ x: x - hw, y: Math.min(yh, yl), w: 2 * hw, h: Math.abs(yl - yh) }); }
-        void ts; return { unite: a && a.nom, ok: a && a.ok, mode: window.__or.ict.etatIct().mode, n: m.objets.filter(o => o.kind !== 'scenario').length, courts: m.objets.map(o => o.court), pas, carres: et.carres, bougies, pastilles: et.pastilles, ray: g.rayleEtat(), etiq: g.etiquettes().length, v8: g.lectureV8Etat ? g.lectureV8Etat() : null, errs: 0 }; });
+        void ts; return { unite: a && a.nom, ok: a && a.ok, mode: window.__or.ict.etatIct().mode, n: m.objets.filter(o => o.kind !== 'scenario' && !o.hors).length, courts: m.objets.map(o => o.court), pas, carres: et.carres, bougies, pastilles: et.pastilles, ray: g.rayleEtat(), etiq: g.etiquettes().length, v8: g.lectureV8Etat ? g.lectureV8Etat() : null, errs: 0 }; });
       v(E.ok && E.unite === NOM[u] && E.mode === mode, `${id} : analyse de l'unité affichée (${E.unite})`);
       v(E.n > 0 && E.n <= (mode === 'essentiel' ? 8 : 20), `${id} : ${E.n} objets (${mode === 'essentiel' ? '8' : '20'} au plus)`);
       v(E.courts.every(c => c.length >= 1 && c.length <= 14), `${id} : tous les carrés tiennent sur une ligne de 14 caractères au plus (${E.courts.join(' | ')})`);

@@ -5,6 +5,7 @@ import * as I from './ict-v1.js';
 import * as V2 from './ict-v2.js';
 import { lectureIct, resumeIct, resumeCarte } from './ict-lecture.js';
 import { objetsIct, badgeIct, LEGENDE_ICT } from './ict-objets.js';
+import { scenariosIct, resumeScenarios, voixScenarios } from './ict-scenarios.js';
 import { taillePoliceCarre } from './ict-carres.js';
 const CLE_FWD = 'rayle_or_ict_forward', CLE_REG = 'rayle_or_ict_reglages', H = 3600e3;
 /* v2 : cinq couches, toutes calculées sur l'UNITÉ du graphique (ict-v2). Le registre forward et les mesures restent ceux d'ict-v1 (H1 seulement). */
@@ -37,6 +38,16 @@ export function creerIct({ racine, moteur, graph, structure, parler = () => {}, 
     const n = maintenant(), cle = `${u}|${B.length}|${B[B.length - 1].t}|${Math.floor(n / ms)}`; if (cle === E.cle2 && E.an2) { E.an2.prix = S.prix ?? E.an2.prix; return false; }
     E.cle2 = cle; E.an2 = V2.analyser(B, { unite: u, maintenant: n, prix: S.prix ?? null }); return true;
   }
+  /* Complet : le calcul porte sur TOUTES les bougies chargées (portée illimitée, ~60 ms), on ne dessine que la plage visible */
+  function analyseLarge() {
+    const S = moteur.S, ser = (moteur.serie ? moteur.serie() : []) || [], B = ser.slice(-1500); if (!E.an2 || !E.an2.ok) return null;
+    if (E.cleW === E.cle2 && E.anW) { E.anW.prix = S.prix ?? E.anW.prix; return E.anW; }
+    E.cleW = E.cle2; try { E.anW = V2.analyser(B, { unite: S.periode, maintenant: maintenant(), prix: S.prix ?? null, R: { ...V2.P, portee: 100000 } }); } catch (e) { E.anW = null; } return E.anW;
+  }
+  /* plage visible du graphique (indices dans la série de l'analyse, retrouvés par l'heure) */
+  function fenetreVisible(an) {
+    try { const pl = graph.plageVisible && graph.plageVisible(); if (!pl || pl.t0 == null || pl.t1 == null) return null; const B = an.bougies; let i0 = B.findIndex(b => b.t >= pl.t0); if (i0 < 0) i0 = B.length - 1; let i1 = -1; for (let k = B.length - 1; k >= 0; k--) if (B[k].t <= pl.t1) { i1 = k; break; } if (i1 < 0) return null; return { i0, i1: Math.max(i0 + 1, i1) }; } catch (e) { return null; }
+  }
   const lectureDe = (opts = {}) => { analyser2(); const an = E.an2; if (!an) return null; const a2 = opts.biais && !an.biaisDuJour ? { ...an, biaisDuJour: an._biais } : an; return lectureIct(a2, { actif: opts.actif ?? null, dec: opts.dec ?? 2, mode: opts.mode || E.pref.mode, couches: couchesActives() }); };
   const est = () => racine && racine.querySelector('[data-ict]');
   async function chargerStats() { if (E.stats) return; try { const r = await fetchFn(new URL('./ict-stats.json', import.meta.url).href, { cache: 'no-store' }); if (r.ok) E.stats = await r.json(); } catch (e) { /* sans les statistiques : « indisponibles » */ } }
@@ -48,8 +59,9 @@ export function creerIct({ racine, moteur, graph, structure, parler = () => {}, 
   /* ───── modèle dessiné : la liste d'objets NOMMÉS d'ict-objets.js (la même que lit Rayle avec lecture_ict) ───── */
   const couchesActives = () => { const c = couches(); return { ictLiquidite: !!c.ictLiquidite, ictStructure: !!c.ictStructure, ictFvg: !!c.ictFvg, ictPd: !!c.ictPd, ictTemps: !!c.ictTemps }; };
   function modele() {
-    analyser2(); const an = E.an2; if (!an || !an.ok) return null; const R = objetsIct(an, { mode: E.pref.mode, couches: couchesActives(), prix: moteur.S.prix ?? an.prix });
-    const M = { objets: R.objets, pastilles: R.pastilles, mode: E.pref.mode, unite: an.nom, atr: R.atr, badge: badgeIct(an) }; E.modeleCourant = M; return M;
+    analyser2(); const an = E.an2; if (!an || !an.ok) return null; const prix = moteur.S.prix ?? an.prix, complet = E.pref.mode === 'complet', SC = scenariosIct(an, { prix }), anU = complet ? (analyseLarge() || an) : an; E.scenarios = SC;
+    const R = objetsIct(anU, { mode: E.pref.mode, couches: couchesActives(), prix, fenetre: complet ? fenetreVisible(anU) : null, scenarios: SC });
+    const M = { objets: R.objets, pastilles: R.pastilles, mode: E.pref.mode, unite: an.nom, atr: R.atr, badge: badgeIct(an), fenetre: R.fenetre }; E.modeleCourant = M; return M;
   }
   /* ───── interface DOM par-dessus le graphique : badge d'UNE ligne + ⓘ (carte fermée par défaut), bouton « ? Légende » (fermée par défaut), UNE bulle d'objet ───── */
   const fsEcran = () => taillePoliceCarre(typeof window !== 'undefined' ? window.innerWidth : 1200);
@@ -83,6 +95,7 @@ export function creerIct({ racine, moteur, graph, structure, parler = () => {}, 
   function fermerTout() { E.carteOuverte = false; E.legendeOuverte = false; fermerBulle(); }
   /* la bulle : 4 lignes au plus (le nom, le statut et le prix, une ou deux raisons) ; « Rayle, explique » donne le reste */
   function lignesBulle(o) {
+    if (o.kind === 'scenario' && o.bulle) return o.bulle.slice(0, 4);
     const prix = o.prix || (o.niveaux ? o.niveaux.map(n => n.nom).join(' · ') : o.bas != null ? `${nb(o.bas, 1)} à ${nb(o.haut, 1)}` : o.p != null ? nb(o.p, 1) : ''), pq = (o.pourquoi || []).filter(Boolean), aussi = (o.autres || []).length ? 'Aussi : ' + o.autres.join(' · ') : null;
     return [`Statut : ${o.statut || '—'}${prix ? ' · ' + prix : ''}`, pq[0], aussi || pq[1]].filter(Boolean).slice(0, 3);
   }
@@ -101,7 +114,7 @@ export function creerIct({ racine, moteur, graph, structure, parler = () => {}, 
     const fs = fsEcran(); ui.style.fontSize = fs + 'px'; try { const h = graph.conteneur(), r = h.getBoundingClientRect(); ui.style.bottom = 'auto'; ui.style.height = Math.max(160, Math.min(h.clientHeight, window.innerHeight - r.top - 6)) + 'px'; } catch (e) { /* */ }
     const bd = badgeIct(an), badge = ui.querySelector('[data-ict-badge]'), q = s => ui.querySelector(s); q('[data-ict-badge-t]').textContent = bd.texte; badge.style.setProperty('--ict-c', bd.sens === 'haussiere' ? '#26a69a' : bd.sens === 'baissiere' ? '#ef5350' : '#9aa4ae');
     const top = basEntetes(); badge.style.top = top + 'px'; const bas = top + badge.offsetHeight + 4; for (const s of ['[data-ict-carte]', '[data-ict-bulle]']) q(s).style.top = bas + 'px';
-    const carte = q('[data-ict-carte]'), L = lectureDe({ actif: null, mode: E.pref.mode }), C = L ? resumeCarte(L, { ma: ma200(), scenario: (E.modeleCourant && E.modeleCourant.objets.find(o => o.kind === 'scenario')) || null }) : null; carte.hidden = !E.carteOuverte || !C; if (C) carte.innerHTML = `<b>${esc(C.titre)}</b>${C.lignes.map(l => `<p>${esc(l)}</p>`).join('')}`; q('[data-ict-i]').setAttribute('aria-expanded', String(!!E.carteOuverte));
+    const carte = q('[data-ict-carte]'), L = lectureDe({ actif: null, mode: E.pref.mode }), C = L ? resumeCarte(L, { ma: ma200(), scenarios: E.scenarios || null }) : null; carte.hidden = !E.carteOuverte || !C; if (C) carte.innerHTML = `<b>${esc(C.titre)}</b>${C.lignes.map(l => `<p>${esc(l)}</p>`).join('')}`; q('[data-ict-i]').setAttribute('aria-expanded', String(!!E.carteOuverte));
     const leg = q('[data-ict-leg]'); leg.hidden = !E.legendeOuverte; q('[data-ict-leg-b]').setAttribute('aria-expanded', String(!!E.legendeOuverte)); q('[data-ict-leg-corps]').innerHTML = LEGENDE_ICT.map(([k, t]) => `<div><i style="background:${k === 'haut' ? 'rgba(38,166,154,.95)' : k === 'bas' ? 'rgba(239,83,80,.95)' : k === 'ligne' ? '#eef2f6' : 'transparent;border:1px solid #9aa4ae'}"></i>${esc(t)}</div>`).join('');
   }
   function sauverPref() { ecrire(CLE_ETAT, E.pref); }
@@ -150,6 +163,7 @@ export function creerIct({ racine, moteur, graph, structure, parler = () => {}, 
   /* ── voix : « Analyse ICT de la semaine » ── */
   function parlerRapport() { analyser2(); E.rapport = rapportV2(); return E.rapport.texte; }
   const commande = texte => { const n = String(texte || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[’'`]/g, ' ');
+    if (/\bquels? scenarios?\b|\bscenarios? ict\b|\bles scenarios (a|b)\b/.test(n)) { if (!actif()) basculer(true); analyser2(); const a = E.an2; if (!a || !a.ok) return 'Pas assez de bougies closes sur cette unité pour proposer un scénario.'; return voixScenarios(scenariosIct(a, { prix: moteur.S.prix ?? a.prix }), a.nom); }
     if (/\bict (complet|essentiel)\b/.test(n)) { const m = /complet/.test(n) ? 'complet' : 'essentiel'; if (!actif()) basculer(true); regler(m); return `ICT ${m}.`; }
     if (/\b(cache|masque|efface|desactive) (l )?ict\b/.test(n)) { basculer(false); return 'J\'ai caché l\'ICT.'; }
     if (/\b(affiche|montre|active|mets) (l )?ict\b/.test(n)) { basculer(true); return `ICT affiché en ${E.pref.mode}.`; } if (/analyse ict|ict de la semaine|rapport ict|efface l analyse ict|masque l analyse ict|ferme l analyse ict/.test(n)) { if (/efface|masque|ferme/.test(n)) { basculer(false); return 'J\'ai effacé l\'analyse ICT du graphique.'; } if (!actif()) basculer(true); else maj(true); return parlerRapport(); } return null; };
@@ -160,5 +174,7 @@ export function creerIct({ racine, moteur, graph, structure, parler = () => {}, 
   for (const b of racine.querySelectorAll('[data-a="ict-un-clic"]')) b.addEventListener('click', () => { basculer(); });
   if (E.pref.actif && !actif()) { try { const o = {}; for (const k of Object.keys(COUCHES_ICT)) o[k] = true; graph.couches(o); for (const c of racine.querySelectorAll('[data-couche]')) if (c.dataset.couche in COUCHES_ICT) c.checked = true; } catch (e) { /* graphique pas prêt */ } }
   let minuterie = null, resv = null; if (auto) { chargerStats().then(() => maj(true)); minuterie = setInterval(() => { try { if (actif()) maj(); } catch (e) { /* */ } }, 30000); resv = setInterval(reserver, 1500); setTimeout(reserver, 300); try { window.addEventListener('resize', reserver); } catch (e) { /* */ } }
-  return { maj, basculer, commande, rapport: () => { analyser2(); return rapportV2(); }, rapportV1: () => { analyser(); return E.an ? I.rapport(E.an, { maintenant: maintenant() }) : null; }, lecture: lectureDe, reaffirmer() { if (E.pref.actif && !actif()) { try { const o = {}; for (const k of Object.keys(COUCHES_ICT)) o[k] = true; graph.couches(o); for (const c of racine.querySelectorAll('[data-couche]')) if (c.dataset.couche in COUCHES_ICT) c.checked = true; } catch (e) { /* */ } } maj(true); }, activer: basculer, mode: regler, etatIct: () => ({ actif: actif(), mode: E.pref.mode, carte: !!E.carteOuverte, legende: !!E.legendeOuverte }), reserver, fermerTout, ouvrirBulle, bulle: () => E.bulle, expliquer, derniereQuestion: () => E.derniereQuestion || null, analyse: () => { analyser2(); return E.an2; }, modele, unite: () => moteur.S.periode, parlerRapport, chargerStats, phraseMesure: (g, f) => phraseMesureIct(E.stats, g, f), actif, etat: () => ({ an: E.an, registre: E.registre.slice(), reg: E.reg, stats: E.stats, rapport: E.rapport }), injecter(stats) { E.stats = stats; }, detruire() { clearInterval(minuterie); clearInterval(resv); } };
+  /* Complet : quand la plage visible change (défilement, zoom), les objets sont recalculés pour ce qui est à l'écran (anti-rebond de 150 ms dans le graphique) */
+  graph.surPlage = () => { if (actif() && E.pref.mode === 'complet') { try { graph.ict(modele()); rendreUI(); } catch (e) { /* graphique pas prêt */ } } };
+  return { maj, basculer, commande, rapport: () => { analyser2(); return rapportV2(); }, rapportV1: () => { analyser(); return E.an ? I.rapport(E.an, { maintenant: maintenant() }) : null; }, lecture: lectureDe, scenarios: () => { analyser2(); return E.an2 && E.an2.ok ? scenariosIct(E.an2, { prix: moteur.S.prix ?? E.an2.prix }) : { scenarios: [] }; }, reaffirmer() { if (E.pref.actif && !actif()) { try { const o = {}; for (const k of Object.keys(COUCHES_ICT)) o[k] = true; graph.couches(o); for (const c of racine.querySelectorAll('[data-couche]')) if (c.dataset.couche in COUCHES_ICT) c.checked = true; } catch (e) { /* */ } } maj(true); }, activer: basculer, mode: regler, etatIct: () => ({ actif: actif(), mode: E.pref.mode, carte: !!E.carteOuverte, legende: !!E.legendeOuverte }), reserver, fermerTout, ouvrirBulle, bulle: () => E.bulle, expliquer, derniereQuestion: () => E.derniereQuestion || null, analyse: () => { analyser2(); return E.an2; }, modele, unite: () => moteur.S.periode, parlerRapport, chargerStats, phraseMesure: (g, f) => phraseMesureIct(E.stats, g, f), actif, etat: () => ({ an: E.an, registre: E.registre.slice(), reg: E.reg, stats: E.stats, rapport: E.rapport }), injecter(stats) { E.stats = stats; }, detruire() { clearInterval(minuterie); clearInterval(resv); } };
 }

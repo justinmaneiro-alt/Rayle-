@@ -232,7 +232,9 @@ export function creerGraphiqueOr(el, { surClicPrix, mobile = false } = {}) {
   /* vue par défaut : les 150 dernières bougies, calées à droite, petite marge */
   const VUE_DEFAUT = 150, MARGE_DROITE = 5;
   /* ICT épuré : une marge de 18 bougies à droite pour les petits carrés (nom des lignes), rétablie quand l'ICT s'éteint */
-  const margeIct = () => { try { return inst.ict ? 18 : MARGE_DROITE; } catch (e) { return MARGE_DROITE; } };
+  /* ICT avec scénarios fléchés : la marge vide à droite fait au moins 20 % de la largeur du graphique (PC, tablette), 25 % sur téléphone */
+  const FRAC_MARGE = () => (typeof window !== 'undefined' && window.innerWidth < 700 ? 0.25 : 0.2);
+  const margeIct = () => { try { return inst.ict ? Math.ceil(FRAC_MARGE() / (1 - FRAC_MARGE()) * (VUE_DEFAUT - 1)) : MARGE_DROITE; } catch (e) { return MARGE_DROITE; } };
   function vueDefaut() { if (!chart || !etat.bougies.length) return; const n = etat.bougies.length; chart.timeScale().setVisibleLogicalRange({ from: Math.max(0, n - VUE_DEFAUT), to: n - 1 + margeIct() }); }
   /* v12 : l'échelle ne doit JAMAIS rester cassée (bougies écrasées au milieu, moitié droite vide). `recaler()` = échelle verticale automatique + vue par défaut (dernières bougies à droite, petite marge) ;
      la garde ci-dessous le fait toute seule tant que l'utilisateur n'a pas lui-même déplacé ou zoomé le graphique. */
@@ -281,7 +283,7 @@ export function creerGraphiqueOr(el, { surClicPrix, mobile = false } = {}) {
       surClicPrix && surClicPrix(prix, p);
     });
     // glisser vers la gauche : arrivée près du bord des données → un morceau plus ancien (Kraken, puis la référence)
-    chart.timeScale().subscribeVisibleLogicalRangeChange(r => { if (r && r.from < 40 && etat.bougies.length && api.surBordGauche) api.surBordGauche(); redessiner(); });
+    chart.timeScale().subscribeVisibleLogicalRangeChange(r => { if (r && r.from < 40 && etat.bougies.length && api.surBordGauche) api.surBordGauche(); redessiner(); if (api.surPlage) { clearTimeout(etat.tPlage); etat.tPlage = setTimeout(() => { try { api.surPlage(api.plageVisible()); } catch (e) { /* ignoré */ } }, 150); } });
     /* l'ancien glisser des traits de position (blocs) est remplacé par celui des outils */ brancherGlisserOutils(); brancherInfo(); versSerie(); vueDefaut();
     for (const ev of ['pointerdown', 'wheel', 'touchstart']) el.addEventListener(ev, () => { etat.vueUser = true; }, { capture: true, passive: true });   // v12 : l'utilisateur a pris la main sur la vue
     setInterval(garde, 1200);
@@ -512,7 +514,8 @@ export function creerGraphiqueOr(el, { surClicPrix, mobile = false } = {}) {
     propositions(L) { inst.props = L || []; redessiner(); },
     structure(m) { inst.struct = m; redessiner(); },
     schemas(m) { inst.sch = m; redessiner(); },
-    ict(m) { const avant = !!inst.ict; inst.ict = m; if (!!m !== avant && chart && etat.bougies.length) { try { const ts = chart.timeScale(), r = ts.getVisibleLogicalRange(), n = etat.bougies.length, g = margeIct(); if (r && etat.vueUser) { const d = g - (r.to - (n - 1)); ts.setVisibleLogicalRange({ from: r.from, to: r.to + d }); } else vueDefaut(); } catch (e) { /* vue pas prête */ } } redessiner(); },
+    ict(m) { const avant = !!inst.ict; inst.ict = m; if (!!m !== avant && chart && etat.bougies.length) { try { const ts = chart.timeScale(), r = ts.getVisibleLogicalRange(), n = etat.bougies.length, g = margeIct(); if (r && etat.vueUser) { const d = g - (r.to - (n - 1)); ts.setVisibleLogicalRange({ from: r.from, to: r.to + d }); } else vueDefaut(); } catch (e) { /* vue pas prête */ } } else if (chart && etat.bougies.length && !etat.vueUser) { try { const r = chart.timeScale().getVisibleLogicalRange(), n = etat.bougies.length; if (r && Math.abs((r.to - (n - 1)) - margeIct()) > 1.5) vueDefaut(); } catch (e) { /* vue pas prête */ } }   /* vue par défaut : la marge à droite suit toujours l'état de l'ICT, même si les bougies d'une nouvelle unité arrivent après lui */
+      redessiner(); },
     /* place libre en haut du graphique pour le badge et la barre d'outils : l'échelle de prix ne dépend ni de l'ICT ni de ses objets */
     reserverHaut(px) { const v = Math.max(0, Math.round(px || 0)); if (v === etat.reserveHaut) return v; etat.reserveHaut = v; appliquerMarges(); redessiner(); return v; },
     pastillesAxe: () => pastilles.map(q => q.prix),
@@ -526,6 +529,8 @@ export function creerGraphiqueOr(el, { surClicPrix, mobile = false } = {}) {
     lectureV8Etat: () => ({ reglageX: lecture.reglageX == null ? null : lecture.reglageX, boites: lecture.boites.length, zones: lecture.zones.length, lisible: lisibleV8(), ma: lecture.ma, etiq: lecture.etiq.slice(), zonesPix: lecture.zonesPix.slice(), boitesPix: lecture.boitesPix.slice() }),
     margeDroite(n) { if (chart) chart.applyOptions({ timeScale: { rightOffset: n } }); },
     rayleEtat: () => ({ cadres: (inst.cadresRay || []).length, types: (inst.cadresRay || []).reduce((o, c) => (o[c.kind] = (o[c.kind] || 0) + 1, o), {}), cadresListe: (inst.cadresRay || []).map(c => ({ kind: c.kind, x0: c.x0, x1: c.x1, y0: c.y0, y1: c.y1, texte: c.g && c.g.texte })), etiquettes: ((inst.cadresRay && inst.cadresRay.etiquettes) || []).map(r => ({ x0: r.x0, y0: r.y0, w: r.w, h: r.h })) }),
+    /* plage visible (indices des bougies) : l'ICT Complet recalcule ses objets quand elle change (anti-rebond de 150 ms, `surPlage`) */
+    plageVisible: () => { try { const r = chart.timeScale().getVisibleLogicalRange(), n = etat.bougies.length; if (!r || !n) return null; const i0 = Math.max(0, Math.floor(r.from)), i1 = Math.min(n - 1, Math.ceil(r.to)); return { i0, i1, n, t0: etat.bougies[i0] ? etat.bougies[i0].t : null, t1: etat.bougies[i1] ? etat.bougies[i1].t : null }; } catch (e) { return null; } },
     ictCadreA: (x, y) => { const L = (inst.cadresIct || []).filter(q => x >= q.x0 && x <= q.x1 && y >= q.y0 && y <= q.y1 && q.objet); const surface = q => (q.x1 - q.x0) * (q.y1 - q.y0); return L.find(q => q.carre) || L.filter(q => q.kind !== 'bande').sort((a, b) => surface(a) - surface(b))[0] || L[0] || null; },
     ictEtat: () => ({ carres: ((inst.cadresIct && inst.cadresIct.carres) || []).map(c => ({ ...c })), reserveHaut: etat.reserveHaut || 0, pastilles: pastilles.length, etiquettes: { demandees: (inst.cadresIct && inst.cadresIct.etiquettesDemandees) || 0, posees: ((inst.cadresIct && inst.cadresIct.etiquettes) || []).filter(e => !e.replie).length }, cadres: (inst.cadresIct || []).length, types: (inst.cadresIct || []).reduce((o, c) => (o[c.kind] = (o[c.kind] || 0) + 1, o), {}) }),
     schemasEtat: () => ({ cadres: (inst.cadresSch || []).length, types: (inst.cadresSch || []).reduce((o, c) => (o[c.kind] = (o[c.kind] || 0) + 1, o), {}) }),
