@@ -2,13 +2,14 @@
    Source unique : ict-v2.js (aucune divergence possible entre ce que Justin voit et ce que Rayle dit). Une valeur absente est null (Rayle dit « indisponible »).
    Rayle décrit : elle dit de quel côté la lecture penche, ce qui manque et ce qui invaliderait ; jamais « achète » ni « vends ». */
 import { nomUnite } from './ict-v2.js';
+import { objetsIct } from './ict-objets.js';
 
 const arr = (x, d = 2) => (Number.isFinite(x) ? +x.toFixed(d) : null);
 const fr = (x, d = 2) => (Number.isFinite(x) ? x.toLocaleString('fr-FR', { minimumFractionDigits: d, maximumFractionDigits: d }).replace(/[  ]/g, ' ') : 'indisponible');
 const NOM_SESSION = { ASIE_H: 'haut de l\'Asie', ASIE_B: 'bas de l\'Asie', LDN_H: 'haut de Londres', LDN_B: 'bas de Londres' };
 
 /* an : résultat de ict-v2.analyser ; meta : { actif, dec } */
-export function lectureIct(an, { actif = null, dec = 2, max = 4 } = {}) {
+export function lectureIct(an, { actif = null, dec = 2, max = 4, mode = 'complet', couches = null } = {}) {
   if (!an || !an.ok) return { actif, unite: an ? an.nom : null, indisponible: an && an.raison ? an.raison : 'pas assez de bougies', source: 'ict-v2' };
   const r = (x, d = dec) => arr(x, d), a = an.atr, px = an.prix;
   const liq = an.liquidites.map(x => ({ type: x.nom ? x.type : x.type, nom: x.nom || x.type, prix: r(x.p), distance: r(x.p - px), distanceAtr: a ? arr((x.p - px) / a, 1) : null, balayee: !!x.balayee, typeBalayage: x.typeBalayage || null, unite: an.nom }));
@@ -27,6 +28,7 @@ export function lectureIct(an, { actif = null, dec = 2, max = 4 } = {}) {
     biaisDuJour: b ? { sens: b.sens, cas: b.cas, raison: b.raison, pdh: r(b.pdh), pdl: r(b.pdl) } : null,
     checklist: an.checklist.map(x => ({ condition: x.condition, ok: x.ok, obligatoire: x.obligatoire })),
     penche: { sens: p.sens, raisons: p.raisons, manque: p.manque, inconnu: p.inconnu, complete: p.complete, invalidation: p.invalidation ? { prix: r(p.invalidation.prix), quoi: p.invalidation.quoi } : null },
+    objets: (() => { const O = objetsIct(an, { mode, couches }).objets.slice().sort((x, y) => (x.distanceAtr ?? 99) - (y.distanceAtr ?? 99)).slice(0, 24); return O.map(o => ({ nom: o.nom, famille: o.famille, unite: o.unite, prix: o.p != null ? r(o.p) : null, bas: o.bas != null ? r(o.bas) : null, haut: o.haut != null ? r(o.haut) : null, statut: o.statut || null, pourquoi: (o.pourquoi || []).slice(0, 3) })); })(),
     regle: 'Tous les éléments sont calculés sur les bougies ' + an.nom + ' uniquement. Interprétation de l\'ICT : une description, jamais un ordre.', source: 'ict-v2'
   };
 }
@@ -82,4 +84,11 @@ export function verdictOrderBlock(L) {
   const valide = pts[1].ok && pts[2].ok;
   const texte = `En ${u} : order block ${u} ${z.sens} ${fr(z.bas)} à ${fr(z.haut)} (${z.statut === 'frais' ? 'frais' : z.statut === 'teste' ? 'déjà testé' : z.statut}). ` + pts.map((p, i) => `${i + 1}) ${p.point.split(' (')[0]} : ${p.ok ? 'oui' : 'non'}`).join(' ; ') + `. ${valide ? 'Il est valide (points 2 et 3 réunis)' : 'Il n\'est pas valide'}${z.liquidite ? ', avec la prise de liquidité : c\'est la version la plus puissante' : ', sans prise de liquidité : valide mais moins puissant'} ; ${z.fort ? 'fort (le déplacement casse aussi un vrai sommet ou creux de structure)' : 'simple (la reversal candle casse seulement la candidate)'}. Piège des stops laissés derrière : ${z.stopsDerriere ? 'oui, une consolidation aux creux intacts attire le prix, qui peut venir la chasser avant de partir' : 'non'}.`;
   return { ok: true, points: pts, valide, ordreBlock: z, texte };
+}
+
+/* carte de résumé repliable (3 lignes au plus) tirée de resumeIct : « En H1 : » en titre, puis la structure, ce qui manque ou les zones, et l'orientation */
+export function resumeCarte(L) {
+  const t = resumeIct(L), titre = (t.match(/^(En [^:]+ :)/) || [, ''])[1], ph = t.slice(titre.length).trim().split(/(?<=\.) /).filter(Boolean).filter(x => !/^C'est toi qui décides/.test(x));
+  const struct = ph[0] || '', zones = ph.find(x => /^Zones :/.test(x)) || ph.find(x => /^Liquidité :/.test(x)) || '', pench = ph.find(x => /^La lecture ICT/.test(x)) || '';
+  return { titre, lignes: [struct, zones, pench].filter(Boolean).slice(0, 3), texte: t };
 }

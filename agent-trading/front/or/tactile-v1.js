@@ -49,6 +49,7 @@ export async function monterTactile(T) {
     const orig = [...document.querySelectorAll('[data-couche]')].filter(c => c.type === 'checkbox'), notif = document.querySelector('[data-ft-notif]');
     reglages.innerHTML = `<div class="tt-feuille-tete"><b>Réglages du graphique</b><button type="button" class="tt-x" data-tt-ferme-reglages aria-label="Fermer">✕</button></div><div class="tt-reglages-corps">`
       + `<button type="button" class="tt-gros" data-tt-outils aria-pressed="${E.outilsVisibles}">Outils de dessin : ${E.outilsVisibles ? 'visibles' : 'masqués'}</button>`
+      + `<h3>Lecture ICT</h3><div class="tt-ict-bascule" data-tt-ict-bascule><button type="button" class="tt-gros" data-tt-ict="essentiel">ICT essentiel</button><button type="button" class="tt-gros" data-tt-ict="complet">ICT complet</button></div>`
       + `<h3>Couches</h3>` + orig.map(c => `<label class="tt-case"><input type="checkbox" data-tt-couche="${esc(c.dataset.couche)}"${c.checked ? ' checked' : ''}> ${esc((c.closest('label') ? c.closest('label').textContent : c.dataset.couche).trim())}</label>`).join('')
       + `<h3>Notifications</h3><div data-tt-notif></div></div>`;
     const h = reglages.querySelector('[data-tt-notif]'); if (notif && h) { reglages.__notif = notif; reglages.__parent = notif.parentNode; h.appendChild(notif); notif.open = true; }
@@ -57,6 +58,7 @@ export async function monterTactile(T) {
   barre.querySelector('[data-tt-plus]').addEventListener('click', () => { if (!reglages.hidden) { fermerReglages(); return; } fermerFeuille(); construireReglages(); reglages.hidden = false; });
   reglages.addEventListener('click', ev => {
     if (ev.target.closest('[data-tt-ferme-reglages]')) { fermerReglages(); return; }
+    { const bi = ev.target.closest('[data-tt-ict]'); if (bi) { try { const I = window.TableauOr && window.TableauOr.ict; if (I) { if (!I.etatIct().actif) I.activer(true); I.mode(bi.dataset.ttIct); for (const x of reglages.querySelectorAll('[data-tt-ict]')) x.setAttribute('aria-pressed', String(x === bi)); } } catch (e) { /* */ } return; } }
     if (ev.target.closest('[data-tt-outils]')) { E.outilsVisibles = !E.outilsVisibles; html.classList.toggle('tt-outils-visibles', E.outilsVisibles); const b = ev.target.closest('[data-tt-outils]'); b.setAttribute('aria-pressed', String(E.outilsVisibles)); b.textContent = `Outils de dessin : ${E.outilsVisibles ? 'visibles' : 'masqués'}`; if (!E.outilsVisibles) terminerOutil(); window.dispatchEvent(new Event('resize')); }
   });
   reglages.addEventListener('change', ev => { const c = ev.target.closest('[data-tt-couche]'); if (!c) return; const o = document.querySelector(`[data-couche="${c.dataset.ttCouche}"]`); if (o) { o.checked = c.checked; o.dispatchEvent(new Event('change', { bubbles: true })); } });

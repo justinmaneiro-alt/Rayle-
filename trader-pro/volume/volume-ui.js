@@ -25,6 +25,7 @@ import { profilDe, PROFILS } from './profils-actifs.js';
 import { creerSuiviGros, creerHistoDeseq, fusionnerCarnets, PALIER_DEFAUT } from './carnet-calcul.js';
 import { creerEtiquettesAxe, creerZones } from './etiquettes-axe.js';
 import { construire as construireIct, etiquettesAxe as etiqIct, ICT_DEFAUT } from './ict-affichage.js';
+import { dessinerNomsVolume, htmlLegendeVolume, NOM_SESSION, NOM_ZONE_VOLUME } from './noms.js';
 import { atrDaily, sessions as sessionsH1 } from './ict-calcul.js';
 import { monterPanneau } from './panneau-droite.js';
 
@@ -76,7 +77,7 @@ export async function monterVolume({ racine, T = {}, parler = () => {}, idDefaut
       <label>Carnet et gros flux <select data-opt-select="carnetSource"><option>Binance</option><option>Kraken</option></select></label>
       <label data-ligne-source-volume>Volume de l’or <select data-opt-select="sourceVolume"><option value="reel">Perpétuel Binance (réel)</option><option value="ref">Futures COMEX GC (institutionnel)</option></select></label>
       <fieldset><legend>Alertes des flèches Volume</legend>${TYPES_FLECHES_VOLUME.map(t => `<label><input type="checkbox" data-type="${t.id}"> ${esc(t.nom)}</label>`).join('')}</fieldset></div>
-    <div class="tpv-corps"><div class="tpv-graph" data-graph><div class="tpv-legende" data-legende aria-live="off"></div><button type="button" class="tpv-temps-reel" data-temps-reel title="Revenir à la dernière bougie" hidden>»</button><div class="tpv-info" data-info hidden></div><p class="tpv-att" data-att role="status">Chargement…</p></div>
+    <div class="tpv-corps"><div class="tpv-graph" data-graph><div class="tpv-legende" data-legende aria-live="off"></div><details class="tpv-leg" data-tpv-leg open><summary>Légende</summary><div>${htmlLegendeVolume()}</div></details><button type="button" class="tpv-temps-reel" data-temps-reel title="Revenir à la dernière bougie" hidden>»</button><div class="tpv-info" data-info hidden></div><p class="tpv-att" data-att role="status">Chargement…</p></div>
       <aside class="tpv-droite" data-droite aria-label="Panneau de droite : carnet, repères ICT, bougie du jour"></aside></div>
     <p class="tpv-note" data-note></p>`;
   racine.appendChild(el);
@@ -108,7 +109,7 @@ export async function monterVolume({ racine, T = {}, parler = () => {}, idDefaut
     try { S.ech = creerEchelles({ chart, serie: sBou, hote: zoneGraph, LW, panneau: 0, journalInitial: !!opts.log, surChange: () => { couche && couche.req && couche.req(); } }); } catch (e) { console.warn('[tpv] échelles indisponibles :', e && e.message || e); }
     chart.timeScale().subscribeVisibleLogicalRangeChange(() => { majTempsReel(); if (sauteRange) return; clearTimeout(tempsProfil); tempsProfil = setTimeout(() => { calculerProfil(); couche && couche.req && couche.req(); }, 60); });
     /* Bougies volume : coloration, zones, fenêtre « Et après ? », bouton à la place de l'ancien Bookmap */
-    try { bv = creerBougiesVolume({ mode: 'volume', chart, conteneur: zoneGraph, lireLS, ecrireLS, temps, bars: () => S.bars, actif: () => S.actif, unite: () => S.unite, serie: () => sBou, serieVol: () => sVol, bloque: () => S.modeAncre }); cmdBv = monterCommandesBv($('.tpv-barre'), bv, { avant: $('[data-badge]') }); } catch (e) { console.warn('[tpv] bougies volume indisponibles :', e && e.message || e); bv = null; cmdBv = { maj() {} }; }
+    try { bv = creerBougiesVolume({ mode: 'volume', chart, conteneur: zoneGraph, lireLS, ecrireLS, temps, bars: () => S.bars, actif: () => S.actif, unite: () => S.unite, serie: () => sBou, serieVol: () => sVol, bloque: () => S.modeAncre }); cmdBv = monterCommandesBv($('.tpv-barre'), bv, { avant: $('[data-badge]') }); if (bv.noms) bv.noms(false); } catch (e) { console.warn('[tpv] bougies volume indisponibles :', e && e.message || e); bv = null; cmdBv = { maj() {} }; }
     chart.subscribeClick(p => { if (!p || p.time == null) return; if (S.modeAncre) { ancrerEn(p.time * 1000); return; } if (infoSurCase(p.point, p.time * 1000, true)) return; montrerInfoFleche(p.time * 1000, p.point); });
     chart.subscribeCrosshairMove(p => { legende(p && p.time != null ? p.time * 1000 : null); const boite = $('[data-info]'); if (!p || p.time == null || !p.point) { if (S.survol) { S.survol = false; boite.hidden = true; } return; } if (S.modeAncre) return; if (infoSurCase(p.point, p.time * 1000, false)) S.survol = true; else if (S.survol) { S.survol = false; boite.hidden = true; } });
   }
@@ -137,10 +138,17 @@ export async function monterVolume({ racine, T = {}, parler = () => {}, idDefaut
   function creerCouche() {
     const o = { req: null, attached(p) { this.req = p.requestUpdate; }, detached() { this.req = null; }, updateAllViews() { /* tout est lu au dessin */ },
       paneViews() { return [{ zOrder: () => 'bottom', renderer: () => ({ draw() { /* rien */ }, drawBackground: cible => cible.useBitmapCoordinateSpace(sc => { try { dessinerChaleur(sc); } catch (e) { /* ne casse pas le graphique */ } }) }) },
-        { zOrder: () => 'top', renderer: () => ({ draw: cible => cible.useBitmapCoordinateSpace(sc => { try { dessinerSessions(sc); dessinerProfil(sc); dessinerReaction(sc); dessinerBougies(sc); } catch (e) { /* idem */ } }) }) }]; } };
+        { zOrder: () => 'top', renderer: () => ({ draw: cible => cible.useBitmapCoordinateSpace(sc => { try { dessinerSessions(sc); dessinerProfil(sc); dessinerReaction(sc); dessinerBougies(sc); dessinerNoms(sc); } catch (e) { /* idem */ } }) }) }]; } };
     return o;
   }
   const yDe = p => sBou.priceToCoordinate(p), xDe = t => chart.timeScale().timeToCoordinate(temps(t));
+  /* v13 : chaque ligne et chaque zone du graphique reçoit un nom lisible sur une pastille (noms.js) ; les zones cyan / magenta des bougies volume sont nommées ici aussi quand elles sont affichées */
+  function dessinerNoms(sc) {
+    const lignes = [...(S.etiqAnnexes || []), ...(S.etiqProfil || []), ...(S.etiqReac || []), ...(S.etiqIct || []), ...(S.etiqGros || [])], zones = [...(S.zonesAff || [])];
+    try { if (bv && bv.zonesNommees) for (const z of bv.zonesNommees()) zones.push({ bas: z.bas, haut: z.haut, nom: z.dir > 0 ? NOM_ZONE_VOLUME.achat : NOM_ZONE_VOLUME.vente, prio: 40 }); } catch (e) { /* zones des bougies volume : pas nommées ici */ }
+    const B = S.bars, interdits = []; if (B.length > 14) { const L = B.slice(-12), x0 = xDe(L[0].t), x1 = xDe(L[L.length - 1].t); let hm = -Infinity, lm = Infinity; for (const b of L) { hm = Math.max(hm, b.h); lm = Math.min(lm, b.l); } const y0 = yDe(hm), y1 = yDe(lm); if ([x0, x1, y0, y1].every(v => v != null && Number.isFinite(v))) interdits.push({ x: x0 - 2, y: Math.min(y0, y1) - 2, w: x1 - x0 + 8, h: Math.abs(y1 - y0) + 4 }); }
+    S.nomsRendu = window.__tpvNoms = dessinerNomsVolume(sc.context, { W: (sc.mediaSize ? sc.mediaSize.width * sc.horizontalPixelRatio : sc.bitmapSize.width), H: (sc.mediaSize ? sc.mediaSize.height * sc.verticalPixelRatio : sc.bitmapSize.height), hr: sc.horizontalPixelRatio, vr: sc.verticalPixelRatio, ecran: window.innerWidth, yDe, lignes, zones, interdits });
+  }
   function dessinerChaleur(sc) {
     if (!opts.chaleur || !S.chaleur.liste().length) return; const c = sc.context, hr = sc.horizontalPixelRatio, vr = sc.verticalPixelRatio, L = S.chaleur.liste(); let max = 0; for (const s of L) for (const x of [...s.bids, ...s.asks]) max = Math.max(max, x[1]); if (!(max > 0)) return;
     for (let i = 0; i < L.length; i++) {
@@ -436,20 +444,21 @@ export async function monterVolume({ racine, T = {}, parler = () => {}, idDefaut
   const donneesJ = async () => (S.unite === 'J' ? S.bars : serieCache('J', true)), donneesH1 = async () => (S.unite === 'H1' ? S.bars : serieCache('H1', false));
   /* repères ICT reportés sur le graphique principal : lignes fines, zones grisées, étiquettes sur l'axe des prix seulement */
   async function majIctPrincipal() {
-    if (!sBou || !zonesPrinc) return; const retirer = () => { for (const l of S.lignesIct || []) { try { sBou.removePriceLine(l); } catch (e) { /* retirée */ } } S.lignesIct = []; zonesPrinc.set([]); S.etiqIct = []; majEtiquettes(); };
+    if (!sBou || !zonesPrinc) return; const retirer = () => { for (const l of S.lignesIct || []) { try { sBou.removePriceLine(l); } catch (e) { /* retirée */ } } S.lignesIct = []; S.zonesAff = []; zonesPrinc.set([]); S.etiqIct = []; majEtiquettes(); };
     if (!opts.ictPrincipal) { retirer(); return; } let J = null; try { J = await donneesJ(); } catch (e) { retirer(); return; } if (!opts.ictPrincipal || !J) return;
     const A = construireIct(J, { ...ICT_DEFAUT, ...(opts.ict || {}) }, { fmt: v => prix(S.actif, v) }); retirer();
-    S.lignesIct = A.lignes.map(l => sBou.createPriceLine({ price: l.prix, color: l.couleur, lineWidth: 1, lineStyle: l.tirets ? 2 : 0, axisLabelVisible: false, title: '' })); zonesPrinc.set(A.zones); S.etiqIct = etiqIct(A); majEtiquettes();
+    S.lignesIct = A.lignes.map(l => sBou.createPriceLine({ price: l.prix, color: l.couleur, lineWidth: 1, lineStyle: l.tirets ? 2 : 0, axisLabelVisible: false, title: '' })); zonesPrinc.set(A.zones); S.zonesAff = A.zones; S.etiqIct = etiqIct(A); majEtiquettes();
   }
   /* sessions (indices, forex) : fines bandes en haut du H1 avec le plus haut et le plus bas de chaque session */
   function dessinerSessions(sc) {
     if (!opts.sessions || S.unite !== 'H1' || !profilDe(S.actif).sessions || !S.bars.length) return; const r = chart.timeScale().getVisibleRange(); if (!r) return; const c = sc.context, hr = sc.horizontalPixelRatio, vr = sc.verticalPixelRatio;
-    const L = sessionsH1(S.bars.filter(b => b.t / 1000 >= r.from - 3 * 86400), { jours: 4 }), alpha = { asie: 0.10, londres: 0.2, newyork: 0.14 }, sigle = { asie: 'A', londres: 'L', newyork: 'NY' }; c.font = `${9 * hr}px ui-monospace, Consolas, monospace`; c.textBaseline = 'middle';
+    const sessNoms = [], L = sessionsH1(S.bars.filter(b => b.t / 1000 >= r.from - 3 * 86400), { jours: 4 }), alpha = { asie: 0.10, londres: 0.2, newyork: 0.14 }, sigle = { asie: 'A', londres: 'L', newyork: 'NY' }; c.font = `${9 * hr}px ui-monospace, Consolas, monospace`; c.textBaseline = 'middle';
     for (const s of L) {
-      const x0 = xDe(s.t0), x1 = xDe(s.t1); if (x0 == null || x1 == null || x1 < 0) continue; c.fillStyle = `rgba(200,210,218,${alpha[s.id]})`; c.fillRect(x0 * hr, 0, (x1 - x0) * hr, 8 * vr); c.fillStyle = 'rgba(200,210,218,.55)'; c.fillText(sigle[s.id], (x0 + 3) * hr, 4 * vr);
+      const x0 = xDe(s.t0), x1 = xDe(s.t1); if (x0 == null || x1 == null || x1 < 0) continue; c.fillStyle = `rgba(200,210,218,${alpha[s.id]})`; c.fillRect(x0 * hr, 0, (x1 - x0) * hr, 8 * vr); c.fillStyle = 'rgba(200,210,218,.55)'; c.fillText(sigle[s.id], (x0 + 3) * hr, 4 * vr); sessNoms.push({ nom: NOM_SESSION[s.id], x: x0 });
       c.strokeStyle = 'rgba(200,210,218,.35)'; c.lineWidth = Math.max(1, hr * 0.8); c.setLineDash([2 * hr, 3 * hr]); for (const p of [s.haut, s.bas]) { const y = yDe(p); if (y == null) continue; c.beginPath(); c.moveTo(x0 * hr, y * vr); c.lineTo(x1 * hr, y * vr); c.stroke(); } c.setLineDash([]);
     }
     c.textBaseline = 'alphabetic';
+    { const fs = window.innerWidth >= 1100 ? 13 : window.innerWidth >= 700 ? 12 : 11; c.font = `bold ${fs * hr}px system-ui, sans-serif`; for (const n of sessNoms) { const w = c.measureText(n.nom).width; c.fillStyle = 'rgba(10,14,18,.86)'; c.fillRect((n.x + 2) * hr, 10 * vr, w + 10 * hr, (fs + 5) * vr); c.fillStyle = 'rgba(230,237,242,1)'; c.fillText(n.nom, (n.x + 7) * hr, (10 + fs + 1) * vr); } }
   }
 
   /* ───── commandes et événements ───── */
