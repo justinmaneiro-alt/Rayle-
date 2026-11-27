@@ -1,6 +1,6 @@
 {
  "version": "ict-v2",
  "scelle_le": "2026-11-27",
- "sha256": "5c98d358d4e527727c0f525072c27fad9a5f30ceb8d2a98b1a2d983bbc95d435",
- "note": "Empreinte SHA-256 de ict-v2.js (fins de ligne normalisées), posée AVANT tout affichage."
+ "sha256": "117e980e184ff52885fc73731c605e3b48b3467f049deb0a022508f5bdae7c8b",
+ "note": "Empreinte SHA-256 de ict-v2.js (fins de ligne normalisées). Re-scellé le 2026-11-27 pour ICT épuré : le dealing range est recalculé après chaque BOS ou MSS (un extrême cassé est remplacé par l'extrême atteint depuis)."
 }

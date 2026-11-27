@@ -50,12 +50,14 @@ export function creerGraphiqueOr(el, { surClicPrix, mobile = false } = {}) {
   /* couche « Mouvements H1 » (mouvements-v1.js, définition figée) : rétrospectif, jamais un signal ; H1 seulement ; données calculées dans un Worker (mouvements-ui.js) */
   const mouv = { liste: [], h1: false, cadres: [] };
   const mouvementSous = (x, y) => {   // clic seulement (pas au survol) et jamais pendant un outil de dessin
-    if (etat.outil || etat.modeOutil || !mouv.h1 || etat.couches.mouvements === false) return null;
+    if (etat.outil || etat.modeOutil || !mouv.h1 || etat.couches.mouvements === false || ictOn()) return null;
     const c = mouv.cadres.find(q => x >= q.x0 && x <= q.x1 && y >= q.y0 && y <= q.y1); if (!c) return null;
     const L = ficheMouv(c.m); return { p: c.m.depart, texte: L[0] + ' · ' + etiquetteMouv(c.m), detail: L.slice(1), mouvement: true };
   };
   const C = { liquidite: '#c39be0', flecheHaut: '#4fd18b', flecheBas: '#ef5f5f', refHaut: '#5fb894', refBas: '#d86a6a', bande: 'rgba(201,178,122,.07)', sable: '#c9b27a', haut: '#5fb894', bas: '#d86a6a', volZone: '143,136,204', support: '#86c3e8', resistance: '#e2ae62', retour: '#e8e2cf', texte: '#cfd8dc', doux: '#7d8a90', fond: 'rgba(8,12,16,.86)' };
   const yDe = p => serie ? serie.priceToCoordinate(p) : null;
+  /* ICT ÉPURÉ : quand l'ICT est actif, les autres couches de niveaux de Rayle (proposés, VAH / VAL, bas de la semaine, chiffres ronds, zones de réaction, boîtes) ne sont pas tracées : un prix = une seule ligne */
+  const ictOn = () => !!(inst && inst.ict);
 
   /* graphique propre (terminal pro, trader-pro/terminal) : ni bande « historique de référence », ni niveaux proposés tant que « Détails » n'est pas ouvert */
   const propre = () => { const c = document.documentElement.classList; return c.contains('tp-terminal') && !c.contains('tp-details'); };
@@ -119,7 +121,7 @@ export function creerGraphiqueOr(el, { surClicPrix, mobile = false } = {}) {
     const etq = [], hors = { haut: null, bas: null }, xDe = t => { const x = chart.timeScale().timeToCoordinate(etat.tSerie.get(t) ?? tempsGraphique(t)); return x == null ? 0 : Math.max(0, x); };
     etat.cadresZ = [];
     const G0 = etat.aff || secoursAff(), G = masquerAff(G0);
-    if (etat.couches.sr !== false && !lisibleV8()) {
+    if (etat.couches.sr !== false && !lisibleV8() && !ictOn()) {
       for (const z of G.sr.traces) { const c = dessinerZone(ctx, T, z, { xDeT, yDe, fs }); if (c) { c.z = z; c.kind = 'sr'; etat.cadresZ.push(c); surligner(ctx, c, 'sr', z); } }   // traces très pâles, limitées à leur durée
       for (const z of G.sr.actives) {
         const col = z.cote === 'resistance' ? C.resistance : C.support, y0 = yDe(z.p + z.epaisseur / 2), y1 = yDe(z.p - z.epaisseur / 2); if (y0 == null || y1 == null) continue;
@@ -128,7 +130,7 @@ export function creerGraphiqueOr(el, { surClicPrix, mobile = false } = {}) {
         if (z.proche) etq.push({ y: c.ym, texte: zoneTexte(z), col, prio: z.elements.some(e => e.fort) ? 3 : 1.5, gras: z.elements.some(e => e.fort), g: { texte: zoneTexte(z), detail: detailZoneG(z), p: z.p } });
       }
     }
-    if (etat.couches.liquidite !== false) {
+    if (etat.couches.liquidite !== false && !ictOn()) {
       for (const z of [...G.liq.balayees, ...G.liq.actives]) {
         const c = dessinerLiquidite(ctx, T, z, { xDeT, yDe }); if (!c) continue; c.z = z; c.kind = 'liq'; etat.cadresZ.push(c); surligner(ctx, c, 'liq', z);
         if (z.tBalayage == null) etq.push({ y: c.ym, texte: z.texte, col: C.liquidite, prio: 2, g: { texte: z.texte, detail: z.detail, p: z.p } });
@@ -170,7 +172,7 @@ export function creerGraphiqueOr(el, { surClicPrix, mobile = false } = {}) {
     const poignee = (x, y, col) => { ctx.fillStyle = '#0b1117'; ctx.strokeStyle = col; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.arc(x, y, 3.5, 0, 6.3); ctx.fill(); ctx.stroke(); };
     const hy = y => Math.round(y) + 0.5;
     /* niveaux proposés : proches du prix (± 8 ATR), fusionnés (0,5 ATR), 6 au plus, étiquettes sans chevauchement (correctif H4/Jour) */
-    { const B = etat.bougies, prix = B.length ? B[B.length - 1].c : NaN, gardes = propre() ? [] : filtrerProposes(O.proposes, prix, atrSimple(B)), ys = {};
+    { const B = etat.bougies, prix = B.length ? B[B.length - 1].c : NaN, gardes = propre() || ictOn() ? [] : filtrerProposes(O.proposes, prix, atrSimple(B)), ys = {};
       for (const pr of gardes) { const y = yDe(pr.p); if (y != null) ys[pr.cle] = y; }
       const libres = etiquettesLibres(gardes, ys, fs + 3);
       for (const pr of gardes) { const y = ys[pr.cle]; if (y == null || y < 0 || y > T.height) continue;
@@ -229,7 +231,9 @@ export function creerGraphiqueOr(el, { surClicPrix, mobile = false } = {}) {
   }
   /* vue par défaut : les 150 dernières bougies, calées à droite, petite marge */
   const VUE_DEFAUT = 150, MARGE_DROITE = 5;
-  function vueDefaut() { if (!chart || !etat.bougies.length) return; const n = etat.bougies.length; chart.timeScale().setVisibleLogicalRange({ from: Math.max(0, n - VUE_DEFAUT), to: n - 1 + MARGE_DROITE }); }
+  /* ICT épuré : une marge de 18 bougies à droite pour les petits carrés (nom des lignes), rétablie quand l'ICT s'éteint */
+  const margeIct = () => { try { return inst.ict ? 18 : MARGE_DROITE; } catch (e) { return MARGE_DROITE; } };
+  function vueDefaut() { if (!chart || !etat.bougies.length) return; const n = etat.bougies.length; chart.timeScale().setVisibleLogicalRange({ from: Math.max(0, n - VUE_DEFAUT), to: n - 1 + margeIct() }); }
   /* v12 : l'échelle ne doit JAMAIS rester cassée (bougies écrasées au milieu, moitié droite vide). `recaler()` = échelle verticale automatique + vue par défaut (dernières bougies à droite, petite marge) ;
      la garde ci-dessous le fait toute seule tant que l'utilisateur n'a pas lui-même déplacé ou zoomé le graphique. */
   etat.vueUser = false;
@@ -359,7 +363,7 @@ export function creerGraphiqueOr(el, { surClicPrix, mobile = false } = {}) {
     const schSous = (x, y) => { const L = inst.cadresSch || []; const c = L.find(q => q.kind === 'div' && x >= q.x0 && x <= q.x1 && y >= q.y0 && y <= q.y1) || L.find(q => x >= q.x0 && x <= q.x1 && y >= q.y0 && y <= q.y1); return c ? c.g : null; };
     const ictSous = (x, y) => { const L = inst.cadresIct || []; const c = L.find(q => q.kind !== 'kz' && x >= q.x0 && x <= q.x1 && y >= q.y0 && y <= q.y1) || L.find(q => x >= q.x0 && x <= q.x1 && y >= q.y0 && y <= q.y1); return c ? c.g : null; };
     const raySous = (x, y) => { const L = inst.cadresRay || []; const c = L.find(q => q.kind !== 'ma' && x >= q.x0 && x <= q.x1 && y >= q.y0 && y <= q.y1) || L.find(q => x >= q.x0 && x <= q.x1 && y >= q.y0 && y <= q.y1); return c ? c.g : null; };
-    const trouver = (x, y) => { const c = etat.cadres.find(c => x >= c.x - 2 && x <= c.x + c.w + 2 && y >= c.y - 2 && y <= c.y + c.h + 2); return c ? c.g : (marqueSous(x, y) || infoOutil(x, y) || structSous(x, y) || schSous(x, y) || ictSous(x, y) || raySous(x, y) || zoneSous(x, y)); };
+    const trouver = (x, y) => { if (ictOn()) return marqueSous(x, y) || infoOutil(x, y); const c = etat.cadres.find(c => x >= c.x - 2 && x <= c.x + c.w + 2 && y >= c.y - 2 && y <= c.y + c.h + 2); return c ? c.g : (marqueSous(x, y) || infoOutil(x, y) || structSous(x, y) || schSous(x, y) || ictSous(x, y) || raySous(x, y) || zoneSous(x, y)); };
     /* flèche ou marque de balayage sous le pointeur (au-dessus de la mèche haute, ou sous la mèche basse, de la bougie) */
     const NOMS = { 'résistance': 'sous une résistance', support: 'sur un support', 'liquidité haute': 'sous une zone de liquidité haute', 'liquidité basse': 'sur une zone de liquidité basse' };
     function marqueSous(x, y) {
@@ -395,12 +399,13 @@ export function creerGraphiqueOr(el, { surClicPrix, mobile = false } = {}) {
     el.addEventListener('click', e => { if (etat.outilPro || (e.target.closest && e.target.closest('.tor-sup, .tor-sup-toast'))) return; if (Date.now() - dernierTap < 500) { e.stopPropagation(); return; }   // la fenêtre de suppression gère ses propres clics
       if (etat.suppr && !etat.modeOutil && !(etat.brouillon && etat.brouillon.length) && !(basPt && Math.hypot(e.clientX - basPt[0], e.clientY - basPt[1]) > 5)) { const [sx, sy] = pos(e); if (!marqueVisibleSous(sx, sy) && etat.suppr.clic(sx, sy, e)) { e.stopPropagation(); tip.hidden = true; epingle = null; return; } }
       const [x, y] = pos(e), g = trouver(x, y) || mouvementSous(x, y); if (g) { e.stopPropagation(); epingle = epingle === g.texte ? null : g.texte; if (epingle) montrer(g, y); else tip.hidden = true; } else if (epingle) { epingle = null; tip.hidden = true; } }, true);
+    api.fermerInfo = () => { tip.hidden = true; epingle = null; };
     api.info = (texte) => { const c = etat.cadres.find(c => c.g.texte === texte); if (!c) return null; montrer(c.g, c.y); epingle = texte; return tip.innerText; };
   }
   /* rectangles des mouvements : de la bougie de départ à la bougie de fin (pointillés si « en cours »), marqueur fin sur l'extrême de la bougie de départ, étiquette discrète */
   const primMouv = new Primitive((ctx, T) => {
     mouv.cadres = [];
-    if (!chart || !serie || !mouv.h1 || etat.couches.mouvements === false || !mouv.liste.length || !etat.bougies.length) return;
+    if (!chart || !serie || !mouv.h1 || etat.couches.mouvements === false || ictOn() || !mouv.liste.length || !etat.bougies.length) return;
     const ts = chart.timeScale(), vis = ts.getVisibleLogicalRange(), demi = Math.max(1, (ts.options().barSpacing || 6) / 2), fs = mobile ? 9 : 10;
     for (const m of mouv.liste) {
       const k0 = kDeT(m.t0), k1 = kDeT(m.t1); if (k0 < 0 || k1 < k0) continue; if (vis && (k1 < vis.from - 8 || k0 > vis.to + 8)) continue;
@@ -423,7 +428,7 @@ export function creerGraphiqueOr(el, { surClicPrix, mobile = false } = {}) {
     lecture.boites = []; lecture.zones = []; lecture.etiq = []; lecture.zonesPix = []; lecture.boitesPix = []; lecture.ma = 0;
     lecture.reglageX = null; const L = etat.lecture; if (!L || !chart || !serie || !etat.bougies.length) return;
     const fs = mobile ? 10 : 11, derT = etat.bougies[etat.bougies.length - 1].t, xFin = (xDeT(derT) ?? T.width) + (mobile ? 8 : 14), pas = perBougie();
-    if (lisibleV8()) {
+    if (lisibleV8() && !ictOn()) {
       const utilises = [];
       for (const z of L.zones) {
         const y0 = yDe(z.haut), y1 = yDe(z.bas); if (y0 == null || y1 == null || y1 < 0 || y0 > T.height) continue;
@@ -437,7 +442,7 @@ export function creerGraphiqueOr(el, { surClicPrix, mobile = false } = {}) {
       }
     }
     const tout = !!etat.couches.boitesToutes, quelques = tout || etat.couches.boitesPos !== false;
-    if (quelques && L.boites) {
+    if (quelques && L.boites && !ictOn()) {
       const B = L.boites.filter(b => b.visible !== false), liste = tout ? B : B.slice(-3);
       for (const b of liste) {
         const xa = xDeT(b.t0 - pas); if (xa == null) continue; let xb = b.figee ? xDeT(b.tFin - pas) : xFin; if (xb == null) xb = xFin; const x0 = Math.max(0, xa); if (xb < 0 || x0 > T.width) continue; xb = Math.max(x0 + 3, xb);
@@ -464,9 +469,25 @@ export function creerGraphiqueOr(el, { surClicPrix, mobile = false } = {}) {
   }, 'top');
 
   const inst = { m: null, props: [], struct: null, cadresS: [], sch: null, cadresSch: [], ict: null, cadresIct: [], ray: null, cadresRay: [] };
-  const primInst = new Primitive((ctx, T) => { if (!chart || !serie || !etat.bougies.length) return; dessinerInstitutionnel(ctx, T, inst.m, { xDeT, yDe, mobile, props: inst.props, fusion: !!etat.lecture }); inst.cadresS = (etat.couches.structure || etat.couches.retournements) ? dessinerStructure(ctx, T, inst.struct, { xDeT, yDe, mobile }) : []; inst.cadresSch = (etat.couches.rsi || etat.couches.divCachees || etat.couches.schemas) && inst.sch ? dessinerSchemas(ctx, T, inst.sch, { xDeT, yDe, mobile }) : []; inst.cadresIct = inst.ict ? dessinerIct(ctx, T, inst.ict, { xDeT, yDe, mobile, barres: etat.bougies }) : []; inst.cadresRay = inst.ray ? dessinerRayle(ctx, T, (r => lisibleV8() ? { ...r, niveaux: [] } : r)(inst.ray && inst.ray.ma ? { ...inst.ray, ma: reduireMA(inst.ray.ma, etat.bougies) } : inst.ray), { xDeT, yDe, mobile }) : []; }, 'top');
-  const redessiner = () => { primTexte.maj && primTexte.maj(); primFond.maj && primFond.maj(); primMouv.maj && primMouv.maj(); primInst.maj && primInst.maj(); primLecture.maj && primLecture.maj(); };
+  const primInst = new Primitive((ctx, T) => { if (!chart || !serie || !etat.bougies.length) return; dessinerInstitutionnel(ctx, T, inst.m, { xDeT, yDe, mobile, props: inst.props, fusion: !!etat.lecture }); inst.cadresS = (etat.couches.structure || etat.couches.retournements) ? dessinerStructure(ctx, T, inst.struct, { xDeT, yDe, mobile }) : []; inst.cadresSch = (etat.couches.rsi || etat.couches.divCachees || etat.couches.schemas) && inst.sch ? dessinerSchemas(ctx, T, inst.sch, { xDeT, yDe, mobile }) : []; inst.cadresIct = inst.ict ? dessinerIct(ctx, T, inst.ict, { xDeT, yDe, mobile, barres: etat.bougies, reserve: { w: 480, h: etat.reserveHaut || 0 } }) : []; if (inst.ict) autresRayle(inst.cadresIct); inst.cadresRay = inst.ray ? dessinerRayle(ctx, T, (r => ictOn() ? { ...r, niveaux: [], boites: [], ligne: null, structure: [], scenarios: null } : lisibleV8() ? { ...r, niveaux: [] } : r)(inst.ray && inst.ray.ma ? { ...inst.ray, ma: reduireMA(inst.ray.ma, etat.bougies) } : inst.ray), { xDeT, yDe, mobile }) : []; }, 'top');
+  /* les niveaux de Rayle qui tombent sur un objet ICT ne sont pas tracés une deuxième fois : leur nom est ajouté à la bulle de l'objet ICT */
+  function autresRayle(cadres) {
+    const atrI = (inst.ict && inst.ict.atr) || etat.a || 1, tol = 0.1 * atrI, N = [];
+    for (const n of (inst.ray && inst.ray.niveaux) || []) N.push({ p: n.p, nom: n.etiquette });
+    for (const q of etat.autresNiveaux || []) N.push({ p: q.p, nom: q.nom });
+    for (const pr of (etat.outils && etat.outils.proposes) || []) N.push({ p: pr.p, nom: 'niveau proposé ' + (pr.unite === 'J' ? 'Jour' : pr.unite) + ' ' + nb(pr.p, 1) });
+    const vus = new Map();
+    for (const c of cadres) { const o = c.objet; if (!o) continue; if (!vus.has(o)) { const A = []; for (const q of N) { const dans = o.p != null ? Math.abs(q.p - o.p) <= tol : o.bas != null ? q.p >= o.bas - tol && q.p <= o.haut + tol : false; if (dans && q.nom && !A.includes(q.nom)) A.push(q.nom); } vus.set(o, [...(o.autres || []), ...A]); } c.autres = vus.get(o); }
+  }
+  const redessiner = () => { try { majPastilles(inst.ict); appliquerMarges(); } catch (e) { /* graphique pas prêt */ } primTexte.maj && primTexte.maj(); primFond.maj && primFond.maj(); primMouv.maj && primMouv.maj(); primInst.maj && primInst.maj(); primLecture.maj && primLecture.maj(); };
 
+  /* marge haute réservée (badge, barre d'outils) : une fraction de la hauteur du panneau des prix, la même avec ou sans ICT */
+  function appliquerMarges() { if (!chart || !serie) return; let h = 0; try { h = chart.panes()[0].getHeight(); } catch (e) { /* version sans getHeight */ } if (!h) h = Math.round((el.clientHeight || 600) * 0.7); const top = Math.round(Math.max(0.08, Math.min(0.45, (etat.reserveHaut || 0) / h)) * 1000) / 1000; if (top === etat.topApplique) return; etat.topApplique = top; try { serie.priceScale().applyOptions({ scaleMargins: { top, bottom: 0.08 } }); } catch (e) { /* */ } }
+  /* pastilles de l'axe : le PRIX seulement, en blanc, pour la BSL et la SSL visées (lignes de prix sans trait : elles n'entrent jamais dans l'échelle) */
+  const pastilles = []; let cleP = null; function majPastilles(m) {
+    if (!serie) return; const cle = JSON.stringify(((m && m.pastilles) || []).map(q => q.p)); if (cle === cleP) return; cleP = cle; for (const q of pastilles.splice(0)) { try { serie.removePriceLine(q.ligne); } catch (e) { /* */ } }
+    for (const q of (m && m.pastilles) || []) { try { pastilles.push({ prix: q.p, ligne: serie.createPriceLine({ price: q.p, color: '#eef2f6', lineVisible: false, axisLabelVisible: true, title: '', axisLabelColor: '#eef2f6', axisLabelTextColor: '#10151a' }) }); } catch (e) { /* */ } }
+  }
   const api = {
     pret: () => pret,
     /* L : bougies affichées (référence décalée « ref: true » puis Kraken) ; cle : la période (nouvelle période → vue par défaut) */
@@ -491,7 +512,11 @@ export function creerGraphiqueOr(el, { surClicPrix, mobile = false } = {}) {
     propositions(L) { inst.props = L || []; redessiner(); },
     structure(m) { inst.struct = m; redessiner(); },
     schemas(m) { inst.sch = m; redessiner(); },
-    ict(m) { inst.ict = m; redessiner(); },
+    ict(m) { const avant = !!inst.ict; inst.ict = m; if (!!m !== avant && chart && etat.bougies.length) { try { const ts = chart.timeScale(), r = ts.getVisibleLogicalRange(), n = etat.bougies.length, g = margeIct(); if (r && etat.vueUser) { const d = g - (r.to - (n - 1)); ts.setVisibleLogicalRange({ from: r.from, to: r.to + d }); } else vueDefaut(); } catch (e) { /* vue pas prête */ } } redessiner(); },
+    /* place libre en haut du graphique pour le badge et la barre d'outils : l'échelle de prix ne dépend ni de l'ICT ni de ses objets */
+    reserverHaut(px) { const v = Math.max(0, Math.round(px || 0)); if (v === etat.reserveHaut) return v; etat.reserveHaut = v; appliquerMarges(); redessiner(); return v; },
+    pastillesAxe: () => pastilles.map(q => q.prix),
+    niveauxAutres(L) { etat.autresNiveaux = Array.isArray(L) ? L : []; },
     rayle(m) { inst.ray = m; redessiner(); },
     /* terminal tactile (tactile-v1.js) : volume masqué (le panneau du volume est réduit à presque rien), la bande RSI reste celle de la couche « rsi » */
     tactile(on) { etat.tactile = !!on; try { vol.applyOptions({ visible: !on }); const P = chart.panes(); P[1].setStretchFactor(on ? 0.001 : 1); } catch (e) { /* */ } redessiner(); return etat.tactile; },
@@ -501,8 +526,8 @@ export function creerGraphiqueOr(el, { surClicPrix, mobile = false } = {}) {
     lectureV8Etat: () => ({ reglageX: lecture.reglageX == null ? null : lecture.reglageX, boites: lecture.boites.length, zones: lecture.zones.length, lisible: lisibleV8(), ma: lecture.ma, etiq: lecture.etiq.slice(), zonesPix: lecture.zonesPix.slice(), boitesPix: lecture.boitesPix.slice() }),
     margeDroite(n) { if (chart) chart.applyOptions({ timeScale: { rightOffset: n } }); },
     rayleEtat: () => ({ cadres: (inst.cadresRay || []).length, types: (inst.cadresRay || []).reduce((o, c) => (o[c.kind] = (o[c.kind] || 0) + 1, o), {}), cadresListe: (inst.cadresRay || []).map(c => ({ kind: c.kind, x0: c.x0, x1: c.x1, y0: c.y0, y1: c.y1, texte: c.g && c.g.texte })), etiquettes: ((inst.cadresRay && inst.cadresRay.etiquettes) || []).map(r => ({ x0: r.x0, y0: r.y0, w: r.w, h: r.h })) }),
-    ictCadreA: (x, y) => { const L = inst.cadresIct || []; return L.find(q => q.objet && q.kind !== 'bande' && x >= q.x0 && x <= q.x1 && y >= q.y0 && y <= q.y1) || L.find(q => x >= q.x0 && x <= q.x1 && y >= q.y0 && y <= q.y1 && q.kind !== 'pastille') || null; },
-    ictEtat: () => ({ etiquettes: { demandees: (inst.cadresIct && inst.cadresIct.etiquettesDemandees) || 0, posees: ((inst.cadresIct && inst.cadresIct.etiquettes) || []).filter(e => !e.replie).length }, cadres: (inst.cadresIct || []).length, types: (inst.cadresIct || []).reduce((o, c) => (o[c.kind] = (o[c.kind] || 0) + 1, o), {}) }),
+    ictCadreA: (x, y) => { const L = (inst.cadresIct || []).filter(q => x >= q.x0 && x <= q.x1 && y >= q.y0 && y <= q.y1 && q.objet); const surface = q => (q.x1 - q.x0) * (q.y1 - q.y0); return L.find(q => q.carre) || L.filter(q => q.kind !== 'bande').sort((a, b) => surface(a) - surface(b))[0] || L[0] || null; },
+    ictEtat: () => ({ carres: ((inst.cadresIct && inst.cadresIct.carres) || []).map(c => ({ ...c })), reserveHaut: etat.reserveHaut || 0, pastilles: pastilles.length, etiquettes: { demandees: (inst.cadresIct && inst.cadresIct.etiquettesDemandees) || 0, posees: ((inst.cadresIct && inst.cadresIct.etiquettes) || []).filter(e => !e.replie).length }, cadres: (inst.cadresIct || []).length, types: (inst.cadresIct || []).reduce((o, c) => (o[c.kind] = (o[c.kind] || 0) + 1, o), {}) }),
     schemasEtat: () => ({ cadres: (inst.cadresSch || []).length, types: (inst.cadresSch || []).reduce((o, c) => (o[c.kind] = (o[c.kind] || 0) + 1, o), {}) }),
     /* panneau RSI sous le graphique (3e panneau) : points [{ t, v }] ou null pour le retirer ; divs : segments de divergence sur le RSI */
     /* RSI 14 (Wilder) : UNE seule sous-fenêtre sous le prix (volet 2), jamais deux. Ligne dorée, 70 / 30 discrets, 50 en pointillé très léger, remplissage léger au-dessus de 70 et sous 30.

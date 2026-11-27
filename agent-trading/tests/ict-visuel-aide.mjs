@@ -2,7 +2,7 @@
 import { createRequire } from 'node:module'; import path from 'node:path';
 export const require = createRequire(path.resolve('tests-navigateur/package.json')); export const puppeteer = require('puppeteer-core');
 export const BASE = process.env.BASE || 'http://127.0.0.1:8011'; export const w = ms => new Promise(r => setTimeout(r, ms));
-export const VUES = { pc1600: [1600, 900, false], tab1024: [1024, 768, true], tel390: [390, 844, true] };
+export const VUES = { pc1600: [1600, 900, false], tab1440: [1440, 900, true], tab1024: [1024, 768, true], tel390: [390, 844, true] };
 export let PRIX = 3500, SOURCE = 'bougies simulées (le relais Kraken n’a pas répondu)';
 export async function initPrix() { try { const r = await fetch('https://rayle-or-relais.justinmaneiro.workers.dev/kraken/ticker', { signal: AbortSignal.timeout(8000) }); const d = await r.json(); if (d && d.ticker && +d.ticker.last > 0) { PRIX = +d.ticker.last; SOURCE = 'bougies simulées, série calée sur le prix réel de l’or (' + PRIX + ')'; } } catch (e) { /* repli */ } return PRIX; }
 export const PAS = { '15m': 15 * 60e3, '1h': 3600e3, '4h': 4 * 3600e3, '1d': 86400e3 };

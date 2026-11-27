@@ -40,8 +40,8 @@ for (const vue of demandees) {
     await p.waitForFunction(x => window.__or.moteur.S.periode === x && window.__or.moteur.serie().length > 100, { timeout: 30000 }, u).catch(() => {}); await w(1800); await p.evaluate(() => window.__or.ict.maj(true)); await w(700);
     const E = await p.evaluate(() => { window.__or.ict.mode('essentiel'); const a = window.__or.ict.analyse(), m = window.__or.ict.modele(); return { unite: a && a.nom, ok: a && a.ok, badge: m && m.badge && m.badge.texte, n: m ? m.objets.length : -1, kz: m ? m.objets.filter(o => o.kind === 'bande').length : -1, textes: m ? [m.badge.texte, ...m.objets.map(o => o.nom + ' ' + (o.detail || ''))].join(' | ') : '', kinds: m ? m.objets.map(o => o.kind) : [], cadres: window.__or.graph.ictEtat().cadres, lect: window.__or.ict.lecture({ actif: 'or' }), rapport: window.__or.ict.rapport() }; });
     v(E.ok && E.unite === NOM[u], `${vue} ${u} : l'analyse est celle de l'unité affichée (${E.unite})`);
-    v(E.badge && E.badge.startsWith('Tendance ' + NOM[u] + ' : '), `${vue} ${u} : badge « ${E.badge} »`);
-    v(E.n <= 15 && E.n > 0, `${vue} ${u} : ${E.n} objets (15 au plus, essentiel), ${E.cadres} cadres dessinés`);
+    v(E.badge && E.badge.startsWith(NOM[u] + ' · structure '), `${vue} ${u} : badge « ${E.badge} »`);
+    v(E.n <= 9 && E.n > 0, `${vue} ${u} : ${E.n} objets (8 au plus + le scénario, essentiel), ${E.cadres} cadres dessinés`);
     v(!AUTRES[u].test(E.textes.replace(/Tendance \w+ :/, '')), `${vue} ${u} : aucun libellé ni détail d'une autre unité`);
     v(E.lect && E.lect.unite === NOM[u] && [...E.lect.liquidites, ...E.lect.pdArrays].every(x => x.unite === NOM[u]), `${vue} ${u} : lecture_ict ne renvoie que des éléments ${NOM[u]}`);
     v(E.rapport && E.rapport.texte.startsWith('En ' + NOM[u] + ' : ') && !/(achète|vends)/i.test(E.rapport.texte), `${vue} ${u} : résumé « ${E.rapport.texte.slice(0, 70)}… »`);
@@ -50,7 +50,7 @@ for (const vue of demandees) {
     await p.screenshot({ path: `captures-or/ict-v2-${vue}-${u}.png` });
   }
   // légende repliable
-  const leg0 = await p.evaluate(() => window.__or.ict.modele().legendeOuverte); await p.evaluate(() => document.querySelector('[data-a="ict-legende"]').click()); await w(400); const leg1 = await p.evaluate(() => window.__or.ict.modele().legendeOuverte);
+  const leg0 = await p.evaluate(() => window.__or.ict.etatIct().legende); await p.evaluate(() => document.querySelector('[data-a="ict-legende"]').click()); await w(400); const leg1 = await p.evaluate(() => window.__or.ict.etatIct().legende);
   v(leg0 !== leg1, `${vue} : la légende s'ouvre et se replie`); await p.evaluate(() => document.querySelector('[data-a="ict-legende"]').click());
   // un concept seul : décocher le temps retire les killzones
   await p.evaluate(() => { const x = document.querySelector('[data-periode="H1"]'); x.click(); }); await w(2000);

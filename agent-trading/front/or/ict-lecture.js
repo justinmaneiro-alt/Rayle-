@@ -5,7 +5,7 @@ import { nomUnite } from './ict-v2.js';
 import { objetsIct } from './ict-objets.js';
 
 const arr = (x, d = 2) => (Number.isFinite(x) ? +x.toFixed(d) : null);
-const fr = (x, d = 2) => (Number.isFinite(x) ? x.toLocaleString('fr-FR', { minimumFractionDigits: d, maximumFractionDigits: d }).replace(/[  ]/g, ' ') : 'indisponible');
+const fr = (x, d = 1) => (Number.isFinite(x) ? x.toLocaleString('fr-FR', { minimumFractionDigits: d, maximumFractionDigits: d }).replace(/[  ]/g, ' ') : 'indisponible');
 const NOM_SESSION = { ASIE_H: 'haut de l\'Asie', ASIE_B: 'bas de l\'Asie', LDN_H: 'haut de Londres', LDN_B: 'bas de Londres' };
 
 /* an : résultat de ict-v2.analyser ; meta : { actif, dec } */
@@ -86,9 +86,17 @@ export function verdictOrderBlock(L) {
   return { ok: true, points: pts, valide, ordreBlock: z, texte };
 }
 
-/* carte de résumé repliable (3 lignes au plus) tirée de resumeIct : « En H1 : » en titre, puis la structure, ce qui manque ou les zones, et l'orientation */
-export function resumeCarte(L) {
-  const t = resumeIct(L), titre = (t.match(/^(En [^:]+ :)/) || [, ''])[1], ph = t.slice(titre.length).trim().split(/(?<=\.) /).filter(Boolean).filter(x => !/^C'est toi qui décides/.test(x));
-  const struct = ph[0] || '', zones = ph.find(x => /^Zones :/.test(x)) || ph.find(x => /^Liquidité :/.test(x)) || '', pench = ph.find(x => /^La lecture ICT/.test(x)) || '';
-  return { titre, lignes: [struct, zones, pench].filter(Boolean).slice(0, 3), texte: t };
+/* carte ⓘ (fermée par défaut) : des verdicts NOMMÉS, toujours de la même façon (« Structure H4 : haussière depuis le MSS à 3 605,9 », « MA200 : prix en dessous », « Lecture ICT : neutre, parce que … »), prix à une décimale */
+/* tous les prix à UNE décimale (les raisons d'ict-v2 en donnent deux) */
+const une1 = s => String(s).replace(/(\d{1,3}(?:[\s  ]\d{3})*|\d+),(\d{2})(?!\d)/g, (m, e, d) => { const x = Number(e.replace(/[\s  ]/g, '') + '.' + d); return Number.isFinite(x) ? x.toLocaleString('fr-FR', { minimumFractionDigits: 1, maximumFractionDigits: 1 }).replace(/[  ]/g, ' ') : m; });
+export function resumeCarte(L, { ma = null, scenario = null } = {}) {
+  const t = resumeIct(L), titre = (t.match(/^(En [^:]+ :)/) || [, ''])[1];
+  if (!L || L.indisponible) return { titre, lignes: [t.slice(titre.length).trim()], texte: t };
+  const u = L.unite, T = L.tendance, d = T.derniereCassure, P = L.penche, lignes = [], ph = t.slice(titre.length).trim().split(/(?<=\.) /).filter(Boolean);
+  lignes.push(T.sens === 'indecise' ? `Structure ${u} : indécise (${T.pourquoi}).` : `Structure ${u} : ${sensFr(T.sens)}${d ? ' depuis le ' + d.type + ' à ' + fr(d.prix) : ''}${T.sens === 'haussiere' && T.itl != null ? ` ; l'ITL ${fr(T.itl)} tient` : T.sens === 'baissiere' && T.ith != null ? ` ; l'ITH ${fr(T.ith)} tient` : ''}.`);
+  if (ma) lignes.push(`MA200 ${u} : prix ${ma.position} (${fr(ma.ma)}).`);
+  const zones = ph.find(x => /^Zones :/.test(x)) || ph.find(x => /^Liquidité :/.test(x)); if (zones) lignes.push(zones);
+  lignes.push(P.sens === 'neutre' ? `Lecture ICT : neutre, parce que ${T.sens === 'indecise' ? 'la structure est indécise' : 'les signaux se contredisent'}${P.raisons && P.raisons.length ? ' (' + P.raisons.slice(0, 2).join(' ; ') + ')' : ''}.` : `Lecture ICT : penche ${P.sens === 'achat' ? "à l'achat" : 'à la vente'}${P.manque.length ? ' ; il manque : ' + P.manque.slice(0, 3).join(', ') : ' ; les conditions mesurables sont réunies'}${P.invalidation ? '; invalidation ' + (P.sens === 'achat' ? 'sous ' : 'au-dessus de ') + fr(P.invalidation.prix) : ''}.`);
+  if (scenario) lignes.push(`Scénario : ${String(scenario.nom).replace(/^Scénario ICT : /, '')} (${scenario.detail}).`);
+  return { titre, lignes: lignes.map(une1), texte: t };
 }
