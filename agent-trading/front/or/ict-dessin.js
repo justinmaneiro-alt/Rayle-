@@ -9,6 +9,7 @@ export const EPAIS = Object.freeze({ fort: 2.4, normal: 1.4, pris: 1 });
 export const BOUGIES_APRES = 3;   // un objet ouvert s'arrête 3 bougies après la dernière bougie
 
 export function dessinerIct(ctx, T, m, { xDeT, yDe, ecran = (typeof window !== 'undefined' ? window.innerWidth : 1200), barres = [], reserve = null } = {}) {
+  const telephone = ecran < 700, scenarioCarres = [];
   const cadres = []; cadres.carres = []; cadres.demandes = 0; if (!m || !m.objets || barres.length < 3) return cadres;
   const fs = taillePoliceCarre(ecran), SQ = fs + 6, ok = (...v) => v.every(q => q != null && Number.isFinite(q));
   const F = (gras = false) => `${gras ? 'bold ' : ''}${fs}px system-ui, 'Segoe UI', sans-serif`; ctx.textBaseline = 'alphabetic'; ctx.lineWidth = 1; ctx.setLineDash([]);
@@ -44,7 +45,7 @@ export function dessinerIct(ctx, T, m, { xDeT, yDe, ecran = (typeof window !== '
       continue; }
     if (o.kind === 'fib') {
       const yEq = yDe(o.eq); if (!ok(yEq) || yEq < -4 || yEq > T.height + 4) continue; const xa = Math.max(0, xs(o.tDebut, 0), xL - 10 * pas), x1 = xFin; if (x1 <= xa + 4) continue;
-      if (o.ote && ok(yDe(o.ote.bas), yDe(o.ote.haut))) { const t1 = Math.min(yDe(o.ote.bas), yDe(o.ote.haut)), t2 = Math.max(yDe(o.ote.bas), yDe(o.ote.haut)); ctx.fillStyle = `rgba(${COUL.fib},.09)`; ctx.fillRect(xa, t1, x1 - xa, Math.max(3, t2 - t1)); ctx.strokeStyle = `rgba(${COUL.fib},.5)`; ctx.setLineDash([4, 3]); ctx.strokeRect(xa + 0.5, t1 + 0.5, x1 - xa - 1, Math.max(3, t2 - t1) - 1); ctx.setLineDash([]);
+      if (o.ote && !o.oteFusion && ok(yDe(o.ote.bas), yDe(o.ote.haut))) { const t1 = Math.min(yDe(o.ote.bas), yDe(o.ote.haut)), t2 = Math.max(yDe(o.ote.bas), yDe(o.ote.haut)); ctx.fillStyle = `rgba(${COUL.fib},.09)`; ctx.fillRect(xa, t1, x1 - xa, Math.max(3, t2 - t1)); ctx.strokeStyle = `rgba(${COUL.fib},.5)`; ctx.setLineDash([4, 3]); ctx.strokeRect(xa + 0.5, t1 + 0.5, x1 - xa - 1, Math.max(3, t2 - t1) - 1); ctx.setLineDash([]);
         demander(o.id + '|ote', o, 'OTE', 'gris', candidatsZone({ x0: xa, x1, yHaut: t1, yBas: t2 }, wCand('OTE'), SQ), 40, { x0: xa, x1, y0: t1, y1: t2 }); }
       ctx.strokeStyle = `rgba(${COUL.fib},.9)`; ctx.lineWidth = EPAIS.normal; ctx.setLineDash([6, 4]); ctx.beginPath(); ctx.moveTo(xa, Math.round(yEq) + 0.5); ctx.lineTo(x1, Math.round(yEq) + 0.5); ctx.stroke(); ctx.setLineDash([]); ctx.lineWidth = 1;
       demander(o.id, o, o.court, 'gris', candidatsLigne({ x0: xa, x1, y: yEq }, wCand(o.court), SQ), o.prio, { x0: xa, x1, y0: yEq - 4, y1: yEq + 4 });
@@ -63,24 +64,36 @@ export function dessinerIct(ctx, T, m, { xDeT, yDe, ecran = (typeof window !== '
     if (o.kind === 'etiquette') {   // HH / HL / LH / LL / ITH / ITL : petit texte gris, sans fond, au bout de la mèche
       const x = xs(o.t, null), y = yDe(o.p); if (!ok(x, y) || x < 0 || x > T.width || y < 0 || y > T.height) continue; const w = mesure(o.court, false) + 4, h = fs + 2, yT = o.haut ? y - h - 3 : y + 3, C = [];
       for (const d of [0, 1, -1, 2, -2, 3, -3]) C.push({ x: x - w / 2 + d * pas, y: yT }); carres.push({ id: o.id, o, texte: o.court, style: 'texte', w, h, prio: o.prio, cands: C, zone: { x0: x - 4, x1: x + 4, y0: yT, y1: yT + h } }); reg(o, x - 12, x + 12, yT, yT + h); continue; }
-    if (o.kind === 'scenario') {
-      const yS = yDe(dern.c), libre = T.width - xL; if (!ok(xL, yS) || libre < 60) continue;
-      const yZ = yDe((o.zone.bas + o.zone.haut) / 2), yC = yDe(o.cible.p); if (!ok(yZ, yC)) continue; const xV = xL + libre * 0.4, xC = xL + libre * 0.82;
-      ctx.strokeStyle = 'rgba(255,255,255,.9)'; ctx.lineWidth = 1.4; ctx.setLineDash([5, 4]); ctx.beginPath(); ctx.moveTo(xL + 4, yS); ctx.quadraticCurveTo(xL + libre * 0.18, yZ, xV, yZ); ctx.quadraticCurveTo(xV + libre * 0.22, yZ, xC, yC); ctx.stroke(); ctx.setLineDash([]);
-      const a = Math.atan2(yC - yZ, xC - (xV + libre * 0.22)); ctx.fillStyle = 'rgba(255,255,255,.95)'; ctx.beginPath(); ctx.moveTo(xC, yC); ctx.lineTo(xC - 9 * Math.cos(a - 0.4), yC - 9 * Math.sin(a - 0.4)); ctx.lineTo(xC - 9 * Math.cos(a + 0.4), yC - 9 * Math.sin(a + 0.4)); ctx.closePath(); ctx.fill(); ctx.lineWidth = 1;
-      ctx.font = F(false); ctx.fillStyle = 'rgba(200,208,216,.95)'; ctx.fillText('scénario', xL + libre * 0.5, Math.min(yC, yZ) + (yC < yZ ? 4 : -8) + 0); reg(o, xL, T.width, Math.min(yC, yZ) - 8, Math.max(yC, yZ) + 8); }
+    if (o.kind === 'scenario') {   // A et B : une courbe en pointillé qui va dans la zone de réaction, y rebondit (ou y est rejetée) et finit par une pointe de flèche sur la liquidité visée, dans la marge à droite
+      if (telephone && o.lettre !== 'A') continue;
+      const libre = T.width - xL, yS = yDe(dern.c); if (!ok(xL, yS) || libre < 60 || !o.zone || !o.cible) continue;
+      const yH = yDe(o.zone.haut), yB = yDe(o.zone.bas), yT0 = yDe(o.cible.p); if (!ok(yH, yB, yT0)) continue;
+      const w = mesure(o.court) + 10, haut = Math.min(yH, yB), hz = Math.max(8, Math.abs(yB - yH)), yE = o.sens > 0 ? haut + 0.45 * hz : haut + hz - 0.45 * hz;   // on entre dans la zone par son bord proche du prix
+      const xC = Math.min(xL + libre * (o.lettre === 'A' ? 0.8 : 0.86), Math.max(xL + 30, T.width - w - 14)), yC = Math.max(10, Math.min(T.height - hBande - 10, yT0)), xV = xL + Math.min(libre * 0.3, Math.max(libre * 0.12, 3 * pas + 6)), dx1 = xV - (xL + 4), dx2 = xC - xV;
+      if (!(dx1 > 6) || !(dx2 > 10)) continue;
+      const P0 = [xL + 4, yS], C1 = [xL + 4 + dx1 * 0.45, yS], C2 = [xV - dx1 * 0.4, yE], V = [xV, yE], C3 = [xV + dx2 * 0.4, yE], C4 = [xC - dx2 * 0.45, yC], Pf = [xC, yC];
+      const principal = o.lettre === 'A' && !o.gris, col = principal ? '255,255,255' : COUL.gris;
+      ctx.strokeStyle = `rgba(${col},${principal ? 0.95 : 0.9})`; ctx.lineWidth = principal ? 2 : 1.6; ctx.setLineDash(principal ? [6, 4] : [3, 4]); ctx.lineCap = 'round';
+      ctx.beginPath(); ctx.moveTo(P0[0], P0[1]); ctx.bezierCurveTo(C1[0], C1[1], C2[0], C2[1], V[0], V[1]); ctx.bezierCurveTo(C3[0], C3[1], C4[0], C4[1], Pf[0], Pf[1]); ctx.stroke(); ctx.setLineDash([]); ctx.lineCap = 'butt';
+      const an = Math.atan2(Pf[1] - C4[1], Pf[0] - C4[0]); ctx.fillStyle = `rgba(${col},.97)`; ctx.beginPath(); ctx.moveTo(xC, yC); ctx.lineTo(xC - 10 * Math.cos(an - 0.42), yC - 10 * Math.sin(an - 0.42)); ctx.lineTo(xC - 10 * Math.cos(an + 0.42), yC - 10 * Math.sin(an + 0.42)); ctx.closePath(); ctx.fill(); ctx.lineWidth = 1;
+      const bez = (p0, p1, p2, p3, t) => { const u = 1 - t; return [u * u * u * p0[0] + 3 * u * u * t * p1[0] + 3 * u * t * t * p2[0] + t * t * t * p3[0], u * u * u * p0[1] + 3 * u * u * t * p1[1] + 3 * u * t * t * p2[1] + t * t * t * p3[1]]; };
+      for (let k = 0; k <= 12; k++) { const t = k / 12, q = k < 6 ? bez(P0, C1, C2, V, t * 2) : bez(V, C3, C4, Pf, (t - 0.5) * 2); reg(o, q[0] - 9, q[0] + 9, q[1] - 9, q[1] + 9, { flecheScenario: true }); }
+      const cands = []; for (const k of [0, 1, -1, 2, -2, 3, -3]) cands.push({ x: xC + 6, y: yC - SQ / 2 + k * (SQ + 3) });
+      for (const k of [1, -1, 2, -2]) cands.push({ x: T.width - w - 2, y: yC - SQ / 2 + k * (SQ + 5) });   // pas de place à droite de la pointe (téléphone) : au-dessus ou au-dessous, calé à droite   // au bout de la flèche, puis décalé en hauteur s'il y a un carré
+      demander(o.id, o, o.court, principal ? 'scA' : 'scB', cands, 96, { x0: xL, x1: xC, y0: Math.min(yS, yC), y1: Math.max(yS, yC) }); }
   }
 
   /* placement des carrés : dans la zone ou au bout de la ligne, jamais sur une bougie ni sur un autre carré ; sans place, le carré n'est pas dessiné (nom au toucher) */
   const place = placerCarres(carres.map(c => ({ id: c.id, w: c.w, h: c.h, prio: c.prio, candidats: c.cands })), { largeur: T.width, hauteur: T.height - hBande, obstacles });
-  const FOND = { vert: [`rgba(${COUL.haut},.97)`, '#04201c'], rouge: [`rgba(${COUL.bas},.97)`, '#2c0605'], blanc: ['rgba(240,243,247,.98)', '#0d1217'], gris: ['rgba(14,18,23,.92)', '#e6ebf0'] };
+  const FOND = { scA: ['rgba(8,12,16,.96)', '#ffffff'], scB: ['rgba(8,12,16,.96)', '#c9d1d9'], vert: [`rgba(${COUL.haut},.97)`, '#04201c'], rouge: [`rgba(${COUL.bas},.97)`, '#2c0605'], blanc: ['rgba(240,243,247,.98)', '#0d1217'], gris: ['rgba(14,18,23,.92)', '#e6ebf0'] };
   place.forEach((pl, k) => { const c = carres[k]; cadres.demandes++; const z = c.zone; cadres.carres.push({ id: c.id, court: c.texte, style: c.style, x: pl.x, y: pl.y, w: c.w, h: c.h, replie: pl.replie, zone: z });
     if (pl.replie) return;
     if (c.style === 'texte') { ctx.font = F(false); ctx.fillStyle = 'rgba(170,180,190,.95)'; ctx.fillText(c.texte, pl.x + 2, pl.y + fs); cadres.push({ kind: c.o.kind, famille: c.o.famille, x0: pl.x, x1: pl.x + c.w, y0: pl.y, y1: pl.y + c.h, objet: c.o, carre: true, g: { p: c.o.p, texte: c.o.nom, detail: [...(c.o.statut ? ['statut : ' + c.o.statut] : []), ...(c.o.pourquoi || [])] } }); return; }
     const [fond, txt] = FOND[c.style] || FOND.gris; ctx.fillStyle = fond; if (ctx.roundRect) { ctx.beginPath(); ctx.roundRect(pl.x, pl.y, c.w, c.h, 3); ctx.fill(); } else ctx.fillRect(pl.x, pl.y, c.w, c.h);
+    if (c.style === 'scA' || c.style === 'scB') { ctx.strokeStyle = c.style === 'scA' ? 'rgba(255,255,255,.95)' : `rgba(${COUL.prise},.95)`; ctx.lineWidth = 1; ctx.strokeRect(pl.x + 0.5, pl.y + 0.5, c.w - 1, c.h - 1); }
     if (c.style === 'gris') { ctx.strokeStyle = `rgba(${COUL.prise},.95)`; ctx.lineWidth = 1; ctx.strokeRect(pl.x + 0.5, pl.y + 0.5, c.w - 1, c.h - 1); }
     ctx.font = F(true); ctx.fillStyle = txt; ctx.fillText(c.texte, pl.x + 5, pl.y + c.h - 6);
-    cadres.push({ kind: c.o.kind, famille: c.o.famille, x0: pl.x, x1: pl.x + c.w, y0: pl.y, y1: pl.y + c.h, objet: c.o, carre: true, g: { p: c.o.p ?? ((c.o.bas + c.o.haut) / 2), texte: c.o.nom, detail: [...(c.o.statut ? ['statut : ' + c.o.statut] : []), ...(c.o.pourquoi || [])] } }); });
+    cadres.push({ kind: c.o.kind, famille: c.o.famille, x0: pl.x, x1: pl.x + c.w, y0: pl.y, y1: pl.y + c.h, objet: c.o, carre: true, g: { p: c.o.p ?? (c.o.cible ? c.o.cible.p : (c.o.bas + c.o.haut) / 2), texte: c.o.nom, detail: c.o.kind === 'scenario' ? (c.o.bulle || []) : [...(c.o.statut ? ['statut : ' + c.o.statut] : []), ...(c.o.pourquoi || [])] } }); });
   cadres.etiquettes = cadres.carres; cadres.etiquettesDemandees = cadres.demandes;
   return cadres;
 }

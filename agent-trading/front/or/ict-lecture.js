@@ -3,6 +3,7 @@
    Rayle décrit : elle dit de quel côté la lecture penche, ce qui manque et ce qui invaliderait ; jamais « achète » ni « vends ». */
 import { nomUnite } from './ict-v2.js';
 import { objetsIct } from './ict-objets.js';
+import { scenariosIct, resumeScenarios } from './ict-scenarios.js';
 
 const arr = (x, d = 2) => (Number.isFinite(x) ? +x.toFixed(d) : null);
 const fr = (x, d = 1) => (Number.isFinite(x) ? x.toLocaleString('fr-FR', { minimumFractionDigits: d, maximumFractionDigits: d }).replace(/[  ]/g, ' ') : 'indisponible');
@@ -29,6 +30,7 @@ export function lectureIct(an, { actif = null, dec = 2, max = 4, mode = 'complet
     checklist: an.checklist.map(x => ({ condition: x.condition, ok: x.ok, obligatoire: x.obligatoire })),
     penche: { sens: p.sens, raisons: p.raisons, manque: p.manque, inconnu: p.inconnu, complete: p.complete, invalidation: p.invalidation ? { prix: r(p.invalidation.prix), quoi: p.invalidation.quoi } : null },
     objets: (() => { const O = objetsIct(an, { mode, couches }).objets.slice().sort((x, y) => (x.distanceAtr ?? 99) - (y.distanceAtr ?? 99)).slice(0, 24); return O.map(o => ({ nom: o.nom, famille: o.famille, unite: o.unite, prix: o.p != null ? r(o.p) : null, bas: o.bas != null ? r(o.bas) : null, haut: o.haut != null ? r(o.haut) : null, statut: o.statut || null, pourquoi: (o.pourquoi || []).slice(0, 3) })); })(),
+    scenarios: (() => { const R = scenariosIct(an, { prix: px }); return { lecture: R.neutre ? 'neutre : A et B se valent' : 'A dans le sens de la lecture (' + R.sens + '), B dans l\'autre', liste: R.scenarios.map(s => ({ lettre: s.lettre, type: s.role, neutre: s.gris, zone: s.zone.nom, cible: s.cible.nom, invalidation: s.invalidation.texte, phrase: s.voix })), avertissement: 'une possibilité, pas une prévision ; jamais un ordre' }; })(),
     regle: 'Tous les éléments sont calculés sur les bougies ' + an.nom + ' uniquement. Interprétation de l\'ICT : une description, jamais un ordre.', source: 'ict-v2'
   };
 }
@@ -89,7 +91,7 @@ export function verdictOrderBlock(L) {
 /* carte ⓘ (fermée par défaut) : des verdicts NOMMÉS, toujours de la même façon (« Structure H4 : haussière depuis le MSS à 3 605,9 », « MA200 : prix en dessous », « Lecture ICT : neutre, parce que … »), prix à une décimale */
 /* tous les prix à UNE décimale (les raisons d'ict-v2 en donnent deux) */
 const une1 = s => String(s).replace(/(\d{1,3}(?:[\s  ]\d{3})*|\d+),(\d{2})(?!\d)/g, (m, e, d) => { const x = Number(e.replace(/[\s  ]/g, '') + '.' + d); return Number.isFinite(x) ? x.toLocaleString('fr-FR', { minimumFractionDigits: 1, maximumFractionDigits: 1 }).replace(/[  ]/g, ' ') : m; });
-export function resumeCarte(L, { ma = null, scenario = null } = {}) {
+export function resumeCarte(L, { ma = null, scenarios = null } = {}) {
   const t = resumeIct(L), titre = (t.match(/^(En [^:]+ :)/) || [, ''])[1];
   if (!L || L.indisponible) return { titre, lignes: [t.slice(titre.length).trim()], texte: t };
   const u = L.unite, T = L.tendance, d = T.derniereCassure, P = L.penche, lignes = [], ph = t.slice(titre.length).trim().split(/(?<=\.) /).filter(Boolean);
@@ -97,6 +99,6 @@ export function resumeCarte(L, { ma = null, scenario = null } = {}) {
   if (ma) lignes.push(`MA200 ${u} : prix ${ma.position} (${fr(ma.ma)}).`);
   const zones = ph.find(x => /^Zones :/.test(x)) || ph.find(x => /^Liquidité :/.test(x)); if (zones) lignes.push(zones);
   lignes.push(P.sens === 'neutre' ? `Lecture ICT : neutre, parce que ${T.sens === 'indecise' ? 'la structure est indécise' : 'les signaux se contredisent'}${P.raisons && P.raisons.length ? ' (' + P.raisons.slice(0, 2).join(' ; ') + ')' : ''}.` : `Lecture ICT : penche ${P.sens === 'achat' ? "à l'achat" : 'à la vente'}${P.manque.length ? ' ; il manque : ' + P.manque.slice(0, 3).join(', ') : ' ; les conditions mesurables sont réunies'}${P.invalidation ? '; invalidation ' + (P.sens === 'achat' ? 'sous ' : 'au-dessus de ') + fr(P.invalidation.prix) : ''}.`);
-  if (scenario) lignes.push(`Scénario : ${String(scenario.nom).replace(/^Scénario ICT : /, '')} (${scenario.detail}).`);
+  if (scenarios && scenarios.scenarios && scenarios.scenarios.length) for (const l of resumeScenarios(scenarios).slice(0, 2)) lignes.push(l);
   return { titre, lignes: lignes.map(une1), texte: t };
 }
