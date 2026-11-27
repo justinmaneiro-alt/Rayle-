@@ -71,4 +71,4 @@ Le même traitement, sans rien changer d'autre : petits carrés `Vol. vendeur`, 
 - Piège de test : la réponse vocale de Rayle (`TableauOr.commande`) prend la main sur le graphique ; le test la lance en dernier.
 
 ## Résultat final
-(voir en bas, après la fusion)
+Fusionné dans `main` (commit `f1944ea5`) et poussé. Après fusion : `ict-complet-test` 2 039 / `ict-epure-test` 1 155 / `volume-noms-test` 44 verts, `npm test` complet vert (exit 0), Chrome `ict-complet-chrome` (tab1440, tel384) et `ict-epure-chrome` (tab1440) verts, version 2026.11.27.4.
