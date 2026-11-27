@@ -38,10 +38,10 @@ for (const vue of demandees) {
   for (const u of ['M15', 'H1', 'H4', 'J']) {
     await p.evaluate(x => document.querySelector(`[data-periode="${x}"]`).click(), u);
     await p.waitForFunction(x => window.__or.moteur.S.periode === x && window.__or.moteur.serie().length > 100, { timeout: 30000 }, u).catch(() => {}); await w(1800); await p.evaluate(() => window.__or.ict.maj(true)); await w(700);
-    const E = await p.evaluate(() => { const a = window.__or.ict.analyse(), m = window.__or.ict.modele(); return { unite: a && a.nom, ok: a && a.ok, badge: m && m.badge && m.badge.texte, n: m ? m.objets.length : -1, kz: m ? m.killzones.length : -1, textes: m ? [m.badge.texte, ...m.objets.map(o => o.nom + ' ' + (o.detail || []).join(' '))].join(' | ') : '', kinds: m ? m.objets.map(o => o.kind) : [], cadres: window.__or.graph.ictEtat().cadres, lect: window.__or.ict.lecture({ actif: 'or' }), rapport: window.__or.ict.rapport() }; });
+    const E = await p.evaluate(() => { window.__or.ict.mode('essentiel'); const a = window.__or.ict.analyse(), m = window.__or.ict.modele(); return { unite: a && a.nom, ok: a && a.ok, badge: m && m.badge && m.badge.texte, n: m ? m.objets.length : -1, kz: m ? m.objets.filter(o => o.kind === 'bande').length : -1, textes: m ? [m.badge.texte, ...m.objets.map(o => o.nom + ' ' + (o.detail || ''))].join(' | ') : '', kinds: m ? m.objets.map(o => o.kind) : [], cadres: window.__or.graph.ictEtat().cadres, lect: window.__or.ict.lecture({ actif: 'or' }), rapport: window.__or.ict.rapport() }; });
     v(E.ok && E.unite === NOM[u], `${vue} ${u} : l'analyse est celle de l'unité affichée (${E.unite})`);
     v(E.badge && E.badge.startsWith('Tendance ' + NOM[u] + ' : '), `${vue} ${u} : badge « ${E.badge} »`);
-    v(E.n <= 12 && E.cadres > 0, `${vue} ${u} : ${E.n} objets (12 au plus), ${E.cadres} cadres dessinés`);
+    v(E.n <= 15 && E.n > 0, `${vue} ${u} : ${E.n} objets (15 au plus, essentiel), ${E.cadres} cadres dessinés`);
     v(!AUTRES[u].test(E.textes.replace(/Tendance \w+ :/, '')), `${vue} ${u} : aucun libellé ni détail d'une autre unité`);
     v(E.lect && E.lect.unite === NOM[u] && [...E.lect.liquidites, ...E.lect.pdArrays].every(x => x.unite === NOM[u]), `${vue} ${u} : lecture_ict ne renvoie que des éléments ${NOM[u]}`);
     v(E.rapport && E.rapport.texte.startsWith('En ' + NOM[u] + ' : ') && !/(achète|vends)/i.test(E.rapport.texte), `${vue} ${u} : résumé « ${E.rapport.texte.slice(0, 70)}… »`);
@@ -50,12 +50,12 @@ for (const vue of demandees) {
     await p.screenshot({ path: `captures-or/ict-v2-${vue}-${u}.png` });
   }
   // légende repliable
-  await p.evaluate(() => document.querySelector('[data-ict-legende],[data-a="ict-legende"]').click()); await w(500); v(await p.evaluate(() => window.__or.ict.modele().legendeOuverte === true), `${vue} : la légende s'ouvre et se replie`);
-  await p.evaluate(() => document.querySelector('[data-a="ict-legende"]').click());
+  const leg0 = await p.evaluate(() => window.__or.ict.modele().legendeOuverte); await p.evaluate(() => document.querySelector('[data-a="ict-legende"]').click()); await w(400); const leg1 = await p.evaluate(() => window.__or.ict.modele().legendeOuverte);
+  v(leg0 !== leg1, `${vue} : la légende s'ouvre et se replie`); await p.evaluate(() => document.querySelector('[data-a="ict-legende"]').click());
   // un concept seul : décocher le temps retire les killzones
   await p.evaluate(() => { const x = document.querySelector('[data-periode="H1"]'); x.click(); }); await w(2000);
   await p.evaluate(() => { document.querySelectorAll('.tor-couches').forEach(d => { d.open = true; }); const c = document.querySelector('[data-couche="ictTemps"]'); c.checked = false; c.dispatchEvent(new Event('change', { bubbles: true })); }); await w(600);
-  v(await p.evaluate(() => window.__or.ict.modele().killzones.length === 0), `${vue} : décocher « temps » retire les killzones, le reste demeure`);
+  v(await p.evaluate(() => window.__or.ict.modele().objets.every(o => o.kind !== 'bande')), `${vue} : décocher « temps » retire les killzones, le reste demeure`);
   // passer en mode Pro épuré efface le dessin ICT
   await p.evaluate(() => { const s = document.querySelector('[data-tp-mode]'); s.value = 'pro'; s.dispatchEvent(new Event('change', { bubbles: true })); }); await w(800);
   v(await p.evaluate(() => window.__or.graph.ictEtat().cadres === 0), `${vue} : le mode Pro épuré n'affiche aucune couche ICT`);

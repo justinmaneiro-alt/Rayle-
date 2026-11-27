@@ -323,3 +323,68 @@ const LEGENDE = Object.freeze([['liquidite', 'Liquidité (EQH, EQL, PDH, PDL, se
 function killzonesDuJour(an) {
   const B = an.bougies, j = jourMarche(B[B.length - 1].t); return fenetresKillzones(j.cle).filter(f => f.id !== 'asie' && !/^sb_/.test(f.id) && f.fin > B[Math.max(0, B.length - 200)].t).map(f => ({ id: f.id, nom: f.nom, debut: f.debut, fin: f.fin }));
 }
+
+/* ═════════════ compléments pour l'affichage complet (ict-v2.1, fonctions pures) ═════════════ */
+/* liquidité interne / externe : externe = extrémités du dealing range de l'unité (dernier ITH / ITL) et tout ce qui est au-delà (LTH / LTL, PWH / PWL) ; interne = tout ce qui est à l'intérieur */
+export function porteeLiquidite(an, niveau) {
+  const pd = an.premiumDiscount, t = niveau.type;
+  if (t === 'PWH' || t === 'PWL' || t === 'LTH' || t === 'LTL') return 'externe';
+  if (!pd) return 'interne';
+  return niveau.p >= pd.haut - 1e-9 || niveau.p <= pd.bas + 1e-9 ? 'externe' : 'interne';
+}
+/* consolidations : au moins « min » bougies consécutives dont l'étendue totale reste sous « atr » ATR */
+export function consolidations(B, A, { min = 8, atr = 1.2, depuis = 0 } = {}) {
+  const out = []; let i = Math.max(0, depuis);
+  while (i < B.length - min) {
+    const a = A[i + min - 1] || A[i] || null; if (!a) { i++; continue; }
+    let h = -Infinity, l = Infinity, j = i;
+    for (; j < B.length; j++) { const h2 = Math.max(h, B[j].h), l2 = Math.min(l, B[j].l); if (h2 - l2 > atr * a) break; h = h2; l = l2; }
+    if (j - i >= min) { out.push({ i0: i, i1: j - 1, t0: B[i].t, t1: B[j - 1].t, haut: h, bas: l, n: j - i }); i = j; } else i++;
+  }
+  return out;
+}
+/* BOS / MSS avec leur segment (instant du swing cassé → instant de la cassure) */
+export function listeCassures(an, { depuis = 0 } = {}) {
+  return an.structure.evenements.filter(e => e.i >= depuis).map(e => ({ nature: e.nature, dir: e.dir, type: e.type, niveau: e.niveau, tNiveau: e.tNiveau, t: e.t, i: e.i, deplacement: e.deplacement }));
+}
+/* HH / HL / LH / LL : chaque swing comparé au précédent swing du même côté */
+export function etiquettesSwings(an, { depuis = 0, max = 8 } = {}) {
+  const out = [], S = an.structure.swings;
+  for (const [L, haut] of [[S.H, true], [S.L, false]]) for (let k = 1; k < L.length; k++) { const x = L[k], a = L[k - 1]; if (x.i < depuis) continue; out.push({ nom: haut ? (x.p > a.p ? 'HH' : 'LH') : (x.p > a.p ? 'HL' : 'LL'), p: x.p, t: x.t, i: x.i, haut }); }
+  return out.sort((x, y) => x.i - y.i).slice(-max);
+}
+const recouvre = (a, b) => { const bas = Math.max(a.bas, b.bas), haut = Math.min(a.haut, b.haut); return haut > bas ? { bas, haut } : null; };
+/* Unicorn = FVG qui chevauche un breaker du même sens ; BPR = FVG haussier et FVG baissier qui se chevauchent */
+export function unicornBpr(an) {
+  const fvg = an.pdArrays.filter(z => z.type === 'FVG' && !z.inverse), brk = an.pdArrays.filter(z => z.type === 'breaker'), U = [], B2 = [];
+  for (const f of fvg) for (const b of brk) { if ((f.dir > 0) !== (b.dir > 0)) continue; const r = recouvre(f, b); if (r) U.push({ ...r, dir: f.dir, t: Math.max(f.t, b.t), refs: [f.id, b.id] }); }
+  const h = fvg.filter(z => z.dir > 0), s = fvg.filter(z => z.dir < 0);
+  for (const a of h) for (const b of s) { const r = recouvre(a, b); if (r) B2.push({ ...r, t: Math.max(a.t, b.t), refs: [a.id, b.id] }); }
+  return { unicorn: U, bpr: B2 };
+}
+/* écarts d'ouverture non comblés : NWOG (après le week-end) et NDOG (nouveau jour de marché), H4 et Jour */
+export function gapsOuverture(B, A, unite, { depuis = 0, R = P } = {}) {
+  if (unite !== 'H4' && unite !== 'J') return [];
+  const out = [];
+  for (let i = Math.max(1, depuis); i < B.length; i++) {
+    const a = A[i] || A[i - 1] || null; if (!a) continue; const g = B[i].o - B[i - 1].c; if (Math.abs(g) < 0.1 * a) continue;
+    const semaine = B[i].t - B[i - 1].t > 36 * 3600e3, nouveauJour = jourMarche(B[i].t).cle !== jourMarche(B[i - 1].t).cle; if (!semaine && !nouveauJour) continue;
+    const bas = Math.min(B[i].o, B[i - 1].c), haut = Math.max(B[i].o, B[i - 1].c); let comble = false;
+    for (let j = i; j < B.length; j++) if (B[j].l <= bas && B[j].h >= haut) { comble = true; break; }
+    if (!comble) out.push({ type: semaine ? 'NWOG' : 'NDOG', bas, haut, t: B[i].t, i, dir: g > 0 ? 1 : -1 });
+  }
+  void R; return out;
+}
+/* projections −1 et −2 de la jambe du dernier MSS (1 et 2 fois la jambe au-delà du swing cassé) */
+export function projections(an) {
+  const e = [...an.structure.evenements].reverse().find(x => x.nature === 'MSS'); if (!e) return null; const B = an.bougies;
+  let ext = e.dir > 0 ? Infinity : -Infinity; for (let k = e.iNiveau; k <= e.i; k++) ext = e.dir > 0 ? Math.min(ext, B[k].l) : Math.max(ext, B[k].h);
+  const jambe = Math.abs(e.niveau - ext); if (!(jambe > 0)) return null;
+  return { dir: e.dir, depart: ext, fin: e.niveau, jambe, p1: e.niveau + e.dir * jambe, p2: e.niveau + e.dir * 2 * jambe, t: e.t };
+}
+/* Fibonacci du dealing range : 0 au sommet pour une lecture haussière (retracement vers le bas), 0 au creux pour une lecture baissière */
+export const NIVEAUX_FIB = Object.freeze([0, 0.5, 0.618, 0.705, 0.786, 1]);
+export function fibonacci(an) {
+  const pd = an.premiumDiscount; if (!pd) return null; const bas = an.tendance.sens === 'baissiere', r = pd.haut - pd.bas;
+  return { haut: pd.haut, bas: pd.bas, sens: bas ? 'baissier' : 'haussier', tDebut: pd.tDebut, niveaux: NIVEAUX_FIB.map(k => ({ k, p: bas ? pd.bas + k * r : pd.haut - k * r })) };
+}

@@ -119,3 +119,8 @@ html.tpv-actif .tor-graph, html.tpv-actif .tor-outils { visibility: hidden; }
 .bv-liste button:hover { border-color: #2b3a46; } .bv-liste i { width: 8px; height: 8px; border-radius: 50%; } .bv-liste small { grid-column: 2 / 4; color: #6b7a84; }
 .bv-case { display: flex; gap: 6px; align-items: center; min-height: 28px; font-size: 11px; color: #aebcc4; }
 .bv-pan[hidden] { display: none !important; }
+
+/* v13 : légende repliable du mode Volume (noms sur chaque ligne et chaque zone : voir noms.js) */
+.tpv-leg { position: absolute; left: 10px; bottom: 34px; z-index: 6; max-width: min(380px, calc(100% - 20px)); padding: 6px 10px; border: 1px solid rgba(160,175,185,.45); border-radius: 6px; background: rgba(8,12,16,.92); color: #d7e3ea; font: 13px/1.45 system-ui, sans-serif; }
+.tpv-leg summary { cursor: pointer; font-weight: 700; } .tpv-leg b { color: #fff; }
+@media (max-width: 1099px) { .tpv-leg { font-size: 12px; } } @media (max-width: 699px) { .tpv-leg { font-size: 11px; max-height: 40%; overflow: auto; } }

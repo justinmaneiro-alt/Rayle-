@@ -9,7 +9,7 @@ html.tp-terminal:not(.tp-details) .tor-ray-feuille,
 html.tp-terminal:not(.tp-details) .tor-ft-ligne,
 html.tp-terminal:not(.tp-details) .tt-fl,
 html.tp-terminal:not(.tp-details) .tor-ray-carte { display: none !important; }   /* aucune annotation technique sur le graphique propre (carte « Carnet · zone de vente » comprise) */
-.tp-b-hj, .tp-b-details, .tp-b-donnees { margin-left: 8px; min-height: 36px; padding: 4px 12px; border: 1px solid #2a3f4d; border-radius: 8px; background: rgba(8,16,24,.85); color: #cfe3ee; font: 600 13px system-ui, sans-serif; cursor: pointer; }
+.tp-b-hj, .tp-b-details, .tp-b-donnees, .tp-b-ict { margin-left: 8px; min-height: 36px; padding: 4px 12px; border: 1px solid #2a3f4d; border-radius: 8px; background: rgba(8,16,24,.85); color: #cfe3ee; font: 600 13px system-ui, sans-serif; cursor: pointer; }
 .tp-b-donnees[aria-expanded="true"] { background: rgba(20,50,68,.9); border-color: #8fd0e3; } .tp-b-hj { border-color: #8fd0e3; color: #fff; } .tp-b-details[aria-pressed="true"], .tp-b-hj[aria-expanded="true"] { background: rgba(20,50,68,.9); border-color: #8fd0e3; }
 .tp-panneau { position: fixed; z-index: 70; top: 52px; right: 0; bottom: 0; width: min(400px, 100vw); overflow-y: auto; box-sizing: border-box; padding: 10px 14px calc(18px + env(safe-area-inset-bottom, 0px)); background: #070d12; border-left: 1px solid #1a2a35; color: #d7e3ea; font: 13px/1.45 system-ui, sans-serif; }
 .tp-panneau[hidden] { display: none; } .tp-panneau header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; } .tp-panneau header b { font-size: 15px; font-weight: 500; color: #8fd0e3; } .tp-panneau button { min-height: 36px; padding: 4px 10px; border: 1px solid #2a3f4d; border-radius: 8px; background: rgba(8,16,24,.85); color: #cfe3ee; font: inherit; cursor: pointer; }
@@ -24,7 +24,7 @@ html.tp-terminal:not(.tp-details) .tor-ray-carte { display: none !important; }  
 /* tactile : « Données » et « RSI » passent à droite (à gauche, l'icône de la barre de Rayle les cachait) */
 html.tm-tactile .tt-donnees { left: auto; right: 10px; } html.tm-tactile .tt-rsi { left: auto; right: 112px; }
 .tor-graph { position: relative; } .tp-ma-legende { position: absolute; left: 8px; top: 6px; z-index: 5; display: flex; flex-wrap: wrap; gap: 4px 12px; padding: 3px 8px; border-radius: 6px; background: rgba(5,8,12,.78); font: 600 11px system-ui, sans-serif; pointer-events: none; max-width: calc(100% - 90px); } .tp-ma-legende .tp-h { color: #5fb894; } .tp-ma-legende .tp-b { color: #d86a6a; }
-.tp-ligne-boutons { position: absolute; left: 8px; top: 52px; z-index: 7; display: flex; gap: 8px; } .tp-ligne-boutons .tp-b-hj, .tp-ligne-boutons .tp-b-details, .tp-ligne-boutons .tp-b-donnees { margin: 0; min-height: 44px; padding: 4px 14px; background: rgba(5,8,12,.85); }
+.tp-ligne-boutons { position: absolute; left: 8px; top: 52px; z-index: 7; display: flex; gap: 8px; } .tp-ligne-boutons .tp-b-hj, .tp-ligne-boutons .tp-b-details, .tp-ligne-boutons .tp-b-donnees, .tp-ligne-boutons .tp-b-ict { margin: 0; min-height: 44px; padding: 4px 14px; background: rgba(5,8,12,.85); }
 .tp-spot { margin-left: 8px; padding: 1px 7px; border-radius: 8px; background: rgba(241,211,79,.12); color: #f1d34f; font: 600 11px system-ui, sans-serif; white-space: nowrap; } .tp-spot[hidden] { display: none; }
 
 /* UNE seule moyenne mobile : la MA200 de l'unité affichée (couche Trader Pro) ; les anciennes cases « MA200 » du terminal ne servent plus */
@@ -94,3 +94,14 @@ html.tp-terminal .tor-graph .tv-lightweight-charts, html.tp-terminal .tor-graph 
 .tp-mode-flottant { position: absolute; top: 6px; right: 6px; z-index: 6; margin-left: 0; }
 /* v12 : le sélecteur Classique | Volume ne recouvre plus les boutons Log et Auto (ils passent dessous) */
 .tp-mode-flot .tpe-barre { top: 48px; }
+
+/* v13 : bouton ICT et bascule Essentiel | Complet (le bouton garde le style de MA200 / Données / Détails) */
+.tp-b-ict[aria-pressed="true"] { background: rgba(20,50,68,.9); border-color: #8fd0e3; color: #fff; }
+.tp-b-ict[aria-pressed="true"]::after { content: ' ●'; color: #8fd0e3; }
+.tp-ict-mode { display: inline-flex; margin-left: 8px; border: 1px solid #2a3f4d; border-radius: 8px; overflow: hidden; vertical-align: middle; }
+.tp-ict-mode[hidden] { display: none; }
+.tp-ict-mode button { min-height: 34px; padding: 4px 12px; border: 0; background: rgba(8,16,24,.85); color: #8a9aa6; font: 600 13px system-ui, sans-serif; cursor: pointer; }
+.tp-ict-mode button[aria-pressed="true"] { background: rgba(20,50,68,.95); color: #fff; }
+.tp-ligne-boutons .tp-ict-mode { margin: 0; } .tp-ligne-boutons .tp-ict-mode button { min-height: 42px; padding: 4px 12px; }
+@media (max-width: 599px) { .tp-ict-mode { display: none; } .tp-ligne-boutons { flex-wrap: wrap; } }
+html.tm-tactile .ict-carte { top: 112px; }

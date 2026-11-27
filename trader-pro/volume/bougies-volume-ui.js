@@ -73,6 +73,7 @@ export function creerBougiesVolume(cfg) {
   function dessinerZones(sc) {
     if (!peint() || !E.zones || !E.zonesL.length) return; const c = sc.context, hr = sc.horizontalPixelRatio, vr = sc.verticalPixelRatio, W = sc.bitmapSize.width;
     for (const z of E.zonesL) { const x0 = xDe(z.time), y1 = yDe(z.haut), y2 = yDe(z.bas); if (x0 == null || y1 == null || y2 == null) continue; c.fillStyle = rgba(z.dir > 0 ? RGB.achat : RGB.vente, 0.12); const h = Math.max(2 * vr, (y2 - y1) * vr); c.fillRect(Math.max(0, x0 * hr), y1 * vr, W - Math.max(0, x0 * hr), h); }
+    if (E.nomsPropres !== false) { const fs = window.innerWidth >= 1100 ? 13 : window.innerWidth >= 700 ? 12 : 11; c.font = `bold ${fs * hr}px system-ui, sans-serif`; let n = 0; for (const z of E.zonesL.slice(-4)) { const y1 = yDe(z.haut); if (y1 == null) continue; const nom = z.dir > 0 ? 'Zone de volume extrême acheteur' : 'Zone de volume extrême vendeur', w = c.measureText(nom).width; c.fillStyle = 'rgba(10,14,18,.86)'; c.fillRect(W - w - 14 * hr, (y1 + 2 + n * (fs + 7)) * vr, w + 10 * hr, (fs + 5) * vr); c.fillStyle = rgba(z.dir > 0 ? RGB.achat : RGB.vente, 1); c.fillText(nom, W - w - 9 * hr, (y1 + 2 + n * (fs + 7) + fs + 1) * vr); n++; } }
   }
   function dessinerPoints(sc) {
     if (!peint() || !E.colores.length) return; const c = sc.context, hr = sc.horizontalPixelRatio, vr = sc.verticalPixelRatio, W = sc.bitmapSize.width / hr, sp = ts().options().barSpacing || 8, B = E.B, pasMs = pas(), maintenant = Date.now();
@@ -131,7 +132,8 @@ export function creerBougiesVolume(cfg) {
     majDerniere() { if (!E.on || !E.dispo) return; maj(); demander(); },
     actifChange() { E.dispo = dispoPour(); E.colores = []; E.coloresBase = null; E.zonesL = []; E.cle = ''; E.sig = ''; E.zk = ''; fermerFenetre(); majLegende(); },
     actif: () => E.on, seuil: () => E.seuil, zones: () => E.zones, disponible: () => E.dispo,
-    definirActif(v) { E.on = !!v; ecrireLS(CLES.actif(mode), E.on); if (!E.on) fermerFenetre(); maj(); reappliquer(); majLegende(); },
+    zonesNommees: () => (E.zones && E.on ? E.zonesL.map(z => ({ bas: z.bas, haut: z.haut, dir: z.dir })) : []), noms(v) { E.nomsPropres = v !== false; },
+     definirActif(v) { E.on = !!v; ecrireLS(CLES.actif(mode), E.on); if (!E.on) fermerFenetre(); maj(); reappliquer(); majLegende(); },
     definirSeuil(s) { if (!SEUILS.includes(s)) return; E.seuil = s; ecrireLS(CLES.seuil, s); maj(); reappliquer(); },
     definirZones(v) { E.zones = !!v; ecrireLS(CLES.zones, E.zones); demander(); },
     pause(v) { if (E.pause === !!v) return; E.pause = !!v; reappliquer(); majLegende(); },   // empreinte (footprint) affichée : on rend les bougies telles quelles

@@ -44,8 +44,11 @@ export async function monterPro(T) {
   const bHJ = document.createElement('button'); bHJ.type = 'button'; bHJ.className = 'tp-b-hj'; bHJ.textContent = 'MA200'; bHJ.title = 'cassures de la MA200 H4 : flèches, réglage et alertes'; bHJ.setAttribute('aria-expanded', 'false');
   const bStats = document.createElement('button'); bStats.type = 'button'; bStats.className = 'tp-b-donnees tp-b-stats'; bStats.textContent = 'Stats'; bStats.title = 'Statistiques de chaque type de flèche (taux de réussite, R médian, nombre de cas)'; bStats.setAttribute('aria-expanded', 'false');
   const bDon = document.createElement('button'); bDon.type = 'button'; bDon.className = 'tp-b-donnees'; bDon.textContent = 'Données'; bDon.title = 'Score de marché, tendance, volume net, données pro'; bDon.setAttribute('aria-expanded', 'false');
+  /* v13 : bouton ICT (entre MA200 et Données) + bascule Essentiel | Complet ; l'ICT se dessine aussi en graphique propre */
+  const bICT = document.createElement('button'); bICT.type = 'button'; bICT.className = 'tp-b-ict'; bICT.textContent = 'ICT'; bICT.setAttribute('aria-pressed', 'false'); bICT.title = 'Dessiner toute la lecture ICT de l’unité affichée (zones et liquidités nommées, structure, Fibonacci, killzones)';
+  const bMode = document.createElement('span'); bMode.className = 'tp-ict-mode'; bMode.hidden = true; bMode.setAttribute('role', 'group'); bMode.setAttribute('aria-label', 'Lecture ICT : Essentiel ou Complet'); bMode.innerHTML = '<button type="button" data-tp-ict-mode="essentiel" aria-pressed="true">Essentiel</button><button type="button" data-tp-ict-mode="complet" aria-pressed="false">Complet</button>';
   /* PC : à la suite des unités de temps ; tactile : sur une ligne à part sous les unités de temps (la grille de 5 colonnes du mode tactile ne les accueille pas) */
-  if (tactile || (barre && barre.classList.contains('tt-periodes'))) { const ligne = document.createElement('div'); ligne.className = 'tp-ligne-boutons'; ligne.append(bHJ, bDon, bStats, bDet); E.ligneTactile = ligne; } else if (barre) { barre.appendChild(bHJ); barre.appendChild(bDon); barre.appendChild(bStats); barre.appendChild(bDet); } else document.body.append(bHJ, bDon, bStats, bDet);
+  if (tactile || (barre && barre.classList.contains('tt-periodes'))) { const ligne = document.createElement('div'); ligne.className = 'tp-ligne-boutons'; ligne.append(bHJ, bICT, bMode, bDon, bStats, bDet); E.ligneTactile = ligne; } else if (barre) { barre.appendChild(bHJ); barre.appendChild(bICT); barre.appendChild(bMode); barre.appendChild(bDon); barre.appendChild(bStats); barre.appendChild(bDet); } else document.body.append(bHJ, bICT, bMode, bDon, bStats, bDet);
   const attendreGraphique = async () => { for (let i = 0; i < 200; i++) { const g = T.graph; if (g && g.chart && g.chart() && g.serie && g.serie() && T.moteur) return g; await new Promise(r => setTimeout(r, 250)); } return null; };
   const graph = await attendreGraphique(); if (!graph) return null;
   const LW = window.LightweightCharts;
@@ -73,7 +76,7 @@ export async function monterPro(T) {
     const placerHaut = () => { const h = tete ? tete.getBoundingClientRect().bottom : (graph.conteneur() ? graph.conteneur().getBoundingClientRect().top : 56); document.documentElement.style.setProperty('--tpv-haut', Math.max(0, Math.round(h)) + 'px'); };
     const maj = m => { sel.querySelectorAll('[data-mode]').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.mode === m))); };
     async function aller(m, o = {}) {
-      ecrire(MODE, m); maj(m);
+      ecrire(MODE, m); maj(m); bICT.style.display = m === 'volume' ? 'none' : ''; bMode.style.display = m === 'volume' ? 'none' : '';
       if (m === 'volume') { placerHaut(); try { const c = await assurer(); c.ouvrir(true, { actif: o.actif || VOL_DE_ACTIF[actif], unite: o.unite || uniteClassique() }); for (const ms of [800, 2500, 5000]) setTimeout(() => { const u = uniteClassique(); if (ctrl && ctrl.estOuvert() && u && ctrl.etat().unite !== u) ctrl.definir({ unite: u }); }, ms); /* le Classique applique sa période juste après le montage : on se recale dessus */ } catch (e) { maj('classique'); ecrire(MODE, 'classique'); console.warn('[tp] mode Volume indisponible :', e && e.message || e); } }
       else { if (ctrl) ctrl.fermer(); for (const ms of [80, 600, 1800]) setTimeout(() => { try { if (graph.recaler) graph.recaler(); } catch (e) { /* graphique indisponible */ } }, ms); }   // v12 : retour au Classique → échelle recalée (comme TradingView)
     }
@@ -87,7 +90,8 @@ export async function monterPro(T) {
   })();
 
   /* ───── graphique propre / détails ───── */
-  const COUCHES_PROPRES = () => ({ ...Object.fromEntries(Object.keys(graph.couches()).map(k => [k, false])), rayMa: false, rayBoites: false, rayGolden: false, rayNiveaux: false, rayScenarios: false });
+  const ICT_COUCHES = ['ictLiquidite', 'ictStructure', 'ictFvg', 'ictPd', 'ictTemps'];   // l'ICT n'est JAMAIS éteint par le graphique propre : seul son bouton le règle
+  const COUCHES_PROPRES = () => ({ ...Object.fromEntries(Object.keys(graph.couches()).map(k => [k, ICT_COUCHES.includes(k) ? !!graph.couches()[k] : false])), rayMa: false, rayBoites: false, rayGolden: false, rayNiveaux: false, rayScenarios: false });
   /* calques de la stratégie de Rayle (MA200 H1 colorée, boîtes, golden zone, BOS / MSS…) : leur modèle ne se recalcule que sur l'événement « change » de leur case (ou maj(true)) ; changer les calques du graphique ne suffit pas */
   const RAYLE = ['rayMa', 'rayBoites', 'rayGolden', 'rayNiveaux', 'rayScenarios'];
   function majRayle(ks) {
@@ -97,8 +101,14 @@ export async function monterPro(T) {
   function appliquerDetails(b, { sauver = true } = {}) {
     E.details = b; ecrire(LS.details, b); document.documentElement.classList.toggle('tp-details', b); bDet.setAttribute('aria-pressed', String(b));
     try { if (b) { const av = lire(LS.avant, null); if (av) graph.couches({ ...av, rayMa: false }); } else { if (sauver) ecrire(LS.avant, graph.couches()); graph.couches(COUCHES_PROPRES()); } majRayle(b ? ['rayMa'] : RAYLE); } catch (e) { console.warn('[tp] couches :', e.message); }
+    try { if (T.ict && T.ict.reaffirmer) T.ict.reaffirmer(); } catch (e) { /* l'ICT se rétablit à la prochaine mise à jour */ }
     setTimeout(() => { try { graph.chart().timeScale().applyOptions({}); graph.chart().resize(graph.conteneur().clientWidth, graph.conteneur().clientHeight); } catch (e) { /* */ } }, 50);
   }
+  /* boutons ICT : l'état (actif, Essentiel ou Complet) vient du module ict-or.js et revient après rechargement, changement d'unité ou d'actif */
+  const syncIct = () => { try { const e = T.ict && T.ict.etatIct ? T.ict.etatIct() : null; if (!e) return; bICT.setAttribute('aria-pressed', String(!!e.actif)); bMode.hidden = !e.actif; for (const b of bMode.querySelectorAll('[data-tp-ict-mode]')) b.setAttribute('aria-pressed', String(b.dataset.tpIctMode === e.mode)); } catch (err) { /* */ } };
+  bICT.addEventListener('click', () => { if (T.ict) { T.ict.activer(!(T.ict.etatIct().actif)); syncIct(); } });
+  bMode.addEventListener('click', ev => { const b = ev.target.closest('[data-tp-ict-mode]'); if (b && T.ict) { T.ict.mode(b.dataset.tpIctMode); syncIct(); } });
+  window.addEventListener('rayle:ict-etat', syncIct); syncIct(); setTimeout(syncIct, 1500);
   if (!E.details) { appliquerDetails(false, { sauver: !lire(LS.avant, null) }); for (const ms of [2500, 7000]) setTimeout(() => { if (!E.details) appliquerDetails(false, { sauver: false }); }, ms); }   // le mode tactile règle ses propres calques un peu plus tard : on réaffirme le graphique propre
   bDet.addEventListener('click', () => appliquerDetails(!E.details));
   /* UNE seule moyenne sur le graphique : la MA200 de l'unité affichée (la nôtre). Les anciennes options « MA200 » du terminal sont coupées (et masquées par terminal-pro.css). */
