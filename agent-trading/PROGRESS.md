@@ -246,3 +246,10 @@ Capture avant : `captures-or/terminal-avant-1600.png`. Défauts relevés à 1600
 - npm test complet et relance de terminal-v2-chrome (1600/1024/390) APRÈS les derniers retraits de libellés ; invest-chrome.mjs attend 3 onglets (obsolète) ; tests/tout.mjs n'inclut pas encore fleches-terminal-test.mjs ; pas de test Node pour pages-calcul.js ni instruments.js.
 - Non rétablis de l'ancien terminal : carte de chaleur du carnet, rapport du jour, briefing (dépendent du carnet Kraken multi-actifs). Le carnet est absent hors or.
 - Gold-only restant sur les autres instruments (zones d'étude, volume absent pour indices/devises). Rien commité ni déployé.
+# Sans positions sur le graphique (2026-11-27) — fait
+
+- **Retiré de l'affichage** : les lignes « Entrée … (Lecture) », « Stop … · −1 R », « Cible … · 1,8 R brut » et le bloc « Lecture · Entrée … Stop … Cible … » (`dessinerPropositions`) ne sont plus dessinés, avec ou sans ICT, sur PC, tablette et téléphone ; avec l'ICT actif, les flèches de trades du journal ne le sont plus non plus (les boîtes de position étaient déjà masquées par l'ICT).
+- **Couche « Positions de Rayle sur le graphique »** (`positionsRayle`, `graphique-or.js`), éteinte par défaut, dans la liste des couches du menu ⋯ : la cocher réaffiche propositions et flèches du journal. Calcul, registre de suivi, panneau et statistiques inchangés (`graph.propositions()` garde les données).
+- **Inchangés** : ICT, scénarios A et B, petits carrés, mode Volume. Aucun module scellé touché (donc aucun sceau à refaire).
+- **Tests** : `agent-trading/tests/sans-positions-test.mjs` (7, dans `npm test`), Chrome `sans-positions-chrome.mjs` (11 : tab1440, M15 et H4, sans ICT et ICT Complet, espion `fillText` ; témoin positif couche cochée) ; captures dans `agent-trading/RAPPORT-SANS-POSITIONS-captures/`. `npm test` racine : tout passe. Version 2026.11.27.5, précache régénéré.
+- **Piège** : dans les tests, les bougies ont le champ `c` (pas `close`) ; `propositions-or.js` peut remettre la liste à jour, donc injecter puis lire dans le même `evaluate`.
