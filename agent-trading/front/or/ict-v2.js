@@ -196,7 +196,10 @@ const joursDe = B => joursV1(B).map(g => ({ t: B[g.i0].t, o: g.o, h: g.h, l: g.l
 
 /* ── premium / discount ── */
 export function premiumDiscount(B, st, unite, prix) {
-  const ith = st.ITH.length ? st.ITH[st.ITH.length - 1] : null, itl = st.ITL.length ? st.ITL[st.ITL.length - 1] : null; let pd = null;
+  let ith = st.ITH.length ? st.ITH[st.ITH.length - 1] : null, itl = st.ITL.length ? st.ITL[st.ITL.length - 1] : null; let pd = null;
+  /* dealing range recalculé après chaque BOS ou MSS : un extrême déjà cassé en clôture est remplacé par le plus haut (ou le plus bas) atteint depuis, le prix reste dans son range */
+  if (ith && ith.cassee && Number.isInteger(ith.i)) { let h = -Infinity, t = ith.t; for (let k = ith.i; k < B.length; k++) if (B[k].h > h) { h = B[k].h; t = B[k].t; } if (h > ith.p) ith = { ...ith, p: h, t }; }
+  if (itl && itl.cassee && Number.isInteger(itl.i)) { let l = Infinity, t = itl.t; for (let k = itl.i; k < B.length; k++) if (B[k].l < l) { l = B[k].l; t = B[k].t; } if (l < itl.p) itl = { ...itl, p: l, t }; }
   if (ith && itl && ith.p > itl.p) {
     const r = ith.p - itl.p, eq = (ith.p + itl.p) / 2, pos = (prix - itl.p) / r;
     pd = { haut: ith.p, bas: itl.p, equilibre: eq, position: pos, pct: Math.round(pos * 100), zone: prix > eq ? 'premium' : prix < eq ? 'discount' : 'equilibre', tDebut: Math.min(ith.t, itl.t),

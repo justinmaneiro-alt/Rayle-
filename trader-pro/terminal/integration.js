@@ -108,7 +108,7 @@ export async function monterPro(T) {
   const syncIct = () => { try { const e = T.ict && T.ict.etatIct ? T.ict.etatIct() : null; if (!e) return; bICT.setAttribute('aria-pressed', String(!!e.actif)); bMode.hidden = !e.actif; for (const b of bMode.querySelectorAll('[data-tp-ict-mode]')) b.setAttribute('aria-pressed', String(b.dataset.tpIctMode === e.mode)); } catch (err) { /* */ } };
   bICT.addEventListener('click', () => { if (T.ict) { T.ict.activer(!(T.ict.etatIct().actif)); syncIct(); } });
   bMode.addEventListener('click', ev => { const b = ev.target.closest('[data-tp-ict-mode]'); if (b && T.ict) { T.ict.mode(b.dataset.tpIctMode); syncIct(); } });
-  window.addEventListener('rayle:ict-etat', syncIct); syncIct(); setTimeout(syncIct, 1500);
+  window.addEventListener('rayle:ict-etat', () => { syncIct(); try { poserNiveauxHist(uniteAffichee()); } catch (e) { /* les niveaux se rétablissent à la prochaine mise à jour */ } }); syncIct(); setTimeout(syncIct, 1500);
   if (!E.details) { appliquerDetails(false, { sauver: !lire(LS.avant, null) }); for (const ms of [2500, 7000]) setTimeout(() => { if (!E.details) appliquerDetails(false, { sauver: false }); }, ms); }   // le mode tactile règle ses propres calques un peu plus tard : on réaffirme le graphique propre
   bDet.addEventListener('click', () => appliquerDetails(!E.details));
   /* UNE seule moyenne sur le graphique : la MA200 de l'unité affichée (la nôtre). Les anciennes options « MA200 » du terminal sont coupées (et masquées par terminal-pro.css). */
@@ -145,11 +145,14 @@ export async function monterPro(T) {
   /* v4 : niveaux historiques majeurs (plus haut historique, plus hauts / bas annuels, zones de réaction sur 10 ans) en lignes fines pointillées avec une étiquette courte.
      Activés par défaut en Daily ; en H4 et H1 seulement si « partout » est coché dans les réglages. */
   const ECHELLE_AFFICHAGE = { eurusd: 10000 };
+  const ictActif = () => { try { return !!(T.ict && T.ict.etatIct && T.ict.etatIct().actif); } catch (e) { return false; } };
   function poserNiveauxHist(u) {
     try {
-      const s = graph.serie(), actif = E.reglages.niveauxHist !== false && (u === 'J' || E.reglages.niveauxPartout === true), J = E.D ? barresDaily(id, E.D.j) : [];
-      const cle = [u, actif, J.length, J.length ? J[J.length - 1].t : 0, E.longN ? 1 : 0].join('|'); if (cle === E.cleNivHist) return; E.cleNivHist = cle;
+      const ict = ictActif(), s = graph.serie(), actif = !ict && E.reglages.niveauxHist !== false && (u === 'J' || E.reglages.niveauxPartout === true), J = E.D ? barresDaily(id, E.D.j) : [];   // ICT épuré : un prix = une seule ligne, les zones de réaction sur 10 ans sont cachées tant que l'ICT est actif
+      const cle = [u, actif, ict, J.length, J.length ? J[J.length - 1].t : 0, E.longN ? 1 : 0].join('|'); if (cle === E.cleNivHist) return; E.cleNivHist = cle;
       for (const l of E.lignesHist || []) { try { s.removePriceLine(l); } catch (e) { /* déjà retirée */ } } E.lignesHist = [];
+      if (ict && J.length && E.reglages.niveauxHist !== false && (u === 'J' || E.reglages.niveauxPartout === true)) { const R0 = niveauxHistoriques(J, { echelle: ECHELLE_AFFICHAGE[id] || 1 }); E.nivHist = R0.niveaux; try { graph.niveauxAutres(R0.niveaux.map(q => ({ p: q.prix, nom: q.etiquette }))); } catch (e) { /* */ } return; }   // pas tracés : leur nom passe dans la bulle de l'objet ICT qui tombe dessus
+      try { graph.niveauxAutres([]); } catch (e) { /* */ }
       if (!actif || !J.length) { E.nivHist = []; return; }
       const R = niveauxHistoriques(J, { echelle: ECHELLE_AFFICHAGE[id] || 1 }); E.nivHist = R.niveaux;
       for (const n of R.niveaux) E.lignesHist.push(s.createPriceLine({ price: n.prix, color: n.type === 'zone' ? 'rgba(201,178,122,.55)' : n.type === 'ath' ? 'rgba(143,208,227,.6)' : 'rgba(150,165,175,.5)', lineWidth: 1, lineStyle: 3, axisLabelVisible: false, title: n.etiquette }));
