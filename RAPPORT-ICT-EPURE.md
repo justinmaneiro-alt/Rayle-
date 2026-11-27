@@ -75,4 +75,4 @@ Tablette 1440 × 900 (testée), 1024 et téléphone 390 : la barre d'outils ne p
 - « Rayle, explique » ne peut joindre Rayle que dans l'application ; hors de l'application il affiche la question à copier.
 
 ## Résultat final
-Voir la dernière section ajoutée après la fusion (résultat de `npm test`, fusion et poussée).
+`npm test` : **EXIT 0, aucun échec** (dont `ict-epure-test` : 1 155 vérifications, `ict-v2-test` : 95 avec le nouveau sceau, `verrou-v8-test` après le passage en 2026.11.27.3). Chrome sur le chemin réel : `ict-epure-chrome` **tout passe** en tab1440, pc1600, tab1024 et tel390 (bougies simulées, puis vraies bougies de l'or pour tab1440, pc1600 et tel390) ; les anciens `ict-chrome` (chemin `?pro=1`) et `ict-scenarios-chrome` passent aussi. Branche `ict-epure` fusionnée dans `main` et poussée.
