@@ -1,0 +1,579 @@
+{
+ "fichiers": {
+  "calendrier2.json": {
+   "t": 1795889107805,
+   "ok": true,
+   "octets": 10510
+  },
+  "actus-or.json": {
+   "t": 1795889107157,
+   "ok": true,
+   "octets": 10911
+  },
+  "actus-marches.json": {
+   "t": 1795889107283,
+   "ok": true,
+   "octets": 18992
+  },
+  "actus-tout.json": {
+   "t": 1795889107722,
+   "ok": true,
+   "octets": 20890
+  },
+  "yahoo-2y.json": {
+   "t": 1795889107894,
+   "ok": true,
+   "octets": 192131
+  },
+  "banques.json": {
+   "t": 1795885897797,
+   "ok": true,
+   "octets": 17301
+  },
+  "institutions.json": {
+   "t": 1795885897957,
+   "ok": true,
+   "octets": 12678
+  },
+  "sante.json": {
+   "t": 1795889108879,
+   "ok": true,
+   "octets": 28546
+  },
+  "gld.json": {
+   "t": 1795885897716,
+   "ok": true,
+   "octets": 56491
+  },
+  "cot-OR.json": {
+   "t": 1795885899033,
+   "ok": true,
+   "octets": 40147
+  },
+  "cot-SP500.json": {
+   "t": 1795885904258,
+   "ok": true,
+   "octets": 41396
+  },
+  "cot-NASDAQ.json": {
+   "t": 1795885898658,
+   "ok": true,
+   "octets": 39479
+  },
+  "cot-SOL.json": {
+   "t": 1795885907784,
+   "ok": true,
+   "octets": 9084
+  },
+  "cot-DXY.json": {
+   "t": 1795885907955,
+   "ok": true,
+   "octets": 31917
+  },
+  "cot-EURUSD.json": {
+   "t": 1795885904661,
+   "ok": true,
+   "octets": 40502
+  },
+  "cot-BTC.json": {
+   "t": 1795885902571,
+   "ok": true,
+   "octets": 37742
+  },
+  "bougies-_NDX-15m.json": {
+   "t": 1795889126259,
+   "ok": true,
+   "octets": 131850
+  },
+  "bougies-_NDX-5m.json": {
+   "t": 1795889126248,
+   "ok": true,
+   "octets": 89728
+  },
+  "bougies-_NDX-1h.json": {
+   "t": 1795889126287,
+   "ok": true,
+   "octets": 429707
+  },
+  "cot-USDCHF.json": {
+   "t": 1795881612604,
+   "ok": false,
+   "octets": 38315,
+   "erreur": "The operation was aborted due to timeout",
+   "dernierEssai": 1795885929261
+  },
+  "bougies-_GSPC-15m.json": {
+   "t": 1795889126381,
+   "ok": true,
+   "octets": 137320
+  },
+  "bougies-_GSPC-5m.json": {
+   "t": 1795889126362,
+   "ok": true,
+   "octets": 93376
+  },
+  "bougies-_NDX-1d.json": {
+   "t": 1795889126269,
+   "ok": true,
+   "octets": 224172
+  },
+  "bougies-_GSPC-1h.json": {
+   "t": 1795889126413,
+   "ok": true,
+   "octets": 448323
+  },
+  "bougies-BTC_USD-5m.json": {
+   "t": 1795889126494,
+   "ok": true,
+   "octets": 305476
+  },
+  "bougies-_GSPC-1d.json": {
+   "t": 1795889126375,
+   "ok": true,
+   "octets": 231680
+  },
+  "bougies-BTC_USD-15m.json": {
+   "t": 1795889126516,
+   "ok": true,
+   "octets": 440464
+  },
+  "bougies-BTC_USD-1h.json": {
+   "t": 1795889126590,
+   "ok": true,
+   "octets": 1316464
+  },
+  "bougies-SOL_USD-5m.json": {
+   "t": 1795889126678,
+   "ok": true,
+   "octets": 357966
+  },
+  "bougies-SOL_USD-15m.json": {
+   "t": 1795889126699,
+   "ok": true,
+   "octets": 536210
+  },
+  "bougies-BTC_USD-1d.json": {
+   "t": 1795889126533,
+   "ok": true,
+   "octets": 317755
+  },
+  "bougies-SOL_USD-1h.json": {
+   "t": 1795889126822,
+   "ok": true,
+   "octets": 1647424
+  },
+  "bougies-GC_F-15m.json": {
+   "t": 1795889126952,
+   "ok": true,
+   "octets": 358434
+  },
+  "bougies-SOL_USD-1d.json": {
+   "t": 1795889126731,
+   "ok": true,
+   "octets": 242988
+  },
+  "bougies-GC_F-5m.json": {
+   "t": 1795889126915,
+   "ok": true,
+   "octets": 246754
+  },
+  "bougies-GC_F-1h.json": {
+   "t": 1795889127056,
+   "ok": true,
+   "octets": 1098407
+  },
+  "bougies-GC_F-1d.json": {
+   "t": 1795889126909,
+   "ok": true,
+   "octets": 208930
+  },
+  "bougies-DX_Y_NYB-5m.json": {
+   "t": 1795889127385,
+   "ok": true,
+   "octets": 279452
+  },
+  "bougies-DX_Y_NYB-15m.json": {
+   "t": 1795889127319,
+   "ok": true,
+   "octets": 413126
+  },
+  "bougies-DX_Y_NYB-1h.json": {
+   "t": 1795889127417,
+   "ok": true,
+   "octets": 1301829
+  },
+  "bougies-DX_Y_NYB-1d.json": {
+   "t": 1795889127329,
+   "ok": true,
+   "octets": 223679
+  },
+  "bougies-EURUSD_X-5m.json": {
+   "t": 1795889127495,
+   "ok": true,
+   "octets": 371374
+  },
+  "bougies-EURUSD_X-15m.json": {
+   "t": 1795889127538,
+   "ok": true,
+   "octets": 520098
+  },
+  "bougies-EURUSD_X-1h.json": {
+   "t": 1795889127691,
+   "ok": true,
+   "octets": 1605652
+  },
+  "bougies-CHF_X-5m.json": {
+   "t": 1795889127796,
+   "ok": true,
+   "octets": 370425
+  },
+  "bougies-EURUSD_X-1d.json": {
+   "t": 1795889127517,
+   "ok": true,
+   "octets": 242229
+  },
+  "bougies-CHF_X-15m.json": {
+   "t": 1795889127849,
+   "ok": true,
+   "octets": 521120
+  },
+  "bougies-CHF_X-1h.json": {
+   "t": 1795889127979,
+   "ok": true,
+   "octets": 1608578
+  },
+  "jour-US100.json": {
+   "t": 1795885929366,
+   "ok": true,
+   "octets": 102806
+  },
+  "jour-US500.json": {
+   "t": 1795885929447,
+   "ok": true,
+   "octets": 99103
+  },
+  "jour-XAUUSD.json": {
+   "t": 1795885929354,
+   "ok": true,
+   "octets": 94766
+  },
+  "bougies-CHF_X-1d.json": {
+   "t": 1795889127785,
+   "ok": true,
+   "octets": 243398
+  },
+  "jour-BTC.json": {
+   "t": 1795885929500,
+   "ok": true,
+   "octets": 149433
+  },
+  "jour-SOL.json": {
+   "t": 1795885929481,
+   "ok": true,
+   "octets": 88158
+  },
+  "jour-USDCHF.json": {
+   "t": 1795885929611,
+   "ok": true,
+   "octets": 81672
+  },
+  "jour-EURUSD.json": {
+   "t": 1795885929491,
+   "ok": true,
+   "octets": 87944
+  },
+  "jour-GBPUSD.json": {
+   "t": 1795885929585,
+   "ok": true,
+   "octets": 87882
+  },
+  "jour-USDJPY.json": {
+   "t": 1795885929606,
+   "ok": true,
+   "octets": 97180
+  },
+  "jour-AUDUSD.json": {
+   "t": 1795885929696,
+   "ok": true,
+   "octets": 85458
+  },
+  "jour-EURCHF.json": {
+   "t": 1795885929591,
+   "ok": true,
+   "octets": 81856
+  },
+  "jour-VIX.json": {
+   "t": 1795885930010,
+   "ok": true,
+   "octets": 76041
+  },
+  "jour-DXY.json": {
+   "t": 1795885929729,
+   "ok": true,
+   "octets": 89965
+  },
+  "jour-US10Y.json": {
+   "t": 1795885929701,
+   "ok": true,
+   "octets": 69953
+  },
+  "jour-US2Y.json": {
+   "t": 1795885929909,
+   "ok": true,
+   "octets": 65336
+  },
+  "marches-ensemble.json": {
+   "t": 1795889114440,
+   "ok": true,
+   "octets": 17860
+  },
+  "marches-or.json": {
+   "t": 1795889120779,
+   "ok": true,
+   "octets": 16375
+  },
+  "marches-us100.json": {
+   "t": 1795889120781,
+   "ok": true,
+   "octets": 21746
+  },
+  "marches-btc.json": {
+   "t": 1795889124418,
+   "ok": true,
+   "octets": 15941
+  },
+  "marches-usd.json": {
+   "t": 1795889124420,
+   "ok": true,
+   "octets": 14006
+  },
+  "marches-chf.json": {
+   "t": 1795889124422,
+   "ok": true,
+   "octets": 11642
+  },
+  "marches-macro.json": {
+   "t": 1795889124915,
+   "ok": true,
+   "octets": 21383
+  },
+  "marches-cot.json": {
+   "t": 1795889124916,
+   "ok": true,
+   "octets": 19936
+  },
+  "marches-calendrier.json": {
+   "t": 1795889124918,
+   "ok": true,
+   "octets": 3321
+  },
+  "marches-actualites.json": {
+   "t": 1795889124920,
+   "ok": true,
+   "octets": 23352
+  },
+  "marches-correlations.json": {
+   "t": 1795889126072,
+   "ok": true,
+   "octets": 3296
+  },
+  "marches-calendrier-or.json": {
+   "t": 1795889126074,
+   "ok": true,
+   "octets": 2270
+  },
+  "marches-calendrier-us100.json": {
+   "t": 1795889126075,
+   "ok": true,
+   "octets": 2270
+  },
+  "marches-calendrier-btc.json": {
+   "t": 1795889126076,
+   "ok": true,
+   "octets": 2270
+  },
+  "marches-calendrier-usd.json": {
+   "t": 1795889126077,
+   "ok": true,
+   "octets": 2270
+  },
+  "marches-calendrier-chf.json": {
+   "t": 1795889126078,
+   "ok": true,
+   "octets": 748
+  },
+  "marches-actualites-or.json": {
+   "t": 1795889126078,
+   "ok": true,
+   "octets": 2281
+  },
+  "marches-actualites-us100.json": {
+   "t": 1795889126079,
+   "ok": true,
+   "octets": 7531
+  },
+  "marches-actualites-btc.json": {
+   "t": 1795889126080,
+   "ok": true,
+   "octets": 998
+  },
+  "marches-actualites-usd.json": {
+   "t": 1795889126080,
+   "ok": true,
+   "octets": 2224
+  },
+  "marches-actualites-chf.json": {
+   "t": 1795889126081,
+   "ok": true,
+   "octets": 311
+  },
+  "marches-sources.json": {
+   "t": 1795889126082,
+   "ok": true,
+   "octets": 10883
+  },
+  "jour-XAGUSD.json": {
+   "t": 1795885929373,
+   "ok": true,
+   "octets": 82524
+  },
+  "jour-WTI.json": {
+   "t": 1795885929360,
+   "ok": true,
+   "octets": 86808
+  },
+  "pro-or.json": {
+   "t": 1795889129555,
+   "ok": true,
+   "octets": 415027
+  },
+  "pro-us100.json": {
+   "t": 1795889129555,
+   "ok": true,
+   "octets": 340961
+  },
+  "pro-us500.json": {
+   "t": 1795889129555,
+   "ok": true,
+   "octets": 322180
+  },
+  "pro-btc.json": {
+   "t": 1795889129555,
+   "ok": true,
+   "octets": 464664
+  },
+  "pro-sol.json": {
+   "t": 1795889129555,
+   "ok": true,
+   "octets": 396164
+  },
+  "pro-dxy.json": {
+   "t": 1795889129555,
+   "ok": true,
+   "octets": 358370
+  },
+  "pro-eurusd.json": {
+   "t": 1795889129555,
+   "ok": true,
+   "octets": 326911
+  },
+  "actus-accueil-france.json": {
+   "t": 1795889106213,
+   "ok": true,
+   "octets": 45865
+  },
+  "actus-accueil-monde.json": {
+   "t": 1795889107853,
+   "ok": true,
+   "octets": 38190
+  },
+  "actus-accueil-marches.json": {
+   "t": 1795889107904,
+   "ok": true,
+   "octets": 34905
+  },
+  "bougies-ES_F-1d.json": {
+   "t": 1795889128068,
+   "ok": true,
+   "octets": 129954
+  },
+  "bougies-NQ_F-1d.json": {
+   "t": 1795889128099,
+   "ok": true,
+   "octets": 133710
+  },
+  "bougies-NQ_F-1h.json": {
+   "t": 1795889128188,
+   "ok": true,
+   "octets": 727381
+  },
+  "bougies-ES_F-1h.json": {
+   "t": 1795889128146,
+   "ok": true,
+   "octets": 683304
+  },
+  "bougies-6E_F-1d.json": {
+   "t": 1795889128275,
+   "ok": true,
+   "octets": 242233
+  },
+  "bougies-6E_F-1h.json": {
+   "t": 1795889128424,
+   "ok": true,
+   "octets": 1322841
+  },
+  "bougies-DX_F-1h.json": {
+   "ok": false,
+   "erreur": "query1.finance.yahoo.com a répondu 404",
+   "dernierEssai": 1795215106857
+  },
+  "bougies-DX_F-1d.json": {
+   "ok": false,
+   "erreur": "query1.finance.yahoo.com a répondu 404",
+   "dernierEssai": 1795215106859
+  },
+  "bougies-6S_F-1d.json": {
+   "t": 1795889128317,
+   "ok": true,
+   "octets": 244255
+  },
+  "bougies-6S_F-1h.json": {
+   "t": 1795889128449,
+   "ok": true,
+   "octets": 1310855
+  },
+  "__marches__": {
+   "ok": false,
+   "erreur": "délai de 90 s dépassé",
+   "dernierEssai": 1795202556618
+  },
+  "bougies-CL_F-15m.json": {
+   "t": 1795889127152,
+   "ok": true,
+   "octets": 408884
+  },
+  "bougies-CL_F-1d.json": {
+   "t": 1795889127136,
+   "ok": true,
+   "octets": 233804
+  },
+  "bougies-CL_F-5m.json": {
+   "t": 1795889127129,
+   "ok": true,
+   "octets": 275350
+  },
+  "bougies-CL_F-1h.json": {
+   "t": 1795889127232,
+   "ok": true,
+   "octets": 1237725
+  },
+  "pro-petrole.json": {
+   "t": 1795889129555,
+   "ok": true,
+   "octets": 362702
+  }
+ },
+ "t": 1795889129555,
+ "lot": "bougies",
+ "avertissement": "Données publiques de marché, différées ; copie précédente conservée quand une source échoue."
+}
